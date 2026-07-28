@@ -2,74 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.23`.
+Active cursor: `0.33.24.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.23 - Branded Error Surfaces and Correlated Failure Handling
-
-**Model: High Effort** — Error classification sits on every route and must improve recovery without leaking protected resource existence or production diagnostics.
-
-Purpose:
-
-Replace barren Express responses and inconsistent browser failures with one secure error contract: structured JSON for APIs, branded resilient HTML for browser navigation, and one clear recovery action for client-rendering failures.
-
-Decision:
-
-Route class determines response format; API paths never receive HTML and browser document routes never fall through to raw JSON/text. Existing request-context IDs are the correlation IDs. Expected errors expose only approved user-safe messages, while unexpected errors show a generic message plus the request ID and write the complete safe diagnostic event server-side under that same ID.
-
-Dependencies and baseline:
-
-- Build on `AppError`, `attachRequestContext`, operational JSON logging, transport-security headers, `staticService`, and the existing `/api/v1` versioned envelope.
-- Keep operational `/healthz`, `/readyz`, and `/api/app-info` minimal and machine-readable. Proxy-level planned/outage maintenance when the app is stopped belongs to 0.33.24.
-
-Non-goals:
-
-- No stack traces, SQL details, filesystem paths, environment values, credentials, raw errors, hidden record labels, or resource-existence confirmation in production responses.
-- No new telemetry vendor, hosted error-reporting service, automatic retry of unsafe mutations, or attempt to keep the Node process alive after an unrecoverable startup failure.
-
-### Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
-
-**Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
-
-- [ ] Inventory current `AppError`, direct `response.status(...)`, static-route, module-route, async rejection, unknown-route, and method-not-allowed behavior before defining stable codes for 401, 403, 404, 409, 429, 500, and 503.
-- [ ] Keep `/api/v1` in its versioned envelope and standardize internal `/api` errors as structured JSON with stable code, safe message, and request ID. Migrate shared browser fetch parsing and affected callers together; do not leave mixed string/object handling as the new permanent contract.
-- [ ] Add final API not-found/method handlers after all API routes, final browser not-found handling after all public/protected document routes, and the Express error middleware last. Content negotiation must not let an API path return the branded HTML page.
-- [ ] Use the existing request ID for every response and structured server diagnostic. Unexpected errors log type/stack and safe route/actor/workspace context only through the protected logger; responses remain generic.
-- [ ] Preserve 403/404 non-enumeration for protected resources and map dependency-unavailable conditions to 503 only when the distinction is safe and actionable.
-
-Acceptance criteria:
-
-- Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
-
-### Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
-
-**Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
-
-- [ ] Add self-contained framework-owned browser pages/states for login-required, unavailable/forbidden-or-not-found, conflict, unexpected error, and temporary dependency unavailability. Use safe generic copy where 403/404 must remain indistinguishable.
-- [ ] Keep the fallback shell independent of workspace/module/database reads and optional application assets so a runtime database/dependency failure can still render it while the Node process is alive. Preserve security/no-store headers, keyboard use, responsive layout, theme-safe rendering, and a visible request ID for unexpected failures.
-- [ ] Give each surface one useful recovery action selected by context: sign in, return to the last safe page/dashboard, reload a read, or retry later. Never automatically replay a mutation.
-- [ ] Add a top-level browser rendering/unhandled-rejection boundary plus shared fetch-error presentation so client-rendering failures replace broken content with the recovery surface instead of leaving a blank page. Keep module-specific validation in its owning workflow.
-- [ ] Give permission-denied (403) action failures a shared in-app modal/dialog telling the user they do not have permission for the attempted action (promoted from TODO 2026-07-21), replacing today's per-page inline strings and silent failures; today only 401 has a global interceptor. Use safe generic copy wherever 403/404 must remain indistinguishable for protected resources, and leave the existing server-side `security.authorization.denied` security-event logging unchanged — this slice adds only the user-facing half.
-- [ ] Prove unknown public/protected routes, expired auth, forbidden/hidden records, conflict, thrown errors, database-unavailable reads, failed dynamic rendering, history navigation, focus return, and screen-reader announcements.
-
-Acceptance criteria:
-
-- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
-
-### Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
-
-**Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
-
-- [ ] Document error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
-- [ ] Add module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
-- [ ] Add regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
-- [ ] Run API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
-
-Acceptance criteria:
-
-- The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
 
 ## Version 0.33.24 - Operator Maintenance Mode and Deployment Outage Curtain
 
@@ -95,50 +31,134 @@ Non-goals:
 - Maintenance mode curtains public traffic; it does not by itself stop Node/workers or prove a backup is complete. Operators still use the reviewed service/backup procedures when quiescence is required.
 - Do not claim maintenance is scheduled, data is safe, or a backup is running unless the helper actually has evidence for that statement; default page copy stays truthful and generic.
 
-### Version 0.33.24.1 - Generic maintenance assets, marker ownership, and proxy contract
+Session-sizing decision:
 
-**Model: High Effort** — A proxy matcher or filesystem-permission error can bypass maintenance, expose host paths, or give an operator account unintended content/configuration write access.
+Each numbered version below is one implementation session, including its focused regressions, owning-document disposition, version/changelog/roadmap bookkeeping, canonical `npm run verify:slice`, and runtime proof where the slice requires it. Do not combine adjacent versions merely because they touch the same privileged host boundary. If implementation reveals another independent failure domain, add a new numbered version instead of broadening the active session.
 
-- [ ] Promote the staged page/toggle/Caddy concept into hostname-neutral tracked assets. Remove hard-coded `mike`, hostnames, WireGuard addresses, and archive-only paths; configure reviewed values through the existing root-owned host environment/install boundary.
-- [ ] Install the maintenance page and proxy configuration root-owned and non-writable by the toggle/deployment accounts. Put only marker/state files in a narrowly writable directory so permission to toggle cannot replace page content, Caddy configuration, application releases, or secrets.
-- [ ] Support independent idempotent operator and deployment markers. Maintenance is active when either exists; `off` removes only the caller-owned marker so a deploy cannot cancel an operator hold and an operator cannot accidentally clear a failed-deploy curtain.
-- [ ] Serve a self-contained, accessible, responsive Longtail Forge page with generic temporary-unavailability copy, HTTP 503, `Retry-After`, `Cache-Control: no-store`, reviewed security headers, no external dependencies, and periodic refresh. Prefer passive light/dark system styling over executable page logic unless an equally strict CSP-safe theme mechanism is proven.
-- [ ] Exempt only `/healthz`, `/readyz`, and `/api/app-info` from the marker route. When Node is running they must return their real machine-readable app responses for monitoring/version proof; when Node is unavailable they must fail non-200 rather than returning a false healthy page.
-- [ ] Add a private-Caddy upstream-failure handler so an unexpected Node outage receives the same safe 503 curtain even when no marker was set, while the diagnostic exemptions remain non-200 and machine-checkable rather than falsely healthy.
-- [ ] Keep direct Caddy and bounded multi-proxy peer/header restrictions unchanged. Add disposable proxy tests for marker on/off, exact exemptions, methods/query strings, 503 body/headers, cache behavior, refresh, security headers, and forged forwarding values.
+### Version 0.33.24.1 - Root-owned maintenance asset and marker helper
 
-Acceptance criteria:
+**Model: High Effort** — Filesystem ownership and marker semantics form a privileged host boundary where one writable path or unsafe helper operation could grant configuration or content replacement.
 
-- An authorized operator can toggle a root-controlled maintenance curtain without reload or content/config write access; normal requests receive the reviewed 503 while diagnostic endpoints report the underlying app truthfully.
-
-### Version 0.33.24.2 - Backup-first deploy/rollback integration and failure safety
-
-**Model: High Effort** — Candidate failure and rollback recovery must never reopen traffic to a stopped, unverified, or partially restored application.
-
-- [ ] Change the reviewed host deploy helper to create its deployment marker before stopping Node/worker work and to leave Caddy running. Remove the current normal-path stop/start of the edge while preserving emergency traffic closure for unrecoverable proxy/security failures.
-- [ ] Keep artifact verification and dependency installation before the outage window. During the curtain, run backup/restore, release switch, direct loopback readiness, public `/api/app-info`, health, and readiness identity checks through the exempt routes before removing only the deployment marker.
-- [ ] Preserve a pre-existing operator marker throughout deploy and rollback. On backup failure, candidate failure, rollback failure, or current-release recovery failure, encode exact rules for restarting the last known-good app and for keeping the deployment marker active whenever verified service has not been restored.
-- [ ] Make helper cleanup signal-safe and idempotent without a broad trap that reopens traffic on failure. Record safe operator/deploy marker owner, reason class, start/end timestamps, candidate identity, and outcome in protected host logs/state without secrets.
-- [ ] Add failure-injection coverage for pre-backup failure, app stop, migration/start failure, wrong app identity, failed restore, failed rollback, repeated deploy/rollback, stale marker recovery, and an already-active operator hold.
+- [ ] Promote the staged page/toggle concept into hostname-neutral tracked assets. Remove hard-coded `mike`, hostnames, WireGuard addresses, and archive-only paths; configure reviewed installation values through the existing root-owned host environment/install boundary.
+- [ ] Install the maintenance page and toggle helper root-owned and non-writable by operator/deployment accounts. Put only caller-owned marker/state files in narrowly writable directories, reject symbolic-link/path substitution, and keep Caddy configuration, application releases, secrets, and page content outside that write boundary.
+- [ ] Support independent idempotent operator and deployment markers plus safe `on`, `off`, and `status` behavior. Maintenance is active when either marker exists; `off` removes only the caller-owned marker so neither actor can clear the other's hold.
+- [ ] Ship one self-contained, accessible, responsive Longtail Forge page with truthful generic temporary-unavailability copy, periodic refresh, no external dependencies, and passive system light/dark styling. The page must not claim scheduled work, backup success, data safety, or application health.
+- [ ] Add focused installation/helper regressions for owner/mode expectations, immutable assets, marker isolation, repeated commands, missing/stale state, symbolic-link rejection, and absence of real host/account values.
 
 Acceptance criteria:
 
-- Deploys and rollbacks show maintenance instead of raw 502s, never clear someone else's hold, and reopen traffic only after the intended known-good app passes direct and public identity/readiness checks.
+- An authorized operator or deployment helper can independently assert and inspect a maintenance hold without gaining page/configuration write access or clearing another actor's hold.
 
-### Version 0.33.24.3 - Public-edge fallback, operator runbook, live proof, and closeout
+### Version 0.33.24.2 - Private-Caddy maintenance routing and Node-outage fallback
 
-**Model: High Effort** — The outer fallback and live rollout touch the real multi-proxy availability boundary and require host evidence beyond local configuration tests.
+**Model: High Effort** — Request matching and error routing must preserve truthful probes and the exact direct-Caddy and bounded multi-proxy trust contracts during both planned and unexpected outages.
 
-- [ ] Add a reviewed Nginx static fallback for edge-generated 502/503/504 in the exact bounded multi-proxy example, with the same generic page semantics, `Retry-After`, no-store/security headers, and an internal asset route that cannot become a public file server. Do not intercept/replace a valid Caddy or application 503 response. Preserve exact-host rejection, upload streaming/limits, forwarding-header replacement, and WireGuard-only upstream access.
-- [ ] Define which layer owns the response in normal maintenance, Node-down, private-Caddy-down, tunnel-down, and public-edge-down scenarios. A public-edge outage remains unavailable rather than being mislabeled as application maintenance.
-- [ ] Update internet deployment, preview deployment, release/rollback, private-preview readiness, and host-helper documentation with install, validate, toggle, status, stale-marker recovery, emergency containment, rollback, and permission instructions. Keep real host values in the private operational record, not tracked examples.
-- [ ] Extend the direct and multi-proxy smoke harnesses to prove Caddy and Nginx configuration validation, normal pass-through, marker maintenance, upstream failure fallback, diagnostic endpoint truth, forwarding security, and recovery without proxy reload.
-- [ ] Roll out to both preview/demo hosts only after root-owned asset/config review and backups. Capture `caddy validate`, `nginx -t`, marker on/off HTTP evidence, Node-down fallback, successful deploy/rollback exercise, ownership/mode inspection, and `/api/app-info` identity. Do not close the branch from repo-local proof alone.
-- [ ] During operator handoff, retire or clearly label any local host-specific staging copies so they cannot be mistaken for the governing tracked configuration. Run canonical slice verification and the exceptional live deployment proof required by this branch.
+- [ ] Integrate the tracked page and marker contract into both reviewed Caddy examples without introducing host-specific values or changing the direct-edge and Nginx -> WireGuard -> Caddy peer/header restrictions.
+- [ ] While either marker is active, serve the maintenance page for normal application requests with HTTP 503, `Retry-After`, `Cache-Control: no-store`, reviewed security headers, and no reload requirement.
+- [ ] Exempt exactly `/healthz`, `/readyz`, and `/api/app-info`. When Node is running they return the real machine-readable application responses; when Node is unavailable they remain non-200 and never receive a false healthy or branded HTML response.
+- [ ] Add private-Caddy upstream-failure handling so an unexpected Node outage receives the same safe 503 curtain for normal application requests even without a marker, while diagnostic exemptions remain truthful.
+- [ ] Extend disposable direct and bounded-multi-proxy Caddy tests for marker on/off, both markers together, exact exemptions, methods/query strings, body/headers/cache/refresh/security behavior, upstream failure, recovery without reload, and forged forwarding values.
 
 Acceptance criteria:
 
-- Both supported proxy topologies have a tested maintenance response for planned Node downtime, the multi-proxy path has a tested outer fallback for upstream failure, host permissions are least-privilege, and live preview/demo evidence proves traffic reopens only to a verified app.
+- Both supported private-Caddy topologies return the reviewed curtain for planned or unexpected Node unavailability while diagnostic endpoints and forwarding authority remain truthful and regression-locked.
+
+### Version 0.33.24.3 - Successful deployment curtain and verified reopening
+
+**Model: High Effort** — The privileged helper must change service sequencing without reopening traffic before backup, candidate startup, and release identity have succeeded.
+
+- [ ] Extend the root-owned helper environment/install contract with the reviewed maintenance-marker locations and validate their ownership, modes, file types, and separation from deployment inbox/state.
+- [ ] Create the deployment marker before stopping the application service and leave Caddy running on the normal deploy path. Keep artifact checksum/metadata verification, extraction, and dependency installation before the outage window.
+- [ ] Perform the stopped-app backup, release switch, application start, direct loopback readiness, and public `/api/app-info`, `/healthz`, and `/readyz` identity checks through the Caddy exemptions before removing only the deployment marker.
+- [ ] Preserve a pre-existing operator marker throughout the operation. Default interruption/failure behavior is fail-closed: the deployment marker remains until a later verified recovery or explicit reviewed stale-marker procedure resolves it.
+- [ ] Add a disposable privileged-helper harness for the complete successful first deploy and upgrade paths, an already-active operator hold, repeated marker assertion, exact service order, Caddy continuity, and verified reopening.
+
+Acceptance criteria:
+
+- A successful deployment shows the maintenance curtain throughout stopped-app work and removes only its own hold after the exact intended application is directly and publicly ready.
+
+### Version 0.33.24.4 - Failed-deployment recovery and protected operation state
+
+**Model: High Effort** — Candidate failure handling crosses backup restore, release identity, signals, privileged state, and the decision whether public traffic may safely reopen.
+
+- [ ] Encode exact failed-deploy behavior for pre-backup failure, application stop failure, migration/start failure, wrong candidate identity, failed prior-backup restore, and failed current-release recovery.
+- [ ] Restart and verify the last known-good application after a recoverable failure, but keep the deployment marker active whenever direct and public readiness/identity proof has not succeeded. Never use a broad cleanup trap that reopens traffic merely because the helper is exiting.
+- [ ] Make interruption and retry handling signal-safe and idempotent. Preserve a pre-existing operator marker and retained backups/release metadata across every failure path.
+- [ ] Record protected, secret-free operation evidence containing marker owner, reason class, start/end timestamps, candidate identity, recovery identity, and outcome; deployment/operator accounts must not be able to rewrite the governing record.
+- [ ] Add failure-injection coverage for every named deploy failure, repeated recovery, signals at each service-state transition, retained marker/backup behavior, and an already-active operator hold.
+
+Acceptance criteria:
+
+- A failed deployment either restores and verifies the known-good application before clearing only its deployment hold, or remains safely curtained with protected evidence and recovery artifacts intact.
+
+### Version 0.33.24.5 - Rollback curtain, failed-rollback recovery, and stale-state handling
+
+**Model: High Effort** — Rollback can combine destructive restore work with two possible application identities, so failure must not lose the recoverable current state or expose a partially restored release.
+
+- [ ] Assert the deployment marker before stopping the current application for an explicit rollback, preserve any operator marker, and keep Caddy running throughout the normal rollback path.
+- [ ] Back up the current state, restore the recorded previous database and Files with its matching release metadata, and require direct plus public readiness/identity proof before clearing only the deployment marker.
+- [ ] If the rollback candidate fails, restore and verify the pre-rollback current release and data. If that recovery also fails, retain the curtain, both recovery units, and protected state needed for manual restoration.
+- [ ] Define idempotent repeated rollback, interrupted rollback, stale deployment-marker, and stale operation-state recovery without letting an operator `off` command erase deployment-owned evidence.
+- [ ] Extend the privileged-helper harness for failed backup, failed restore, failed rollback start/identity, failed current-release recovery, repeated rollback, signals, stale-marker recovery, and operator-hold preservation.
+
+Acceptance criteria:
+
+- Rollback reopens traffic only to a fully restored and identity-verified previous or recovered-current release; every unresolved state remains curtained and recoverable.
+
+### Version 0.33.24.6 - Public-Nginx transport fallback and response ownership
+
+**Model: High Effort** — The public edge must distinguish transport failure from a valid upstream response without weakening exact-host rejection, upload behavior, forwarding authority, or private-tunnel isolation.
+
+- [ ] Add a root-owned self-contained fallback asset and reviewed Nginx handling for edge-generated 502/503/504 in the exact bounded multi-proxy example, with generic copy, `Retry-After`, no-store/security headers, and an internal asset route that cannot become a public file server.
+- [ ] Preserve a valid Caddy or application 503 response rather than replacing it, and preserve unknown-host/SNI rejection, login limiting, streamed upload behavior and limits, forwarding-header replacement, timeouts, and WireGuard-only upstream access.
+- [ ] Define executable response ownership for normal marker maintenance, Node-down with Caddy available, private-Caddy-down, tunnel/app-host failure, and public-edge failure. A failed public edge remains unavailable rather than being mislabeled as application maintenance.
+- [ ] Extend the disposable Nginx/multi-proxy smoke for configuration validation, normal pass-through, preserved upstream maintenance, edge-generated fallback, diagnostic endpoint behavior, internal-route isolation, forwarding security, and recovery without reloading Caddy.
+
+Acceptance criteria:
+
+- The bounded public edge returns the generic fallback only when it owns the upstream transport failure, while valid inner responses and every existing proxy-security contract remain intact.
+
+### Version 0.33.24.7 - Operator documentation and full local release rehearsal
+
+**Model: High Effort** — These are governing privileged-operation instructions whose exact ordering and failure claims must match the implemented helper and both proxy layers.
+
+- [ ] Update internet deployment, preview deployment, release/rollback, private-preview readiness, and host-helper documentation with install, validate, toggle, status, stale-marker recovery, emergency containment, rollback, permission, evidence-retention, and uninstall/retirement instructions. Keep real host values in the private operational record.
+- [ ] Document which layer owns the response in normal maintenance, Node-down, private-Caddy-down, tunnel-down, public-edge-down, failed deploy, failed rollback, and verified recovery scenarios.
+- [ ] Add or extend a release-level rehearsal that composes the asset/helper, direct Caddy, bounded Nginx/WireGuard/Caddy, deploy, failed-candidate recovery, rollback, and stale-state harnesses and proves recovery without a proxy reload.
+- [ ] Reconcile documentation ownership and regression-manifest routing for every new tracked asset/helper/harness so future changes select the governing operator docs and release coverage.
+- [ ] Clearly label the host-specific archive staging copies as historical/non-governing and document their safe retirement after live installation.
+
+Acceptance criteria:
+
+- A new operator can install, exercise, diagnose, recover, and retire the maintenance boundary from tracked instructions, and the complete repo-local rehearsal proves every supported ownership transition before live rollout.
+
+### Version 0.33.24.8 - Demo canary rollout and recovery exercise
+
+**Model: High Effort** — This is the first root-owned live installation and deliberately exercises outage and rollback behavior against the isolated demo environment.
+
+- [ ] Back up the demo host and public-edge configuration/data first, then review and install the exact tracked root-owned assets, helper, Caddy configuration, and Nginx fallback with least-privilege ownership/modes.
+- [ ] Capture `caddy validate`, `nginx -t`, ownership/mode inspection, marker on/off HTTP status/body/header evidence, diagnostic-exemption truth, Node-down fallback, and recovery without proxy reload.
+- [ ] Exercise a successful deployment, an injected failed candidate with known-good recovery, and a successful rollback/restore-forward cycle; record exact release and backup identities without secrets.
+- [ ] Verify public `/healthz`, `/readyz`, and `/api/app-info` after each reopened state. If any recovery or identity proof fails, keep the demo curtain active and do not proceed to preview.
+- [ ] Record the demo canary result in the private operational evidence location and carry only safe generic proof into tracked closeout documentation.
+
+Acceptance criteria:
+
+- Demo proves the complete maintenance, deployment-failure, rollback, and recovery contract on live infrastructure without weakening proxy trust or proceeding past an unresolved curtain.
+
+### Version 0.33.24.9 - Preview rollout, cross-host proof, and branch closeout
+
+**Model: High Effort** — Friends-and-family infrastructure requires immutable-main deployment evidence, protected host changes, and final branch bookkeeping without treating technical success as authorization to invite users.
+
+- [ ] Proceed only from a green demo canary. Back up preview host and public-edge configuration/data, review the exact tracked assets, and install them root-owned with the same least-privilege marker boundary.
+- [ ] Capture `caddy validate`, `nginx -t`, ownership/mode inspection, marker on/off evidence, diagnostic-exemption truth, Node-down and transport fallback, recovery without reload, and a successful deploy/rollback/restore-forward exercise against exact immutable release identities.
+- [ ] Verify both live hosts return the intended `/healthz`, `/readyz`, and `/api/app-info` identities after traffic reopens, and that unresolved operator/deployment holds continue to curtain traffic independently.
+- [ ] Retire or unmistakably label local host-specific staging copies so they cannot be mistaken for governing tracked configuration; preserve private real-host evidence outside the repository.
+- [ ] Complete changelog, roadmap/archive handoff, version metadata, canonical slice verification, protected promotion/manual-preview proof, and final public runtime identity. Keep the separate private-preview readiness record and explicit invite/no-invite decision unchanged.
+
+Acceptance criteria:
+
+- Both live hosts prove least-privilege maintenance and verified recovery, preview runs the exact approved immutable release, tracked planning is closed out, and no invitation-readiness claim is inferred from deployment success alone.
 
 ## Version 0.33.25 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
 

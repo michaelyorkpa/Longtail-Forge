@@ -12,7 +12,11 @@ downloadButton?.addEventListener("click", async () => {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(body.error || "Account data could not be exported.");
+      throw window.LongtailForge?.errors?.createError?.(
+        body,
+        "Account data could not be exported.",
+        response.status,
+      ) || new Error("Account data could not be exported.");
     }
     const blob = new window.Blob([`${JSON.stringify(body, null, 2)}\n`], { type: "application/json" });
     const url = window.URL.createObjectURL(blob);

@@ -30,7 +30,9 @@ try {
     const response = await api.get("/api/search?text=route-contract");
 
     assert.equal(response.status, 401);
-    assert.equal(response.body.error, "Login required.");
+    assert.equal(response.body.error.code, "authentication_required");
+    assert.equal(response.body.error.message, "Login required.");
+    assert.equal(response.body.error.requestId, response.headers["x-request-id"]);
   });
 
   await checkAsync("GET /api/search returns active-workspace search results", async () => {
@@ -502,6 +504,7 @@ async function request(baseUrl, method, url, options = {}) {
 
   return {
     body: parsedBody,
+    headers: Object.fromEntries(response.headers.entries()),
     status: response.status,
   };
 }

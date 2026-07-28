@@ -80,7 +80,9 @@ try {
       rememberMe: invalidValue,
     });
     assert.equal(invalid.status, 400, `rememberMe=${JSON.stringify(invalidValue)} must be rejected`);
-    assert.deepEqual(invalid.body, { error: "Remember me must be a boolean." });
+    assert.equal(invalid.body.error.code, "bad_request");
+    assert.equal(invalid.body.error.message, "Remember me must be a boolean.");
+    assert.match(invalid.body.error.requestId, /^[0-9a-f-]{36}$/i);
   }
   assert.equal(
     Number((await db.get("SELECT COUNT(*) AS count FROM sessions;")).count),

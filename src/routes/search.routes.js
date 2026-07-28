@@ -7,6 +7,7 @@ import { helpService, HELP_SEARCH_RECORD_TYPE } from "../services/help.service.j
 import { permissionsService } from "../services/permissions.service.js";
 import { searchService } from "../services/search.service.js";
 import { asyncRoute } from "../utils/http.js";
+import { sendApiError } from "../core/http-error-contract.js";
 
 const searchRoutes = Router();
 const DEFAULT_LIMIT = 25;
@@ -16,12 +17,11 @@ searchRoutes.get("/search", asyncRoute(async (request, response) => {
   const parsed = parseSearchQuery(request.query);
 
   if (parsed.errors.length > 0) {
-    response.status(400).json({
-      error: {
-        code: "invalid_search_filters",
-        message: "Search filters are invalid.",
-        fields: parsed.errors,
-      },
+    sendApiError(request, response, {
+      code: "invalid_search_filters",
+      fields: parsed.errors,
+      message: "Search filters are invalid.",
+      statusCode: 400,
     });
     return;
   }

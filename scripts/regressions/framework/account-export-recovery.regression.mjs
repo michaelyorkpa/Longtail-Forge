@@ -77,7 +77,8 @@ try {
 
   const deniedApi = await api.get("/api/users", { cookie: recoveryCookie });
   assert.equal(deniedApi.status, 403);
-  assert.equal(deniedApi.body.code, "ACCOUNT_EXPORT_RECOVERY_ONLY");
+  assert.equal(deniedApi.body.error.code, "account_export_recovery_only");
+  assert.equal(deniedApi.body.error.message, "Only account export and logout are available in recovery mode.");
   const deniedWorkspaceSwitch = await api.post("/api/session/workspace", { workspaceId }, { cookie: recoveryCookie });
   assert.equal(deniedWorkspaceSwitch.status, 403, "auth routes mounted before the allowlist must still reject workspace switching");
   const redirectedView = await api.get("/dashboard.html", { cookie: recoveryCookie, redirect: "manual" });
@@ -102,7 +103,11 @@ try {
     username: "unknown-recovery-user@example.test",
   });
   assert.equal(projectAdminDenied.status, 401);
-  assert.deepEqual(projectAdminDenied.body, unknownDenied.body, "non-workspace administrators and unknown identities must share the generic login denial");
+  assert.deepEqual(
+    normalizedErrorBody(projectAdminDenied.body),
+    normalizedErrorBody(unknownDenied.body),
+    "non-workspace administrators and unknown identities must share the generic login denial",
+  );
 
   const clientAdminId = await createWorkspaceUser({
     password: CLIENT_ADMIN_PASSWORD,
@@ -117,7 +122,11 @@ try {
     username: CLIENT_ADMIN_USERNAME,
   });
   assert.equal(clientAdminDenied.status, 401);
-  assert.deepEqual(clientAdminDenied.body, unknownDenied.body, "Client Administrators must not qualify for recovery mode");
+  assert.deepEqual(
+    normalizedErrorBody(clientAdminDenied.body),
+    normalizedErrorBody(unknownDenied.body),
+    "Client Administrators must not qualify for recovery mode",
+  );
 
   const qualificationColumns = await db.query("PRAGMA table_info(account_export_recovery_qualifications);");
   assert.deepEqual(
@@ -148,6 +157,16 @@ try {
   if (server) await closeServer(server);
   await closeDatabase();
   await fixture.cleanup();
+}
+
+function normalizedErrorBody(body) {
+  return {
+    ...body,
+    error: {
+      ...body?.error,
+      requestId: "<request-id>",
+    },
+  };
 }
 
 console.log("Account export recovery regression passed.");

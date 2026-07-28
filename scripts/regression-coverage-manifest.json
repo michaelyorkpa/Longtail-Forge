@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 409,
+    "discoveredScripts": 412,
     "legacyScripts": 311,
-    "releaseGateScripts": 47,
+    "releaseGateScripts": 50,
     "areaCounts": {
       "dashboard": 2,
       "database": 38,
       "docs": 9,
       "files": 44,
-      "framework": 67,
+      "framework": 70,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,7 +30,7 @@
     "tierCounts": {
       "focused": 194,
       "integration": 160,
-      "release-gate": 47,
+      "release-gate": 50,
       "slow": 8
     },
     "runModeCounts": {
@@ -38,7 +38,7 @@
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 198
+      "static": 201
     }
   },
   "coverageFamilies": [
@@ -2743,6 +2743,24 @@
     },
     {
       "area": "framework",
+      "description": "Proves self-contained branded browser failures, client crash recovery, and mutation-only permission-denied presentation.",
+      "id": "framework.browser-recovery-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/framework/browser-recovery-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "browser",
+        "errors",
+        "modal",
+        "recovery",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Proves the centralized browser header policy, compatible CSP inventory, trusted-HTTPS HSTS retention, and private-response cache boundary.",
       "id": "framework.browser-security-headers",
       "legacy": false,
@@ -2856,6 +2874,42 @@
         "settings"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves internal and v1 API envelopes, request correlation, safe diagnostics, browser HTML classification, and final route ordering.",
+      "id": "framework.http-error-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/http-error-contract.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "api",
+        "errors",
+        "http",
+        "logging",
+        "routing",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Prevents new routes and browser entries from bypassing the shared AppError, registered-code, recovery-boundary, and safe-diagnostic contracts.",
+      "id": "framework.http-error-development-guardrails",
+      "legacy": false,
+      "path": "scripts/regressions/framework/http-error-development-guardrails.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "docs",
+        "errors",
+        "modules",
+        "routing",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",

@@ -275,7 +275,7 @@ WHERE workspace_id = :workspaceId;
     );
     assert.equal(rejectedScope.status, 400);
     assert.equal(
-      rejectedScope.body?.error,
+      rejectedScope.body?.error?.message,
       "Client calendar scope is available only in Business workspaces.",
     );
     const projectScope = await api.post(

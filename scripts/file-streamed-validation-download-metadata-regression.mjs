@@ -148,13 +148,17 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     cookie: fixtures.sessionId,
   });
   assert.equal(download.status, 404, download.text);
-  assert.match(download.body?.error || "", /no longer available/i, "download of missing storage object should return a clean 404");
+  assert.equal(download.body?.error?.code, "not_found");
+  assert.match(download.body?.error?.message || "", /no longer available/i, "download of missing storage object should return a clean 404");
+  assert.equal(download.body?.error?.requestId, download.headers.get("x-request-id"));
 
   const preview = await api.get(`/api/files/attachments/${upload.attachment.fileAttachmentId}/preview/content`, {
     cookie: fixtures.sessionId,
   });
   assert.equal(preview.status, 404, preview.text);
-  assert.match(preview.body?.error || "", /no longer available/i, "preview of missing storage object should return a clean 404");
+  assert.equal(preview.body?.error?.code, "not_found");
+  assert.match(preview.body?.error?.message || "", /no longer available/i, "preview of missing storage object should return a clean 404");
+  assert.equal(preview.body?.error?.requestId, preview.headers.get("x-request-id"));
   assertNoUnsafeStorageLeak([download.body, preview.body]);
 }
 

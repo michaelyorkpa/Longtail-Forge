@@ -719,13 +719,7 @@ async function readJson(response) {
 }
 
 function errorMessage(body) {
-  if (body?.error?.message) {
-    return body.error.message;
-  }
-  if (typeof body?.error === "string") {
-    return body.error;
-  }
-  return "";
+  return window.LongtailForge?.errors?.read?.(body, "").message || "";
 }
 
 window.LongtailForge = window.LongtailForge || {};

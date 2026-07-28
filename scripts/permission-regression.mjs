@@ -167,9 +167,10 @@ ${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspac
 async function runAccessGuardTests(api) {
   await expectStatus("unauthenticated browser API requests return 401", api.get("/api/clients"), 401);
   const response = await api.get("/dashboard.html");
-  check("protected HTML redirects unauthenticated users to login", () => {
-    assert.equal(response.status, 302);
-    assert.equal(response.headers.get("location"), "/login.html");
+  check("protected HTML gives unauthenticated users one branded sign-in recovery action", () => {
+    assert.equal(response.status, 401);
+    assert.match(String(response.body || ""), /data-recovery-kind="login-required"/);
+    assert.match(String(response.body || ""), /href="\/login\.html" autofocus>Sign in<\/a>/);
   });
 }
 
@@ -1346,10 +1347,12 @@ WHERE user_id = ${sqlText(selfUserId)};
     401,
   );
   check("inactive and unknown login responses are indistinguishable", () => {
-    assert.deepEqual(retiredLogin.body, unknownLogin.body);
-    assert.deepEqual(retiredLogin.body, {
-      error: "These credentials do not have access to this installation.",
-    });
+    assert.equal(retiredLogin.body.error.code, unknownLogin.body.error.code);
+    assert.equal(retiredLogin.body.error.message, unknownLogin.body.error.message);
+    assert.equal(retiredLogin.body.error.code, "authentication_required");
+    assert.equal(retiredLogin.body.error.message, "These credentials do not have access to this installation.");
+    assert.match(retiredLogin.body.error.requestId, /^[0-9a-f-]{36}$/i);
+    assert.match(unknownLogin.body.error.requestId, /^[0-9a-f-]{36}$/i);
   });
 
   const retainedAttribution = await querySql(`

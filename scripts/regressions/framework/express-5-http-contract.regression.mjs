@@ -57,10 +57,10 @@ const app = express();
 app.set("query parser", "extended");
 app.use(express.static("public"));
 app.get("/query", (request, response) => response.status(200).json(request.query));
-app.get("/wrapped-error", asyncRoute(async () => {
+app.get("/api/wrapped-error", asyncRoute(async () => {
   throw new AppError("Wrapped failure", 409);
 }));
-app.get("/native-error", async () => {
+app.get("/api/native-error", async () => {
   throw new AppError("Native failure", 418);
 });
 app.get("/{*fallbackPath}", (request, response) => response.status(200).json({ path: request.path }));
@@ -92,15 +92,19 @@ try {
   assert.equal(javascript.status, 200);
   assert.match(javascript.headers["content-type"] || "", /^text\/javascript;\s*charset=utf-8$/i);
 
-  const wrappedError = await request(server, "/wrapped-error");
+  const wrappedError = await request(server, "/api/wrapped-error");
   assert.equal(wrappedError.status, 409);
-  assert.deepEqual(wrappedError.body, { error: "Wrapped failure" });
-  assert.equal(errorPasses.get("/wrapped-error"), 1, "the compatibility wrapper should forward a rejection exactly once");
+  assert.equal(wrappedError.body.error.code, "conflict");
+  assert.equal(wrappedError.body.error.message, "Wrapped failure");
+  assert.match(wrappedError.body.error.requestId, /^[0-9a-f-]{36}$/i);
+  assert.equal(errorPasses.get("/api/wrapped-error"), 1, "the compatibility wrapper should forward a rejection exactly once");
 
-  const nativeError = await request(server, "/native-error");
+  const nativeError = await request(server, "/api/native-error");
   assert.equal(nativeError.status, 418);
-  assert.deepEqual(nativeError.body, { error: "Native failure" });
-  assert.equal(errorPasses.get("/native-error"), 1, "Express 5 should forward a native async rejection exactly once");
+  assert.equal(nativeError.body.error.code, "request_error");
+  assert.equal(nativeError.body.error.message, "Native failure");
+  assert.match(nativeError.body.error.requestId, /^[0-9a-f-]{36}$/i);
+  assert.equal(errorPasses.get("/api/native-error"), 1, "Express 5 should forward a native async rejection exactly once");
 
   await waitForImmediate();
   assert.deepEqual(unhandledRejections, [], "wrapped and native async failures must not become unhandled rejections");

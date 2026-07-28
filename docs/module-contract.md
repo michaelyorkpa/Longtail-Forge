@@ -24,6 +24,8 @@ As of 0.33.18.2, framework and module routers run on Express 5.2.1. Route string
 
 Register asynchronous route work through the shared `asyncRoute` boundary unless a framework slice deliberately adopts native Express 5 forwarding for that router. Both paths must reach the final framework error middleware exactly once, must not write a second response after failure, and must preserve safe `AppError` shaping. Module routers must not install their own global body parser, query parser, trust-proxy policy, static fallback, not-found handler, or terminal error middleware. The framework explicitly preserves the extended query-parser shape; route/service contracts still validate and normalize every untrusted value. JSON, multipart, streamed upload, and download bodies remain owned by their existing bounded helpers and services.
 
+The shared response envelopes, registered status codes, non-enumeration rules, request-ID support workflow, and new-route/browser-entry checklist are governed by [http-errors.md](http-errors.md). Module routes use `AppError` for expected failures and never emit raw production diagnostics.
+
 ## Registry Service
 
 `src/core/modules/registry.js` is the synchronous registry engine. Its only bundled input is `bundled-module-catalog.generated.js`; source-directory discovery belongs to the generator/check, while startup also confirms that the tracked catalog matches repository-owned module directories. The database never supplies executable module paths, and arbitrary runtime directories are not loaded.

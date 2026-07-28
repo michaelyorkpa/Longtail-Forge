@@ -106,7 +106,9 @@ async function assertProtectedRouteRequiresAuth(baseUrl) {
   const body = await response.json();
 
   assert.equal(response.status, 401);
-  assert.equal(body.error, "Login required.");
+  assert.equal(body.error.code, "authentication_required");
+  assert.equal(body.error.message, "Login required.");
+  assert.equal(body.error.requestId, response.headers.get("x-request-id"));
 }
 
 async function assertPublicApiRouteIsNotExposed(baseUrl) {

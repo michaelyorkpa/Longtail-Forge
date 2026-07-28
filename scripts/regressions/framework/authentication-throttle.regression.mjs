@@ -99,8 +99,8 @@ try {
   assert.equal(knownFailure.status, 401);
   assert.equal(missingFailure.status, 401);
   assert.deepEqual(
-    missingFailure.body,
-    knownFailure.body,
+    normalizedErrorBody(missingFailure.body),
+    normalizedErrorBody(knownFailure.body),
     "known and missing accounts should receive the same invalid-credential envelope",
   );
 
@@ -124,9 +124,11 @@ try {
   assert.ok(
     floodResponses
       .filter((response) => response.status === 429)
-      .every((response) => JSON.stringify(response.body) === JSON.stringify({
-        error: "Too many attempts. Try again later.",
-      })),
+      .every((response) => (
+        response.body.error.code === "rate_limited"
+        && response.body.error.message === "Too many attempts. Try again later."
+        && /^[0-9a-f-]{36}$/i.test(response.body.error.requestId)
+      )),
     "admission-limited requests should use the generic throttle envelope",
   );
 
@@ -178,8 +180,13 @@ try {
     password: "Wrong-Password-4!",
   });
   assert.equal(blockedKnown.status, 429);
-  assert.deepEqual(blockedMissing.body, blockedKnown.body, "lockout copy should not reveal account existence");
-  assert.deepEqual(blockedKnown.body, { error: "Too many attempts. Try again later." });
+  assert.deepEqual(
+    normalizedErrorBody(blockedMissing.body),
+    normalizedErrorBody(blockedKnown.body),
+    "lockout copy should not reveal account existence",
+  );
+  assert.equal(blockedKnown.body.error.code, "rate_limited");
+  assert.equal(blockedKnown.body.error.message, "Too many attempts. Try again later.");
   assert.equal(securityEvents.length, 1, "crossing the login threshold should emit one security event");
   assert.equal(securityEvents[0].metadata.scope, "login");
   assert.deepEqual(securityEvents[0].metadata.dimensions, ["ip", "account"]);
@@ -233,6 +240,16 @@ try {
   }
   await closeDatabase();
   await fixture.cleanup();
+}
+
+function normalizedErrorBody(body) {
+  return {
+    ...body,
+    error: {
+      ...body?.error,
+      requestId: "<request-id>",
+    },
+  };
 }
 
 async function runDeterministicThrottleChecks() {

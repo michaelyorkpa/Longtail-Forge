@@ -2,27 +2,45 @@
   const namespace = window.LongtailForge || {};
 
   async function requestJson(url, options = {}) {
+    const method = options.method || "GET";
     const headers = {
       ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     };
     const response = await fetch(url, {
       cache: options.cache,
-      method: options.method || "GET",
+      method,
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });
     const body = await parseJsonResponse(response);
 
     if (!response.ok) {
-      const message = body?.error || body?.message || `Request failed: ${response.status}`;
-      const error = new Error(message);
-      error.status = response.status;
-      error.body = body;
+      const error = createApiError(body, `Request failed: ${response.status}`, response.status);
+      error.method = method;
       throw error;
     }
 
     return body;
+  }
+
+  function createApiError(body, fallback, status) {
+    if (namespace.errors?.createError) {
+      return namespace.errors.createError(body, fallback, status);
+    }
+
+    const envelope = body?.error && typeof body.error === "object" ? body.error : null;
+    const error = new Error(
+      envelope?.message
+      || (typeof body?.error === "string" ? body.error : "")
+      || body?.message
+      || fallback,
+    );
+    error.body = body;
+    error.code = envelope?.code || "";
+    error.requestId = envelope?.requestId || "";
+    error.status = status;
+    return error;
   }
 
   async function parseJsonResponse(response) {

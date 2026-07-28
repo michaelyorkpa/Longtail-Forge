@@ -8,6 +8,10 @@ When `LONGTAIL_ENV=production`, process output is newline-delimited JSON. Every 
 
 Production logging uses a strict field allowlist. It deliberately omits request paths and query strings, request/response bodies, headers, cookies, session IDs, bearer tokens, passwords, secret values, database and storage paths, private record contents, and raw error messages or stacks. The production console bridge converts legacy console writes into safe classified records without copying their arguments. Application errors use a safe error type only. Do not weaken this boundary to make debugging easier; reproduce privately with sanitized diagnostics instead.
 
+As of 0.33.23.1, a server-side 500-class failure writes one `http.request.failed` diagnostic under the response's request ID. Its additional allowlisted context is classification-only: `errorType`, a bounded `errorStack` containing sanitized function names rather than messages or paths, `routeClass`, `actorState`, and `workspaceState`. It never records the URL, route parameters, user/workspace IDs, exception message, raw stack, SQL, filesystem path, or request data. Expected client errors do not create this failure diagnostic. Internal and versioned API error bodies carry the matching request ID; unexpected browser documents show it in their HTML fallback.
+
+For support, ask only for the displayed Request ID, approximate time, and attempted action. Match that opaque value exactly to one `http.request.failed` diagnostic; a separate `http.request.completed` record is normal and is not another failure diagnostic. Do not request passwords, bearer URLs, cookies, bodies, private record text, or raw protected IDs. The full support workflow, response contract, and in-process `503` versus proxy-maintenance boundary are in [http-errors.md](http-errors.md).
+
 Collect stdout and stderr through the service manager or container runtime, restrict log access to operators, set an explicit retention period, and protect exported logs as potentially sensitive operational data even though the application redacts its structured fields.
 
 ## Private calendar feed bearer URLs

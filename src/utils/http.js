@@ -1,3 +1,5 @@
+import { AppError } from "./app-error.js";
+
 function asyncRoute(handler) {
   return (request, response, next) => {
     Promise.resolve(handler(request, response, next)).catch(next);
@@ -14,25 +16,18 @@ function readJsonBody(request, options = {}) {
 
       if (body.length > maxBytes) {
         request.destroy();
-        reject(new Error("Request body is too large"));
+        reject(new AppError("Request body is too large.", 413));
       }
     });
 
     request.on("end", () => {
       try {
         resolve(JSON.parse(body));
-      } catch (error) {
-        reject(error);
+      } catch {
+        reject(new AppError("Request body must contain valid JSON.", 400));
       }
     });
   });
 }
 
-function sendJson(response, statusCode, body) {
-  response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-  });
-  response.end(JSON.stringify(body));
-}
-
-export { asyncRoute, readJsonBody, sendJson };
+export { asyncRoute, readJsonBody };

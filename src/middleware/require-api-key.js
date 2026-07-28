@@ -1,7 +1,7 @@
 import { apiKeysService } from "../services/api-keys.service.js";
 import { assertModuleWriteEnabled } from "../core/modules/module-access.js";
 import { modulesService } from "../core/modules/modules.service.js";
-import { sendJson } from "../utils/http.js";
+import { sendApiError } from "../core/http-error-contract.js";
 
 function requireApiKey(requiredScope) {
   return async (request, response, next) => {
@@ -9,19 +9,19 @@ function requireApiKey(requiredScope) {
       const rawKey = readApiKey(request);
 
       if (!rawKey) {
-        sendPublicApiError(response, 401, "api_key_required", "API key required.");
+        sendPublicApiError(request, response, 401, "api_key_required", "API key required.");
         return;
       }
 
       const apiKey = await apiKeysService.readActiveKey(rawKey);
 
       if (!apiKey) {
-        sendPublicApiError(response, 401, "api_key_invalid", "API key is invalid or revoked.");
+        sendPublicApiError(request, response, 401, "api_key_invalid", "API key is invalid or revoked.");
         return;
       }
 
       if (requiredScope && !apiKeysService.hasScope(apiKey, requiredScope)) {
-        sendPublicApiError(response, 403, "scope_required", `API key requires ${requiredScope}.`);
+        sendPublicApiError(request, response, 403, "scope_required", `API key requires ${requiredScope}.`);
         return;
       }
 
@@ -66,13 +66,11 @@ function readApiKey(request) {
   return String(request.headers["x-api-key"] || "").trim();
 }
 
-function sendPublicApiError(response, status, code, message) {
-  sendJson(response, status, {
-    apiVersion: "v1",
-    error: {
-      code,
-      message,
-    },
+function sendPublicApiError(request, response, statusCode, code, message) {
+  sendApiError(request, response, {
+    code,
+    message,
+    statusCode,
   });
 }
 
