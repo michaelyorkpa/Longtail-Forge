@@ -55,10 +55,15 @@ Error responses:
   "apiVersion": "v1",
   "error": {
     "code": "request_error",
-    "message": "A readable error message."
+    "message": "A readable error message.",
+    "requestId": "server-generated-request-id"
   }
 }
 ```
+
+`error.requestId` matches the `X-Request-ID` response header and can be supplied to the operator when troubleshooting. Public API paths always return this versioned JSON error envelope, even when the request advertises HTML. Authentication and scope failures retain their specific stable codes (`api_key_required`, `api_key_invalid`, and `scope_required`); ordinary status classification otherwise uses the shared framework codes such as `bad_request`, `forbidden`, `not_found`, `conflict`, `rate_limited`, `internal_server_error`, and `service_unavailable`. Unknown `GET`/`HEAD` routes return `not_found`; unsupported methods that reach the final API boundary return `method_not_allowed`.
+
+The complete registered code table, exposure rules, diagnostic exclusions, non-enumeration contract, and Request-ID support workflow are governed by [http-errors.md](http-errors.md).
 
 ## Endpoints By Module
 

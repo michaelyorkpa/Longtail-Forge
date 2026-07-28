@@ -16,7 +16,7 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 const databaseFixture = await createDisposableDatabaseFixture("production-configuration-hardening");
 const { createConfig } = await import("../../../src/config.js");
 const { assertRuntimeDataPathsReady } = await import("../../../src/core/runtime-readiness.js");
-const { errorHandler } = await import("../../../src/middleware/error-handler.js");
+const { createErrorHandler } = await import("../../../src/middleware/error-handler.js");
 const secretMarker = "do-not-disclose-production-secret";
 const appSource = await fs.readFile(path.resolve("src/core/app.js"), "utf8");
 const workerSource = await fs.readFile(path.resolve("src/core/jobs/worker-cli.js"), "utf8");
@@ -145,17 +145,33 @@ const response = {
     return this;
   },
 };
-const originalConsoleError = console.error;
-try {
-  console.error = () => {};
-  errorHandler(new Error(`${secretMarker}\nstack detail`), { path: "/api/private" }, response, () => {});
-} finally {
-  console.error = originalConsoleError;
-}
+const diagnosticRecords = [];
+const errorHandler = createErrorHandler({
+  logger: {
+    error(event, fields) {
+      diagnosticRecords.push({ event, fields });
+    },
+  },
+});
+errorHandler(
+  new Error(`${secretMarker}\nstack detail`),
+  { method: "GET", path: "/api/private", requestContext: { requestId: "safe-request-id" } },
+  response,
+  () => {},
+);
 assert.equal(responseState.status, 500);
-assert.deepEqual(responseState.body, { error: "Internal server error" });
+assert.deepEqual(responseState.body, {
+  error: {
+    code: "internal_server_error",
+    message: "Internal server error.",
+    requestId: "safe-request-id",
+  },
+});
 assert.doesNotMatch(JSON.stringify(responseState.body), new RegExp(secretMarker));
 assert.doesNotMatch(JSON.stringify(responseState.body), /stack detail/);
+assert.equal(diagnosticRecords.length, 1);
+assert.doesNotMatch(JSON.stringify(diagnosticRecords), new RegExp(secretMarker));
+assert.doesNotMatch(JSON.stringify(diagnosticRecords), /stack detail/);
 
 try {
   const { filesService } = await import("../../../src/services/files.service.js");

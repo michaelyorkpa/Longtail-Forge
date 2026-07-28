@@ -6,7 +6,7 @@
     const body = await parseJsonResponse(response);
 
     if (!response.ok) {
-      throw new Error(body?.error || body?.message || "Notification preferences unavailable.");
+      throw apiError(body, "Notification preferences unavailable.", response.status);
     }
 
     return {
@@ -28,7 +28,7 @@
     const body = await parseJsonResponse(response);
 
     if (!response.ok) {
-      throw new Error(body?.error || body?.message || "Unable to save notification preferences.");
+      throw apiError(body, "Unable to save notification preferences.", response.status);
     }
 
     return body;
@@ -43,7 +43,7 @@
     const body = await parseJsonResponse(response);
 
     if (!response.ok) {
-      throw new Error(body?.error || body?.message || "Unable to save workspace notification defaults.");
+      throw apiError(body, "Unable to save workspace notification defaults.", response.status);
     }
 
     return body;
@@ -353,6 +353,11 @@
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ") || "Framework";
+  }
+
+  function apiError(body, fallback, status) {
+    return root.errors?.createError?.(body, fallback, status)
+      || new Error(fallback);
   }
 
   function optionElement(value, label) {

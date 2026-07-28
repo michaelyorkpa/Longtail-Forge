@@ -80,6 +80,26 @@ Express 5, ESLint, Markdown-it, and the version-literal guard are application/ru
 
 As of 0.33.18.2, Express 5.2.1 is the application-wide HTTP runtime baseline. Framework `createApp()` retains one explicit middleware and router order: request/security middleware and operational routes, public assets and public APIs, public module routers, authentication, framework and browser module APIs, the `/api` method boundary, the protected static fallback, and the final error middleware. Query parsing is explicitly `extended` to preserve the prior nested/repeated-value contract. Express 5 route strings use literal segments, named parameters, and named wildcards; a root-inclusive fallback uses `/{*name}`, never the removed bare `*` form. The existing `asyncRoute` wrapper remains the compatibility boundary for registered handlers, while regressions also prove Express 5's native rejected-Promise forwarding reaches the same error handler exactly once. JSON and multipart bodies remain owned by the existing bounded route helpers rather than a new application-wide Express body parser.
 
+As of 0.33.23.1, the final order has explicit boundaries for unknown or unsupported `/api/v1` requests before browser authentication, unknown or unsupported internal `/api` requests after every authenticated framework/module API, browser/static resolution, a final browser not-found response, and the Express error middleware last. API classification is path-owned: an API path returns JSON even when its `Accept` header asks for HTML. Browser document failures return HTML, while `/healthz` and `/readyz` retain their minimal machine-readable probe shapes.
+
+As of 0.33.23.2, browser documents install the shared recovery boundary before page-owned scripts. Server-rendered failures and client rendering failures share the same framework anatomy: self-contained, no-store, theme-safe and responsive, one contextual manual action, assertive announcement, and heading focus. The server fallback reads only the existing non-sensitive theme cookie so explicit Light/Dark remains consistent without a session, database read, or optional asset; Auto alone follows the operating-system color scheme. Protected 403/404 navigation stays generic and indistinguishable. Same-origin mutation 403 responses open one framework permission dialog and return focus to the attempted trigger; the boundary never automatically replays a write. Module-specific validation, route authorization, and protected server diagnostics remain with their existing owners.
+
+As of 0.33.23.3, [http-errors.md](http-errors.md) is the canonical server/browser failure contract. It records route-class envelopes, the registered status taxonomy, final middleware order, framework/module ownership, non-enumeration, recovery-boundary installation, exact request-ID support correlation, diagnostic exclusions, and the boundary between an in-process dependency `503` and the proxy-owned `0.33.24` maintenance curtain.
+
+Internal `/api` failures use one envelope:
+
+```json
+{
+  "error": {
+    "code": "conflict",
+    "message": "A safe message.",
+    "requestId": "server-generated-request-id"
+  }
+}
+```
+
+The `/api/v1` contract keeps that same `error` object inside its versioned envelope. The default status taxonomy is `authentication_required` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `rate_limited` (429), `internal_server_error` (500), and `service_unavailable` (503); a bounded workflow may use a more specific stable code. Expected client errors may expose an approved safe message. A 500 or dependency error is generic unless its `AppError` explicitly marks a 503 message safe to expose. `X-Request-ID` and `error.requestId` identify the same request. The shared browser parser preserves the code, message, request ID, status, and body on the thrown error so callers no longer interpret string and object errors independently.
+
 Longtail Forge should prefer:
 
 ```text

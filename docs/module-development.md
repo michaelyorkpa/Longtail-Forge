@@ -89,6 +89,12 @@ Browser/session routes go in `browserApiRoutes` and are mounted under `/api` aft
 
 Public API routes go in `publicApiRoutes` and should use API key middleware with a module-declared scope. Describe those endpoints in `publicApiEndpoints` so docs and sanity checks can discover them.
 
+## Handle Route Failures
+
+Use `AppError` for expected route failures and prefer the registered code for the chosen HTTP status. A new workflow-specific code must be stable lowercase `snake_case`, documented in the module or API contract, and regression-pinned. Let unexpected errors reach the final framework error middleware exactly once; do not hand-roll framework error JSON/HTML or return raw exception messages, stacks, SQL, paths, bodies, credentials, or protected identifiers.
+
+Preserve each route's permission, workspace-isolation, and non-enumeration decisions. New browser entries must live under `views/`, contain a `<head>` injection point, and be served through `staticService` so the shared recovery boundary loads before page-owned scripts. The complete envelope, middleware-order, browser-recovery, diagnostic, and support-correlation contract lives in [http-errors.md](http-errors.md).
+
 ## Public Entry Points And Import Boundaries
 
 As of 0.33.7.2, modules with cross-module consumers expose a public entry point at `src/modules/<module>/index.js`: Tasks, Notes, Lists, Clients/Projects, and Time Tracking. The entry point re-exports the module's supported cross-module capabilities (manifest, service, repository, and contract constants). Files has no `src/modules/files/` entry because Files is framework-owned; its public seam is `src/services/files.service.js` plus the `src/core/files/` adapters.

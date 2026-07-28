@@ -208,6 +208,26 @@
       ]
     },
     {
+      "id": "http-errors",
+      "label": "HTTP errors and request correlation",
+      "sourcePatterns": [
+        "^public/js/shared/(?:api-client|browser-recovery|error-contract)\\.js$",
+        "^src/core/(?:app|http-error-contract|operational-logger|request-context)\\.js$",
+        "^src/middleware/(?:error-handler|require-api-key|require-auth)\\.js$",
+        "^src/routes/(?:reporting|search|static)\\.routes\\.js$",
+        "^src/services/static\\.service\\.js$",
+        "^src/utils/(?:app-error|http)\\.js$",
+        "^scripts/regressions/framework/(?:browser-recovery-boundary|http-error-contract|http-error-development-guardrails)\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/http-errors.md",
+        "docs/operational-security.md",
+        "docs/public-api.md",
+        "docs/runtime-configuration.md"
+      ]
+    },
+    {
       "id": "runtime-security",
       "label": "Runtime and trusted-edge security",
       "sourcePatterns": [

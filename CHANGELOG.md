@@ -1,3 +1,40 @@
+## Version 0.33.23.3 - 2026-07-28
+
+- Published `docs/http-errors.md` as the canonical server/browser failure contract, covering route-class envelopes, registered status codes, final middleware order, framework/module responsibilities, non-enumeration, browser recovery installation, Request-ID support correlation, and the in-process `503` versus proxy-maintenance boundary.
+- Added prospective module-development guardrails: expected route failures use `AppError` and registered or documented workflow codes, raw terminal error responses are rejected outside the reviewed generic calendar-feed contract, and every repository browser entry retains the shared recovery-boundary injection point.
+- Strengthened request-correlation proof so dependency, unexpected API, and unexpected browser failures each map their shown Request ID to exactly one protected structured diagnostic.
+- Pinned the diagnostic field allowlist and proved responses/logs omit query and body values, headers, credentials, SQL, filesystem paths, exception text, and raw protected user, workspace, and record identifiers.
+- Added `framework.http-error-development-guardrails`, raised the release-gate and framework coverage ratchets, and refreshed the 412-script generated regression manifest.
+- Closed the complete `0.33.23` branded-error branch and advanced the active roadmap cursor to `0.33.24.1`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/docs-ownership.md`, `docs/http-errors.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/public-api.md`, and `docs/regression-suite.md`.
+- No docs change needed: the remaining suggested Reporting, Files, Search, Tags, runtime, permission, deployment, backup, Help, and release documents describe behavior unchanged by this closeout; proxy maintenance remains planned in `0.33.24`.
+
+## Version 0.33.23.2 - 2026-07-28
+
+- Replaced browser navigation failures with self-contained framework pages for sign-in required, unavailable, conflict, temporary dependency unavailability, and unexpected failures, each with one safe manual recovery action.
+- Made server-rendered and client-rendered recovery surfaces honor the saved Light/Dark interface preference; only Auto follows the operating-system color scheme, and the server fallback reads the existing non-sensitive theme cookie without requiring session or database decoration.
+- Made protected direct navigation return the branded 401 surface while retaining JSON for API authentication failures and preserving the existing required-password and account-recovery transitions.
+- Installed an early shared browser boundary on every served document so failed rendering and unhandled rejections replace broken content with the recovery surface instead of leaving a blank page.
+- Added one generic framework permission-denied dialog for same-origin mutation 403 responses, including assertive announcement, deduplication, Escape/Close handling, trigger focus return, and no automatic write replay.
+- Preserved exact 403/404 navigation non-enumeration, no-store and security headers, dependency-safe retry guidance, server-side authorization diagnostics, and request-ID visibility only for unexpected failures.
+- Added `framework.browser-recovery-boundary` and desktop/mobile Playwright coverage for unknown and protected routes, expired authentication, permission-dialog focus, failed rendering, history navigation, and manual-only conflict/dependency recovery.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.23.3`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/regression-suite.md`, and `help/framework/users-roles-and-permissions.md`.
+- No docs change needed: Reporting, Files, Search, Tags, API envelopes/error codes, protected diagnostics, permission identifiers, module validation, schema/data, runtime configuration, deployment/proxy behavior, backups, and public API scopes are unchanged.
+
+## Version 0.33.23.1 - 2026-07-28
+
+- Added one framework-owned server error taxonomy. `AppError` now carries an optional stable code and explicit message-exposure policy; expected client failures retain approved safe copy, while unexpected and unapproved 500-class failures return generic messages.
+- Standardized internal `/api` failures as `{ error: { code, message, requestId } }` and retained `/api/v1`'s versioned envelope around the same error object. API paths cannot negotiate into HTML, and JSON/body parsing failures now enter the same bounded contract.
+- Added explicit final boundaries for unknown/unsupported public API requests, authenticated internal API requests, and browser navigation, with the Express error middleware last. Unknown browser documents now receive status-correct HTML classification rather than barren JSON/text.
+- Added one request-correlated `http.request.failed` diagnostic for 500-class failures. It records only safe classifications and sanitized function-name stack frames, never exception messages, URLs, parameters, protected identifiers, raw stacks, paths, SQL, request data, credentials, or private content.
+- Added the shared browser error parser to every served HTML document and migrated the shared API client plus direct login, recovery, multipart, notification, Settings, Tags, Search, and Help callers to retain code, message, request ID, HTTP status, and response body.
+- Preserved public API key codes, Search/Reporting workflow codes, protected-resource 403/404 decisions, login/throttle non-enumeration, minimal health/readiness payloads, and the generic public calendar-feed rejection contract.
+- Added `framework.http-error-contract` coverage for envelope shapes, request/header correlation, content negotiation, safe diagnostics, final middleware order, 403/404 non-enumeration, dependency-safe 503 handling, browser HTML classification, and browser parser behavior.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.23.2`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/public-api.md`, `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: Reporting, Files, Search, Tags, permission identifiers, module workflows, schema/data, deployment topology, backups, and user Help behavior are unchanged; their touched callers and regressions only consume the framework error envelope.
+
 ## Version 0.33.22.9.3 - 2026-07-27
 
 - Updated the locked transitive `brace-expansion`, `postcss`, and `nanoid` releases to their patched versions after new high-severity advisories reached the promotion audit feed; no direct dependency or runtime contract changed.

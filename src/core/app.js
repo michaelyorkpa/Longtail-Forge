@@ -52,6 +52,7 @@ import { securityEventsService } from "../security/security-events.js";
 import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
 import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
 import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
+import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
 
 function createApp() {
   const app = express();
@@ -83,6 +84,7 @@ function createApp() {
   for (const moduleRoutes of modulesService.listModuleRoutes("public")) {
     app.use(moduleRoutes);
   }
+  app.use("/api/v1", apiRouteBoundary);
   app.use(requireAuth);
   app.use("/api", accountExportRecoveryRoutes);
   app.use("/api", appShellRoutes);
@@ -116,15 +118,9 @@ function createApp() {
       moduleRoute.router,
     );
   }
-  app.use("/api", (request, response, next) => {
-    if (request.method === "GET") {
-      next();
-      return;
-    }
-
-    response.status(405).json({ error: "Method not allowed" });
-  });
+  app.use("/api", apiRouteBoundary);
   app.use(staticRoutes);
+  app.use(browserNotFound);
 
   app.use(errorHandler);
 

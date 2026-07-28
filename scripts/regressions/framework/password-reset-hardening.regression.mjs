@@ -140,10 +140,9 @@ WHERE user_id = :userId;
 
   const blockedApi = await api.get("/api/users", { cookie: forcedCookieA });
   assert.equal(blockedApi.status, 403, "required-change sessions must not reach protected APIs");
-  assert.deepEqual(blockedApi.body, {
-    code: "PASSWORD_CHANGE_REQUIRED",
-    error: "Change your password before continuing.",
-  });
+  assert.equal(blockedApi.body.error.code, "password_change_required");
+  assert.equal(blockedApi.body.error.message, "Change your password before continuing.");
+  assert.match(blockedApi.body.error.requestId, /^[0-9a-f-]{36}$/i);
   assert.equal((await api.post("/api/session/workspace", {
     workspaceId: originalWorkspaceId,
   }, { cookie: forcedCookieA })).status, 403, "required-change sessions must not switch workspace through the public auth router");
@@ -213,7 +212,7 @@ ORDER BY created_at;
     fs.readFile("src/middleware/require-auth.js", "utf8"),
     fs.readFile("src/services/users.service.js", "utf8"),
   ]);
-  assert.match(middlewareSource, /PASSWORD_CHANGE_REQUIRED/);
+  assert.match(middlewareSource, /password_change_required/);
   assert.match(middlewareSource, /request\.method === "PUT" && pathname === "\/api\/user\/password"/);
   assert.match(loginSource, /body\.user\?\.passwordChangeRequired/);
   assert.match(loginSource, /showRequiredPasswordChange/);

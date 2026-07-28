@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 403,
+  "minimumActiveScripts": 406,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 36,
     "docs": 9,
     "files": 44,
-    "framework": 66,
+    "framework": 69,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 47,
+  "minimumReleaseGateScripts": 50,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -45,7 +45,10 @@
     "framework.asset-cache-version",
     "framework.calendar-subscription-settings",
     "framework.account-export-recovery",
+    "framework.browser-recovery-boundary",
     "framework.express-5-http-contract",
+    "framework.http-error-contract",
+    "framework.http-error-development-guardrails",
     "framework.bundled-module-registry",
     "legacy.version.literal.guardrail",
     "release.regression-discovery-runner",

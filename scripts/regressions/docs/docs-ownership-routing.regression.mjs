@@ -37,6 +37,7 @@ assert.deepEqual(
     "tags",
     "time-tracking",
     "settings",
+    "http-errors",
     "runtime-security",
     "permissions",
     "security-audit",
@@ -104,6 +105,21 @@ assert.deepEqual(settings.docs, [
   "docs/workspace-deletion.md",
 ]);
 
+const httpErrors = suggestDocsForPaths([
+  "src/core/http-error-contract.js",
+  "src/middleware/error-handler.js",
+  "public/js/shared/browser-recovery.js",
+  "public/js/shared/error-contract.js",
+], { index: rawIndex });
+assert.deepEqual(httpErrors.matchedAreas.map((area) => area.id), ["http-errors"]);
+assert.deepEqual(httpErrors.docs, [
+  "docs/architecture.md",
+  "docs/http-errors.md",
+  "docs/operational-security.md",
+  "docs/public-api.md",
+  "docs/runtime-configuration.md",
+]);
+
 const developmentData = suggestDocsForPaths(["scripts/development-data.mjs"], { index: rawIndex });
 assert.deepEqual(developmentData.matchedAreas.map((area) => area.id), ["development-demo-data"]);
 assert.deepEqual(developmentData.docs, [
@@ -119,11 +135,14 @@ const runtimeSecurity = suggestDocsForPaths([
   "src/repositories/authentication-throttle.repo.js",
   "src/security/auth-throttle.js",
 ], { index: rawIndex });
-assert.deepEqual(runtimeSecurity.matchedAreas.map((area) => area.id), ["runtime-security"]);
+assert.deepEqual(runtimeSecurity.matchedAreas.map((area) => area.id), ["http-errors", "runtime-security"]);
 assert.deepEqual(runtimeSecurity.docs, [
   "SECURITY.md",
+  "docs/architecture.md",
+  "docs/http-errors.md",
   "docs/internet-deployment.md",
   "docs/operational-security.md",
+  "docs/public-api.md",
   "docs/runtime-configuration.md",
 ]);
 
@@ -134,7 +153,7 @@ const operationalSecurity = suggestDocsForPaths([
   "src/routes/operational-health.routes.js",
   "src/services/operational-readiness.service.js",
 ], { index: rawIndex });
-assert.deepEqual(operationalSecurity.matchedAreas.map((area) => area.id), ["runtime-security"]);
+assert.deepEqual(operationalSecurity.matchedAreas.map((area) => area.id), ["http-errors", "runtime-security"]);
 assert.ok(operationalSecurity.docs.includes("SECURITY.md"));
 assert.ok(operationalSecurity.docs.includes("docs/operational-security.md"));
 
@@ -156,7 +175,7 @@ const passwordResetSecurity = suggestDocsForPaths([
   "src/security/password-events.js",
   "views/public/login.html",
 ], { index: rawIndex });
-assert.deepEqual(passwordResetSecurity.matchedAreas.map((area) => area.id), ["runtime-security", "permissions"]);
+assert.deepEqual(passwordResetSecurity.matchedAreas.map((area) => area.id), ["http-errors", "runtime-security", "permissions"]);
 assert.ok(passwordResetSecurity.docs.includes("docs/runtime-configuration.md"));
 assert.ok(passwordResetSecurity.docs.includes("help/framework/users-roles-and-permissions.md"));
 

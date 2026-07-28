@@ -36,7 +36,7 @@ if (loginForm) {
       const body = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(body.error || "Login failed.");
+        throw apiError(body, "Login failed.", response.status);
       }
 
       const themeMode = normalizeThemeMode(body.user?.themeMode);
@@ -87,7 +87,7 @@ requiredPasswordForm?.addEventListener("submit", async (event) => {
     const body = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(body.error || "Password was not changed.");
+      throw apiError(body, "Password was not changed.", response.status);
     }
 
     requiredPasswordForm.reset();
@@ -167,3 +167,8 @@ function normalizeLandingPath(value) {
 }
 
 redirectIfLoggedIn();
+
+function apiError(body, fallback, status) {
+  return window.LongtailForge?.errors?.createError?.(body, fallback, status)
+    || new Error(fallback);
+}

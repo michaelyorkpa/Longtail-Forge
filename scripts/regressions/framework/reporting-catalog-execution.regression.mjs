@@ -226,8 +226,8 @@ function assertCatalogReport(report) {
 
 function assertExecutionError(response, status, code, message = null) {
   assert.equal(response.status, status);
-  assert.equal(response.body.status, "error");
   assert.equal(response.body.error.code, code);
+  assert.match(response.body.error.requestId, /^[0-9a-f-]{36}$/i);
   if (message) {
     assert.equal(response.body.error.message, message);
   }

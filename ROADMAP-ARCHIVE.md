@@ -1,5 +1,53 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
+
+Completed locally on 2026-07-28. The shared server/browser error contract is now canonical and prospectively enforced, shown request IDs map to one safe protected diagnostic, the complete `0.33.23` branch is closed, and the active cursor advances to `0.33.24.1`.
+
+**Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
+
+- [x] Documented error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
+- [x] Added module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
+- [x] Added regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
+- [x] Ran API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
+
+Acceptance criteria:
+
+- The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
+
+## Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
+
+Completed locally on 2026-07-28. Browser navigation and rendering failures now share one self-contained recovery boundary, mutation permission denials use one accessible framework dialog, and the active cursor advances to `0.33.23.3`.
+
+**Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
+
+- [x] Added self-contained framework-owned browser states for sign-in required, unavailable/forbidden-or-not-found, conflict, unexpected error, and temporary dependency unavailability, with indistinguishable protected 403/404 bodies.
+- [x] Kept the fallback independent of workspace/module/database reads and optional assets while preserving no-store/security headers, keyboard access, responsive and theme-safe rendering, assertive announcements, heading focus, and unexpected-failure request IDs.
+- [x] Gave each surface one contextual manual action and prohibited automatic mutation replay.
+- [x] Installed the top-level render/unhandled-rejection boundary before page scripts and routed shared fetch failures through the same presentation without taking ownership of module validation.
+- [x] Added one generic, deduplicated permission-denied dialog for same-origin mutation 403 responses with Escape/Close handling and focus return, without changing server-side authorization logging.
+- [x] Proved unknown and protected routes, expired authentication, forbidden/hidden equivalence, conflict, unexpected and dependency failures, failed dynamic rendering, history navigation, focus behavior, announcements, desktop, and mobile rendering.
+
+Acceptance criteria:
+
+- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
+
+## Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
+
+Completed locally on 2026-07-28. The server and shared browser callers now use one request-correlated failure contract; the active cursor advances to `0.33.23.2` for the resilient branded-page and browser-recovery boundary.
+
+**Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
+
+- [x] Inventoried `AppError`, direct status/error responses, public/static/module routing, wrapped and native async rejection, authentication/API-key early responses, unknown routes, unsupported methods, and custom Search/Reporting error payloads before defining the shared status taxonomy.
+- [x] Kept `/api/v1` in its versioned envelope and standardized internal `/api` failures as `{ error: { code, message, requestId } }`. Added the injected shared browser error parser and migrated the affected direct-fetch callers so code, message, request ID, status, and body stay available without per-page string/object interpretation.
+- [x] Added the final public-API boundary before browser authentication, the final internal-API boundary after all authenticated API routes, the final browser not-found response after static/document resolution, and the Express error middleware last. API paths remain JSON regardless of content negotiation.
+- [x] Reused the server-generated request ID in every API error envelope and in one protected structured diagnostic for 500-class failures. Diagnostics retain only error type, sanitized function-name stack frames, route class, and actor/workspace presence classifications; responses stay generic.
+- [x] Preserved existing protected-resource 403/404 decisions and non-enumerating messages. Dependency failures become exposed 503 responses only when the caller deliberately marks the distinction safe and actionable; other 500-class messages remain generic.
+
+Acceptance criteria:
+
+- Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
+
 ## Version 0.33.22.9.3 - Calendar client metadata and subscription refinement
 
 Completed and operator-accepted on 2026-07-27. Google Calendar, Outlook, Thunderbird, and Apple Calendar on iPhone consumed the provider-neutral subscription successfully; the active cursor advances to `0.33.23`.

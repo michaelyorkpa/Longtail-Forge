@@ -1,6 +1,10 @@
 import { getRequestSession } from "../security/sessions.js";
-import { sendJson } from "../utils/http.js";
 import { staticService } from "../services/static.service.js";
+import {
+  isBrowserDocumentRequest,
+  sendApiError,
+  sendBrowserError,
+} from "../core/http-error-contract.js";
 
 async function requireAuth(request, response, next) {
   let session = null;
@@ -36,9 +40,10 @@ function enforceAccountExportRecovery(request, response) {
     return false;
   }
   if (pathname.startsWith("/api/")) {
-    sendJson(response, 403, {
-      code: "ACCOUNT_EXPORT_RECOVERY_ONLY",
-      error: "Only account export and logout are available in recovery mode.",
+    sendApiError(request, response, {
+      code: "account_export_recovery_only",
+      message: "Only account export and logout are available in recovery mode.",
+      statusCode: 403,
     });
     return true;
   }
@@ -47,9 +52,10 @@ function enforceAccountExportRecovery(request, response) {
     response.end();
     return true;
   }
-  sendJson(response, 403, {
-    code: "ACCOUNT_EXPORT_RECOVERY_ONLY",
-    error: "Only account export and logout are available in recovery mode.",
+  sendApiError(request, response, {
+    code: "account_export_recovery_only",
+    message: "Only account export and logout are available in recovery mode.",
+    statusCode: 403,
   });
   return true;
 }
@@ -66,9 +72,10 @@ function enforceRequiredPasswordChange(request, response) {
   }
 
   if (pathname.startsWith("/api/")) {
-    sendJson(response, 403, {
-      code: "PASSWORD_CHANGE_REQUIRED",
-      error: "Change your password before continuing.",
+    sendApiError(request, response, {
+      code: "password_change_required",
+      message: "Change your password before continuing.",
+      statusCode: 403,
     });
     return true;
   }
@@ -82,9 +89,10 @@ function enforceRequiredPasswordChange(request, response) {
     return true;
   }
 
-  sendJson(response, 403, {
-    code: "PASSWORD_CHANGE_REQUIRED",
-    error: "Change your password before continuing.",
+  sendApiError(request, response, {
+    code: "password_change_required",
+    message: "Change your password before continuing.",
+    statusCode: 403,
   });
   return true;
 }
@@ -102,20 +110,25 @@ async function handleUnauthenticatedRequest(request, response, pathname) {
   }
 
   if (pathname.startsWith("/api/")) {
-    sendJson(response, 401, { error: "Login required." });
-    return;
-  }
-
-  if (request.method === "GET") {
-    response.writeHead(302, {
-      Location: "/login.html",
-      "Cache-Control": "no-store",
+    sendApiError(request, response, {
+      message: "Login required.",
+      statusCode: 401,
     });
-    response.end();
     return;
   }
 
-  sendJson(response, 401, { error: "Login required." });
+  if (isBrowserDocumentRequest(request)) {
+    sendBrowserError(request, response, {
+      code: "authentication_required",
+      statusCode: 401,
+    });
+    return;
+  }
+
+  sendApiError(request, response, {
+    message: "Login required.",
+    statusCode: 401,
+  });
 }
 
 function isLoginAssetPath(pathname) {

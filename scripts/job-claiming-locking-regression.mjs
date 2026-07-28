@@ -181,11 +181,14 @@ async function assertAdminReadout(fixtures) {
 
   const unauthenticated = await api.get("/api/jobs/status");
   assert.equal(unauthenticated.status, 401, "jobs readout should require login");
-  assert.equal(unauthenticated.body.error, "Login required.");
+  assert.equal(unauthenticated.body.error.code, "authentication_required");
+  assert.equal(unauthenticated.body.error.message, "Login required.");
+  assert.equal(unauthenticated.body.error.requestId, unauthenticated.headers.get("x-request-id"));
 
   const forbidden = await api.get("/api/jobs/status", { cookie: fixtures.unprivilegedSessionId });
   assert.equal(forbidden.status, 403, "jobs readout should require workspace_settings.manage");
-  assert.equal(forbidden.body.error, "You do not have permission to perform that action.");
+  assert.equal(forbidden.body.error.code, "forbidden");
+  assert.equal(forbidden.body.error.message, "You do not have permission to perform that action.");
 
   const allowed = await api.get("/api/jobs/status?limit=1", { cookie: fixtures.adminSessionId });
   assert.equal(allowed.status, 200, "workspace settings managers should read jobs status");
