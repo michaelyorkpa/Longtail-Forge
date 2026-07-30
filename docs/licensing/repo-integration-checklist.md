@@ -2,7 +2,7 @@
 
 Use this checklist when applying the licensing docs to the repo.
 
-Current process-gate status is maintained in the [repo-level licensing hub](../licensing.md#future-process-gates). The third-party-notices gate is active and satisfied; the public legal/about and outside-contribution gates remain inactive. Run `npm run licensing:gates` for the warning-only aggregate readout and `npm run third-party-notices:check` for the hard inventory drift check.
+Current process-gate status is maintained in the [repo-level licensing hub](../licensing.md#future-process-gates). The in-app legal/about and third-party-notices gates are active and satisfied; the outside-contribution gate remains inactive. Run `npm run licensing:gates` for the warning-only aggregate readout and `npm run third-party-notices:check` for the hard inventory drift check.
 
 ## Repository Layout
 

@@ -27,6 +27,8 @@ const expectedFrameworkArticles = [
   "framework.files-attachments",
   "framework.settings",
   "framework.modules",
+  "framework.legal-licensing",
+  "framework.third-party-notices",
 ];
 const expectedTitles = [
   "Help Center",
@@ -42,6 +44,8 @@ const expectedTitles = [
   "Files and Attachments",
   "Settings and User Preferences",
   "Modules and Optional Features",
+  "Legal and Licensing",
+  "Third-Party Notices",
 ];
 
 let checks = 0;

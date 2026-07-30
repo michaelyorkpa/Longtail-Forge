@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.25.2`.
+Active cursor: `0.33.25.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -33,20 +33,6 @@ Non-goals:
 - No public website publishing, screenshot/video production, pricing commitments, or invented claims; marketing documents remain an internal truthful foundation governed by the claims-and-proof register rules.
 - The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
 - Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
-
-### Version 0.33.25.2 - In-app legal and licensing surface in Help
-
-**Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
-
-- [ ] Add a framework-owned legal/about surface in the Help section covering the items the repo-integration checklist specifies: project name and running version, copyright notice ("Michael York d/b/a Raymond Tec" per the ownership plan), the `AGPL-3.0-only` license notice with the user's source-access rights and how to obtain the Corresponding Source for the running version (a version-accurate repository/release reference, not a hard-coded link to `main`), the AGPL no-warranty statement, third-party notices, and the trademark notice per `docs/licensing/trademark-policy.md`.
-- [ ] Source the version from the existing runtime version identity (the same source `/api/app-info` reports), consistent with the version-literal guardrail — no hand-maintained version strings in the legal surface.
-- [ ] Serve the third-party notices content from the reviewed `THIRD_PARTY_NOTICES.md` (0.33.25.1) rather than duplicating it by hand; keep all legal text sourced from tracked files so legal edits are reviewable diffs, not string edits in JavaScript.
-- [ ] Keep the surface framework-owned and workspace-independent (like the Help Center itself), reachable from the Help table of contents, and indexed by Help search; pre-authentication exposure follows the branch-level public-exposure decision, with the public pieces implemented in 0.33.25.3.
-- [ ] Update the `docs/licensing.md` gate table for the activated legal/about gate and add regression coverage: the surface renders, reports the true running version, and links resolve to the tracked notices and policy documents.
-
-Acceptance criteria:
-
-- The Help section contains a legal/licensing surface with version, copyright, AGPL source-access, warranty, third-party notices, and trademark content, all sourced from tracked files with a live version identity, and the public-app legal gate reads satisfied.
 
 ### Version 0.33.25.3 - Public terms, privacy, and pre-authentication legal footer
 

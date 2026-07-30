@@ -1,3 +1,26 @@
+## Version 0.33.25.2 - 2026-07-30
+
+- Added framework-owned Legal and Licensing and Third-Party Notices articles to
+  authenticated Help, its table of contents, and Help search.
+- Reported the live display and canonical versions from the same runtime
+  identity used by `/api/app-info`, with Corresponding Source and tracked policy
+  links pinned to the immutable release commit or canonical release tag rather
+  than `main`.
+- Covered copyright ownership, `AGPL-3.0-only` source-access rights, the license
+  warranty disclaimer, third-party software, and the governing trademark
+  policy in tracked Markdown.
+- Served the complete notices article directly from the reviewed root
+  `THIRD_PARTY_NOTICES.md` so the in-app content and distributed inventory
+  cannot drift.
+- Activated the public-app legal/about gate and extended Help, source-layout,
+  search-count, and licensing-gate regression coverage.
+- Archived the completed slice, bumped the package to `0.33.25.2`, and advanced
+  the active roadmap cursor to `0.33.25.3`.
+- Docs updated: `docs/licensing.md`,
+  `docs/licensing/repo-integration-checklist.md`, and the framework Help source.
+- No docs change needed: database/schema, permissions, public/pre-auth legal
+  exposure, deployment topology, and contribution intake remain unchanged.
+
 ## Version 0.33.25.1 - 2026-07-30
 
 - Added a reviewed root `THIRD_PARTY_NOTICES.md` covering 89 unique production

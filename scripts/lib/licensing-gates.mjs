@@ -5,6 +5,10 @@ const LICENSING_GATE_PATHS = Object.freeze({
   claTerms: "docs/licensing/contributor-license-agreement.md",
   contributing: "CONTRIBUTING.md",
   contributorPolicy: "docs/licensing/contributor-policy.md",
+  publicLegalAbout: Object.freeze([
+    "help/framework/legal-and-licensing.md",
+    "help/framework/third-party-notices.md",
+  ]),
   pullRequestTemplates: Object.freeze([
     ".github/pull_request_template.md",
     ".github/PULL_REQUEST_TEMPLATE.md",
@@ -22,6 +26,7 @@ function inspectLicensingGates({
   const pullRequestTemplate = LICENSING_GATE_PATHS.pullRequestTemplates.find(pathExists) || null;
   const claTermsPresent = pathExists(LICENSING_GATE_PATHS.claTerms);
   const contributorPolicyPresent = pathExists(LICENSING_GATE_PATHS.contributorPolicy);
+  const publicLegalAboutPresent = LICENSING_GATE_PATHS.publicLegalAbout.every(pathExists);
   const claProcessActive = contributingPresent && claTermsPresent && contributorPolicyPresent;
   const warnings = [];
 
@@ -36,6 +41,13 @@ function inspectLicensingGates({
       code: "stale-third-party-notices",
       gate: "public-release",
       message: thirdPartyNoticeStatus.message,
+    }));
+  }
+  if (!publicLegalAboutPresent) {
+    warnings.push(Object.freeze({
+      code: "missing-public-legal-about",
+      gate: "public-release",
+      message: "The framework Help legal/about surface is incomplete.",
     }));
   }
   if (!contributingPresent) {
@@ -67,6 +79,7 @@ function inspectLicensingGates({
       contributingPresent,
       contributorPolicyPresent,
       pullRequestTemplate,
+      publicLegalAboutPresent,
       thirdPartyNoticesPresent,
       thirdPartyNoticesCurrent,
     }),
@@ -83,6 +96,9 @@ function formatLicensingGateReport(result) {
 
   if (result.checks.thirdPartyNoticesCurrent) {
     lines.push(`Third-party notices: satisfied. ${noticesStatusMessage(result)}`);
+  }
+  if (result.checks.publicLegalAboutPresent) {
+    lines.push("In-app legal/about: satisfied. Framework Help contains the tracked legal/licensing and third-party-notices sources.");
   }
 
   if (result.warnings.length === 0) {

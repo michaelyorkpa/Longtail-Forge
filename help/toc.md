@@ -16,6 +16,8 @@ default: framework/help-center.md
 - [Files and Attachments](framework/files-and-attachments.md)
 - [Settings and User Preferences](framework/settings-and-user-preferences.md)
 - [Modules and Optional Features](framework/modules-and-optional-features.md)
+- [Legal and Licensing](framework/legal-and-licensing.md)
+- [Third-Party Notices](framework/third-party-notices.md)
 
 # Modules
 

@@ -17,7 +17,7 @@ activateModuleRuntime("worker");
 let checks = 0;
 const workspaceId = "search-rebuild-workspace";
 const now = "2026-06-08T16:00:00.000Z";
-const frameworkHelpArticleCount = 13;
+const frameworkHelpArticleCount = 15;
 const moduleHelpArticleCount = 3;
 const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 

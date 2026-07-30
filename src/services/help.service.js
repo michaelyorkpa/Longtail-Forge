@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { markdownToPlainText, renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { db } from "../core/database.js";
@@ -14,6 +15,8 @@ const HELP_SEARCH_SOURCE = "Help";
 const FRAMEWORK_HELP_MODULE_ID = "framework";
 const HELP_CONTENT_ROOT = fileURLToPath(new URL("../../help/", import.meta.url));
 const HELP_TOC_PATH = path.join(HELP_CONTENT_ROOT, "toc.md");
+const THIRD_PARTY_NOTICES_PATH = fileURLToPath(new URL("../../THIRD_PARTY_NOTICES.md", import.meta.url));
+const PROJECT_REPOSITORY_URL = "https://github.com/michaelyorkpa/Longtail-Forge";
 
 const FRAMEWORK_HELP_SECTION = {
   id: "framework.help-center",
@@ -194,6 +197,32 @@ const FRAMEWORK_HELP_ARTICLES = [
       audience: "all",
       tags: ["framework", "modules", "help"],
       relatedArticleIds: ["framework.workspaces", "framework.help-center", "framework.search"],
+    },
+    {
+      id: "framework.legal-licensing",
+      slug: "legal-and-licensing",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Legal and Licensing",
+      summary: "Review the running version, source rights, warranty, third-party notices, and trademark policy.",
+      contentPath: "framework/legal-and-licensing.md",
+      sortOrder: 120,
+      audience: "all",
+      tags: ["framework", "legal", "licensing", "source", "trademark"],
+      relatedArticleIds: ["framework.third-party-notices", "framework.help-center"],
+    },
+    {
+      id: "framework.third-party-notices",
+      slug: "third-party-notices",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Third-Party Notices",
+      summary: "Review the tracked license notices for production dependencies and bundled assets.",
+      contentPath: "framework/third-party-notices.md",
+      sortOrder: 130,
+      audience: "all",
+      tags: ["framework", "legal", "licensing", "third-party"],
+      relatedArticleIds: ["framework.legal-licensing"],
     },
 ];
 
@@ -594,13 +623,45 @@ async function readHelpArticleBody(article) {
   const absolutePath = resolveHelpContentPath(contentPath, article.id);
 
   try {
-    return await fs.readFile(absolutePath, "utf8");
+    const body = await fs.readFile(absolutePath, "utf8");
+    const hydrated = await hydrateTrackedLegalContent(article, body);
+    return hydrated;
   } catch (error) {
     if (error?.code === "ENOENT") {
       throw new AppError(`Help article content file is missing for '${article.id}'.`, 500);
     }
     throw error;
   }
+}
+
+async function hydrateTrackedLegalContent(article, body) {
+  if (article.id === "framework.third-party-notices") {
+    return fs.readFile(THIRD_PARTY_NOTICES_PATH, "utf8");
+  }
+
+  if (article.id !== "framework.legal-licensing") {
+    return body;
+  }
+
+  const sourceRef = config.release.commitSha || `v${config.appVersion}`;
+  const encodedSourceRef = encodeURIComponent(sourceRef);
+  const sourceRoot = `${PROJECT_REPOSITORY_URL}/tree/${encodedSourceRef}`;
+  const trackedFileRoot = `${PROJECT_REPOSITORY_URL}/blob/${encodedSourceRef}`;
+  const replacements = new Map([
+    ["{{APP_NAME}}", config.appName],
+    ["{{APP_DISPLAY_VERSION}}", config.appDisplayVersion],
+    ["{{APP_CANONICAL_VERSION}}", config.appVersion],
+    ["{{CORRESPONDING_SOURCE_URL}}", sourceRoot],
+    ["{{LICENSE_URL}}", `${trackedFileRoot}/LICENSE`],
+    ["{{TRADEMARK_POLICY_URL}}", `${trackedFileRoot}/docs/licensing/trademark-policy.md`],
+    ["{{THIRD_PARTY_NOTICES_URL}}", "./help.html?article=framework.third-party-notices"],
+  ]);
+
+  let hydrated = body;
+  for (const [token, value] of replacements) {
+    hydrated = hydrated.replaceAll(token, value);
+  }
+  return hydrated;
 }
 
 function assertUniqueContentPaths(articles) {

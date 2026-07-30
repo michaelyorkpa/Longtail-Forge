@@ -1,5 +1,35 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.25.2 - In-app legal and licensing surface in Help
+
+Completed locally on 2026-07-30. Authenticated framework Help now exposes
+version-accurate legal/licensing guidance and the reviewed third-party notices,
+the automated public-app legal/about gate reads satisfied, and the active cursor
+advances to `0.33.25.3`.
+
+**Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
+
+- [x] Added framework-owned Legal and Licensing and Third-Party Notices articles
+  covering the running identity, copyright, `AGPL-3.0-only` source-access
+  rights, warranty disclaimer, third-party software, and trademark policy.
+- [x] Hydrated the displayed version from the same configuration identity used
+  by `/api/app-info`; Corresponding Source and tracked policy links use the
+  immutable release commit when available and the canonical release tag
+  otherwise, never a mutable `main` reference.
+- [x] Hydrated the complete notices article directly from the reviewed root
+  `THIRD_PARTY_NOTICES.md`, keeping legal prose and notices in tracked Markdown
+  sources rather than duplicated JavaScript strings.
+- [x] Added both articles to the Help table of contents and search index while
+  keeping them framework-owned, authenticated, and workspace-independent.
+- [x] Activated the legal/about gate in `docs/licensing.md` and extended focused
+  Help, source-layout, search-count, and licensing-gate regression coverage.
+
+Acceptance criteria:
+
+- The Help section contains the legal/licensing surface with live version,
+  copyright, AGPL source access, warranty, third-party notices, and trademark
+  content from tracked sources, and the public-app legal gate reads satisfied.
+
 ## Version 0.33.25.1 - Reviewed third-party notices
 
 Completed locally on 2026-07-30. The root notices file now covers the complete

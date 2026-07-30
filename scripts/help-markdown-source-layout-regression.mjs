@@ -55,6 +55,14 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
     path: "framework/modules-and-optional-features.md",
     sourceFile: "src/services/help.service.js",
   },
+  "framework.legal-licensing": {
+    path: "framework/legal-and-licensing.md",
+    sourceFile: "src/services/help.service.js",
+  },
+  "framework.third-party-notices": {
+    path: "framework/third-party-notices.md",
+    sourceFile: "src/services/help.service.js",
+  },
   "time-tracking.timers": {
     path: "modules/time-tracking/timers-and-saved-duration.md",
     sourceFile: "src/modules/time-tracking/module.js",

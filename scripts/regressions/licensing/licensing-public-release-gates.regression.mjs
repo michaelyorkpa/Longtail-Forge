@@ -44,6 +44,7 @@ const live = inspectLicensingGates();
 assert.equal(live.warningOnly, true);
 assert.equal(live.checks.thirdPartyNoticesPresent, true);
 assert.equal(live.checks.thirdPartyNoticesCurrent, true);
+assert.equal(live.checks.publicLegalAboutPresent, true);
 assert.deepEqual(
   live.warnings.map((warning) => warning.code),
   [
@@ -66,7 +67,13 @@ const staleNotice = inspectLicensingGates({
 assert.equal(staleNotice.warnings[0].code, "stale-third-party-notices");
 assert.match(staleNotice.warnings[0].message, /inventory drift/);
 
+const missingLegalAbout = inspectLicensingGates({
+  pathExists: (filePath) => filePath !== LICENSING_GATE_PATHS.publicLegalAbout[0],
+});
+assert.ok(missingLegalAbout.warnings.some((warning) => warning.code === "missing-public-legal-about"));
+
 const completePaths = new Set([
+  ...LICENSING_GATE_PATHS.publicLegalAbout,
   LICENSING_GATE_PATHS.thirdPartyNotices,
   LICENSING_GATE_PATHS.contributing,
   LICENSING_GATE_PATHS.pullRequestTemplates[0],
@@ -86,6 +93,7 @@ const command = spawnSync(process.execPath, ["scripts/check-licensing-gates.mjs"
 assert.equal(command.status, 0, command.stderr || command.stdout);
 assert.match(command.stdout, /Mode: warning-only/);
 assert.match(command.stdout, /Third-party notices: satisfied/);
+assert.match(command.stdout, /In-app legal\/about: satisfied/);
 assert.match(command.stdout, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();

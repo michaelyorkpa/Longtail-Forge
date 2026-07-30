@@ -47,11 +47,11 @@ These gates activate only when their trigger is intentionally reached:
 | Gate | Status | Trigger | Required before activation |
 | --- | --- | --- | --- |
 | Public contribution acceptance | Inactive | The project begins accepting non-trivial outside code contributions | Add `CONTRIBUTING.md`, add a pull-request template, activate the CLA workflow, and link those instructions to the contributor policy. Do not add public-contributor language before that decision. |
-| Public app legal/about notice | Inactive | The app is prepared for a public release | Add the legal/about surface with project/version, copyright, AGPL/source, warranty, third-party notice, and trademark references described by the repository integration checklist. |
+| Public app legal/about notice | Active and satisfied | Public-release preparation began in 0.33.25.2 | Maintain the framework Help legal/about surface with live runtime version identity, version-accurate Corresponding Source and tracked policy links, AGPL warranty language, and notices hydrated from the root `THIRD_PARTY_NOTICES.md`. |
 | Third-party notices | Active and satisfied | A public release is prepared or dependency/asset notice requirements change | Maintain the reviewed root `THIRD_PARTY_NOTICES.md`; regenerate and hand-review it whenever the production dependency or bundled-asset inventory changes. |
 
 Run `npm run licensing:gates` to see the current gate readout. It confirms the
-active third-party-notices inventory and reports future public-app or
+active in-app legal/about and third-party-notices surfaces and reports future
 public-contribution artifacts as warnings. The command remains warning-only for
 ordinary private development; `npm run third-party-notices:check` is the
 standalone hard drift check.
