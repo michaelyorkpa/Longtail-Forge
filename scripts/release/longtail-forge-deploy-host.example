@@ -7,6 +7,8 @@ set -euo pipefail
 
 fail() { printf 'deployment helper: %s\n' "$*" >&2; exit 1; }
 
+ROOT_UID=0
+ROOT_GID=0
 HELPER_ENV="${LTF_HELPER_ENV:-/etc/longtail-forge/deploy-helper.env}"
 
 load_helper_environment() {
@@ -15,11 +17,11 @@ load_helper_environment() {
   helper_env_parent="$(dirname "$HELPER_ENV")"
   [[ -d "$helper_env_parent" && ! -L "$helper_env_parent" ]] || fail "helper environment parent must be a real directory"
   read -r owner_id file_mode < <(stat -c '%u %a' -- "$HELPER_ENV")
-  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment must be owned by root with a valid mode"
+  [[ "$owner_id" == "$ROOT_UID" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment must be owned by root with a valid mode"
   mode_value=$((8#$file_mode))
   (( (mode_value & 0022) == 0 )) || fail "helper environment must not be group- or other-writable"
   read -r owner_id file_mode < <(stat -c '%u %a' -- "$helper_env_parent")
-  [[ "$owner_id" == "0" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment parent must be owned by root with a valid mode"
+  [[ "$owner_id" == "$ROOT_UID" && "$file_mode" =~ ^[0-7]{3,4}$ ]] || fail "helper environment parent must be owned by root with a valid mode"
   mode_value=$((8#$file_mode))
   (( (mode_value & 0022) == 0 )) || fail "helper environment parent must not be group- or other-writable"
 
@@ -31,7 +33,7 @@ load_helper_environment() {
     key="${BASH_REMATCH[1]}"
     value="${BASH_REMATCH[2]}"
     case "$key" in
-      LTF_APP_SERVICE|LTF_EDGE_SERVICE|LTF_APP_ACCOUNT|LTF_APP_GROUP|LTF_APP_ROOT|LTF_DATA_ROOT|LTF_DEPLOY_ROOT|LTF_BACKUP_ROOT|LTF_APP_ENV|LTF_RELEASE_ENV|LTF_DEPLOY_ACCOUNT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP) ;;
+      LTF_APP_SERVICE|LTF_EDGE_SERVICE|LTF_APP_ACCOUNT|LTF_APP_GROUP|LTF_APP_ROOT|LTF_DATA_ROOT|LTF_DEPLOY_ROOT|LTF_BACKUP_ROOT|LTF_APP_ENV|LTF_RELEASE_ENV|LTF_DEPLOY_ACCOUNT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP|LTF_MAINTENANCE_STATE_ROOT) ;;
       *) fail "helper environment contains unsupported key: $key" ;;
     esac
     [[ -z "${seen[$key]+set}" ]] || fail "helper environment contains duplicate key: $key"
@@ -56,11 +58,101 @@ RELEASE_ENV="${LTF_RELEASE_ENV:-/etc/longtail-forge/release.env}"
 DEPLOY_ACCOUNT="${LTF_DEPLOY_ACCOUNT:-longtail-forge-deploy}"
 PUBLIC_URL="${LTF_PUBLIC_URL:?LTF_PUBLIC_URL must be configured in the root-owned helper environment}"
 SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
 STATE_FILE="$DEPLOY_ROOT/deployment-state.json"
+OPERATIONS_DIR="$DEPLOY_ROOT/operations"
+LATEST_OPERATION_FILE="$DEPLOY_ROOT/deployment-operation.json"
 INBOX="$DEPLOY_ROOT/inbox"
+OPERATOR_MAINTENANCE_DIR="$MAINTENANCE_STATE_ROOT/operator"
+DEPLOYMENT_MAINTENANCE_DIR="$MAINTENANCE_STATE_ROOT/deployment"
+OPERATOR_MAINTENANCE_MARKER="$OPERATOR_MAINTENANCE_DIR/maintenance.on"
+DEPLOYMENT_MAINTENANCE_MARKER="$DEPLOYMENT_MAINTENANCE_DIR/maintenance.on"
 
 require_hex() { [[ "$2" =~ ^[a-f0-9]{$1}$ ]] || fail "$3 must be $1 lowercase hexadecimal characters"; }
 require_token() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe filename or token: $1"; }
+require_safe_absolute_path() {
+  local value="$1" label="$2"
+  [[ "$value" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a simple absolute path"
+  [[ "$value" != "/" && "$value" != */ && "$value" != *"//"* \
+    && "$value" != *"/." && "$value" != *"/./"* \
+    && "$value" != *"/.." && "$value" != *"/../"* ]] \
+    || fail "$label must not contain an unsafe path segment"
+}
+require_separate_trees() {
+  local first="$1" second="$2" label="$3"
+  case "$first/" in "$second/"*) fail "$label paths must not overlap" ;; esac
+  case "$second/" in "$first/"*) fail "$label paths must not overlap" ;; esac
+}
+read_owner_group_mode() { stat -c '%u %g %a' -- "$1"; }
+require_directory_layout() {
+  local path_value="$1" expected_owner="$2" expected_group="$3" expected_mode="$4" label="$5"
+  local owner_id group_id file_mode
+  [[ -d "$path_value" && ! -L "$path_value" ]] || fail "$label must be a real directory"
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$path_value")
+  [[ "$owner_id" == "$expected_owner" && "$group_id" == "$expected_group" && "$file_mode" == "$expected_mode" ]] \
+    || fail "$label must have owner $expected_owner, group $expected_group, and mode $expected_mode"
+}
+validate_marker_file() {
+  local marker_path="$1" expected_owner="$2" expected_group="$3" expected_mode="$4" label="$5"
+  local owner_id group_id file_mode
+  [[ ! -L "$marker_path" ]] || fail "$label must not be a symbolic link"
+  [[ ! -e "$marker_path" || -f "$marker_path" ]] || fail "$label must be a regular file"
+  [[ -e "$marker_path" ]] || return 0
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$marker_path")
+  if [[ "$expected_owner" != "*" && "$owner_id" != "$expected_owner" ]]; then
+    fail "$label has an unexpected owner"
+  fi
+  [[ "$group_id" == "$expected_group" && "$file_mode" == "$expected_mode" ]] \
+    || fail "$label must have group $expected_group and mode $expected_mode"
+}
+validate_protected_file() {
+  local file_path="$1" expected_mode="$2" label="$3"
+  local owner_id group_id file_mode
+  [[ ! -L "$file_path" ]] || fail "$label must not be a symbolic link"
+  [[ ! -e "$file_path" || -f "$file_path" ]] || fail "$label must be a regular file"
+  [[ -e "$file_path" ]] || return 0
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$file_path")
+  [[ "$owner_id" == "$ROOT_UID" && "$group_id" == "$ROOT_GID" && "$file_mode" == "$expected_mode" ]] \
+    || fail "$label must be root-owned with mode $expected_mode"
+}
+validate_maintenance_layout() {
+  local operator_owner_id operator_group_id operator_mode
+  require_safe_absolute_path "$MAINTENANCE_STATE_ROOT" "LTF_MAINTENANCE_STATE_ROOT"
+  require_safe_absolute_path "$DEPLOY_ROOT" "LTF_DEPLOY_ROOT"
+  require_separate_trees "$MAINTENANCE_STATE_ROOT" "$DEPLOY_ROOT" "maintenance and deployment state"
+  require_directory_layout "$MAINTENANCE_STATE_ROOT" "$ROOT_UID" "$ROOT_GID" "711" "maintenance state root"
+  [[ -d "$OPERATOR_MAINTENANCE_DIR" && ! -L "$OPERATOR_MAINTENANCE_DIR" ]] \
+    || fail "operator maintenance state must be a real directory"
+  read -r operator_owner_id operator_group_id operator_mode < <(read_owner_group_mode "$OPERATOR_MAINTENANCE_DIR")
+  [[ "$operator_owner_id" == "$ROOT_UID" && "$operator_group_id" != "$ROOT_GID" && "$operator_mode" == "2771" ]] \
+    || fail "operator maintenance state must be root-owned, non-root-group controlled, and mode 2771"
+  require_directory_layout "$DEPLOYMENT_MAINTENANCE_DIR" "$ROOT_UID" "$ROOT_GID" "711" "deployment maintenance state"
+  validate_marker_file "$OPERATOR_MAINTENANCE_MARKER" "*" "$operator_group_id" "664" "operator maintenance marker"
+  validate_marker_file "$DEPLOYMENT_MAINTENANCE_MARKER" "$ROOT_UID" "$ROOT_GID" "644" "deployment maintenance marker"
+}
+assert_deployment_maintenance() {
+  validate_maintenance_layout
+  if [[ -e "$DEPLOYMENT_MAINTENANCE_MARKER" ]]; then
+    printf 'deployment maintenance marker: on (already active)\n'
+    return 0
+  fi
+  (
+    # The marker is content-free and must be readable by Caddy's secure file
+    # matcher; root remains its only writer.
+    umask 0022
+    set -o noclobber
+    : > "$DEPLOYMENT_MAINTENANCE_MARKER"
+  ) 2>/dev/null || true
+  validate_maintenance_layout
+  [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]] || fail "unable to create deployment maintenance marker"
+  printf 'deployment maintenance marker: on\n'
+}
+clear_deployment_maintenance() {
+  validate_maintenance_layout
+  [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]] || fail "deployment maintenance marker disappeared before verified reopening"
+  rm -- "$DEPLOYMENT_MAINTENANCE_MARKER"
+  printf 'deployment maintenance marker: off after verified reopening\n'
+}
 
 operation="${1:-}"
 shift || true
@@ -82,41 +174,191 @@ done
 [[ "$APP_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_APP_ACCOUNT is invalid"
 [[ "$APP_GROUP" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "LTF_APP_GROUP is invalid"
 require_hex 40 "$expected_commit" "expected commit"
+require_safe_absolute_path "$MAINTENANCE_STATE_ROOT" "LTF_MAINTENANCE_STATE_ROOT"
+require_safe_absolute_path "$DEPLOY_ROOT" "LTF_DEPLOY_ROOT"
+require_separate_trees "$MAINTENANCE_STATE_ROOT" "$DEPLOY_ROOT" "maintenance and deployment state"
 mkdir -p "$APP_ROOT/releases" "$BACKUP_ROOT" "$DEPLOY_ROOT"
 # The deployment account must traverse the root-owned parent to reach its
 # private inbox, but must not list or write any sibling state kept there.
 chmod 0711 "$DEPLOY_ROOT"
 chmod 0700 "$BACKUP_ROOT"
 install -d -o "$DEPLOY_ACCOUNT" -g "$DEPLOY_ACCOUNT" -m 0700 "$INBOX"
+install -d -o root -g root -m 0700 "$OPERATIONS_DIR"
+require_directory_layout "$DEPLOY_ROOT" "$ROOT_UID" "$ROOT_GID" "711" "deployment state root"
+require_directory_layout "$OPERATIONS_DIR" "$ROOT_UID" "$ROOT_GID" "700" "deployment operation history"
+validate_protected_file "$STATE_FILE" "600" "deployment state"
+validate_protected_file "$LATEST_OPERATION_FILE" "600" "latest deployment operation"
 
-stop_services() {
-  systemctl stop "$EDGE_SERVICE"
+require_edge_active() {
+  systemctl is-active --quiet "$EDGE_SERVICE" || fail "edge service must be active before deployment maintenance begins"
+}
+
+stop_application_for_deploy() {
   systemctl stop "$APP_SERVICE"
 }
 
-start_services() {
+start_application_for_deploy() {
   systemctl start "$APP_SERVICE"
   for _ in $(seq 1 30); do
     if curl --fail --silent --show-error http://127.0.0.1:8001/readyz >/dev/null; then break; fi
     sleep 1
   done
   curl --fail --silent --show-error http://127.0.0.1:8001/readyz >/dev/null
-  systemctl start "$EDGE_SERVICE"
 }
 
 inspect_identity() {
-  node -e '
+  node --input-type=module -e '
     const expected = JSON.parse(process.argv[1]);
-    fetch(process.argv[2] + "/api/app-info").then(async (response) => {
+    try {
+      const response = await fetch(process.argv[2] + "/api/app-info");
       if (!response.ok) throw new Error(`app-info HTTP ${response.status}`);
       const actual = await response.json();
       for (const key of ["version", "canonicalVersion", "sourceBranch", "commitSha", "artifactSha256"]) {
         if (actual[key] !== expected[key]) throw new Error(`${key} mismatch`);
       }
-    }).catch((error) => { console.error(error.message); process.exit(1); });
-  ' "$1" "$PUBLIC_URL"
-  curl --fail --silent --show-error "$PUBLIC_URL/healthz" >/dev/null
-  curl --fail --silent --show-error "$PUBLIC_URL/readyz" >/dev/null
+    } catch (error) {
+      console.error(error.message);
+      process.exit(1);
+    }
+  ' "$1" "$PUBLIC_URL" || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/healthz" >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/readyz" >/dev/null || return 1
+}
+
+operation_id=""
+operation_record=""
+operation_started_at=""
+operation_kind="deploy"
+operation_candidate_json="null"
+operation_recovery_json="null"
+operation_backup=""
+operation_recovery_backup=""
+operation_phase="not-started"
+operation_trigger_reason="none"
+
+timestamp_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+write_operation_state() {
+  local phase="$1" reason_class="$2" outcome="$3" ended_at="${4:-}"
+  [[ -n "$operation_id" && -n "$operation_record" && -n "$operation_started_at" ]] \
+    || fail "deployment operation state is not initialized"
+  validate_protected_file "$operation_record" "600" "deployment operation record"
+  validate_protected_file "$LATEST_OPERATION_FILE" "600" "latest deployment operation"
+  OPERATION_ID="$operation_id" \
+  OPERATION_PHASE="$phase" \
+  OPERATION_REASON_CLASS="$reason_class" \
+  OPERATION_TRIGGER_REASON="$operation_trigger_reason" \
+  OPERATION_OUTCOME="$outcome" \
+  OPERATION_KIND="$operation_kind" \
+  OPERATION_STARTED_AT="$operation_started_at" \
+  OPERATION_ENDED_AT="$ended_at" \
+  OPERATION_CANDIDATE_JSON="$operation_candidate_json" \
+  OPERATION_RECOVERY_JSON="$operation_recovery_json" \
+  OPERATION_BACKUP="$operation_backup" \
+  OPERATION_RECOVERY_BACKUP="$operation_recovery_backup" \
+  node -e '
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const { randomUUID } = require("node:crypto");
+    const value = {
+      schemaVersion: 1,
+      operationId: process.env.OPERATION_ID,
+      operation: process.env.OPERATION_KIND,
+      markerOwner: "deployment",
+      phase: process.env.OPERATION_PHASE,
+      reasonClass: process.env.OPERATION_REASON_CLASS,
+      triggerReasonClass: process.env.OPERATION_TRIGGER_REASON,
+      startedAt: process.env.OPERATION_STARTED_AT,
+      endedAt: process.env.OPERATION_ENDED_AT || null,
+      candidate: JSON.parse(process.env.OPERATION_CANDIDATE_JSON),
+      recovery: JSON.parse(process.env.OPERATION_RECOVERY_JSON),
+      backup: process.env.OPERATION_BACKUP || null,
+      recoveryBackup: process.env.OPERATION_RECOVERY_BACKUP || null,
+      outcome: process.env.OPERATION_OUTCOME,
+    };
+    const serialized = JSON.stringify(value, null, 2) + "\n";
+    for (const target of process.argv.slice(1)) {
+      if (fs.existsSync(target)) {
+        const stat = fs.lstatSync(target);
+        if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe operation-state target: ${path.basename(target)}`);
+      }
+      const temporary = path.join(path.dirname(target), `.${path.basename(target)}.tmp-${process.pid}-${randomUUID()}`);
+      fs.writeFileSync(temporary, serialized, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      fs.renameSync(temporary, target);
+      fs.chmodSync(target, 0o600);
+    }
+  ' "$operation_record" "$LATEST_OPERATION_FILE"
+  chown root:root "$operation_record" "$LATEST_OPERATION_FILE"
+  operation_phase="$phase"
+}
+
+begin_deploy_operation() {
+  operation_kind="deploy"
+  operation_started_at="$(timestamp_iso)"
+  operation_id="deploy-$(date -u +%Y%m%dT%H%M%SZ)-$expected_commit-$$"
+  operation_record="$OPERATIONS_DIR/$operation_id.json"
+  [[ ! -e "$operation_record" && ! -L "$operation_record" ]] || fail "deployment operation identifier collision"
+  write_operation_state "prepared" "none" "in_progress"
+}
+
+begin_rollback_operation() {
+  operation_kind="rollback"
+  operation_started_at="$(timestamp_iso)"
+  operation_id="rollback-$(date -u +%Y%m%dT%H%M%SZ)-$expected_commit-$$"
+  operation_record="$OPERATIONS_DIR/$operation_id.json"
+  [[ ! -e "$operation_record" && ! -L "$operation_record" ]] || fail "rollback operation identifier collision"
+  write_operation_state "prepared" "none" "in_progress"
+}
+
+resume_rollback_operation() {
+  local retained_json="$1"
+  operation_kind="rollback"
+  operation_id="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).operationId)' "$retained_json")"
+  operation_started_at="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).startedAt)' "$retained_json")"
+  operation_record="$OPERATIONS_DIR/$operation_id.json"
+  operation_backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup || "")' "$retained_json")"
+  operation_recovery_backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).recoveryBackup || "")' "$retained_json")"
+  [[ -f "$operation_record" && ! -L "$operation_record" ]] || fail "retained rollback operation history is missing or unsafe"
+}
+
+record_unresolved_deploy_failure() {
+  local reason_class="$1" phase="$2"
+  write_operation_state "$phase" "$reason_class" "failed" "$(timestamp_iso)" || true
+}
+
+handle_deploy_signal() {
+  local signal_name="$1"
+  trap - HUP INT TERM ERR
+  write_operation_state "$operation_phase" "signal_${signal_name}" "interrupted" "$(timestamp_iso)" || true
+  if [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]]; then
+    printf 'deployment helper: interrupted by %s; deployment maintenance remains active\n' "$signal_name" >&2
+  else
+    printf 'deployment helper: interrupted by %s before maintenance assertion\n' "$signal_name" >&2
+  fi
+  exit 128
+}
+
+handle_unexpected_deploy_error() {
+  local exit_code="$1"
+  trap - HUP INT TERM ERR
+  record_unresolved_deploy_failure "unexpected_helper_failure" "$operation_phase"
+  if [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]]; then
+    printf 'deployment helper: unexpected failure; deployment maintenance remains active\n' >&2
+  else
+    printf 'deployment helper: unexpected failure before maintenance assertion\n' >&2
+  fi
+  exit "$exit_code"
+}
+
+arm_deploy_failure_handlers() {
+  trap 'handle_deploy_signal HUP' HUP
+  trap 'handle_deploy_signal INT' INT
+  trap 'handle_deploy_signal TERM' TERM
+  trap 'handle_unexpected_deploy_error $?' ERR
+}
+
+disarm_deploy_failure_handlers() {
+  trap - HUP INT TERM ERR
 }
 
 backup_current() {
@@ -149,6 +391,105 @@ restore_backup() {
   repair_runtime_data_permissions
 }
 
+validate_immutable_release() {
+  local release_path="$1"
+  [[ -d "$release_path" && ! -L "$release_path" ]] || fail "candidate release must be a real directory"
+  if find "$release_path" \( ! -uid "$ROOT_UID" -o ! -gid "$ROOT_GID" -o \( ! -type l -a -perm /022 \) \) -print -quit | grep -q .; then
+    fail "candidate release must remain root-owned and immutable"
+  fi
+}
+
+write_release_environment_from_identity() {
+  local identity_json="$1"
+  local branch commit artifact_sha
+  branch="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).sourceBranch)' "$identity_json")" || return 1
+  commit="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).commitSha)' "$identity_json")" || return 1
+  artifact_sha="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).artifactSha256)' "$identity_json")" || return 1
+  printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$branch" "$commit" "$artifact_sha" > "$RELEASE_ENV" || return 1
+  chmod 0600 "$RELEASE_ENV"
+}
+
+prepare_interrupted_retry_baseline() {
+  local retained_backup="$1"
+  operation_trigger_reason="retry_after_interrupted_deploy"
+  operation_recovery_json="$previous_identity"
+  operation_backup="$retained_backup"
+  write_operation_state "retry_recovery" "retry_after_interrupted_deploy" "in_progress" || return 1
+  systemctl stop "$APP_SERVICE" || true
+  ln -sfn "$previous_release" "$APP_ROOT/current" || return 1
+  if [[ -n "$retained_backup" ]]; then
+    if ! restore_backup "$previous_release" "$retained_backup" "$BACKUP_ROOT/retry-pre-restore-$operation_id.ltfbackup.tgz"; then
+      record_unresolved_deploy_failure "prior_backup_restore_failed" "retry_recovery"
+      return 2
+    fi
+  fi
+  write_release_environment_from_identity "$previous_identity" || return 1
+  if ! start_application_for_deploy || ! inspect_identity "$previous_identity" || ! require_edge_active; then
+    record_unresolved_deploy_failure "current_release_recovery_failed" "retry_recovery"
+    return 3
+  fi
+  write_operation_state "retry_baseline_verified" "retry_after_interrupted_deploy" "in_progress" || return 1
+  if ! stop_application_for_deploy; then
+    record_unresolved_deploy_failure "application_stop_failed" "retry_baseline_verified"
+    return 4
+  fi
+}
+
+finish_recovered_deploy_failure() {
+  local reason_class="$1" message="$2"
+  if ! require_edge_active; then
+    record_unresolved_deploy_failure "edge_unavailable_after_recovery" "recovery_verified"
+    return 1
+  fi
+  write_operation_state "recovery_verified" "$reason_class" "recovered" "$(timestamp_iso)" || return 1
+  if ! clear_deployment_maintenance; then
+    record_unresolved_deploy_failure "maintenance_clear_failed" "recovery_verified"
+    return 1
+  fi
+  disarm_deploy_failure_handlers
+  fail "$message"
+}
+
+recover_previous_without_restore() {
+  local reason_class="$1" message="$2"
+  [[ -n "$previous_release" && -n "$previous_identity" ]] || return 1
+  write_operation_state "recovery_start" "$reason_class" "in_progress" || return 1
+  ln -sfn "$previous_release" "$APP_ROOT/current" || return 1
+  if [[ -f "$previous_release_env" ]]; then
+    cp "$previous_release_env" "$RELEASE_ENV" || return 1
+  else
+    rm -f "$RELEASE_ENV" || return 1
+  fi
+  operation_recovery_json="$previous_identity"
+  start_application_for_deploy || return 1
+  inspect_identity "$previous_identity" || return 1
+  finish_recovered_deploy_failure "$reason_class" "$message"
+}
+
+recover_previous_from_backup() {
+  local reason_class="$1"
+  [[ -n "$previous_release" && -n "$previous_identity" && -n "$backup" ]] || return 1
+  write_operation_state "recovery_restore" "$reason_class" "in_progress" || return 1
+  systemctl stop "$APP_SERVICE" || true
+  ln -sfn "$previous_release" "$APP_ROOT/current" || return 1
+  if ! restore_backup "$previous_release" "$backup" "$BACKUP_ROOT/failed-candidate-$operation_id.ltfbackup.tgz"; then
+    record_unresolved_deploy_failure "prior_backup_restore_failed" "recovery_restore"
+    return 2
+  fi
+  if [[ -f "$previous_release_env" ]]; then
+    cp "$previous_release_env" "$RELEASE_ENV" || return 1
+  else
+    rm -f "$RELEASE_ENV" || return 1
+  fi
+  operation_recovery_json="$previous_identity"
+  write_operation_state "recovery_start" "$reason_class" "in_progress" || return 1
+  if ! start_application_for_deploy || ! inspect_identity "$previous_identity" || ! require_edge_active; then
+    record_unresolved_deploy_failure "current_release_recovery_failed" "recovery_start"
+    return 3
+  fi
+  finish_recovered_deploy_failure "$reason_class" "candidate verification failed; the known-good release and backup were restored and verified"
+}
+
 if [[ "$operation" == "deploy" ]]; then
   require_token "$artifact"; require_token "$metadata"; require_token "$expected_version"; require_token "$expected_source_branch"
   require_hex 64 "$expected_sha256" "expected artifact checksum"
@@ -163,93 +504,420 @@ if [[ "$operation" == "deploy" ]]; then
   ' "$metadata_path" "$(printf '{"version":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256")" || fail "release metadata mismatch"
 
   release_dir="$APP_ROOT/releases/$expected_version-$expected_commit"
-  [[ ! -e "$release_dir" ]] || fail "release directory already exists"
-  previous_release="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
-  stopped_at="$(date -u +%Y%m%dT%H%M%SZ)"
-  previous_release_env="$DEPLOY_ROOT/release-env-before-$stopped_at"
-  if [[ -f "$RELEASE_ENV" ]]; then cp "$RELEASE_ENV" "$previous_release_env"; fi
-  mkdir "$release_dir"
-  tar --no-same-owner --no-same-permissions -xzf "$artifact_path" -C "$release_dir" --strip-components=1
-  (cd "$release_dir" && npm ci --omit=dev --no-audit --no-fund)
-  chown -R root:root "$release_dir"; chmod -R a-w "$release_dir"
-  stop_services
-  backup=""
-  if [[ -n "$previous_release" && -d "$previous_release" ]]; then
-    backup="$BACKUP_ROOT/pre-deploy-$stopped_at.ltfbackup.tgz"
-    if ! backup_current "$previous_release" "$backup"; then
-      start_services
-      fail "pre-deployment backup failed; the previous release was restarted"
+  previous_release=""
+  if [[ -e "$APP_ROOT/current" || -L "$APP_ROOT/current" ]]; then
+    [[ -L "$APP_ROOT/current" ]] || fail "current release selector must be a symbolic link"
+    previous_release="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
+    [[ -n "$previous_release" ]] || fail "current release selector is unresolved"
+  fi
+  previous_identity=""
+  retry_operation_json=""
+  retry_backup=""
+  if [[ -n "$previous_release" ]]; then
+    if [[ -f "$STATE_FILE" ]]; then
+      recorded_current_identity="$(node -e '
+        const fs = require("node:fs");
+        const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+        if (!state.current?.releaseDir) process.exit(1);
+        process.stdout.write(JSON.stringify(state.current));
+      ' "$STATE_FILE")" || fail "deployment state does not contain a recoverable current release"
+      recorded_current_release="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).releaseDir)' "$recorded_current_identity")"
+      if [[ "$previous_release" == "$recorded_current_release" ]]; then
+        previous_identity="$recorded_current_identity"
+      elif [[ "$previous_release" == "$release_dir" && -f "$DEPLOYMENT_MAINTENANCE_MARKER" && -f "$LATEST_OPERATION_FILE" ]]; then
+        previous_release="$recorded_current_release"
+        previous_identity="$recorded_current_identity"
+      else
+        fail "deployment state does not match the current release"
+      fi
+    else
+      [[ "$previous_release" == "$release_dir" && -f "$DEPLOYMENT_MAINTENANCE_MARKER" && -f "$LATEST_OPERATION_FILE" ]] \
+        || fail "deployment state is required to recover the current release"
+    fi
+    if [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" && -f "$LATEST_OPERATION_FILE" ]]; then
+      retry_operation_json="$(node -e '
+        const fs = require("node:fs");
+        const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+        if (value.operation !== "deploy" || value.markerOwner !== "deployment") process.exit(1);
+        if (value.candidate?.commitSha !== process.argv[2]) process.exit(1);
+        if (!["failed", "interrupted", "in_progress"].includes(value.outcome)) process.exit(1);
+        process.stdout.write(JSON.stringify(value));
+      ' "$LATEST_OPERATION_FILE" "$expected_commit")" || fail "active deployment maintenance belongs to a different or invalid operation"
+      retry_backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup || "")' "$retry_operation_json")"
+      if [[ -n "$retry_backup" ]]; then
+        [[ -f "$retry_backup" && ! -L "$retry_backup" ]] || fail "retained retry backup is missing or unsafe"
+      fi
     fi
   fi
+  if [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" && -z "$retry_operation_json" ]]; then
+    [[ -f "$LATEST_OPERATION_FILE" ]] || fail "active deployment maintenance has no protected operation record"
+    retry_operation_json="$(node -e '
+      const fs = require("node:fs");
+      const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      if (value.operation !== "deploy" || value.markerOwner !== "deployment") process.exit(1);
+      if (value.candidate?.commitSha !== process.argv[2]) process.exit(1);
+      if (!["failed", "interrupted", "in_progress"].includes(value.outcome)) process.exit(1);
+      process.stdout.write(JSON.stringify(value));
+    ' "$LATEST_OPERATION_FILE" "$expected_commit")" || fail "active deployment maintenance belongs to a different or invalid operation"
+    retry_backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup || "")' "$retry_operation_json")"
+    if [[ -n "$retry_backup" ]]; then
+      [[ -f "$retry_backup" && ! -L "$retry_backup" ]] || fail "retained retry backup is missing or unsafe"
+    fi
+  fi
+  if [[ -e "$release_dir" || -L "$release_dir" ]]; then
+    validate_immutable_release "$release_dir"
+  else
+    candidate_stage="$APP_ROOT/releases/.staging-$expected_version-$expected_commit-$$"
+    [[ ! -e "$candidate_stage" && ! -L "$candidate_stage" ]] || fail "candidate staging path already exists"
+    mkdir "$candidate_stage"
+    tar --no-same-owner --no-same-permissions -xzf "$artifact_path" -C "$candidate_stage" --strip-components=1
+    (cd "$candidate_stage" && npm ci --omit=dev --no-audit --no-fund)
+    chown -R root:root "$candidate_stage"; chmod -R a-w "$candidate_stage"
+    mv "$candidate_stage" "$release_dir"
+    validate_immutable_release "$release_dir"
+  fi
+  operation_candidate_json="$(printf '{"version":"%s-%s","canonicalVersion":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s","releaseDir":"%s"}' "$expected_version" "$expected_source_branch" "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256" "$release_dir")"
+  begin_deploy_operation
+  arm_deploy_failure_handlers
+  previous_release_env="$DEPLOY_ROOT/release-env-before-$operation_id"
+  if [[ -f "$RELEASE_ENV" ]]; then
+    cp "$RELEASE_ENV" "$previous_release_env"
+    chown root:root "$previous_release_env"; chmod 0600 "$previous_release_env"
+  fi
+  require_edge_active
+  assert_deployment_maintenance
+  write_operation_state "maintenance_asserted" "none" "in_progress"
+  if [[ "$previous_release" == "$release_dir" ]]; then
+    write_operation_state "idempotent_verification" "retry_after_completed_deploy" "in_progress"
+    write_release_environment_from_identity "$operation_candidate_json"
+    if ! start_application_for_deploy || ! inspect_identity "$operation_candidate_json" || ! require_edge_active; then
+      operation_trigger_reason="retry_after_completed_deploy"
+      record_unresolved_deploy_failure "current_release_recovery_failed" "idempotent_verification"
+      disarm_deploy_failure_handlers
+      fail "the recorded candidate could not be reverified; deployment maintenance remains active"
+    fi
+    if [[ ! -f "$STATE_FILE" ]]; then
+      node -e '
+        const fs = require("node:fs");
+        fs.writeFileSync(process.argv[1], JSON.stringify({ current: JSON.parse(process.argv[2]), previous: null, backup: null, deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
+      ' "$STATE_FILE" "$operation_candidate_json"
+      chown root:root "$STATE_FILE"; chmod 0600 "$STATE_FILE"
+    fi
+    write_operation_state "candidate_verified" "retry_after_completed_deploy" "succeeded" "$(timestamp_iso)"
+    clear_deployment_maintenance
+    rm -f "$artifact_path" "$artifact_path.sha256" "$metadata_path" "$previous_release_env"
+    disarm_deploy_failure_handlers
+    exit 0
+  fi
+  backup=""
+  if [[ -n "$retry_operation_json" && -n "$previous_identity" ]]; then
+    retry_result=0
+    prepare_interrupted_retry_baseline "$retry_backup" || retry_result=$?
+    if [[ "$retry_result" != "0" ]]; then
+      disarm_deploy_failure_handlers
+      if [[ "$retry_result" == "2" ]]; then
+        fail "retry could not restore the retained prior backup; deployment maintenance remains active"
+      fi
+      fail "retry could not verify and stop the known-good baseline; deployment maintenance remains active"
+    fi
+    cp "$RELEASE_ENV" "$previous_release_env"
+    chown root:root "$previous_release_env"; chmod 0600 "$previous_release_env"
+    backup="$retry_backup"
+  else
+    write_operation_state "application_stop" "none" "in_progress"
+    if ! stop_application_for_deploy; then
+      operation_trigger_reason="application_stop_failed"
+      operation_recovery_json="${previous_identity:-null}"
+      if ! recover_previous_without_restore "application_stop_failed" "application stop failed; the known-good release was verified and traffic reopened"; then
+        record_unresolved_deploy_failure "current_release_recovery_failed" "application_stop"
+        disarm_deploy_failure_handlers
+        fail "application stop failed and the current release could not be verified; deployment maintenance remains active"
+      fi
+    fi
+  fi
+  if [[ -n "$previous_release" && -d "$previous_release" && -z "$backup" ]]; then
+    backup="$BACKUP_ROOT/pre-deploy-$operation_id.ltfbackup.tgz"
+    operation_backup="$backup"
+    write_operation_state "pre_backup" "none" "in_progress"
+    if ! backup_current "$previous_release" "$backup"; then
+      operation_trigger_reason="pre_backup_failed"
+      operation_recovery_json="$previous_identity"
+      if ! recover_previous_without_restore "pre_backup_failed" "pre-deployment backup failed; the known-good release was restarted and verified"; then
+        record_unresolved_deploy_failure "current_release_recovery_failed" "pre_backup"
+        disarm_deploy_failure_handlers
+        fail "pre-deployment backup failed and the current release could not be verified; deployment maintenance remains active"
+      fi
+    fi
+  fi
+  operation_backup="$backup"
   printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$expected_source_branch" "$expected_commit" "$expected_sha256" > "$RELEASE_ENV"
   chmod 0600 "$RELEASE_ENV"
   ln -sfn "$release_dir" "$APP_ROOT/current"
-  if ! start_services || ! inspect_identity "$(printf '{"version":"%s-%s","canonicalVersion":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s"}' "$expected_version" "$expected_source_branch" "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256")"; then
-    systemctl stop "$EDGE_SERVICE" || true; systemctl stop "$APP_SERVICE" || true
-    if [[ -n "$previous_release" && -n "$backup" ]]; then
-      ln -sfn "$previous_release" "$APP_ROOT/current"
-      restore_backup "$previous_release" "$backup" "$BACKUP_ROOT/failed-candidate-$stopped_at.ltfbackup.tgz"
-      if [[ -f "$previous_release_env" ]]; then cp "$previous_release_env" "$RELEASE_ENV"; else rm -f "$RELEASE_ENV"; fi
-      start_services
+  write_operation_state "candidate_start" "none" "in_progress"
+  candidate_failure=""
+  if ! start_application_for_deploy; then
+    candidate_failure="candidate_start_failed"
+  else
+    write_operation_state "candidate_verification" "none" "in_progress"
+    if ! inspect_identity "$operation_candidate_json"; then
+      candidate_failure="candidate_identity_failed"
     fi
-    fail "candidate verification failed; prior release and backup were restored when available"
+  fi
+  if [[ -n "$candidate_failure" ]]; then
+    operation_trigger_reason="$candidate_failure"
+    if [[ -n "$previous_release" && -n "$backup" ]]; then
+      recovery_result=0
+      recover_previous_from_backup "$candidate_failure" || recovery_result=$?
+      disarm_deploy_failure_handlers
+      if [[ "$recovery_result" == "2" ]]; then
+        fail "candidate verification failed and the prior backup could not be restored; deployment maintenance remains active"
+      fi
+      if [[ "$recovery_result" == "3" ]]; then
+        fail "candidate verification failed and current-release recovery could not be verified; deployment maintenance remains active"
+      fi
+      record_unresolved_deploy_failure "current_release_recovery_failed" "recovery"
+      fail "candidate verification failed and recovery did not complete; deployment maintenance remains active"
+    fi
+    systemctl stop "$APP_SERVICE" || true
+    record_unresolved_deploy_failure "$candidate_failure" "candidate_verification"
+    disarm_deploy_failure_handlers
+    fail "candidate verification failed with no prior known-good release; deployment maintenance remains active"
   fi
   node -e '
     const fs = require("node:fs"); const previous = process.argv[2] && fs.existsSync(process.argv[2]) ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : null;
     fs.writeFileSync(process.argv[1], JSON.stringify({ current: JSON.parse(process.argv[3]), previous: previous?.current || null, backup: process.argv[4] || null, deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
-  ' "$STATE_FILE" "$STATE_FILE" "$(printf '{"version":"%s-%s","canonicalVersion":"%s","sourceBranch":"%s","commitSha":"%s","artifactSha256":"%s","releaseDir":"%s"}' "$expected_version" "$expected_source_branch" "$expected_version" "$expected_source_branch" "$expected_commit" "$expected_sha256" "$release_dir")" "$backup"
+  ' "$STATE_FILE" "$STATE_FILE" "$operation_candidate_json" "$backup"
+  chown root:root "$STATE_FILE"; chmod 0600 "$STATE_FILE"
   rm -f "$artifact_path" "$artifact_path.sha256" "$metadata_path" "$previous_release_env"
+  require_edge_active
+  write_operation_state "candidate_verified" "none" "succeeded" "$(timestamp_iso)"
+  clear_deployment_maintenance
+  disarm_deploy_failure_handlers
   exit 0
 fi
 
 [[ -f "$STATE_FILE" ]] || fail "deployment state is missing"
+
+retained_rollback_json=""
+if [[ -f "$LATEST_OPERATION_FILE" ]]; then
+  retained_rollback_json="$(node -e '
+    const fs = require("node:fs");
+    const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const markerActive = process.argv[3] === "yes";
+    const active = ["failed", "interrupted", "in_progress"].includes(value.outcome);
+    if (!active && !markerActive) process.exit(0);
+    if (value.operation !== "rollback" || value.markerOwner !== "deployment") process.exit(2);
+    if (value.candidate?.commitSha !== process.argv[2]) process.exit(3);
+    if (!active && !["recovered", "succeeded"].includes(value.outcome)) process.exit(4);
+    process.stdout.write(JSON.stringify(value));
+  ' "$LATEST_OPERATION_FILE" "$expected_commit" "$([[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]] && printf yes || printf no)")" \
+    || fail "unresolved deployment maintenance belongs to a different or invalid operation"
+elif [[ -f "$DEPLOYMENT_MAINTENANCE_MARKER" ]]; then
+  fail "active deployment maintenance has no protected operation record"
+fi
+
+recorded_current_json="$(node -e '
+  const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  if (!data.current?.releaseDir) process.exit(1);
+  process.stdout.write(JSON.stringify(data.current));
+' "$STATE_FILE")" || fail "deployment state does not contain a recoverable current release"
+recorded_current_commit="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).commitSha)' "$recorded_current_json")"
+
+# A signal or host interruption can leave the state swap complete while the
+# deployment-owned marker is still present. Reverify the selected identity
+# before treating that marker as stale; never clear it from file state alone.
+if [[ "$recorded_current_commit" == "$expected_commit" ]]; then
+  [[ -n "$retained_rollback_json" ]] || fail "requested rollback target is already current without matching protected rollback evidence"
+  resume_rollback_operation "$retained_rollback_json"
+  operation_candidate_json="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).candidate))' "$retained_rollback_json")"
+  operation_recovery_json="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).recovery))' "$retained_rollback_json")"
+  arm_deploy_failure_handlers
+  require_edge_active
+  assert_deployment_maintenance
+  write_operation_state "stale_marker_verification" "stale_deployment_marker" "in_progress"
+  write_release_environment_from_identity "$operation_candidate_json"
+  ln -sfn "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).releaseDir)' "$operation_candidate_json")" "$APP_ROOT/current"
+  if ! start_application_for_deploy || ! inspect_identity "$operation_candidate_json" || ! require_edge_active; then
+    record_unresolved_deploy_failure "rollback_target_reverification_failed" "stale_marker_verification"
+    disarm_deploy_failure_handlers
+    fail "the completed rollback target could not be reverified; deployment maintenance remains active"
+  fi
+  write_operation_state "rollback_verified" "stale_deployment_marker" "succeeded" "$(timestamp_iso)"
+  clear_deployment_maintenance
+  disarm_deploy_failure_handlers
+  exit 0
+fi
+
 rollback_json="$(node -e '
   const data = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-  if (!data.previous || data.previous.commitSha !== process.argv[2] || !data.backup) process.exit(1);
+  if (!data.previous || data.previous.commitSha !== process.argv[2] || !data.backup || !data.current) process.exit(1);
   process.stdout.write(JSON.stringify({ previous: data.previous, backup: data.backup, current: data.current }));
 ' "$STATE_FILE" "$expected_commit")" || fail "requested commit is not the recorded previous known-good release"
-previous_dir="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.releaseDir)' "$rollback_json")"
-backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup)' "$rollback_json")"
-current_dir="$(readlink -f "$APP_ROOT/current")"
-rollback_at="$(date -u +%Y%m%dT%H%M%SZ)"
-current_release_env="$DEPLOY_ROOT/release-env-before-rollback-$rollback_at"
-if [[ -f "$RELEASE_ENV" ]]; then cp "$RELEASE_ENV" "$current_release_env"; fi
-stop_services
-rollback_backup="$BACKUP_ROOT/pre-rollback-$rollback_at.ltfbackup.tgz"
-if ! backup_current "$current_dir" "$rollback_backup"; then
-  start_services
-  fail "pre-rollback backup failed; the current release was restarted"
-fi
 previous_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).previous))' "$rollback_json")"
 current_identity="$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).current))' "$rollback_json")"
+previous_dir="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.releaseDir)' "$rollback_json")"
+current_dir="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).current.releaseDir)' "$rollback_json")"
+backup="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).backup)' "$rollback_json")"
+[[ -f "$backup" && ! -L "$backup" ]] || fail "recorded rollback backup is missing or unsafe"
+validate_immutable_release "$previous_dir"
+validate_immutable_release "$current_dir"
 
-attempt_rollback() {
-  ln -sfn "$previous_dir" "$APP_ROOT/current" || return 1
-  restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$rollback_at.ltfbackup.tgz" || return 1
-  printf 'LONGTAIL_RELEASE_BRANCH=%s\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.sourceBranch)' "$rollback_json")" "$expected_commit" "$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).previous.artifactSha256)' "$rollback_json")" > "$RELEASE_ENV" || return 1
-  chmod 0600 "$RELEASE_ENV" || return 1
-  start_services || return 1
-  inspect_identity "$previous_identity" || return 1
+operation_candidate_json="$previous_identity"
+operation_recovery_json="$current_identity"
+operation_backup="$backup"
+if [[ -n "$retained_rollback_json" ]]; then
+  resume_rollback_operation "$retained_rollback_json"
+  operation_candidate_json="$previous_identity"
+  operation_recovery_json="$current_identity"
+  operation_backup="$backup"
+else
+  begin_rollback_operation
+fi
+arm_deploy_failure_handlers
+require_edge_active
+assert_deployment_maintenance
+write_operation_state "maintenance_asserted" "none" "in_progress"
+
+record_unresolved_rollback_failure() {
+  local reason_class="$1" phase="$2"
+  write_operation_state "$phase" "$reason_class" "failed" "$(timestamp_iso)" || true
 }
 
-recover_current_after_failed_rollback() {
-  systemctl stop "$EDGE_SERVICE" || true
+finish_recovered_rollback_failure() {
+  local reason_class="$1" message="$2"
+  if ! require_edge_active; then
+    record_unresolved_rollback_failure "edge_unavailable_after_recovery" "recovery_verified"
+    return 1
+  fi
+  write_operation_state "recovery_verified" "$reason_class" "recovered" "$(timestamp_iso)" || return 1
+  if ! clear_deployment_maintenance; then
+    record_unresolved_rollback_failure "maintenance_clear_failed" "recovery_verified"
+    return 1
+  fi
+  disarm_deploy_failure_handlers
+  fail "$message"
+}
+
+recover_current_without_restore() {
+  local reason_class="$1" message="$2"
+  write_operation_state "current_recovery_start" "$reason_class" "in_progress" || return 1
+  ln -sfn "$current_dir" "$APP_ROOT/current" || return 1
+  write_release_environment_from_identity "$current_identity" || return 1
+  if ! start_application_for_deploy || ! inspect_identity "$current_identity"; then
+    record_unresolved_rollback_failure "current_release_recovery_failed" "current_recovery_start"
+    return 1
+  fi
+  finish_recovered_rollback_failure "$reason_class" "$message"
+}
+
+recover_current_from_rollback_backup() {
+  local reason_class="$1"
+  write_operation_state "current_recovery_restore" "$reason_class" "in_progress" || return 1
   systemctl stop "$APP_SERVICE" || true
   ln -sfn "$current_dir" "$APP_ROOT/current" || return 1
-  restore_backup "$current_dir" "$rollback_backup" "$BACKUP_ROOT/failed-rollback-$rollback_at.ltfbackup.tgz" || return 1
-  if [[ -f "$current_release_env" ]]; then cp "$current_release_env" "$RELEASE_ENV" || return 1; else rm -f "$RELEASE_ENV" || return 1; fi
-  start_services || return 1
-  inspect_identity "$current_identity" || return 1
+  if ! restore_backup "$current_dir" "$operation_recovery_backup" "$BACKUP_ROOT/failed-rollback-$operation_id.ltfbackup.tgz"; then
+    record_unresolved_rollback_failure "current_backup_restore_failed" "current_recovery_restore"
+    return 2
+  fi
+  write_release_environment_from_identity "$current_identity" || return 1
+  write_operation_state "current_recovery_start" "$reason_class" "in_progress" || return 1
+  if ! start_application_for_deploy || ! inspect_identity "$current_identity" || ! require_edge_active; then
+    record_unresolved_rollback_failure "current_release_recovery_failed" "current_recovery_start"
+    return 3
+  fi
+  finish_recovered_rollback_failure "$reason_class" "rollback candidate failed; the pre-rollback current release and data were restored and verified"
 }
 
-if ! attempt_rollback; then
-  if ! recover_current_after_failed_rollback; then
-    fail "rollback candidate verification failed and current-release recovery also failed; keep traffic closed and recover from the retained backups"
+# A repeated or interrupted rollback first reconstructs the pre-rollback
+# current state from its retained recovery unit. Only then may it try the same
+# rollback target again.
+if [[ -n "$retained_rollback_json" && -n "$operation_recovery_backup" ]]; then
+  [[ -f "$operation_recovery_backup" && ! -L "$operation_recovery_backup" ]] \
+    || fail "retained pre-rollback current backup is missing or unsafe; deployment maintenance remains active"
+  write_operation_state "retry_current_restore" "retry_after_interrupted_rollback" "in_progress"
+  systemctl stop "$APP_SERVICE" || true
+  ln -sfn "$current_dir" "$APP_ROOT/current"
+  if ! restore_backup "$current_dir" "$operation_recovery_backup" "$BACKUP_ROOT/retry-rollback-$operation_id.ltfbackup.tgz"; then
+    record_unresolved_rollback_failure "current_backup_restore_failed" "retry_current_restore"
+    disarm_deploy_failure_handlers
+    fail "repeated rollback could not restore the retained current backup; deployment maintenance remains active"
   fi
-  fail "rollback candidate verification failed; the current release and pre-rollback backup were restored"
+  write_release_environment_from_identity "$current_identity"
+  if ! start_application_for_deploy || ! inspect_identity "$current_identity" || ! require_edge_active; then
+    record_unresolved_rollback_failure "current_release_recovery_failed" "retry_current_verification"
+    disarm_deploy_failure_handlers
+    fail "repeated rollback could not verify the retained current release; deployment maintenance remains active"
+  fi
+  write_operation_state "retry_current_verified" "retry_after_interrupted_rollback" "in_progress"
 fi
+
+active_release="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
+[[ "$active_release" == "$current_dir" ]] || {
+  record_unresolved_rollback_failure "current_release_mismatch" "application_stop"
+  disarm_deploy_failure_handlers
+  fail "current release does not match protected deployment state; deployment maintenance remains active"
+}
+write_operation_state "application_stop" "none" "in_progress"
+if ! stop_application_for_deploy; then
+  operation_trigger_reason="application_stop_failed"
+  if ! recover_current_without_restore "application_stop_failed" "rollback application stop failed; the current release was verified"; then
+    record_unresolved_rollback_failure "current_release_recovery_failed" "application_stop"
+    disarm_deploy_failure_handlers
+    fail "rollback application stop failed and the current release could not be verified; deployment maintenance remains active"
+  fi
+fi
+
+if [[ -z "$operation_recovery_backup" ]]; then
+  operation_recovery_backup="$BACKUP_ROOT/pre-rollback-$operation_id.ltfbackup.tgz"
+  write_operation_state "pre_rollback_backup" "none" "in_progress"
+  if ! backup_current "$current_dir" "$operation_recovery_backup"; then
+    operation_trigger_reason="pre_rollback_backup_failed"
+    if ! recover_current_without_restore "pre_rollback_backup_failed" "pre-rollback backup failed; the current release was restarted and verified"; then
+      record_unresolved_rollback_failure "current_release_recovery_failed" "pre_rollback_backup"
+      disarm_deploy_failure_handlers
+      fail "pre-rollback backup failed and the current release could not be verified; deployment maintenance remains active"
+    fi
+  fi
+fi
+
+ln -sfn "$previous_dir" "$APP_ROOT/current"
+write_operation_state "rollback_restore" "none" "in_progress"
+rollback_failure=""
+if ! restore_backup "$previous_dir" "$backup" "$BACKUP_ROOT/pre-restore-rollback-$operation_id.ltfbackup.tgz"; then
+  rollback_failure="rollback_backup_restore_failed"
+else
+  write_release_environment_from_identity "$previous_identity"
+  write_operation_state "rollback_start" "none" "in_progress"
+  if ! start_application_for_deploy; then
+    rollback_failure="rollback_candidate_start_failed"
+  else
+    write_operation_state "rollback_verification" "none" "in_progress"
+    if ! inspect_identity "$previous_identity" || ! require_edge_active; then
+      rollback_failure="rollback_candidate_identity_failed"
+    fi
+  fi
+fi
+
+if [[ -n "$rollback_failure" ]]; then
+  operation_trigger_reason="$rollback_failure"
+  recovery_result=0
+  recover_current_from_rollback_backup "$rollback_failure" || recovery_result=$?
+  disarm_deploy_failure_handlers
+  if [[ "$recovery_result" == "2" ]]; then
+    fail "rollback candidate failed and the pre-rollback current backup could not be restored; deployment maintenance remains active"
+  fi
+  if [[ "$recovery_result" == "3" ]]; then
+    fail "rollback candidate failed and current-release recovery could not be verified; deployment maintenance remains active"
+  fi
+  record_unresolved_rollback_failure "current_release_recovery_failed" "current_recovery"
+  fail "rollback candidate failed and recovery did not complete; deployment maintenance remains active"
+fi
+
 node -e '
   const fs = require("node:fs"); const selected = JSON.parse(process.argv[2]);
   fs.writeFileSync(process.argv[1], JSON.stringify({ current: selected.previous, previous: selected.current, backup: process.argv[3], deployedAt: new Date().toISOString() }, null, 2) + "\n", { mode: 0o600 });
-' "$STATE_FILE" "$rollback_json" "$rollback_backup"
-rm -f "$current_release_env"
+' "$STATE_FILE" "$rollback_json" "$operation_recovery_backup"
+chown root:root "$STATE_FILE"; chmod 0600 "$STATE_FILE"
+write_operation_state "rollback_verified" "none" "succeeded" "$(timestamp_iso)"
+clear_deployment_maintenance
+disarm_deploy_failure_handlers

@@ -32,6 +32,7 @@ function buildPlan(repo) {
     operation("nightly branch protection", () => protectBranch(repo, "nightly", [
       "Development gate",
       "Browser smoke and accessibility",
+      "Complete maintenance release rehearsal",
       "Dependency review",
       "CodeQL JavaScript analysis",
     ])),

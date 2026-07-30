@@ -26,7 +26,7 @@ The runtime `src/` payload includes the generated bundled-module catalog and eve
 
 ## Install and start
 
-Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified Linux target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are not supported by this release proof. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. In a new non-public staging directory:
+Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified Linux target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are not supported by this release proof. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. The root `package.json` explicitly allows only the exact pinned `better-sqlite3@13.0.1` install script for clean npm 11+ installs; do not broaden `allowScripts` or approve a new lifecycle dependency without reviewing and regression-locking that exact package/version. In a new non-public staging directory:
 
 ```sh
 tar -xzf longtail-forge-<version>.tgz --strip-components=1

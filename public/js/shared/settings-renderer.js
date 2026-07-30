@@ -407,7 +407,11 @@
       return count;
     }
 
-    const message = String(error?.message || error?.body?.error || "").trim();
+    const message = String(
+      error?.message
+      || window.LongtailForge?.errors?.read?.(error?.body, "").message
+      || "",
+    ).trim();
     if (!message) {
       return 0;
     }

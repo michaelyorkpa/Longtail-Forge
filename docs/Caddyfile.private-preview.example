@@ -4,9 +4,70 @@
 	admin 127.0.0.1:2019
 }
 
+(longtail_maintenance_curtain) {
+	header {
+		Cache-Control "no-store"
+		Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; style-src 'unsafe-inline'"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		Retry-After "60"
+		Strict-Transport-Security "max-age=300"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+	rewrite * /maintenance.html
+	file_server {
+		root /usr/local/share/longtail-forge-maintenance
+		status 503
+	}
+}
+
+(longtail_unavailable_diagnostic) {
+	header {
+		Cache-Control "no-store"
+		Content-Type "application/json"
+		Retry-After "60"
+		Strict-Transport-Security "max-age=300"
+		X-Content-Type-Options "nosniff"
+	}
+	respond `{"status":"unavailable"}` 503
+}
+
 {$LONGTAIL_PUBLIC_HOST} {
+	# Probes and release identity always reach Node, even while a maintenance
+	# marker exists. A stopped Node process therefore returns generic non-200
+	# JSON for these exact paths instead of a false healthy or branded response.
+	@longtail_diagnostic path /healthz /readyz /api/app-info
+	handle @longtail_diagnostic {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# Checking marker existence on every request makes on/off effective without
+	# a Caddy reload. Caddy needs directory traversal only, not marker contents.
+	@longtail_maintenance_active file {
+		root /var/lib/longtail-forge-maintenance
+		try_files /operator/maintenance.on /deployment/maintenance.on
+	}
+	handle @longtail_maintenance_active {
+		import longtail_maintenance_curtain
+	}
+
 	# The Node listener is loopback-only and never receives public traffic.
 	# Keep Caddy's default X-Forwarded-* behavior. It ignores incoming values
 	# from an untrusted direct client and derives the values supplied upstream.
-	reverse_proxy 127.0.0.1:8001
+	handle {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# A connection-level upstream failure invokes this error route. Application
+	# HTTP responses, including a real /readyz 503, pass through unchanged.
+	handle_errors {
+		@longtail_diagnostic_failure path /healthz /readyz /api/app-info
+		handle @longtail_diagnostic_failure {
+			import longtail_unavailable_diagnostic
+		}
+		handle {
+			import longtail_maintenance_curtain
+		}
+	}
 }

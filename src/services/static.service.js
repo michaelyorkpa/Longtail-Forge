@@ -163,7 +163,8 @@ function resolvePublicAssetPath(requestPath) {
 }
 
 async function decorateHtml(contents, resolved, session) {
-  const assetDecoratedContents = decorateHtmlAssetUrls(injectAssetVersionBootstrap(contents));
+  const withErrorBoundary = injectErrorBoundaryScripts(contents);
+  const assetDecoratedContents = decorateHtmlAssetUrls(injectAssetVersionBootstrap(withErrorBoundary));
 
   if (!resolved.protectedHtml || !session?.user_id) {
     return assetDecoratedContents;
@@ -171,6 +172,20 @@ async function decorateHtml(contents, resolved, session) {
 
   const theme = await readInitialTheme(session);
   return injectCriticalThemeStyle(injectThemeAttributes(assetDecoratedContents, theme));
+}
+
+function injectErrorBoundaryScripts(contents) {
+  if (
+    contents.includes('src="/js/shared/error-contract.js"')
+    && contents.includes('src="/js/shared/browser-recovery.js"')
+  ) {
+    return contents;
+  }
+
+  return contents.replace(
+    /(<head\b[^>]*>)/i,
+    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>',
+  );
 }
 
 async function readInitialTheme(session) {

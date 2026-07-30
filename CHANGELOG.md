@@ -1,3 +1,165 @@
+## Version 0.33.24.9 - 2026-07-30
+
+- Completed the backup-first friends-and-family preview and public-edge rollout after the green demo canary, with fresh inspected database+Files and root-only configuration backups retained before host changes.
+- Installed the reviewed maintenance page/helper, deploy/rollback helper, private-Caddy routing, and public-Nginx transport fallback root-owned with the same non-listable operator-group/root-only marker boundary proven on demo.
+- Validated both proxy configurations and used reload-only activation. Nginx was never restarted; ordinary recovery after marker, Node, and private-Caddy exercises required no proxy reload.
+- Proved operator/deployment/both-marker behavior, exact diagnostic exemptions, hardened HTML and generic JSON responses, Node-down ownership, private-Caddy-down transport ownership, and final marker-off service recovery on preview.
+- Added HSTS and `nosniff` to the tracked generic Nginx `429` login-limit response, matching both reviewed live virtual hosts and the diagnostic-fallback baseline.
+- Created and inspected new current-state backups, rolled preview back to its recorded previous immutable main release, and restored it forward to its original immutable identity; both transitions reopened only after exact public health, readiness, and application identity proof.
+- Labeled host-specific staging/candidate copies as historical or installed evidence and retained private root-only canary, rollback, backup, proxy, and final-identity evidence outside the repository.
+- Completed the topic-branch -> protected `nightly` -> protected `main` workflow and manually deployed the exact full `main` revision; the checksummed workflow metadata and public `/api/app-info` identity match.
+- Archived the complete maintenance branch, bumped the package to `0.33.24.9`, and advanced the active roadmap cursor to `0.33.25.1`.
+- Docs updated: `DECISIONS.md`, `docs/internet-deployment.md`, `docs/private-preview-readiness.md`, `docs/regression-suite.md`, and the governing release/deployment guidance completed across `0.33.24`.
+- No docs change needed: application/database schema, Files format, workspace permissions, user-facing Help, certificate/firewall/WireGuard topology, participant accounts, and the explicit invite/no-invite decision are unchanged.
+
+## Version 0.33.24.8 - 2026-07-30
+
+- Completed the backup-first live demo canary and public-edge rollout with reviewed root-owned Caddy, Nginx, maintenance-page, deployment-helper, and transport-fallback assets; syntax validation passed before activation and Nginx was reloaded once, never restarted.
+- Preserved the existing public-edge site symlink and the preview virtual-host bytes while installing only the Longtail Forge demo transport fallback and shared fallback asset.
+- Proved operator, deployment, and combined holds, exact diagnostic exemptions, Node-down private-Caddy fallback, private-Caddy-down public-Nginx fallback, hardened HTML/JSON `503` headers, and automatic recovery without a proxy reload.
+- Found a live boundary hidden by the disposable same-account fixture: Caddy's distinct service account could traverse but not match owner-only/group-only zero-byte markers. Marker creation now produces Caddy-readable operator `0664` and deployment `0644` files while non-listable directories preserve operator-group-only and root-only write authority.
+- Re-ran the marker matrix after that correction and added static plus executable regression assertions for the exact read/write boundary.
+- Exercised an idempotent successful deployment, an intentionally wrong-identity candidate that restored and verified the known-good release, a rollback to the recorded previous release, and a restore-forward to the original release. Every reopened state passed exact public health, readiness, and release-identity checks.
+- Finished with demo on `0.33.23.3-nightly` at commit `64673eadbc39b0ea9c7b95f195fe906b9dbc519f`; preview remained unchanged on `0.33.22.9.3-main` at commit `f45abef26b6f71b744bebb081fd9b0196747ed93`.
+- Confirmed final demo SQLite integrity and foreign-key checks, active Node/Caddy/Nginx services, both maintenance markers off, validated proxy configuration, and hash-pinned root-only private operational evidence. The invitation decision remains unchanged.
+- Archived the completed slice, bumped the package to `0.33.24.8`, and advanced the active roadmap cursor to `0.33.24.9`.
+- Docs updated: `DECISIONS.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: application runtime behavior, database/schema, Files/storage format, permissions, user-facing Help, backup format, certificate/firewall/WireGuard configuration, and invitation readiness are unchanged.
+
+## Version 0.33.24.7 - 2026-07-28
+
+- Added one fail-fast native-Linux `npm run maintenance:rehearse` conductor that composes the root-owned maintenance helper/marker fixture, direct Caddy behavior, the real Nginx/private-Caddy chain, successful deployment, failed-candidate recovery, rollback, and identity-reviewed stale-marker recovery without proxy reload.
+- Promoted that complete rehearsal into the clean-Ubuntu pull-request job with checksum-pinned Caddy and distribution Nginx/OpenSSL, while retaining the narrower proxy commands for diagnosis.
+- Renamed the nightly branch-protection status context to `Complete maintenance release rehearsal` across the workflow, configuration helper, regressions, and operator guidance.
+- Explicitly approved only the pinned `better-sqlite3@13.0.1` install lifecycle so clean npm 11+ Linux installs can build/load the qualified SQLite driver without permitting arbitrary dependency scripts.
+- Corrected the disposable proxy harness to create production data/storage paths owner-only (`0700`) on Linux, redirect every compiled Nginx temporary store beneath its unprivileged fixture root, and surface captured safe app output when readiness never arrives.
+- Corrected GNU/Linux first-deploy detection so a nonexistent `current` path is not mistaken for a prior release, while explicitly rejecting non-symlink or unresolved current-release selectors.
+- Made the disposable Linux deploy fixture restore owner write permission only during temp cleanup so immutable release modes remain tested without preventing fixture removal.
+- Removed an obsolete success-fixture assumption that a deployment marker without a protected operation record may proceed; only evidence-backed same-candidate retry retains idempotent active-marker coverage.
+- Made fixture-created marker modes explicit after file creation so the Linux process umask cannot silently narrow the required operator-group `0660` contract.
+- Made public release-identity verification use module-mode top-level `await` and explicitly propagate every identity/health/readiness failure from conditionally invoked shell functions, preventing deploy or rollback from continuing before all immutable identity and diagnostic checks pass.
+- Aligned the Linux success-order proof with the helper's intentional pre-curtain candidate preparation: both first-deploy and upgrade dependency installation must finish before the edge precheck and deployment marker.
+- Completed the governing operator lifecycle across internet deployment, preview deployment, release, upgrade, GitHub workflow, and private-preview readiness guidance: installation, validation, toggle/status, response ownership, stale-state recovery, emergency containment, permissions, evidence retention, and safe retirement.
+- Added a precise response-owner matrix for normal traffic, both maintenance actors, Node failure, private-Caddy/WireGuard/application-host transport failure, public-Nginx failure, failed deploy/rollback, and verified recovery.
+- Added explicit normalized-Host rejection inside both named Nginx listeners and strengthened the real-Nginx proof so a valid-SNI/mismatched-Host request must be rejected at the edge with no application request ID or body.
+- Marked the old host-specific maintenance staging folder and note historical/non-governing, documented tracked replacements, and prohibited deleting active state, deployment evidence, releases, backups, or recovery material during retirement.
+- Added `release.maintenance-release-rehearsal`, reconciled source-to-doc routing for the conductor and archive boundary, and raised regression coverage to 415 scripts, 104 convention-path guardrails, 204 static checks, and 53 required release gates.
+- Archived the completed slice, bumped the package to `0.33.24.7`, and advanced the active roadmap cursor to `0.33.24.8`.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/private-preview-readiness.md`, `docs/regression-suite.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, and `docs/upgrading.md`.
+- No docs change needed: application runtime behavior, database/schema, Files/storage, permissions, user-facing Help, backup format, and real certificate/firewall/WireGuard host evidence remain unchanged; live rollout begins in `0.33.24.8`.
+
+## Version 0.33.24.6 - 2026-07-28
+
+- Added a distinct self-contained public-edge fallback asset for the bounded Nginx topology, installed root-owned outside application releases with generic connection-unavailable copy and no script, external asset, scheduling, backup, data-safety, or health claim.
+- Kept `proxy_intercept_errors off` and routed only Nginx-generated `502`/`503`/`504` transport failures to hardened HTML `503` for ordinary traffic or minimal no-store JSON `503` for exact diagnostics; valid private-Caddy and application error responses remain authoritative.
+- Preserved exact Host/SNI rejection, connection-IP login limiting, streamed upload buffering/size limits, forwarding-header replacement, proxy timeouts, and the exact WireGuard-only private-Caddy upstream.
+- Replaced the simulated outer proxy in the disposable multi-proxy harness with real Nginx generated from the tracked reference, disposable TLS, and private Caddy; the proof covers `nginx -t`, pass-through, marker and Node-down ownership, private-hop failure, diagnostics, internal-route isolation, forwarding security, Host/SNI rejection, both recovery boundaries, and public-edge failure.
+- Added an always-present clean-Ubuntu pull-request job that installs Nginx/OpenSSL, checksum-verifies Caddy `2.11.4`, and runs the complete bounded proxy smoke for every non-documentation-only change; the repository branch-protection plan now requires that named check on `nightly`.
+- Archived the completed slice, bumped the package to `0.33.24.6`, and advanced the active roadmap cursor to `0.33.24.7`.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, and `docs/regression-suite.md`.
+- No docs change needed: application runtime/configuration, database/schema, Files/storage, permissions, user-facing Help, backup/restore behavior, release/rollback helper behavior, and invitation readiness are unchanged; real certificate, firewall, WireGuard, and production-host proof remain later live-rollout gates.
+
+## Version 0.33.24.5 - 2026-07-28
+
+- Replaced the old Caddy-stopping rollback path with a deployment-curtained state machine that keeps the private edge active, asserts its marker before stopping Node, and preserves independent operator holds.
+- Added root-only rollback latest/history evidence with rollback target and current identities, the recorded target database-and-Files backup, a newly inspected pre-rollback current backup, phase/reason/outcome, and retained recovery paths.
+- Restored the target backup with matching release metadata and now swaps deployment state and clears only the deployment marker after direct readiness plus public `/healthz`, `/readyz`, and `/api/app-info` identity proof.
+- Added failed-target recovery: target restore/start/identity failures reconstruct the pre-rollback current release and data and reopen only after the same exact proof; failed current restore/start/identity keeps both recovery units, pre-restore artifacts, releases, evidence, and curtain intact.
+- Added same-target interrupted/failed rollback retry, which first reconstructs and verifies the protected current baseline; mismatched active operations fail closed.
+- Added identity-reviewed stale-marker recovery for an already-recorded rollback state swap. Marker or operation-file presence alone cannot reopen traffic, and operator maintenance `off` remains unable to erase deployment-owned evidence.
+- Extended `release.deploy-maintenance-curtain` with rollback/restore-forward, failed backup, target restore/start/identity failure, failed current recovery, signals, retry, stale-marker, Caddy-continuity, retained-evidence, and operator-hold coverage; updated the older release-operations guardrail to the new rollback contract.
+- Archived the completed slice, bumped the package to `0.33.24.5`, and advanced the active roadmap cursor to `0.33.24.6`.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/releasing.md`, and `docs/upgrading.md`.
+- No docs change needed: application runtime, database/schema, Files/storage format, permissions, user-facing Help, Docker deployment behavior, public-Nginx transport fallback, and private-preview invitation readiness remain unchanged.
+
+## Version 0.33.24.4 - 2026-07-28
+
+- Added an exact failed-deploy state machine for application-stop, stopped-app backup, candidate startup/readiness, wrong candidate identity, prior-backup restore, and recovered-current startup/identity failures.
+- Recoverable stop/backup failures now reselect and verify the recorded known-good release without restoring data. Candidate failure restores the verified whole-instance database and Files backup plus release metadata and reopens only after exact direct/public known-good proof.
+- Kept Caddy active across recovery. Failed restore, failed current-release verification, unexpected helper error, and `HUP`/`INT`/`TERM` retain the deployment marker, immutable releases, backup/pre-restore units, release metadata snapshot, and protected evidence.
+- Added root-only atomic latest/history operation records with marker owner, initiating/final reason classes, phase, timestamps, candidate/recovery identities, backup reference, and outcome; the deployment inbox and operator-maintenance group cannot read or rewrite them.
+- Added same-candidate idempotent retry: it reuses the immutable candidate and retained backup, first restores and verifies the recorded known-good baseline beneath the existing curtain, and refuses mismatched or unsafe active operations.
+- Expanded `release.deploy-maintenance-curtain` with Linux failure injection for every named failure, verified/unresolved recovery, repeated recovery, already-active deployment/operator holds, retained evidence/artifacts, and signals at all four application service transitions.
+- Preserved explicit rollback scope for `0.33.24.5`; this slice does not change deliberate rollback sequencing or define general stale-marker resolution.
+- Archived the completed slice, bumped the package to `0.33.24.4`, and advanced the active roadmap cursor to `0.33.24.5`.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/releasing.md`, and `docs/upgrading.md`.
+- No docs change needed: application runtime, database/schema, Files/storage format, permissions, user-facing Help, Docker deployment behavior, public-Nginx transport fallback, explicit rollback flow, and private-preview invitation readiness remain unchanged.
+
+## Version 0.33.24.3 - 2026-07-28
+
+- Integrated the fixed root-owned deployment marker into successful bare-metal first-deploy and upgrade paths while keeping private Caddy continuously active.
+- Validated the maintenance root, operator/deployment directories, optional markers, exact owner/group/mode/type contract, and separation from the deployment inbox and state tree before marker mutation.
+- Kept artifact checksum and metadata verification, extraction, locked production dependency installation, and immutable release preparation before the outage window.
+- Asserted the deployment marker before stopping only the application, then kept the curtain active through the stopped-app upgrade backup, release switch, startup, direct loopback readiness, public identity/health/readiness, state recording, and final Caddy check.
+- Cleared only the deployment marker after verified success, preserved any operator marker, accepted repeated assertion, and retained fail-closed marker behavior on interruption or failure.
+- Added `release.deploy-maintenance-curtain`, with static sequencing/security guardrails and a disposable Linux helper fixture for complete first-deploy and upgrade paths, observed stopped-app curtain behavior, exact service order, Caddy continuity, an already-active deployment marker, and an independent operator hold.
+- Raised the generated registry to 414 scripts, 103 convention-path guardrails, 52 required release gates, and 203 static/source checks.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.24.4`; detailed failed-deployment recovery, protected operation evidence, and signal handling remain owned by that next slice.
+- Docs updated: `DECISIONS.md`, `docs/development/github-workflow.md`, `docs/internet-deployment.md`, `docs/longtail-forge-deploy-helper.env.example`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/releasing.md`, and `docs/upgrading.md`.
+- No docs change needed: application runtime, database/schema, Files/storage, permissions, user-facing Help, Docker deployment behavior, public-Nginx transport fallback, rollback marker sequencing, and private-preview invitation readiness remain unchanged.
+
+## Version 0.33.24.2 - 2026-07-28
+
+- Integrated the root-owned maintenance page and independent operator/deployment markers into both supported private-Caddy examples with per-request marker checks and no reload requirement.
+- Added hardened HTML `503` responses for ordinary traffic during either planned hold, including one-minute retry/refresh, `no-store`, HSTS, restrictive CSP, permissions, referrer, anti-framing, and `nosniff` policies.
+- Routed the exact `/healthz`, `/readyz`, and `/api/app-info` paths to Node before marker evaluation. Live application JSON passes through unchanged; a stopped Node now receives generic no-store JSON `503` diagnostics rather than branded HTML or false health/identity.
+- Added connection-level reverse-proxy fallback so an unexpected Node outage returns the same safe curtain on ordinary paths without a marker, while application-owned HTTP statuses pass through and normal traffic recovers without reloading Caddy.
+- Preserved direct Caddy's default rejection/replacement of forged forwarding input and the bounded Nginx -> WireGuard -> Caddy peer, strict parsing, and one-address collapse contract.
+- Extended the disposable direct and bounded-multi-proxy Caddy smokes across operator/deployment/both-marker state, exact diagnostic paths and near-misses, GET/HEAD/POST plus query strings, full body/header policy, upstream failure, application-error pass-through, and recovery without reload.
+- Validated both checked-in examples and both executable smokes with checksum-verified official Caddy 2.11.4; all 70 framework regressions also passed during focused iteration.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.24.3`; automated deployment sequencing and deployment-marker mutation remain deliberately unchanged until that slice.
+- Docs updated: `DECISIONS.md`, `docs/http-errors.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, and both checked-in Caddy examples.
+- No docs change needed: Nginx configuration, application runtime settings, operational probe implementation, permissions, database/storage, backup/restore mechanics, release promotion, and user-facing Help behavior remain unchanged.
+
+## Version 0.33.24.1 - 2026-07-28
+
+- Added a hostname-neutral, self-contained Longtail Forge temporary-unavailability page with passive system Light/Dark styling, one-minute refresh, no script or external asset, and no unsupported scheduling, backup, data-safety, or health claim.
+- Added the root-owned maintenance host helper and literal configuration example. Installation validates the root-controlled configuration/parents, safe disjoint paths, dedicated non-root operator group, immutable helper/page targets, exact ownership/modes, and symbolic-link substitutions.
+- Separated mutable state into a non-listable operator-group marker directory and an independently root-only deployment marker directory. `on`/`off` are idempotent, aggregate `status` reports both holds, and neither actor's normal command clears the other marker.
+- Discarded caller environment overrides, rejected unsupported/duplicate configuration keys plus unsafe paths and marker types, and pinned the Linux helper to LF checkout bytes.
+- Added `release.maintenance-host-assets`, including static host-neutral/security/documentation proof and a disposable Linux install/toggle fixture for modes, repeated commands, marker isolation, missing/stale state, and symbolic-link rejection.
+- Raised the generated registry to 413 scripts and 51 required release gates, and made the ratchet's synthetic missing-release-gate fixture derive its floor from the live registry.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.24.2`; Caddy routing and Node-outage behavior remain deliberately unmodified until that slice.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: internet-edge, backup/restore, release/promotion, self-hosting, upgrading, private-readiness, runtime-artifact, Help, and application runtime behavior remain unchanged because this slice installs only inert host assets and marker authority.
+
+## Version 0.33.23.3 - 2026-07-28
+
+- Published `docs/http-errors.md` as the canonical server/browser failure contract, covering route-class envelopes, registered status codes, final middleware order, framework/module responsibilities, non-enumeration, browser recovery installation, Request-ID support correlation, and the in-process `503` versus proxy-maintenance boundary.
+- Added prospective module-development guardrails: expected route failures use `AppError` and registered or documented workflow codes, raw terminal error responses are rejected outside the reviewed generic calendar-feed contract, and every repository browser entry retains the shared recovery-boundary injection point.
+- Strengthened request-correlation proof so dependency, unexpected API, and unexpected browser failures each map their shown Request ID to exactly one protected structured diagnostic.
+- Pinned the diagnostic field allowlist and proved responses/logs omit query and body values, headers, credentials, SQL, filesystem paths, exception text, and raw protected user, workspace, and record identifiers.
+- Added `framework.http-error-development-guardrails`, raised the release-gate and framework coverage ratchets, and refreshed the 412-script generated regression manifest.
+- Closed the complete `0.33.23` branded-error branch and advanced the active roadmap cursor to `0.33.24.1`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/docs-ownership.md`, `docs/http-errors.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/public-api.md`, and `docs/regression-suite.md`.
+- No docs change needed: the remaining suggested Reporting, Files, Search, Tags, runtime, permission, deployment, backup, Help, and release documents describe behavior unchanged by this closeout; proxy maintenance remains planned in `0.33.24`.
+
+## Version 0.33.23.2 - 2026-07-28
+
+- Replaced browser navigation failures with self-contained framework pages for sign-in required, unavailable, conflict, temporary dependency unavailability, and unexpected failures, each with one safe manual recovery action.
+- Made server-rendered and client-rendered recovery surfaces honor the saved Light/Dark interface preference; only Auto follows the operating-system color scheme, and the server fallback reads the existing non-sensitive theme cookie without requiring session or database decoration.
+- Made protected direct navigation return the branded 401 surface while retaining JSON for API authentication failures and preserving the existing required-password and account-recovery transitions.
+- Installed an early shared browser boundary on every served document so failed rendering and unhandled rejections replace broken content with the recovery surface instead of leaving a blank page.
+- Added one generic framework permission-denied dialog for same-origin mutation 403 responses, including assertive announcement, deduplication, Escape/Close handling, trigger focus return, and no automatic write replay.
+- Preserved exact 403/404 navigation non-enumeration, no-store and security headers, dependency-safe retry guidance, server-side authorization diagnostics, and request-ID visibility only for unexpected failures.
+- Added `framework.browser-recovery-boundary` and desktop/mobile Playwright coverage for unknown and protected routes, expired authentication, permission-dialog focus, failed rendering, history navigation, and manual-only conflict/dependency recovery.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.23.3`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/regression-suite.md`, and `help/framework/users-roles-and-permissions.md`.
+- No docs change needed: Reporting, Files, Search, Tags, API envelopes/error codes, protected diagnostics, permission identifiers, module validation, schema/data, runtime configuration, deployment/proxy behavior, backups, and public API scopes are unchanged.
+
+## Version 0.33.23.1 - 2026-07-28
+
+- Added one framework-owned server error taxonomy. `AppError` now carries an optional stable code and explicit message-exposure policy; expected client failures retain approved safe copy, while unexpected and unapproved 500-class failures return generic messages.
+- Standardized internal `/api` failures as `{ error: { code, message, requestId } }` and retained `/api/v1`'s versioned envelope around the same error object. API paths cannot negotiate into HTML, and JSON/body parsing failures now enter the same bounded contract.
+- Added explicit final boundaries for unknown/unsupported public API requests, authenticated internal API requests, and browser navigation, with the Express error middleware last. Unknown browser documents now receive status-correct HTML classification rather than barren JSON/text.
+- Added one request-correlated `http.request.failed` diagnostic for 500-class failures. It records only safe classifications and sanitized function-name stack frames, never exception messages, URLs, parameters, protected identifiers, raw stacks, paths, SQL, request data, credentials, or private content.
+- Added the shared browser error parser to every served HTML document and migrated the shared API client plus direct login, recovery, multipart, notification, Settings, Tags, Search, and Help callers to retain code, message, request ID, HTTP status, and response body.
+- Preserved public API key codes, Search/Reporting workflow codes, protected-resource 403/404 decisions, login/throttle non-enumeration, minimal health/readiness payloads, and the generic public calendar-feed rejection contract.
+- Added `framework.http-error-contract` coverage for envelope shapes, request/header correlation, content negotiation, safe diagnostics, final middleware order, 403/404 non-enumeration, dependency-safe 503 handling, browser HTML classification, and browser parser behavior.
+- Archived the completed slice and advanced the active roadmap cursor to `0.33.23.2`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/public-api.md`, `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: Reporting, Files, Search, Tags, permission identifiers, module workflows, schema/data, deployment topology, backups, and user Help behavior are unchanged; their touched callers and regressions only consume the framework error envelope.
+
 ## Version 0.33.22.9.3 - 2026-07-27
 
 - Updated the locked transitive `brace-expansion`, `postcss`, and `nanoid` releases to their patched versions after new high-severity advisories reached the promotion audit feed; no direct dependency or runtime contract changed.

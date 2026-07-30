@@ -9,16 +9,20 @@ const LEVEL_PRIORITY = Object.freeze({
   error: 50,
 });
 const SAFE_FIELDS = new Set([
+  "actorState",
   "component",
   "durationMs",
+  "errorStack",
   "errorType",
   "method",
   "mode",
   "requestId",
+  "routeClass",
   "signal",
   "source",
   "state",
   "statusCode",
+  "workspaceState",
 ]);
 const SAFE_METHODS = new Set(["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]);
 const SAFE_TOKEN_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
@@ -132,6 +136,14 @@ function normalizeSafeFields(fields) {
       continue;
     }
 
+    if (key === "errorStack") {
+      const stack = normalizeSafeStack(value);
+      if (stack.length > 0) {
+        normalized[key] = stack;
+      }
+      continue;
+    }
+
     const text = String(value || "").trim();
     if (text && SAFE_TOKEN_PATTERN.test(text)) {
       normalized[key] = text;
@@ -139,6 +151,17 @@ function normalizeSafeFields(fields) {
   }
 
   return normalized;
+}
+
+function normalizeSafeStack(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .slice(0, 8)
+    .map((frame) => String(frame || "").trim())
+    .filter((frame) => SAFE_TOKEN_PATTERN.test(frame));
 }
 
 function normalizeEvent(value) {

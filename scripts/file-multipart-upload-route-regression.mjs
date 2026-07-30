@@ -160,7 +160,7 @@ async function checkOversizedStreamedUploadIsRejected(api, fixtures) {
   }), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 413, "oversized streamed upload should be rejected");
-  assert.match(response.body.error, /exceeds the allowed size/i);
+  assert.match(response.body.error.message, /exceeds the allowed size/i);
   await assertNoFileOrAttachmentForOriginalFilename("too-large.txt");
   assert.deepEqual(
     await listStoredFiles(config.storage.localRoot),
@@ -178,7 +178,7 @@ async function checkParseFailureLeavesNoAttachment(api, fixtures) {
   const response = await api.postForm("/api/files/upload", form, { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 400, "metadata parse failure should reject the upload");
-  assert.match(response.body.error, /metadata fields must be sent before the file field/i);
+  assert.match(response.body.error.message, /metadata fields must be sent before the file field/i);
   await assertNoFileOrAttachmentForOriginalFilename("missing-target.txt");
 }
 
@@ -205,7 +205,8 @@ async function checkStorageFailureLeavesNoAttachment(api, fixtures) {
   }
 
   assert.equal(response.status, 503, "storage failures should reject the streamed upload");
-  assert.match(response.body.error, /storage failure/i);
+  assert.equal(response.body.error.code, "service_unavailable");
+  assert.equal(response.body.error.message, "The service is temporarily unavailable.");
   await assertNoFileOrAttachmentForOriginalFilename("storage-fails.txt");
 }
 

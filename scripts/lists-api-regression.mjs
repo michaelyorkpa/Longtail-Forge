@@ -52,7 +52,7 @@ async function assertBusinessListApiFlow(api, fixtures) {
     title: "Mismatched procurement list",
   }, { cookie: fixtures.adminSessionId });
   assert.equal(mismatch.status, 400);
-  assert.match(mismatch.body.error, /project/i);
+  assert.match(mismatch.body.error.message, /project/i);
 
   const created = await api.post("/api/lists", {
     description: "API procurement flow",
@@ -312,7 +312,7 @@ async function assertBusinessListApiFlow(api, fixtures) {
     item_name: "Blocked finalized edit",
   }, { cookie: fixtures.adminSessionId });
   assert.equal(finalizedEdit.status, 400);
-  assert.match(finalizedEdit.body.error, /finalized/i);
+  assert.match(finalizedEdit.body.error.message, /finalized/i);
   const duplicatedBom = await api.post(`/api/lists/${bom.body.list.list_id}/duplicate`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(duplicatedBom.status, 201);
   assert.equal(duplicatedBom.body.list.status, "active");
@@ -336,7 +336,7 @@ async function assertFamilyListApiFlow(api, fixtures) {
     title: "Family Client List",
   }, { cookie: fixtures.familySessionId });
   assert.equal(blockedClientContext.status, 400);
-  assert.match(blockedClientContext.body.error, /business workspaces/i);
+  assert.match(blockedClientContext.body.error.message, /business workspaces/i);
 
   const familySuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.familyListId}&q=tape`, {
     cookie: fixtures.familySessionId,
@@ -388,7 +388,7 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     item_name: "Blocked while disabled",
   }, { cookie: fixtures.adminSessionId });
   assert.equal(write.status, 403);
-  assert.match(write.body.error, /disabled/i);
+  assert.match(write.body.error.message, /disabled/i);
 
   await runSql(`
 UPDATE workspace_modules

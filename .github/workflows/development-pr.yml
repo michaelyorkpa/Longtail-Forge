@@ -94,6 +94,47 @@ jobs:
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
 
+  bounded-proxy-smoke:
+    name: Complete maintenance release rehearsal
+    needs: classify_changes
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: GitHub-only documentation proxy fast path
+        if: needs.classify_changes.outputs.github_only_docs == 'true'
+        run: |
+          echo "GitHub-only documentation fast path: disposable Nginx/Caddy installation and execution are not required."
+      - name: Check out the proposed revision
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use the supported Node runtime
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install application and Nginx dependencies
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: |
+          npm ci
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends nginx openssl
+      - name: Install pinned Caddy smoke binary
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        env:
+          CADDY_ARCHIVE_SHA512: 8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+          CADDY_VERSION: 2.11.4
+        run: |
+          mkdir -p "$RUNNER_TEMP/caddy"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$RUNNER_TEMP/caddy.tar.gz" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          echo "${CADDY_ARCHIVE_SHA512}  $RUNNER_TEMP/caddy.tar.gz" | sha512sum --check --strict
+          tar --extract --gzip --file "$RUNNER_TEMP/caddy.tar.gz" --directory "$RUNNER_TEMP/caddy" caddy
+          chmod 0755 "$RUNNER_TEMP/caddy/caddy"
+          echo "$RUNNER_TEMP/caddy" >> "$GITHUB_PATH"
+      - name: Execute the complete maintenance release rehearsal
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        run: npm run maintenance:rehearse
+
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-24.04

@@ -43,7 +43,9 @@ try {
     username: "missing-security-account@example.test",
   });
   assert.equal(failedLogin.status, 401);
-  assert.deepEqual(failedLogin.body, { error: "These credentials do not have access to this installation." });
+  assert.equal(failedLogin.body.error.code, "authentication_required");
+  assert.equal(failedLogin.body.error.message, "These credentials do not have access to this installation.");
+  assert.match(failedLogin.body.error.requestId, /^[0-9a-f-]{36}$/i);
 
   const adminLogin = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   const adminCookie = readSessionCookie(adminLogin);

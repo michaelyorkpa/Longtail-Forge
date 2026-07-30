@@ -30,7 +30,8 @@
     const body = await readJsonResponse(response);
 
     if (!response.ok) {
-      const error = new Error(body?.message || body?.error || "Unable to create tag.");
+      const error = namespace.errors?.createError?.(body, "Unable to create tag.", response.status)
+        || new Error("Unable to create tag.");
       error.status = response.status;
       error.body = body;
       throw error;
@@ -50,7 +51,11 @@
     const body = await readJsonResponse(response);
 
     if (!response.ok) {
-      const error = new Error(body?.message || body?.error || "Unable to remove inherited tag.");
+      const error = namespace.errors?.createError?.(
+        body,
+        "Unable to remove inherited tag.",
+        response.status,
+      ) || new Error("Unable to remove inherited tag.");
       error.status = response.status;
       error.body = body;
       throw error;

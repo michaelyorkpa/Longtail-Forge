@@ -38,7 +38,9 @@ try {
     const list = await unauthenticated.get("/api/help");
     const detail = await unauthenticated.get("/api/help/articles/framework.help-center");
 
-    assert.equal(page.status, 302);
+    assert.equal(page.status, 401);
+    assert.match(page.text, /data-recovery-kind="login-required"/);
+    assert.match(page.text, />Sign in<\/a>/);
     assert.equal(list.status, 401);
     assert.equal(detail.status, 401);
   });

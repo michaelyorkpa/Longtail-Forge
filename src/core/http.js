@@ -1,1 +1,1 @@
-export { asyncRoute, readJsonBody, sendJson } from "../utils/http.js";
+export { asyncRoute, readJsonBody } from "../utils/http.js";

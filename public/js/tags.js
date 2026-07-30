@@ -314,7 +314,7 @@ function emptyElement(message) {
 async function responseError(response, fallback) {
   try {
     const body = await response.json();
-    return body.error || fallback;
+    return window.LongtailForge?.errors?.read?.(body, fallback).message || fallback;
   } catch {
     return fallback;
   }

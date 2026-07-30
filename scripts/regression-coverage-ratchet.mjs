@@ -16,6 +16,7 @@ const requiredReleaseGateId = policy.requiredReleaseGateIds[0];
 const withoutReleaseGate = REGRESSION_ENTRIES.filter((entry) => entry.id !== requiredReleaseGateId);
 const uncoveredPolicy = cloneFixture(policy);
 uncoveredPolicy.minimumActiveScripts = REGRESSION_ENTRIES.length + 1;
+uncoveredPolicy.minimumReleaseGateScripts = REGRESSION_ENTRIES.filter((entry) => entry.tier === "release-gate").length + 1;
 const uncoveredManifest = buildRegressionManifest({ entries: withoutReleaseGate, policy: uncoveredPolicy });
 const uncoveredErrors = collectRegressionCoverageErrors({
   entries: withoutReleaseGate,

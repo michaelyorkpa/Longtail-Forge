@@ -1,5 +1,199 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.24.9 - Preview rollout, cross-host proof, and branch closeout
+
+Completed on the live preview, demo, and public-edge path on 2026-07-30. Both bounded hosts now use the qualified least-privilege maintenance boundary, preview proved backup-first rollback and restore-forward, and the complete branch advances through protected `nightly`/`main` plus a manual immutable-main preview deployment; the active cursor advances to `0.33.25.1`.
+
+**Model: High Effort** — Friends-and-family infrastructure requires immutable-main deployment evidence, protected host changes, and final branch bookkeeping without treating technical success as authorization to invite users.
+
+- [x] Proceeded only from the green demo canary, created and inspected fresh root-only preview configuration/data and public-edge configuration backups, and installed the exact reviewed root-owned assets, helper, Caddy configuration, and preview Nginx fallback with the same least-privilege marker boundary.
+- [x] Captured `caddy validate`, `nginx -t`, ownership/mode inspection, independent marker evidence, diagnostic truth, Node-down and private-Caddy transport fallbacks, exact security headers/body hashes, and recovery without reloading either proxy during the exercises.
+- [x] Exercised rollback and restore-forward between two recorded immutable main identities, then deployed the exact approved immutable `main` artifact through the manual preview workflow; every reopened state passed public health, readiness, and application identity checks.
+- [x] Independently verified preview and demo final public identities with both operator/deployment markers off; unresolved holds remain actor-independent and fail closed.
+- [x] Unmistakably labeled host-specific staging/candidate copies as historical or installed evidence so they cannot be mistaken for governing tracked configuration; private real-host evidence remains outside the repository.
+- [x] Completed changelog, decision, roadmap/archive, version, regression, protected-promotion, manual-preview, and final runtime closeout without changing the separate invitation-readiness record or explicit no-invite decision.
+
+Acceptance criteria:
+
+- Both live hosts prove least-privilege maintenance and verified recovery, preview runs the exact approved immutable release, tracked planning is closed out, and no invitation-readiness claim is inferred from deployment success alone.
+
+## Version 0.33.24.8 - Demo canary rollout and recovery exercise
+
+Completed on the live demo and public-edge hosts on 2026-07-30. Backup-first installation proved the complete maintenance, response-ownership, failed-candidate recovery, rollback, and restore-forward contract without restarting Nginx; a live service-account boundary finding was corrected before closeout, and the active cursor advances to `0.33.24.9`.
+
+**Model: High Effort** — This is the first root-owned live installation and deliberately exercises outage and rollback behavior against the isolated demo environment.
+
+- [x] Backed up the demo host and public-edge configuration/data first, then reviewed and installed the exact tracked root-owned assets, helper, Caddy configuration, and Nginx fallback with least-privilege ownership/modes.
+- [x] Captured `caddy validate`, `nginx -t`, ownership/mode inspection, marker on/off HTTP status/body/header evidence, diagnostic-exemption truth, Node-down fallback, private-Caddy transport fallback, and recovery without proxy reload.
+- [x] Exercised a successful deployment, an injected failed candidate with verified known-good recovery, and a successful rollback/restore-forward cycle; recorded exact release and backup identities without secrets.
+- [x] Verified public `/healthz`, `/readyz`, and `/api/app-info` after every reopened state. All exercises ended with the intended demo identity, both maintenance markers off, and Node plus Caddy active.
+- [x] Recorded the demo canary result in the private root-only operational evidence location and carried only safe generic proof into tracked closeout documentation.
+- [x] Corrected marker creation after live Caddy ran under a service account distinct from the marker owner: zero-byte operator and deployment markers are now Caddy-readable (`0664` and `0644`) while their containing directories preserve operator-group-only and root-only write authority.
+
+Acceptance criteria:
+
+- Demo proves the complete maintenance, deployment-failure, rollback, and recovery contract on live infrastructure without weakening proxy trust or proceeding past an unresolved curtain.
+
+## Version 0.33.24.7 - Operator documentation and full local release rehearsal
+
+Completed locally on 2026-07-28. The tracked runbooks now cover the full install-through-retirement operator lifecycle, and one clean-Linux rehearsal composes every maintenance, response-ownership, deploy-recovery, rollback, and stale-state transition before live rollout; the active cursor advances to `0.33.24.8`.
+
+**Model: High Effort** — These are governing privileged-operation instructions whose exact ordering and failure claims must match the implemented helper and both proxy layers.
+
+- [x] Updated internet deployment, preview deployment, release/rollback, private-preview readiness, and workflow guidance with install, validation, toggle/status, stale-marker recovery, emergency containment, rollback, permission, evidence-retention, and safe retirement instructions; real host values remain private.
+- [x] Added the complete response-owner matrix for normal application traffic, operator/deployment maintenance, Node-down, private-Caddy/WireGuard/application-host transport failure, public-edge-down, failed deploy/rollback, and verified recovery.
+- [x] Added `npm run maintenance:rehearse`, a fail-fast native-Linux conductor for the root-owned asset/helper fixture, direct Caddy, real Nginx/private Caddy, successful deploy, failed-candidate recovery, rollback, and stale-marker recovery; the clean-Ubuntu pull-request job runs the same command.
+- [x] Registered the conductor and historical staging paths in documentation ownership, added the required release-gate owner, and raised the generated regression policy to 415 scripts, 204 static checks, and 53 release gates.
+- [x] Marked every host-specific staging asset and note historical/non-governing, pointed to the tracked replacements, and documented safe retirement without deleting active state, evidence, releases, or backups.
+
+Acceptance criteria:
+
+- A new operator can install, exercise, diagnose, recover, and retire the maintenance boundary from tracked instructions, and the complete repository-local rehearsal proves every supported ownership transition before live rollout.
+
+## Version 0.33.24.6 - Public-Nginx transport fallback and response ownership
+
+Completed locally on 2026-07-28. The bounded public edge now distinguishes its own upstream transport failures from authoritative private-Caddy/application responses, and a clean-Ubuntu job executes the real disposable Nginx -> private Caddy -> Node chain; the active cursor advances to `0.33.24.7`.
+
+**Model: High Effort** — The public edge must distinguish transport failure from a valid upstream response without weakening exact-host rejection, upload behavior, forwarding authority, or private-tunnel isolation.
+
+- [x] Added a separate root-owned self-contained edge asset and transport-only Nginx handling for edge-generated `502`/`503`/`504`, with generic copy, `Retry-After`, no-store/security headers, and an internal exact route that does not expose a file server.
+- [x] Kept `proxy_intercept_errors off` so valid Caddy/application error responses pass unchanged, while preserving unknown Host/SNI rejection, connection-IP login limiting, streamed upload limits, forwarding replacement, timeouts, and the exact WireGuard upstream.
+- [x] Defined response ownership for normal application responses, marker maintenance, Node-down with Caddy available, private-Caddy/tunnel/app-host transport failure, and public-edge failure; a stopped edge remains a connection failure rather than being mislabeled as maintenance.
+- [x] Replaced the simulated outer proxy in the multi-proxy harness with real Nginx, generated from the tracked reference with disposable TLS, and proved configuration validation, pass-through, Caddy maintenance, edge fallback, exact diagnostic JSON, internal-route isolation, forwarding and Host/SNI security, and recovery without proxy reload.
+- [x] Added an always-present clean-Ubuntu pull-request job that checksum-verifies Caddy, installs distribution Nginx/OpenSSL, and executes the complete bounded chain independently of the Windows development host.
+
+Acceptance criteria:
+
+- The bounded public edge returns the generic fallback only when it owns the upstream transport failure, while valid inner responses and every existing proxy-security contract remain intact.
+
+## Version 0.33.24.5 - Rollback curtain, failed-rollback recovery, and stale-state handling
+
+Completed locally on 2026-07-28. Explicit rollback now keeps Caddy active and reopens only to an identity-verified restored target or reconstructed current release; unresolved and interrupted operations retain both recovery units beneath the deployment curtain, and the active cursor advances to `0.33.24.6`.
+
+**Model: High Effort** — Rollback can combine destructive restore work with two possible application identities, so failure must not lose the recoverable current state or expose a partially restored release.
+
+- [x] Asserted the deployment marker before stopping the current application for an explicit rollback, preserved any operator marker, and kept Caddy running throughout rollback, target failure, and current-release recovery.
+- [x] Added a protected rollback record containing target/current identities plus the recorded target backup and newly inspected pre-rollback current backup; restored matching release metadata and required direct plus public readiness/identity before deployment-state swap and reopening.
+- [x] Reconstructed and verified the pre-rollback current release after target restore/start/identity failure. Failed current restore/verification retains the curtain, immutable releases, both recovery units, pre-restore artifacts, and root-only latest/history evidence.
+- [x] Made same-target retry reconstruct its protected current baseline before another attempt, refused mismatched active operations, and required exact target revalidation before clearing a marker left after an already-recorded state swap. Operator `off` remains unable to clear deployment-owned evidence.
+- [x] Extended the privileged-helper harness for successful rollback/restore-forward, failed backup, target restore/start/identity failure, failed current recovery, repeated rollback, signals, stale-marker recovery, retained evidence, continuous Caddy, and operator-hold preservation.
+
+Acceptance criteria:
+
+- Rollback reopens traffic only to a fully restored and identity-verified previous or recovered-current release; every unresolved state remains curtained and recoverable.
+
+## Version 0.33.24.4 - Failed-deployment recovery and protected operation state
+
+Completed locally on 2026-07-28. Failed deployments now either restore and prove the recorded known-good application before clearing only the deployment hold or remain safely curtained with root-only evidence and every recovery unit retained; the active cursor advances to `0.33.24.5`.
+
+**Model: High Effort** — Candidate failure handling crosses backup restore, release identity, signals, privileged state, and the decision whether public traffic may safely reopen.
+
+- [x] Encoded exact deploy behavior for application-stop failure, stopped-app backup failure, candidate migration/start/readiness failure, wrong candidate identity, failed prior-backup restore, and failed current-release startup/identity recovery.
+- [x] Restarted and directly/publicly verified the recorded known-good application after recoverable stop/backup failures, and restored the whole-instance backup plus release metadata after candidate failure; only verified recovery removes the deployment marker.
+- [x] Made `HUP`, `INT`, and `TERM` fail closed without an `EXIT` reopening trap. Same-candidate retry restores and verifies the protected known-good baseline beneath the retained curtain, while mismatched active operations are refused and operator holds remain independent.
+- [x] Added root-only atomic latest/history evidence with marker owner, initiating/final reason class, phase, start/end timestamps, candidate identity, recovery identity, retained backup, and outcome; deployment and operator accounts cannot read or rewrite it.
+- [x] Added failure-injection coverage for every named deploy failure, verified and unresolved recovery, same-candidate retry, signals at application stop/candidate start/recovery stop/recovery start, retained marker/backup/metadata behavior, Caddy continuity, and an already-active operator hold.
+
+Acceptance criteria:
+
+- A failed deployment either restores and verifies the known-good application before clearing only its deployment hold, or remains safely curtained with protected evidence and recovery artifacts intact.
+
+## Version 0.33.24.3 - Successful deployment curtain and verified reopening
+
+Completed locally on 2026-07-28. Successful first-deploy and upgrade paths now keep private Caddy available, hold ordinary traffic behind the deployment marker throughout stopped-app work, and reopen only after direct plus public candidate proof; the active cursor advances to `0.33.24.4`.
+
+**Model: High Effort** — The privileged helper must change service sequencing without reopening traffic before backup, candidate startup, and release identity have succeeded.
+
+- [x] Extended the root-owned helper environment contract with the reviewed maintenance state root and validated its ownership, modes, file types, fixed operator/deployment marker layout, and separation from deployment inbox/state.
+- [x] Moved artifact checksum/metadata verification, extraction, and dependency installation before the outage window; the helper then requires Caddy, asserts the deployment marker, and stops only the application.
+- [x] Kept the marker active through stopped-app upgrade backup, immutable release switch, application start, direct loopback readiness, public `/api/app-info`, `/healthz`, and `/readyz`, deployment-state recording, and the final Caddy check.
+- [x] Preserved a pre-existing operator marker, made repeated deployment-marker assertion idempotent, removed only the deployment marker after verified success, and retained fail-closed marker behavior on failure or interruption.
+- [x] Added a disposable privileged-helper harness for successful first deploy and upgrade, an already-active operator hold, repeated marker assertion, exact service order, Caddy continuity, stopped-app backup placement, and verified reopening.
+
+Acceptance criteria:
+
+- A successful deployment shows the maintenance curtain throughout stopped-app work and removes only its own hold after the exact intended application is directly and publicly ready.
+
+## Version 0.33.24.2 - Private-Caddy maintenance routing and Node-outage fallback
+
+Completed locally on 2026-07-28. Both supported private-Caddy topologies now return the reviewed curtain for planned holds or unexpected Node unavailability while exact diagnostics and forwarding authority remain truthful; the active cursor advances to `0.33.24.3`.
+
+**Model: High Effort** — Request matching and error routing must preserve truthful probes and the exact direct-Caddy and bounded multi-proxy trust contracts during both planned and unexpected outages.
+
+- [x] Integrated the tracked page and fixed marker contract into both reviewed Caddy examples without host-specific values or changes to direct-edge and Nginx -> WireGuard -> Caddy peer/header restrictions.
+- [x] Made either marker serve the root-owned page for normal requests as HTTP `503` with `Retry-After`, `Cache-Control: no-store`, HSTS, restrictive CSP, permissions, referrer, anti-framing, and `nosniff` headers; marker changes take effect per request without reload.
+- [x] Exempted exactly `/healthz`, `/readyz`, and `/api/app-info`. Live Node responses pass through unchanged, while an unreachable Node returns generic no-store JSON `503` instead of false health, stale identity, or branded HTML.
+- [x] Added private-Caddy connection-error handling so an unexpected Node outage receives the same safe curtain for every ordinary path without requiring a marker; application-owned HTTP statuses pass through and recovery requires no reload.
+- [x] Extended both disposable Caddy topologies for operator/deployment/both-marker state, exact exemptions and near-misses, GET/HEAD/POST plus query strings, page/header/cache/refresh/security policy, upstream failure, recovery without reload, live application-error pass-through, and forged-forwarding rejection.
+
+Acceptance criteria:
+
+- Both supported private-Caddy topologies return the reviewed curtain for planned or unexpected Node unavailability while diagnostic endpoints and forwarding authority remain truthful and regression-locked.
+
+## Version 0.33.24.1 - Root-owned maintenance asset and marker helper
+
+Completed locally on 2026-07-28. Longtail Forge now has host-neutral immutable maintenance assets plus independently owned operator/deployment markers; request routing remains unchanged, and the active cursor advances to `0.33.24.2`.
+
+**Model: High Effort** — Filesystem ownership and marker semantics form a privileged host boundary where one writable path or unsafe helper operation could grant configuration or content replacement.
+
+- [x] Promoted the staged page/toggle concept into hostname-neutral tracked assets with no personal account, hostname, WireGuard address, or archive-path dependency; reviewed installation values come only from the root-owned literal helper configuration.
+- [x] Installed the page and helper root-owned outside mutable state. The non-listable state root exposes only a root-owned/operator-group-controlled marker directory and a separate root-only deployment directory, with symbolic-link/path substitution rejected and no write path to Caddy configuration, releases, secrets, or page content.
+- [x] Added independent idempotent operator and deployment markers plus safe `on`, `off`, and aggregate `status` behavior. Operator commands cannot change the deployment marker, deployment changes require root, and neither actor's normal `off` clears the other hold.
+- [x] Shipped a self-contained accessible/responsive Longtail Forge page with generic temporary-unavailability copy, one-minute refresh, passive system Light/Dark styling, no executable/external dependency, and no unsupported scheduling, backup, data-safety, or health claim.
+- [x] Added the required release-gate regression for configuration allowlisting, owner/mode expectations, immutable assets, actor/marker isolation, repeated commands, missing/stale state, symbolic-link rejection, host neutrality, documentation, LF checkout policy, and executable POSIX install/toggle behavior on Linux.
+
+Acceptance criteria:
+
+- An authorized operator or deployment helper can independently assert and inspect a maintenance hold without gaining page/configuration write access or clearing another actor's hold.
+
+## Version 0.33.23.3 - Error-contract documentation, observability proof, and closeout
+
+Completed locally on 2026-07-28. The shared server/browser error contract is now canonical and prospectively enforced, shown request IDs map to one safe protected diagnostic, the complete `0.33.23` branch is closed, and the active cursor advances to `0.33.24.1`.
+
+**Model: High Effort** — Closeout must prove both user recovery and diagnostic correlation across public, protected, API, and dependency-failure paths.
+
+- [x] Documented error codes/envelopes, middleware order, module error responsibilities, non-enumeration rules, request-ID support workflow, and the boundary between in-process 503 handling and 0.33.24 proxy maintenance.
+- [x] Added module-development guardrails so new routes use `AppError`/registered error codes rather than raw production diagnostics, and so new browser entries install the shared recovery boundary.
+- [x] Added regressions that correlate a shown request ID with exactly one safe structured server diagnostic while asserting responses/logs omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers.
+- [x] Ran API contract, permission, workspace-isolation, security-header, static-fallback, accessibility, browser recovery, production-log, and canonical slice verification.
+
+Acceptance criteria:
+
+- The server and browser share a documented failure contract, support can correlate a user-visible ID to protected diagnostics, and all error surfaces preserve security, accessibility, and recovery behavior.
+
+## Version 0.33.23.2 - Resilient branded pages and browser recovery boundary
+
+Completed locally on 2026-07-28. Browser navigation and rendering failures now share one self-contained recovery boundary, mutation permission denials use one accessible framework dialog, and the active cursor advances to `0.33.23.3`.
+
+**Model: High Effort** — Failure UI must remain usable when normal rendering/data dependencies are broken and must not create retry loops or duplicate unsafe writes.
+
+- [x] Added self-contained framework-owned browser states for sign-in required, unavailable/forbidden-or-not-found, conflict, unexpected error, and temporary dependency unavailability, with indistinguishable protected 403/404 bodies.
+- [x] Kept the fallback independent of workspace/module/database reads and optional assets while preserving no-store/security headers, keyboard access, responsive and theme-safe rendering, assertive announcements, heading focus, and unexpected-failure request IDs.
+- [x] Gave each surface one contextual manual action and prohibited automatic mutation replay.
+- [x] Installed the top-level render/unhandled-rejection boundary before page scripts and routed shared fetch failures through the same presentation without taking ownership of module validation.
+- [x] Added one generic, deduplicated permission-denied dialog for same-origin mutation 403 responses with Escape/Close handling and focus return, without changing server-side authorization logging.
+- [x] Proved unknown and protected routes, expired authentication, forbidden/hidden equivalence, conflict, unexpected and dependency failures, failed dynamic rendering, history navigation, focus behavior, announcements, desktop, and mobile rendering.
+
+Acceptance criteria:
+
+- Users never land on barren Express text/JSON for a browser page, client-rendering failures provide one safe next action, permission-denied actions surface a clear in-app explanation instead of failing silently, and the fallback remains available without database-backed decoration or protected resource leakage.
+
+## Version 0.33.23.1 - Server error taxonomy, API envelopes, and final route ordering
+
+Completed locally on 2026-07-28. The server and shared browser callers now use one request-correlated failure contract; the active cursor advances to `0.33.23.2` for the resilient branded-page and browser-recovery boundary.
+
+**Model: High Effort** — A framework-wide middleware change can break every API client or weaken non-enumerating authorization behavior.
+
+- [x] Inventoried `AppError`, direct status/error responses, public/static/module routing, wrapped and native async rejection, authentication/API-key early responses, unknown routes, unsupported methods, and custom Search/Reporting error payloads before defining the shared status taxonomy.
+- [x] Kept `/api/v1` in its versioned envelope and standardized internal `/api` failures as `{ error: { code, message, requestId } }`. Added the injected shared browser error parser and migrated the affected direct-fetch callers so code, message, request ID, status, and body stay available without per-page string/object interpretation.
+- [x] Added the final public-API boundary before browser authentication, the final internal-API boundary after all authenticated API routes, the final browser not-found response after static/document resolution, and the Express error middleware last. API paths remain JSON regardless of content negotiation.
+- [x] Reused the server-generated request ID in every API error envelope and in one protected structured diagnostic for 500-class failures. Diagnostics retain only error type, sanitized function-name stack frames, route class, and actor/workspace presence classifications; responses stay generic.
+- [x] Preserved existing protected-resource 403/404 decisions and non-enumerating messages. Dependency failures become exposed 503 responses only when the caller deliberately marks the distinction safe and actionable; other 500-class messages remain generic.
+
+Acceptance criteria:
+
+- Every API failure has one documented JSON shape and request ID, every browser navigation failure has the correct status/HTML class, and route ordering plus non-enumeration are regression-locked.
+
 ## Version 0.33.22.9.3 - Calendar client metadata and subscription refinement
 
 Completed and operator-accepted on 2026-07-27. Google Calendar, Outlook, Thunderbird, and Apple Calendar on iPhone consumed the provider-neutral subscription successfully; the active cursor advances to `0.33.23`.

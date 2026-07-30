@@ -706,10 +706,8 @@
     const body = await parseMultipartJsonResponse(response);
 
     if (!response.ok) {
-      const error = new Error(body?.error || body?.message || `Upload failed: ${response.status}`);
-      error.status = response.status;
-      error.body = body;
-      throw error;
+      throw namespace.errors?.createError?.(body, `Upload failed: ${response.status}`, response.status)
+        || new Error(`Upload failed: ${response.status}`);
     }
 
     return body;

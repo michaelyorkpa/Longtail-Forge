@@ -126,7 +126,7 @@ async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
   }), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 413, "oversized streamed uploads should use a useful 413 response");
-  assert.match(response.body.error, /Uploaded file exceeds the allowed size/i);
+  assert.match(response.body.error.message, /Uploaded file exceeds the allowed size/i);
   assert.doesNotMatch(JSON.stringify(response.body), /storageKey|protectedPath|signedUrl|localRoot/i, "failure response should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("hardening-too-large.txt");
   await eventuallyStoredFilesEqual(beforeFiles, "oversized streamed upload should not leave a partial local file");
@@ -140,7 +140,7 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   });
 
   assert.equal(response.status, 400, "malformed multipart uploads should fail with a route-safe 400");
-  assert.match(response.body.error, /could not be parsed|cancelled|could not be read/i);
+  assert.match(response.body.error.message, /could not be parsed|cancelled|could not be read/i);
   assert.doesNotMatch(response.text, /storageKey|protectedPath|signedUrl|localRoot/i, "parse failures should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("malformed-upload.txt");
   await eventuallyStoredFilesEqual(beforeFiles, "malformed multipart upload should not leave a partial local file");
@@ -180,7 +180,8 @@ async function checkStorageStreamFailureIsBounded(api, fixtures) {
   }
 
   assert.equal(response.status, 500, "unexpected storage stream failures should fail the upload");
-  assert.match(response.body.error, /Uploaded file could not be stored/i);
+  assert.equal(response.body.error.code, "internal_server_error");
+  assert.equal(response.body.error.message, "Internal server error.");
   assert.doesNotMatch(response.text, /raw provider|secret|storageKey|protectedPath|signedUrl/i, "storage failures should not leak provider internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("bounded-storage-failure.txt");
 }

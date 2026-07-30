@@ -4,6 +4,8 @@ Protected local administrator accounts keep broad access for local administratio
 
 User profile preferences such as theme and timezone live under User settings. User administration and role assignment controls appear only when your current role allows them.
 
+If an action is refused because your current role does not allow it, Longtail Forge opens a Permission denied dialog without repeating the action. Close the dialog to return focus to the control you used. Protected pages that are forbidden or unavailable use the same generic unavailable message so the page does not reveal whether a hidden record exists.
+
 Add User starts with the current workspace and lists only workspaces you are allowed to administer. Enter a complete email address and use Find Account: an exact existing account can be added without creating another identity, while an unmatched email creates a new account and shows its generated password once. The initial role determines whether a Client or Project selector appears. Personal workspaces cannot add users, Family workspaces do not offer client roles, and only a Super Admin can assign Super Admin.
 
 Repeated unsuccessful sign-in or current-password checks are temporarily limited. If Longtail Forge says there have been too many attempts, wait for the lockout period before trying again; the response does not indicate whether a submitted account exists. Administrator password resets are also temporarily limited after repeated use.
