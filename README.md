@@ -40,6 +40,7 @@ Longtail Forge currently includes:
 - Time tracking with manual entry, edit-entry workflows, active timer persistence, and UTC-backed storage
 - A framework-owned Workbench page for daily active timers and task work
 - First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
+- Read-only Tasks calendars in the app plus administrator-managed private calendar subscriptions for Google Calendar, Apple Calendar, Outlook, and Thunderbird
 - Framework-owned browser search across indexed Tasks, Time Entries, Clients, Projects, and Help articles
 - Framework-owned Help Center with baseline product help and module-declared Help contributions
 - First-party Notes with Library buckets, collections, Markdown, links, revisions, tags, files, search, Help, and secure-note encryption-at-rest boundaries
@@ -70,13 +71,13 @@ These are committed first-party public-core modules. They are **planned, not shi
 - **Knowledge Base (planned, roadmap 0.35)** — a curated, reviewed publishing layer for durable reference material. Notes can feed its future review workflow.
 - **Creator Studio (planned, roadmap 0.39)** — move content ideas through research, drafting, production, publishing, and repurposing, for both creators and authors.
 
-Calendar remains planned at 0.36. Hosted SaaS and PostgreSQL remain later work. See [ROADMAP.md](ROADMAP.md) for the detailed forward plan.
+The separate first-party Calendar module remains planned at 0.36; the current Tasks calendar and private read-only calendar subscriptions are already available. Hosted SaaS and PostgreSQL remain later work. See [ROADMAP.md](ROADMAP.md) for the detailed forward plan.
 
 ## Current Release and Readiness Status
 
-- The current package version is reported by `/api/app-info`. The checksummed runtime artifact, tested baseline backup/restore path, and private-preview readiness checklist are complete; the remaining live deployment, rollback, hotfix, and final release-closeout gates are still required before invitations.
-- Longtail Forge is in active development and currently used privately. It runs as a self-hosted app; a limited friends-and-family private internet preview is planned once security-hardening (roadmap 0.33.16) and preview-readiness work (roadmap 0.33.17, including tested backup/restore) are complete.
-- Until that work ships, treat internet use as a **private/technical preview**, not a production deployment. Supported scale is small-office (SQLite for roughly 50 total users and about 5–15 concurrent on one server); PostgreSQL is required before shared hosted or larger use.
+- The current package version is reported by `/api/app-info`. Internet-exposure hardening, the checksummed runtime artifact, tested baseline backup/restore, protected promotion path, immutable preview deployment, rollback/restore-forward, and maintenance-mode rollout have been completed and proven for the bounded private-preview topology.
+- Longtail Forge is in active development and currently used privately. A limited friends-and-family private internet preview is technically deployed, but invitations remain blocked until the operator completes the private signed readiness record, participant-account and scanner/recovery review, and an explicit invite/no-invite decision for the exact candidate.
+- Treat this as a **private/technical preview**, not a public launch or general production-readiness claim. Supported scale is small-office (SQLite for roughly 50 total users and about 5–15 concurrent on one server); PostgreSQL is required before shared hosted or larger use.
 - Longtail Forge makes no security, uptime, backup, or compliance guarantees, and Secure Notes are encrypted at rest but are not zero-knowledge (see [docs/architecture.md](docs/architecture.md)).
 
 Product positioning, audience, demo, preview, and launch planning live in the [marketing documentation hub](docs/marketing/README.md).

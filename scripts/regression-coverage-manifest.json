@@ -3,13 +3,13 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 416,
+    "discoveredScripts": 417,
     "legacyScripts": 311,
     "releaseGateScripts": 53,
     "areaCounts": {
       "dashboard": 2,
       "database": 38,
-      "docs": 9,
+      "docs": 10,
       "files": 44,
       "framework": 71,
       "jobs": 7,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 194,
+      "focused": 195,
       "integration": 161,
       "release-gate": 53,
       "slow": 8
@@ -38,7 +38,7 @@
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 204
+      "static": 205
     }
   },
   "coverageFamilies": [
@@ -2677,6 +2677,22 @@
         "routing"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "docs",
+      "description": "Keeps marketing status, proof, and preview-invitation boundaries aligned with the shipped baseline.",
+      "id": "docs.marketing-claims-baseline",
+      "legacy": false,
+      "path": "scripts/regressions/docs/marketing-claims-baseline.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "claims",
+        "licensing",
+        "marketing",
+        "preview"
+      ],
+      "tier": "focused"
     },
     {
       "area": "docs",

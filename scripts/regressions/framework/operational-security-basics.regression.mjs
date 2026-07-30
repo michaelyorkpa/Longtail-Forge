@@ -221,7 +221,7 @@ async function assertSecurityDocumentation() {
   assert.match(operations, /Backup and restore from 0\.33\.17 have been tested end to end/);
   assert.match(operations, /## Manual security review before invitations/);
   assert.match(preview, /manual operational-security review/);
-  assert.match(preview, /Invitations remain blocked until the 0\.33\.17 backup\/restore path has been implemented and tested end to end/);
+  assert.match(preview, /Invitations remain blocked until that exact-candidate review records an explicit invite decision/);
 }
 
 function listen(app) {

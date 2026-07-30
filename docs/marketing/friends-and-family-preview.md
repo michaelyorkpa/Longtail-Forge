@@ -1,10 +1,12 @@
 # Friends-and-Family Private Preview Plan
 
-This plan prepares a small, private, invitation-only preview of Longtail Forge. It corresponds to ROADMAP **0.33.17 — Friends-and-Family Internet Preview**, which is gated on completed security hardening (0.33.16), tested backup/restore + deployment readiness, and the proven `nightly` -> `main` branch/CI/manual-deployment topology in 0.33.17. Invitations do not begin until those gates pass.
+This plan prepares a small, private, invitation-only preview of Longtail Forge. The 0.33.16 security hardening, 0.33.17 backup/restore and deployment-readiness work, and the protected `nightly` -> `main` promotion plus manual immutable preview deployment have shipped. The 0.33.24 rollout also proved the bounded hosts' maintenance, rollback, restore-forward, and final identity path. Those technical gates do not authorize invitations.
 
-Immediately before the first invitation, the maintainer must complete and date the [Private Preview Readiness](../private-preview-readiness.md) checklist and the [manual operational-security review](../operational-security.md#manual-security-review-before-invitations) against the exact candidate version. A clean scan is not a substitute for that review. Invitations remain blocked until the 0.33.17 backup/restore path has been implemented and tested end to end.
+Immediately before the first invitation, the maintainer must complete and date the private signed [Private Preview Readiness](../private-preview-readiness.md) record and the [manual operational-security review](../operational-security.md#manual-security-review-before-invitations) against the exact candidate version, confirm participant accounts plus scanner and Secure Notes recovery evidence, and record an explicit invite/no-invite decision. A clean scan or successful deployment is not a substitute for that review. No invitation was issued by the technical release closeouts.
 
-**Do not promise availability, security, uptime, backups, or a date beyond what is actually implemented.** The roadmap names a **target** of July 31, 2026 for this preview *if and only if* the prerequisite security and readiness work is complete. Treat that as a target, not a commitment, and never as permission to skip controls.
+Invitations remain blocked until that exact-candidate review records an explicit invite decision.
+
+**Do not promise availability, security, uptime, backups, or a date beyond what is actually authorized.** The former July 31, 2026 roadmap target was conditional and never permission to skip controls; it does not replace the still-open invite/no-invite decision.
 
 ## Preview purpose
 
@@ -78,7 +80,7 @@ Share this verbatim before access:
 > - This is an early, experimental private preview. Things will break.
 > - **Do not store sensitive or irreplaceable data.** Keep your own copy of anything important.
 > - There is **no guarantee** of data durability, backups, uptime, or security during the preview.
-> - Internet-exposure hardening and backup/restore are still being finalized; this preview is private and limited by design.
+> - The bounded deployment and recovery path has been exercised, but this preview is still private and limited by design; that technical proof is not a security, uptime, backup, or data-durability guarantee.
 > - Some things you may expect are **planned, not built yet** — including Support Tickets, Knowledge Base, and Creator Studio.
 > - Secure Notes are encrypted at rest but are **not** "zero-knowledge": the app server can decrypt them. Don't treat them as a vault for critical secrets.
 > - Please keep the app, its link, and screenshots private.
@@ -144,7 +146,7 @@ Do not publish these as metrics or convert them into public claims.
 - [Private Preview Readiness](../private-preview-readiness.md) - the invitation gate for setup, limits, recovery, account flow, revocation, and feedback readiness.
 
 - [Reference Internet Deployment](../internet-deployment.md) — the one supported Caddy topology, operational procedure, and known limitations.
-- [ROADMAP 0.33.16 / 0.33.17](../../ROADMAP.md) — the security and preview-readiness prerequisites.
+- [Private Preview Readiness](../private-preview-readiness.md) and the [CHANGELOG](../../CHANGELOG.md) — the completed technical prerequisites and still-open invitation decision.
 - [launch-plan.md](launch-plan.md) — where this preview sits in the overall staging.
 - [demo-stories.md](demo-stories.md) — Demo A mirrors the five-minute path.
 - [faq-draft.md](faq-draft.md) — reuse the honest answers on security and data.

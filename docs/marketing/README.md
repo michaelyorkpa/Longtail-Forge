@@ -14,13 +14,19 @@ It is a working foundation, not published marketing. Everything here is written 
 
 Every capability claim in this directory is tagged as one of:
 
-1. **Current** — shipped and available in the app today (through version 0.33.13.5).
-2. **Private preview** — near-term private/technical-preview readiness work on the active roadmap (security hardening 0.33.16, preview packaging / backup-restore 0.33.17).
+1. **Current** — shipped and available in the app today (repository baseline 0.33.25.2; product behavior through 0.33.24.9 plus the 0.33.25.1-.2 notice and in-app legal surfaces).
+2. **Private preview** — the current release posture: the bounded preview deployment and recovery path are technically proven, while the private signed readiness record and explicit invite/no-invite decision remain open.
 3. **Planned** — committed roadmap functionality not yet shipped (Support Tickets 0.34, Knowledge Base 0.35, Creator Studio 0.39).
 4. **Commercial hypothesis** — longer-term commercial/hosted plans and pricing ideas that are not commitments.
 5. **Idea** — hypotheses and open questions.
 
 Do not describe planned or hypothetical functionality as currently available.
+Secure Notes are current only at note level. Secure Catalogs remain future `0.33.29` work and must not be described as inherited protection available today.
+
+This baseline incorporates the shipped preview hardening and recovery work,
+0.33.20 performance changes without turning internal measurements into public
+benchmarks, 0.33.21 UX corrections, 0.33.22 Tasks calendar subscriptions,
+0.33.23 error surfaces, and the 0.33.24 maintenance boundary.
 
 ## Documents
 

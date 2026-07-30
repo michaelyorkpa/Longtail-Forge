@@ -107,10 +107,24 @@ Acceptance criteria:
 
 **Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
 
-- [ ] Re-baseline `docs/marketing/` from "Current through 0.33.13.5" to the actual shipped version: move shipped roadmap work (preview readiness, security hardening, performance, UX corrections, calendar subscription, secure catalogs, maintenance mode — whatever has actually landed) from private-preview/planned to current across the README status vocabulary, positioning, feature-outcome map, demo stories, website copy draft, and FAQ draft.
-- [ ] Update `claims-and-proof-register.md` for every reclassified claim with its evidence source, and re-verify that no document invents customers, numbers, guarantees, or absolute security claims; add the new legal/about and third-party-notices surfaces as citable proof points for licensing-related FAQ answers.
-- [ ] Reconcile the preview/design-partner/launch planning documents with the actual preview state at the time this branch runs.
-- [ ] Closeout: run `npm run docs:check`, `npm run licensing:gates`, the Help regressions, and the canonical slice verification; update `CHANGELOG.md`, and record the gate activations in `DECISIONS.md` if a decision-level note is warranted.
+- [x] Re-baseline `docs/marketing/` from "Current through 0.33.13.5" to the actual shipped version: move shipped roadmap work (preview readiness, security hardening, performance, UX corrections, calendar subscription, secure catalogs, maintenance mode — whatever has actually landed) from private-preview/planned to current across the README status vocabulary, positioning, feature-outcome map, demo stories, website copy draft, and FAQ draft.
+- [x] Update `claims-and-proof-register.md` for every reclassified claim with its evidence source, and re-verify that no document invents customers, numbers, guarantees, or absolute security claims; add the new legal/about and third-party-notices surfaces as citable proof points for licensing-related FAQ answers.
+- [x] Reconcile the preview/design-partner/launch planning documents with the actual preview state at the time this branch runs.
+- [x] Closeout: run `npm run docs:check`, `npm run licensing:gates`, the Help regressions, and the canonical slice verification; update `CHANGELOG.md`, and record the gate activations in `DECISIONS.md` if a decision-level note is warranted.
+
+Repository implementation completed on the stacked `0.33.25.6` topic branch.
+Marketing now uses the `0.33.25.2` repository baseline, classifies the bounded
+preview deployment/recovery and Tasks calendar subscriptions as current, keeps
+Secure Catalogs at future `0.33.29`, and preserves the separate signed
+invite/no-invite gate. Release bookkeeping intentionally remains open behind
+the active `0.33.25.3` attorney-review gate and stacked `0.33.25.4-.5`
+handoffs, so the package remains `0.33.25.2`; `CHANGELOG.md`, version bump,
+archive handoff, and active-cursor advancement wait for sequential release.
+No `DECISIONS.md` change is warranted because the licensing gates and
+deployment-versus-invitation boundary were already governing decisions. Docs
+updated: `README.md`, `docs/regression-suite.md`, and the marketing documentation set. No docs change needed:
+demo-data operations, application behavior, permissions, schema, runtime
+configuration, and deployment procedures are unchanged.
 
 Acceptance criteria:
 

@@ -71,9 +71,9 @@ Public demonstration and the first public screenshots should be **Workbench-firs
 
 Use plain, current-tense language for what ships today, and label everything else.
 
-> Longtail Forge is in active development and is currently used privately. Today it runs as a self-hosted app with workspaces, clients and projects, tasks, time tracking, notes, lists, files, search, notifications, and reporting. A friends-and-family private internet preview is planned once security-hardening and preview-readiness work is complete; until then, describe internet use as **private preview**, not production-ready.
+> Longtail Forge is in active development and is currently used privately. Today it runs as a self-hosted app with workspaces, clients and projects, tasks, time tracking, notes, lists, files, search, notifications, reporting, in-app calendars, and private read-only Tasks calendar subscriptions. The bounded friends-and-family preview deployment, backup/restore, rollback, and maintenance path are technically proven. Invitations have not been authorized: the private signed readiness record and explicit invite/no-invite decision remain open.
 
-Do **not** call the app production-ready for public internet use until the roadmap's required security and preview-closeout work (0.33.16 hardening and 0.33.17 preview readiness) has actually shipped. Use "private preview" or "technical preview."
+Use **private preview** or **technical preview**. Do not turn the completed bounded-host proof into a general "production-ready," audited, certified, or guaranteed-security claim, and do not imply that deployment completion authorized invitations.
 
 ## Self-hosted wording
 

@@ -30,7 +30,7 @@ async function assertHelpDocumentsShippedFileBehavior(session) {
   const { article } = await helpService.readArticle(session, "framework.files-attachments");
 
   for (const phrase of [
-    "Workspace file settings include the active file type policy",
+    "Workspace file settings are separate from the listing",
     "aggregate storage accounting",
     "server-side file type checks",
     "accepted files stay attached",

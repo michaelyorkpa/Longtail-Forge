@@ -17,8 +17,8 @@ activateModuleRuntime("worker");
 let checks = 0;
 const workspaceId = "search-rebuild-workspace";
 const now = "2026-06-08T16:00:00.000Z";
-const frameworkHelpArticleCount = 15;
-const moduleHelpArticleCount = 3;
+const frameworkHelpArticleCount = 21;
+const moduleHelpArticleCount = 6;
 const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 
 await seedWorkspace();
@@ -48,11 +48,11 @@ await checkAsync("workspace rebuild indexes initial module records without dupli
   );
   assert.equal(
     rows.filter((row) => row.module_id === "tasks" && row.record_type === "help_article").length,
-    1,
+    3,
   );
   assert.equal(
     rows.filter((row) => row.module_id === "time-tracking" && row.record_type === "help_article").length,
-    2,
+    3,
   );
   const helpCenterRow = rows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
   assert.ok(helpCenterRow, "framework Help Center search row should be indexed");
@@ -88,7 +88,7 @@ ORDER BY record_id;
   const allRows = await readIndexedRows();
 
   assert.equal(result.moduleId, "tasks");
-  assert.equal(result.counts.scanned, 2);
+  assert.equal(result.counts.scanned, 4);
   assert.equal(result.counts.removed, 1);
   assert.equal(result.targets.length, 2);
   assert.deepEqual(result.targets.map((target) => target.recordType).sort(), ["help_article", "task"]);
@@ -117,7 +117,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(result.dryRun, true);
   assert.equal(result.counts.indexed, 0);
   assert.equal(result.counts.removed, 0);
-  assert.equal(result.counts.skipped, 8);
+  assert.equal(result.counts.skipped, 10);
   assert.deepEqual(staleRows, [{ record_id: "stale-time-entry-1" }]);
 });
 
