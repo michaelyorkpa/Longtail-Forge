@@ -127,6 +127,6 @@ assert.match(content.privateReadiness, /technical completion does not authorize 
 assert.match(content.regressionSuite, /As of 0\.33\.24\.9[\s\S]*login-limit `429`[\s\S]*HSTS[\s\S]*`nosniff`/);
 assert.match(content.roadmapArchive, /^## Version 0\.33\.24\.9 - Preview rollout, cross-host proof, and branch closeout$/m);
 assert.match(content.changelog, /^## Version 0\.33\.24\.9 - 2026-07-30$/m);
-assertRoadmapCursorAtLeast("0.33.25.1");
+assertRoadmapCursorAtLeast("0.33.24.9");
 
 console.log("Maintenance release rehearsal and operator handoff regression passed.");

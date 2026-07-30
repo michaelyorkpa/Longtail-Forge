@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { inspectThirdPartyNotices } from "./third-party-notices.mjs";
 
 const LICENSING_GATE_PATHS = Object.freeze({
   claTerms: "docs/licensing/contributor-license-agreement.md",
@@ -11,8 +12,12 @@ const LICENSING_GATE_PATHS = Object.freeze({
   thirdPartyNotices: "THIRD_PARTY_NOTICES.md",
 });
 
-function inspectLicensingGates({ pathExists = existsSync } = {}) {
+function inspectLicensingGates({
+  pathExists = existsSync,
+  thirdPartyNoticeStatus = inspectThirdPartyNotices(),
+} = {}) {
   const thirdPartyNoticesPresent = pathExists(LICENSING_GATE_PATHS.thirdPartyNotices);
+  const thirdPartyNoticesCurrent = thirdPartyNoticesPresent && thirdPartyNoticeStatus.current;
   const contributingPresent = pathExists(LICENSING_GATE_PATHS.contributing);
   const pullRequestTemplate = LICENSING_GATE_PATHS.pullRequestTemplates.find(pathExists) || null;
   const claTermsPresent = pathExists(LICENSING_GATE_PATHS.claTerms);
@@ -25,6 +30,12 @@ function inspectLicensingGates({ pathExists = existsSync } = {}) {
       code: "missing-third-party-notices",
       gate: "public-release",
       message: `Before a public release, add or generate ${LICENSING_GATE_PATHS.thirdPartyNotices}.`,
+    }));
+  } else if (!thirdPartyNoticesCurrent) {
+    warnings.push(Object.freeze({
+      code: "stale-third-party-notices",
+      gate: "public-release",
+      message: thirdPartyNoticeStatus.message,
     }));
   }
   if (!contributingPresent) {
@@ -57,6 +68,7 @@ function inspectLicensingGates({ pathExists = existsSync } = {}) {
       contributorPolicyPresent,
       pullRequestTemplate,
       thirdPartyNoticesPresent,
+      thirdPartyNoticesCurrent,
     }),
     warningOnly: true,
     warnings: Object.freeze(warnings),
@@ -69,6 +81,10 @@ function formatLicensingGateReport(result) {
     "Mode: warning-only for ordinary private development.",
   ];
 
+  if (result.checks.thirdPartyNoticesCurrent) {
+    lines.push(`Third-party notices: satisfied. ${noticesStatusMessage(result)}`);
+  }
+
   if (result.warnings.length === 0) {
     lines.push("Status: automated publication and contribution artifacts are present.");
   } else {
@@ -78,6 +94,12 @@ function formatLicensingGateReport(result) {
   }
 
   return lines.join("\n");
+}
+
+function noticesStatusMessage(result) {
+  return result.checks.thirdPartyNoticesCurrent
+    ? `${LICENSING_GATE_PATHS.thirdPartyNotices} matches the reviewed production dependency and bundled-asset inventory.`
+    : "";
 }
 
 export {

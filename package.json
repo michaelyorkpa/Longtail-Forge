@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.24.9",
+  "version": "0.33.25.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -72,6 +72,8 @@
     "modules:registry:check": "node scripts/generate-bundled-module-catalog.mjs --check",
     "closeout": "node scripts/run-closeout.mjs",
     "licensing:gates": "node scripts/check-licensing-gates.mjs",
+    "third-party-notices:check": "node scripts/check-third-party-notices.mjs",
+    "third-party-notices:write": "node scripts/check-third-party-notices.mjs --write",
     "db:migration:create": "node scripts/create-migration.mjs",
     "db:schema:refresh": "node scripts/schema-snapshot.mjs --refresh",
     "db:schema:check": "node scripts/schema-snapshot.mjs --check",

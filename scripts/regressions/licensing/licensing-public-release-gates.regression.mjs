@@ -15,6 +15,10 @@ import {
   LICENSING_GATE_PATHS,
   inspectLicensingGates,
 } from "../../lib/licensing-gates.mjs";
+import {
+  generateThirdPartyNotices,
+  inspectThirdPartyNotices,
+} from "../../lib/third-party-notices.mjs";
 
 const readme = readFileSync("README.md", "utf8");
 const hub = readFileSync("docs/licensing.md", "utf8");
@@ -32,22 +36,35 @@ assert.match(hub, /AGPL-3\.0-only/);
 assert.match(hub, /Private repository boundary/);
 assert.match(hub, /Public app legal\/about notice/);
 assert.match(hub, /Do not rewrite licensing policy during unrelated feature slices/);
-assert.match(index, /Future Process Gates/);
+assert.match(index, /Process Gates/);
 assertLocalMarkdownLinksResolve("docs/licensing.md", hub);
 assertLocalMarkdownLinksResolve("docs/licensing/README.md", index);
 
 const live = inspectLicensingGates();
 assert.equal(live.warningOnly, true);
+assert.equal(live.checks.thirdPartyNoticesPresent, true);
+assert.equal(live.checks.thirdPartyNoticesCurrent, true);
 assert.deepEqual(
   live.warnings.map((warning) => warning.code),
   [
-    "missing-third-party-notices",
     "missing-contributing-guide",
     "missing-pull-request-template",
     "inactive-cla-process",
   ],
   "the private repository should report its future publication/contribution artifacts without treating current licensing as broken",
 );
+
+const missingNotice = inspectLicensingGates({
+  pathExists: (filePath) => filePath !== LICENSING_GATE_PATHS.thirdPartyNotices,
+  thirdPartyNoticeStatus: { current: false, message: "missing" },
+});
+assert.equal(missingNotice.warnings[0].code, "missing-third-party-notices");
+
+const staleNotice = inspectLicensingGates({
+  thirdPartyNoticeStatus: { current: false, message: "reviewed inventory drift" },
+});
+assert.equal(staleNotice.warnings[0].code, "stale-third-party-notices");
+assert.match(staleNotice.warnings[0].message, /inventory drift/);
 
 const completePaths = new Set([
   LICENSING_GATE_PATHS.thirdPartyNotices,
@@ -68,8 +85,18 @@ const command = spawnSync(process.execPath, ["scripts/check-licensing-gates.mjs"
 });
 assert.equal(command.status, 0, command.stderr || command.stdout);
 assert.match(command.stdout, /Mode: warning-only/);
-assert.match(command.stdout, /THIRD_PARTY_NOTICES\.md/);
+assert.match(command.stdout, /Third-party notices: satisfied/);
 assert.match(command.stdout, /do not fail ordinary development/);
+
+const noticeCheck = inspectThirdPartyNotices();
+assert.equal(noticeCheck.current, true, noticeCheck.message);
+assert.equal(noticeCheck.componentCount, 90);
+const generatedNotices = generateThirdPartyNotices();
+assert.match(generatedNotices.content, /\| better-sqlite3 \| 13\.0\.1 \| MIT \|/);
+assert.match(generatedNotices.content, /\| argparse \| 2\.0\.1 \| Python-2\.0 \|/);
+assert.match(generatedNotices.content, /Lucide Icons \(bundled inline SVG subset\)/);
+assert.match(generatedNotices.content, /Bundled fonts: none/);
+assert.doesNotMatch(generatedNotices.content, /\| vitest \||\| eslint \||\| playwright \|/);
 assert.ok(
   legacyCleanup.includes("docs[\\\\/]licensing"),
   "legacy cleanup should explicitly exclude current licensing policy docs",

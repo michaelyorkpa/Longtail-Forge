@@ -47,6 +47,9 @@ Every tarball includes `RUNTIME-ARTIFACT.json` with the canonical application ve
 - Runtime entrypoints: `server.js` and `worker.js`; backup/workspace recovery commands; and the inert-by-default named-demo-host data command plus its shared deterministic builder. The demo command is never called by app/worker startup or normal deployment and requires the separately installed root-owned wrapper and exact protected host configuration.
 - Runtime JavaScript, schemas, migrations, and database baseline: `src/`.
 - Browser and view assets required by the app: `public/js/`, `public/css/`, the served logo/favicon, `views/`, and the bundled Lucide license notice.
+- Public-release attribution: the reviewed root `THIRD_PARTY_NOTICES.md`, which
+  is checked against the production lockfile closure and bundled-asset
+  inventory before packaging.
 - User Help content loaded by the Help service: `help/`.
 - Runtime/operator contract files: `.env.example`, `.nvmrc`, `README.md`, `SECURITY.md`, `LICENSE`, this document, runtime configuration, operational security, preview deployment/Compose environment/systemd guidance, the reference internet-deployment/Caddy files, and SQLite small-office guidance.
 - Runtime dependency and install metadata: a runtime-only `package.json` and pruned `npm-shrinkwrap.json`.

@@ -108,7 +108,8 @@ Current package commands:
 | `npm run modules:registry:generate` | Deterministically regenerates the tracked first-party ESM catalog from repository-owned `src/modules/*/module.js` entries. |
 | `npm run modules:registry:check` | Fails on a missing, extra, reordered, or stale bundled-module catalog and runs as a hard closeout gate. |
 | `npm run closeout` | Runs all standing maintenance gates and prints one hard/warning-only status board; it does not invoke or replace `npm run check`. |
-| `npm run licensing:gates` | Reports missing future public-release and outside-contribution artifacts without failing ordinary private development. |
+| `npm run licensing:gates` | Confirms the active reviewed third-party-notices inventory and reports missing future public-app/outside-contribution artifacts without failing ordinary private development. |
+| `npm run third-party-notices:check` | Hard-checks that `THIRD_PARTY_NOTICES.md` exactly matches the production lockfile closure, reviewed license texts, and bundled-asset inventory. |
 | `npm run db:migration:create -- <name>` | Creates the next globally numbered core migration with a forward-only template after validating core/module migration numbers. |
 | `npm run db:schema:refresh` | Replays the fresh-start baseline plus ordered migrations into disposable SQLite and rewrites the generated final-schema snapshot. |
 | `npm run db:schema:check` | Fails on migration-number collisions, invalid names, generated snapshot drift, or an unaccompanied baseline-schema change. |

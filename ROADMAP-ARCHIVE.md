@@ -1,5 +1,36 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.25.1 - Reviewed third-party notices
+
+Completed locally on 2026-07-30. The root notices file now covers the complete
+production lockfile closure and bundled Lucide-derived icon subset, ships in
+the immutable runtime artifact, and has deterministic regeneration plus hard
+drift detection; the active cursor advances to `0.33.25.2`.
+
+**Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
+
+- [x] Enumerated 89 unique production dependency name/version records across
+  90 installed production package locations plus the bundled Lucide-derived
+  icon asset, while explicitly recording that the runtime has no bundled fonts
+  or vendored browser libraries and excluding development-only tooling.
+- [x] Generated `THIRD_PARTY_NOTICES.md` with each component's version, reviewed
+  license identifier, copyright holder(s), and full required license/notice
+  text; the shipped license set is MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
+  Python-2.0, all reviewed as compatible with `AGPL-3.0-only` distribution.
+- [x] Added deterministic `third-party-notices:write` regeneration and a hard
+  `third-party-notices:check` comparison against the lockfile, package license
+  texts, reviewed exceptional metadata, and bundled-asset inventory.
+- [x] Made `licensing:gates` report the active third-party-notices gate as
+  satisfied or loudly warn on drift, shipped the root notice in runtime
+  artifacts, expanded the Lucide notice to its complete ISC and Feather-derived
+  MIT terms, and updated the owning licensing/runtime/regression documentation.
+
+Acceptance criteria:
+
+- `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset
+  with hand-reviewed license and attribution data, regeneration/drift detection
+  is repeatable, and the licensing gate readout reflects the completed gate.
+
 ## Version 0.33.24.9 - Preview rollout, cross-host proof, and branch closeout
 
 Completed on the live preview, demo, and public-edge path on 2026-07-30. Both bounded hosts now use the qualified least-privilege maintenance boundary, preview proved backup-first rollback and restore-forward, and the complete branch advances through protected `nightly`/`main` plus a manual immutable-main preview deployment; the active cursor advances to `0.33.25.1`.

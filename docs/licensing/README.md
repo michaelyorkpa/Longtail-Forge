@@ -34,9 +34,9 @@ These documents are intended to guide repository operation, contributor intake, 
 
 If a file contains a specific SPDX identifier, license header, or directory-level license notice, that specific notice controls for that file to the extent it conflicts with the general summary here.
 
-## Future Process Gates
+## Process Gates
 
-The repo-level [licensing hub](../licensing.md#future-process-gates) owns the current contribution, public-release legal/about, third-party notice, and private-repository process boundaries. `npm run licensing:gates` reports missing future artifacts as warnings only; ordinary private development does not require those publication or contributor-intake artifacts.
+The repo-level [licensing hub](../licensing.md#future-process-gates) owns the current contribution, public-release legal/about, third-party notice, and private-repository process boundaries. The third-party-notices gate is active and satisfied. `npm run licensing:gates` confirms that inventory and reports still-inactive public-app and outside-contribution artifacts as warnings; `npm run third-party-notices:check` is the hard drift check.
 
 Do not revise this policy set during unrelated feature work. Licensing maintenance is reserved for intentional policy changes, dependency/asset notice changes, public-release preparation, or activation of outside contribution intake.
 

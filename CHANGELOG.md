@@ -1,3 +1,31 @@
+## Version 0.33.25.1 - 2026-07-30
+
+- Added a reviewed root `THIRD_PARTY_NOTICES.md` covering 89 unique production
+  dependency name/version records and the bundled Lucide-derived inline SVG
+  subset with license identifiers, copyright holders, and full required texts.
+- Verified the shipped license set (MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
+  Python-2.0) for `AGPL-3.0-only` distribution, explicitly excluded
+  development-only tooling, and recorded that no bundled fonts or vendored
+  browser libraries ship.
+- Added deterministic notice regeneration plus a hard drift check against the
+  production lockfile, installed package license texts, reviewed exceptional
+  metadata, and bundled-asset inventory.
+- Activated the third-party-notices gate readout, which now reports satisfied
+  inventory or a loud stale-inventory warning while preserving the standing
+  warning-only aggregate licensing gate for ordinary private development.
+- Expanded the bundled Lucide attribution from a short ISC reference to the
+  complete Lucide ISC and Feather-derived MIT terms and included the root
+  notices file in every immutable runtime artifact.
+- Archived the completed slice, bumped the package to `0.33.25.1`, and advanced
+  the active roadmap cursor to `0.33.25.2`.
+- Docs updated: `docs/licensing.md`, `docs/licensing/README.md`,
+  `docs/licensing/repo-integration-checklist.md`,
+  `docs/licensing/third-party-dependencies.md`, `docs/regression-suite.md`, and
+  `docs/runtime-artifact.md`.
+- No docs change needed: application behavior, database/schema, Files/storage,
+  permissions, user-facing Help, deployment topology, and contribution intake
+  remain unchanged.
+
 ## Version 0.33.24.9 - 2026-07-30
 
 - Completed the backup-first friends-and-family preview and public-edge rollout after the green demo canary, with fresh inspected database+Files and root-only configuration backups retained before host changes.

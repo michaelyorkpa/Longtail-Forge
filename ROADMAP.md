@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.25.1`.
+Active cursor: `0.33.25.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -33,19 +33,6 @@ Non-goals:
 - No public website publishing, screenshot/video production, pricing commitments, or invented claims; marketing documents remain an internal truthful foundation governed by the claims-and-proof register rules.
 - The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
 - Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
-
-### Version 0.33.25.1 - Reviewed third-party notices
-
-**Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
-
-- [ ] Enumerate the shipped third-party surface: the production dependency tree (`better-sqlite3`, `busboy`, `cookie-parser`, `express`, `markdown-it`, `zod`, and their shipped transitive dependencies from the lockfile) and all bundled assets — Lucide icons (`public/icons/LUCIDE-LICENSE.md`), fonts, and any vendored browser code — explicitly excluding dev-only tooling that does not ship.
-- [ ] Generate `THIRD_PARTY_NOTICES.md` at the repo root with, per component: name, version(s), license identifier, copyright holder(s), and required notice/license text, following the intake rules in `docs/licensing/third-party-dependencies.md`; review each entry by hand rather than trusting scanner output alone, and verify every shipped license is compatible with `AGPL-3.0-only` distribution.
-- [ ] Make regeneration repeatable: a script or documented procedure that diffs the lockfile-derived component list against the notices file so dependency changes flag a stale notices file; wire it into `npm run licensing:gates` (or an adjacent check) so the third-party gate reports satisfied and future drift reports loudly.
-- [ ] Update `docs/licensing.md` and `docs/licensing/repo-integration-checklist.md` gate status to reflect the activated third-party-notices gate.
-
-Acceptance criteria:
-
-- `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset with hand-reviewed license and attribution data, regeneration/drift detection is repeatable, and the licensing gate readout reflects the completed gate.
 
 ### Version 0.33.25.2 - In-app legal and licensing surface in Help
 

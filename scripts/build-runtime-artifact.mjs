@@ -13,6 +13,7 @@ const RUNTIME_PATHS = Object.freeze([
   ".env.example",
   ".nvmrc",
   "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
   "README.md",
   "SECURITY.md",
   "server.js",
