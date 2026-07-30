@@ -321,6 +321,27 @@ For every implementation slice:
 
 Use the running server for testing when useful. Restart it as needed.
 
+### Windows local server restarts
+
+On this Windows workstation, never launch the background server with bare
+`Start-Process -FilePath npm`. PowerShell may follow the file association for
+the extensionless npm launcher and open it in Notepad instead of starting
+Node.
+
+Resolve and launch the Windows command shim explicitly:
+
+```powershell
+$npmCommand = (Get-Command npm.cmd -ErrorAction Stop).Source
+$process = Start-Process -FilePath $npmCommand -ArgumentList 'start' -WorkingDirectory (Get-Location) -WindowStyle Hidden -PassThru
+```
+
+When the standard Node installation path is known, using
+`C:\Program Files\nodejs\npm.cmd` directly is also valid. After launch, verify
+that the intended port is listening and prove `/healthz`, `/readyz`, and
+`/api/app-info`; do not treat the launcher process ID alone as runtime proof.
+If an incorrect launch opens Notepad, confirm that it is the process created by
+that attempt before stopping it, then relaunch with `npm.cmd`.
+
 During implementation, run only the cheapest focused test needed to diagnose the current change. Do not run `npm run check` during every framework edit merely as a reflex. Typical iteration choices are:
 
 1. For a one-module change, run that module's narrow Vitest command first (`npm run test:files`, `npm run test:tasks`) or the module's narrow regression area command.
