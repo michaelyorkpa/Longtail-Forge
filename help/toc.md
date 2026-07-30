@@ -3,6 +3,8 @@ default: framework/help-center.md
 # Longtail Forge
 - [Help Center](framework/help-center.md)
 - [Getting Started](framework/getting-started.md)
+- [Dashboard and Workbench](framework/dashboard-and-workbench.md)
+- [Workbench Focus and Recovery](framework/workbench-focus-and-recovery.md)
 
 ## Framework
 - [Workspaces and Workspace Switching](framework/workspaces-and-switching.md)
@@ -12,6 +14,7 @@ default: framework/help-center.md
 - [Tasks Basics](framework/tasks-basics.md)
 - [Notifications](framework/notifications.md)
 - [Tags](framework/tags.md)
+- [Tags and Search](framework/tags-and-search.md)
 - [Search](framework/search.md)
 - [Files and Attachments](framework/files-and-attachments.md)
 - [Action Catalog](framework/action-catalog.md)
@@ -32,6 +35,7 @@ default: framework/help-center.md
 ## Tasks
 - [Tasks Action Reference](modules/tasks/actions.md)
 - [Resuming Task Work](modules/tasks/resuming-task-work.md)
+- [Reminders, Calendar, and Subscriptions](modules/tasks/reminders-calendar-and-subscriptions.md)
 
 ## Notes
 - [Notes Action Reference](modules/notes/actions.md)

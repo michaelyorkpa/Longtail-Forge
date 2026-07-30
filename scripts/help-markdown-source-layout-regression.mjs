@@ -11,6 +11,14 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
     path: "framework/getting-started.md",
     sourceFile: "src/services/help.service.js",
   },
+  "framework.dashboard-workbench": {
+    path: "framework/dashboard-and-workbench.md",
+    sourceFile: "src/services/help.service.js",
+  },
+  "framework.workbench-focus": {
+    path: "framework/workbench-focus-and-recovery.md",
+    sourceFile: "src/services/help.service.js",
+  },
   "framework.workspaces": {
     path: "framework/workspaces-and-switching.md",
     sourceFile: "src/services/help.service.js",
@@ -37,6 +45,10 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
   },
   "framework.tags": {
     path: "framework/tags.md",
+    sourceFile: "src/services/help.service.js",
+  },
+  "framework.tags-search": {
+    path: "framework/tags-and-search.md",
     sourceFile: "src/services/help.service.js",
   },
   "framework.search": {
@@ -93,6 +105,10 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
   },
   "tasks.actions": {
     path: "modules/tasks/actions.md",
+    sourceFile: "src/modules/tasks/module.js",
+  },
+  "tasks.reminders-calendar": {
+    path: "modules/tasks/reminders-calendar-and-subscriptions.md",
     sourceFile: "src/modules/tasks/module.js",
   },
   "notes.basics": {
@@ -206,6 +222,38 @@ await check("toc default directive and links point to Markdown Help files", asyn
   }
 });
 
+await check("every declared Help article is reachable exactly once and no Markdown article is orphaned", async () => {
+  const toc = await fs.readFile("help/toc.md", "utf8");
+  const linkedPaths = [...toc.matchAll(/\[[^\]]+\]\(([^)]+\.md)\)/g)]
+    .map((match) => match[1])
+    .sort();
+  const descriptorPaths = Object.values(HELP_ARTICLE_SOURCES)
+    .map((descriptor) => descriptor.path)
+    .sort();
+  const sourceFiles = [...new Set(Object.values(HELP_ARTICLE_SOURCES).map((descriptor) => descriptor.sourceFile))];
+  const declaredPaths = [];
+
+  for (const sourceFile of sourceFiles) {
+    const source = await fs.readFile(sourceFile, "utf8");
+    declaredPaths.push(
+      ...[...source.matchAll(/contentPath:\s*"([^"]+\.md)"/g)].map((match) => match[1]),
+    );
+  }
+
+  const markdownPaths = (await listMarkdownFiles("help"))
+    .map((filePath) => filePath.replaceAll("\\", "/").replace(/^help\//, ""))
+    .filter((filePath) => filePath !== "toc.md")
+    .sort();
+
+  assert.deepEqual(
+    [...new Set(declaredPaths)].sort(),
+    descriptorPaths,
+    "the source-layout inventory should include every declared Help article",
+  );
+  assert.deepEqual(linkedPaths, descriptorPaths, "every declared Help article should appear exactly once in the ToC");
+  assert.deepEqual(markdownPaths, descriptorPaths, "every Help Markdown article should be declared and reachable");
+});
+
 await check("every converted Help article has contentPath metadata and a Markdown file", async () => {
   for (const [articleId, descriptor] of Object.entries(HELP_ARTICLE_SOURCES)) {
     const source = await fs.readFile(descriptor.sourceFile, "utf8");
@@ -217,6 +265,23 @@ await check("every converted Help article has contentPath metadata and a Markdow
     assert.doesNotMatch(articleBlock, /\n\s*body:\s*"/, `${articleId} should use Markdown source instead of inline body`);
     assert.ok(markdown.trim().length >= 60, `${articleId} Markdown should contain article body content`);
   }
+});
+
+await check("current-state Help rejects known pre-0.33.25 drift", async () => {
+  const helpFiles = await listMarkdownFiles("help");
+  const helpText = (await Promise.all(helpFiles.map((filePath) => fs.readFile(filePath, "utf8")))).join("\n");
+  const settings = await fs.readFile("help/framework/settings-and-user-preferences.md", "utf8");
+  const files = await fs.readFile("help/framework/files-and-attachments.md", "utf8");
+  const collections = await fs.readFile("help/modules/notes/notes-collections.md", "utf8");
+  const secureNotes = await fs.readFile("help/modules/notes/secure-notes.md", "utf8");
+
+  assert.doesNotMatch(helpText, /\bBrowse Summary\b|\bselected-file detail\b|\binline Preview panel\b/i);
+  assert.doesNotMatch(helpText, /calendar subscriptions? (?:live|are managed) (?:in|under) User Settings/i);
+  assert.doesNotMatch(helpText, /tags? (?:grant|control|determine) permissions?/i);
+  assert.match(settings, /workspace administration credentials, not User Settings preferences/);
+  assert.match(files, /The Files page under .* is a compact recovery and audit listing/);
+  assert.match(collections, /does not add inherited security/);
+  assert.match(secureNotes, /Security is currently selected on the note itself/);
 });
 
 console.log(`Help Markdown source layout regression passed ${checks} checks.`);
@@ -241,4 +306,20 @@ function readContentPath(articleBlock, articleId) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function listMarkdownFiles(directory) {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listMarkdownFiles(entryPath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
 }

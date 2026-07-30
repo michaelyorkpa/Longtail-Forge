@@ -83,10 +83,21 @@ Acceptance criteria:
 
 **Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
 
-- [ ] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
-- [ ] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.24 and correct it; remove or rewrite anything describing pre-change behavior.
-- [ ] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
-- [ ] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
+- [x] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
+- [x] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.24 and correct it; remove or rewrite anything describing pre-change behavior.
+- [x] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
+- [x] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
+
+Repository implementation completed on the stacked `0.33.25.5` topic branch.
+The audit corrected the stale pre-conversion Files location/anatomy and made
+the shipped note-level Secure Notes versus non-inheriting Catalog/Collection
+boundary explicit; Secure Catalogs remain future `0.33.29` work and are not
+presented as current behavior. Release bookkeeping intentionally remains open
+behind the `0.33.25.3` attorney-review gate and stacked `0.33.25.4` handoff, so
+the package remains `0.33.25.2`. Docs updated: framework and Tasks/Notes Help
+Markdown, `help/toc.md`, and `docs/regression-suite.md`. No docs change needed:
+the underlying workflows, permissions, routes, database, and module developer
+contracts are unchanged.
 
 Acceptance criteria:
 

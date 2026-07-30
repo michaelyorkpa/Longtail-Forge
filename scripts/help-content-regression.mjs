@@ -16,6 +16,8 @@ const { activateModuleRuntime } = await import("../src/core/modules/module-runti
 const expectedFrameworkArticles = [
   "framework.help-center",
   "framework.getting-started",
+  "framework.dashboard-workbench",
+  "framework.workbench-focus",
   "framework.workspaces",
   "framework.users-permissions",
   "framework.clients-projects",
@@ -23,6 +25,7 @@ const expectedFrameworkArticles = [
   "framework.tasks",
   "framework.notifications",
   "framework.tags",
+  "framework.tags-search",
   "framework.search",
   "framework.files-attachments",
   "framework.action-catalog",
@@ -36,6 +39,8 @@ const expectedFrameworkArticles = [
 const expectedTitles = [
   "Help Center",
   "Getting Started",
+  "Dashboard and Workbench",
+  "Workbench Focus and Recovery",
   "Workspaces and Workspace Switching",
   "Users, Roles, and Permissions",
   "Clients and Projects",
@@ -43,6 +48,7 @@ const expectedTitles = [
   "Tasks Basics",
   "Notifications",
   "Tags",
+  "Tags and Search",
   "Search",
   "Files and Attachments",
   "Action Catalog",
@@ -97,6 +103,8 @@ try {
     const articlePaths = new Map([
       ["framework.help-center", "help/framework/help-center.md"],
       ["framework.getting-started", "help/framework/getting-started.md"],
+      ["framework.dashboard-workbench", "help/framework/dashboard-and-workbench.md"],
+      ["framework.workbench-focus", "help/framework/workbench-focus-and-recovery.md"],
       ["framework.workspaces", "help/framework/workspaces-and-switching.md"],
       ["framework.users-permissions", "help/framework/users-roles-and-permissions.md"],
       ["framework.clients-projects", "help/framework/clients-and-projects.md"],
@@ -104,6 +112,7 @@ try {
       ["framework.tasks", "help/framework/tasks-basics.md"],
       ["framework.notifications", "help/framework/notifications.md"],
       ["framework.tags", "help/framework/tags.md"],
+      ["framework.tags-search", "help/framework/tags-and-search.md"],
       ["framework.search", "help/framework/search.md"],
       ["framework.files-attachments", "help/framework/files-and-attachments.md"],
       ["framework.action-catalog", "help/framework/action-catalog.md"],
@@ -244,6 +253,68 @@ try {
     }
   });
 
+  await check("concept Help stays tied to shipped focus, calendar, notification, tag, and search contracts", async () => {
+    const checksBySource = [
+      {
+        helpPath: "help/framework/workbench-focus-and-recovery.md",
+        sourcePath: "public/js/workbench.js",
+        sourceTokens: [
+          'label: "Pick up where I left off"',
+          'label: "Start with what\'s due"',
+          'label: "Work this week"',
+          'label: "Review blocked work"',
+          'label: "Focus on a project"',
+        ],
+        helpTokens: [
+          "| Pick up where I left off |",
+          "| Start with what’s due |",
+          "| Work this week |",
+          "| Review blocked work |",
+          "| Focus on a project |",
+        ],
+      },
+      {
+        helpPath: "help/framework/workbench-focus-and-recovery.md",
+        sourcePath: "src/core/settings/workbench-focus-policy.js",
+        sourceTokens: [
+          'label: "Candidate Groups"',
+          'label: "Candidate Priority"',
+          'label: "Recently touched first"',
+          'label: "Stale recovery first"',
+        ],
+        helpTokens: ["candidate groups", "Recently touched first", "Stale recovery first", "Running timers remain first"],
+      },
+      {
+        helpPath: "help/modules/tasks/reminders-calendar-and-subscriptions.md",
+        sourcePath: "src/modules/tasks/module.settings.js",
+        sourceTokens: [
+          'label: "Timed Reminder 1 (hours before)"',
+          'label: "Date-Only Reminder 1 (days before)"',
+        ],
+        helpTokens: ["offsets in hours", "offsets in days", "Override reminder defaults"],
+      },
+      {
+        helpPath: "help/modules/tasks/reminders-calendar-and-subscriptions.md",
+        sourcePath: "public/js/calendar-settings.js",
+        sourceTokens: ["Creating calendar subscription", "Rotate calendar subscription URL?", "Revoke calendar subscription?"],
+        helpTokens: ["Settings → Admin → Modules → Calendar", "Rotation invalidates", "Revoke and Remove"],
+      },
+    ];
+
+    for (const item of checksBySource) {
+      const [source, help] = await Promise.all([
+        fs.readFile(item.sourcePath, "utf8"),
+        fs.readFile(item.helpPath, "utf8"),
+      ]);
+      for (const token of item.sourceTokens) {
+        assert.ok(source.includes(token), `${item.sourcePath} should still contain ${token}`);
+      }
+      for (const token of item.helpTokens) {
+        assert.ok(help.includes(token), `${item.helpPath} should explain ${token}`);
+      }
+    }
+  });
+
   await check("framework Help articles index as Help search rows", async () => {
     const summary = await searchIndexRebuildService.rebuildWorkspace({
       audit: false,
@@ -262,7 +333,7 @@ SELECT module_id, record_id, title, source, body
 FROM search_index
 WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND record_type = 'help_article'
-  AND record_id IN ('tasks.actions', 'time-tracking.actions', 'notes.actions', 'lists.actions')
+  AND record_id IN ('tasks.actions', 'tasks.reminders-calendar', 'time-tracking.actions', 'notes.actions', 'lists.actions')
 ORDER BY record_id;
 `);
 
@@ -274,7 +345,7 @@ ORDER BY record_id;
     assert.ok(rows.some((row) => /Protected internal files are the default/.test(row.body)));
     assert.deepEqual(
       moduleActionRows.map((row) => row.record_id),
-      ["lists.actions", "notes.actions", "tasks.actions", "time-tracking.actions"],
+      ["lists.actions", "notes.actions", "tasks.actions", "tasks.reminders-calendar", "time-tracking.actions"],
     );
     assert.ok(moduleActionRows.every((row) => row.source === HELP_SEARCH_SOURCE));
     assert.ok(moduleActionRows.every((row) => row.body.length >= 120));
