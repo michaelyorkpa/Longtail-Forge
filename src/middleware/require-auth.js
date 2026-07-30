@@ -136,6 +136,8 @@ function isLoginAssetPath(pathname) {
     pathname === "/" ||
     pathname === "/index.html" ||
     pathname === "/login.html" ||
+    pathname === "/terms.html" ||
+    pathname === "/privacy.html" ||
     pathname === "/js/footer.js" ||
     pathname === "/js/login.js" ||
     pathname === "/js/theme-init.js" ||

@@ -118,6 +118,7 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
     /(^|[\\/])TODO\.md$/,
     /(^|[\\/])LICENSE$/,
     /(^|[\\/])THIRD_PARTY_NOTICES\.md$/,
+    /(^|[\\/])legal[\\/]default-(?:privacy|terms)\.md$/,
     /(^|[\\/])archive[\\/]/,
     /(^|[\\/])docs[\\/]licensing(?:\.md|[\\/])/,
     /(^|[\\/])docs[\\/]architecture\.md$/,

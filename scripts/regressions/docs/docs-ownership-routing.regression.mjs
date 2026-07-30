@@ -141,8 +141,11 @@ assert.deepEqual(runtimeSecurity.docs, [
   "docs/architecture.md",
   "docs/http-errors.md",
   "docs/internet-deployment.md",
+  "docs/licensing.md",
   "docs/operational-security.md",
+  "docs/private-preview-readiness.md",
   "docs/public-api.md",
+  "docs/runtime-artifact.md",
   "docs/runtime-configuration.md",
 ]);
 

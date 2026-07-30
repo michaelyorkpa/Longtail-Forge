@@ -8,6 +8,7 @@ import { markdownToPlainText, renderMarkdownToHtml } from "../core/markdown/mark
 import { db } from "../core/database.js";
 import { validateHelpContribution } from "../core/modules/manifest-contract.js";
 import { AppError } from "../utils/app-error.js";
+import { correspondingSourceUrl, trackedSourceUrl } from "../core/corresponding-source.js";
 
 const HELP_SEARCH_INDEXER_ID = "framework.help-articles";
 const HELP_SEARCH_RECORD_TYPE = "help_article";
@@ -16,7 +17,6 @@ const FRAMEWORK_HELP_MODULE_ID = "framework";
 const HELP_CONTENT_ROOT = fileURLToPath(new URL("../../help/", import.meta.url));
 const HELP_TOC_PATH = path.join(HELP_CONTENT_ROOT, "toc.md");
 const THIRD_PARTY_NOTICES_PATH = fileURLToPath(new URL("../../THIRD_PARTY_NOTICES.md", import.meta.url));
-const PROJECT_REPOSITORY_URL = "https://github.com/michaelyorkpa/Longtail-Forge";
 
 const FRAMEWORK_HELP_SECTION = {
   id: "framework.help-center",
@@ -643,17 +643,13 @@ async function hydrateTrackedLegalContent(article, body) {
     return body;
   }
 
-  const sourceRef = config.release.commitSha || `v${config.appVersion}`;
-  const encodedSourceRef = encodeURIComponent(sourceRef);
-  const sourceRoot = `${PROJECT_REPOSITORY_URL}/tree/${encodedSourceRef}`;
-  const trackedFileRoot = `${PROJECT_REPOSITORY_URL}/blob/${encodedSourceRef}`;
   const replacements = new Map([
     ["{{APP_NAME}}", config.appName],
     ["{{APP_DISPLAY_VERSION}}", config.appDisplayVersion],
     ["{{APP_CANONICAL_VERSION}}", config.appVersion],
-    ["{{CORRESPONDING_SOURCE_URL}}", sourceRoot],
-    ["{{LICENSE_URL}}", `${trackedFileRoot}/LICENSE`],
-    ["{{TRADEMARK_POLICY_URL}}", `${trackedFileRoot}/docs/licensing/trademark-policy.md`],
+    ["{{CORRESPONDING_SOURCE_URL}}", correspondingSourceUrl()],
+    ["{{LICENSE_URL}}", trackedSourceUrl("LICENSE")],
+    ["{{TRADEMARK_POLICY_URL}}", trackedSourceUrl("docs/licensing/trademark-policy.md")],
     ["{{THIRD_PARTY_NOTICES_URL}}", "./help.html?article=framework.third-party-notices"],
   ]);
 

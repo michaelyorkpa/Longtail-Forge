@@ -45,6 +45,7 @@ assert.equal(live.warningOnly, true);
 assert.equal(live.checks.thirdPartyNoticesPresent, true);
 assert.equal(live.checks.thirdPartyNoticesCurrent, true);
 assert.equal(live.checks.publicLegalAboutPresent, true);
+assert.equal(live.checks.publicLegalSurfacesPresent, true);
 assert.deepEqual(
   live.warnings.map((warning) => warning.code),
   [
@@ -72,8 +73,14 @@ const missingLegalAbout = inspectLicensingGates({
 });
 assert.ok(missingLegalAbout.warnings.some((warning) => warning.code === "missing-public-legal-about"));
 
+const missingLegalSurface = inspectLicensingGates({
+  pathExists: (filePath) => filePath !== LICENSING_GATE_PATHS.publicLegalSurfaces[0],
+});
+assert.ok(missingLegalSurface.warnings.some((warning) => warning.code === "missing-public-legal-surfaces"));
+
 const completePaths = new Set([
   ...LICENSING_GATE_PATHS.publicLegalAbout,
+  ...LICENSING_GATE_PATHS.publicLegalSurfaces,
   LICENSING_GATE_PATHS.thirdPartyNotices,
   LICENSING_GATE_PATHS.contributing,
   LICENSING_GATE_PATHS.pullRequestTemplates[0],
@@ -94,6 +101,7 @@ assert.equal(command.status, 0, command.stderr || command.stdout);
 assert.match(command.stdout, /Mode: warning-only/);
 assert.match(command.stdout, /Third-party notices: satisfied/);
 assert.match(command.stdout, /In-app legal\/about: satisfied/);
+assert.match(command.stdout, /Public legal surfaces: present/);
 assert.match(command.stdout, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();

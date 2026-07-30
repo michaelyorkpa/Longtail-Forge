@@ -47,8 +47,15 @@ try {
   const output = collectOutput(server);
   const appInfo = await waitForJson(`http://127.0.0.1:${port}/api/app-info`, server, output);
   assert.equal(appInfo.version, artifact.version);
+  assert.match(appInfo.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(artifact.version)}$`));
   const ready = await waitForJson(`http://127.0.0.1:${port}/readyz`, server, output);
   assert.deepEqual(ready, { status: "ready" });
+  const terms = await requestText(`http://127.0.0.1:${port}/terms.html`);
+  const privacy = await requestText(`http://127.0.0.1:${port}/privacy.html`);
+  assert.equal(terms.statusCode, 200);
+  assert.match(terms.body, /Operator Terms Template/);
+  assert.equal(privacy.statusCode, 200);
+  assert.match(privacy.body, /Operator Privacy Notice Template/);
 
   console.log(`Runtime artifact smoke passed for ${artifact.version}.`);
   console.log(`Artifact SHA-256: ${artifact.checksum}`);
@@ -145,6 +152,25 @@ function requestJson(url) {
     });
     request.once("error", reject);
   });
+}
+
+function requestText(url) {
+  return new Promise((resolve, reject) => {
+    const request = httpGet(url, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.once("error", reject);
+      response.once("end", () => resolve({
+        body: Buffer.concat(chunks).toString("utf8"),
+        statusCode: response.statusCode,
+      }));
+    });
+    request.once("error", reject);
+  });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function findAvailablePort() {

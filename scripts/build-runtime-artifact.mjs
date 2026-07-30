@@ -28,6 +28,7 @@ const RUNTIME_PATHS = Object.freeze([
   "scripts/lib/development-data-safety.mjs",
   "src",
   "help",
+  "legal",
   "views",
   "public/assets/logo.webp",
   "public/css",

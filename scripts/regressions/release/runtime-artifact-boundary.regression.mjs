@@ -42,6 +42,7 @@ assert.ok(RUNTIME_PATHS.includes("src"));
 assert.ok(RUNTIME_PATHS.includes("public/js"));
 assert.ok(RUNTIME_PATHS.includes("views"));
 assert.ok(RUNTIME_PATHS.includes("help"));
+assert.ok(RUNTIME_PATHS.includes("legal"));
 assert.ok(RUNTIME_PATHS.includes("THIRD_PARTY_NOTICES.md"));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("secrets")));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("roadmaps")));

@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 415,
+    "discoveredScripts": 416,
     "legacyScripts": 311,
     "releaseGateScripts": 53,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 38,
       "docs": 9,
       "files": 44,
-      "framework": 70,
+      "framework": 71,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -29,12 +29,12 @@
     },
     "tierCounts": {
       "focused": 194,
-      "integration": 160,
+      "integration": 161,
       "release-gate": 53,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 176,
+      "isolated-database": 177,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
@@ -3006,6 +3006,22 @@
         "production",
         "security",
         "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves session-less Terms and Privacy routes, neutral defaults, shared security headers, footer links, and runtime-bound Corresponding Source.",
+      "id": "framework.public-legal-surfaces",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-legal-surfaces.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "legal",
+        "licensing",
+        "security"
       ],
       "tier": "integration"
     },

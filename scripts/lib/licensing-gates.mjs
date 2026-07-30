@@ -9,6 +9,13 @@ const LICENSING_GATE_PATHS = Object.freeze({
     "help/framework/legal-and-licensing.md",
     "help/framework/third-party-notices.md",
   ]),
+  publicLegalSurfaces: Object.freeze([
+    "legal/default-terms.md",
+    "legal/default-privacy.md",
+    "views/public/terms.html",
+    "views/public/privacy.html",
+    "public/js/footer.js",
+  ]),
   pullRequestTemplates: Object.freeze([
     ".github/pull_request_template.md",
     ".github/PULL_REQUEST_TEMPLATE.md",
@@ -27,6 +34,7 @@ function inspectLicensingGates({
   const claTermsPresent = pathExists(LICENSING_GATE_PATHS.claTerms);
   const contributorPolicyPresent = pathExists(LICENSING_GATE_PATHS.contributorPolicy);
   const publicLegalAboutPresent = LICENSING_GATE_PATHS.publicLegalAbout.every(pathExists);
+  const publicLegalSurfacesPresent = LICENSING_GATE_PATHS.publicLegalSurfaces.every(pathExists);
   const claProcessActive = contributingPresent && claTermsPresent && contributorPolicyPresent;
   const warnings = [];
 
@@ -48,6 +56,13 @@ function inspectLicensingGates({
       code: "missing-public-legal-about",
       gate: "public-release",
       message: "The framework Help legal/about surface is incomplete.",
+    }));
+  }
+  if (!publicLegalSurfacesPresent) {
+    warnings.push(Object.freeze({
+      code: "missing-public-legal-surfaces",
+      gate: "public-release",
+      message: "The public Terms, Privacy, or shared legal-footer surface is incomplete.",
     }));
   }
   if (!contributingPresent) {
@@ -80,6 +95,7 @@ function inspectLicensingGates({
       contributorPolicyPresent,
       pullRequestTemplate,
       publicLegalAboutPresent,
+      publicLegalSurfacesPresent,
       thirdPartyNoticesPresent,
       thirdPartyNoticesCurrent,
     }),
@@ -99,6 +115,9 @@ function formatLicensingGateReport(result) {
   }
   if (result.checks.publicLegalAboutPresent) {
     lines.push("In-app legal/about: satisfied. Framework Help contains the tracked legal/licensing and third-party-notices sources.");
+  }
+  if (result.checks.publicLegalSurfacesPresent) {
+    lines.push("Public legal surfaces: present. Neutral Terms and Privacy templates plus the shared footer are tracked; each hosted operator still owns review and deployment of its governing documents.");
   }
 
   if (result.warnings.length === 0) {

@@ -23,6 +23,14 @@ async function assertRuntimeDataPathsReady(options = {}) {
     checked.add(identity);
     await assertRuntimeDirectoryReady(directory, entry.key, environment);
   }
+
+  const contentPaths = options.contentPaths || [
+    { key: "LONGTAIL_TERMS_CONTENT_PATH", value: config.legal.termsContentPath },
+    { key: "LONGTAIL_PRIVACY_CONTENT_PATH", value: config.legal.privacyContentPath },
+  ];
+  for (const entry of contentPaths) {
+    await assertRuntimeContentFileReady(path.resolve(entry.value), entry.key);
+  }
 }
 
 async function assertRuntimeDirectoryReady(directory, key, environment) {
@@ -42,6 +50,18 @@ async function assertRuntimeDirectoryReady(directory, key, environment) {
       ? " It must be a private owner-only directory (mode 0700) readable and writable by the app service account."
       : " It must be a directory readable and writable by the app service account.";
     throw new Error(`${key} is not ready for startup.${suffix}`);
+  }
+}
+
+async function assertRuntimeContentFileReady(filePath, key) {
+  try {
+    const stats = await fs.stat(filePath);
+    if (!stats.isFile()) {
+      throw new Error("not_file");
+    }
+    await fs.access(filePath, fsConstants.R_OK);
+  } catch {
+    throw new Error(`${key} is not ready for startup. It must be a readable Markdown file.`);
   }
 }
 
