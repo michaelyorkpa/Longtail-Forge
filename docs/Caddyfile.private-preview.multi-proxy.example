@@ -20,6 +20,35 @@
 	}
 }
 
+(longtail_maintenance_curtain) {
+	header {
+		Cache-Control "no-store"
+		Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; style-src 'unsafe-inline'"
+		Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		Retry-After "60"
+		Strict-Transport-Security "max-age=300"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+	rewrite * /maintenance.html
+	file_server {
+		root /usr/local/share/longtail-forge-maintenance
+		status 503
+	}
+}
+
+(longtail_unavailable_diagnostic) {
+	header {
+		Cache-Control "no-store"
+		Content-Type "application/json"
+		Retry-After "60"
+		Strict-Transport-Security "max-age=300"
+		X-Content-Type-Options "nosniff"
+	}
+	respond `{"status":"unavailable"}` 503
+}
+
 http://{$LONGTAIL_PUBLIC_HOST}:8080 {
 	# Bind only the application host's WireGuard address. The host firewall must
 	# independently allow only LONGTAIL_EDGE_WIREGUARD_PEER to reach this port.
@@ -28,12 +57,47 @@ http://{$LONGTAIL_PUBLIC_HOST}:8080 {
 	@not_public_edge not remote_ip {$LONGTAIL_EDGE_WIREGUARD_PEER}
 	respond @not_public_edge 403
 
+	# Exact diagnostics bypass both maintenance markers and retain real Node
+	# responses. If Node is stopped, the error route returns generic JSON 503.
+	@longtail_diagnostic path /healthz /readyz /api/app-info
+	handle @longtail_diagnostic {
+		reverse_proxy 127.0.0.1:8001 {
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+			header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+		}
+	}
+
+	# Marker changes are observed per request and never require a Caddy reload.
+	@longtail_maintenance_active file {
+		root /var/lib/longtail-forge-maintenance
+		try_files /operator/maintenance.on /deployment/maintenance.on
+	}
+	handle @longtail_maintenance_active {
+		import longtail_maintenance_curtain
+	}
+
 	# Collapse the reviewed chain to one Caddy-resolved client address before
 	# Node. Nginx has already replaced the protocol and public-host values; only
 	# the allowlisted WireGuard peer is permitted to supply them to Caddy.
-	reverse_proxy 127.0.0.1:8001 {
-		header_up X-Forwarded-For {client_ip}
-		header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
-		header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+	handle {
+		reverse_proxy 127.0.0.1:8001 {
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+			header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+		}
+	}
+
+	# Only connection-level proxy failures enter this route. Diagnostic failures
+	# stay machine-readable and ordinary application failures receive the same
+	# safe curtain as a marker-driven hold.
+	handle_errors {
+		@longtail_diagnostic_failure path /healthz /readyz /api/app-info
+		handle @longtail_diagnostic_failure {
+			import longtail_unavailable_diagnostic
+		}
+		handle {
+			import longtail_maintenance_curtain
+		}
 	}
 }

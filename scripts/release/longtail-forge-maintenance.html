@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="refresh" content="60">
+  <title>Longtail Forge - Temporarily unavailable</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f7fb;
+      color: #182235;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      display: grid;
+      min-block-size: 100vh;
+      margin: 0;
+      padding: 1.5rem;
+      place-items: center;
+      background: radial-gradient(circle at top, #ffffff 0, #f4f7fb 55%, #e8eef8 100%);
+    }
+
+    main {
+      inline-size: min(100%, 30rem);
+      padding: clamp(1.5rem, 5vw, 2.5rem);
+      border: 1px solid #d7dfeb;
+      border-radius: 1rem;
+      background: #ffffff;
+      box-shadow: 0 1rem 3rem rgb(24 34 53 / 14%);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-block-end: 1.5rem;
+      color: #2f6fdd;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .brand-mark {
+      inline-size: 1.1rem;
+      block-size: 1.1rem;
+      border: 0.2rem solid currentColor;
+      border-radius: 0.3rem;
+      transform: rotate(45deg);
+    }
+
+    h1 {
+      margin: 0 0 1rem;
+      font-size: clamp(1.75rem, 6vw, 2.35rem);
+      line-height: 1.15;
+    }
+
+    p {
+      margin: 0;
+      color: #3e4c63;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .refresh-note {
+      margin-block-start: 1rem;
+      color: #65738a;
+      font-size: 0.9rem;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        background: #10141c;
+        color: #f3f6fb;
+      }
+
+      body {
+        background: radial-gradient(circle at top, #222a38 0, #10141c 60%, #090c12 100%);
+      }
+
+      main {
+        border-color: #3a4558;
+        background: #1b2230;
+        box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
+      }
+
+      .brand {
+        color: #8eb5ff;
+      }
+
+      p {
+        color: #d2d9e5;
+      }
+
+      .refresh-note {
+        color: #aab5c7;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Longtail Forge</span>
+    </div>
+    <h1>Temporarily unavailable</h1>
+    <p>Longtail Forge is not available right now. Please try again shortly.</p>
+    <p class="refresh-note">This page refreshes automatically once a minute.</p>
+  </main>
+</body>
+</html>

@@ -144,7 +144,7 @@ Log access remains operator-only. Exported logs remain protected operational dat
 
 An in-process `503` means Node is alive, accepted the request, and deliberately classified a dependency as temporarily unavailable. It uses the shared API or browser format, may include `Retry-After`, and exposes only reviewed actionable copy.
 
-Planned maintenance, deployment restarts, and upstream failure when Node is stopped cannot be implemented by application middleware. Those cases belong to the `0.33.24` proxy-owned maintenance curtain. Health, readiness, and app-identity probes must continue to report the underlying application truth rather than returning a decorative false success.
+Planned maintenance, deployment restarts, and upstream failure when Node is stopped cannot be implemented by application middleware. Those cases belong to the proxy-owned maintenance curtain in [Reference Internet Deployment](internet-deployment.md#proxy-configuration). Either fixed marker makes ordinary requests return the reviewed HTML `503`, and a connection-level Node failure does the same without a marker. The exact `/healthz`, `/readyz`, and `/api/app-info` paths bypass markers: they preserve real Node responses while it runs and become generic JSON `503` when Node is unreachable, never a decorative page or false success.
 
 ## Development Checklist
 

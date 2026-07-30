@@ -164,6 +164,26 @@ const referenceDeployment = suggestDocsForPaths([
 assert.deepEqual(referenceDeployment.matchedAreas.map((area) => area.id), ["runtime-security"]);
 assert.ok(referenceDeployment.docs.includes("docs/internet-deployment.md"));
 
+const publicEdgeFallback = suggestDocsForPaths([
+  "scripts/release/longtail-forge-edge-unavailable.html",
+], { index: rawIndex });
+assert.deepEqual(publicEdgeFallback.matchedAreas.map((area) => area.id), ["runtime-security", "release-process"]);
+assert.ok(publicEdgeFallback.docs.includes("docs/internet-deployment.md"));
+assert.ok(publicEdgeFallback.docs.includes("docs/preview-deployment.md"));
+
+const maintenanceRehearsal = suggestDocsForPaths([
+  "scripts/release/rehearse-maintenance-boundary.mjs",
+], { index: rawIndex });
+assert.deepEqual(maintenanceRehearsal.matchedAreas.map((area) => area.id), ["runtime-security", "release-process"]);
+assert.ok(maintenanceRehearsal.docs.includes("docs/internet-deployment.md"));
+assert.ok(maintenanceRehearsal.docs.includes("docs/releasing.md"));
+
+const historicalMaintenanceStaging = suggestDocsForPaths([
+  "archive/maintenance-mode/setup-maintenance.sh",
+], { index: rawIndex });
+assert.deepEqual(historicalMaintenanceStaging.matchedAreas.map((area) => area.id), ["release-process"]);
+assert.ok(historicalMaintenanceStaging.docs.includes("docs/preview-deployment.md"));
+
 const sessionSecurity = suggestDocsForPaths(["src/services/sessions.service.js"], { index: rawIndex });
 assert.deepEqual(sessionSecurity.matchedAreas.map((area) => area.id), ["runtime-security", "permissions"]);
 assert.ok(sessionSecurity.docs.includes("docs/runtime-configuration.md"));

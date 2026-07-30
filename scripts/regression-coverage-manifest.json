@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 412,
+    "discoveredScripts": 415,
     "legacyScripts": 311,
-    "releaseGateScripts": 50,
+    "releaseGateScripts": 53,
     "areaCounts": {
       "dashboard": 2,
       "database": 38,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 6,
       "public-api": 3,
-      "release": 25,
+      "release": 28,
       "search": 12,
       "tags": 12,
       "tasks": 57,
@@ -30,7 +30,7 @@
     "tierCounts": {
       "focused": 194,
       "integration": 160,
-      "release-gate": 50,
+      "release-gate": 53,
       "slow": 8
     },
     "runModeCounts": {
@@ -38,7 +38,7 @@
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 201
+      "static": 204
     }
   },
   "coverageFamilies": [
@@ -3429,6 +3429,22 @@
     },
     {
       "area": "release",
+      "description": "Proves privileged deploy and rollback operations keep Caddy active, retain protected recovery evidence, and reopen only after exact verification.",
+      "id": "release.deploy-maintenance-curtain",
+      "legacy": false,
+      "path": "scripts/regressions/release/deploy-maintenance-curtain.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "bare-metal",
+        "deployment",
+        "maintenance",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
       "id": "release.developer-verification-throughput",
       "legacy": false,
@@ -3523,6 +3539,39 @@
         "modules",
         "startup",
         "views"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves maintenance assets and independent operator/deployment markers install with a least-privilege, host-neutral boundary.",
+      "id": "release.maintenance-host-assets",
+      "legacy": false,
+      "path": "scripts/regressions/release/maintenance-host-assets.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "deployment",
+        "maintenance",
+        "proxy",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, documentation ownership, and historical staging retirement.",
+      "id": "release.maintenance-release-rehearsal",
+      "legacy": false,
+      "path": "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "deployment",
+        "docs",
+        "maintenance",
+        "proxy",
+        "recovery"
       ],
       "tier": "release-gate"
     },
