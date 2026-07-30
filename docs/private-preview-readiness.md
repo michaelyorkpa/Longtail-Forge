@@ -25,6 +25,8 @@ Complete and record all of these against the exact candidate version, commit, ar
 - Remove or rewrite any unsupported promise of uptime, perfect security, guaranteed backups, compliance, enterprise readiness, hosted SaaS readiness, automatic rollback, or high availability.
 - Promote only through the protected `nightly` -> `main` flow and select an immutable release identity from the exact verified `main` revision.
 - Verify the runtime artifact checksum, container image digest or staged bare-metal artifact, `/api/app-info` version, commit SHA, and artifact SHA-256 all match the selected release metadata.
+- Supply the preview/demo Terms and Privacy Markdown through the protected runtime configuration, retain attorney approval and the exact approved-document checksums in the private readiness record, and verify the public pages match those approved bytes. The bundled neutral templates are not sufficient for a Raymond Tec hosted instance.
+- Verify every public and authenticated footer links to Terms, Privacy, and Corresponding Source for the exact running commit. Keep hostnames, review correspondence, approval records, and deployment paths out of this repository.
 - Complete the selected reference-proxy deployment review from [Reference Internet Deployment](internet-deployment.md), including HTTPS redirect, TCP 80/443 as the only public Longtail Forge application ingress, separately recorded restricted SSH management/deployment endpoints where required, loopback-only Node, secure cookies, headers, forged-forwarding rejection, and public `/healthz`, `/readyz`, and `/api/app-info` checks. For the multi-proxy path, also record `nginx -t`, the exact WireGuard edge peer and firewall rule, private Caddy's non-edge rejection, forwarding-chain collapse, and real client-IP attribution.
 - Run a complete backup, inspect its manifest and checksums, confirm the backup is outside public paths and the live data tree, and complete a representative restore drill.
 - Confirm the Secure Notes master key is supplied through the protected runtime environment, is backed up through a separate protected recovery channel, and is not stored in the backup archive, repository, logs, tickets, or participant material.
@@ -111,6 +113,7 @@ Keep the signed readiness record private. It should include:
 - candidate version, full commit SHA, artifact checksum or image digest, and release metadata path;
 - hostname, deployment path, backup path classification, and operator;
 - date/time of the reference-proxy review, backup inspection, restore drill, security review, and release verification;
+- attorney reviewer, approval date, approved Terms/Privacy checksums, and the private record location;
 - confirmation that unique participant accounts, known-limitations copy, bug-report path, feedback path, and revocation procedure are ready;
 - unresolved risks, invite/no-invite decision, and next review date.
 

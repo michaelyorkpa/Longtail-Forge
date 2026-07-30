@@ -6,7 +6,7 @@ This plan is a **commercial hypothesis / planning document**. It commits to no d
 
 ## When this starts
 
-After: the friends-and-family preview has run, the 0.33.16 security hardening and 0.33.17 preview readiness work is complete, and the app is on a public self-hosted or managed-preview footing. Creator/author partners specifically wait until **Creator Studio (0.39)** exists; support-heavy partners are most valuable once **Support Tickets (0.34)** exists.
+The technical private-preview prerequisites are complete, but this stage does **not** start merely because the hosts are deployed. It begins only after the operator explicitly authorizes invitations, the friends-and-family preview has actually run, its learnings are reviewed, and the app is judged ready for broader still-cautious use. Creator/author partners specifically wait until **Creator Studio (0.39)** exists; support-heavy partners are most valuable once **Support Tickets (0.34)** exists.
 
 ## Partner segments
 
@@ -31,7 +31,7 @@ Set these in writing before onboarding a partner:
 - Join a regular, lightweight feedback cadence (below).
 - Provide candid feedback, including negative.
 - Accept that the product roadmap is shared across all partners — their requests inform priorities but are not guaranteed features or custom builds.
-- Understand the current status: private/technical preview posture, planned modules are planned, no uptime/security/backup guarantees beyond what's documented.
+- Understand the current status: technically deployed private/technical preview, invitations and design-partner entry separately gated, planned modules still planned, and no uptime/security/backup guarantees beyond the documented bounded procedures.
 
 In exchange, partners get early access, direct influence on priorities, and a responsive line to the maintainer.
 

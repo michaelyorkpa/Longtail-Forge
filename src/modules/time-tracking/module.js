@@ -377,6 +377,19 @@ const timeTrackingModule = {
     ],
     articles: [
       {
+        id: "time-tracking.actions",
+        slug: "time-tracking-actions",
+        moduleId: "time-tracking",
+        sectionId: "time-tracking.help",
+        title: "Time Tracking Action Reference",
+        summary: "Find timer, saved-entry, correction, Workbench, Dashboard, and reporting actions.",
+        contentPath: "modules/time-tracking/actions.md",
+        sortOrder: 5,
+        audience: "all",
+        tags: ["time-tracking", "actions", "timers", "time-entries"],
+        relatedArticleIds: ["time-tracking.timers", "time-tracking.entries-corrections", "framework.action-catalog"],
+      },
+      {
         id: "time-tracking.timers",
         slug: "time-tracking-timers",
         moduleId: "time-tracking",

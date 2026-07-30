@@ -205,6 +205,34 @@ describe("runtime configuration pure contract", () => {
     assert.ok(custom.localStorageRoot.endsWith(`${path.sep}custom-data${path.sep}files`), "relative local storage root should resolve from the app root");
   });
 
+  it("configures operator legal content and a version-aware source URL template", () => {
+    const defaults = createConfig({});
+    assert.ok(defaults.legal.termsContentPath.endsWith(`${path.sep}legal${path.sep}default-terms.md`));
+    assert.ok(defaults.legal.privacyContentPath.endsWith(`${path.sep}legal${path.sep}default-privacy.md`));
+    assert.equal(
+      defaults.legal.correspondingSourceUrlTemplate,
+      "https://github.com/michaelyorkpa/Longtail-Forge/tree/{ref}",
+    );
+
+    const custom = createConfig({
+      LONGTAIL_TERMS_CONTENT_PATH: "./operator/terms.md",
+      LONGTAIL_PRIVACY_CONTENT_PATH: "./operator/privacy.md",
+      LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE: "https://source.example.test/releases/{ref}",
+    });
+    assert.ok(custom.legal.termsContentPath.endsWith(`${path.sep}operator${path.sep}terms.md`));
+    assert.ok(custom.legal.privacyContentPath.endsWith(`${path.sep}operator${path.sep}privacy.md`));
+    assert.equal(custom.legal.correspondingSourceUrlTemplate, "https://source.example.test/releases/{ref}");
+
+    assert.throws(
+      () => createConfig({ LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE: "https://source.example.test/current" }),
+      /\{ref\} placeholder/,
+    );
+    assert.throws(
+      () => createConfig({ LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE: "file:///source/{ref}" }),
+      /absolute http or https URL/,
+    );
+  });
+
   it("applies safe production defaults and explicit warnings", () => {
     const production = readPureConfig(SAFE_PRODUCTION_ENV);
     assert.deepEqual(pick(production, {

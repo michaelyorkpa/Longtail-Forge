@@ -117,7 +117,7 @@ for (const document of [previewDeployment, internetDeployment, decisions, change
   assert.match(document, /deployment[\s\S]{0,160}`0?644`|`0?644`[\s\S]{0,160}deployment/i);
 }
 
-assertRoadmapCursorAtLeast("0.33.25.1", "maintenance branch closeout");
+assertRoadmapCursorAtLeast("0.33.24.9", "maintenance branch closeout");
 assert.match(roadmapArchive, /^## Version 0\.33\.24\.1 - Root-owned maintenance asset and marker helper$/m);
 assert.match(roadmapArchive, /0\.33\.24\.1[\s\S]*root-owned\/operator-group-controlled marker directory/);
 assert.match(roadmapArchive, /0\.33\.24\.1[\s\S]*- \[x\] Added the required release-gate regression/);

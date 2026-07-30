@@ -18,8 +18,8 @@ let checks = 0;
 const workspaceOne = "search-lifecycle-workspace-1";
 const workspaceTwo = "search-lifecycle-workspace-2";
 const now = "2026-06-08T18:00:00.000Z";
-const frameworkHelpArticleCount = 13;
-const moduleHelpArticleCount = 3;
+const frameworkHelpArticleCount = 21;
+const moduleHelpArticleCount = 6;
 const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 
 await seedWorkspace(workspaceOne, {
@@ -58,11 +58,11 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
   );
   assert.equal(
     firstRows.filter((row) => row.module_id === "tasks" && row.record_type === "help_article").length,
-    1,
+    3,
   );
   assert.equal(
     firstRows.filter((row) => row.module_id === "time-tracking" && row.record_type === "help_article").length,
-    2,
+    3,
   );
   const helpCenterRow = firstRows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
   assert.ok(helpCenterRow, "framework Help Center search row should be indexed");

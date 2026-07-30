@@ -24,6 +24,14 @@ The smoke builds the tarball, extracts it into a disposable directory, installs 
 
 The runtime `src/` payload includes the generated bundled-module catalog and every repository-owned first-party `module.js` entry it names. Startup rechecks that catalog/source inventory before migrations, so a missing, extra, or stale packaged entry fails closed instead of silently changing the shipped module set. Catalog generation remains repository-only tooling; the installed artifact does not discover operator-added executable modules.
 
+The artifact also includes `legal/default-terms.md` and
+`legal/default-privacy.md`. These are neutral operator templates, not hosted
+service terms issued by Raymond Tec. A hosted operator supplies reviewed
+Markdown through the runtime paths documented in
+[Runtime Configuration](runtime-configuration.md); those private governing
+documents and their approval record are deployment state and do not belong in
+the public artifact.
+
 ## Install and start
 
 Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified Linux target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are not supported by this release proof. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. The root `package.json` explicitly allows only the exact pinned `better-sqlite3@13.0.1` install script for clean npm 11+ installs; do not broaden `allowScripts` or approve a new lifecycle dependency without reviewing and regression-locking that exact package/version. In a new non-public staging directory:
@@ -47,6 +55,9 @@ Every tarball includes `RUNTIME-ARTIFACT.json` with the canonical application ve
 - Runtime entrypoints: `server.js` and `worker.js`; backup/workspace recovery commands; and the inert-by-default named-demo-host data command plus its shared deterministic builder. The demo command is never called by app/worker startup or normal deployment and requires the separately installed root-owned wrapper and exact protected host configuration.
 - Runtime JavaScript, schemas, migrations, and database baseline: `src/`.
 - Browser and view assets required by the app: `public/js/`, `public/css/`, the served logo/favicon, `views/`, and the bundled Lucide license notice.
+- Public-release attribution: the reviewed root `THIRD_PARTY_NOTICES.md`, which
+  is checked against the production lockfile closure and bundled-asset
+  inventory before packaging.
 - User Help content loaded by the Help service: `help/`.
 - Runtime/operator contract files: `.env.example`, `.nvmrc`, `README.md`, `SECURITY.md`, `LICENSE`, this document, runtime configuration, operational security, preview deployment/Compose environment/systemd guidance, the reference internet-deployment/Caddy files, and SQLite small-office guidance.
 - Runtime dependency and install metadata: a runtime-only `package.json` and pruned `npm-shrinkwrap.json`.

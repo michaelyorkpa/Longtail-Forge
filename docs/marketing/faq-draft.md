@@ -34,7 +34,7 @@ Your workspace data: clients/projects, tasks, notes, lists, files you attach, ti
 
 ### What is currently available?
 
-Today (through version 0.33.13.5): workspaces with roles and permissions; clients and projects; time tracking; Tasks (with next actions, resume notes, checklists, reminders, recurrence, task timers); Notes (with Markdown, links, revisions, tags, files, and encrypted-at-rest secure notes); Lists; Files; Search; Notifications; Reporting; and the Dashboard and Workbench surfaces. See the [feature-outcome map](feature-outcome-map.md) for details and status.
+In the 0.33.25.2 repository baseline: workspaces with roles and permissions; clients and projects; time tracking; Tasks (with next actions, resume notes, checklists, reminders, recurrence, task timers, in-app calendars, and private read-only calendar subscriptions); Notes (with Markdown, links, revisions, tags, files, and encrypted-at-rest secure notes); Lists; Files; Search; Notifications; Reporting; Dashboard; and Workbench. The distribution also includes reviewed third-party notices and authenticated Legal and Licensing Help. See the [feature-outcome map](feature-outcome-map.md) for details and status.
 
 ### Are Tickets, Knowledge Base, and Creator Studio available yet?
 
@@ -44,13 +44,15 @@ No. **Support Tickets, Knowledge Base, and Creator Studio are committed first-pa
 
 Longtail Forge Core is licensed under AGPL-3.0-only. In plain terms: you can use, study, modify, and self-host it for free, including commercially. If you modify it and offer the modified app to others over a network, the AGPL requires you to make that modified source available. This is a high-level summary, not legal advice — see [licensing.md](../licensing.md) and the [software license](../licensing/software-license.md).
 
+The distribution includes a reviewed [third-party notices inventory](../../THIRD_PARTY_NOTICES.md), and authenticated Help exposes Legal and Licensing plus Third-Party Notices articles tied to the running release identity. Those surfaces document the software distribution; they are not legal advice or a substitute for an operator's accurate Terms and Privacy documents.
+
 ### Can a business use it?
 
 Yes. Commercial use of the AGPL version is allowed, subject to the AGPL. Separate commercial licenses, hosted services, support plans, and managed deployments may be offered later by Michael York d/b/a Raymond Tec. For organizations that can't comply with AGPL obligations, commercial license exceptions are part of the [commercial model](../licensing/commercial-viability-plan.md).
 
 ### Is it secure?
 
-Longtail Forge is built with permission-aware, workspace-scoped access and audit logging, and internet-exposure security hardening is active near-term roadmap work (0.33.16). We don't make absolute security claims: no product is "unhackable," and we don't claim external audits, penetration tests, or compliance certifications we haven't done. Until the hardening and preview-readiness work ships, treat internet use as a **private/technical preview**, and if you self-host, follow the documented secure-deployment setup. See [accessibility.md](../accessibility.md) and the roadmap security sections.
+Longtail Forge has permission-aware, workspace-scoped access, audit logging, a documented public-edge posture, tested backup/restore, and a bounded preview deployment and recovery path. We don't turn those controls into absolute claims: no product is "unhackable," and we don't claim external audits, penetration tests, compliance certifications, or general production readiness we haven't earned. Treat internet use as a **private/technical preview**, and if you self-host, follow the documented secure-deployment setup. Technical deployment does not authorize invitations; the exact candidate still needs the private signed readiness review and explicit invite/no-invite decision. See [operational-security.md](../operational-security.md) and [private-preview-readiness.md](../private-preview-readiness.md).
 
 ### Are Secure Notes zero-knowledge?
 
@@ -62,7 +64,8 @@ No. Longtail Forge is designed for freelancers and small service teams, not as a
 
 ### What are the current preview limitations?
 
-- Internet-exposure hardening and tested backup/restore are still being finalized (roadmap 0.33.16 / 0.33.17); until then, internet use is a private/technical preview, not production.
+- The bounded preview's hardening, backup/restore, immutable deployment, rollback/restore-forward, and maintenance path are technically proven, but this is still a private/technical preview rather than a public launch or general production-readiness claim.
+- Invitations remain a separate operator decision gated by the private signed readiness record, participant-account review, scanner/recovery evidence, and the exact candidate.
 - Supported scale is small-office: SQLite for roughly 50 total users and about 5–15 concurrent, on one server. PostgreSQL is required before any shared hosted or larger-scale use.
 - No hosted version yet; self-hosting only.
 - Support Tickets, Knowledge Base, and Creator Studio are planned, not available.

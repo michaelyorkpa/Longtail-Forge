@@ -2046,6 +2046,37 @@ fieldset.view-renderer-field {
     font-size: 11px;
 }
 
+.site-footer-legal {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.site-footer a {
+    color: inherit;
+}
+
+.legal-page {
+    width: min(760px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 48px 0;
+}
+
+.legal-document {
+    padding: clamp(24px, 5vw, 48px);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-card);
+}
+
+.legal-document h1:first-child {
+    margin-top: 0;
+}
+
 .quick-action-capture {
     --quick-action-bottom: calc(var(--site-footer-visible-offset, 0px) + 20px);
     position: fixed;

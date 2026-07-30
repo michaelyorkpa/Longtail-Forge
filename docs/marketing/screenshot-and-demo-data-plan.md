@@ -85,8 +85,8 @@ Prioritized; the hero set is Workbench-first (current, recordable now). Planned-
 ltf__<surface>__<scenario>__<viewport>__v<appVersion>__<YYYY-MM-DD>.png
 ```
 Examples:
-- `ltf__workbench-task-focus__northwind__desktop__v0.33.13.5__2026-07-14.png`
-- `ltf__mobile-dashboard__northwind__mobile__v0.33.13.5__2026-07-14.png`
+- `ltf__workbench-task-focus__northwind__desktop__v0.33.25.2__2026-07-30.png`
+- `ltf__mobile-dashboard__northwind__mobile__v0.33.25.2__2026-07-30.png`
 
 Keep the surface slugs identical to the inventory IDs above.
 

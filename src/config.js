@@ -43,6 +43,7 @@ const DEFAULT_LOG_LEVEL = "info";
 const DEFAULT_INITIAL_WORKSPACE_NAME = "Longtail Forge Workspace";
 const DEFAULT_SUPER_ADMIN_USERNAME = "support@longtailforge.local";
 const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
+const DEFAULT_CORRESPONDING_SOURCE_URL_TEMPLATE = "https://github.com/michaelyorkpa/Longtail-Forge/tree/{ref}";
 const SESSION_SAMESITE_VALUES = new Set(["Lax", "Strict", "None"]);
 const ENVIRONMENTS = new Set(["development", "test", "production"]);
 const DATABASE_PROVIDERS = new Set(["sqlite"]);
@@ -90,6 +91,13 @@ function createConfig(env = process.env) {
   const workspaceBackupRoot = resolveRuntimePath(
     readText(env, "LONGTAIL_WORKSPACE_BACKUP_ROOT", path.join(root, "backups", "workspaces")),
   );
+  const termsContentPath = resolveRuntimePath(
+    readText(env, "LONGTAIL_TERMS_CONTENT_PATH", path.join(root, "legal", "default-terms.md")),
+  );
+  const privacyContentPath = resolveRuntimePath(
+    readText(env, "LONGTAIL_PRIVACY_CONTENT_PATH", path.join(root, "legal", "default-privacy.md")),
+  );
+  const correspondingSourceUrlTemplate = readCorrespondingSourceUrlTemplate(env);
   const sqliteForeignKeys = readBoolean(env, "LONGTAIL_SQLITE_FOREIGN_KEYS", DEFAULT_SQLITE_FOREIGN_KEYS);
   const sessionCookieSecure = readBoolean(env, "LONGTAIL_SESSION_COOKIE_SECURE", false);
   const sessionCookieSameSite = readSessionSameSite(env);
@@ -163,6 +171,8 @@ function createConfig(env = process.env) {
   assertPathIsNotPublic(databaseFile, "LONGTAIL_DATABASE_FILE", publicDir);
   assertPathIsNotPublic(localStorageRoot, "LONGTAIL_LOCAL_STORAGE_ROOT", publicDir);
   assertPathIsNotPublic(workspaceBackupRoot, "LONGTAIL_WORKSPACE_BACKUP_ROOT", publicDir);
+  assertPathIsNotPublic(termsContentPath, "LONGTAIL_TERMS_CONTENT_PATH", publicDir);
+  assertPathIsNotPublic(privacyContentPath, "LONGTAIL_PRIVACY_CONTENT_PATH", publicDir);
 
   if (environment === "production") {
     assertProductionSecret(bootstrapPassword, "SUPER_ADMIN_PASSWORD", 16);
@@ -229,6 +239,11 @@ function createConfig(env = process.env) {
       sourceBranch: releaseSourceBranch || null,
       commitSha: releaseCommit,
       artifactSha256: releaseArtifactSha256,
+    },
+    legal: {
+      termsContentPath,
+      privacyContentPath,
+      correspondingSourceUrlTemplate,
     },
     environment,
     publicUrl,
@@ -526,6 +541,31 @@ function readPublicUrl(env) {
 
   if (parsed.username || parsed.password) {
     throw new Error("LONGTAIL_PUBLIC_URL must not include credentials.");
+  }
+
+  return value;
+}
+
+function readCorrespondingSourceUrlTemplate(env) {
+  const value = readText(
+    env,
+    "LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE",
+    DEFAULT_CORRESPONDING_SOURCE_URL_TEMPLATE,
+  );
+
+  if (!value.includes("{ref}")) {
+    throw new Error("LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE must include the {ref} placeholder.");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value.replaceAll("{ref}", "version-ref"));
+  } catch {
+    throw new Error("LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE must be an absolute http or https URL.");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password) {
+    throw new Error("LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE must be an absolute http or https URL without credentials.");
   }
 
   return value;

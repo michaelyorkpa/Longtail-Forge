@@ -2,7 +2,7 @@
 
 Use this checklist when applying the licensing docs to the repo.
 
-Current process-gate status is maintained in the [repo-level licensing hub](../licensing.md#future-process-gates). Run `npm run licensing:gates` for the warning-only artifact readout. Missing future public-release or contributor-intake files do not block ordinary private development.
+Current process-gate status is maintained in the [repo-level licensing hub](../licensing.md#future-process-gates). The in-app legal/about and third-party-notices gates are active and satisfied; the outside-contribution gate remains inactive. Run `npm run licensing:gates` for the warning-only aggregate readout and `npm run third-party-notices:check` for the hard inventory drift check.
 
 ## Repository Layout
 
@@ -105,15 +105,20 @@ Before public release, consider adding an in-app legal/about screen containing:
 - third-party notices link;
 - trademark notice.
 
-## Third-Party Notices (Public-Release Gate)
+## Third-Party Notices (Active Public-Release Gate)
 
-Before public release, generate or maintain:
+Maintain the reviewed root inventory:
 
 ```text
 THIRD_PARTY_NOTICES.md
 ```
 
-At minimum, track runtime dependencies and any bundled assets/fonts/icons/images.
+It tracks the lockfile-derived production dependency closure and bundled
+assets, explicitly including the Lucide-derived icon subset and recording that
+the runtime has no bundled fonts or vendored browser libraries. Regenerate with
+`npm run third-party-notices:write`, review the diff by hand, and prove it with
+`npm run third-party-notices:check`. The runtime artifact must ship both this
+root file and `public/icons/LUCIDE-LICENSE.md`.
 
 ## Private Repo Boundary
 

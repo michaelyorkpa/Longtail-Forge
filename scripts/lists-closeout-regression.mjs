@@ -89,7 +89,7 @@ async function assertHelpDiscoveryAndSearch(session) {
   const listsArticles = help.articles.filter((article) => article.moduleId === "lists");
 
   assert.ok(help.sections.some((section) => section.id === "lists.overview"));
-  assert.equal(listsArticles.length, 8);
+  assert.equal(listsArticles.length, 9);
   assert.ok(listsArticles.every((article) => article.ownerType === "module"));
   assert.ok(listsArticles.every((article) => article.moduleId === "lists"));
   assert.ok(listsArticles.every((article) => article.title));

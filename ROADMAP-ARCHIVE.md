@@ -1,5 +1,66 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.25.2 - In-app legal and licensing surface in Help
+
+Completed locally on 2026-07-30. Authenticated framework Help now exposes
+version-accurate legal/licensing guidance and the reviewed third-party notices,
+the automated public-app legal/about gate reads satisfied, and the active cursor
+advances to `0.33.25.3`.
+
+**Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
+
+- [x] Added framework-owned Legal and Licensing and Third-Party Notices articles
+  covering the running identity, copyright, `AGPL-3.0-only` source-access
+  rights, warranty disclaimer, third-party software, and trademark policy.
+- [x] Hydrated the displayed version from the same configuration identity used
+  by `/api/app-info`; Corresponding Source and tracked policy links use the
+  immutable release commit when available and the canonical release tag
+  otherwise, never a mutable `main` reference.
+- [x] Hydrated the complete notices article directly from the reviewed root
+  `THIRD_PARTY_NOTICES.md`, keeping legal prose and notices in tracked Markdown
+  sources rather than duplicated JavaScript strings.
+- [x] Added both articles to the Help table of contents and search index while
+  keeping them framework-owned, authenticated, and workspace-independent.
+- [x] Activated the legal/about gate in `docs/licensing.md` and extended focused
+  Help, source-layout, search-count, and licensing-gate regression coverage.
+
+Acceptance criteria:
+
+- The Help section contains the legal/licensing surface with live version,
+  copyright, AGPL source access, warranty, third-party notices, and trademark
+  content from tracked sources, and the public-app legal gate reads satisfied.
+
+## Version 0.33.25.1 - Reviewed third-party notices
+
+Completed locally on 2026-07-30. The root notices file now covers the complete
+production lockfile closure and bundled Lucide-derived icon subset, ships in
+the immutable runtime artifact, and has deterministic regeneration plus hard
+drift detection; the active cursor advances to `0.33.25.2`.
+
+**Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
+
+- [x] Enumerated 89 unique production dependency name/version records across
+  90 installed production package locations plus the bundled Lucide-derived
+  icon asset, while explicitly recording that the runtime has no bundled fonts
+  or vendored browser libraries and excluding development-only tooling.
+- [x] Generated `THIRD_PARTY_NOTICES.md` with each component's version, reviewed
+  license identifier, copyright holder(s), and full required license/notice
+  text; the shipped license set is MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
+  Python-2.0, all reviewed as compatible with `AGPL-3.0-only` distribution.
+- [x] Added deterministic `third-party-notices:write` regeneration and a hard
+  `third-party-notices:check` comparison against the lockfile, package license
+  texts, reviewed exceptional metadata, and bundled-asset inventory.
+- [x] Made `licensing:gates` report the active third-party-notices gate as
+  satisfied or loudly warn on drift, shipped the root notice in runtime
+  artifacts, expanded the Lucide notice to its complete ISC and Feather-derived
+  MIT terms, and updated the owning licensing/runtime/regression documentation.
+
+Acceptance criteria:
+
+- `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset
+  with hand-reviewed license and attribution data, regeneration/drift detection
+  is repeatable, and the licensing gate readout reflects the completed gate.
+
 ## Version 0.33.24.9 - Preview rollout, cross-host proof, and branch closeout
 
 Completed on the live preview, demo, and public-edge path on 2026-07-30. Both bounded hosts now use the qualified least-privilege maintenance boundary, preview proved backup-first rollback and restore-forward, and the complete branch advances through protected `nightly`/`main` plus a manual immutable-main preview deployment; the active cursor advances to `0.33.25.1`.

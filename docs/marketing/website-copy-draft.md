@@ -58,6 +58,7 @@ Longtail Forge keeps different kinds of work in distinct but connected places, s
 - **Time Tracking** — track time on the work itself, ready for billing and reporting.
 - **Search & Notifications** — recover information across your work and surface relevant changes.
 - **Reporting** — understand billable and non-billable time and workspace results.
+- **Calendar subscriptions** — follow a private, permission-scoped, read-only Tasks calendar in Google Calendar, Apple Calendar, Outlook, or Thunderbird.
 
 All of it is workspace-scoped and permission-aware, for solo work or a small team.
 
@@ -109,7 +110,9 @@ An official hosted version and managed private instances are planned for later, 
 - **Audit logging.** Security-relevant actions are recorded for admins.
 - **Secure notes, encrypted at rest.** Sensitive notes are encrypted at rest with a server-managed key. This is not "zero-knowledge" — a configured server can decrypt them — so treat it as strong at-rest protection, not a vault for critical secrets.
 
-**Honest status:** Longtail Forge is in active development. Internet-exposure hardening and tested backup/restore are on the near-term roadmap; until that work ships, treat internet use as a private/technical preview, not a production deployment. We don't claim certifications, audits, or guarantees we haven't earned.
+**Honest status:** Longtail Forge is in active development. The bounded private-preview deployment, tested backup/restore, rollback/restore-forward, and maintenance path are technically proven. That is not a public-launch, general production-readiness, certification, audit, uptime, backup, or security guarantee. Invitations still require the private signed readiness record and an explicit invite/no-invite decision.
+
+The distribution includes reviewed third-party notices and authenticated Legal and Licensing Help. Public or hosted Terms and Privacy content remains operator-specific; do not present Raymond Tec's hosted documents as final until their attorney-review gate is complete.
 
 `[Do not add compliance/audit/uptime badges. Link to the security-disclosure path once it exists.]`
 

@@ -20,6 +20,22 @@ As of 0.33.17.2, [Docker and Bare-Metal Preview Deployment](preview-deployment.m
 
 As of 0.33.17.5, maintained immutable deployments may also provide `LONGTAIL_RELEASE_COMMIT` as an exact 40-character hexadecimal Git commit and `LONGTAIL_RELEASE_ARTIFACT_SHA256` as the exact 64-character artifact checksum. They are release identity, not user settings or secrets. `/api/app-info` returns them so operators can compare the running process to selected release metadata; ordinary local runs report `null`. The bare-metal systemd example loads these values from the optional root-owned `/etc/longtail-forge/release.env` file.
 
+The public Terms and Privacy pages read Markdown from
+`LONGTAIL_TERMS_CONTENT_PATH` and `LONGTAIL_PRIVACY_CONTENT_PATH`. Their bundled
+defaults are neutral self-hosting templates, not Raymond Tec terms for a
+third-party installation. An operator offering the app to users must supply
+accurate, reviewed documents for that installation and remains responsible for
+its data-controller obligations. Both paths must resolve outside the public
+static directory and to readable files; startup fails closed otherwise.
+
+`LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE` controls the public AGPL source
+link and must be an absolute HTTP/HTTPS URL containing `{ref}`. The app replaces
+that placeholder with the exact `LONGTAIL_RELEASE_COMMIT` when present, or
+`v<canonicalVersion>` otherwise. Modified and downstream distributions must
+point the template at the Corresponding Source for the version they actually
+run. `/api/app-info`, the shared footer, and authenticated Legal and Licensing
+Help all consume this one runtime identity.
+
 As of 0.33.17.3, [Baseline Backup and Restore](backup-restore.md) owns the safe configuration inventory recorded in recovery archives. It records only provider and operating-mode classifications needed for restore review; it never copies `.env`, secrets, endpoints, credentials, the Secure Notes master key, or raw protected paths into the archive.
 
 As of 0.33.17.4, [Development and Demo Data](development-and-demo-data.md) owns the local seed/reset environment boundary. Those commands require `LONGTAIL_ENV=development`, an explicitly marked and contained data directory, and a unique `SUPER_ADMIN_PASSWORD`; they refuse production/live/customer targets, clear Secure Notes key variables, and never change the production runtime contract or seed a normal startup.
@@ -90,6 +106,9 @@ As of 0.33.24.1, `/etc/longtail-forge/maintenance-helper.env` is a separate root
 | `LONGTAIL_RELEASE_BRANCH` | empty | Source branch for release identity. Deployment automation supplies `nightly` or `main`; values must use lowercase letters/numbers with internal dots, underscores, or hyphens. Leave blank only for an explicitly local unqualified run. |
 | `LONGTAIL_RELEASE_COMMIT` | empty | Optional immutable deployment identity. When present, it must be the exact 40-character hexadecimal Git commit and is returned by `/api/app-info`. |
 | `LONGTAIL_RELEASE_ARTIFACT_SHA256` | empty | Optional immutable deployment identity. When present, it must be the exact 64-character artifact checksum and is returned by `/api/app-info`. |
+| `LONGTAIL_TERMS_CONTENT_PATH` | `./legal/default-terms.md` | Readable Markdown for the public Terms page. Replace the neutral template with operator-approved terms before offering a hosted service. Must not resolve inside `public/`. |
+| `LONGTAIL_PRIVACY_CONTENT_PATH` | `./legal/default-privacy.md` | Readable Markdown for the public Privacy page. The installation operator is responsible for an accurate notice and data-controller disclosures. Must not resolve inside `public/`. |
+| `LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE` | Longtail Forge repository tree URL with `{ref}` | Absolute HTTP/HTTPS source URL template for the running build. Must contain `{ref}` and must identify the downstream build's actual Corresponding Source. |
 
 ### Trusted Reverse Proxy
 
