@@ -62,10 +62,18 @@ Acceptance criteria:
 
 **Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
 
-- [ ] Build the action inventory from the real registries, not recollection: every framework action and every current first-party module action, including the quick-action capture set (add task, time entry, note, list, project, client; create timer), per-page and per-card actions, and bulk operations — and document what each action is intended to do and where it is available.
-- [ ] Add task-oriented "What do you want to do?" articles that map user goals to steps ("track time against a client", "capture something mid-task without losing focus", "hand a project to another user"), linking into the action and feature articles rather than duplicating them.
-- [ ] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.22 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.21.3 landed).
-- [ ] Respect Help ownership boundaries: framework articles for framework behavior, module-owned articles for module behavior that appear only when the module is active; update `help/toc.md` and confirm new articles index into Help search.
+- [x] Build the action inventory from the real registries, not recollection: every framework action and every current first-party module action, including the quick-action capture set (add task, time entry, note, list, project, client; create timer), per-page and per-card actions, and bulk operations — and document what each action is intended to do and where it is available.
+- [x] Add task-oriented "What do you want to do?" articles that map user goals to steps ("track time against a client", "capture something mid-task without losing focus", "hand a project to another user"), linking into the action and feature articles rather than duplicating them.
+- [x] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.22 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.21.3 landed).
+- [x] Respect Help ownership boundaries: framework articles for framework behavior, module-owned articles for module behavior that appear only when the module is active; update `help/toc.md` and confirm new articles index into Help search.
+
+Repository implementation completed on the stacked `0.33.25.4` topic branch.
+Release bookkeeping intentionally remains open behind the active `0.33.25.3`
+attorney-review gate: do not skip `0.33.25.3` by bumping the package directly
+from `0.33.25.2` to `0.33.25.4`. Docs updated: framework and first-party
+module Help Markdown sources plus `help/toc.md`. No docs change needed: the
+underlying module workflows, permissions, routes, database, and developer
+integration contracts are unchanged.
 
 Acceptance criteria:
 

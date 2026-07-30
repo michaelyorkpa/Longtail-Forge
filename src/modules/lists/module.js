@@ -650,6 +650,21 @@ const listsModule = {
     ],
     articles: [
       {
+        id: "lists.actions",
+        slug: "lists-actions",
+        sectionId: "lists.overview",
+        moduleId: LIST_MODULE_ID,
+        title: "Lists Action Reference",
+        summary: "Find list, item, lifecycle, reusable-list, link, file, tag, and recovery actions.",
+        contentPath: "modules/lists/actions.md",
+        sortOrder: 5,
+        audience: "user",
+        tags: ["lists", "actions", "items", "reusable"],
+        relatedArticleIds: ["lists.basics", "lists.items", "framework.action-catalog"],
+        requiredModules: [LIST_MODULE_ID],
+        requiredPermissions: [LIST_PERMISSIONS.VIEW],
+      },
+      {
         id: "lists.basics",
         slug: "lists-basics",
         sectionId: "lists.overview",

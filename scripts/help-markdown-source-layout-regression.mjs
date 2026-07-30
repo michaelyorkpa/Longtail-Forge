@@ -47,12 +47,24 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
     path: "framework/files-and-attachments.md",
     sourceFile: "src/services/help.service.js",
   },
+  "framework.action-catalog": {
+    path: "framework/action-catalog.md",
+    sourceFile: "src/services/help.service.js",
+  },
+  "framework.goals": {
+    path: "framework/what-do-you-want-to-do.md",
+    sourceFile: "src/services/help.service.js",
+  },
   "framework.settings": {
     path: "framework/settings-and-user-preferences.md",
     sourceFile: "src/services/help.service.js",
   },
   "framework.modules": {
     path: "framework/modules-and-optional-features.md",
+    sourceFile: "src/services/help.service.js",
+  },
+  "framework.administration": {
+    path: "framework/administration-and-settings.md",
     sourceFile: "src/services/help.service.js",
   },
   "framework.legal-licensing": {
@@ -67,6 +79,10 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
     path: "modules/time-tracking/timers-and-saved-duration.md",
     sourceFile: "src/modules/time-tracking/module.js",
   },
+  "time-tracking.actions": {
+    path: "modules/time-tracking/actions.md",
+    sourceFile: "src/modules/time-tracking/module.js",
+  },
   "time-tracking.entries-corrections": {
     path: "modules/time-tracking/time-entries-and-corrections.md",
     sourceFile: "src/modules/time-tracking/module.js",
@@ -75,8 +91,16 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
     path: "modules/tasks/resuming-task-work.md",
     sourceFile: "src/modules/tasks/module.js",
   },
+  "tasks.actions": {
+    path: "modules/tasks/actions.md",
+    sourceFile: "src/modules/tasks/module.js",
+  },
   "notes.basics": {
     path: "modules/notes/using-notes.md",
+    sourceFile: "src/modules/notes/module.help.js",
+  },
+  "notes.actions": {
+    path: "modules/notes/actions.md",
     sourceFile: "src/modules/notes/module.help.js",
   },
   "notes.library": {
@@ -125,6 +149,10 @@ const HELP_ARTICLE_SOURCES = Object.freeze({
   },
   "lists.basics": {
     path: "modules/lists/using-lists.md",
+    sourceFile: "src/modules/lists/module.js",
+  },
+  "lists.actions": {
+    path: "modules/lists/actions.md",
     sourceFile: "src/modules/lists/module.js",
   },
   "lists.items": {

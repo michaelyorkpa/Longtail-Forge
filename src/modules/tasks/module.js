@@ -318,6 +318,21 @@ const tasksModule = {
     ],
     articles: [
       {
+        id: "tasks.actions",
+        slug: "tasks-actions",
+        sectionId: "tasks.overview",
+        moduleId: "tasks",
+        title: "Tasks Action Reference",
+        summary: "Find Tasks page, task editor, Workbench, timer, checklist, recurrence, and bulk actions.",
+        contentPath: "modules/tasks/actions.md",
+        sortOrder: 5,
+        audience: "user",
+        tags: ["tasks", "actions", "bulk actions", "timers"],
+        relatedArticleIds: ["tasks.resume-context", "framework.action-catalog", "framework.tasks"],
+        requiredModules: ["tasks"],
+        requiredPermissions: ["tasks.view"],
+      },
+      {
         id: "tasks.resume-context",
         slug: "tasks-resume-context",
         sectionId: "tasks.overview",

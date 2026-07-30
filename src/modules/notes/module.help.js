@@ -17,6 +17,21 @@ const notesHelp = {
       ],
       articles: [
         {
+          id: "notes.actions",
+          slug: "notes-actions",
+          sectionId: "notes.overview",
+          moduleId: "notes",
+          title: "Notes Action Reference",
+          summary: "Find Notes page, editor, collection, link, revision, file, tag, and bulk actions.",
+          contentPath: "modules/notes/actions.md",
+          sortOrder: 5,
+          audience: "user",
+          tags: ["notes", "actions", "bulk actions", "collections"],
+          relatedArticleIds: ["notes.basics", "notes.linking", "framework.action-catalog"],
+          requiredModules: ["notes"],
+          requiredPermissions: [NOTE_PERMISSIONS.VIEW],
+        },
+        {
           id: "notes.basics",
           slug: "notes-basics",
           sectionId: "notes.overview",
