@@ -16,6 +16,7 @@ import {
   inspectLicensingGates,
 } from "../../lib/licensing-gates.mjs";
 import {
+  escapeTable,
   generateThirdPartyNotices,
   inspectThirdPartyNotices,
 } from "../../lib/third-party-notices.mjs";
@@ -108,6 +109,12 @@ const noticeCheck = inspectThirdPartyNotices();
 assert.equal(noticeCheck.current, true, noticeCheck.message);
 assert.equal(noticeCheck.componentCount, 90);
 const generatedNotices = generateThirdPartyNotices();
+assert.equal(
+  escapeTable("one\\two|three\\\\four"),
+  "one\\\\two\\|three\\\\\\\\four",
+  "notice table escaping should preserve literal backslashes while escaping every pipe",
+);
+assert.equal(escapeTable("a||b"), "a\\|\\|b", "notice table escaping should escape repeated pipes");
 assert.match(generatedNotices.content, /\| better-sqlite3 \| 13\.0\.1 \| MIT \|/);
 assert.match(generatedNotices.content, /\| argparse \| 2\.0\.1 \| Python-2\.0 \|/);
 assert.match(generatedNotices.content, /Lucide Icons \(bundled inline SVG subset\)/);

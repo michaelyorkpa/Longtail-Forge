@@ -275,6 +275,7 @@ function compareRecords(left, right) {
 
 function escapeTable(value) {
   return String(value)
+    .replace(/\\/g, "\\\\")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -308,6 +309,7 @@ SOFTWARE.`;
 
 export {
   NOTICES_PATH,
+  escapeTable,
   generateThirdPartyNotices,
   inspectThirdPartyNotices,
   writeThirdPartyNotices,
