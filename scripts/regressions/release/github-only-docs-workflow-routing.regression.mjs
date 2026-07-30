@@ -148,14 +148,16 @@ const workflow = readFileSync(".github/workflows/development-pr.yml", "utf8");
 for (const requiredName of [
   "Development gate",
   "Browser smoke and accessibility",
+  "Complete maintenance release rehearsal",
   "Dependency review",
 ]) {
   assert.match(workflow, new RegExp(`name: ${requiredName.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 }
 assert.match(workflow, /LTF_REGRESSION_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
 assert.match(workflow, /node scripts\/classify-github-changes\.mjs --github-output/);
-assert.equal((workflow.match(/if: \$\{\{ always\(\) \}\}/g) || []).length, 2, "required jobs must run even when classification fails");
+assert.equal((workflow.match(/if: \$\{\{ always\(\) \}\}/g) || []).length, 3, "required jobs must run even when classification fails");
 assert.match(workflow, /GitHub-only documentation fast path: Playwright browser installation and smoke\/accessibility execution are not required\./);
+assert.match(workflow, /GitHub-only documentation fast path: disposable Nginx\/Caddy installation and execution are not required\./);
 assert.match(workflow, /Runtime Help changed - full application and browser validation remain required/);
 assert.match(workflow, /npm run test:regressions:changed:ci/);
 assert.match(workflow, /actions\/dependency-review-action@[a-f0-9]{40}/);

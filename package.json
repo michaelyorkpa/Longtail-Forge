@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.23.3",
+  "version": "0.33.24.9",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -28,6 +28,8 @@
     "workspace:purge": "node scripts/workspace-purge.mjs",
     "container:build": "node scripts/build-container-image.mjs",
     "container:smoke": "node scripts/container-deployment-smoke.mjs",
+    "proxy:smoke:multi": "node scripts/reference-caddy-security-smoke.mjs --topology multi-proxy",
+    "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",
     "check": "npm run check:fast && npm run test:regressions",
     "check:fast": "npm run typecheck && npm run test:unit && npm run lint",
     "typecheck": "tsc --noEmit",
@@ -103,5 +105,8 @@
     "eslint": "^10.7.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.1": true
   }
 }

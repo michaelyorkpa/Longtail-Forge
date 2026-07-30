@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install from a reviewed source checkout:
+#   sudo bash scripts/release/longtail-forge-maintenance-host.example install
+#
+# The installed helper manages only marker state. Caddy routing is a separate
+# reviewed contract and is not changed by this file.
+
+readonly ROOT_UID=0
+readonly ROOT_GID=0
+readonly HELPER_ENV="/etc/longtail-forge/maintenance-helper.env"
+readonly PAGE_SOURCE_NAME="longtail-forge-maintenance.html"
+readonly PAGE_TARGET_NAME="maintenance.html"
+readonly MARKER_NAME="maintenance.on"
+
+# Never accept caller-supplied environment overrides for privileged paths or
+# authority. Only the validated root-owned helper file may set these values.
+unset LTF_MAINTENANCE_OPERATOR_GROUP
+unset LTF_MAINTENANCE_STATE_ROOT
+unset LTF_MAINTENANCE_ASSET_ROOT
+unset LTF_MAINTENANCE_HELPER_PATH
+
+fail() {
+  printf 'maintenance helper: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  longtail-forge-maintenance status
+  longtail-forge-maintenance operator on|off
+  longtail-forge-maintenance deployment on|off
+  longtail-forge-maintenance-host.example install
+EOF
+  exit 64
+}
+
+require_safe_absolute_path() {
+  local value="$1" label="$2"
+  [[ "$value" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a simple absolute path"
+  [[ "$value" != "/" && "$value" != */ && "$value" != *"//"* \
+    && "$value" != *"/." && "$value" != *"/./"* \
+    && "$value" != *"/.." && "$value" != *"/../"* ]] \
+    || fail "$label must not contain an unsafe path segment"
+}
+
+require_real_node_or_missing() {
+  local path_value="$1" label="$2"
+  [[ ! -L "$path_value" ]] || fail "$label must not be a symbolic link"
+}
+
+read_owner_group_mode() {
+  stat -c '%u %g %a' -- "$1"
+}
+
+require_root_controlled_node() {
+  local path_value="$1" expected_mode="$2" label="$3"
+  local owner_id group_id file_mode
+  [[ -e "$path_value" && ! -L "$path_value" ]] || fail "$label must be a real path"
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$path_value")
+  [[ "$owner_id" == "$ROOT_UID" && "$group_id" == "$ROOT_GID" && "$file_mode" == "$expected_mode" ]] \
+    || fail "$label must have owner $ROOT_UID, group $ROOT_GID, and mode $expected_mode"
+}
+
+require_root_controlled_directory() {
+  local path_value="$1" expected_mode="$2" label="$3"
+  [[ -d "$path_value" && ! -L "$path_value" ]] || fail "$label must be a real directory"
+  require_root_controlled_node "$path_value" "$expected_mode" "$label"
+}
+
+require_root_controlled_file() {
+  local path_value="$1" expected_mode="$2" label="$3"
+  [[ -f "$path_value" && ! -L "$path_value" ]] || fail "$label must be a regular file"
+  require_root_controlled_node "$path_value" "$expected_mode" "$label"
+}
+
+require_root_controlled_parent() {
+  local path_value="$1" label="$2"
+  local parent_path owner_id group_id file_mode mode_value
+  parent_path="$(dirname -- "$path_value")"
+  [[ -d "$parent_path" && ! -L "$parent_path" ]] || fail "$label parent must be a real directory"
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$parent_path")
+  [[ "$owner_id" == "$ROOT_UID" && "$group_id" == "$ROOT_GID" && "$file_mode" =~ ^[0-7]{3,4}$ ]] \
+    || fail "$label parent must be root controlled"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "$label parent must not be group- or other-writable"
+}
+
+load_helper_environment() {
+  local owner_id group_id file_mode mode_value line key value
+  [[ -f "$HELPER_ENV" && ! -L "$HELPER_ENV" ]] \
+    || fail "helper environment must be a regular non-symbolic-link file: $HELPER_ENV"
+  require_root_controlled_parent "$HELPER_ENV" "helper environment"
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$HELPER_ENV")
+  [[ "$owner_id" == "$ROOT_UID" && "$group_id" == "$ROOT_GID" && "$file_mode" == "644" ]] \
+    || fail "helper environment must have owner $ROOT_UID, group $ROOT_GID, and mode 644"
+  mode_value=$((8#$file_mode))
+  (( (mode_value & 0022) == 0 )) || fail "helper environment must not be group- or other-writable"
+
+  declare -A seen=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || fail "helper environment contains an invalid line"
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    case "$key" in
+      LTF_MAINTENANCE_OPERATOR_GROUP|LTF_MAINTENANCE_STATE_ROOT|LTF_MAINTENANCE_ASSET_ROOT|LTF_MAINTENANCE_HELPER_PATH) ;;
+      *) fail "helper environment contains unsupported key: $key" ;;
+    esac
+    [[ -z "${seen[$key]+set}" ]] || fail "helper environment contains duplicate key: $key"
+    seen[$key]=1
+    printf -v "$key" '%s' "$value"
+  done < "$HELPER_ENV"
+}
+
+resolve_configuration() {
+  LTF_MAINTENANCE_OPERATOR_GROUP="${LTF_MAINTENANCE_OPERATOR_GROUP:-longtail-forge-maintenance}"
+  LTF_MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
+  LTF_MAINTENANCE_ASSET_ROOT="${LTF_MAINTENANCE_ASSET_ROOT:-/usr/local/share/longtail-forge-maintenance}"
+  LTF_MAINTENANCE_HELPER_PATH="${LTF_MAINTENANCE_HELPER_PATH:-/usr/local/bin/longtail-forge-maintenance}"
+
+  [[ "$LTF_MAINTENANCE_OPERATOR_GROUP" =~ ^[a-z_][a-z0-9_-]*$ ]] \
+    || fail "LTF_MAINTENANCE_OPERATOR_GROUP must be a safe POSIX group name"
+  require_safe_absolute_path "$LTF_MAINTENANCE_STATE_ROOT" "LTF_MAINTENANCE_STATE_ROOT"
+  require_safe_absolute_path "$LTF_MAINTENANCE_ASSET_ROOT" "LTF_MAINTENANCE_ASSET_ROOT"
+  require_safe_absolute_path "$LTF_MAINTENANCE_HELPER_PATH" "LTF_MAINTENANCE_HELPER_PATH"
+
+  case "$LTF_MAINTENANCE_ASSET_ROOT/" in
+    "$LTF_MAINTENANCE_STATE_ROOT/"*) fail "asset root must not be inside maintenance state" ;;
+  esac
+  case "$LTF_MAINTENANCE_STATE_ROOT/" in
+    "$LTF_MAINTENANCE_ASSET_ROOT/"*) fail "maintenance state must not be inside the asset root" ;;
+  esac
+  case "$LTF_MAINTENANCE_HELPER_PATH" in
+    "$LTF_MAINTENANCE_STATE_ROOT"/*|"$LTF_MAINTENANCE_ASSET_ROOT"/*)
+      fail "helper path must remain outside state and asset roots"
+      ;;
+  esac
+
+  local group_record
+  group_record="$(getent group "$LTF_MAINTENANCE_OPERATOR_GROUP" || true)"
+  [[ -n "$group_record" ]] || fail "operator group does not exist: $LTF_MAINTENANCE_OPERATOR_GROUP"
+  IFS=: read -r _ _ OPERATOR_GID _ <<< "$group_record"
+  [[ "$OPERATOR_GID" =~ ^[0-9]+$ ]] || fail "operator group has an invalid numeric ID"
+  [[ "$LTF_MAINTENANCE_OPERATOR_GROUP" != "root" ]] || fail "operator group must not be the root group"
+  if (( ROOT_GID == 0 )); then
+    [[ "$OPERATOR_GID" != "0" ]] || fail "operator group must not use root group ID 0"
+  fi
+
+  STATE_ROOT="$LTF_MAINTENANCE_STATE_ROOT"
+  OPERATOR_STATE_DIR="$STATE_ROOT/operator"
+  DEPLOYMENT_STATE_DIR="$STATE_ROOT/deployment"
+  OPERATOR_MARKER="$OPERATOR_STATE_DIR/$MARKER_NAME"
+  DEPLOYMENT_MARKER="$DEPLOYMENT_STATE_DIR/$MARKER_NAME"
+  ASSET_ROOT="$LTF_MAINTENANCE_ASSET_ROOT"
+  PAGE_TARGET="$ASSET_ROOT/$PAGE_TARGET_NAME"
+  HELPER_PATH="$LTF_MAINTENANCE_HELPER_PATH"
+}
+
+validate_marker() {
+  local marker_path="$1" label="$2"
+  [[ ! -L "$marker_path" ]] || fail "$label marker must not be a symbolic link"
+  [[ ! -e "$marker_path" || -f "$marker_path" ]] || fail "$label marker must be a regular file"
+}
+
+validate_installed_layout() {
+  local owner_id group_id file_mode
+  require_root_controlled_directory "$STATE_ROOT" "711" "maintenance state root"
+
+  [[ -d "$OPERATOR_STATE_DIR" && ! -L "$OPERATOR_STATE_DIR" ]] \
+    || fail "operator state must be a real directory"
+  read -r owner_id group_id file_mode < <(read_owner_group_mode "$OPERATOR_STATE_DIR")
+  [[ "$owner_id" == "$ROOT_UID" && "$group_id" == "$OPERATOR_GID" && "$file_mode" == "2771" ]] \
+    || fail "operator state must be root-owned, operator-group controlled, and mode 2771"
+
+  require_root_controlled_directory "$DEPLOYMENT_STATE_DIR" "711" "deployment state"
+  require_root_controlled_directory "$ASSET_ROOT" "755" "maintenance asset root"
+  require_root_controlled_file "$PAGE_TARGET" "644" "maintenance page"
+  require_root_controlled_file "$HELPER_PATH" "755" "installed helper"
+  validate_marker "$OPERATOR_MARKER" "operator"
+  validate_marker "$DEPLOYMENT_MARKER" "deployment"
+}
+
+require_operator_authority() {
+  local current_group
+  (( EUID == ROOT_UID )) && return 0
+  for current_group in $(id -G); do
+    [[ "$current_group" == "$OPERATOR_GID" ]] && return 0
+  done
+  fail "caller is not root or a member of the configured maintenance operator group"
+}
+
+require_actor_authority() {
+  case "$1" in
+    operator) require_operator_authority ;;
+    deployment)
+      (( EUID == ROOT_UID )) || fail "deployment marker changes require root"
+      ;;
+    *) usage ;;
+  esac
+}
+
+marker_path_for_actor() {
+  case "$1" in
+    operator) printf '%s\n' "$OPERATOR_MARKER" ;;
+    deployment) printf '%s\n' "$DEPLOYMENT_MARKER" ;;
+    *) usage ;;
+  esac
+}
+
+marker_is_active() {
+  validate_marker "$1" "$2"
+  [[ -f "$1" ]]
+}
+
+set_marker_on() {
+  local actor="$1" marker_path
+  marker_path="$(marker_path_for_actor "$actor")"
+  if marker_is_active "$marker_path" "$actor"; then
+    printf 'maintenance %s marker: on (already active)\n' "$actor"
+    return 0
+  fi
+
+  if [[ "$actor" == "operator" ]]; then
+    (
+      # Caddy's secure filesystem matcher must be able to read the zero-byte
+      # marker. Other users receive read-only access; operator owner/group
+      # write authority remains bounded by the non-listable state directory.
+      umask 0003
+      set -o noclobber
+      : > "$marker_path"
+    ) 2>/dev/null || true
+    validate_marker "$marker_path" "$actor"
+    [[ -f "$marker_path" ]] || fail "unable to create operator marker"
+  else
+    (
+      # The deployment marker contains no data. Root remains its only writer,
+      # while read-only access lets the unprivileged Caddy process match it.
+      umask 0022
+      set -o noclobber
+      : > "$marker_path"
+    ) 2>/dev/null || true
+    validate_marker "$marker_path" "$actor"
+    [[ -f "$marker_path" ]] || fail "unable to create deployment marker"
+  fi
+  printf 'maintenance %s marker: on\n' "$actor"
+}
+
+set_marker_off() {
+  local actor="$1" marker_path
+  marker_path="$(marker_path_for_actor "$actor")"
+  validate_marker "$marker_path" "$actor"
+  if [[ ! -e "$marker_path" ]]; then
+    printf 'maintenance %s marker: off (already inactive)\n' "$actor"
+    return 0
+  fi
+  rm -- "$marker_path"
+  printf 'maintenance %s marker: off\n' "$actor"
+}
+
+print_status() {
+  local operator_state="off" deployment_state="off" overall_state="off"
+  marker_is_active "$OPERATOR_MARKER" "operator" && operator_state="on"
+  marker_is_active "$DEPLOYMENT_MARKER" "deployment" && deployment_state="on"
+  if [[ "$operator_state" == "on" || "$deployment_state" == "on" ]]; then
+    overall_state="on"
+  fi
+  printf 'maintenance overall=%s operator=%s deployment=%s\n' \
+    "$overall_state" "$operator_state" "$deployment_state"
+}
+
+install_layout() {
+  local source_path source_dir page_source
+  (( EUID == ROOT_UID )) || fail "install requires root"
+  source_path="${BASH_SOURCE[0]}"
+  source_dir="$(cd -- "$(dirname -- "$source_path")" && pwd -P)"
+  source_path="$source_dir/$(basename -- "$source_path")"
+  page_source="$source_dir/$PAGE_SOURCE_NAME"
+  [[ -f "$source_path" && ! -L "$source_path" ]] || fail "source helper must be a regular file"
+  [[ -f "$page_source" && ! -L "$page_source" ]] || fail "$PAGE_SOURCE_NAME must be next to the source helper"
+
+  require_real_node_or_missing "$STATE_ROOT" "maintenance state root"
+  require_real_node_or_missing "$OPERATOR_STATE_DIR" "operator state"
+  require_real_node_or_missing "$DEPLOYMENT_STATE_DIR" "deployment state"
+  require_real_node_or_missing "$ASSET_ROOT" "maintenance asset root"
+  require_real_node_or_missing "$PAGE_TARGET" "maintenance page"
+  require_real_node_or_missing "$HELPER_PATH" "installed helper"
+  validate_marker "$OPERATOR_MARKER" "operator"
+  validate_marker "$DEPLOYMENT_MARKER" "deployment"
+  require_root_controlled_parent "$STATE_ROOT" "maintenance state root"
+  require_root_controlled_parent "$ASSET_ROOT" "maintenance asset root"
+  require_root_controlled_parent "$HELPER_PATH" "installed helper"
+
+  install -d -o "$ROOT_UID" -g "$ROOT_GID" -m 0711 -- "$STATE_ROOT"
+  install -d -o "$ROOT_UID" -g "$OPERATOR_GID" -m 2771 -- "$OPERATOR_STATE_DIR"
+  install -d -o "$ROOT_UID" -g "$ROOT_GID" -m 0711 -- "$DEPLOYMENT_STATE_DIR"
+  install -d -o "$ROOT_UID" -g "$ROOT_GID" -m 0755 -- "$ASSET_ROOT"
+  install -o "$ROOT_UID" -g "$ROOT_GID" -m 0644 -- "$page_source" "$PAGE_TARGET"
+  install -o "$ROOT_UID" -g "$ROOT_GID" -m 0755 -- "$source_path" "$HELPER_PATH"
+
+  validate_installed_layout
+  printf 'maintenance assets installed; request routing is unchanged until the reviewed proxy configuration is installed\n'
+}
+
+load_helper_environment
+resolve_configuration
+
+if [[ "${1:-}" == "install" && $# -eq 1 ]]; then
+  install_layout
+  exit 0
+fi
+
+validate_installed_layout
+case "$#" in
+  1)
+    [[ "$1" == "status" ]] || usage
+    require_operator_authority
+    print_status
+    ;;
+  2)
+    actor="$1"
+    action="$2"
+    [[ "$action" == "on" || "$action" == "off" ]] || usage
+    require_actor_authority "$actor"
+    if [[ "$action" == "on" ]]; then
+      set_marker_on "$actor"
+    else
+      set_marker_off "$actor"
+    fi
+    ;;
+  *) usage ;;
+esac

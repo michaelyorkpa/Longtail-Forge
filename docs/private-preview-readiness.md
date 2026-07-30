@@ -34,6 +34,7 @@ Complete and record all of these against the exact candidate version, commit, ar
 - Send the known-limitations and low-stakes-data guidance before credentials or first-login instructions.
 - Provide the bug-report and feedback path before access is granted, including how to report a blocking issue privately.
 - Confirm the operator can pause public traffic, revoke sessions, revoke API keys, deactivate an account, rotate runtime secrets, restore the last known good backup, and roll back the selected release without inventing steps during an incident.
+- Require the exact candidate's clean-Ubuntu `npm run maintenance:rehearse` result. Retain its commit, Caddy/Nginx/OpenSSL versions, timestamps, outcome, and any protected failure references in the private operational record. This proves the disposable marker, response-owner, deploy-recovery, rollback, and stale-state transitions; it does not replace live certificate, firewall, WireGuard, backup, scanner, or identity evidence.
 
 If any item cannot be completed, invitations stay blocked. Record the blocker and either fix it or move the preview target.
 
@@ -48,6 +49,17 @@ The non-sensitive technical closeout record for the 2026-07-18 candidate is:
 - Live review proved valid Nginx configuration and unknown-SNI rejection, the exact WireGuard peer/firewall boundary, private Caddy rejection of non-edge traffic, forwarding-chain collapse, real client-IP attribution, and forged-forwarding rejection.
 
 This repository record proves the release mechanics and public-path checks without publishing host credentials, private addresses, backup paths, recovery keys, participant details, or security evidence. Before any invitation, the operator must still complete and retain the private signed readiness record below, including the Secure Notes recovery channel, healthy production scanner, unique participant accounts, participant guidance, and the explicit invite/no-invite decision. No invitation was issued as part of this closeout.
+
+## 0.33.24.9 Maintenance Boundary Release Evidence
+
+The non-sensitive technical closeout record for the maintenance-boundary rollout is:
+
+- The isolated demo canary passed first. The friends-and-family preview and shared public edge were then backed up before installation; the new preview whole-instance database+Files archive was inspected as restorable before any proxy or helper change.
+- Both bounded hosts now use the reviewed root-owned maintenance page, independent operator/deployment markers, deployment recovery helper, private-Caddy Node fallback, and public-Nginx transport fallback. Live proof covered ownership/modes, exact diagnostic behavior, marker independence, Node and private-Caddy outages, rollback, restore-forward, and recovery without proxy reload.
+- The complete repository revision passed the protected topic -> `nightly` -> `main` flow, including the clean-Ubuntu maintenance rehearsal. Preview was deployed only by the manual workflow against one full immutable `main` SHA, and its public health, readiness, version, commit, and artifact checksum matched the workflow metadata.
+- Exact hostnames, private addresses, backup paths, operation IDs, tool output, and checksummed private evidence remain in the root-only operational record rather than this repository.
+
+This technical completion does not authorize invitations. The private signed readiness record, participant-account review, scanner/recovery evidence, and explicit invite/no-invite decision remain separate and unchanged; no invitation was issued as part of the `0.33.24` rollout.
 
 ## First Login And Accounts
 
