@@ -1,5 +1,109 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.26 - Permissions Role-Capability Alignment
+
+Completed on 2026-07-31. Nine independently closeable slices aligned scoped
+administrator reachability with the shipped role model, added private
+one-per-role fixtures to the pretty local/demo data, and completed the exact
+Nightly deployment plus backup-first `rt-ltf-demo` reset. The active cursor
+advances to `0.33.27.1`.
+
+**Model: High Effort** — These corrections change what scoped administrator
+roles can reach; a scope mistake either keeps legitimate admins locked out or
+over-grants beyond the intended client/project boundary.
+
+Purpose:
+
+Close the gaps between what the seeded role model intends each role to do and
+what the code actually exposes. This branch corrected scoped child-client
+creation, Project Settings reachability, scope-aware navigation and
+declarative actions, project-admin seed convergence, and the missing
+delegated-role surface while keeping server authorization authoritative.
+
+Decision:
+
+- Child-client creation authorizes against the **parent client's** scope;
+  top-level client creation remains workspace-scoped.
+- Navigation and permission hints are scope-aware presentation hints while
+  server-side `assertCan` enforcement remains authoritative.
+- Client Administrator and Project Administrator use a dedicated
+  exact-account delegated-assignment workflow that preserves hidden, higher,
+  and out-of-scope assignments without granting `users.manage`.
+- The pretty local development seed and exact named `rt-ltf-demo` installation
+  carry private operator-test logins for every shipped role. They are not the
+  public shared accounts planned by 0.33.31.
+- The final data operation reset only the `rt-ltf-demo` database-and-Files unit
+  through exact-target, backup-first tooling. The Friends-and-Family Preview
+  remained outside every demo provision, seed, credential, backup, and reset
+  path.
+- The user-facing permission-denied modal remains owned by 0.33.23.2 and
+  permission-change notifications remain owned by 0.36.5.
+
+Non-goals preserved:
+
+- No new roles, broad role→permission redesign, client-side authorization,
+  public/shared demo credentials, production seed command, Secure Notes
+  permission changes, Support View interaction, notification work, or in-app
+  403 modal.
+- The delegated-role workflow does not create identities or memberships, edit
+  profiles, deactivate users, manage sessions, expose a workspace directory,
+  reveal non-delegable assignments, or grant `users.manage`.
+- No data or credential change of any kind was made to the Friends-and-Family
+  Preview.
+
+### Version 0.33.26.9 - Live `rt-ltf-demo` reset, role proof, and version closeout
+
+Completed on 2026-07-31. Runtime publication and live data activation used
+separate proof gates; final roadmap/archive bookkeeping is documentation-only
+and does not require another deployment.
+
+**Model: High Effort** — This was an authorized destructive live-demo
+operation with backup/recovery, immutable deployment identity, secret-safe
+role testing, and final release bookkeeping.
+
+- [x] Merged protected PR #79 to `nightly` at commit
+  `f9c1ec84c9bd38cd7be52f981563a641f9ce006b` after all required checks passed.
+  Nightly workflow run 30638818518 deployed canonical version `0.33.26.9` with
+  artifact SHA-256
+  `64c5176bbed33d7a7ab9850e4d8cdcff5fafb333716436110f7c77832f27002f`.
+  Direct and public health, readiness, branch, commit, version, and artifact
+  identity matched before and after the reset.
+- [x] Reviewed and installed exact helper/configuration copies, retained the
+  prior helper configuration, installed the separately protected host-bound
+  seven-role credential document, and passed non-mutating preflight with
+  `nextAction: reset`. The new whole-instance backup was independently
+  inspected as restorable with no warnings; the prior data root and deployment
+  artifact remain retained for recovery.
+- [x] Ran the guarded reset only for exact target `rt-ltf-demo`. It quiesced the
+  live unit, created and inspected the backup, staged and verified the
+  candidate, promoted database plus Files together, retained the prior unit,
+  restarted the service, and returned 5 workspaces, 24 users, 400 tasks, 200
+  notes, 24 lists, 2 Files objects, and 624 Search rows with the exact deployed
+  runtime identity. Candidate verification included SQLite integrity, zero
+  foreign-key violations, Files checksums, Search parity, and session reset.
+- [x] Ran 117 credential-safe live assertions. All seven private roles
+  authenticated; exact role catalogs/scopes, child-client capability,
+  Project Settings and view access, delegated-role visibility, denied paths,
+  disabled-persona rejection, Search, Files listing/preview, database/storage
+  diagnostics, and zero failed/dead jobs passed. A session captured before the
+  reset was rejected with HTTP 401 afterward. No credential value was printed.
+- [x] Contacted no Friends-and-Family host and ran no provision, reset, seed,
+  credential, backup, or data command against it. A wrong-target preflight
+  invoked only on the demo host failed before mutation with `--target must be
+  exactly rt-ltf-demo.`
+- [x] Retained a private ignored operational record with sanitized deployment,
+  backup, reset, role, permission, and recovery evidence; updated release and
+  roadmap bookkeeping; archived the completed branch; and advanced the active
+  cursor to `0.33.27.1`.
+
+Acceptance criteria:
+
+- [x] The exact released Nightly artifact and a recoverable backup-first reset
+  produced a healthy `rt-ltf-demo` database-and-Files unit with one verified
+  private login per shipped role and correct permission behavior. The
+  Friends-and-Family Preview remained completely untouched and cannot match
+  the helper's reset target.
+
 ## Version 0.33.26.8 - `rt-ltf-demo` role-fixture and guarded-reset integration
 
 Completed on 2026-07-30. The installed-release operation can now build and

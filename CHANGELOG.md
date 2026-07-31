@@ -1,5 +1,27 @@
 ## Version 0.33.26.9 - 2026-07-31
 
+- Published the complete 0.33.26 runtime through protected PR #79 and green
+  Nightly workflow run 30638818518. `rt-ltf-demo` now reports canonical version
+  `0.33.26.9`, commit `f9c1ec84c9bd38cd7be52f981563a641f9ce006b`, and
+  artifact SHA-256
+  `64c5176bbed33d7a7ab9850e4d8cdcff5fafb333716436110f7c77832f27002f`
+  from both direct and public health/readiness checks.
+- Completed the explicit backup-first `rt-ltf-demo` reset. The newly created
+  whole-instance database-and-Files backup independently inspected as
+  restorable with no warnings, the prior data unit remains retained, and the
+  activated pretty demo contains 5 workspaces, 24 users, 400 tasks, 200 notes,
+  24 lists, 2 Files objects, and 624 Search rows with verified SQLite integrity
+  and zero foreign-key violations.
+- Passed 117 secret-safe live assertions across all seven role identities,
+  exact role/scope catalogs, child-client and Project Settings reachability,
+  declarative view actions, delegated-role visibility, denied paths, inactive
+  personas, Search, Files preview, runtime diagnostics, and old-session
+  rejection. No credential value was printed or committed.
+- Left the Friends-and-Family Preview completely untouched. No command
+  contacted that host, and the exact-target helper refused `rt-ltf` before any
+  protected read, backup, or mutation. Final roadmap/archive closeout is
+  documentation-only and does not trigger another runtime deployment.
+
 - Corrected the local pretty-data interpretation before publication: the
   canonical fat `development-seed` now preserves its configured protected
   operator and adds seven separately credentialed deterministic accounts, one
