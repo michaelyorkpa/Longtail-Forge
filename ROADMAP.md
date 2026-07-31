@@ -2,64 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.26.9`.
+Active cursor: `0.33.27.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.26 - Permissions Role-Capability Alignment
-
-**Model: High Effort** — These corrections change what scoped administrator roles can reach; a scope mistake either keeps legitimate admins locked out or over-grants beyond the intended client/project boundary.
-
-Purpose:
-
-Close the gaps between what the seeded role model intends each role to do and what the code actually exposes, found by the 2026-07-21 code review of the role→permission grid (`src/db/schema/current.sql` `role_permissions` seed) against the scope semantics in `src/services/permissions.service.js`. The named defects promoted from `TODO.md`: a Client Administrator cannot create child clients (or any clients), and Client/Project Administrators cannot reach the Project Settings surface despite holding `projects.manage` at their scope. The review also surfaced systemic causes this branch corrects: navigation/permission hints are computed only at workspace level, view-surface `requiredPermissions` declarations are never enforced client-side, the baseline seed and migration 074 disagree on `project_admin` scope, and `roles.assign` is granted to scoped admins with no usable surface.
-
-Decision:
-
-- Child-client creation authorizes against the **parent client's** scope; top-level client creation remains workspace-scoped. A Client Administrator can create child clients under a client they administer and still cannot create top-level clients.
-- Navigation and permission hints become scope-aware rather than workspace-only. This branch grants no role any permission it does not already hold in the seeded grid (except where a slice explicitly says otherwise); it aligns reachability with existing grants, and server-side `assertCan` enforcement remains authoritative throughout.
-- Browser any-scope permissions are coarse presentation hints, never proof that a workspace-level or selected-record action is allowed. In particular, a Client Administrator may receive an Add Child Client action on an administered parent but never the top-level Add Client action solely because `clients.manage` exists somewhere in the workspace.
-- Preserve the intended scoped `roles.assign` grants. Client Administrator and Project Administrator receive a dedicated delegated-assignment workflow, not the full `users.manage` surface. It uses exact-account lookup, returns only safe target and delegable-assignment data, and preserves every hidden, higher, or out-of-scope assignment during mutation.
-- Add private operator-test logins for every shipped role to the local sanitized demo and the exact named `rt-ltf-demo` development/demo installation. They are permission-regression fixtures with protected credentials, not the public shared accounts planned by 0.33.31.
-- The final slice resets the **`rt-ltf-demo` database and Files unit only** through the exact-target, backup-first guarded operation after the matching release is deployed. The Friends-and-Family Preview (`rt-ltf`) is persistent participant data and is never provisioned, seeded, reset, or used as a demo-role credential target.
-- The user-facing permission-denied modal is owned by 0.33.23.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
-
-Dependencies and baseline:
-
-- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, `ROLE_LIMITS`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), the view-renderer contribution contract, the exact-account Add User precedent, the deterministic fictional-data builder, and the guarded `rt-ltf-demo` database-and-Files operation. It lands after 0.33.23 so denied actions already have a visible error surface while reachability is being widened.
-
-Delivery shape:
-
-- This version is nine ordered, independently closeable slices. Each slice is sized for one implementation session with one primary blast radius, focused iteration checks, its own documentation/changelog/version bookkeeping, and one final `npm run verify:slice` after that slice's repository state is complete.
-- The split preserves the original child-client, navigation, and view-renderer boundaries; separates database seed convergence from delegated-role service and UI work; and separates local fixture design, guarded Linux host integration, and the destructive live reset.
-- The final live slice depends on authorized publication/deployment access, protected demo-role secrets, an inspected backup, and successful recovery proof. Missing external evidence leaves only that slice open; it never authorizes substituting a local reset or touching the Friends-and-Family Preview.
-
-Non-goals:
-
-- No new roles, broad redesign of the role→permission grid, or changes to workspace-type gating or workspace isolation.
-- No client-side enforcement replacing server checks; browser-side permission filtering is presentation only.
-- The delegated-role workflow does not create identities or memberships, edit profiles, deactivate users, manage sessions, expose a workspace directory, reveal non-delegable assignments, or grant `users.manage`.
-- No general production seed command, public/shared demo credentials, 0.33.31 public-demo mode, hourly scheduler, or public installation Super Admin.
-- No data or credential change of any kind to the Friends-and-Family Preview. Its database and Files remain outside every demo provision/reset path.
-- No secure-notes permission changes and no Support View interaction; 0.33.30 remains governed by its own catalog.
-- No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.23.2).
-
-
-### Version 0.33.26.9 - Live `rt-ltf-demo` reset, role proof, and version closeout
-
-**Model: High Effort** — This is an authorized destructive live-demo operation with backup/recovery, immutable deployment identity, secret-safe role testing, and final release bookkeeping.
-
-- [ ] Confirm all prior slices are merged through the protected topic → `nightly` path with required checks green. Deploy the exact immutable `nightly` artifact to `rt-ltf-demo` and prove direct/public `/healthz`, `/readyz`, `/api/app-info`, commit, version, and artifact checksum identity before touching demo data.
-- [ ] Install/review the exact helper and root-owned role-credential configuration from 0.33.26.8. Run preflight/dry-run, prove the target is `rt-ltf-demo`, inspect a new whole-instance database-and-Files backup as restorable, and retain the prior runtime/data state and rollback material.
-- [ ] Run the guarded live `rt-ltf-demo` reset as this version's final data-changing operation: quiesce all SQLite/Files users, stage and verify the candidate, promote database plus Files together, invalidate prior sessions, restart, and require integrity, foreign-key, Files/Search, direct/public health/readiness, and exact runtime identity proof. Automatically restore the retained prior unit if activation or verification fails.
-- [ ] Authenticate all seven private role identities without printing credentials. Retain sanitized evidence of exact role/scope assignments and representative allowed/denied child-client, Project Settings, view-action, and delegated-role behavior; prove an old pre-reset session is rejected.
-- [ ] Execute no provision, reset, seed, credential, backup, or other data command against `rt-ltf` or the Friends-and-Family Preview. Retain explicit refusal evidence from the exact-target tooling; a read-only identity check is optional and never substitutes for simply leaving that environment untouched.
-- [ ] Record the private operational evidence, update the authoritative role/demo documentation and release bookkeeping, archive the completed roadmap section, and advance the active cursor. Run only the closeout gates required by any final repository changes; do not redeploy for a docs-only archive handoff unless runtime content changed.
-
-Acceptance criteria:
-
-- The exact released Nightly artifact and a recoverable backup-first reset produce a healthy `rt-ltf-demo` database-and-Files unit with one verified private login per shipped role and correct permission behavior; the Friends-and-Family Preview remains completely untouched and can never match the helper's reset target.
 
 ## Version 0.33.27 - Centralized Identifier Authority and Forward UUIDv7 Adoption
 
