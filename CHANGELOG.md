@@ -1,3 +1,26 @@
+## Version 0.33.26.9 - 2026-07-31
+
+- Corrected the local pretty-data interpretation before publication: the
+  canonical fat `development-seed` now preserves its configured protected
+  operator and adds seven separately credentialed deterministic accounts, one
+  for every shipped role. This is the polished Northwind developer world, not
+  the oversized scale/stress fixture.
+- Kept the deployed sanitized-demo contract unchanged at exactly seven active
+  fixture identities by continuing to reuse its bootstrap account as fixture
+  Super Admin. Development instead has the operator plus seven role fixtures;
+  ordinary fictional personas remain inactive in both profiles.
+- Made `npm run dev:data:seed` require the same ignored local seven-password
+  document as the sanitized-demo seed, reject an operator password copied into
+  any role, retain exact roles/scopes/memberships and no overrides, and keep all
+  credential values out of Git, command arguments, output, and normal runtime
+  configuration.
+- Expanded the paired development/demo seed regression to prove deterministic
+  fingerprints across different private passwords, 25 development users with
+  eight active logins, 24 sanitized-demo users with exactly seven active
+  logins, normal Argon2id hashes, preserved operator identity/administration,
+  disabled personas, Files/Search parity, SQLite integrity, and zero foreign
+  key violations.
+
 ## Version 0.33.26.8 - 2026-07-30
 
 - Extended the guarded installed-release demo-data operation to build the same

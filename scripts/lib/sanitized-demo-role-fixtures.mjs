@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validatePassword } from "../../src/security/passwords.js";
-import { DEMO_PROFILE } from "./development-data-safety.mjs";
+import { DEMO_PROFILE, DEVELOPMENT_PROFILE } from "./development-data-safety.mjs";
 
 export const LOCAL_ROLE_FIXTURE_MODE = "local-sanitized-demo";
 export const ROLE_CREDENTIALS_FILE_ENV = "LONGTAIL_SANITIZED_DEMO_ROLE_CREDENTIALS_FILE";
@@ -36,15 +36,15 @@ export async function loadSanitizedDemoRoleFixtures({
 } = {}) {
   const credentialFileConfigured = Boolean(String(env[ROLE_CREDENTIALS_FILE_ENV] || "").trim());
 
-  if (target?.profile !== DEMO_PROFILE) {
+  if (![DEVELOPMENT_PROFILE, DEMO_PROFILE].includes(target?.profile)) {
     if (mode || credentialFileConfigured) {
-      throw new Error("Role-test identities are available only for the explicit local sanitized-demo profile.");
+      throw new Error("Role-test identities are available only for the explicit pretty development/demo profiles.");
     }
     return null;
   }
 
   if (mode !== LOCAL_ROLE_FIXTURE_MODE) {
-    throw new Error(`Sanitized-demo seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}.`);
+    throw new Error(`${target.profile} seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}.`);
   }
 
   assertLocalOnlyEnvironment(env);
@@ -75,6 +75,7 @@ export async function loadSanitizedDemoRoleFixtures({
     credentialBinding: credentialBinding ? Object.freeze({ ...credentialBinding }) : null,
     fixtures: SANITIZED_DEMO_ROLE_FIXTURES,
     mode: LOCAL_ROLE_FIXTURE_MODE,
+    usesBootstrapSuperAdmin: target.profile === DEMO_PROFILE,
   });
 }
 

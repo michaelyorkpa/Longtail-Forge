@@ -111,15 +111,18 @@ keyboard focus and accessible announcements. No directory, hidden count,
 assignment or scope ID, profile, membership, password, session, override, or
 deletion control is exposed. User Admin remains protected by `users.manage`.
 
-The private local `sanitized-demo` permission fixture provides one deterministic
-identity for each of these seven roles. Super Admin is the protected bootstrap
-identity at installation scope; Workspace Administrator is scoped to Northwind
-Studio; Client Administrator, Client User, and Client User (External) are
-scoped to Cedar & Bloom; Project Administrator and Project User are scoped to
-Website Refresh. Every identity has exactly one assignment and no overrides.
-Ordinary development personas remain inactive. The fixture and its complete
-authenticated role journey are local regression tools, not shared preview
-accounts, and are never enabled for the Friends-and-Family Preview.
+The private pretty-data permission fixture provides one deterministic identity
+for each of these seven roles. Super Admin is assigned at installation scope;
+Workspace Administrator is scoped to Northwind Studio; Client Administrator,
+Client User, and Client User (External) are scoped to Cedar & Bloom; Project
+Administrator and Project User are scoped to Website Refresh. Every identity
+has exactly one assignment and no overrides. The fat `development-seed` keeps
+its existing protected operator and adds all seven identities as separate
+accounts; `sanitized-demo` reuses its protected bootstrap identity as fixture
+Super Admin and therefore has exactly seven active accounts. Ordinary personas
+remain inactive. The fixture and authenticated role journey are private local
+tools, not shared preview accounts, and are never enabled for the
+Friends-and-Family Preview.
 
 The separately installed `rt-ltf-demo` host operation reuses exactly that
 identity/scope definition with a different seven-password document bound to

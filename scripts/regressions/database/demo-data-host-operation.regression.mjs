@@ -107,6 +107,8 @@ try {
     "utf8",
   );
   await writeHostRoleCredentials(paths.roleCredentialsFile, rolePasswords);
+  const originalRoleCredentialsFile = path.join(root, "protected", "original-role-credentials.json");
+  await fs.writeFile(originalRoleCredentialsFile, `${JSON.stringify({ passwords: rolePasswords, version: 1 }, null, 2)}\n`, "utf8");
   await assertProtectedFile(paths.appEnvFile, { label: "test environment", requireRoot: false });
   const symlinkPath = path.join(root, "protected", "linked.env");
   let symlinkProven = false;
@@ -122,7 +124,7 @@ try {
   const fixtureRelease = path.join(paths.appRoot, "releases", "fixture");
   await fs.mkdir(fixtureRelease, { recursive: true });
   await fs.symlink(fixtureRelease, path.join(paths.appRoot, "current"), process.platform === "win32" ? "junction" : "dir");
-  await seedDevelopmentData(paths.dataRoot, "2026-07-19", "Regression-Only-Original-Demo-State-42!");
+  await seedDevelopmentData(paths.dataRoot, "2026-07-19", "Regression-Only-Original-Demo-State-42!", originalRoleCredentialsFile);
   await fs.rm(path.join(paths.dataRoot, ".longtail-development-data.json"));
   const credentialReadEvents = [];
   await assert.rejects(prepareDemoHostContext({
@@ -492,7 +494,7 @@ function makeDependencies(hostDependencies, events, overrides) {
   };
 }
 
-async function seedDevelopmentData(dataDir, anchorDate, password) {
+async function seedDevelopmentData(dataDir, anchorDate, password, roleCredentialsFile) {
   const result = spawnSync(process.execPath, [
     "scripts/development-data.mjs",
     "seed",
@@ -500,12 +502,14 @@ async function seedDevelopmentData(dataDir, anchorDate, password) {
     "--environment", "development",
     "--data-dir", dataDir,
     "--anchor-date", anchorDate,
+    "--role-fixtures", "local-sanitized-demo",
   ], {
     cwd: process.cwd(),
     encoding: "utf8",
     env: {
       ...process.env,
       LONGTAIL_ENV: "development",
+      [ROLE_CREDENTIALS_FILE_ENV]: roleCredentialsFile,
       SUPER_ADMIN_PASSWORD: password,
       SUPER_ADMIN_USERNAME: "original-demo-operator@example.com",
       SUPER_ADMIN_DISPLAY_NAME: "Original Demo Operator",

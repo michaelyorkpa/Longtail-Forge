@@ -59,10 +59,11 @@ async function main() {
     mode: options.roleFixtures,
     target,
   });
-  if (roleFixtures) {
+  if (roleFixtures?.usesBootstrapSuperAdmin) {
     configureSanitizedDemoBootstrap(roleFixtures);
   } else {
     assertOperatorPassword();
+    assertOperatorPasswordIsDistinctFromRoleFixtures(roleFixtures);
   }
   await assertSeedDirectoryEmpty(target);
   await fs.mkdir(target.filesRoot, { recursive: true });
@@ -143,14 +144,22 @@ function parseArgs(args) {
 
 function printHelp() {
   console.log(`Usage:
-  node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed
+  node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}
   node scripts/development-data.mjs reset --profile development --environment development --data-dir ./data/development-seed --confirm development-seed
   node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}
   node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} --role-fixture-binding ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}
 
 Profiles: ${DEVELOPMENT_PROFILE}, ${DEMO_PROFILE}
 
-Development seed requires a unique SUPER_ADMIN_PASSWORD environment value and keeps every fictional persona login-disabled. Sanitized-demo seed requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} and reads seven unique passwords from the ignored local credential file. No password is accepted on the command line, printed, or stored in source. The data directory must contain the profile's exact marker segment and must be empty.`);
+Development seed requires a unique SUPER_ADMIN_PASSWORD for its existing operator plus --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} for seven additional role accounts; every fictional persona stays login-disabled. Sanitized-demo reuses its bootstrap operator as the role-fixture Super Administrator. Both profiles read the seven unique role passwords from the ignored local credential file. No password is accepted on the command line, printed, or stored in source. The data directory must contain the profile's exact marker segment and must be empty.`);
+}
+
+function assertOperatorPasswordIsDistinctFromRoleFixtures(roleFixtures, env = process.env) {
+  if (!roleFixtures) return;
+  const operatorPassword = String(env.SUPER_ADMIN_PASSWORD || "");
+  if ([...roleFixtures.credentials.values()].some((fixture) => fixture.password === operatorPassword)) {
+    throw new Error("The development operator password must differ from every role-fixture password.");
+  }
 }
 
 function configureRuntime(target) {
@@ -200,8 +209,8 @@ SET display_name = :displayName,
     theme_mode = 'light'
 WHERE user_id = :userId;
 `, {
-      altEmail: roleFixtures ? "" : "alex@example.com",
-      displayName: roleFixtures
+      altEmail: roleFixtures?.usesBootstrapSuperAdmin ? "" : "alex@example.com",
+      displayName: roleFixtures?.usesBootstrapSuperAdmin
         ? roleFixtures.credentials.get("super_admin").displayName
         : "Alex Rivera",
       userId: users.alex,
@@ -237,7 +246,7 @@ WHERE user_id = :userId;
     for (const [userId, home, username, display] of personaRows) {
       await add("users", { user_id: userId, home_workspace_id: home, username, display_name: display, alt_email: "", timezone: "America/New_York", password: DISABLED_PERSONA_PASSWORD, theme_mode: "light", user_status: "inactive", protected_user: "no", active_workspace_id: home });
     }
-    for (const fixture of roleFixtureRows.filter((row) => row.roleId !== "super_admin")) {
+    for (const fixture of roleFixtureRows.filter((row) => !row.usesBootstrapOperator)) {
       await add("users", {
         user_id: fixture.userId,
         home_workspace_id: business,
@@ -248,7 +257,7 @@ WHERE user_id = :userId;
         password: fixture.passwordHash,
         theme_mode: "light",
         user_status: "active",
-        protected_user: "no",
+        protected_user: fixture.roleId === "super_admin" ? "yes" : "no",
         active_workspace_id: business,
       });
     }
@@ -257,26 +266,26 @@ WHERE user_id = :userId;
       [users.priya, business], [users.priya, priyaPersonal], [users.sam, business], [users.dana, personal], [users.jordan, family],
       ...fat.memberships,
       ...roleFixtureRows
-        .filter((row) => row.roleId !== "super_admin")
+        .filter((row) => !row.usesBootstrapOperator)
         .map((row) => [row.userId, business]),
     ];
     for (const [userId, workspaceId] of memberships) {
       await add("user_workspaces", { user_workspace_id: id("membership", userId, workspaceId), user_id: userId, workspace_id: workspaceId, status: "active", created_at: now, updated_at: now }, { ignore: true });
     }
     const roles = [
-      ...(roleFixtures ? [] : [[business, users.alex, "workspace_admin", "workspace", business]]),
+      ...(roleFixtures?.usesBootstrapSuperAdmin ? [] : [[business, users.alex, "workspace_admin", "workspace", business]]),
       [business, users.priya, "project_admin", "project", id("project", "website")],
       [business, users.sam, "project_user", "project", id("project", "maintenance")],
-      ...(roleFixtures ? [] : [
+      ...(roleFixtures?.usesBootstrapSuperAdmin ? [] : [
         [personal, users.alex, "workspace_admin", "workspace", personal],
         [family, users.alex, "workspace_admin", "workspace", family],
       ]),
       [family, users.jordan, "project_user", "project", id("project", "weekend")],
-      ...(roleFixtures ? [] : [[fieldOps, users.alex, "workspace_admin", "workspace", fieldOps]]),
+      ...(roleFixtures?.usesBootstrapSuperAdmin ? [] : [[fieldOps, users.alex, "workspace_admin", "workspace", fieldOps]]),
       [priyaPersonal, users.priya, "workspace_admin", "workspace", priyaPersonal],
       ...fat.roles,
       ...roleFixtureRows
-        .filter((row) => row.roleId !== "super_admin")
+        .filter((row) => !row.usesBootstrapOperator)
         .map((row) => [
           business,
           row.userId,
@@ -852,12 +861,13 @@ async function createRoleFixtureRows(roleFixtures, operatorUserId) {
     const credential = roleFixtures.credentials.get(fixture.roleId);
     rows.push({
       ...fixture,
-      passwordHash: fixture.roleId === "super_admin"
+      passwordHash: fixture.roleId === "super_admin" && roleFixtures.usesBootstrapSuperAdmin
         ? null
         : await hashPassword(credential.password),
-      userId: fixture.roleId === "super_admin"
+      userId: fixture.roleId === "super_admin" && roleFixtures.usesBootstrapSuperAdmin
         ? operatorUserId
         : id("role-fixture-user", fixture.roleId),
+      usesBootstrapOperator: fixture.roleId === "super_admin" && roleFixtures.usesBootstrapSuperAdmin,
     });
   }
   return rows;
@@ -889,7 +899,7 @@ WHERE protected_user = 'no'
   }
 
   const expectedByUserId = new Map(roleFixtures.fixtures.map((fixture) => {
-    const userId = fixture.roleId === "super_admin"
+    const userId = fixture.roleId === "super_admin" && roleFixtures.usesBootstrapSuperAdmin
       ? operatorUserId
       : id("role-fixture-user", fixture.roleId);
     return [userId, {
@@ -904,10 +914,17 @@ FROM users
 WHERE user_status = 'active'
 ORDER BY username;
 `);
-  if (activeUsers.length !== roleFixtures.fixtures.length) {
-    throw new Error("Sanitized-demo role fixture contract requires exactly seven active login identities.");
+  const expectedActiveUserCount = roleFixtures.fixtures.length + (roleFixtures.usesBootstrapSuperAdmin ? 0 : 1);
+  if (activeUsers.length !== expectedActiveUserCount) {
+    throw new Error("Pretty development/demo role fixture contract has an unexpected active-login count.");
   }
   for (const user of activeUsers) {
+    if (!roleFixtures.usesBootstrapSuperAdmin && user.user_id === operatorUserId) {
+      if (!String(user.password || "").startsWith("$argon2id$") || user.protected_user !== "yes") {
+        throw new Error("Pretty development operator identity contract is inconsistent.");
+      }
+      continue;
+    }
     const expected = expectedByUserId.get(user.user_id);
     if (
       !expected
@@ -915,7 +932,7 @@ ORDER BY username;
       || !String(user.password || "").startsWith("$argon2id$")
       || (expected.roleId === "super_admin") !== (user.protected_user === "yes")
     ) {
-      throw new Error("Sanitized-demo role fixture identity contract is inconsistent.");
+      throw new Error("Pretty development/demo role fixture identity contract is inconsistent.");
     }
 
     const memberships = await db.query(`
@@ -929,7 +946,7 @@ ORDER BY workspace_id;
       || memberships[0].workspace_id !== businessWorkspaceId
       || memberships[0].status !== "active"
     )) {
-      throw new Error("Sanitized-demo role fixture membership contract is inconsistent.");
+      throw new Error("Pretty development/demo role fixture membership contract is inconsistent.");
     }
 
     const assignments = await db.query(`
@@ -945,7 +962,7 @@ ORDER BY role_id, scope_type, scope_id;
       || assignments[0].scope_id !== expected.scopeId
       || assignments[0].permission_overrides_json !== null
     ) {
-      throw new Error("Sanitized-demo role fixture assignment contract is inconsistent.");
+      throw new Error("Pretty development/demo role fixture assignment contract is inconsistent.");
     }
   }
 
@@ -962,15 +979,16 @@ WHERE protected_user = 'no'
     .filter((userId) => userId !== operatorUserId)
     .map((userId, index) => [`roleUser${index}`, userId])));
   if (Number(unexpectedActivePersonas.count) !== 0) {
-    throw new Error("Sanitized-demo role fixture contract enabled an ordinary fictional persona.");
+    throw new Error("Pretty development/demo role fixture contract enabled an ordinary fictional persona.");
   }
 
-  const identityRows = await db.query("SELECT username, alt_email FROM users;");
+  const identityRows = await db.query("SELECT user_id, username, alt_email FROM users;");
   for (const identity of identityRows) {
+    if (!roleFixtures.usesBootstrapSuperAdmin && identity.user_id === operatorUserId) continue;
     for (const value of [identity.username, identity.alt_email].filter(Boolean)) {
       const domain = String(value).split("@")[1]?.toLowerCase();
       if (!["example.com", "example.test", "longtailforge.local"].includes(domain)) {
-        throw new Error("Sanitized-demo role fixture contract contains a non-reserved identity domain.");
+        throw new Error("Pretty development/demo role fixture contract contains a non-reserved identity domain.");
       }
     }
   }

@@ -77,8 +77,8 @@ try {
   assert.throws(() => assertOperatorPassword({ SUPER_ADMIN_PASSWORD: "Shared-Password-Value-1!" }), /unique local value/);
   assert.doesNotThrow(() => assertOperatorPassword({ SUPER_ADMIN_PASSWORD: password }));
 
-  const first = runSeed(firstDir, password, "development", operatorUsername);
-  const second = runSeed(secondDir, "Regression-Only-Seed-Operator-18!", "development", operatorUsername);
+  const first = runSeed(firstDir, password, "development", operatorUsername, demoCredentialsFile);
+  const second = runSeed(secondDir, "Regression-Only-Seed-Operator-18!", "development", operatorUsername, secondDemoCredentialsFile);
   const demo = runSeed(demoDir, password, "sanitized-demo", operatorUsername, demoCredentialsFile);
   const secondDemo = runSeed(secondDemoDir, password, "sanitized-demo", operatorUsername, secondDemoCredentialsFile);
   assert.equal(first.semanticFingerprint, second.semanticFingerprint, "semantic seed output should be reproducible across fresh bootstrap IDs and unique operator passwords");
@@ -89,7 +89,7 @@ try {
   assert.deepEqual(demo.counts, secondDemo.counts);
   assert.equal(first.counts.workspaces, 5);
   assert.equal(first.counts.tasks, 400);
-  assert.equal(first.counts.users, 18);
+  assert.equal(first.counts.users, 25);
   assert.equal(demo.counts.users, 24);
   assert.equal(first.counts.notes, 200);
   assert.equal(first.counts.lists, 24);
@@ -100,8 +100,8 @@ try {
   assert.equal(first.workbench.focusSelectionUrl, "workbench.html");
   assert.match(first.workbench.taskFocusUrl, /^workbench\.html\?taskId=/);
   assert.equal(first.workbench.secureNotesSeeded, false);
-  assert.equal(first.workbench.personaLoginEnabled, false);
-  assert.equal(first.workbench.roleFixtureLoginCount, 0);
+  assert.equal(first.workbench.personaLoginEnabled, true);
+  assert.equal(first.workbench.roleFixtureLoginCount, 7);
   assert.equal(demo.workbench.personaLoginEnabled, true);
   assert.equal(demo.workbench.roleFixtureLoginCount, 7);
   assert.doesNotMatch(JSON.stringify(first), /Regression-Only-Seed-Operator/);
@@ -181,7 +181,7 @@ try {
       previousStatus: "in_progress",
     });
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
+    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND username NOT LIKE 'role-%@example.test' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
     assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
     assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
@@ -189,11 +189,12 @@ try {
   } finally {
     database.close();
   }
+  await verifyRoleFixtureDatabase(firstDir, demoCredentialsFile, [operatorUsername]);
   await verifyRoleFixtureDatabase(demoDir, demoCredentialsFile);
   runSeededTimerLifecycle(secondDir, "Regression-Only-Seed-Operator-18!");
   assert.equal(await fs.readFile(path.join(firstDir, "files", "seed", "checkout-findings.md"), "utf8"), "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n");
 
-  const duplicate = spawnCli(["seed", "--profile", "development", "--environment", "development", "--data-dir", firstDir], password);
+  const duplicate = spawnCli(["seed", "--profile", "development", "--environment", "development", "--data-dir", firstDir, "--role-fixtures", LOCAL_ROLE_FIXTURE_MODE], password, operatorUsername, demoCredentialsFile);
   assert.notEqual(duplicate.status, 0);
   assert.match(duplicate.stderr, /non-empty marked data directory/);
 
@@ -209,6 +210,7 @@ try {
     assert.ok(packageJson.scripts[command], `${command} should be independently runnable`);
   }
   assert.match(packageJson.scripts["demo:data:seed"], /sanitized-demo/);
+  assert.match(packageJson.scripts["dev:data:seed"], /--role-fixtures local-sanitized-demo/);
   const demoTarget = resolveSeedTarget({ profile: "sanitized-demo", environment: "development", dataDir: path.join(root, "sanitized-demo", "preview") });
   assert.equal(demoTarget.marker, "sanitized-demo");
   const fixtureEnv = {
@@ -216,13 +218,19 @@ try {
     LONGTAIL_PUBLIC_URL: "http://localhost:8001",
     [ROLE_CREDENTIALS_FILE_ENV]: demoCredentialsFile,
   };
+  const developmentFixtures = await loadSanitizedDemoRoleFixtures({
+    env: fixtureEnv,
+    mode: LOCAL_ROLE_FIXTURE_MODE,
+    target: { profile: "development" },
+  });
+  assert.equal(developmentFixtures.usesBootstrapSuperAdmin, false);
   await assert.rejects(
     loadSanitizedDemoRoleFixtures({
       env: fixtureEnv,
-      mode: LOCAL_ROLE_FIXTURE_MODE,
+      mode: null,
       target: { profile: "development" },
     }),
-    /only.*sanitized-demo/i,
+    /development seeding requires --role-fixtures/i,
   );
   await assert.rejects(
     loadSanitizedDemoRoleFixtures({
@@ -336,9 +344,7 @@ try {
 
 function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername, credentialsFile) {
   const args = ["seed", "--profile", profile, "--environment", "development", "--data-dir", dataDir];
-  if (profile === "sanitized-demo") {
-    args.push("--role-fixtures", LOCAL_ROLE_FIXTURE_MODE);
-  }
+  args.push("--role-fixtures", LOCAL_ROLE_FIXTURE_MODE);
   const result = spawnCli(args, operatorPassword, username, credentialsFile);
   assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
   return JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
@@ -377,7 +383,7 @@ function rolePassword(prefix, index) {
   return `Q${index}a!${prefix}-Private-92746zZ`;
 }
 
-async function verifyRoleFixtureDatabase(dataDir, credentialsFile) {
+async function verifyRoleFixtureDatabase(dataDir, credentialsFile, expectedExtraActiveUsernames = []) {
   const credentialDocument = JSON.parse(await fs.readFile(credentialsFile, "utf8"));
   const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
   try {
@@ -387,11 +393,14 @@ FROM users
 WHERE user_status = 'active'
 ORDER BY username;
 `).all();
-    assert.equal(activeUsers.length, SANITIZED_DEMO_ROLE_FIXTURES.length);
+    assert.equal(activeUsers.length, SANITIZED_DEMO_ROLE_FIXTURES.length + expectedExtraActiveUsernames.length);
     assert.deepEqual(
-      activeUsers.map((row) => row.username),
+      activeUsers.filter((row) => !expectedExtraActiveUsernames.includes(row.username)).map((row) => row.username),
       SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.username).sort(),
     );
+    for (const username of expectedExtraActiveUsernames) {
+      assert.ok(activeUsers.some((row) => row.username === username && row.protected_user === "yes"));
+    }
 
     for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
       const user = activeUsers.find((row) => row.username === fixture.username);
@@ -455,7 +464,7 @@ WHERE protected_user = 'no'
       "ordinary fictional personas must remain inactive",
     );
     assert.equal(
-      database.prepare("SELECT COUNT(*) AS count FROM users WHERE user_status = 'active' AND alt_email IS NOT NULL AND alt_email != ''").get().count,
+      database.prepare("SELECT COUNT(*) AS count FROM users WHERE username LIKE 'role-%@example.test' AND alt_email IS NOT NULL AND alt_email != ''").get().count,
       0,
       "active role fixtures must not reuse realistic alternate addresses",
     );
