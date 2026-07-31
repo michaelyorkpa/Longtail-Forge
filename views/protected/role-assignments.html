@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Role Assignments | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css">
+  </head>
+  <body data-page-title="Role Assignments">
+    <main class="settings-page delegated-role-assignments-page">
+      <h1>Role Assignments</h1>
+      <p class="muted-text">
+        Enter the complete email address of an active workspace member. This page does not provide a member directory or show assignments outside your authority.
+      </p>
+
+      <form class="settings-form delegated-role-lookup" data-role-account-lookup>
+        <fieldset class="settings-fieldset">
+          <legend>Find Workspace Member</legend>
+          <label>
+            Email Address
+            <input
+              type="email"
+              data-role-account-email
+              required
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+            >
+          </label>
+          <button type="submit" data-find-role-account>Find Account</button>
+        </fieldset>
+      </form>
+
+      <p data-role-assignment-status role="status" aria-live="polite" aria-atomic="true" hidden></p>
+
+      <section class="delegated-role-target" data-role-target hidden aria-labelledby="delegated-role-target-heading">
+        <div>
+          <h2 id="delegated-role-target-heading" data-role-target-heading tabindex="-1"></h2>
+          <p class="muted-text" data-role-target-account></p>
+        </div>
+
+        <section class="current-role-assignments" aria-labelledby="delegated-current-assignments-heading">
+          <h3 id="delegated-current-assignments-heading">Current Delegable Assignments</h3>
+          <ul class="role-assignment-list" data-delegated-role-list></ul>
+        </section>
+
+        <form class="settings-form" data-add-delegated-role>
+          <fieldset class="settings-fieldset">
+            <legend>Add Assignment</legend>
+            <div class="role-assignment-stack">
+              <label>
+                Role
+                <select data-delegated-role required></select>
+              </label>
+              <label>
+                Scope
+                <select data-delegated-scope required></select>
+              </label>
+              <button type="submit" data-add-delegated-role-button>Add Assignment</button>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/status.js"></script>
+    <script src="js/shared/modal.js"></script>
+    <script src="js/shared/icons.js"></script>
+    <script src="js/role-assignments.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

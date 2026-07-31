@@ -34,7 +34,7 @@ Your workspace data: clients/projects, tasks, notes, lists, files you attach, ti
 
 ### What is currently available?
 
-In the 0.33.25.2 repository baseline: workspaces with roles and permissions; clients and projects; time tracking; Tasks (with next actions, resume notes, checklists, reminders, recurrence, task timers, in-app calendars, and private read-only calendar subscriptions); Notes (with Markdown, links, revisions, tags, files, and encrypted-at-rest secure notes); Lists; Files; Search; Notifications; Reporting; Dashboard; and Workbench. The distribution also includes reviewed third-party notices and authenticated Legal and Licensing Help. See the [feature-outcome map](feature-outcome-map.md) for details and status.
+In the 0.33.25.6 repository baseline: workspaces with roles and permissions; clients and projects; time tracking; Tasks (with next actions, resume notes, checklists, reminders, recurrence, task timers, in-app calendars, and private read-only calendar subscriptions); Notes (with Markdown, links, revisions, tags, files, and encrypted-at-rest secure notes); Lists; Files; Search; Notifications; Reporting; Dashboard; and Workbench. The distribution also includes reviewed third-party notices, authenticated Legal and Licensing Help, public neutral operator Terms/Privacy templates, and expanded task-oriented Help. See the [feature-outcome map](feature-outcome-map.md) for details and status.
 
 ### Are Tickets, Knowledge Base, and Creator Studio available yet?
 

@@ -5,11 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_HELPER_ENV,
-  assertDemoHostSafety,
   assertProtectedFile,
   parseDemoDataArgs,
   parseDemoHelperConfig,
-  readProtectedEnvironmentFile,
+  prepareDemoHostContext,
   redactDemoError,
   resolveDemoPaths,
   runDemoDataOperation,
@@ -24,21 +23,29 @@ if (invokedScriptPath === scriptPath) {
   let redactions = [];
   try {
     const args = parseDemoDataArgs(process.argv.slice(2));
-    await assertProtectedFile(DEFAULT_HELPER_ENV, { label: "demo-data helper environment" });
+    await assertProtectedFile(DEFAULT_HELPER_ENV, {
+      expectedMode: 0o600,
+      label: "demo-data helper environment",
+    });
     const helperText = await fs.readFile(DEFAULT_HELPER_ENV, "utf8");
     const config = parseDemoHelperConfig(helperText, "demo-data helper environment");
     const paths = resolveDemoPaths(config);
     redactions = [...Object.values(paths), path.dirname(paths.dataRoot), path.dirname(paths.backupRoot)];
-    const appEnvironment = await readProtectedEnvironmentFile(paths.appEnvFile, { label: "application environment" });
-    redactions.push(...Object.entries(appEnvironment)
-      .filter(([key]) => /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/.test(key))
-      .map(([, value]) => value));
-    const { releaseDir } = await assertDemoHostSafety({
+    const context = await prepareDemoHostContext({
       action: args.action,
-      appEnvironment,
       config,
       paths,
     });
+    const {
+      appEnvironment,
+      marker,
+      releaseDir,
+      roleFixtures,
+    } = context;
+    redactions.push(...Object.entries(appEnvironment)
+      .filter(([key]) => /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/.test(key))
+      .map(([, value]) => value));
+    redactions.push(...[...roleFixtures.credentials.values()].map((fixture) => fixture.password));
     const packageJson = JSON.parse(await fs.readFile(path.join(releaseDir, "package.json"), "utf8"));
     const result = await runDemoDataOperation({
       ...args,
@@ -47,6 +54,8 @@ if (invokedScriptPath === scriptPath) {
       config,
       paths,
       releaseDir,
+      marker,
+      roleCredentialsFile: paths.roleCredentialsFile,
     });
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

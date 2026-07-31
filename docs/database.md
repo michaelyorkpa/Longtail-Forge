@@ -20,6 +20,21 @@ As of version 0.33.22.9.2, that collection is the sole management data model. Th
 
 As of version 0.33.17.7.9, migration 074 changes Project Administrator from client scope to project scope. Each legacy client-scoped Project Administrator assignment is expanded to the existing projects in that same workspace/client with its permission overrides and timestamps preserved, the superseded client row is removed, and the canonical role metadata is updated to require project scope. A legacy client with no projects produces no replacement assignment because there is no project resource to authorize.
 
+As of version 0.33.26.4, the consolidated fresh-start baseline itself seeds
+Project Administrator with the same project scope and single-project
+description used by migration 074 and runtime authorization. Forward-only
+migration 086 idempotently repairs stale role metadata on current databases;
+it does not read, insert, update, or delete role assignments. Migration 074
+remains unchanged and continues to own the one-time expansion of legacy
+client-scoped assignments. The migration runner recognizes the two reviewed
+line-ending checksums of the immediately preceding baseline so an existing
+installation can validate its recorded baseline and reach migration 086;
+unknown baseline checksums still fail closed. Regression coverage executes the
+baseline alone, a fresh install through every migration, an upgrade beginning
+before migration 074, and a current database receiving migration 086, with
+exact seven-role metadata/default-grant convergence, byte-for-byte assignment
+preservation, `PRAGMA integrity_check`, and zero foreign-key violations.
+
 As of version 0.33.5.19.9, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
 As of version 0.33.17.3, the supported whole-instance recovery path is the stopped-app CLI in [Baseline Backup and Restore](backup-restore.md). It consolidates and integrity-checks SQLite, preserves the full migration identity plus local Files storage in one checksummed archive, requires separate Secure Notes key recovery when encrypted records exist, and restores database/WAL/SHM and Files state as one destructive unit behind a verified pre-restore backup. This is distinct from the narrow online database-only safety copy used by the development workspace-cleanup command below.

@@ -55,7 +55,11 @@ assert.match(projectsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clien
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Adapter should no longer recreate page/filter/status/list anatomy inside minimal hosts");
 assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor pages");
 assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render Clients/Projects pages through the descriptor renderer");
-assert.match(clientsProjectsScript, /loadPageData\(\{ renderPage: false \}\)/, "Descriptor pages should hydrate dialog/query data without invoking the legacy page renderer");
+assert.match(
+  clientsProjectsScript,
+  /await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,
+  "Descriptor pages should hydrate capability data before rendering, then apply query actions without invoking a legacy page renderer",
+);
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.create", "clients\.add"\)/, "Clients Add action should dispatch through the canonical module action");
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.edit", "clients\.edit"\)/, "Clients Edit action should dispatch through the canonical module action");
 assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.projects\.create", "projects\.add"\)/, "Projects Add action should dispatch through the canonical module action");
@@ -127,8 +131,12 @@ assert.doesNotMatch(projectsSurface.dataSource.route, /\/api\/client-projects/, 
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/client-projects"/, "Combined option route should remain available");
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/clients"/, "Clients canonical read route should remain available");
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/projects"/, "Projects canonical read route should remain available");
-assert.match(clientsServiceSource, /async function listClients[\s\S]*assertBusinessWorkspace\(session\)[\s\S]*filterReadableClients[\s\S]*filterRecordsByTags[\s\S]*buildClientShape\(decoratedClients, shapeOptions\)/, "Clients canonical read path should keep Business gating, permission pruning, tag filtering, and hierarchy shaping server-owned");
-assert.match(clientsServiceSource, /async function listProjects[\s\S]*filterReadableProjects[\s\S]*normalizeProjectClientFilter[\s\S]*filterRecordsByTags[\s\S]*buildProjectReadShape\(decoratedProjects, orderingClients, shapeOptions\)/, "Projects canonical read path should keep permission pruning, client/status/tag filtering, and hierarchy shaping server-owned");
+assert.match(
+  clientsServiceSource,
+  /async function listClients[\s\S]*assertBusinessWorkspace\(session\)[\s\S]*filterReadableClients[\s\S]*filterRecordsByTags[\s\S]*buildClientShape\(decoratedClients\.map[\s\S]*can_create_child:[\s\S]*shapeOptions\)/,
+  "Clients canonical read path should keep Business gating, permission pruning, tag filtering, capability shaping, and hierarchy shaping server-owned",
+);
+assert.match(clientsServiceSource, /async function listProjects[\s\S]*filterReadableProjects[\s\S]*normalizeProjectClientFilter[\s\S]*filterRecordsByTags[\s\S]*buildProjectReadShape\(decoratedProjects\.map[\s\S]*can_manage:[\s\S]*orderingClients, shapeOptions\)/, "Projects canonical read path should keep permission pruning, client/status/tag filtering, capability shaping, and hierarchy shaping server-owned");
 assert.match(clientsServiceSource, /\["workspace", "__workspace_projects__"\][\s\S]*type: "workspace"/, "The service should normalize the descriptor's workspace-project sentinel instead of treating it as a Client ID");
 assert.match(clientsServiceSource, /function buildClientShape[\s\S]*sortHierarchy[\s\S]*decorateClientShape/, "Clients read shape should preserve hierarchy ordering");
 assert.match(clientsServiceSource, /function buildProjectShape[\s\S]*sortProjectHierarchy[\s\S]*decorateProjectShape/, "Project option/dialog reads should preserve hierarchy ordering");

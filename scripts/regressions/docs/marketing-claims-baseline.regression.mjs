@@ -31,11 +31,13 @@ const marketing = [...documents.entries()]
   .join("\n");
 const claims = documents.get("docs/marketing/claims-and-proof-register.md");
 
-assert.match(documents.get("docs/marketing/README.md"), /repository baseline 0\.33\.25\.2/);
-assert.match(claims, /Current baseline: \*\*v0\.33\.25\.2 · 2026-07-30\*\*/);
+assert.match(documents.get("docs/marketing/README.md"), /repository baseline 0\.33\.25\.6/);
+assert.match(claims, /Current baseline: \*\*v0\.33\.25\.6 · 2026-07-30\*\*/);
 assert.match(claims, /C-016 — Tasks calendar subscriptions/);
 assert.match(claims, /C-017 — Legal, licensing, and third-party notices/);
 assert.match(claims, /THIRD_PARTY_NOTICES\.md/);
+assert.match(claims, /Public Terms\/Privacy routes ship with neutral operator templates/);
+assert.match(claims, /review path appropriate to future public analytics, feedback, or interest capture is deferred to 0\.33\.32/);
 assert.match(marketing, /private signed readiness record/);
 assert.match(marketing, /explicit invite\/no-invite decision/);
 assert.match(marketing, /read-only Tasks calendar/);

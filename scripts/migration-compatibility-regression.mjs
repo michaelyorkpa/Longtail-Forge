@@ -23,6 +23,7 @@ const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
+const previousRoleSeedBaselineChecksum = "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c";
 
 const {
   closeDatabase,
@@ -35,6 +36,11 @@ try {
 
   await initializeDatabase();
   await assertMigrationRows();
+  await installPreviousRoleSeedBaselineState();
+
+  await initializeDatabase();
+  await assertMigrationRows();
+  await assertPreviousRoleSeedBaselineUpgraded();
   const compatibleLineEndingChecksums = await installCompatibleLineEndingChecksums();
 
   await initializeDatabase();
@@ -69,6 +75,8 @@ function assertStaticContract() {
   assert.match(migrationsSource, /await runSql\(migration\.sql\)/, "future migration SQL files should remain migration-owned compatibility SQL");
   assert.match(migrationsSource, /normalizeMigrationSqlForChecksum[\s\S]*replace\(\/\\r\\n\?\/g, "\\n"\)/, "migration checksums should canonicalize Windows and Unix line endings");
   assert.match(migrationsSource, /createCompatibleMigrationChecksums[\s\S]*replace\(\/\\n\/g, "\\r\\n"\)/, "migration validation should accept previously recorded CRLF checksums");
+  assert.match(migrationsSource, /LEGACY_ROLE_SEED_BASELINE_CHECKSUMS[\s\S]*1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c[\s\S]*67ec76af2c94f84eff8b5c90191e652ec4a449177317547da95eb0c159ca5d2c/, "the baseline checksum contract should recognize both line-ending forms of the previous role seed");
+  assert.match(migrationsSource, /readBaselineSchema[\s\S]*LEGACY_ROLE_SEED_BASELINE_CHECKSUMS[\s\S]*compatibleChecksums\.add/, "baseline validation should add only the reviewed pre-role-repair checksums to the compatibility set");
   assert.match(migrationsSource, /migration-foreign-keys: off[\s\S]*PRAGMA foreign_keys = OFF[\s\S]*PRAGMA foreign_key_check[\s\S]*PRAGMA foreign_keys = ON/, "parent-table rebuild migrations should disable SQLite foreign keys only outside their transaction and validate them before commit");
   assert.match(projectAdminScopeMigration, /INSERT INTO user_role_assignments[\s\S]*INNER JOIN projects[\s\S]*legacy\.role_id = 'project_admin'[\s\S]*legacy\.scope_type = 'client'/, "project administrator migration should expand legacy client scopes across their existing projects");
   assert.match(projectAdminScopeMigration, /DELETE FROM user_role_assignments[\s\S]*role_id = 'project_admin'[\s\S]*scope_type = 'client'/, "project administrator migration should retire the superseded client scopes");
@@ -113,6 +121,7 @@ ORDER BY version;
     "083",
     "084",
     "085",
+    "086",
   ], "fresh database should record the consolidated baseline and active core migrations");
 
   const projectAdminRole = await db.get(`
@@ -155,6 +164,47 @@ WHERE version = :version;
   }
 
   return checksums;
+}
+
+async function installPreviousRoleSeedBaselineState() {
+  await db.run(`
+UPDATE schema_migrations
+SET checksum = :checksum
+WHERE version = :baselineVersion;
+`, {
+    baselineVersion: "0.33.5.18.6.5.4",
+    checksum: previousRoleSeedBaselineChecksum,
+  });
+  await db.run("DELETE FROM schema_migrations WHERE version = :version;", { version: "086" });
+  await db.run(`
+UPDATE roles
+SET description = 'Controls projects and project assignments for one client.',
+    assignable_scope_type = 'client'
+WHERE role_id = 'project_admin';
+`);
+}
+
+async function assertPreviousRoleSeedBaselineUpgraded() {
+  const baseline = await db.get(`
+SELECT checksum
+FROM schema_migrations
+WHERE version = :version;
+`, { version: "0.33.5.18.6.5.4" });
+  assert.equal(
+    baseline.checksum,
+    previousRoleSeedBaselineChecksum,
+    "the recognized historical baseline checksum should remain preserved after the forward repair",
+  );
+
+  const role = await db.get(`
+SELECT description, assignable_scope_type
+FROM roles
+WHERE role_id = 'project_admin';
+`);
+  assert.deepEqual(role, {
+    assignable_scope_type: "project",
+    description: "Controls one project and its project assignments.",
+  }, "migration 086 should repair Project Administrator metadata after a prior-baseline install starts");
 }
 
 async function assertCompatibleLineEndingChecksumsPreserved(expectedChecksums) {

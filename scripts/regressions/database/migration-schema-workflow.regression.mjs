@@ -33,8 +33,8 @@ try {
   assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "086_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "087_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();

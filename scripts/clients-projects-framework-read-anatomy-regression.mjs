@@ -27,7 +27,11 @@ assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module 
 assertMinimalHost(clientsHtml, "Clients");
 assertMinimalHost(projectsHtml, "Projects");
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Read anatomy should not be recreated inside the Clients/Projects adapter");
-assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*loadPageData\(\{ renderPage: false \}\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor read pages");
+assert.match(
+  clientsProjectsScript,
+  /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,
+  "Adapter should wait for app-shell viewSurfaces and server-shaped capabilities before rendering descriptor read pages",
+);
 assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
 assert.match(clientsProjectsScript, /function openAddClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.add"/, "Add Client query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openEditClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.edit", \{ clientId: client\.id \}/, "Client detail query opener should dispatch the registered module action");
@@ -64,7 +68,19 @@ assert.equal(clientsDescriptor.table.columns[0].field, "displayLabel", "Clients 
 assert.equal(projectsDescriptor.table.columns[0].field, "displayLabel", "Projects table should consume the service-shaped hierarchy label with its child hyphen");
 assert.equal(clientsDescriptor.table.secondaryRows[0].label, undefined, "Clients tag chips should not repeat a Tags label");
 assert.equal(projectsDescriptor.table.secondaryRows[0].label, undefined, "Projects tag chips should not repeat a Tags label");
-assert.ok(clientsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Clients repeated row actions should be icon-only");
+assert.deepEqual(
+  clientsDescriptor.table.rowActions.map((action) => ({
+    icon: action.icon,
+    iconOnly: action.iconOnly,
+    label: action.label,
+    title: action.title,
+  })),
+  [
+    { icon: "add", iconOnly: true, label: "Add Child Client", title: "Add Child Client" },
+    { icon: "edit", iconOnly: true, label: "Edit Client", title: "Edit Client" },
+  ],
+  "Clients repeated row actions should remain exact icon-only controls",
+);
 assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
 const clientsContext = createBrowserContext({
@@ -185,6 +201,7 @@ function clientRecord(overrides = {}) {
     billing_period: "calendarMonth",
     billing_rounding: null,
     billing_display: "Billable at $125/hr",
+    can_manage: true,
     tag_summary: "Focus",
     tags: [{ tag_id: "tag-focus", name: "Focus" }],
   };
@@ -209,6 +226,7 @@ function projectRecord(overrides = {}) {
     billing_period: "calendarMonth",
     billing_rounding: null,
     billing_display: "Billable at $100/hr",
+    can_manage: true,
     taskDefaults: {},
     tag_summary: "Focus",
     tags: [{ tag_id: "tag-focus", name: "Focus" }],

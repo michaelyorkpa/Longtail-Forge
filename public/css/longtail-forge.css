@@ -2965,6 +2965,34 @@ a.search-result-title:hover {
     text-align: left;
 }
 
+.delegated-role-assignments-page {
+    display: grid;
+    gap: 20px;
+}
+
+.delegated-role-assignments-page > h1,
+.delegated-role-assignments-page > p,
+.delegated-role-target h2,
+.delegated-role-target p {
+    margin: 0;
+}
+
+.delegated-role-target {
+    display: grid;
+    gap: 18px;
+}
+
+[data-role-assignment-status] {
+    min-height: 20px;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+[data-role-assignment-status].is-error {
+    color: var(--color-danger);
+}
+
 .login-page {
     width: min(90vw, 380px);
     margin: auto auto clamp(96px, 18vh, 180px);

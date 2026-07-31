@@ -1,3 +1,249 @@
+## Version 0.33.26.8 - 2026-07-30
+
+- Extended the guarded installed-release demo-data operation to build the same
+  deterministic seven-role sanitized-demo fixture only for host and target
+  `rt-ltf-demo` at `https://demo.longtailforge.com`. Routine Nightly
+  deployments remain data-preserving, and no live reset is part of this slice.
+- Added a separately installed root-owned `0600` role-credential document with
+  exact target/origin binding. The helper configuration carries only its
+  protected path; identity refusal occurs before either protected source is
+  read, and the candidate seed receives no application secret or role value in
+  its process environment, arguments, output, markers, backups, or logs.
+- Added non-mutating host preflight and strengthened candidate verification for
+  exactly seven active private identities, exact roles/scopes/memberships, no
+  overrides, normal Argon2id hashes, reserved domains, deterministic
+  fingerprint, Search parity, Files checksums, no Secure Notes material,
+  SQLite integrity, and zero foreign-key violations.
+- Expanded `database.demo-data-host-operation` to prove wrong-target
+  before-read refusal, file/path/mode and secret-copy rejection, preflight with
+  both provision/reset next actions, backup-first staging, database-and-Files
+  promotion, corrupt-role/scope/domain/Secure-Notes/Files rejection, output
+  redaction, retained prior state, and automatic rollback. The coverage
+  manifest remains current at 423 discovered scripts.
+- Updated the demo host runbook and its reviewed `0.33.26.9` checklist, plus
+  development-data, runtime-configuration, runtime-artifact, permissions,
+  regression-suite, decision, roadmap, and archive ownership documentation.
+  The checklist explicitly forbids every provision/reset/seed/credential/
+  backup/data command against `rt-ltf` and the Friends-and-Family Preview.
+
+## Version 0.33.26.7 - 2026-07-30
+
+- Added an explicit local-only sanitized-demo role-fixture mode with one
+  deterministic identity for every shipped role. The protected bootstrap
+  identity supplies installation Super Admin; every other identity receives
+  exactly one Northwind Studio membership and one representative
+  workspace/client/project assignment with no overrides.
+- Added one ignored private JSON credential contract with exact-key,
+  uniqueness, normal password-policy, placeholder, tracked-file, symlink,
+  environment, release-branch, and public-URL refusals. Passwords never enter
+  command arguments or output and generated databases store only ordinary
+  Argon2id hashes.
+- Kept ordinary development personas inactive and added paired-seed proof for
+  deterministic semantic data, exactly seven active fixture logins, reserved
+  domains, Files/Search projections, Secure Notes absence, SQLite integrity,
+  and zero foreign-key violations.
+- Added `npm run demo:roles:journey`, which creates a disposable sanitized-demo
+  installation, authenticates/logs out all seven roles with normal throttling,
+  and proves representative allowed/denied Client creation, Project Settings,
+  declarative-action, role-catalog, and delegated Role Assignments behavior
+  from 0.33.26.1-.6 without printing credentials.
+- Added the isolated `permissions.sanitized-demo-role-journey` release gate.
+  The discovered suite now contains 423 scripts, including 179 isolated
+  database owners and 55 release gates.
+- Docs updated: `DECISIONS.md`, `.env.example`,
+  `docs/development-and-demo-data.md`, `docs/docs-ownership.json`,
+  `docs/longtail_forge_permissions_matrix.md`,
+  `docs/regression-suite.md`, and `docs/runtime-configuration.md`.
+
+## Version 0.33.26.6 - 2026-07-30
+
+- Added the dedicated Users-owned Role Assignments page for actors with
+  `roles.assign`, while preserving `users.manage` on the existing full User
+  Admin page and excluding its directory, membership, profile, password,
+  session, override, and deletion controls.
+- Made Admin navigation expose Role Assignments only when the server finds a
+  currently usable delegable role/scope. All `/api/roles` callers now receive
+  only authorized, labeled roles and concrete scopes shaped by the existing
+  delegation ceilings.
+- Added exact-account found/not-found handling, a clear current delegable
+  assignment list, explicit add/remove confirmation, actor-bound stale-state
+  recovery, shared branded denial handling, keyboard focus return, accessible
+  status announcements, and unavailable-label fallbacks that never render raw
+  role or scope IDs.
+- Added a focused static browser/manifest/accessibility owner and expanded the
+  permission harness from 397 to 409 checks across Client, Project, and
+  Workspace Administrator navigation and page access, filtered role catalogs,
+  non-delegating roles, and unchanged User Admin authorization. The discovered
+  suite now contains 422 scripts, including 209 static/source owners.
+- Docs updated: `help/framework/users-roles-and-permissions.md`,
+  `docs/longtail_forge_permissions_matrix.md`, and
+  `docs/regression-suite.md`.
+
+## Version 0.33.26.5 - 2026-07-30
+
+- Added exact-normalized-account lookup for delegated role assignment. Scoped
+  administrators receive only minimum active-member identity, their currently
+  manageable assignments, and an opaque actor/target/workspace-bound revision;
+  unknown and inactive accounts share the same not-found response.
+- Filtered scoped role catalogs to the existing Client Administrator and
+  Project Administrator delegation ceilings and authorized concrete scopes.
+  Direct user-ID assignment reads remain restricted to full User
+  Administration.
+- Replaced scoped all-row replacement with one transaction-revalidated subset
+  diff. Current actor/target/workspace state, workspace type, role ceiling,
+  concrete Client/Project scope, Project ancestry, and self/protected safety
+  are checked before only manageable rows can change; every hidden, higher, and
+  out-of-scope row is preserved byte-for-byte.
+- Kept Workspace Administrator and Super Admin full replacement behavior,
+  reconciled dependent private feeds after successful mutation, and emitted
+  audit/internal-event payloads containing only the actor-authorized subset for
+  delegated changes.
+- Expanded the permission harness from 370 to 397 checks across lookup parity,
+  disclosure limits, allowed and denied delegation, hidden-row preservation,
+  stale and actor-bound revisions, revoked authority, workspace types,
+  self/protected targets, audit safety, and full-administrator compatibility.
+- Docs updated: `docs/longtail_forge_permissions_matrix.md` and
+  `docs/regression-suite.md`.
+
+## Version 0.33.26.4 - 2026-07-30
+
+- Corrected the consolidated Project Administrator seed to project scope and
+  added forward-only migration 086 to repair stale current role metadata
+  without editing migration 074 or rewriting any assignment. The migration
+  runner recognizes the reviewed prior-baseline line-ending checksums so
+  existing installations can reach the forward repair while unknown checksum
+  drift still fails closed.
+- Audited all seven role definitions, database/runtime scope requirements,
+  default permission grants, workspace-type availability, and delegation
+  ceilings. No other role-seed drift or permission broadening was found.
+- Added fresh-baseline, full fresh-install, pre-074 upgrade, current-database,
+  generated-schema, integrity, foreign-key, permission-default, and
+  assignment-preservation regression coverage.
+- Advanced migration identity and schema workflow expectations through
+  migration 086. The discovered suite now contains 421 scripts, including 178
+  isolated-database owners.
+- Docs updated: `docs/database.md`,
+  `docs/longtail_forge_permissions_matrix.md`, and
+  `docs/regression-suite.md`.
+
+## Version 0.33.26.3 - 2026-07-30
+
+- Added the actor's effective any-scope permission IDs to login, session, and
+  app-shell workspace context so declarative browser surfaces receive the
+  permission contract they already declare.
+- Made the shared view renderer omit unauthorized page, surface, row, item,
+  modal, menu, and inline actions while retaining a live permission check
+  immediately before behavior or route dispatch.
+- Preserved record-level ownership: Client Administrator any-scope grants
+  expose Add Child Client only on server-shaped eligible parents and never
+  restore workspace-level Add Client; service authorization still rejects
+  bypassed top-level creation.
+- Expanded the permission harness from 368 to 370 checks and added a focused
+  view-surface permission-wiring guardrail. The discovered suite now contains
+  420 scripts.
+- Docs updated: `DECISIONS.md`,
+  `docs/clients-projects-strict-guardrail-inventory.md`,
+  `docs/longtail_forge_permissions_matrix.md`,
+  `docs/regression-suite.md`, `docs/settings-ownership.md`,
+  `docs/view-building-contract.md`, and
+  `help/framework/users-roles-and-permissions.md`.
+
+## Version 0.33.26.2 - 2026-07-30
+
+- Made app-shell administrative permission hints scope-aware, so Client
+  Administrators receive Clients and Projects navigation, Project
+  Administrators receive Projects only, and roles without the matching grants
+  receive neither link.
+- Kept User Admin, Workspace Settings, API Keys, Audit Log, and the Admin
+  Modules drawer behind their deliberate workspace-administrator gates, and
+  added matching any-scope permission requirements to the protected Client and
+  Project module pages.
+- Added server-shaped per-record manage and eligible Project create/move
+  capabilities. Scoped lists, row actions, related-record actions, Client
+  choices, and move destinations now omit out-of-scope affordances while
+  service authorization remains authoritative.
+- Expanded the permission harness from 346 to 368 checks and added a focused
+  scope-aware navigation guardrail covering scoped data, protected page access,
+  denied ordinary roles, and unchanged Workspace Administrator navigation.
+- Docs updated: `DECISIONS.md`,
+  `docs/clients-projects-strict-guardrail-inventory.md`,
+  `docs/longtail_forge_permissions_matrix.md`,
+  `docs/regression-suite.md`,
+  `help/framework/administration-and-settings.md`, and
+  `help/framework/clients-and-projects.md`.
+
+## Version 0.33.26.1 - 2026-07-30
+
+- Split Client creation authorization by record scope: top-level Clients still
+  require workspace-scoped `clients.manage`, while child Clients authorize
+  against the requested parent for browser, public API, and registered action
+  callers.
+- Added server-shaped top-level and per-Client create capabilities plus an Add
+  Child Client row action whose module-owned form locks the authorized parent;
+  invalid top-level, cross-scope, Project Administrator, and non-Business paths
+  remain unavailable or denied.
+- Corrected Client tag-target scope shaping so child-create propagation refresh
+  authorizes against the Client record, and expanded permission/static
+  regressions across scoped, workspace, Super Admin, browser, and public API
+  paths.
+- Docs updated: `DECISIONS.md`,
+  `docs/clients-projects-strict-guardrail-inventory.md`,
+  `docs/longtail_forge_permissions_matrix.md`,
+  `docs/regression-suite.md`,
+  `help/framework/action-catalog.md`, and
+  `help/framework/clients-and-projects.md`.
+
+## Version 0.33.25.6 - 2026-07-30
+
+- Re-baselined the marketing foundation and claims register against the shipped
+  application through the complete `0.33.25` branch while preserving the
+  separate private-preview invitation decision.
+- Recorded that public Terms and Privacy ship as neutral operator templates
+  without a professional-legal-approval claim; deferred the launch-specific
+  review-path decision to `0.33.32` before any first-party public analytics,
+  feedback, or interest capture is enabled.
+- Closed the `0.33.25` branch, bumped package metadata to `0.33.25.6`, archived
+  its remaining slices, and advanced the active roadmap cursor to `0.33.26.1`.
+- Docs updated: `DECISIONS.md`, `docs/licensing.md`,
+  `docs/private-preview-readiness.md`, and the marketing documentation set.
+- No docs change needed: application behavior, permissions, schema, deployment
+  topology, and the separate invite/no-invite decision are unchanged.
+
+## Version 0.33.25.5 - 2026-07-30
+
+- Added user-facing conceptual Help for Workbench focus modes, resume behavior,
+  Dashboard versus Workbench, notifications/reminders, tags/search, and Tasks
+  calendar subscriptions.
+- Audited existing Help for drift, corrected Files and Secure Notes boundaries,
+  and mechanically enforced complete Help declaration/Markdown/ToC coverage.
+- Docs updated: framework and Tasks/Notes Help, `help/toc.md`, and
+  `docs/regression-suite.md`.
+
+## Version 0.33.25.4 - 2026-07-30
+
+- Added registry-derived Help coverage for framework and first-party actions,
+  task-oriented guidance, and the complete settings/administration surfaces.
+- Preserved framework/module Help ownership, module activation behavior, and
+  Help search indexing.
+- Docs updated: framework and first-party module Help plus `help/toc.md`.
+
+## Version 0.33.25.3 - 2026-07-30
+
+- Added public session-less Terms and Privacy routes with footer links, neutral
+  operator-scoped defaults, protected runtime overrides, and no authenticated
+  user/workspace data.
+- Added a version-accurate public `AGPL-3.0-only` and Corresponding Source
+  notice plus focused public-route, security-header, override, and data-leak
+  regressions.
+- Completed the repository slice without claiming attorney review; future
+  public-hosting review scope is now an explicit `0.33.32` decision gate.
+- Docs updated: `docs/docs-ownership.json`, `docs/e2e-testing.md`,
+  `docs/licensing.md`, `docs/private-preview-readiness.md`,
+  `docs/regression-suite.md`, `docs/runtime-artifact.md`, and
+  `docs/runtime-configuration.md`.
+- No docs change needed: authenticated roles, permissions, workspace visibility,
+  database/schema, and contribution intake are unchanged.
+
 ## Version 0.33.25.2 - 2026-07-30
 
 - Added framework-owned Legal and Licensing and Third-Party Notices articles to

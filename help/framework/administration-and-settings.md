@@ -32,6 +32,12 @@ Role assignments provide the normal access baseline. The permission matrix shows
 
 Client and Project roles require their matching scope. Personal workspaces cannot add other users, Family workspaces do not expose business Client roles, and only a Super Admin can assign Super Admin.
 
+Client Administrators receive **Settings → Admin → Clients** and **Projects**
+for their administered Client scope. Project Administrators receive
+**Projects** for assigned Project scope. These scoped roles do not receive User
+Admin, Workspace, API Keys, Audit Log, or the Admin Modules drawer; those
+remain workspace-administrator surfaces.
+
 | Role | Intended scope and baseline |
 | --- | --- |
 | Super Admin | Installation-wide administration across workspaces. |
@@ -68,7 +74,11 @@ Workspace changes apply only to the active workspace unless the control explicit
 
 ## Modules and module settings
 
-Open **Settings → Admin → Modules** to review first-party modules, enable or disable optional modules, and open an available module’s settings page. Disabling a module hides its workflow and Help contributions while preserving historical-read behavior where the module contract allows it.
+Workspace Administrators and Super Admins can open **Settings → Admin →
+Modules** to review first-party modules, enable or disable optional modules,
+and open an available module’s settings page. Disabling a module hides its
+workflow and Help contributions while preserving historical-read behavior
+where the module contract allows it.
 
 Current first-party settings include:
 

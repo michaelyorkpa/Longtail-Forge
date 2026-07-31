@@ -4,7 +4,14 @@ const pageMode = document.body.dataset.clientProjectPage || "combined";
 const isClientsPage = pageMode === "clients";
 const isProjectsPage = pageMode === "projects";
 
-let clientProjectData = { clients: [] };
+let clientProjectData = {
+  capabilities: {
+    canCreateTopLevelClient: false,
+    canCreateWorkspaceProject: false,
+    canManageWorkspaceProjects: false,
+  },
+  clients: [],
+};
 let workspaceSettings = {
   defaultBillingRate: "",
   billingPeriod: { type: "calendarMonth", startDay: 1 },
@@ -62,11 +69,9 @@ async function initializeClientProjectsPage() {
   }
 
   registerClientProjectsViewBehaviors();
+  await loadPageData({ applyQueryActions: false });
   activeClientProjectsReadSurface = renderClientProjectsReadSurface();
-
-  if (activeClientProjectsReadSurface) {
-    loadPageData({ renderPage: false });
-  }
+  applyClientProjectQueryActions();
 }
 
 function registerClientProjectsViewBehaviors() {
@@ -76,6 +81,14 @@ function registerClientProjectsViewBehaviors() {
 
   clientProjectsViewBehaviorsRegistered = true;
   registerClientProjectsModuleActionBehavior("client-projects.clients.create", "clients.add");
+  view.registerBehavior("client-projects.clients.create-child", (context = {}) => {
+    const params = clientProjectActionParams(context);
+    return openClientProjectModuleAction("clients.add", {
+      ...params,
+      lockParentClient: true,
+      parentClientId: params.recordId,
+    });
+  });
   registerClientProjectsModuleActionBehavior("client-projects.clients.edit", "clients.edit");
   registerClientProjectsModuleActionBehavior("client-projects.projects.create", "projects.add");
   registerClientProjectsModuleActionBehavior("client-projects.projects.edit", "projects.edit");
@@ -167,7 +180,32 @@ function clientProjectsViewSurfaceDescriptor() {
   const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
   const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
   const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
-  return withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface));
+  return withoutUnavailableTopLevelActions(
+    withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface)),
+  );
+}
+
+function withoutUnavailableTopLevelActions(surface) {
+  if (!surface) {
+    return surface;
+  }
+
+  const actionAvailable = surface.id === "client-projects.clients"
+    ? canCreateTopLevelClient()
+    : surface.id === "client-projects.projects"
+      ? canCreateAnyProject()
+      : true;
+  if (actionAvailable) {
+    return surface;
+  }
+
+  return {
+    ...surface,
+    pageHeader: surface.pageHeader ? {
+      ...surface.pageHeader,
+      primaryAction: null,
+    } : surface.pageHeader,
+  };
 }
 
 function withoutUnsupportedClientFields(surface) {
@@ -409,7 +447,7 @@ function showDialog(dialog, focusTarget = null) {
   focusTarget?.focus?.();
 }
 
-async function loadPageData(_options = {}) {
+async function loadPageData(options = {}) {
   setStatus("Loading clients and projects...");
 
   try {
@@ -422,11 +460,9 @@ async function loadPageData(_options = {}) {
     workspaceSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
     tagOptions = loadedTags;
-    applyInitialClientParam();
-    openAddClientActionFromQuery();
-    openEditClientActionFromQuery();
-    openAddProjectActionFromQuery();
-    openEditProjectActionFromQuery();
+    if (options.applyQueryActions !== false) {
+      applyClientProjectQueryActions();
+    }
     setStatus("");
   } catch (error) {
     setStatus("Client and project data could not be loaded.");
@@ -450,7 +486,12 @@ async function loadClientProjectDialogData() {
 
 async function openAddProjectAction(params = {}, hostContext = null) {
   await loadClientProjectDialogData();
-  const client = getProjectTargetClient(params.clientId || params.defaultClientId || params.parentClientId || "");
+  const requestedClientId = params.clientId || params.defaultClientId || params.parentClientId || "";
+  const client = resolveProjectCreateTarget(requestedClientId);
+
+  if (!client) {
+    throw new Error("You do not have permission to add a project in an available scope.");
+  }
 
   return openAddProjectDialog(client, {
     hostContext,
@@ -466,6 +507,9 @@ async function openEditProjectAction(params = {}, hostContext = null) {
   if (!match) {
     throw new Error("Project could not be found.");
   }
+  if (!match.project.canManage) {
+    throw new Error("You do not have permission to edit that project.");
+  }
 
   return openProjectDetailDialog(match.client, match.project, { hostContext });
 }
@@ -477,9 +521,19 @@ async function openAddClientAction(params = {}, hostContext = null) {
     throw new Error("Client actions are only available in Business workspaces.");
   }
 
+  const parentClientId = params.parentClientId || params.defaultClientId || "";
+  if (!parentClientId && !canCreateTopLevelClient()) {
+    throw new Error("Choose Add Child Client from a client you administer.");
+  }
+  if (parentClientId && !canCreateChildClient(parentClientId)) {
+    throw new Error("You do not have permission to add a child under that client.");
+  }
+  const lockParentClient = params.lockParentClient === true || !canCreateTopLevelClient();
+
   return openAddClientDialog({
-    defaultParentClientId: params.parentClientId || params.defaultClientId || "",
+    defaultParentClientId: parentClientId,
     hostContext,
+    lockParentClient,
   });
 }
 
@@ -495,6 +549,9 @@ async function openEditClientAction(params = {}, hostContext = null) {
 
   if (!client) {
     throw new Error("Client could not be found.");
+  }
+  if (!client.canManage) {
+    throw new Error("You do not have permission to edit that client.");
   }
 
   return openClientDetailDialog(client, { hostContext });
@@ -990,7 +1047,11 @@ function openAddProjectDialog(client, options = {}) {
   });
 }
 
-function openAddClientDialog({ defaultParentClientId = "", hostContext = null } = {}) {
+function openAddClientDialog({
+  defaultParentClientId = "",
+  hostContext = null,
+  lockParentClient = false,
+} = {}) {
   const modalView = requireView();
   const nameField = modalView.createField({
     field: "name",
@@ -1019,17 +1080,22 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
   parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
     ? defaultParentClientId
     : "";
-  const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
-  if (mountedPicker) {
-    mountedPicker.then((picker) => {
-      tagPicker = picker || tagPicker;
-    });
+  if (lockParentClient && parentSelect.value) {
+    parentSelect.disabled = true;
+  }
+  if (!lockParentClient) {
+    const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
+    if (mountedPicker) {
+      mountedPicker.then((picker) => {
+        tagPicker = picker || tagPicker;
+      });
+    }
   }
   const dialog = modalView.createModalForm({
-    title: "Add Client",
+    title: lockParentClient ? "Add Child Client" : "Add Client",
     className: "client-add-dialog",
     formClassName: "client-modal-form",
-    fields: [nameField, parentField, tagContainer],
+    fields: lockParentClient ? [nameField, parentField] : [nameField, parentField, tagContainer],
     actions: [cancelButton, saveButton],
   });
   const form = dialog.viewParts.form;
@@ -1061,7 +1127,7 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
       billing_period: null,
       billing_rounding: null,
       billing_contact: createEmptyBillingContact(),
-      tagIds: tagPicker?.readTagIds?.() || [],
+      ...(!lockParentClient ? { tagIds: tagPicker?.readTagIds?.() || [] } : {}),
       projects: [],
     };
     const saved = await createClientRecord(client, {
@@ -1096,6 +1162,9 @@ function openAddClientActionFromQuery() {
 
   const params = new URLSearchParams(window.location.search);
   if (params.get("addClient") !== "true") {
+    return;
+  }
+  if (!canCreateTopLevelClient()) {
     return;
   }
 
@@ -1464,6 +1533,8 @@ function getWorkspaceProjectClient() {
     billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
     billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
     billing_contact: normalizeBillingContact({}),
+    canCreateProject: clientProjectData.capabilities?.canCreateWorkspaceProject === true,
+    canManageProjects: clientProjectData.capabilities?.canManageWorkspaceProjects === true,
     isWorkspaceScope: true,
     projects: [],
   };
@@ -2365,11 +2436,20 @@ function createProjectClientAssignment(project) {
 
   label.className = "project-client-field";
   label.textContent = "Client";
-  select.appendChild(createOption("", "Workspace project"));
-  sortClientTree(getRealClients()).filter((client) => isActiveStatus(client.status)).forEach((client) => {
+  if (canManageProjectClientScope("")) {
+    select.appendChild(createOption("", "Workspace project"));
+  }
+  sortClientTree(getRealClients()).filter((client) => (
+    isActiveStatus(client.status) &&
+    (client.id === project.client_id || client.canManageProjects)
+  )).forEach((client) => {
     select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
   });
+  if (![...select.options].some((option) => option.value === (project.client_id || ""))) {
+    select.appendChild(createOption(project.client_id || "", getProjectClientName(project.client_id) || "Current client"));
+  }
   select.value = project.client_id || "";
+  select.disabled = select.options.length <= 1;
   label.appendChild(select);
   return label;
 }
@@ -2422,13 +2502,19 @@ function createAddProjectClientAssignment(client) {
   wrapper.className = "project-add-client-field";
   label.textContent = "Client";
   const refreshOptions = (selectedClientId = select.value || getDefaultProjectClientId(client)) => {
-    select.replaceChildren(createOption("", workspaceProjectsLabel()));
-    sortClientTree(getRealClients()).filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
+    select.replaceChildren();
+    if (canCreateProjectForClient("")) {
+      select.appendChild(createOption("", workspaceProjectsLabel()));
+    }
+    sortClientTree(getRealClients()).filter((realClient) => (
+      isActiveStatus(realClient.status) && realClient.canCreateProject
+    )).forEach((realClient) => {
       select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
     });
     select.value = [...select.options].some((option) => option.value === selectedClientId)
       ? selectedClientId
-      : "";
+      : select.options[0]?.value || "";
+    select.disabled = select.options.length <= 1;
   };
   refreshOptions(getDefaultProjectClientId(client));
   label.appendChild(select);
@@ -2490,12 +2576,35 @@ function createProjectClientContextRegion(project) {
 
 function createProjectClientContextRows(project) {
   const targetClient = getProjectTargetClient(project.client_id);
+  const addClientAction = canCreateTopLevelClient()
+    ? {
+        label: "Add Client",
+        role: "secondary",
+        action: "add-client",
+        onClick: () => {
+          void openClientProjectModuleAction("clients.add")
+            .catch(handleClientProjectActionError);
+        },
+      }
+    : targetClient && !targetClient.isWorkspaceScope && canCreateChildClient(targetClient.id)
+      ? {
+          label: "Add Child Client",
+          role: "secondary",
+          action: "add-child-client",
+          onClick: () => {
+            void openClientProjectModuleAction("clients.add", {
+              lockParentClient: true,
+              parentClientId: targetClient.id,
+            }).catch(handleClientProjectActionError);
+          },
+        }
+      : null;
   const rows = [
     {
       type: "Client",
       label: getProjectClientLabel(targetClient),
       actions: [
-        project.client_id ? {
+        project.client_id && targetClient.canManage ? {
           label: "Edit",
           role: "utility",
           action: "edit-client",
@@ -2504,15 +2613,7 @@ function createProjectClientContextRows(project) {
               .catch(handleClientProjectActionError);
           },
         } : null,
-        {
-          label: "Add Client",
-          role: "secondary",
-          action: "add-client",
-          onClick: () => {
-            void openClientProjectModuleAction("clients.add")
-              .catch(handleClientProjectActionError);
-          },
-        },
+        addClientAction,
       ].filter(Boolean),
     },
   ];
@@ -2523,7 +2624,7 @@ function createProjectClientContextRows(project) {
   rows.push({
     type: "Parent Project",
     label: parentProject?.name || "No parent project",
-    actions: parentProject ? [{
+    actions: parentProject?.canManage ? [{
       label: "Edit",
       role: "utility",
       action: "edit-project",
@@ -2550,7 +2651,7 @@ function createProjectContextActionStrip(row) {
 }
 
 function createAddClientShortcutButton({ onCreated = null } = {}) {
-  if (!clientsEnabledForWorkspace()) {
+  if (!clientsEnabledForWorkspace() || !canCreateTopLevelClient()) {
     return null;
   }
 
@@ -2984,6 +3085,10 @@ function normalizeData(data) {
           billing_period: normalizeOptionalBillingPeriod(client.billing_period),
           billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
           billing_contact: normalizeBillingContact(client.billing_contact),
+          canCreateChild: client.can_create_child === true,
+          canCreateProject: client.can_create_project === true,
+          canManage: client.can_manage === true,
+          canManageProjects: client.can_manage_projects === true,
           taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
           tags: normalizeTags(client.tags),
           projects: normalizeProjects(client.projects || [], clientBillable, client.id),
@@ -3003,6 +3108,8 @@ function normalizeData(data) {
       billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
       billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
+      canCreateProject: data.capabilities?.can_create_workspace_project === true,
+      canManageProjects: data.capabilities?.can_manage_workspace_projects === true,
       taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
       isWorkspaceScope: true,
       projects: workspaceProjects,
@@ -3010,8 +3117,68 @@ function normalizeData(data) {
   }
 
   return {
+    capabilities: {
+      canCreateTopLevelClient: data.capabilities?.can_create_top_level_client === true,
+      canCreateWorkspaceProject: data.capabilities?.can_create_workspace_project === true,
+      canManageWorkspaceProjects: data.capabilities?.can_manage_workspace_projects === true,
+    },
     clients,
   };
+}
+
+function canCreateTopLevelClient() {
+  return clientProjectData.capabilities?.canCreateTopLevelClient === true;
+}
+
+function canCreateChildClient(clientId) {
+  return clientProjectData.clients.some((client) => (
+    client.id === clientId &&
+    client.canCreateChild === true
+  ));
+}
+
+function canCreateAnyProject() {
+  return canCreateProjectForClient("") ||
+    getRealClients().some((client) => client.canCreateProject && isActiveStatus(client.status));
+}
+
+function canCreateProjectForClient(clientId) {
+  if (!clientId || clientId === "__workspace_projects__") {
+    return clientProjectData.capabilities?.canCreateWorkspaceProject === true;
+  }
+
+  return getRealClients().some((client) => client.id === clientId && client.canCreateProject === true);
+}
+
+function canManageProjectClientScope(clientId) {
+  if (!clientId || clientId === "__workspace_projects__") {
+    return clientProjectData.capabilities?.canManageWorkspaceProjects === true;
+  }
+
+  return getRealClients().some((client) => client.id === clientId && client.canManageProjects === true);
+}
+
+function resolveProjectCreateTarget(requestedClientId = "") {
+  const normalizedClientId = requestedClientId === "__workspace_projects__" ? "" : requestedClientId;
+
+  if (normalizedClientId) {
+    return canCreateProjectForClient(normalizedClientId)
+      ? getRealClients().find((client) => client.id === normalizedClientId) || null
+      : null;
+  }
+  if (canCreateProjectForClient("")) {
+    return getWorkspaceProjectClient();
+  }
+
+  return getRealClients().find((client) => client.canCreateProject && isActiveStatus(client.status)) || null;
+}
+
+function applyClientProjectQueryActions() {
+  applyInitialClientParam();
+  openAddClientActionFromQuery();
+  openEditClientActionFromQuery();
+  openAddProjectActionFromQuery();
+  openEditProjectActionFromQuery();
 }
 
 function normalizeProjects(projects, clientBillable, clientId) {
@@ -3025,6 +3192,7 @@ function normalizeProjects(projects, clientBillable, clientId) {
         billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
         billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
         billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
+        canManage: project.can_manage === true,
         taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
         taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
         tags: normalizeTags(project.tags),

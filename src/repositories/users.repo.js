@@ -88,6 +88,26 @@ LIMIT 1;
 `, { username, workspaceId });
 }
 
+async function readExactActiveMemberByUsername(workspaceId, username) {
+  return db.get(`
+SELECT
+  users.user_id,
+  users.username,
+  users.display_name
+FROM users
+INNER JOIN user_workspaces
+  ON user_workspaces.user_id = users.user_id
+  AND user_workspaces.workspace_id = :workspaceId
+  AND user_workspaces.status = 'active'
+INNER JOIN workspaces
+  ON workspaces.workspace_id = user_workspaces.workspace_id
+  AND lower(workspaces.status) = 'active'
+WHERE users.username = :username
+  AND users.user_status = 'active'
+LIMIT 1;
+`, { username, workspaceId });
+}
+
 async function readById(workspaceId, userId) {
   return db.get(`
 SELECT
@@ -469,6 +489,7 @@ export const usersRepository = {
   create,
   readAll,
   readById,
+  readExactActiveMemberByUsername,
   readFirstByUserId,
   readByUsername,
   readByUsernameExcludingUser,

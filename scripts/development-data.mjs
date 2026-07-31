@@ -13,7 +13,14 @@ import {
   resolveSeedTarget,
   writeSeedMarker,
 } from "./lib/development-data-safety.mjs";
+import {
+  configureSanitizedDemoBootstrap,
+  loadSanitizedDemoRoleFixtures,
+  LOCAL_ROLE_FIXTURE_MODE,
+  RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
+} from "./lib/sanitized-demo-role-fixtures.mjs";
 import { loadRuntimeEnvFile } from "../src/runtime-env.js";
+import { hashPassword } from "../src/security/passwords.js";
 
 loadRuntimeEnvFile();
 
@@ -45,13 +52,29 @@ async function main() {
     throw new Error("Choose seed or reset.");
   }
 
-  assertOperatorPassword();
+  const roleFixtures = await loadSanitizedDemoRoleFixtures({
+    credentialBinding: options.roleFixtureBinding === RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target
+      ? RT_LTF_DEMO_ROLE_FIXTURE_BINDING
+      : null,
+    mode: options.roleFixtures,
+    target,
+  });
+  if (roleFixtures) {
+    configureSanitizedDemoBootstrap(roleFixtures);
+  } else {
+    assertOperatorPassword();
+  }
   await assertSeedDirectoryEmpty(target);
   await fs.mkdir(target.filesRoot, { recursive: true });
   configureRuntime(target);
   databaseApi = await import("../src/db/index.js");
   await databaseApi.initializeDatabase();
-  const result = await seed(databaseApi.db, target, options.anchorDate || currentAnchorDate());
+  const result = await seed(
+    databaseApi.db,
+    target,
+    options.anchorDate || currentAnchorDate(),
+    roleFixtures,
+  );
   const searchRepair = await repairSeedSearchIndex(result.counts.search_index);
   await writeFiles(target, result.files);
   await writeSeedMarker(target, {
@@ -70,7 +93,9 @@ async function main() {
     counts: result.counts,
     search: searchRepair,
     workbench: result.workbench,
-    identities: "Seeded personas use reserved example domains and disabled login credentials. Use the unique operator password supplied through SUPER_ADMIN_PASSWORD.",
+    identities: roleFixtures
+      ? "Seven private role-test identities are enabled from the protected local credential file. Passwords are never printed."
+      : "Seeded personas use reserved example domains and disabled login credentials. Use the unique operator password supplied through SUPER_ADMIN_PASSWORD.",
   });
 }
 
@@ -94,7 +119,7 @@ function parseArgs(args) {
       options.help = true;
       continue;
     }
-    if (["--profile", "--environment", "--data-dir", "--database", "--files-root", "--confirm", "--anchor-date"].includes(arg)) {
+    if (["--profile", "--environment", "--data-dir", "--database", "--files-root", "--confirm", "--anchor-date", "--role-fixtures", "--role-fixture-binding"].includes(arg)) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
       const key = arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -107,6 +132,12 @@ function parseArgs(args) {
   if (options.anchorDate && !/^\d{4}-\d{2}-\d{2}$/.test(options.anchorDate)) {
     throw new Error("--anchor-date must use YYYY-MM-DD.");
   }
+  if (options.roleFixtureBinding && options.roleFixtureBinding !== RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target) {
+    throw new Error(`--role-fixture-binding must be exactly ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}.`);
+  }
+  if (options.roleFixtureBinding && options.roleFixtures !== LOCAL_ROLE_FIXTURE_MODE) {
+    throw new Error("--role-fixture-binding requires the explicit sanitized-demo role fixture mode.");
+  }
   return options;
 }
 
@@ -114,10 +145,12 @@ function printHelp() {
   console.log(`Usage:
   node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed
   node scripts/development-data.mjs reset --profile development --environment development --data-dir ./data/development-seed --confirm development-seed
+  node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}
+  node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} --role-fixture-binding ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}
 
 Profiles: ${DEVELOPMENT_PROFILE}, ${DEMO_PROFILE}
 
-Seed requires a unique SUPER_ADMIN_PASSWORD environment value. Persona accounts are login-disabled and no password is printed or stored in source. The data directory must contain the profile's exact marker segment and must be empty.`);
+Development seed requires a unique SUPER_ADMIN_PASSWORD environment value and keeps every fictional persona login-disabled. Sanitized-demo seed requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} and reads seven unique passwords from the ignored local credential file. No password is accepted on the command line, printed, or stored in source. The data directory must contain the profile's exact marker segment and must be empty.`);
 }
 
 function configureRuntime(target) {
@@ -130,11 +163,14 @@ function configureRuntime(target) {
   delete process.env.SECURE_NOTES_MASTER_KEY;
 }
 
-async function seed(db, target, anchorDate) {
+async function seed(db, target, anchorDate, roleFixtures = null) {
   const ledger = [];
   const bootstrapWorkspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at, workspace_id LIMIT 1;");
   const operator = await db.get("SELECT user_id FROM users WHERE protected_user = 'yes' ORDER BY username LIMIT 1;");
   if (!bootstrapWorkspace?.workspace_id || !operator?.user_id) throw new Error("Fresh development bootstrap was not created.");
+  const roleFixtureRows = roleFixtures
+    ? await createRoleFixtureRows(roleFixtures, operator.user_id)
+    : [];
 
   const business = bootstrapWorkspace.workspace_id;
   const personal = id("workspace", "personal");
@@ -156,7 +192,20 @@ async function seed(db, target, anchorDate) {
   await db.transaction(async (tx) => {
     const add = createInserter(tx, ledger);
     await tx.run("UPDATE workspaces SET name = :name, workspace_type = 'business', status = 'Active', owner_user_id = :owner, created_at = :createdAt, updated_at = :now WHERE workspace_id = :workspace;", { createdAt: businessCreatedAt, name: "Northwind Studio", owner: users.alex, now, workspace: business });
-    await tx.run("UPDATE users SET display_name = 'Alex Rivera', alt_email = 'alex@example.com', timezone = 'America/New_York', theme_mode = 'light' WHERE user_id = :userId;", { userId: users.alex });
+    await tx.run(`
+UPDATE users
+SET display_name = :displayName,
+    alt_email = :altEmail,
+    timezone = 'America/New_York',
+    theme_mode = 'light'
+WHERE user_id = :userId;
+`, {
+      altEmail: roleFixtures ? "" : "alex@example.com",
+      displayName: roleFixtures
+        ? roleFixtures.credentials.get("super_admin").displayName
+        : "Alex Rivera",
+      userId: users.alex,
+    });
     await add("workspaces", { workspace_id: personal, name: "Alex's Personal Workspace", status: "Active", workspace_type: "personal", owner_user_id: users.alex, created_at: now, updated_at: now });
     await add("workspaces", { workspace_id: family, name: "Rivera Family", status: "Active", workspace_type: "family", owner_user_id: users.alex, created_at: now, updated_at: now });
     await add("workspaces", { workspace_id: fieldOps, name: "Northwind Field Ops", status: "Active", workspace_type: "business", owner_user_id: users.alex, created_at: now, updated_at: now });
@@ -188,24 +237,53 @@ async function seed(db, target, anchorDate) {
     for (const [userId, home, username, display] of personaRows) {
       await add("users", { user_id: userId, home_workspace_id: home, username, display_name: display, alt_email: "", timezone: "America/New_York", password: DISABLED_PERSONA_PASSWORD, theme_mode: "light", user_status: "inactive", protected_user: "no", active_workspace_id: home });
     }
+    for (const fixture of roleFixtureRows.filter((row) => row.roleId !== "super_admin")) {
+      await add("users", {
+        user_id: fixture.userId,
+        home_workspace_id: business,
+        username: fixture.username,
+        display_name: fixture.displayName,
+        alt_email: "",
+        timezone: "America/New_York",
+        password: fixture.passwordHash,
+        theme_mode: "light",
+        user_status: "active",
+        protected_user: "no",
+        active_workspace_id: business,
+      });
+    }
     const memberships = [
       [users.alex, business], [users.alex, personal], [users.alex, family], [users.alex, fieldOps],
       [users.priya, business], [users.priya, priyaPersonal], [users.sam, business], [users.dana, personal], [users.jordan, family],
       ...fat.memberships,
+      ...roleFixtureRows
+        .filter((row) => row.roleId !== "super_admin")
+        .map((row) => [row.userId, business]),
     ];
     for (const [userId, workspaceId] of memberships) {
       await add("user_workspaces", { user_workspace_id: id("membership", userId, workspaceId), user_id: userId, workspace_id: workspaceId, status: "active", created_at: now, updated_at: now }, { ignore: true });
     }
     const roles = [
-      [business, users.alex, "workspace_admin", "workspace", business],
+      ...(roleFixtures ? [] : [[business, users.alex, "workspace_admin", "workspace", business]]),
       [business, users.priya, "project_admin", "project", id("project", "website")],
       [business, users.sam, "project_user", "project", id("project", "maintenance")],
-      [personal, users.alex, "workspace_admin", "workspace", personal],
-      [family, users.alex, "workspace_admin", "workspace", family],
+      ...(roleFixtures ? [] : [
+        [personal, users.alex, "workspace_admin", "workspace", personal],
+        [family, users.alex, "workspace_admin", "workspace", family],
+      ]),
       [family, users.jordan, "project_user", "project", id("project", "weekend")],
-      [fieldOps, users.alex, "workspace_admin", "workspace", fieldOps],
+      ...(roleFixtures ? [] : [[fieldOps, users.alex, "workspace_admin", "workspace", fieldOps]]),
       [priyaPersonal, users.priya, "workspace_admin", "workspace", priyaPersonal],
       ...fat.roles,
+      ...roleFixtureRows
+        .filter((row) => row.roleId !== "super_admin")
+        .map((row) => [
+          business,
+          row.userId,
+          row.roleId,
+          row.scopeType,
+          resolveRoleFixtureScopeId(row, { business }),
+        ]),
     ];
     for (const [workspaceId, userId, roleId, scopeType, scopeId] of roles) {
       await add("user_role_assignments", { assignment_id: id("role", workspaceId, userId, roleId), workspace_id: workspaceId, user_id: userId, role_id: roleId, scope_type: scopeType, scope_id: scopeId, client_id: scopeType === "client" ? scopeId : null, project_id: scopeType === "project" ? scopeId : null, permission_overrides_json: null, created_at: now, updated_at: now }, { ignore: true });
@@ -350,7 +428,8 @@ async function seed(db, target, anchorDate) {
       dashboardUrl: "dashboard.html",
       sanitized: true,
       secureNotesSeeded: false,
-      personaLoginEnabled: false,
+      personaLoginEnabled: Boolean(roleFixtures),
+      roleFixtureLoginCount: roleFixtures ? roleFixtures.fixtures.length : 0,
     };
     const fingerprint = semanticFingerprint(ledger, { [business]: "{business-workspace}", [users.alex]: "{operator}" });
     await tx.run(`CREATE TABLE development_data_seed_runs (
@@ -371,6 +450,10 @@ async function seed(db, target, anchorDate) {
   if (Object.values(integrity)[0] !== "ok") throw new Error("Seeded database failed PRAGMA integrity_check.");
   const foreignKeyViolations = await db.query("PRAGMA foreign_key_check;");
   if (foreignKeyViolations.length !== 0) throw new Error("Seeded database failed PRAGMA foreign_key_check.");
+  await verifySeededRoleFixtureContract(db, roleFixtures, {
+    businessWorkspaceId: business,
+    operatorUserId: operator.user_id,
+  });
   const files = [{ key: "checkout-findings.md", bytes: "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n" }, { key: "launch-readme.txt", bytes: "Sanitized demo fixture. No customer or production data.\n" }];
   return { anchorDate, semanticFingerprint: row.semantic_fingerprint, counts, workbench: JSON.parse(row.scenario_manifest_json), files };
 }
@@ -763,6 +846,136 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
   return result;
 }
 
+async function createRoleFixtureRows(roleFixtures, operatorUserId) {
+  const rows = [];
+  for (const fixture of roleFixtures.fixtures) {
+    const credential = roleFixtures.credentials.get(fixture.roleId);
+    rows.push({
+      ...fixture,
+      passwordHash: fixture.roleId === "super_admin"
+        ? null
+        : await hashPassword(credential.password),
+      userId: fixture.roleId === "super_admin"
+        ? operatorUserId
+        : id("role-fixture-user", fixture.roleId),
+    });
+  }
+  return rows;
+}
+
+function resolveRoleFixtureScopeId(fixture, { business }) {
+  if (fixture.scopeKey === "all") return "all";
+  if (fixture.scopeKey === "northwind") return business;
+  if (fixture.scopeKey === "cedar") return id("client", "cedar");
+  if (fixture.scopeKey === "website") return id("project", "website");
+  throw new Error(`Unknown sanitized-demo role scope key: ${fixture.scopeKey}`);
+}
+
+async function verifySeededRoleFixtureContract(db, roleFixtures, {
+  businessWorkspaceId,
+  operatorUserId,
+}) {
+  if (!roleFixtures) {
+    const activePersonas = await db.get(`
+SELECT COUNT(*) AS count
+FROM users
+WHERE protected_user = 'no'
+  AND (user_status != 'inactive' OR password != :disabledPassword);
+`, { disabledPassword: DISABLED_PERSONA_PASSWORD });
+    if (Number(activePersonas.count) !== 0) {
+      throw new Error("Development seed contract violation: a fictional persona login was enabled.");
+    }
+    return;
+  }
+
+  const expectedByUserId = new Map(roleFixtures.fixtures.map((fixture) => {
+    const userId = fixture.roleId === "super_admin"
+      ? operatorUserId
+      : id("role-fixture-user", fixture.roleId);
+    return [userId, {
+      ...fixture,
+      scopeId: resolveRoleFixtureScopeId(fixture, { business: businessWorkspaceId }),
+      userId,
+    }];
+  }));
+  const activeUsers = await db.query(`
+SELECT user_id, username, user_status, protected_user, password
+FROM users
+WHERE user_status = 'active'
+ORDER BY username;
+`);
+  if (activeUsers.length !== roleFixtures.fixtures.length) {
+    throw new Error("Sanitized-demo role fixture contract requires exactly seven active login identities.");
+  }
+  for (const user of activeUsers) {
+    const expected = expectedByUserId.get(user.user_id);
+    if (
+      !expected
+      || user.username !== expected.username
+      || !String(user.password || "").startsWith("$argon2id$")
+      || (expected.roleId === "super_admin") !== (user.protected_user === "yes")
+    ) {
+      throw new Error("Sanitized-demo role fixture identity contract is inconsistent.");
+    }
+
+    const memberships = await db.query(`
+SELECT workspace_id, status
+FROM user_workspaces
+WHERE user_id = :userId
+ORDER BY workspace_id;
+`, { userId: user.user_id });
+    if (expected.roleId !== "super_admin" && (
+      memberships.length !== 1
+      || memberships[0].workspace_id !== businessWorkspaceId
+      || memberships[0].status !== "active"
+    )) {
+      throw new Error("Sanitized-demo role fixture membership contract is inconsistent.");
+    }
+
+    const assignments = await db.query(`
+SELECT role_id, scope_type, scope_id, permission_overrides_json
+FROM user_role_assignments
+WHERE user_id = :userId
+ORDER BY role_id, scope_type, scope_id;
+`, { userId: user.user_id });
+    if (
+      assignments.length !== 1
+      || assignments[0].role_id !== expected.roleId
+      || assignments[0].scope_type !== expected.scopeType
+      || assignments[0].scope_id !== expected.scopeId
+      || assignments[0].permission_overrides_json !== null
+    ) {
+      throw new Error("Sanitized-demo role fixture assignment contract is inconsistent.");
+    }
+  }
+
+  const unexpectedActivePersonas = await db.get(`
+SELECT COUNT(*) AS count
+FROM users
+WHERE protected_user = 'no'
+  AND user_status != 'inactive'
+  AND user_id NOT IN (${[...expectedByUserId.keys()]
+    .filter((userId) => userId !== operatorUserId)
+    .map((_, index) => `:roleUser${index}`)
+    .join(", ")});
+`, Object.fromEntries([...expectedByUserId.keys()]
+    .filter((userId) => userId !== operatorUserId)
+    .map((userId, index) => [`roleUser${index}`, userId])));
+  if (Number(unexpectedActivePersonas.count) !== 0) {
+    throw new Error("Sanitized-demo role fixture contract enabled an ordinary fictional persona.");
+  }
+
+  const identityRows = await db.query("SELECT username, alt_email FROM users;");
+  for (const identity of identityRows) {
+    for (const value of [identity.username, identity.alt_email].filter(Boolean)) {
+      const domain = String(value).split("@")[1]?.toLowerCase();
+      if (!["example.com", "example.test", "longtailforge.local"].includes(domain)) {
+        throw new Error("Sanitized-demo role fixture contract contains a non-reserved identity domain.");
+      }
+    }
+  }
+}
+
 function clientRow(clientId, workspaceId, name, now) {
   return { id: clientId, workspace_id: workspaceId, parent_client_id: null, name, status: "Active", billable: "yes", billing_rate: null, billing_period_type: null, billing_period_start_day: null, billing_rounding_enabled: null, billing_rounding_increment: null, billing_contact_name: "", billing_contact_email: "", billing_contact_alternate_name: "", billing_contact_alternate_email: "", billing_contact_phone_number: "", billing_contact_alternate_phone_number: "", billing_contact_street_address_1: "", billing_contact_street_address_2: "", billing_contact_city: "", billing_contact_state: "", billing_contact_zip_code: "", created_at: now, updated_at: now };
 }
@@ -786,7 +999,7 @@ function createInserter(db, ledger) {
 
 function semanticFingerprint(ledger, replacements) {
   const normalized = ledger.map(({ table, row }) => [table, Object.fromEntries(Object.entries(row)
-    .filter(([key]) => key !== "id" && !key.endsWith("_id"))
+    .filter(([key]) => key !== "id" && key !== "password" && !key.endsWith("_id"))
     .map(([key, value]) => [key, replacements[value] || value]))]);
   return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }

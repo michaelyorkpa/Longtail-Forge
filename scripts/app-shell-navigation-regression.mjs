@@ -97,7 +97,7 @@ try {
   assert.equal(adminMenu.label, "Admin");
   assert.deepEqual(
     (adminMenu.items || []).map((item) => item.label),
-    ["Modules", "Projects", "Clients", "User Admin", "Workspace", "API Keys", "Audit Log"],
+    ["Modules", "Projects", "Clients", "User Admin", "Role Assignments", "Workspace", "API Keys", "Audit Log"],
     "Settings -> Admin should keep the specified administrative order",
   );
   const modulesMenu = adminMenu.items.find((item) => item.id === "module-settings-group");

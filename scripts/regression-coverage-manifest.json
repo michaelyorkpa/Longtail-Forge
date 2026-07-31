@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 417,
+    "discoveredScripts": 423,
     "legacyScripts": 311,
-    "releaseGateScripts": 53,
+    "releaseGateScripts": 55,
     "areaCounts": {
       "dashboard": 2,
-      "database": 38,
+      "database": 39,
       "docs": 10,
       "files": 44,
       "framework": 71,
@@ -17,7 +17,7 @@
       "lists": 12,
       "notes": 37,
       "notifications": 3,
-      "permissions": 6,
+      "permissions": 11,
       "public-api": 3,
       "release": 28,
       "search": 12,
@@ -28,17 +28,17 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 195,
+      "focused": 199,
       "integration": 161,
-      "release-gate": 53,
+      "release-gate": 55,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 177,
+      "isolated-database": 179,
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 205
+      "static": 209
     }
   },
   "coverageFamilies": [
@@ -2474,7 +2474,7 @@
     },
     {
       "area": "database",
-      "description": "Proves the named demo host can be provisioned/reset only through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "description": "Proves exact-target preflight and seven-role demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -2555,6 +2555,22 @@
         "permissions",
         "security",
         "workspace-isolation"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves fresh, pre-074 upgrade, and current databases converge on the seven-role scope and permission contract without changing valid assignments.",
+      "id": "database.role-seed-scope-convergence",
+      "legacy": false,
+      "path": "scripts/regressions/database/role-seed-scope-convergence.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "migration",
+        "permissions",
+        "role-seed",
+        "schema"
       ],
       "tier": "focused"
     },
@@ -3367,6 +3383,22 @@
     },
     {
       "area": "permissions",
+      "description": "Pins parent-scoped child-client creation, workspace-scoped top-level creation, and the Clients-owned Add Child Client affordance.",
+      "id": "permissions.client-child-create-scope",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "client-projects",
+        "permissions",
+        "public-api",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
       "description": "Proves Client project context is contributed and accepted only in Business workspaces.",
       "id": "permissions.client-project-business-boundary",
       "legacy": false,
@@ -3384,6 +3416,24 @@
     },
     {
       "area": "permissions",
+      "description": "Pins the dedicated exact-account Role Assignments browser surface without reopening full User Administration.",
+      "id": "permissions.delegated-role-assignment-browser",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "app-shell",
+        "browser",
+        "modules",
+        "permissions",
+        "users"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
       "id": "permissions.permission-resource-catalog",
       "legacy": false,
@@ -3396,6 +3446,56 @@
         "users"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Authenticates every local sanitized-demo role fixture and proves the complete scoped permission journey without exposing credentials.",
+      "id": "permissions.sanitized-demo-role-journey",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "demo",
+        "permissions",
+        "seed"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "permissions",
+      "description": "Pins any-scope Client/Project Settings navigation and server-shaped scoped project affordances.",
+      "id": "permissions.scope-aware-admin-navigation",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/scope-aware-admin-navigation.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "clients",
+        "navigation",
+        "permissions",
+        "projects"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves any-scope workspace permission hints drive declarative action visibility without replacing record capabilities or server authorization.",
+      "id": "permissions.view-surface-permission-wiring",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/view-surface-permission-wiring.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "permissions",
+        "scope",
+        "views"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "permissions",

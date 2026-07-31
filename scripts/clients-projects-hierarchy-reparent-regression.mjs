@@ -58,8 +58,8 @@ assert.match(
 );
 assert.match(
   clientsService,
-  /async function listProjects\(session, query = \{\}\)[\s\S]*filterReadableProjects\(session, projects\)[\s\S]*const orderingClients = clients\.filter[\s\S]*return \{ projects: buildProjectReadShape\(decoratedProjects, orderingClients, shapeOptions\) \};/,
-  "Canonical /api/projects reads should remain service-owned after permission and filter pruning",
+  /async function listProjects\(session, query = \{\}\)[\s\S]*filterReadableProjects\(session, projects\)[\s\S]*const orderingClients = clients\.filter[\s\S]*projects: buildProjectReadShape\(decoratedProjects\.map[\s\S]*can_manage:[\s\S]*orderingClients, shapeOptions\)/,
+  "Canonical /api/projects reads should remain service-owned after permission, filter, and capability shaping",
 );
 
 assert.match(
@@ -132,7 +132,7 @@ assert.match(
 
 assert.match(
   inventoryDoc,
-  /Current as of 0\.33\.21\.11\.1[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
+  /Current as of 0\.33\.26\.3[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
   "Clients/Projects inventory should document the hierarchy ordering and reparent safety boundary",
 );
 assert.match(

@@ -29,15 +29,15 @@ assert.match(
 );
 assert.match(
   clientsScript,
-  /modalView\.createModalForm\(\{\s*title: "Add Client",\s*className: "client-add-dialog",\s*formClassName: "client-modal-form"[\s\S]*fields: \[nameField, parentField, tagContainer\]/,
-  "Add Client dialog should use the shared modal form and field-grid anatomy without applying page entry-form columns to the modal shell.",
+  /modalView\.createModalForm\(\{\s*title: lockParentClient \? "Add Child Client" : "Add Client",\s*className: "client-add-dialog",\s*formClassName: "client-modal-form"[\s\S]*fields: lockParentClient \? \[nameField, parentField\] : \[nameField, parentField, tagContainer\]/,
+  "Add Client and locked Add Child Client dialogs should share the modal form anatomy while exposing only their permitted fields.",
 );
 assert.match(clientsScript, /const nameField = modalView\.createField\([\s\S]*field: "name"[\s\S]*const parentField = modalView\.createField\([\s\S]*field: "parentClientId"/, "Add Client Name and Parent controls should use framework field primitives.");
 assert.doesNotMatch(clientsScript, /formClassName: "entry-form client-modal-form"/, "Add Client should not compress its title, field body, and footer into the page entry-form grid.");
 assert.match(clientsScript, /function showDialog[\s\S]*typeof view\?\.showModal === "function"[\s\S]*view\.showModal\(dialog\)/, "Clients/Projects dialogs should enter the shared modal stack so nested module dialogs preserve their parent.");
 assert.match(clientsScript, /function createAddClientShortcutButton[\s\S]*openClientProjectModuleAction\("clients\.add"\)[\s\S]*result\?\.completed[\s\S]*onCreated\?\.\(clientId\)/, "Add Project should open the Clients-owned Add Client action and hand the created Client back to its parent form.");
 assert.doesNotMatch(clientsScript, /window\.location\.href = "clients\.html\?addClient=true"/, "Add Project should not navigate away to create a Client.");
-assert.match(clientsScript, /select\.replaceChildren\(createOption\("", workspaceProjectsLabel\(\)\)\)/, "Add Project should label workspace scope with the readable workspace name.");
+assert.match(clientsScript, /if \(canCreateProjectForClient\(""\)\) \{[\s\S]*select\.appendChild\(createOption\("", workspaceProjectsLabel\(\)\)\)/, "Add Project should label authorized workspace scope with the readable workspace name.");
 assert.match(clientsScript, /createBillableCheckbox\(initialTargetClient\.isWorkspaceScope \? "no" : initialTargetClient\.billable\)/, "Add Project should default workspace projects to non-billable while retaining Client-owned defaults.");
 assert.match(
   clientsScript,

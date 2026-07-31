@@ -408,11 +408,14 @@
         "^docs/marketing/screenshot-and-demo-data-plan\\.md$",
         "^scripts/demo-data-host\\.mjs$",
         "^scripts/development-data\\.mjs$",
+        "^scripts/sanitized-demo-role-journey\\.mjs$",
         "^scripts/lib/demo-data-operation\\.mjs$",
         "^scripts/lib/development-data-safety\\.mjs$",
+        "^scripts/lib/sanitized-demo-role-fixtures\\.mjs$",
         "^scripts/release/longtail-forge-demo-data-host\\.example$",
         "^scripts/regressions/database/demo-data-host-operation\\.regression\\.mjs$",
-        "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$"
+        "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$",
+        "^scripts/regressions/permissions/sanitized-demo-role-journey\\.regression\\.mjs$"
       ],
       "docs": [
         "docs/demo-data-operations.md",

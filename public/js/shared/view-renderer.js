@@ -485,10 +485,13 @@
       return null;
     }
 
+    const primaryAction = pageHeader.primaryAction && actionPermissionsAllowed(pageHeader.primaryAction)
+      ? pageHeader.primaryAction
+      : null;
     return view.createPageHeader({
       title: pageHeader.title || pageHeader.label || "Untitled view",
       subtitle: pageHeader.description,
-      actions: pageHeader.primaryAction ? [normalizeAction(pageHeader.primaryAction, state)] : [],
+      actions: primaryAction ? [normalizeAction(primaryAction, state)] : [],
     });
   }
 
@@ -1523,6 +1526,7 @@
     }
 
     const rowActions = (Array.isArray(itemRows.rowActions) ? itemRows.rowActions : [])
+      .filter(actionPermissionsAllowed)
       .filter((action) => evaluateVisibleWhen(action.visibleWhen, item))
       .map((action) => normalizeAction(action, state, item));
     if (rowActions.length > 0) {
@@ -1566,7 +1570,9 @@
     return modals.map((modal) => view.createModalForm({
       title: modal.title || modal.label || "Modal",
       fields: (modal.fields || []).map((field) => renderFieldShell(field, view)),
-      actions: [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action)),
+      actions: [...(modal.footerActions || []), ...(modal.actions || [])]
+        .filter(actionPermissionsAllowed)
+        .map((action) => normalizeAction(action)),
     }));
   }
 
@@ -1575,9 +1581,10 @@
       return null;
     }
 
+    const permittedActions = actions.filter(actionPermissionsAllowed);
     const visibleActions = recordOverride === undefined
-      ? actions
-      : actions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
+      ? permittedActions
+      : permittedActions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
     if (visibleActions.length === 0) {
       return null;
     }
@@ -1593,7 +1600,7 @@
     return view.createDetailActionStrip({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions,
+      actions: actions.filter(actionPermissionsAllowed),
     });
   }
 
@@ -1604,7 +1611,7 @@
       summaryLabel: options.summaryLabel,
       title: options.title,
       className: options.className,
-      actions,
+      actions: actions.filter(actionPermissionsAllowed),
     });
   }
 
@@ -1613,7 +1620,7 @@
     return view.createInlineActionRow({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions,
+      actions: actions.filter(actionPermissionsAllowed),
     });
   }
 
@@ -1661,13 +1668,18 @@
 
   function renderDescriptorModalForm(modal = {}, options = {}) {
     const view = requireViewPrimitives();
+    const actions = options.actions
+      ? options.actions.filter(actionPermissionsAllowed)
+      : [...(modal.footerActions || []), ...(modal.actions || [])]
+        .filter(actionPermissionsAllowed)
+        .map((action) => normalizeAction(action));
     return view.createModalForm({
       title: options.title || modal.title || modal.label || "Modal",
       className: options.className,
       formClassName: options.formClassName,
       size: options.size || modal.size,
       fields: options.fields || (modal.fields || []).map((field) => renderFieldShell(field, view)),
-      actions: options.actions || [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action)),
+      actions,
       utilityActions: options.utilityActions,
     });
   }
@@ -1941,17 +1953,24 @@
   }
 
   function assertActionPermissions(action) {
+    if (!actionPermissionsAllowed(action)) {
+      throw new Error("You do not have permission to run this action.");
+    }
+  }
+
+  function actionPermissionsAllowed(action = {}) {
     const requiredPermissions = action.requiredPermissions || [];
+    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
+      return true;
+    }
+
     const grantedPermissions = root.workspaceContext?.permissionIds || root.workspaceContext?.permissions;
-    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0 || !Array.isArray(grantedPermissions)) {
-      return;
+    if (!Array.isArray(grantedPermissions)) {
+      return true;
     }
 
     const granted = new Set(grantedPermissions);
-    const missing = requiredPermissions.filter((permissionId) => !granted.has(permissionId));
-    if (missing.length > 0) {
-      throw new Error("You do not have permission to run this action.");
-    }
+    return requiredPermissions.every((permissionId) => granted.has(permissionId));
   }
 
   async function runBehaviorAction(action, state, recordOverride = null) {
@@ -1987,7 +2006,9 @@
       fields: (modal.fields || []).map((field) => renderFieldShell(field, state.view, {
         value: readDescriptorValue(record, field.field, field.default || ""),
       })),
-      actions: [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action, state)),
+      actions: [...(modal.footerActions || []), ...(modal.actions || [])]
+        .filter(actionPermissionsAllowed)
+        .map((action) => normalizeAction(action, state)),
     });
     const parent = global.document?.body || state.surface;
     parent.appendChild(dialog);

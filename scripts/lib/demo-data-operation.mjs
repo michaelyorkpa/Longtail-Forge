@@ -7,8 +7,15 @@ import Database from "better-sqlite3";
 import { parseRuntimeEnvText } from "../../src/runtime-env.js";
 import {
   assertOperatorPassword,
-  DEVELOPMENT_PROFILE,
+  DEMO_PROFILE,
 } from "./development-data-safety.mjs";
+import {
+  loadSanitizedDemoRoleFixtures,
+  LOCAL_ROLE_FIXTURE_MODE,
+  ROLE_CREDENTIALS_FILE_ENV,
+  RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
+  SANITIZED_DEMO_ROLE_FIXTURES,
+} from "./sanitized-demo-role-fixtures.mjs";
 import {
   createBackup,
   inspectBackup,
@@ -20,9 +27,11 @@ const DEMO_DATA_PUBLIC_URL = "https://demo.longtailforge.com";
 const DEMO_DATA_CONTRACT = "longtail-forge-demo-data-v1";
 const DEMO_DATA_MARKER = ".longtail-demo-data.json";
 const DEVELOPMENT_DATA_MARKER = ".longtail-development-data.json";
+const PREFLIGHT_CONFIRMATION = "PREFLIGHT RT-LTF-DEMO DATA";
 const PROVISION_CONFIRMATION = "PROVISION RT-LTF-DEMO DATA";
 const RESET_CONFIRMATION = "RESET RT-LTF-DEMO DATA";
 const DEFAULT_HELPER_ENV = "/etc/longtail-forge/demo-data-helper.env";
+const DEFAULT_ROLE_CREDENTIALS_FILE = "/etc/longtail-forge/demo-role-credentials.json";
 const ALLOWED_HELPER_KEYS = new Set([
   "LTF_APP_ACCOUNT",
   "LTF_APP_ENV",
@@ -35,6 +44,7 @@ const ALLOWED_HELPER_KEYS = new Set([
   "LTF_DEMO_PUBLIC_URL",
   "LTF_DEMO_TARGET",
   "LTF_EDGE_SERVICE",
+  "LTF_ROLE_CREDENTIALS",
   "LTF_SECURE_KEY_BACKUP",
   "LTF_WORKER_SERVICE",
 ]);
@@ -48,8 +58,8 @@ const LIVE_DATA_ENTRIES = new Set([
 
 function parseDemoDataArgs(args) {
   const action = args[0];
-  if (!new Set(["provision", "reset"]).has(action)) {
-    throw new Error("Choose provision or reset.");
+  if (!new Set(["preflight", "provision", "reset"]).has(action)) {
+    throw new Error("Choose preflight, provision, or reset.");
   }
   const options = { action };
   const valueFlags = new Map([
@@ -78,7 +88,11 @@ function parseDemoDataArgs(args) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(options.anchorDate || "")) || !isCalendarDate(options.anchorDate)) {
     throw new Error("--anchor-date must be an actual calendar date in YYYY-MM-DD form, or the literal \"today\".");
   }
-  const expectedConfirmation = action === "provision" ? PROVISION_CONFIRMATION : RESET_CONFIRMATION;
+  const expectedConfirmation = action === "preflight"
+    ? PREFLIGHT_CONFIRMATION
+    : action === "provision"
+      ? PROVISION_CONFIRMATION
+      : RESET_CONFIRMATION;
   if (options.confirm !== expectedConfirmation) {
     throw new Error(`--confirm must be exactly "${expectedConfirmation}".`);
   }
@@ -105,6 +119,7 @@ function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
     dataRoot: parsed.LTF_DATA_ROOT || "/var/lib/longtail-forge",
     backupRoot: parsed.LTF_BACKUP_ROOT || "/var/backups/longtail-forge",
     appEnvFile: parsed.LTF_APP_ENV || "/etc/longtail-forge/longtail-forge.env",
+    roleCredentialsFile: parsed.LTF_ROLE_CREDENTIALS || DEFAULT_ROLE_CREDENTIALS_FILE,
     secureNotesKeyBackup: parsed.LTF_SECURE_KEY_BACKUP || "",
   };
   if (config.target !== DEMO_DATA_TARGET || config.hostname !== DEMO_DATA_HOSTNAME || config.publicUrl !== DEMO_DATA_PUBLIC_URL) {
@@ -119,7 +134,7 @@ function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
 }
 
 function resolveDemoPaths(config) {
-  const absoluteKeys = ["appRoot", "dataRoot", "backupRoot", "appEnvFile"];
+  const absoluteKeys = ["appRoot", "dataRoot", "backupRoot", "appEnvFile", "roleCredentialsFile"];
   if (config.secureNotesKeyBackup) absoluteKeys.push("secureNotesKeyBackup");
   for (const key of absoluteKeys) {
     if (!path.isAbsolute(config[key])) {
@@ -132,6 +147,16 @@ function resolveDemoPaths(config) {
   if (isInside(dataRoot, backupRoot) || isInside(backupRoot, dataRoot) || dataRoot === backupRoot) {
     throw new Error("Demo data and backup roots must be separate non-nested locations.");
   }
+  const roleCredentialsFile = path.resolve(config.roleCredentialsFile);
+  const appEnvFile = path.resolve(config.appEnvFile);
+  if (
+    roleCredentialsFile === appEnvFile
+    || [appRoot, dataRoot, backupRoot].some((root) => (
+      roleCredentialsFile === root || isInside(root, roleCredentialsFile)
+    ))
+  ) {
+    throw new Error("Demo role credentials must be a separate protected host file outside application, data, and backup roots.");
+  }
   return Object.freeze({
     appRoot,
     currentReleaseLink: path.join(appRoot, "current"),
@@ -141,7 +166,8 @@ function resolveDemoPaths(config) {
     filesRoot: path.join(dataRoot, "files"),
     markerFile: path.join(dataRoot, DEMO_DATA_MARKER),
     backupRoot,
-    appEnvFile: path.resolve(config.appEnvFile),
+    appEnvFile,
+    roleCredentialsFile,
     secureNotesKeyBackup: config.secureNotesKeyBackup ? path.resolve(config.secureNotesKeyBackup) : "",
   });
 }
@@ -152,15 +178,104 @@ async function readProtectedEnvironmentFile(filePath, options = {}) {
   return parseRuntimeEnvText(text, options.label || "protected environment");
 }
 
-async function assertDemoHostSafety({ action, appEnvironment, config, paths, hostname = os.hostname(), requireRoot = true }) {
+function assertDemoHostIdentity({
+  config,
+  hostname = os.hostname(),
+  requireRoot = true,
+}) {
   if (process.platform === "win32" && requireRoot) {
     throw new Error("The demo-data host operation is Linux-only.");
   }
   if (requireRoot && typeof process.getuid === "function" && process.getuid() !== 0) {
     throw new Error("The demo-data host operation must run as root through the reviewed helper.");
   }
-  if (hostname !== config.hostname || config.target !== DEMO_DATA_TARGET || config.publicUrl !== DEMO_DATA_PUBLIC_URL) {
+  if (hostname !== DEMO_DATA_HOSTNAME || hostname !== config.hostname
+    || config.target !== DEMO_DATA_TARGET || config.publicUrl !== DEMO_DATA_PUBLIC_URL) {
     throw new Error("The current host does not match the named demo installation.");
+  }
+}
+
+async function prepareDemoHostContext({
+  action,
+  config,
+  hostname = os.hostname(),
+  paths,
+  requireRoot = true,
+  readApplicationEnvironment = (filePath) => readProtectedEnvironmentFile(filePath, {
+    label: "application environment",
+  }),
+  readRoleCredentials = readDemoRoleFixtures,
+}) {
+  assertDemoHostIdentity({ config, hostname, requireRoot });
+  const appEnvironment = await readApplicationEnvironment(paths.appEnvFile);
+  await assertProtectedFile(paths.roleCredentialsFile, {
+    expectedMode: 0o600,
+    label: "demo role credential configuration",
+    requireRoot,
+  });
+  const roleFixtures = await readRoleCredentials(paths.roleCredentialsFile);
+  assertRoleCredentialsDistinctFromApplicationEnvironment(roleFixtures, appEnvironment);
+  const safety = await assertDemoHostSafety({
+    action,
+    appEnvironment,
+    config,
+    hostname,
+    paths,
+    requireRoot,
+    roleFixtures,
+  });
+  return Object.freeze({
+    ...safety,
+    appEnvironment,
+    roleFixtures,
+  });
+}
+
+async function readDemoRoleFixtures(credentialsFile) {
+  return await loadSanitizedDemoRoleFixtures({
+    credentialBinding: RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
+    env: {
+      LONGTAIL_ENV: "development",
+      LONGTAIL_PUBLIC_URL: "http://127.0.0.1",
+      LONGTAIL_RELEASE_BRANCH: "",
+      [ROLE_CREDENTIALS_FILE_ENV]: credentialsFile,
+    },
+    mode: LOCAL_ROLE_FIXTURE_MODE,
+    target: { profile: DEMO_PROFILE },
+  });
+}
+
+function assertRoleCredentialsDistinctFromApplicationEnvironment(roleFixtures, appEnvironment) {
+  const applicationSecrets = new Set(Object.entries(appEnvironment)
+    .filter(([key, value]) => (
+      /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/.test(key)
+      && String(value || "")
+    ))
+    .map(([, value]) => String(value)));
+  for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
+    const password = roleFixtures?.credentials?.get(fixture.roleId)?.password;
+    if (!password || applicationSecrets.has(password)) {
+      throw new Error("Demo role credentials must be complete and distinct from application or copied installation secrets.");
+    }
+  }
+}
+
+async function assertDemoHostSafety({
+  action,
+  appEnvironment,
+  config,
+  paths,
+  hostname = os.hostname(),
+  requireRoot = true,
+  roleFixtures,
+}) {
+  assertDemoHostIdentity({ config, hostname, requireRoot });
+  if (
+    roleFixtures?.fixtures?.length !== SANITIZED_DEMO_ROLE_FIXTURES.length
+    || roleFixtures?.credentialBinding?.target !== DEMO_DATA_TARGET
+    || roleFixtures?.credentialBinding?.publicUrl !== DEMO_DATA_PUBLIC_URL
+  ) {
+    throw new Error("The exact rt-ltf-demo role credential contract must be validated before host mutation.");
   }
   if (String(appEnvironment.LONGTAIL_ENV || "").toLowerCase() !== "production") {
     throw new Error("The demo application environment must declare LONGTAIL_ENV=production.");
@@ -199,6 +314,12 @@ async function assertDemoHostSafety({ action, appEnvironment, config, paths, hos
 }
 
 function assertDemoMarkerForAction(action, marker) {
+  if (action === "preflight") {
+    if (marker && (marker.contract !== DEMO_DATA_CONTRACT || marker.target !== DEMO_DATA_TARGET)) {
+      throw new Error("Preflight found an invalid demo-data ownership marker.");
+    }
+    return;
+  }
   if (action === "provision" && marker) {
     throw new Error("The demo installation is already provisioned; use reset.");
   }
@@ -216,13 +337,25 @@ async function runDemoDataOperation(options) {
     config,
     paths,
     releaseDir,
+    roleCredentialsFile = paths.roleCredentialsFile,
+    marker = null,
     dependencies = createHostDependencies(),
   } = options;
+  if (action === "preflight") {
+    return Object.freeze({
+      status: "preflight-ready",
+      target: DEMO_DATA_TARGET,
+      anchorDate,
+      nextAction: marker ? "reset" : "provision",
+      roleFixtureCount: SANITIZED_DEMO_ROLE_FIXTURES.length,
+      appVersion,
+    });
+  }
   const operationId = dependencies.operationId ? dependencies.operationId() : randomUUID();
   const timestamp = dependencies.timestamp ? dependencies.timestamp() : compactTimestamp();
   const generatedName = `longtail-demo-${timestamp}-${operationId.slice(0, 8)}`;
   const stageRoot = path.join(path.dirname(paths.dataRoot), `.${generatedName}-stage`);
-  const seedDataRoot = path.join(stageRoot, "development-seed");
+  const seedDataRoot = path.join(stageRoot, DEMO_PROFILE);
   const previousDataRoot = `${paths.dataRoot}.demo-previous-${timestamp}`;
   const failedDataRoot = `${paths.dataRoot}.demo-failed-${timestamp}`;
   const backupPath = path.join(paths.backupRoot, `pre-demo-data-${timestamp}.ltfbackup.tgz`);
@@ -266,6 +399,7 @@ async function runDemoDataOperation(options) {
       anchorDate,
       appEnvironment,
       releaseDir,
+      roleCredentialsFile,
       seedDataRoot,
     });
     verification = await verifyDemoSeedCandidate({
@@ -283,6 +417,7 @@ async function runDemoDataOperation(options) {
       backupSha256: backup.archiveSha256,
       previousDataState: path.basename(previousDataRoot),
       semanticFingerprint: verification.semanticFingerprint,
+      roleFixtureCount: SANITIZED_DEMO_ROLE_FIXTURES.length,
       target: DEMO_DATA_TARGET,
     });
     await assertNoLinksInTree(seedDataRoot);
@@ -392,16 +527,22 @@ function createHostDependencies() {
   });
 }
 
-async function seedCandidate({ anchorDate, appEnvironment, releaseDir, seedDataRoot }) {
-  assertOperatorPassword(appEnvironment, { context: "demo-host" });
-  const environment = minimalSeedEnvironment(appEnvironment);
+async function seedCandidate({
+  anchorDate,
+  releaseDir,
+  roleCredentialsFile,
+  seedDataRoot,
+}) {
+  const environment = minimalSeedEnvironment(roleCredentialsFile);
   const result = spawnSync(process.execPath, [
     "scripts/development-data.mjs",
     "seed",
-    "--profile", DEVELOPMENT_PROFILE,
+    "--profile", DEMO_PROFILE,
     "--environment", "development",
     "--data-dir", seedDataRoot,
     "--anchor-date", anchorDate,
+    "--role-fixtures", LOCAL_ROLE_FIXTURE_MODE,
+    "--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target,
   ], {
     cwd: releaseDir,
     encoding: "utf8",
@@ -414,7 +555,8 @@ async function seedCandidate({ anchorDate, appEnvironment, releaseDir, seedDataR
   const jsonStart = String(result.stdout || "").indexOf("{");
   if (jsonStart < 0) throw new Error("Fictional demo-data staging returned no verification summary.");
   const parsed = JSON.parse(result.stdout.slice(jsonStart));
-  if (!parsed.ok || parsed.profile !== DEVELOPMENT_PROFILE || parsed.anchorDate !== anchorDate) {
+  if (!parsed.ok || parsed.profile !== DEMO_PROFILE || parsed.anchorDate !== anchorDate
+    || parsed.workbench?.roleFixtureLoginCount !== SANITIZED_DEMO_ROLE_FIXTURES.length) {
     throw new Error("Fictional demo-data staging returned an unexpected contract.");
   }
   return parsed;
@@ -430,7 +572,7 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
       throw new Error("Candidate demo database failed foreign-key verification.");
     }
     const seedRun = database.prepare("SELECT contract_version, profile, anchor_date, semantic_fingerprint FROM development_data_seed_runs LIMIT 1").get();
-    if (!seedRun || seedRun.contract_version !== "development-data-v2" || seedRun.profile !== DEVELOPMENT_PROFILE
+    if (!seedRun || seedRun.contract_version !== "development-data-v2" || seedRun.profile !== DEMO_PROFILE
       || seedRun.anchor_date !== expectedAnchorDate || seedRun.semantic_fingerprint !== expectedFingerprint) {
       throw new Error("Candidate demo database seed identity does not match the requested operation.");
     }
@@ -438,7 +580,7 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
     for (const table of ["workspaces", "users", "tasks", "notes", "lists", "files", "search_index"]) {
       counts[table] = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
     }
-    if (counts.workspaces !== 5 || counts.users !== 18 || counts.tasks !== 400 || counts.notes !== 200
+    if (counts.workspaces !== 5 || counts.users !== 24 || counts.tasks !== 400 || counts.notes !== 200
       || counts.lists !== 24 || counts.files !== 2 || counts.search_index < 600) {
       throw new Error("Candidate demo database does not match the rich fictional scenario counts.");
     }
@@ -446,12 +588,11 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
     if (searchBackendCount !== counts.search_index) {
       throw new Error("Candidate demo Search backend does not match the canonical search index.");
     }
-    const personaViolation = Number(database.prepare(`SELECT COUNT(*) AS count FROM users
-      WHERE protected_user = 'no' AND (user_status != 'inactive' OR password != '!development-persona-login-disabled!')`).get().count);
+    verifyDemoRoleFixtureRows(database);
     const secureNotes = Number(database.prepare(`SELECT COUNT(*) AS count FROM notes
       WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL`).get().count);
-    if (personaViolation !== 0 || secureNotes !== 0) {
-      throw new Error("Candidate demo database violates persona-login or Secure Notes exclusions.");
+    if (secureNotes !== 0) {
+      throw new Error("Candidate demo database violates the Secure Notes exclusion.");
     }
     const fileRows = database.prepare("SELECT storage_key, extension, file_size_bytes, sha256_hash FROM files ORDER BY storage_key").all();
     for (const row of fileRows) {
@@ -521,10 +662,146 @@ async function assertProtectedFile(filePath, options = {}) {
     throw new Error(`${label} and its parent must be real, non-symbolic-link paths.`);
   }
   if (options.requireRoot !== false && process.platform !== "win32") {
-    if (file.uid !== 0 || parent.uid !== 0 || (file.mode & 0o022) !== 0 || (parent.mode & 0o022) !== 0) {
+    const actualMode = file.mode & 0o777;
+    if (
+      file.uid !== 0
+      || parent.uid !== 0
+      || (file.mode & 0o022) !== 0
+      || (parent.mode & 0o022) !== 0
+      || (options.expectedMode !== undefined && actualMode !== options.expectedMode)
+    ) {
       throw new Error(`${label} and its parent must be root-owned and not group- or other-writable.`);
     }
   }
+}
+
+function verifyDemoRoleFixtureRows(database) {
+  const manifestRow = database.prepare(
+    "SELECT scenario_manifest_json FROM development_data_seed_runs LIMIT 1",
+  ).get();
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestRow?.scenario_manifest_json || "{}");
+  } catch {
+    throw new Error("Candidate demo role fixture manifest is invalid.");
+  }
+  if (
+    manifest.personaLoginEnabled !== true
+    || manifest.roleFixtureLoginCount !== SANITIZED_DEMO_ROLE_FIXTURES.length
+  ) {
+    throw new Error("Candidate demo role fixture manifest is incomplete.");
+  }
+
+  const activeUsers = database.prepare(`
+SELECT user_id, username, password, protected_user
+FROM users
+WHERE user_status = 'active'
+ORDER BY username;
+`).all();
+  const expectedUsernames = new Set(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.username));
+  if (
+    activeUsers.length !== SANITIZED_DEMO_ROLE_FIXTURES.length
+    || activeUsers.some((user) => !expectedUsernames.has(user.username))
+  ) {
+    throw new Error("Candidate demo database must contain exactly the seven expected active role identities.");
+  }
+
+  for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
+    const user = activeUsers.find((candidate) => candidate.username === fixture.username);
+    if (
+      !user
+      || !String(user.password || "").startsWith("$argon2id$")
+      || (user.protected_user === "yes") !== (fixture.roleId === "super_admin")
+    ) {
+      throw new Error("Candidate demo role identity or password-hash contract is invalid.");
+    }
+    const assignments = database.prepare(`
+SELECT
+  assignment.role_id,
+  assignment.scope_type,
+  assignment.scope_id,
+  assignment.permission_overrides_json,
+  workspace.name AS workspace_name,
+  client.name AS client_name,
+  project.name AS project_name
+FROM user_role_assignments AS assignment
+JOIN workspaces AS workspace ON workspace.workspace_id = assignment.workspace_id
+LEFT JOIN clients AS client
+  ON client.workspace_id = assignment.workspace_id
+ AND client.id = assignment.scope_id
+LEFT JOIN projects AS project
+  ON project.workspace_id = assignment.workspace_id
+ AND project.id = assignment.scope_id
+WHERE assignment.user_id = ?
+ORDER BY assignment.assignment_id;
+`).all(user.user_id);
+    if (
+      assignments.length !== 1
+      || assignments[0].role_id !== fixture.roleId
+      || assignments[0].scope_type !== fixture.scopeType
+      || assignments[0].permission_overrides_json !== null
+      || !demoFixtureScopeMatches(fixture, assignments[0])
+    ) {
+      throw new Error("Candidate demo role assignment contains a wrong role, scope, duplicate, or override.");
+    }
+    if (fixture.roleId !== "super_admin") {
+      const memberships = database.prepare(`
+SELECT workspaces.name, user_workspaces.status
+FROM user_workspaces
+JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
+WHERE user_workspaces.user_id = ?;
+`).all(user.user_id);
+      if (
+        memberships.length !== 1
+        || memberships[0].name !== "Northwind Studio"
+        || memberships[0].status !== "active"
+      ) {
+        throw new Error("Candidate demo role identity has an unexpected workspace membership.");
+      }
+    }
+  }
+
+  const inactivePersonas = database.prepare(`
+SELECT username, password, user_status
+FROM users
+WHERE user_status != 'active';
+`).all();
+  if (
+    inactivePersonas.length !== 17
+    || inactivePersonas.some((user) => (
+      user.user_status !== "inactive"
+      || user.password !== "!development-persona-login-disabled!"
+      || expectedUsernames.has(user.username)
+    ))
+  ) {
+    throw new Error("Candidate demo database enabled or altered an ordinary fictional persona.");
+  }
+
+  const identities = database.prepare("SELECT username, alt_email FROM users").all();
+  for (const identity of identities) {
+    for (const value of [identity.username, identity.alt_email].filter(Boolean)) {
+      const domain = String(value).split("@")[1]?.toLowerCase();
+      if (!["example.com", "example.test", "longtailforge.local"].includes(domain)) {
+        throw new Error("Candidate demo database contains a non-reserved identity domain.");
+      }
+    }
+  }
+}
+
+function demoFixtureScopeMatches(fixture, assignment) {
+  if (fixture.scopeKey === "all") {
+    return assignment.scope_id === "all";
+  }
+  if (fixture.scopeKey === "northwind") {
+    return assignment.workspace_name === "Northwind Studio";
+  }
+  if (fixture.scopeKey === "cedar") {
+    return assignment.client_name === "Cedar & Bloom";
+  }
+  if (fixture.scopeKey === "website") {
+    return assignment.project_name === "Website Refresh";
+  }
+  return false;
 }
 
 async function assertRealDirectory(targetPath, label) {
@@ -660,17 +937,19 @@ async function fetchJson(url) {
   return await response.json();
 }
 
-function minimalSeedEnvironment(appEnvironment) {
+function minimalSeedEnvironment(roleCredentialsFile) {
   const environment = {
     LONGTAIL_ENV: "development",
     LONGTAIL_DATABASE_PROVIDER: "sqlite",
     LONGTAIL_FILE_SCANNER: "none",
+    LONGTAIL_PUBLIC_URL: "http://127.0.0.1",
+    LONGTAIL_RELEASE_BRANCH: "",
+    [ROLE_CREDENTIALS_FILE_ENV]: roleCredentialsFile,
     LONGTAIL_WORKER_MODE: "disabled",
     NODE_ENV: "development",
-    SUPER_ADMIN_PASSWORD: appEnvironment.SUPER_ADMIN_PASSWORD,
   };
-  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "SYSTEMROOT", "TEMP", "TMP", "SUPER_ADMIN_USERNAME", "SUPER_ADMIN_DISPLAY_NAME"]) {
-    const value = key.startsWith("SUPER_ADMIN_") ? appEnvironment[key] : process.env[key];
+  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "SYSTEMROOT", "TEMP", "TMP"]) {
+    const value = process.env[key];
     if (value !== undefined) environment[key] = value;
   }
   return environment;
@@ -743,20 +1022,25 @@ async function sha256(bytes) {
 
 export {
   DEFAULT_HELPER_ENV,
+  DEFAULT_ROLE_CREDENTIALS_FILE,
   DEMO_DATA_CONTRACT,
   DEMO_DATA_HOSTNAME,
   DEMO_DATA_MARKER,
   DEMO_DATA_PUBLIC_URL,
   DEMO_DATA_TARGET,
   PROVISION_CONFIRMATION,
+  PREFLIGHT_CONFIRMATION,
   RESET_CONFIRMATION,
   assertDemoHostSafety,
+  assertDemoHostIdentity,
   assertDemoMarkerForAction,
   assertNoPartialDemoState,
   assertProtectedFile,
   createHostDependencies,
+  minimalSeedEnvironment,
   parseDemoDataArgs,
   parseDemoHelperConfig,
+  prepareDemoHostContext,
   readDemoMarker,
   readProtectedEnvironmentFile,
   redactDemoError,

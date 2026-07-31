@@ -286,8 +286,8 @@ assert.doesNotMatch(filesJs, /storageKey|storagePath|signedUrl|fileHash|scannerI
 
 const clientsSurface = surfaces.find((surface) => surface.id === "client-projects.clients");
 const projectsSurface = surfaces.find((surface) => surface.id === "client-projects.projects");
-assertClientProjectsStrictDescriptor(clientsSurface, "Clients", "Edit Client");
-assertClientProjectsStrictDescriptor(projectsSurface, "Projects", "Edit Project");
+assertClientProjectsStrictDescriptor(clientsSurface, "Clients", ["Add Child Client", "Edit Client"]);
+assertClientProjectsStrictDescriptor(projectsSurface, "Projects", ["Edit Project"]);
 assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Strict declarative Clients HTML should stay a minimal host");
 assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Strict declarative Projects HTML should stay a minimal host");
 assertNoProtectedAnatomy(clientsHtml, "views/protected/clients.html", /\b(data-client-list|data-client-status-filter|data-client-dialog|data-client-table-select|data-client-project-status)\b/, "Clients");
@@ -337,7 +337,7 @@ assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*cre
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.21\.11\.1[\s\S]*strict enforcement is active/,
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.26\.3[\s\S]*strict enforcement is active/,
   "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
@@ -434,7 +434,7 @@ function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter
   assert.doesNotMatch(body, hooksRegex, `${label} should not ship ${surfaceName} workspace hooks outside the descriptor host`);
 }
 
-function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
+function assertClientProjectsStrictDescriptor(surface, label, actionLabels) {
   assert.ok(surface, `${label} descriptor should exist`);
   assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should render through the slide-out filter surface`);
   assert.ok(
@@ -456,7 +456,13 @@ function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
     `${label} descriptor should render unlabeled tags below the service-shaped record name`,
   );
   assert.ok(
-    surface.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true && action.label === actionLabel),
+    surface.table.rowActions.every((action) => (
+      typeof action.icon === "string" &&
+      action.icon.length > 0 &&
+      action.iconOnly === true &&
+      action.title === action.label
+    )) &&
+      JSON.stringify(surface.table.rowActions.map((action) => action.label)) === JSON.stringify(actionLabels),
     `${label} row actions should be icon-only descriptor actions with accessible labels`,
   );
 }

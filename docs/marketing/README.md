@@ -14,7 +14,7 @@ It is a working foundation, not published marketing. Everything here is written 
 
 Every capability claim in this directory is tagged as one of:
 
-1. **Current** — shipped and available in the app today (repository baseline 0.33.25.2; product behavior through 0.33.24.9 plus the 0.33.25.1-.2 notice and in-app legal surfaces).
+1. **Current** — shipped and available in the app today (repository baseline 0.33.25.6; product behavior through 0.33.24.9 plus the complete 0.33.25 legal, Help, and marketing branch).
 2. **Private preview** — the current release posture: the bounded preview deployment and recovery path are technically proven, while the private signed readiness record and explicit invite/no-invite decision remain open.
 3. **Planned** — committed roadmap functionality not yet shipped (Support Tickets 0.34, Knowledge Base 0.35, Creator Studio 0.39).
 4. **Commercial hypothesis** — longer-term commercial/hosted plans and pricing ideas that are not commitments.

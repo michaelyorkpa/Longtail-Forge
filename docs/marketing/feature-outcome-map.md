@@ -2,7 +2,7 @@
 
 This map ties each capability to the user problem it solves and the outcome it produces — deliberately **not** a feature list. Every row states current-versus-planned status, a proof/documentation source, the marketing claim that is allowed, and the limits on that claim.
 
-Status: **Current** = shipped in the 0.33.25.2 repository baseline (product behavior through 0.33.24.9 plus the 0.33.25.1-.2 notice and in-app legal surfaces). **Planned** = committed roadmap module not yet shipped. **Private preview** = technically deployed bounded preview with a separate invitation decision still open.
+Status: **Current** = shipped in the 0.33.25.6 repository baseline (product behavior through 0.33.24.9 plus the complete 0.33.25 legal, Help, and marketing branch). **Planned** = committed roadmap module not yet shipped. **Private preview** = technically deployed bounded preview with a separate invitation decision still open.
 
 ## Summary outcome map
 

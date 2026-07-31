@@ -14,10 +14,17 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { verifyPassword } from "../../../src/security/passwords.js";
 import {
   assertOperatorPassword,
   resolveSeedTarget,
 } from "../../lib/development-data-safety.mjs";
+import {
+  loadSanitizedDemoRoleFixtures,
+  LOCAL_ROLE_FIXTURE_MODE,
+  ROLE_CREDENTIALS_FILE_ENV,
+  SANITIZED_DEMO_ROLE_FIXTURES,
+} from "../../lib/sanitized-demo-role-fixtures.mjs";
 
 if (process.argv.includes("--exercise-seeded-task-timers")) {
   await exerciseSeededTaskTimers();
@@ -29,10 +36,33 @@ const markedRoot = path.join(root, "development-seed");
 const firstDir = path.join(markedRoot, "first");
 const secondDir = path.join(markedRoot, "second");
 const demoDir = path.join(root, "sanitized-demo", "preview");
+const secondDemoDir = path.join(root, "sanitized-demo", "second-preview");
+const credentialsDir = path.join(root, "credentials");
+const demoCredentialsFile = path.join(credentialsDir, "demo-roles.json");
+const secondDemoCredentialsFile = path.join(credentialsDir, "demo-roles-second.json");
+const repositoryCredentialFile = path.join(
+  process.cwd(),
+  ".local",
+  `sanitized-demo-role-regression-${process.pid}.json`,
+);
 const password = "Regression-Only-Seed-Operator-17!";
 const operatorUsername = "seed-operator@example.test";
 
 try {
+  await fs.mkdir(credentialsDir, { recursive: true });
+  await writeRoleCredentials(demoCredentialsFile, "First");
+  await writeRoleCredentials(secondDemoCredentialsFile, "Second");
+  await fs.mkdir(path.dirname(repositoryCredentialFile), { recursive: true });
+  await writeRoleCredentials(repositoryCredentialFile, "Ignored");
+  await assert.doesNotReject(loadSanitizedDemoRoleFixtures({
+    env: {
+      LONGTAIL_ENV: "development",
+      LONGTAIL_PUBLIC_URL: "http://localhost:8001",
+      [ROLE_CREDENTIALS_FILE_ENV]: repositoryCredentialFile,
+    },
+    mode: LOCAL_ROLE_FIXTURE_MODE,
+    target: { profile: "sanitized-demo" },
+  }));
   assert.throws(() => resolveSeedTarget({ profile: "development", environment: "production", dataDir: firstDir }), /environment development/);
   assert.throws(() => resolveSeedTarget({ profile: "development", environment: "development", dataDir: path.join(root, "ordinary") }), /exact development marker/);
   assert.throws(() => resolveSeedTarget({ profile: "development", environment: "development", dataDir: path.join(root, "production", "development-seed") }), /production\/live/);
@@ -49,14 +79,18 @@ try {
 
   const first = runSeed(firstDir, password, "development", operatorUsername);
   const second = runSeed(secondDir, "Regression-Only-Seed-Operator-18!", "development", operatorUsername);
-  const demo = runSeed(demoDir, "Regression-Only-Demo-Operator-19!", "sanitized-demo", operatorUsername);
+  const demo = runSeed(demoDir, password, "sanitized-demo", operatorUsername, demoCredentialsFile);
+  const secondDemo = runSeed(secondDemoDir, password, "sanitized-demo", operatorUsername, secondDemoCredentialsFile);
   assert.equal(first.semanticFingerprint, second.semanticFingerprint, "semantic seed output should be reproducible across fresh bootstrap IDs and unique operator passwords");
-  assert.equal(first.semanticFingerprint, demo.semanticFingerprint, "sanitized demo data should use the same reproducible fake scenario contract");
+  assert.equal(demo.semanticFingerprint, secondDemo.semanticFingerprint, "sanitized-demo role fixtures should be reproducible across unique private passwords");
+  assert.notEqual(first.semanticFingerprint, demo.semanticFingerprint, "sanitized-demo role identities should be an explicit semantic addition to the login-disabled development profile");
   assert.equal(demo.profile, "sanitized-demo");
   assert.deepEqual(first.counts, second.counts);
+  assert.deepEqual(demo.counts, secondDemo.counts);
   assert.equal(first.counts.workspaces, 5);
   assert.equal(first.counts.tasks, 400);
   assert.equal(first.counts.users, 18);
+  assert.equal(demo.counts.users, 24);
   assert.equal(first.counts.notes, 200);
   assert.equal(first.counts.lists, 24);
   assert.equal(first.counts.active_work_timers, 2);
@@ -67,7 +101,11 @@ try {
   assert.match(first.workbench.taskFocusUrl, /^workbench\.html\?taskId=/);
   assert.equal(first.workbench.secureNotesSeeded, false);
   assert.equal(first.workbench.personaLoginEnabled, false);
+  assert.equal(first.workbench.roleFixtureLoginCount, 0);
+  assert.equal(demo.workbench.personaLoginEnabled, true);
+  assert.equal(demo.workbench.roleFixtureLoginCount, 7);
   assert.doesNotMatch(JSON.stringify(first), /Regression-Only-Seed-Operator/);
+  assert.doesNotMatch(JSON.stringify(demo), /First-Private|Second-Private/);
 
   const database = new Database(path.join(firstDir, "longtail-forge.db"), { readonly: true });
   try {
@@ -151,6 +189,7 @@ try {
   } finally {
     database.close();
   }
+  await verifyRoleFixtureDatabase(demoDir, demoCredentialsFile);
   runSeededTimerLifecycle(secondDir, "Regression-Only-Seed-Operator-18!");
   assert.equal(await fs.readFile(path.join(firstDir, "files", "seed", "checkout-findings.md"), "utf8"), "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n");
 
@@ -172,41 +211,265 @@ try {
   assert.match(packageJson.scripts["demo:data:seed"], /sanitized-demo/);
   const demoTarget = resolveSeedTarget({ profile: "sanitized-demo", environment: "development", dataDir: path.join(root, "sanitized-demo", "preview") });
   assert.equal(demoTarget.marker, "sanitized-demo");
+  const fixtureEnv = {
+    LONGTAIL_ENV: "development",
+    LONGTAIL_PUBLIC_URL: "http://localhost:8001",
+    [ROLE_CREDENTIALS_FILE_ENV]: demoCredentialsFile,
+  };
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: fixtureEnv,
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "development" },
+    }),
+    /only.*sanitized-demo/i,
+  );
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, LONGTAIL_ENV: "production" },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /LONGTAIL_ENV=development/,
+  );
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, LONGTAIL_PUBLIC_URL: "https://preview.example.test" },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /local loopback/,
+  );
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, LONGTAIL_RELEASE_BRANCH: "nightly" },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /release\/deployment runtime/,
+  );
+  const duplicateCredentialFile = path.join(credentialsDir, "duplicate.json");
+  await writeRoleCredentials(duplicateCredentialFile, "Duplicate", {
+    project_user: rolePassword("Duplicate", 0),
+  });
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, [ROLE_CREDENTIALS_FILE_ENV]: duplicateCredentialFile },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /must be unique/,
+  );
+  const weakCredentialFile = path.join(credentialsDir, "weak.json");
+  await writeRoleCredentials(weakCredentialFile, "Weak", { client_user: "weak" });
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, [ROLE_CREDENTIALS_FILE_ENV]: weakCredentialFile },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /at least 16 characters/,
+  );
+  const missingCredentialFile = path.join(credentialsDir, "missing.json");
+  await assert.rejects(
+    loadSanitizedDemoRoleFixtures({
+      env: { ...fixtureEnv, [ROLE_CREDENTIALS_FILE_ENV]: missingCredentialFile },
+      mode: LOCAL_ROLE_FIXTURE_MODE,
+      target: { profile: "sanitized-demo" },
+    }),
+    /Create the ignored local credential file/,
+  );
+
+  const missingFixtureMode = spawnCli([
+    "seed",
+    "--profile",
+    "sanitized-demo",
+    "--environment",
+    "development",
+    "--data-dir",
+    path.join(root, "sanitized-demo", "missing-mode"),
+  ], password, operatorUsername, demoCredentialsFile);
+  assert.notEqual(missingFixtureMode.status, 0);
+  assert.match(missingFixtureMode.stderr, /--role-fixtures local-sanitized-demo/);
+  const commandLineSecret = spawnCli([
+    "seed",
+    "--profile",
+    "sanitized-demo",
+    "--environment",
+    "development",
+    "--data-dir",
+    path.join(root, "sanitized-demo", "command-line-secret"),
+    "--password",
+    "Never-Accept-This-Secret-1!",
+  ], password, operatorUsername, demoCredentialsFile);
+  assert.notEqual(commandLineSecret.status, 0);
+  assert.match(commandLineSecret.stderr, /Unknown argument: --password/);
 
   const source = await fs.readFile("scripts/development-data.mjs", "utf8");
+  const credentialSource = await fs.readFile("scripts/lib/sanitized-demo-role-fixtures.mjs", "utf8");
+  const gitignore = await fs.readFile(".gitignore", "utf8");
   assert.match(
     source,
     /import \{ loadRuntimeEnvFile \} from "\.\.\/src\/runtime-env\.js";[\s\S]*loadRuntimeEnvFile\(\);[\s\S]*assertOperatorPassword\(\);/,
     "the seed CLI must load the root .env before validating bootstrap configuration",
   );
   assert.doesNotMatch(source, /Scale-Seed-Password|LONGTAIL_SECURE_NOTES_MASTER_KEY\s*=/);
-  assert.match(source, /personaLoginEnabled:\s*false/);
+  assert.match(source, /personaLoginEnabled:\s*Boolean\(roleFixtures\)/);
+  assert.match(source, /roleFixtureLoginCount:/);
   assert.match(source, /secureNotesSeeded:\s*false/);
   assert.match(source, /focusSelectionUrl:\s*"workbench\.html"/);
   assert.match(source, /taskFocusUrl:/);
+  assert.match(source, /--role-fixtures/);
+  assert.doesNotMatch(source, /--password|--credential|--secret/);
+  assert.match(credentialSource, /LONGTAIL_SANITIZED_DEMO_ROLE_CREDENTIALS_FILE/);
+  assert.match(credentialSource, /validatePassword/);
+  assert.match(credentialSource, /Every sanitized-demo role password must be unique/);
+  assert.match(gitignore, /^\.local\/$/m);
+  assert.match(packageJson.scripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
+  assert.equal(packageJson.scripts["demo:roles:journey"], "node scripts/sanitized-demo-role-journey.mjs");
 
   console.log("Development and sanitized demo data regression passed.");
 } finally {
+  await fs.rm(repositoryCredentialFile, { force: true });
   await fs.rm(root, { recursive: true, force: true });
 }
 
-function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername) {
-  const result = spawnCli(["seed", "--profile", profile, "--environment", "development", "--data-dir", dataDir], operatorPassword, username);
+function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername, credentialsFile) {
+  const args = ["seed", "--profile", profile, "--environment", "development", "--data-dir", dataDir];
+  if (profile === "sanitized-demo") {
+    args.push("--role-fixtures", LOCAL_ROLE_FIXTURE_MODE);
+  }
+  const result = spawnCli(args, operatorPassword, username, credentialsFile);
   assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
   return JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
 }
 
-function spawnCli(args, operatorPassword, username = operatorUsername) {
+function spawnCli(args, operatorPassword, username = operatorUsername, credentialsFile) {
+  const env = {
+    ...process.env,
+    LONGTAIL_ENV: "development",
+    LONGTAIL_PUBLIC_URL: "http://127.0.0.1",
+    LONGTAIL_RELEASE_BRANCH: "",
+    SUPER_ADMIN_PASSWORD: operatorPassword,
+    SUPER_ADMIN_USERNAME: username,
+  };
+  if (credentialsFile) {
+    env[ROLE_CREDENTIALS_FILE_ENV] = credentialsFile;
+  } else {
+    delete env[ROLE_CREDENTIALS_FILE_ENV];
+  }
   return spawnSync(process.execPath, ["scripts/development-data.mjs", ...args], {
     cwd: process.cwd(),
     encoding: "utf8",
-    env: {
-      ...process.env,
-      LONGTAIL_ENV: "development",
-      SUPER_ADMIN_PASSWORD: operatorPassword,
-      SUPER_ADMIN_USERNAME: username,
-    },
+    env,
   });
+}
+
+async function writeRoleCredentials(file, prefix, overrides = {}) {
+  const passwords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture, index) => [
+    fixture.roleId,
+    overrides[fixture.roleId] ?? rolePassword(prefix, index),
+  ]));
+  await fs.writeFile(file, `${JSON.stringify({ version: 1, passwords }, null, 2)}\n`, "utf8");
+}
+
+function rolePassword(prefix, index) {
+  return `Q${index}a!${prefix}-Private-92746zZ`;
+}
+
+async function verifyRoleFixtureDatabase(dataDir, credentialsFile) {
+  const credentialDocument = JSON.parse(await fs.readFile(credentialsFile, "utf8"));
+  const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
+  try {
+    const activeUsers = database.prepare(`
+SELECT user_id, username, password, protected_user
+FROM users
+WHERE user_status = 'active'
+ORDER BY username;
+`).all();
+    assert.equal(activeUsers.length, SANITIZED_DEMO_ROLE_FIXTURES.length);
+    assert.deepEqual(
+      activeUsers.map((row) => row.username),
+      SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.username).sort(),
+    );
+
+    for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
+      const user = activeUsers.find((row) => row.username === fixture.username);
+      assert.ok(user, `${fixture.roleId} fixture user should exist`);
+      assert.equal(
+        (await verifyPassword(credentialDocument.passwords[fixture.roleId], user.password)).matches,
+        true,
+      );
+      assert.equal(user.protected_user, fixture.roleId === "super_admin" ? "yes" : "no");
+
+      const assignments = database.prepare(`
+SELECT
+  assignment.role_id,
+  assignment.scope_type,
+  assignment.scope_id,
+  assignment.permission_overrides_json,
+  workspace.name AS workspace_name,
+  client.name AS client_name,
+  project.name AS project_name
+FROM user_role_assignments AS assignment
+JOIN workspaces AS workspace ON workspace.workspace_id = assignment.workspace_id
+LEFT JOIN clients AS client
+  ON client.workspace_id = assignment.workspace_id
+ AND client.id = assignment.scope_id
+LEFT JOIN projects AS project
+  ON project.workspace_id = assignment.workspace_id
+ AND project.id = assignment.scope_id
+WHERE assignment.user_id = ?
+ORDER BY assignment.assignment_id;
+`).all(user.user_id);
+      assert.equal(assignments.length, 1, `${fixture.roleId} should have exactly one role assignment`);
+      const [assignment] = assignments;
+      assert.equal(assignment.role_id, fixture.roleId);
+      assert.equal(assignment.scope_type, fixture.scopeType);
+      assert.equal(assignment.permission_overrides_json, null);
+      if (fixture.scopeKey === "all") assert.equal(assignment.scope_id, "all");
+      if (fixture.scopeKey === "northwind") assert.equal(assignment.workspace_name, "Northwind Studio");
+      if (fixture.scopeKey === "cedar") assert.equal(assignment.client_name, "Cedar & Bloom");
+      if (fixture.scopeKey === "website") assert.equal(assignment.project_name, "Website Refresh");
+
+      const memberships = database.prepare(`
+SELECT workspaces.name, user_workspaces.status
+FROM user_workspaces
+JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
+WHERE user_workspaces.user_id = ?;
+`).all(user.user_id);
+      if (fixture.roleId !== "super_admin") {
+        assert.deepEqual(memberships, [{ name: "Northwind Studio", status: "active" }]);
+      }
+    }
+
+    assert.equal(
+      database.prepare(`
+SELECT COUNT(*) AS count
+FROM users
+WHERE protected_user = 'no'
+  AND username NOT LIKE 'role-%@example.test'
+  AND (user_status != 'inactive' OR password != '!development-persona-login-disabled!');
+`).get().count,
+      0,
+      "ordinary fictional personas must remain inactive",
+    );
+    assert.equal(
+      database.prepare("SELECT COUNT(*) AS count FROM users WHERE user_status = 'active' AND alt_email IS NOT NULL AND alt_email != ''").get().count,
+      0,
+      "active role fixtures must not reuse realistic alternate addresses",
+    );
+    assert.equal(
+      database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count,
+      0,
+    );
+    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM files").get().count >= 2);
+    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0);
+    assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+    assert.deepEqual(database.pragma("foreign_key_check"), []);
+  } finally {
+    database.close();
+  }
 }
 
 function runSeededTimerLifecycle(dataDir, operatorPassword) {

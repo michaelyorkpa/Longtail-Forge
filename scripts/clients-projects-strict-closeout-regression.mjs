@@ -28,13 +28,18 @@ const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [sur
 assertStrictSurface(surfaces.get("client-projects.clients"), {
   label: "Clients",
   route: "/api/clients?include_depth=true",
-  editLabel: "Edit Client",
+  expectedRowActions: [
+    { icon: "add", iconOnly: true, label: "Add Child Client", title: "Add Child Client" },
+    { icon: "edit", iconOnly: true, label: "Edit Client", title: "Edit Client" },
+  ],
   tagRowId: "client-tags",
 });
 assertStrictSurface(surfaces.get("client-projects.projects"), {
   label: "Projects",
   route: "/api/projects?include_depth=true",
-  editLabel: "Edit Project",
+  expectedRowActions: [
+    { icon: "edit", iconOnly: true, label: "Edit Project", title: "Edit Project" },
+  ],
   tagRowId: "project-tags",
 });
 
@@ -74,14 +79,14 @@ assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and bulk d
 assert.match(clientsProjectsScript, /\/api\/clients/, "Client saves should keep existing Client route calls");
 assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should keep existing Project route calls");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.21\.11\.1[\s\S]*strict enforcement is active/, "Inventory should mark the current Clients/Projects strict guardrails active");
+assert.match(inventoryDoc, /Current as of 0\.33\.26\.3[\s\S]*strict enforcement is active/, "Inventory should mark the current Clients/Projects strict guardrails active");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*no database schema, route payload, permission, or workflow changes/, "Changelog should record the no-contract-change boundary");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("Clients/Projects strict closeout regression passed.");
 
-function assertStrictSurface(surface, { label, route, editLabel, tagRowId }) {
+function assertStrictSurface(surface, { label, route, expectedRowActions, tagRowId }) {
   assert.ok(surface, `${label} descriptor should exist`);
   assert.equal(surface.layout, "table-page", `${label} should remain a table-page read surface`);
   assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should use the shared slide-out surface`);
@@ -101,8 +106,8 @@ function assertStrictSurface(surface, { label, route, editLabel, tagRowId }) {
       label: action.label,
       title: action.title,
     })),
-    [{ icon: "edit", iconOnly: true, label: editLabel, title: editLabel }],
-    `${label} repeated table action should be an icon-only edit control`,
+    expectedRowActions,
+    `${label} repeated table actions should remain icon-only controls`,
   );
 }
 

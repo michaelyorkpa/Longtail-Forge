@@ -41,7 +41,8 @@ Module-owned Workbench actions are documented in the active module’s action re
 
 | Action | Intent | Location |
 | --- | --- | --- |
-| Add Client | Create business client context. | Projects page and eligible client context cards. |
+| Add Client | Create top-level business Client context when you can manage Clients across the workspace. | Clients/Projects page and eligible Project context cards. |
+| Add Child Client | Create a child under a Client you administer. | Eligible Client rows; the selected parent is locked in the form. |
 | Edit Client | Change the selected client, its hierarchy, or permitted context. | Client row or client context card. |
 | Add Project | Create a workspace or client project. | Projects page and eligible client context cards. |
 | Edit Project | Change project details, billing context, task defaults, or permitted links. | Project row or project context card. |

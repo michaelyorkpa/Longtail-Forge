@@ -9,6 +9,12 @@ permissionsRoutes.get("/roles", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+permissionsRoutes.post("/role-assignments/lookup", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await permissionsService.lookupDelegatedRoleAssignmentAccount(request.session, payload);
+  response.status(200).json(result);
+}));
+
 permissionsRoutes.get("/users/:userId/role-assignments", asyncRoute(async (request, response) => {
   const result = await permissionsService.readUserAssignments(request.session, request.params.userId);
   response.status(200).json(result);

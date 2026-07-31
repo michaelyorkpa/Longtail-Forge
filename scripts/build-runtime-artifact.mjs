@@ -26,6 +26,7 @@ const RUNTIME_PATHS = Object.freeze([
   "scripts/lib/backup-archive.mjs",
   "scripts/lib/demo-data-operation.mjs",
   "scripts/lib/development-data-safety.mjs",
+  "scripts/lib/sanitized-demo-role-fixtures.mjs",
   "src",
   "help",
   "legal",

@@ -48,6 +48,25 @@ The framework owns view anatomy, surface classes, responsive behavior, dark-mode
 
 Modules own data loading, state decisions, validation, API calls, save payloads, route permissions, record labels, module-specific fields, and workflow behavior. Modules may pass labels, actions, form fields, table columns, rows, badges, and callbacks into framework helpers, but helpers must not learn module storage rules or mutate module-owned records directly.
 
+## Declarative Action Permission Hints
+
+As of 0.33.26.3, login, session, and app-shell workspace context contains
+`permissionIds`: the actor's effective permission IDs held in any scope in the
+active workspace. `LongtailForge.view` uses that coarse set to omit page-header,
+surface, table-row, item-row, modal, action-menu, and inline actions unless all
+declared `requiredPermissions` are present. It rechecks the live set again
+immediately before route or behavior dispatch.
+
+This is presentation filtering, not browser authorization. A permission held
+on one Client or Project may make a generally eligible surface action visible,
+but record-specific eligibility must still arrive through module-owned
+server-shaped fields such as `canManage` or `canCreateChild`, and every
+mutation route/service must enforce the selected resource. Clients/Projects is
+the reference: a Client Administrator has any-scope `clients.manage`, but the
+workspace-level Add Client action is removed unless
+`can_create_top_level_client` is true; Add Child Client additionally requires
+the selected parent row's `can_create_child`.
+
 ## Field Factory Contract
 
 As of 0.33.14.1, `LongtailForge.view.createField(field, options)` is the one framework-owned field-construction primitive. It accepts data-only field metadata, returns the complete labelled field shell, and exposes the created control(s) through `fieldElement.viewParts.control` and `fieldElement.viewParts.controls` so a module or framework host can attach behavior without rebuilding labels or controls.

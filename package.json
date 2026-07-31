@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.25.2",
+  "version": "0.33.26.8",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -82,8 +82,9 @@
     "bench:dashboard": "node scripts/measure-dashboard-performance.mjs",
     "dev:data:seed": "node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed",
     "dev:data:reset": "node scripts/development-data.mjs reset --profile development --environment development --data-dir ./data/development-seed --confirm development-seed",
-    "demo:data:seed": "node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo",
+    "demo:data:seed": "node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --role-fixtures local-sanitized-demo",
     "demo:data:reset": "node scripts/development-data.mjs reset --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --confirm sanitized-demo",
+    "demo:roles:journey": "node scripts/sanitized-demo-role-journey.mjs",
     "regressions:manifest": "node scripts/generate-regression-manifest.mjs",
     "regressions:manifest:check": "node scripts/generate-regression-manifest.mjs --check",
     "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",

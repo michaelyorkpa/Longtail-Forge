@@ -29,7 +29,7 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Cl
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects readiness version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects readiness version");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.21\.11\.1/, "Clients/Projects inventory should report the current strict boundary");
+assert.match(inventoryDoc, /Current as of 0\.33\.26\.3/, "Clients/Projects inventory should report the current strict boundary");
 assert.match(inventoryDoc, /strict enforcement is active/, "Inventory should mark Clients/Projects guardrails as active");
 assert.match(inventoryDoc, /Framework-Owned Guardrail Candidates[\s\S]*page-header\/status shells[\s\S]*Inline top filter panels[\s\S]*Hierarchy index\/list shells[\s\S]*Related table\/list shells[\s\S]*Bulk-toolbar shell[\s\S]*row-selection checkbox shell[\s\S]*Empty\/loading\/error\/status shells/, "Inventory should map framework-owned anatomy");
 assert.match(inventoryDoc, /Allowed Clients\/Projects Escape Hatches[\s\S]*\/api\/clients[\s\S]*\/api\/projects[\s\S]*\/api\/client-projects[\s\S]*hierarchy rules[\s\S]*Billing metadata\/default editors[\s\S]*Tag assignment[\s\S]*Query-param openers[\s\S]*Business-only Client availability[\s\S]*Bulk selected-ID collection[\s\S]*Save payload construction/, "Inventory should map Clients/Projects-owned escape hatches");
