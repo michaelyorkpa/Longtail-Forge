@@ -337,7 +337,7 @@ assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*cre
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.27\.4[\s\S]*strict enforcement is active/,
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.27\.5[\s\S]*strict enforcement is active/,
   "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");

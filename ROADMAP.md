@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.5`.
+Active cursor: `0.33.27.6`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,20 +34,7 @@ Non-goals:
 
 Delivery shape:
 
-The remaining plan has two implementation slices. Complete the children in order. The split follows real isolation boundaries: change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
-
-### Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
-
-**Model: High Effort** — This changes the Clients/Projects browser-to-server creation contract and must preserve nested creation, optimistic replacement, event metadata, focus, deep links, and compatibility for existing UUIDv4 callers.
-
-- [ ] Move new Client/Project persistent identity off `public/js/clients-projects.js` `window.crypto.randomUUID()` and its v4 fallback. Make the server authority generate canonical IDs and return them to the browser while preserving nested create behavior, local collection replacement, audit/event metadata, optimistic status, focus return, deep links, and navigation. Do not introduce a browser UUIDv7 implementation or tighten create payloads in a way that rejects existing UUIDv4 callers.
-- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture/seed/drill or stronger dedicated-token exceptions.
-- [ ] Add focused browser/API regression coverage for Client and Project creation, including nested creation and caller-supplied UUIDv4 compatibility. Keep the server as the sole canonical persistent-ID authority.
-- [ ] Run `npm run docs:suggest`, update only the Clients/Projects or API documentation whose creation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.5`, and run `npm run verify:slice` exactly once at final closeout.
-
-Acceptance criteria:
-
-- Client/Project creation is server-authoritative without workflow regressions; existing UUIDv4 callers remain valid; the temporary production migration baseline is empty; and one framework authority is the only normal production UUID entry point.
+The remaining plan has one implementation slice: the system-level mixed-version and recovery closeout proof.
 
 ### Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
 

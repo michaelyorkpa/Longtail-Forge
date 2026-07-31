@@ -1493,14 +1493,46 @@ async function assertUniqueProjectNameInScope(workspaceId, clientId, projectName
 }
 
 async function recordAudit(providedAction, auditEvent) {
+  const canonicalProvidedAction = canonicalizeProvidedAction(providedAction, auditEvent);
   await auditService.record({
     ...auditEvent,
-    action: providedAction?.action || auditEvent.action,
+    action: canonicalProvidedAction?.action || auditEvent.action,
     metadata: {
       ...(auditEvent.metadata || {}),
-      provided_action: providedAction || null,
+      provided_action: canonicalProvidedAction || null,
     },
   });
+}
+
+function canonicalizeProvidedAction(providedAction, auditEvent) {
+  if (!providedAction || typeof providedAction !== "object" || Array.isArray(providedAction)) {
+    return providedAction;
+  }
+
+  const metadata = auditEvent.metadata || {};
+  const canonical = {};
+  for (const field of [
+    "client_id",
+    "client_name",
+    "parent_client_id",
+    "project_id",
+    "project_name",
+    "parent_project_id",
+  ]) {
+    if (Object.hasOwn(metadata, field)) {
+      canonical[field] = metadata[field];
+    }
+  }
+
+  if (auditEvent.recordType === "client") {
+    canonical.client_id = auditEvent.recordId;
+    canonical.client_name = auditEvent.recordLabel;
+  } else if (auditEvent.recordType === "project") {
+    canonical.project_id = auditEvent.recordId;
+    canonical.project_name = auditEvent.recordLabel;
+  }
+
+  return { ...providedAction, ...canonical };
 }
 
 // One batched offsets read covers every permission-filtered client and

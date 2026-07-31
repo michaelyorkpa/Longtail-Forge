@@ -1119,7 +1119,6 @@ function openAddClientDialog({
     }
 
     const client = {
-      id: createUuid(),
       name: nameInput.value.trim(),
       parent_client_id: parentSelect.value || "",
       billable: "yes",
@@ -1132,7 +1131,7 @@ function openAddClientDialog({
     };
     const saved = await createClientRecord(client, {
       action: "client_created",
-      client_id: client.id,
+      client_id: "",
       client_name: client.name,
       parent_client_id: client.parent_client_id || "",
       project_id: "",
@@ -1140,7 +1139,6 @@ function openAddClientDialog({
       details: "initial_project_created=false",
     }, {
       hostContext,
-      openClientId: client.id,
     });
 
     if (saved) {
@@ -2846,7 +2844,6 @@ function createAddProjectForm(client, {
     const targetClient = getProjectTargetClient(selectedClientId);
     const parentProjectId = parentProjectLabel.querySelector("select").value;
     const project = {
-      id: createUuid(),
       client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
       parent_project_id: parentProjectId,
       name: nameInput.value.trim(),
@@ -2864,7 +2861,7 @@ function createAddProjectForm(client, {
       action: "project_created",
       client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
       client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
-      project_id: project.id,
+      project_id: "",
       project_name: project.name,
       details: `status=${project.status};parent_project_id=${project.parent_project_id || ""};billable=${project.billable};billing_rate=${project.billing_rate}`,
     }, {
@@ -2880,26 +2877,37 @@ function createAddProjectForm(client, {
 
 async function createClientRecord(client, action, viewState = {}) {
   return persistClientProjectChange(action, viewState, async () => {
+    const initialProjects = Array.isArray(client.projects) ? client.projects : [];
     const result = await window.LongtailForge.api.postJson("/api/clients", {
       ...client,
       action,
     });
+    Object.assign(client, result.client, { projects: initialProjects });
+    Object.assign(action, {
+      client_id: result.client.id,
+      client_name: result.client.name,
+      parent_client_id: result.client.parent_client_id || "",
+    });
+    viewState.openClientId = result.client.id;
 
-    if (client.projects.length > 0) {
-      await window.LongtailForge.api.postJson(
+    if (initialProjects.length > 0) {
+      const initialProject = initialProjects[0];
+      const projectAction = {
+        action: "project_created",
+        client_id: result.client.id,
+        client_name: result.client.name,
+        project_id: initialProject.id || "",
+        project_name: initialProject.name,
+        details: action.details,
+      };
+      const projectResult = await window.LongtailForge.api.postJson(
         `/api/clients/${encodeURIComponent(result.client.id)}/projects`,
         {
-          ...client.projects[0],
-          action: {
-            action: "project_created",
-            client_id: client.id,
-            client_name: client.name,
-            project_id: client.projects[0].id,
-            project_name: client.projects[0].name,
-            details: action.details,
-          },
+          ...initialProject,
+          action: projectAction,
         },
       );
+      Object.assign(initialProject, projectResult.project);
     }
   });
 }
@@ -2921,12 +2929,18 @@ async function createProjectRecord(client, project, action, viewState = {}) {
       ? "/api/projects"
       : `/api/clients/${encodeURIComponent(client.id)}/projects`;
 
-    await window.LongtailForge.api.postJson(
+    const result = await window.LongtailForge.api.postJson(
       url,
       withOptionalTagPayload(project, {
         action,
       }),
     );
+    Object.assign(project, result.project);
+    Object.assign(action, {
+      client_id: result.project.client_id || "",
+      project_id: result.project.id,
+      project_name: result.project.name,
+    });
   });
 }
 
@@ -3757,19 +3771,6 @@ function formatToken(value) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function createUuid() {
-  if (window.crypto?.randomUUID) {
-    return window.crypto.randomUUID();
-  }
-
-  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (character) =>
-    (
-      Number(character) ^
-      (window.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(character) / 4)))
-    ).toString(16),
-  );
 }
 
 function setStatus(message, options = {}) {

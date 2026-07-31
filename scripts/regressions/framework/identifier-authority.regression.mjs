@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["architecture", "database", "identifiers", "security", "static"],
-  description: "Keeps production UUID generation behind the central authority and freezes the temporary direct-generator migration baseline.",
+  description: "Keeps production UUID generation behind the central authority and freezes the empty direct-generator baseline.",
   runMode: "static",
 });
 
@@ -87,7 +87,7 @@ const expectedDirectCalls = Object.fromEntries(
 assert.deepEqual(
   actualDirectCalls,
   expectedDirectCalls,
-  "Production direct randomUUID calls must match the temporary exact baseline; migrate and shrink the baseline deliberately, never grow or relocate it.",
+  "Production direct randomUUID calls must match the exact baseline and never grow or relocate outside the central authority.",
 );
 
 for (const [filePath, expectedCalls] of Object.entries(FRAMEWORK_RECORD_CALLS)) {
@@ -123,8 +123,28 @@ assert.deepEqual(
 );
 assert.deepEqual(
   Object.keys(baseline.productionDirectRandomUuid),
-  [baseline.temporaryBrowserGenerator.path],
-  "the exact migration baseline must contain only the temporary Clients/Projects browser generator after the server-side module rollout",
+  [],
+  "the production direct-generator migration baseline must remain empty after the Clients/Projects browser handoff",
+);
+
+const unauthorizedNodeRandomUuidImports = [];
+const unauthorizedBrowserRandomUuidCalls = [];
+for (const filePath of productionFiles) {
+  const source = await fs.readFile(filePath, "utf8");
+  if (hasNodeRandomUuidImport(source)) unauthorizedNodeRandomUuidImports.push(filePath);
+  if (filePath.startsWith("public/js/") && /(?:window\.)?crypto(?:\.|\?\.)randomUUID\s*\(/.test(source)) {
+    unauthorizedBrowserRandomUuidCalls.push(filePath);
+  }
+}
+assert.deepEqual(
+  unauthorizedNodeRandomUuidImports,
+  [],
+  "Production code must not import Node randomUUID outside the central identifier authority",
+);
+assert.deepEqual(
+  unauthorizedBrowserRandomUuidCalls,
+  [],
+  "Browser code must not generate persistent UUIDs with crypto.randomUUID",
 );
 
 for (const [filePath, patterns] of Object.entries(DEDICATED_SECURITY_PATTERNS)) {
@@ -158,18 +178,9 @@ assert.doesNotMatch(
   "identifier authority must not grow a token, secret, or credential operation",
 );
 
-const browserBaseline = baseline.temporaryBrowserGenerator;
-const browserSource = await fs.readFile(browserBaseline.path, "utf8");
-assert.equal(
-  countMatches(browserSource, /(?<!function\s)\bcreateUuid\s*\(/g),
-  browserBaseline.createUuidCallSites,
-  "The temporary browser createUuid call-site baseline must only shrink before removal.",
-);
-assert.equal(
-  countMatches(browserSource, /10000000-1000-4000-8000-100000000000/g),
-  browserBaseline.fallbackTemplates,
-  "The temporary browser UUID fallback must not grow or move.",
-);
+const clientsProjectsBrowserSource = await fs.readFile("public/js/clients-projects.js", "utf8");
+assert.doesNotMatch(clientsProjectsBrowserSource, /\bcreateUuid\b/);
+assert.doesNotMatch(clientsProjectsBrowserSource, /10000000-1000-4000-8000-100000000000/);
 
 const decisions = await fs.readFile("DECISIONS.md", "utf8");
 const databaseDocs = await fs.readFile("docs/database.md", "utf8");
@@ -191,6 +202,10 @@ function countMatches(source, pattern) {
 
 function hasUuidPackageImport(source) {
   return /\bfrom\s*["']uuid["']|\bimport\s*\(\s*["']uuid["']\s*\)|\brequire\s*\(\s*["']uuid["']\s*\)/.test(source);
+}
+
+function hasNodeRandomUuidImport(source) {
+  return /\bimport\s*\{[^}]*\brandomUUID\b[^}]*\}\s*from\s*["']node:crypto["']|\brequire\s*\(\s*["']node:crypto["']\s*\)\s*\.\s*randomUUID/.test(source);
 }
 
 async function listCodeFiles(rootPath) {

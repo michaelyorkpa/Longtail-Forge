@@ -1,14 +1,6 @@
 {
   "schemaVersion": 1,
-  "productionDirectRandomUuid": {
-    "public/js/clients-projects.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.5" }
-  },
-  "temporaryBrowserGenerator": {
-    "path": "public/js/clients-projects.js",
-    "createUuidCallSites": 2,
-    "fallbackTemplates": 1,
-    "plannedSlice": "0.33.27.5"
-  },
+  "productionDirectRandomUuid": {},
   "documentedNonProductionExceptions": [
     "tests/**",
     "scripts/**/*-regression.mjs",

@@ -64,6 +64,22 @@ assert.doesNotMatch(clientsProjectsScript, /function buildClientProjectDialogShe
 assert.doesNotMatch(clientsProjectsScript, /function createAddClientPageDialogShell\(\)/, "Clients/Projects adapter should not keep a duplicate Add Client form shell");
 assert.doesNotMatch(clientsProjectsScript, /function openAddClientModal\(\)/, "Clients/Projects adapter should not keep a duplicate Add Client modal opener");
 assert.doesNotMatch(clientsProjectsScript, /async function addClient\(\)/, "Clients/Projects adapter should not keep the retired duplicate Add Client submit path");
+assert.doesNotMatch(clientsProjectsScript, /\bcreateUuid\b|crypto(?:\.|\?\.)randomUUID|10000000-1000-4000-8000-100000000000/, "Clients/Projects browser code should not generate persistent record IDs");
+assert.match(
+  clientsProjectsScript,
+  /const client = \{\s*name:[\s\S]*createClientRecord\(client,[\s\S]*client_id: ""[\s\S]*async function createClientRecord[\s\S]*Object\.assign\(client, result\.client, \{ projects: initialProjects \}\)[\s\S]*viewState\.openClientId = result\.client\.id/,
+  "Client create should omit browser identity and apply the canonical server record to refresh, focus, and action state",
+);
+assert.match(
+  clientsProjectsScript,
+  /const project = \{\s*client_id:[\s\S]*createProjectRecord\(targetClient, project,[\s\S]*project_id: ""[\s\S]*async function createProjectRecord[\s\S]*Object\.assign\(project, result\.project\)[\s\S]*project_id: result\.project\.id/,
+  "Project create should omit browser identity and apply the canonical server record to optimistic and action state",
+);
+assert.match(
+  clientsProjectsScript,
+  /const projectResult = await window\.LongtailForge\.api\.postJson\([\s\S]*Object\.assign\(initialProject, projectResult\.project\)/,
+  "Nested Client/Project creation should replace the optimistic project with the canonical server record",
+);
 assert.doesNotMatch(clientsHtml, /data-client-modal|data-client-form|data-new-client-name/, "Clients host should not include static or compatibility Add Client form hooks");
 
 assert.match(regressionSuite, /scripts\/clients-projects-action-registration-regression\.mjs/, "Regression suite should include the Clients/Projects action registration regression");
