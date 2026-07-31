@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../database.js";
+import { createRecordId } from "../identifiers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
 
 const DEFAULT_JOB_PRIORITY = 0;
@@ -165,7 +165,7 @@ ${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
 `, {
       availableAt,
       dedupeKey,
-      jobId: options.jobId || options.job_id || randomUUID(),
+      jobId: options.jobId || options.job_id || createRecordId(),
       jobType,
       maxAttempts,
       now,

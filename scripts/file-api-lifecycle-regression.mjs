@@ -45,6 +45,9 @@ try {
     assert.equal(response.body.attachment.targetType, "task");
     fixtures.fileId = response.body.file.fileId;
     fixtures.attachmentId = response.body.attachment.fileAttachmentId;
+    assertUuidVersion(fixtures.taskId, 4, "the existing Task relationship fixture");
+    assertUuidVersion(fixtures.fileId, 7, "new Files record identity");
+    assertUuidVersion(fixtures.attachmentId, 7, "new Files attachment identity");
 
     const rows = await querySql(`
 SELECT storage_key, original_filename, status, scan_status
@@ -55,13 +58,17 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     assert.equal(rows[0].status, "pending");
     assert.equal(rows[0].scan_status, "pending");
     assert.ok(!rows[0].storage_key.includes("evidence.txt"));
+    const storageObjectId = rows[0].storage_key.split("/").at(-1);
+    assertUuidVersion(storageObjectId, 4, "opaque Files storage object identity");
+    assert.notEqual(storageObjectId, fixtures.fileId, "Files record identity must stay independent from its storage object identity");
     const scanJobs = await querySql(`
-SELECT status, attempt_count
+SELECT job_id, status, attempt_count
 FROM jobs
 WHERE job_type = 'file.scan'
   AND payload_json LIKE ${sqlText(`%"fileId":"${fixtures.fileId}"%`)};
 `);
     assert.equal(scanJobs.length, 1);
+    assertUuidVersion(scanJobs[0].job_id, 7, "new durable job identity");
     assert.equal(scanJobs[0].status, "pending");
     assert.equal(Number(scanJobs[0].attempt_count), 0);
     assert.ok(capturedFileEvents.some((event) => event.name === "file.upload.requested"));
@@ -601,6 +608,11 @@ function uploadPayload(taskId, options = {}) {
     targetType: "task",
     visibility: "private",
   };
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 function registerFileEventCapture() {

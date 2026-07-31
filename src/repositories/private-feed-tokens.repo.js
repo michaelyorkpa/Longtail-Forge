@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const CALENDAR_SELECT = `
 SELECT
@@ -110,7 +110,7 @@ LIMIT 1;`, { providerId, tokenSelector });
 
 async function create({ name, providerId, scopeClientId, scopeProjectId, scopeType, tokenHash, tokenSelector, userId, workspaceId }, database = db) {
   const now = new Date().toISOString();
-  const subscriptionId = randomUUID();
+  const subscriptionId = createRecordId();
   await database.run(`
 INSERT INTO private_feed_tokens (
   private_feed_token_id, workspace_id, user_id, provider_id, name, scope_type,

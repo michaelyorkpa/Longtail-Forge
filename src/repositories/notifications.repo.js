@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const NOTIFICATION_COLUMNS = `
   notification_id,
@@ -100,7 +100,7 @@ const NOTIFICATION_DISPLAY_PREFERENCE_VALUE_EXPRESSIONS = {
 };
 
 async function create(notification) {
-  const notificationId = notification.notification_id || randomUUID();
+  const notificationId = notification.notification_id || createRecordId();
   const now = notification.created_at || new Date().toISOString();
 
   if (notification.notification_id) {
@@ -499,7 +499,7 @@ ORDER BY created_at;
 }
 
 async function saveSubscription(workspaceId, userId, target) {
-  const subscriptionId = target.notification_subscription_id || randomUUID();
+  const subscriptionId = target.notification_subscription_id || createRecordId();
   const now = new Date().toISOString();
 
   await db.run(`${db.dialect.conflict.buildInsertOnAnyConflictDoUpdate({

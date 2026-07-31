@@ -15,6 +15,23 @@ const AUTHORITY_PATH = "src/core/identifiers.js";
 const BASELINE_PATH = "scripts/identifier-authority-migration-baseline.json";
 const PRODUCTION_ROOTS = ["src", "public/js", "scripts/lib", "scripts/release"];
 const PACKAGE_SCAN_ROOTS = ["src", "public/js", "scripts", "tests"];
+const FRAMEWORK_RECORD_CALLS = Object.freeze({
+  "scripts/lib/backup-archive.mjs": 1,
+  "src/core/jobs/job-queue.js": 1,
+  "src/db/app-startup-maintenance.js": 5,
+  "src/repositories/api-keys.repo.js": 1,
+  "src/repositories/notifications.repo.js": 2,
+  "src/repositories/permissions.repo.js": 2,
+  "src/repositories/private-feed-tokens.repo.js": 1,
+  "src/repositories/tags.repo.js": 3,
+  "src/repositories/user-workspaces.repo.js": 1,
+  "src/repositories/users.repo.js": 1,
+  "src/repositories/workspaces.repo.js": 3,
+  "src/services/audit.service.js": 1,
+  "src/services/files.service.js": 3,
+  "src/services/work-resume-state.service.js": 1,
+  "src/services/workspace-purge.service.js": 1,
+});
 
 const baseline = JSON.parse(await fs.readFile(BASELINE_PATH, "utf8"));
 assert.equal(baseline.schemaVersion, 1, "identifier migration baseline schema must remain recognized");
@@ -36,6 +53,22 @@ assert.deepEqual(
   actualDirectCalls,
   expectedDirectCalls,
   "Production direct randomUUID calls must match the temporary exact baseline; migrate and shrink the baseline deliberately, never grow or relocate it.",
+);
+
+for (const [filePath, expectedCalls] of Object.entries(FRAMEWORK_RECORD_CALLS)) {
+  const source = await fs.readFile(filePath, "utf8");
+  assert.equal(
+    countMatches(source, /\bcreateRecordId\s*\(/g),
+    expectedCalls,
+    `${filePath} must keep each audited framework persistent-record generator on createRecordId()`,
+  );
+}
+assert.deepEqual(
+  Object.entries(baseline.productionDirectRandomUuid)
+    .filter(([filePath, entry]) => Object.hasOwn(FRAMEWORK_RECORD_CALLS, filePath) && String(entry.classification).includes("record"))
+    .map(([filePath]) => filePath),
+  [],
+  "the exact migration baseline must not retain framework persistent-record entries after their rollout",
 );
 
 const packageImportViolations = [];

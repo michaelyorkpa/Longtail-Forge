@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 import {
   normalizeCalendarViewPreference,
   normalizeDisplayName,
@@ -152,7 +152,7 @@ ORDER BY username;
 }
 
 async function create(workspaceId, profile, passwordHash) {
-  const userId = randomUUID();
+  const userId = createRecordId();
   const username = profile.username;
   const displayName = normalizeDisplayName(profile.displayName, username);
   const altEmail = normalizeOptionalEmail(profile.altEmail);

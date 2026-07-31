@@ -34,6 +34,7 @@ const {
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { auditLogsRepository } = await import("../src/repositories/audit-logs.repo.js");
 const { apiKeysRepository } = await import("../src/repositories/api-keys.repo.js");
+const { apiKeysService } = await import("../src/services/api-keys.service.js");
 const { helpService } = await import("../src/services/help.service.js");
 
 try {
@@ -173,20 +174,35 @@ async function assertAuditLogsRuntime(session) {
 
 async function assertApiKeysRuntime(session) {
   const keyName = "Conversion API Key '; DROP TABLE api_keys; --";
-  const keyHash = `hash-${randomUUID()}-' OR 1=1 --`;
-  const created = await apiKeysRepository.create({
-    createdByUserId: session.user_id,
-    keyHash,
-    keyPrefix: "ltf_live_conversion",
+  const createdResult = await apiKeysService.create({
     name: keyName,
     scopes: ["clients:read", "projects:read"],
-    workspaceId: session.workspace_id,
-  });
+  }, session);
+  const created = createdResult.apiKey;
+  const storedKey = await db.get(`
+SELECT key_hash
+FROM api_keys
+WHERE api_key_id = :apiKeyId;
+`, { apiKeyId: created.api_key_id });
 
   assert.equal(created.name, keyName, "API key names should round-trip through named params");
   assert.deepEqual(created.scopes, ["clients:read", "projects:read"], "API key scopes should be inserted transactionally");
+  assertUuidVersion(created.api_key_id, 7, "API-key database-row identity");
+  assert.match(createdResult.rawKey, /^ltf_live_[A-Za-z0-9_-]{32}$/, "the presented API-key secret should retain its dedicated random token format");
+  assert.notEqual(created.api_key_id, createdResult.rawKey, "API-key row identity must stay independent from its presented secret");
 
-  const byHash = await apiKeysRepository.readByHash(keyHash);
+  const audit = await db.get(`
+SELECT audit_id
+FROM audit_logs
+WHERE workspace_id = :workspaceId
+  AND action = 'api_key_created'
+  AND record_id = :apiKeyId
+ORDER BY created_at DESC
+LIMIT 1;
+`, { apiKeyId: created.api_key_id, workspaceId: session.workspace_id });
+  assertUuidVersion(audit?.audit_id, 7, "new audit record identity");
+
+  const byHash = await apiKeysRepository.readByHash(storedKey.key_hash);
   assert.equal(byHash.api_key_id, created.api_key_id, "API key hash reads should use bound params");
 
   await apiKeysRepository.updateLastUsed(created.api_key_id);
@@ -231,6 +247,11 @@ function assertNoLiteralHelpers(label, source) {
   assert.doesNotMatch(source, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${label} should be fully off literal helpers and compatibility query wrappers`);
   assert.match(source, /\b(?:db|transaction|database)\.(?:query|get|run|transaction)\b/, `${label} should use the adapter db path`);
   assert.match(source, /:[A-Za-z][A-Za-z0-9_]*\b/, `${label} should use named params`);
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 function readText(filePath) {

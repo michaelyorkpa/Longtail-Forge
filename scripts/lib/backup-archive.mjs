@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { createRecordId } from "../../src/core/identifiers.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(moduleDir, "../..");
@@ -671,7 +672,7 @@ INSERT INTO audit_logs (
 `);
     const transaction = database.transaction(() => {
       for (const workspace of workspaces) {
-        insert.run(randomUUID(), workspace.workspace_id, new Date().toISOString(), action, changeType, JSON.stringify(metadata));
+        insert.run(createRecordId(), workspace.workspace_id, new Date().toISOString(), action, changeType, JSON.stringify(metadata));
       }
     });
     transaction();

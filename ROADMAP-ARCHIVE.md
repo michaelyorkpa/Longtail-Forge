@@ -1,5 +1,52 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
+
+Completed on 2026-07-31. Every audited framework-owned ordinary persistent
+record generator now uses the central UUIDv7 authority, while caller-supplied
+identifiers and the operational/secret boundaries remain unchanged. The exact
+migration baseline now contains only the operational, module, and browser
+generators assigned to later slices. The active cursor advances to
+`0.33.27.3`.
+
+**Model: High Effort** — This was a framework-wide persistent-record
+conversion where a missed caller-supplied compatibility path or misclassified
+row could break identity, relationships, or restore behavior.
+
+- [x] Converted the 27 audited framework persistent-record call sites across
+  startup Workspaces/Users/memberships/assignments, permission and Tag
+  relationships, Notifications/subscriptions, private-feed rows, audit events,
+  durable jobs, work-resume state, API-key rows, Files rows/attachments/reports,
+  purge tombstones, and production recovery audit rows to `createRecordId()`.
+- [x] Preserved caller-supplied identifiers for job retries/idempotency,
+  notification and Tag imports, work-resume continuity, audit callers, and
+  other existing compatibility paths. No schema or existing-data rewrite was
+  introduced.
+- [x] Kept request correlation, migration locks, Files storage keys,
+  backup/package identity, purge fencing, module/browser records, test
+  fixtures, and bearer credentials on their existing generators for the
+  explicitly assigned later slices or dedicated security helpers.
+- [x] Extended representative integration owners to prove UUIDv7 audit,
+  API-key row, Files row/attachment, durable job, and recovery-audit identity;
+  independent API-key secret and Files storage identity; a UUIDv4 Task related
+  to UUIDv7 Files rows; and byte-for-byte UUIDv4 preservation through restore.
+- [x] Ratcheted every framework persistent-record entry out of the exact
+  migration baseline and made `framework.identifier-authority` pin each
+  audited production call to the central record operation.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`,
+  `docs/architecture.md`, `docs/database.md`, and
+  `docs/regression-suite.md`; recorded the shipped result in `CHANGELOG.md`;
+  advanced through `npm run version:bump -- 0.33.27.2`; and completed the
+  canonical local slice verification.
+
+Acceptance criteria:
+
+- Every audited framework-owned persistent-record generator uses
+  `createRecordId()`; caller-supplied legacy identifiers remain compatible;
+  representative framework relationships and recovery-created rows mix
+  UUIDv4/UUIDv7 safely; and the exact baseline has shrunk without changing
+  operational UUID or secret behavior.
+
 ## Version 0.33.27.1 - Identifier authority, classification, and migration baseline
 
 Completed on 2026-07-31. The 0.33.27 branch was re-audited against its live

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const PERMISSION_INSERT_SQL = db.dialect.conflict.buildInsertOrIgnore({
   columns: ["permission_id", "permission_name", "description"],
@@ -191,7 +191,7 @@ VALUES (
   :updatedAt
 );
 `, {
-        assignmentId: randomUUID(),
+        assignmentId: createRecordId(),
         clientId: assignment.client_id || null,
         createdAt: now,
         permissionOverridesJson: assignment.permission_overrides_json || null,
@@ -314,7 +314,7 @@ WHERE assignment_id = :assignmentId
     for (const assignment of plan.assignmentsToInsert || []) {
       await insertAssignment(transaction, {
         ...assignment,
-        assignment_id: randomUUID(),
+        assignment_id: createRecordId(),
         created_at: now,
         updated_at: now,
         user_id: userId,

@@ -1,3 +1,31 @@
+## Version 0.33.27.2 - 2026-07-31
+
+- Moved all 27 audited framework-owned persistent-record generators to the
+  central `createRecordId()` UUIDv7 authority: startup Workspaces, Users,
+  memberships and assignments; permission and Tag relationships;
+  Notifications and subscriptions; private-feed rows; audit events; durable
+  jobs; work-resume state; API-key rows; Files rows, attachments, and reports;
+  purge tombstones; and recovery-created audit rows.
+- Preserved every existing caller-supplied identifier fallback and made no
+  schema or data-rewrite migration. Existing UUIDv4 records continue relating
+  to new UUIDv7 rows, and backup/restore preserves restored identifiers
+  byte-for-byte.
+- Kept operational and security identity separate: Files storage keys,
+  request/lock/backup/purge values, API-key secrets, private-feed credentials,
+  module/browser record generators, and test/fixture UUIDs remain unchanged
+  for their later slices or dedicated cryptographic helpers.
+- Extended the exact identifier guardrail to pin every framework record call
+  to `createRecordId()` and removed only the completed framework entries from
+  the migration baseline. Representative integration coverage proves UUIDv7
+  audit, job, API-key row, Files row/attachment, and recovery-audit identity,
+  independent secrets/storage keys, mixed-version relationships, and restore
+  preservation.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`,
+  `docs/regression-suite.md`.
+- No docs change needed: Files, Notifications, Tags, Settings, Permissions,
+  security, and operator recovery behavior retain their existing public
+  contracts and workflows; only framework-generated row identity changed.
+
 ## Version 0.33.27.1 - 2026-07-31
 
 - Added the framework-owned identifier authority with standards-compliant
