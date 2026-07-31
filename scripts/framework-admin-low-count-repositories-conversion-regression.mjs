@@ -1,6 +1,6 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -179,7 +179,11 @@ async function assertApiKeysRuntime(session) {
     scopes: ["clients:read", "projects:read"],
   }, session);
   const created = createdResult.apiKey;
-  const keyHash = createHash("sha256").update(createdResult.rawKey).digest("hex");
+  const storedKey = await db.get(`
+SELECT key_hash
+FROM api_keys
+WHERE api_key_id = :apiKeyId;
+`, { apiKeyId: created.api_key_id });
 
   assert.equal(created.name, keyName, "API key names should round-trip through named params");
   assert.deepEqual(created.scopes, ["clients:read", "projects:read"], "API key scopes should be inserted transactionally");
@@ -198,7 +202,7 @@ LIMIT 1;
 `, { apiKeyId: created.api_key_id, workspaceId: session.workspace_id });
   assertUuidVersion(audit?.audit_id, 7, "new audit record identity");
 
-  const byHash = await apiKeysRepository.readByHash(keyHash);
+  const byHash = await apiKeysRepository.readByHash(storedKey.key_hash);
   assert.equal(byHash.api_key_id, created.api_key_id, "API key hash reads should use bound params");
 
   await apiKeysRepository.updateLastUsed(created.api_key_id);
