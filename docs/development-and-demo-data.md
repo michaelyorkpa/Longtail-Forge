@@ -9,6 +9,8 @@ These are separate from automated test fixtures and from the scale/performance p
 
 Version 0.33.26.8 reuses the same `sanitized-demo` scenario and role definition behind a separate, named-host-only Linux operation for `rt-ltf-demo`. The host helper reads seven different private passwords from a root-owned, exact-target-bound credential document and passes only that protected file path to the candidate seed. That operation does not relax this local CLI's development-environment and marked-directory refusals. Its reviewed source and runbook are tracked, while the generated demo database, Files objects, marker, backups, logs, and credentials remain host-only. See [Demo Host Data Provisioning and Reset](demo-data-operations.md).
 
+As of 0.33.27.6, fresh bootstrap Workspaces and Users use the central UUIDv7 record authority while the deterministic `development` and `sanitized-demo` scenario records deliberately retain their established UUIDv4 fixture IDs. Seed validation proves representative Client, Project, Task, Note, List, relationship, and Search references remain exact and valid. Do not regenerate, normalize, or migrate an existing pretty-data world merely to change UUID versions.
+
 ## Seed a local profile
 
 Set the initial operator identity and a unique local password in the untracked root `.env`. The seed CLI loads that file before bootstrap configuration is read; explicit process-environment values take precedence. The command does not contain or print a shared password. This operator configuration belongs to the ordinary `development` profile.

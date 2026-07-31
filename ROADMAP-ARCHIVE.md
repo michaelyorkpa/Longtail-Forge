@@ -1,5 +1,45 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
+
+Completed on 2026-07-31. The centralized identifier rollout now has system-level
+proof that legacy UUIDv4 and forward UUIDv7 records coexist unchanged across
+CRUD, relationships, current and public APIs, Search, audit export, deterministic
+seeds, and both recovery formats. Explicit timestamps, sequences, priorities,
+rank, and other domain fields remain authoritative ordering contracts. No schema
+or identifier-rewrite migration was created, and the active cursor advances to
+`0.33.27.7.1`.
+
+**Model: High Effort** — Final proof spans compatibility, explicit ordering,
+seeds, export, and destructive recovery, but deliberately changes no identity
+policy or workflow after the preceding isolated conversions.
+
+- [x] Proved legacy UUIDv4 read/update behavior, caller-supplied public API
+  compatibility, UUIDv4/UUIDv7 relationships in both directions, exact Search
+  identity, audit export references, and unchanged deterministic UUIDv4 seed
+  fixtures under a UUIDv7 fresh-bootstrap authority.
+- [x] Expanded whole-instance and workspace recovery drills to preserve mixed
+  identifiers, foreign keys, Files object keys and paths, URLs, audit history,
+  and embedded JSON byte-for-byte while completing SQLite integrity and foreign
+  key checks after restore.
+- [x] Added guardrails showing Tasks, Notes, Lists, Time Tracking, jobs, Search,
+  and audit history use their explicit domain ordering fields before any stable
+  identifier tie-breaker; UUID lexical order is not causal or business order.
+- [x] Finished the governing decision, database, architecture, future-module,
+  seed, recovery, and regression documentation, including dependency rationale,
+  call-site classification, bearer-secret separation, and intentional
+  non-production UUIDv4 fixtures.
+- [x] Recorded the release in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.6`, and completed the canonical local slice
+  verification without an identifier-rewrite migration.
+
+Acceptance criteria:
+
+- New ordinary persistent records use UUIDv7; opaque and security values retain
+  their proper boundaries; UUIDv4 and UUIDv7 coexist unchanged across all
+  exercised boundaries; SQLite remains supported; and no ordering, paging,
+  cursor, security, or authorization behavior depends on UUID order.
+
 ## Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
 
 Completed on 2026-07-31. New Client and Project browser flows now omit
