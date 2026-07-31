@@ -2945,7 +2945,7 @@
     },
     {
       "area": "framework",
-      "description": "Keeps production UUID generation behind the central authority and freezes the temporary direct-generator migration baseline.",
+      "description": "Keeps production UUID generation behind the central authority and freezes the empty direct-generator baseline.",
       "id": "framework.identifier-authority",
       "legacy": false,
       "path": "scripts/regressions/framework/identifier-authority.regression.mjs",

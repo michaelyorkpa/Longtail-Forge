@@ -1,3 +1,26 @@
+## Version 0.33.27.5 - 2026-07-31
+
+- Made new Client and Project identity server-authoritative: browser create
+  payloads omit persistent IDs and apply the canonical returned records to the
+  existing optimistic object, refresh, focus, deep-link, navigation, and
+  module-action state, including nested Client/Project creation.
+- Canonicalized Client/Project create audit action metadata to the saved server
+  identity while preserving accepted caller-supplied UUIDv4/UUIDv7 IDs for
+  existing API and integration contracts.
+- Emptied the production direct-generator baseline and extended the identifier
+  guardrail to reject unauthorized Node `randomUUID`, UUID-package `v4`/`v7`,
+  and browser `crypto.randomUUID` generation outside the central authority.
+- Added focused Clients/Projects browser-action, audit, hierarchy, and public
+  API proof for top-level and nested UUIDv7 creation plus caller-supplied UUIDv4
+  compatibility.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`,
+  `docs/clients-projects-strict-guardrail-inventory.md`,
+  `docs/regression-suite.md`.
+- No docs change needed: public API routes and payload compatibility, Help,
+  declarative view anatomy, and workflow-context behavior are unchanged; this
+  slice changes which side supplies default Client/Project identity and how the
+  browser consumes the canonical response.
+
 ## Version 0.33.27.4 - 2026-07-31
 
 - Routed every audited server-side first-party module persistent-record

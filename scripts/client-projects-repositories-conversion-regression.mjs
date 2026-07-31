@@ -86,6 +86,11 @@ function assertStaticContract() {
 
 async function assertClientProjectRepositoryRuntime(session) {
   const parentClient = (await clientsService.createClient({
+    action: {
+      action: "client_created",
+      client_id: "",
+      client_name: "Repository Parent '; DROP TABLE clients; --",
+    },
     billing_contact: {
       email: "billing@example.test",
       name: "Billing Contact",
@@ -101,6 +106,12 @@ async function assertClientProjectRepositoryRuntime(session) {
     parent_client_id: parentClient.id,
   }, session)).client;
   const parentProject = (await clientsService.createProject(parentClient.id, {
+    action: {
+      action: "project_created",
+      client_id: parentClient.id,
+      project_id: "",
+      project_name: "Repository Project '; DROP TABLE projects; --",
+    },
     billing_rounding: { enabled: true, increment: "nearestHour" },
     name: "Repository Project '; DROP TABLE projects; --",
     taskDefaults: {
@@ -139,6 +150,7 @@ async function assertClientProjectRepositoryRuntime(session) {
   assert.equal(legacyClient.id, legacyClientId, "caller-supplied UUIDv4 client ids should remain unchanged");
   assertUuidVersion(legacyClient.id, 4, "legacy client compatibility should preserve UUIDv4 ids");
   assert.equal(legacyClientProject.client_id, legacyClient.id, "UUIDv7 projects should retain their UUIDv4 client relationship");
+  await assertCanonicalCreateActionMetadata(session.workspace_id, parentClient, parentProject);
 
   const readClients = await clientsRepository.readByIds(session.workspace_id, [
     childClient.id,
@@ -253,6 +265,29 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
+}
+
+async function assertCanonicalCreateActionMetadata(workspaceId, client, project) {
+  const rows = await db.query(`
+SELECT record_type, record_id, metadata_json
+FROM audit_logs
+WHERE workspace_id = :workspaceId
+  AND record_id IN (:recordIds)
+ORDER BY created_at;
+`, {
+    recordIds: [client.id, project.id],
+    workspaceId,
+  });
+  const clientAudit = rows.find((row) => row.record_type === "client" && row.record_id === client.id);
+  const projectAudit = rows.find((row) => row.record_type === "project" && row.record_id === project.id);
+  const clientAction = JSON.parse(clientAudit?.metadata_json || "{}").provided_action;
+  const projectAction = JSON.parse(projectAudit?.metadata_json || "{}").provided_action;
+
+  assert.equal(clientAction?.client_id, client.id, "Client audit action metadata should use the canonical server-generated ID");
+  assert.equal(clientAction?.client_name, client.name, "Client audit action metadata should use the canonical saved label");
+  assert.equal(projectAction?.client_id, client.id, "Project audit action metadata should retain canonical Client scope");
+  assert.equal(projectAction?.project_id, project.id, "Project audit action metadata should use the canonical server-generated ID");
+  assert.equal(projectAction?.project_name, project.name, "Project audit action metadata should use the canonical saved label");
 }
 
 function assertUuidVersion(value, version, message) {

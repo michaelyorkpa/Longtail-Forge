@@ -1,5 +1,45 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
+
+Completed on 2026-07-31. New Client and Project browser flows now omit
+persistent identity, consume the canonical records returned by the existing
+server create contract, and preserve nested creation, optimistic object
+replacement, audit/action metadata, focus, deep links, navigation, and module
+action completion. Existing callers may still supply accepted UUIDv4/UUIDv7
+IDs. The production direct-generator baseline is empty and the active cursor
+advances to `0.33.27.6`.
+
+**Model: High Effort** — This changed the Clients/Projects browser-to-server
+creation contract while preserving workflow state and compatibility for
+existing UUIDv4 callers.
+
+- [x] Removed the Clients/Projects browser UUID generator and v4 fallback;
+  top-level and nested Client/Project create flows now apply the returned
+  canonical server records to their existing optimistic objects and action
+  state.
+- [x] Preserved refresh, focus, deep-link, navigation, module-action, and audit
+  metadata behavior by carrying the canonical saved identity through the
+  existing mutation completion path.
+- [x] Preserved accepted caller-supplied UUIDv4/UUIDv7 IDs while proving new
+  server-generated top-level and nested Client/Project IDs are UUIDv7.
+- [x] Emptied the production direct-generator migration baseline and expanded
+  the guardrail against unauthorized Node `randomUUID`, UUID-package `v4`/`v7`,
+  and browser `crypto.randomUUID` generation while retaining documented
+  non-production and dedicated-security exceptions.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, architecture,
+  database, Clients/Projects guardrail, and regression documentation; recorded
+  the shipped result in `CHANGELOG.md`; advanced through
+  `npm run version:bump -- 0.33.27.5`; and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions;
+  existing UUIDv4 callers remain valid; the temporary production migration
+  baseline is empty; and one framework authority is the only normal production
+  UUID entry point.
+
 ## Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
 
 Completed on 2026-07-31. Every audited server-side first-party module record
