@@ -2,133 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.25.3`.
+Active cursor: `0.33.26.9`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.25 - Legal and Policy Surfaces, Help Coverage, and Marketing Refresh
-
-**Model: Medium Effort** — This branch is documentation and one small framework Help surface; the risk is accuracy drift (legal statements, third-party license attribution, and Help/marketing claims that do not match shipped behavior), not runtime regression.
-
-Purpose:
-
-Activate the two documentation-side public-release gates already defined in `docs/licensing.md` — the in-app legal/about surface and a reviewed `THIRD_PARTY_NOTICES.md` — add publicly visible Terms and Conditions and Privacy Policy pages linked from the footer, and bring the in-app Help Center to full coverage of the shipped app: what every framework and first-party action is intended to do, task-oriented "What do you want to do?" guidance, and how-features-work explanations (for example, what the Workbench focus modes are and why to use each). Refresh the marketing foundation, whose status labels froze at 0.33.13.5, to reflect everything shipped through 0.33.24.
-
-Public-exposure decision:
-
-- Terms, Privacy, and a short AGPL/source notice are public (session-less): privacy must be reviewable before credential collection at login, terms must be readable before agreement, and AGPL §13's prominent Corresponding Source offer applies to "all users interacting with it remotely" — a pre-auth footer notice makes that automatic for every install, including downstream modified self-hosted copies (and, per GPL §5(d), notices the original displays must be preserved by modifiers).
-- The full legal/licensing article and third-party notices are not required pre-authentication and stay in the authenticated Help surface. Third-party attribution obligations attach to distribution (repo, release artifact, container image) — satisfied by `THIRD_PARTY_NOTICES.md` shipping with the distribution — not to the rendered public UI. The full AGPL text ships as the root `LICENSE`, not as a public page.
-
-Sequencing decision:
-
-- Lands after 0.33.24 so Help and marketing document the app as it exists after the performance (0.33.20), UX (0.33.21), calendar (0.33.22), error-surface (0.33.23), and maintenance-mode (0.33.24) branches, instead of documenting behavior those branches immediately change. Secure Catalogs (0.33.29) and Support View (0.33.30) now land after this branch, so their Help/marketing coverage is picked up by the conditional "where those branches landed" clauses in 0.33.25.5/0.33.25.6 and by the 0.39.9 stabilization pass rather than here.
-- This branch is the intentional public-release-preparation work that the licensing maintenance rule in `docs/licensing.md` reserves licensing edits for; it activates the "Public app legal/about notice" and "Third-party notices" gates and updates the `npm run licensing:gates` readout accordingly. It does not change the license stack itself.
-- The 0.39.9 User Documentation and Stabilization Checkpoint remains the later consolidation pass over the full 0.3x feature set once Support Tickets (0.34), Knowledge Base (0.35), and Calendars (0.36) exist; this branch establishes the article inventory, action catalog, and coverage conventions that 0.39.9 re-verifies and extends rather than repeating this pass.
-
-Non-goals:
-
-- No license-stack or policy changes: the core stays `AGPL-3.0-only`, documentation prose CC BY 4.0, and the commercial/private boundary unchanged; policy documents in `docs/licensing/` are edited only where the new surfaces require cross-references.
-- No activation of the public-contribution gate: no `CONTRIBUTING.md`, PR template, or CLA workflow in this branch.
-- No public website publishing, screenshot/video production, pricing commitments, or invented claims; marketing documents remain an internal truthful foundation governed by the claims-and-proof register rules.
-- The in-app legal surface states rights and points to authoritative sources; it does not attempt to render legal advice, replace the attorney-review checklist, or embed a source-distribution mechanism beyond a version-accurate repository reference.
-- Help documents shipped behavior only; anything not landed by the time this branch runs is excluded rather than pre-documented.
-
-### Version 0.33.25.3 - Public terms, privacy, and pre-authentication legal footer
-
-**Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
-
-- [x] Add publicly reachable, session-less Terms and Conditions and Privacy Policy pages, linked from the footer on both pre-authentication surfaces (login and other public pages) and the authenticated app shell, served with the same security-header posture as other public responses and no session, workspace, or user data.
-- [x] Decide content ownership operator-truthfully: the repo ships neutral, clearly labeled default/template documents; each deployment's operator supplies the governing terms/privacy content through a documented override (runtime configuration or content path), because self-hosted operators — not Raymond Tec — are the data controllers for their installs. First-party terms must never present as binding on third-party installs.
-- [ ] Draft Raymond Tec's actual hosted-instance terms and privacy documents (data collected, credentials/cookies/session behavior, retention, backups, contact) for the preview/demo hosts, run them through `docs/licensing/attorney-review-checklist.md` before public exposure, and keep deployment-specific detail in the private operational record rather than tracked examples.
-- [x] Add the short public AGPL notice from the branch-level public-exposure decision: project name, `AGPL-3.0-only`, and a version-accurate Corresponding Source reference in the public footer or a linked public legal line, sourced from the runtime version identity so it stays install-truthful for modified downstream copies; the full legal article and third-party notices remain in the authenticated Help surface (0.33.25.2).
-- [x] Regressions: the public pages render without a session, footer links resolve pre- and post-authentication, operator-overridden content is served when configured and the neutral default otherwise, security headers match other public endpoints, and no authenticated data appears on any public page.
-
-External gate remaining: the repository implementation is ready for review, but
-the slice stays active and unversioned until attorney-reviewed Raymond Tec
-preview/demo documents and their private approval record exist. Docs updated:
-`docs/docs-ownership.json`, `docs/e2e-testing.md`, `docs/licensing.md`,
-`docs/private-preview-readiness.md`, `docs/regression-suite.md`,
-`docs/runtime-artifact.md`, and `docs/runtime-configuration.md`. No docs change
-needed: the new public
-allowlist does not change authenticated roles, permissions, or workspace
-visibility.
-
-Acceptance criteria:
-
-- Terms and Privacy are publicly reachable from the footer without authentication, content ownership is operator-scoped with attorney-reviewed first-party documents for the hosted instances, and the public AGPL/source notice satisfies the prominent-offer intent while the full legal article and third-party notices stay authenticated.
-
-### Version 0.33.25.4 - Help action catalog and task-oriented guidance
-
-**Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
-
-- [x] Build the action inventory from the real registries, not recollection: every framework action and every current first-party module action, including the quick-action capture set (add task, time entry, note, list, project, client; create timer), per-page and per-card actions, and bulk operations — and document what each action is intended to do and where it is available.
-- [x] Add task-oriented "What do you want to do?" articles that map user goals to steps ("track time against a client", "capture something mid-task without losing focus", "hand a project to another user"), linking into the action and feature articles rather than duplicating them.
-- [x] Cover the administration and settings surfaces end to end: user settings (including preferences and any calendar-subscription controls if 0.33.22 landed), user admin, understanding roles and what each permission grants, workspace settings, and module settings (Settings -> Admin -> Modules, including the Workbench algorithm settings if 0.33.21.3 landed).
-- [x] Respect Help ownership boundaries: framework articles for framework behavior, module-owned articles for module behavior that appear only when the module is active; update `help/toc.md` and confirm new articles index into Help search.
-
-Repository implementation completed on the stacked `0.33.25.4` topic branch.
-Release bookkeeping intentionally remains open behind the active `0.33.25.3`
-attorney-review gate: do not skip `0.33.25.3` by bumping the package directly
-from `0.33.25.2` to `0.33.25.4`. Docs updated: framework and first-party
-module Help Markdown sources plus `help/toc.md`. No docs change needed: the
-underlying module workflows, permissions, routes, database, and developer
-integration contracts are unchanged.
-
-Acceptance criteria:
-
-- Every framework and first-party action shipped through 0.33.24 has a Help home stating its intent and location, goal-oriented articles route users from "what do you want to do" to concrete steps, and the settings/admin/roles surfaces are documented within the existing ownership boundaries.
-
-### Version 0.33.25.5 - Help feature and concept coverage, and drift audit
-
-**Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
-
-- [x] Add how-it-works articles for the app's conceptual features: the Workbench focus modes (what each mode surfaces and why a user would choose it), resume/pick-up-where-I-left-off behavior, Dashboard versus Workbench, notifications and reminders, tags and search behavior, and the recurring-calendar/subscription and secure-catalog models where those branches landed — written for users, with behavior claims verified against the shipped app rather than the roadmap.
-- [x] Audit every existing Help article for drift against behavior changed by 0.33.20 through 0.33.24 and correct it; remove or rewrite anything describing pre-change behavior.
-- [x] Verify the Help table of contents has no dangling entries and no orphaned articles, and that module-gated articles appear and disappear correctly with module enable/disable.
-- [x] Add or extend the Help regression so table-of-contents integrity (every entry resolves, every article is reachable) is checked mechanically rather than by review.
-
-Repository implementation completed on the stacked `0.33.25.5` topic branch.
-The audit corrected the stale pre-conversion Files location/anatomy and made
-the shipped note-level Secure Notes versus non-inheriting Catalog/Collection
-boundary explicit; Secure Catalogs remain future `0.33.29` work and are not
-presented as current behavior. Release bookkeeping intentionally remains open
-behind the `0.33.25.3` attorney-review gate and stacked `0.33.25.4` handoff, so
-the package remains `0.33.25.2`. Docs updated: framework and Tasks/Notes Help
-Markdown, `help/toc.md`, and `docs/regression-suite.md`. No docs change needed:
-the underlying workflows, permissions, routes, database, and module developer
-contracts are unchanged.
-
-Acceptance criteria:
-
-- A user can learn what the focus modes and other conceptual features are for, not just where their buttons live; no Help article describes superseded behavior; and table-of-contents integrity is regression-checked.
-
-### Version 0.33.25.6 - Marketing refresh and closeout
-
-**Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
-
-- [x] Re-baseline `docs/marketing/` from "Current through 0.33.13.5" to the actual shipped version: move shipped roadmap work (preview readiness, security hardening, performance, UX corrections, calendar subscription, secure catalogs, maintenance mode — whatever has actually landed) from private-preview/planned to current across the README status vocabulary, positioning, feature-outcome map, demo stories, website copy draft, and FAQ draft.
-- [x] Update `claims-and-proof-register.md` for every reclassified claim with its evidence source, and re-verify that no document invents customers, numbers, guarantees, or absolute security claims; add the new legal/about and third-party-notices surfaces as citable proof points for licensing-related FAQ answers.
-- [x] Reconcile the preview/design-partner/launch planning documents with the actual preview state at the time this branch runs.
-- [x] Closeout: run `npm run docs:check`, `npm run licensing:gates`, the Help regressions, and the canonical slice verification; update `CHANGELOG.md`, and record the gate activations in `DECISIONS.md` if a decision-level note is warranted.
-
-Repository implementation completed on the stacked `0.33.25.6` topic branch.
-Marketing now uses the `0.33.25.2` repository baseline, classifies the bounded
-preview deployment/recovery and Tasks calendar subscriptions as current, keeps
-Secure Catalogs at future `0.33.29`, and preserves the separate signed
-invite/no-invite gate. Release bookkeeping intentionally remains open behind
-the active `0.33.25.3` attorney-review gate and stacked `0.33.25.4-.5`
-handoffs, so the package remains `0.33.25.2`; `CHANGELOG.md`, version bump,
-archive handoff, and active-cursor advancement wait for sequential release.
-No `DECISIONS.md` change is warranted because the licensing gates and
-deployment-versus-invitation boundary were already governing decisions. Docs
-updated: `README.md`, `docs/regression-suite.md`, and the marketing documentation set. No docs change needed:
-demo-data operations, application behavior, permissions, schema, runtime
-configuration, and deployment procedures are unchanged.
-
-Acceptance criteria:
-
-- Every marketing document's status labels match the shipped app, the claims register is consistent with its evidence, and the branch closes with both documentation-side public-release gates active and green gate/doc checks.
 
 ## Version 0.33.26 - Permissions Role-Capability Alignment
 
@@ -142,72 +19,47 @@ Decision:
 
 - Child-client creation authorizes against the **parent client's** scope; top-level client creation remains workspace-scoped. A Client Administrator can create child clients under a client they administer and still cannot create top-level clients.
 - Navigation and permission hints become scope-aware rather than workspace-only. This branch grants no role any permission it does not already hold in the seeded grid (except where a slice explicitly says otherwise); it aligns reachability with existing grants, and server-side `assertCan` enforcement remains authoritative throughout.
+- Browser any-scope permissions are coarse presentation hints, never proof that a workspace-level or selected-record action is allowed. In particular, a Client Administrator may receive an Add Child Client action on an administered parent but never the top-level Add Client action solely because `clients.manage` exists somewhere in the workspace.
+- Preserve the intended scoped `roles.assign` grants. Client Administrator and Project Administrator receive a dedicated delegated-assignment workflow, not the full `users.manage` surface. It uses exact-account lookup, returns only safe target and delegable-assignment data, and preserves every hidden, higher, or out-of-scope assignment during mutation.
+- Add private operator-test logins for every shipped role to the local sanitized demo and the exact named `rt-ltf-demo` development/demo installation. They are permission-regression fixtures with protected credentials, not the public shared accounts planned by 0.33.31.
+- The final slice resets the **`rt-ltf-demo` database and Files unit only** through the exact-target, backup-first guarded operation after the matching release is deployed. The Friends-and-Family Preview (`rt-ltf`) is persistent participant data and is never provisioned, seeded, reset, or used as a demo-role credential target.
 - The user-facing permission-denied modal is owned by 0.33.23.2 (branded error surfaces), not this branch; permission-change notifications are owned by 0.36.5 (Account Home), because workspace-removal notice requires cross-workspace delivery.
 
 Dependencies and baseline:
 
-- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), and the view-renderer contribution contract; lands after 0.33.23 so denied actions already have a visible error surface while reachability is being widened.
+- Builds on the service-layer authorization model (`permissionsService.assertCan`/`can`, `ROLE_LIMITS`, scope matching in `assignmentMatchesResource`), the app-shell permission hints (`src/services/app-shell.service.js`), the view-renderer contribution contract, the exact-account Add User precedent, the deterministic fictional-data builder, and the guarded `rt-ltf-demo` database-and-Files operation. It lands after 0.33.23 so denied actions already have a visible error surface while reachability is being widened.
+
+Delivery shape:
+
+- This version is nine ordered, independently closeable slices. Each slice is sized for one implementation session with one primary blast radius, focused iteration checks, its own documentation/changelog/version bookkeeping, and one final `npm run verify:slice` after that slice's repository state is complete.
+- The split preserves the original child-client, navigation, and view-renderer boundaries; separates database seed convergence from delegated-role service and UI work; and separates local fixture design, guarded Linux host integration, and the destructive live reset.
+- The final live slice depends on authorized publication/deployment access, protected demo-role secrets, an inspected backup, and successful recovery proof. Missing external evidence leaves only that slice open; it never authorizes substituting a local reset or touching the Friends-and-Family Preview.
 
 Non-goals:
 
-- No new roles, no redesign of the role→permission grid, and no changes to workspace-type gating or workspace isolation.
+- No new roles, broad redesign of the role→permission grid, or changes to workspace-type gating or workspace isolation.
 - No client-side enforcement replacing server checks; browser-side permission filtering is presentation only.
+- The delegated-role workflow does not create identities or memberships, edit profiles, deactivate users, manage sessions, expose a workspace directory, reveal non-delegable assignments, or grant `users.manage`.
+- No general production seed command, public/shared demo credentials, 0.33.31 public-demo mode, hourly scheduler, or public installation Super Admin.
+- No data or credential change of any kind to the Friends-and-Family Preview. Its database and Files remain outside every demo provision/reset path.
 - No secure-notes permission changes and no Support View interaction; 0.33.30 remains governed by its own catalog.
 - No permission-change notifications (0.36.5) and no in-app 403 modal (0.33.23.2).
 
-### Version 0.33.26.1 - Child-client creation scope correction
 
-**Model: High Effort** — This restructures an authorization gate on a create path; the failure modes are continued lockout or letting scoped admins create top-level clients.
+### Version 0.33.26.9 - Live `rt-ltf-demo` reset, role proof, and version closeout
 
-- [ ] Restructure the `createClient` gate (`src/modules/client-projects/clients.service.js` `createClient`): when `parent_client_id` is present, authorize `clients.manage` against the parent client's scope (the check the current code performs second but never reaches, because the unconditional workspace-scoped check fails first for client-scoped assignments); when no parent is given, keep the workspace-scoped check so top-level creation remains Workspace Administrator and above.
-- [ ] Apply the same rule to every create path: the browser route, the public API `POST /api/v1/clients`, and any quick-action capture that creates clients.
-- [ ] Surface the capability in the UI for scoped admins: a Client Administrator sees an add-child-client affordance for clients they administer, consistent with the 0.33.21.2 Clients-owned add-client modal work.
-- [ ] Add regressions: a client_admin creates a child under their own client; a client_admin cannot create a top-level client; a client_admin cannot create a child under a client outside their scope; project_admin still cannot create clients; workspace_admin/super_admin behavior is unchanged; the business-workspace gate still applies.
+**Model: High Effort** — This is an authorized destructive live-demo operation with backup/recovery, immutable deployment identity, secret-safe role testing, and final release bookkeeping.
 
-Acceptance criteria:
-
-- A Client Administrator can create child clients under clients they administer and nothing more; top-level client creation remains workspace-scoped; every create path (browser, public API, capture) enforces the same split.
-
-### Version 0.33.26.2 - Scope-aware navigation, permission hints, and Project Settings access
-
-**Model: High Effort** — A sweep across every admin nav gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
-
-- [ ] Make the app-shell permission hints scope-aware: compute hints like `projectsManage`/`clientsManage` via an any-scope check (the user holds the permission somewhere in the workspace) instead of a workspace-scoped resource check that client/project-scoped assignments can never satisfy.
-- [ ] Client and Project Administrators get the Projects/Project Settings navigation and page: the page loads for them with scope-filtered data (the APIs already enforce per-scope `projects.manage` and `filterReadableProjects`), and page affordances outside their scope do not render.
-- [ ] Sweep the remaining admin navigation gates for the same asymmetry and make each deliberate: which of Users, Audit Log, Workspace Settings, and module-settings links should appear for scoped admins, given their actual grants (today none appear, and scoped admins hold no `workspace_settings.manage`/`users.manage`/`audit_logs.view`, so those stay hidden — record that as the decided behavior rather than an accident).
-- [ ] Fix the inverse asymmetry: the Clients nav link currently shows on workspace capability alone with no permission check; gate it consistently with the decided hint model.
-- [ ] Add regressions: client_admin and project_admin see the Projects surface and only their scoped data; roles without the underlying grants see no new links; workspace_admin navigation is unchanged.
+- [ ] Confirm all prior slices are merged through the protected topic → `nightly` path with required checks green. Deploy the exact immutable `nightly` artifact to `rt-ltf-demo` and prove direct/public `/healthz`, `/readyz`, `/api/app-info`, commit, version, and artifact checksum identity before touching demo data.
+- [ ] Install/review the exact helper and root-owned role-credential configuration from 0.33.26.8. Run preflight/dry-run, prove the target is `rt-ltf-demo`, inspect a new whole-instance database-and-Files backup as restorable, and retain the prior runtime/data state and rollback material.
+- [ ] Run the guarded live `rt-ltf-demo` reset as this version's final data-changing operation: quiesce all SQLite/Files users, stage and verify the candidate, promote database plus Files together, invalidate prior sessions, restart, and require integrity, foreign-key, Files/Search, direct/public health/readiness, and exact runtime identity proof. Automatically restore the retained prior unit if activation or verification fails.
+- [ ] Authenticate all seven private role identities without printing credentials. Retain sanitized evidence of exact role/scope assignments and representative allowed/denied child-client, Project Settings, view-action, and delegated-role behavior; prove an old pre-reset session is rejected.
+- [ ] Execute no provision, reset, seed, credential, backup, or other data command against `rt-ltf` or the Friends-and-Family Preview. Retain explicit refusal evidence from the exact-target tooling; a read-only identity check is optional and never substitutes for simply leaving that environment untouched.
+- [ ] Record the private operational evidence, update the authoritative role/demo documentation and release bookkeeping, archive the completed roadmap section, and advance the active cursor. Run only the closeout gates required by any final repository changes; do not redeploy for a docs-only archive handoff unless runtime content changed.
 
 Acceptance criteria:
 
-- Every admin navigation gate reflects a deliberate, scope-aware decision; Client/Project Administrators can reach and use the Project Settings surface within their scope; no link leads to a surface the role cannot use.
-
-### Version 0.33.26.3 - Client-side permission wiring for view surfaces
-
-**Model: Medium Effort** — Presentation-only filtering with an existing but never-fed contract; the risk is hiding controls a user can actually use, since server enforcement already protects the other direction.
-
-- [ ] Populate the workspace-context permission set that the view renderer's `requiredPermissions` filtering already consumes but that no code currently supplies, so declared button/action requirements take effect instead of short-circuiting to visible-for-everyone.
-- [ ] Define the scope semantics of that browser-side set explicitly (a permission is present when the user holds it in any scope within the workspace, mirroring the 0.33.26.2 hint model), and document that per-record affordances remain server-checked — the browser set is coarse presentation filtering, never authorization.
-- [ ] Convert the known offenders: surface actions such as "Add Client" no longer render for roles that would only receive a 403 on submit.
-- [ ] Add regressions: a role without `clients.manage` does not see the Add Client action; a scoped admin with the grant does; server-side denial behavior is unchanged when the filter is bypassed.
-
-Acceptance criteria:
-
-- View-surface `requiredPermissions` declarations actually filter rendered actions with documented any-scope semantics, users stop meeting 403s behind visible buttons, and server enforcement remains the authority.
-
-### Version 0.33.26.4 - Seed drift, roles.assign reconciliation, documentation, and closeout
-
-**Model: Medium Effort** — Seed and grid corrections plus documentation; the main risk is fresh-install/migrated-install divergence.
-
-- [ ] Fix the baseline-seed/runtime drift for `project_admin`: the schema seed marks it client-scoped while migration 074 and the runtime scope map treat it as project-scoped; align the baseline seed with the runtime so fresh installs and migrated installs agree.
-- [ ] Audit the seeds for any other role/permission rows that migrations have since rewritten, and align them the same way.
-- [ ] Reconcile `roles.assign` for scoped admins: client_admin/project_admin hold the grant (bounded by the role-assignment limits) but have no user-management surface and no `users.manage`. Decide and land the intended behavior — either a scoped role-assignment surface for the sub-roles they may assign, or removal of the grant until such a surface exists — and record the decision.
-- [ ] Document the intended role-capability matrix (per role: scope, grants, and reachable surfaces) in the permissions documentation so future role/module work has an authoritative statement of what each role SHOULD reach, not only the seeded grid.
-- [ ] Run `npm run check`, `npm run test:permissions`, the app-shell/navigation regressions, and the canonical slice verification; update `CHANGELOG.md` and record the scope-model decisions in `DECISIONS.md`.
-
-Acceptance criteria:
-
-- Fresh installs seed the same role scopes the runtime enforces, `roles.assign` for scoped admins has a deliberate landed answer, and the documented role-capability matrix matches the shipped behavior with the release-gate checks green.
+- The exact released Nightly artifact and a recoverable backup-first reset produce a healthy `rt-ltf-demo` database-and-Files unit with one verified private login per shipped role and correct permission behavior; the Friends-and-Family Preview remains completely untouched and can never match the helper's reset target.
 
 ## Version 0.33.27 - Centralized Identifier Authority and Forward UUIDv7 Adoption
 
@@ -659,6 +511,7 @@ Preserve the August 31, 2026 public-demo launch follow-on for privacy-respecting
 Dependencies and planned boundary:
 
 - [ ] Build on 0.33.31's explicit demo profile and external-integration capability catalog. Keep analytics and interest capture disabled until this slice selects and documents the independently operated external boundaries.
+- [ ] Before publishing first-party hosted Terms/Privacy or enabling public analytics, feedback, or interest capture, choose and record the review path appropriate to the actual launch scope, including whether professional legal review is warranted. Until that decision is complete, keep the neutral operator templates clearly labeled and all nonessential public data collection disabled; `0.33.25` does not claim legal approval.
 - [ ] Define privacy-respecting analytics for the root marketing domain and demo subdomain, UTM campaign attribution, and anonymous demo-login/role-selection events with no record content, shared credential, stable user profiling, or cross-workspace identifier.
 - [ ] Provide a permanent external mailing-list signup path and reset-surviving feedback channel; neither writes subscriber email, feedback, consent, or analytics data to the demo SQLite database.
 - [ ] Document privacy/cookie notices, consent gating for all nonessential storage or tracking, retention/deletion ownership, IP and reverse-proxy log treatment, cross-domain data flow, and the separation between product analytics and security/audit logging.

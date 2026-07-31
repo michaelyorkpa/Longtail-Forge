@@ -76,6 +76,7 @@ try {
     "scripts/lib/backup-archive.mjs",
     "scripts/lib/demo-data-operation.mjs",
     "scripts/lib/development-data-safety.mjs",
+    "scripts/lib/sanitized-demo-role-fixtures.mjs",
     "docs/backup-restore.md",
     "docs/demo-data-helper.env.example",
     "docs/demo-data-operations.md",

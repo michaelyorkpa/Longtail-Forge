@@ -50,7 +50,7 @@ assert.match(projectContextBody, /createListShell\(\{[\s\S]*createDataTable\(\{[
 assert.doesNotMatch(projectContextBody, /document\.createElement\("table"\)|document\.createElement\("div"\)/, "Project Client context should not hand-build related table chrome");
 assert.match(
   readFunctionBody(clientsProjectsScript, "createProjectClientContextRows"),
-  /type:\s*"Client"[\s\S]*openClientProjectModuleAction\("clients\.edit"[\s\S]*openClientProjectModuleAction\("clients\.add"[\s\S]*type:\s*"Parent Project"[\s\S]*openClientProjectModuleAction\("projects\.edit"/,
+  /openClientProjectModuleAction\("clients\.add"[\s\S]*type:\s*"Client"[\s\S]*openClientProjectModuleAction\("clients\.edit"[\s\S]*type:\s*"Parent Project"[\s\S]*openClientProjectModuleAction\("projects\.edit"/,
   "Project context rows should keep Client and parent Project actions module-owned",
 );
 

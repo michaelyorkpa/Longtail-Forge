@@ -315,31 +315,38 @@ async function readPermissionHints(session) {
     canManageWorkspaceSettings,
     canManageFileSettings,
     canManageFileQuarantine,
+    canManageClients,
     canManageProjects,
     canManageUsers,
+    canDelegateRoleAssignments,
     canViewAuditLogs,
   ] = await Promise.all([
-    permissionsService.can(session, "workspace_settings.manage", {
+    permissionsService.canInAnyScope(session, "workspace_settings.manage", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "files.manage_workspace_settings", {
+    permissionsService.canInAnyScope(session, "files.manage_workspace_settings", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "files.manage_quarantine", {
+    permissionsService.canInAnyScope(session, "files.manage_quarantine", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "projects.manage", {
+    permissionsService.canInAnyScope(session, "clients.manage", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "users.manage", {
+    permissionsService.canInAnyScope(session, "projects.manage", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "audit_logs.view", {
+    permissionsService.canInAnyScope(session, "users.manage", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.hasUsableDelegatedRoleScope(session),
+    permissionsService.canInAnyScope(session, "audit_logs.view", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
@@ -347,9 +354,11 @@ async function readPermissionHints(session) {
 
   return {
     auditLogsView: canViewAuditLogs,
+    clientsManage: canManageClients,
     filesManageQuarantine: canManageFileQuarantine,
     filesSettingsManage: canManageFileSettings,
     projectsManage: canManageProjects,
+    roleAssignmentsDelegate: canDelegateRoleAssignments,
     usersManage: canManageUsers,
     workspaceSettingsManage: canManageWorkspaceSettings,
   };
@@ -403,15 +412,14 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     actionsMenu.items.push(reportingMenu);
   }
 
-  if (permissionHints.filesSettingsManage) {
-    modulesSettingsMenu.items.push({
-      id: "files-settings",
-      label: "Files",
-      href: "files-settings.html",
-    });
-  }
-
   if (permissionHints.workspaceSettingsManage) {
+    if (permissionHints.filesSettingsManage) {
+      modulesSettingsMenu.items.push({
+        id: "files-settings",
+        label: "Files",
+        href: "files-settings.html",
+      });
+    }
     modulesSettingsMenu.items.push({
       id: "calendar-settings",
       label: "Calendar",
@@ -422,14 +430,13 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
       label: "Workbench",
       href: "workbench-settings.html",
     });
+    addSettingsModuleNavigation(
+      modulesSettingsMenu.items,
+      moduleNavigation.filter((item) => !["role-assignments.html", "user-admin.html"].includes(item.href)),
+    );
+    moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
+    sortAdminModuleNavigation(modulesSettingsMenu.items);
   }
-
-  addSettingsModuleNavigation(
-    modulesSettingsMenu.items,
-    moduleNavigation.filter((item) => item.href !== "user-admin.html"),
-  );
-  moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
-  sortAdminModuleNavigation(modulesSettingsMenu.items);
 
   if (modulesSettingsMenu.items.length > 0) {
     adminSettingsMenu.items.push(modulesSettingsMenu);
@@ -443,12 +450,16 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
   }
 
-  if (availableTools.has("clients_projects")) {
+  if (availableTools.has("clients_projects") && permissionHints.clientsManage) {
     addModuleNavItem(adminSettingsMenu.items, moduleNavByHref.get("clients.html"));
   }
 
   if (availableTools.has("team_members") && permissionHints.usersManage) {
     addModuleNavItem(adminSettingsMenu.items, moduleNavByHref.get("user-admin.html"));
+  }
+
+  if (availableTools.has("team_members") && permissionHints.roleAssignmentsDelegate) {
+    addModuleNavItem(adminSettingsMenu.items, moduleNavByHref.get("role-assignments.html"));
   }
 
   if (permissionHints.workspaceSettingsManage) {

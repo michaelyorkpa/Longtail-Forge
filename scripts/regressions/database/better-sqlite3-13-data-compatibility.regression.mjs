@@ -74,13 +74,13 @@ SELECT version, module_id, name, checksum
 FROM schema_migrations
 ORDER BY applied_at, version;
 `);
-  assert.equal(migrations.length, 22, "fresh startup should preserve the complete migration identity");
+  assert.equal(migrations.length, 23, "fresh startup should preserve the complete migration identity");
   assert.deepEqual(migrations.at(-1), {
-    checksum: "0edcdf7564ced0efae2b85cc215d7dd7dc1802a642b5ab00b611543fbcc2bef3",
+    checksum: "eb90e8b8c1c9da64cbb0293a2a15aea3e95585dfb5fdc7ecca26c204bcaa8f79",
     module_id: "core",
-    name: "named_calendar_subscriptions",
-    version: "085",
-  }, "migration 085 should remain the unchanged latest migration");
+    name: "role_seed_scope_convergence",
+    version: "086",
+  }, "migration 086 should be the latest checksum-tracked migration");
 
   const pragmaRows = {
     busyTimeout: await querySql("PRAGMA busy_timeout;"),

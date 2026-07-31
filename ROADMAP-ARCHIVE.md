@@ -1,5 +1,475 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.26.8 - `rt-ltf-demo` role-fixture and guarded-reset integration
+
+Completed on 2026-07-30. The installed-release operation can now build and
+verify the shared seven-role sanitized-demo fixture only on exact target
+`rt-ltf-demo`, while non-mutating preflight and backup-first rollback remain
+mandatory. No live reset was run; the active cursor advances to `0.33.26.9`.
+
+**Model: High Effort** — Extending the named-host reset helper to activate
+private accounts requires root-owned secret isolation, exact-target
+enforcement, staged-candidate verification, and rollback-safe
+database-and-Files handling.
+
+- [x] Added a separately installed root-owned `0600` role-credential document
+  with exact `rt-ltf-demo` target and `https://demo.longtailforge.com` origin
+  binding. The non-secret helper carries only its protected path, and the
+  candidate child receives only a minimal safe environment plus that path.
+  Credential values never enter Git, artifacts, arguments, markers, backup
+  summaries, logs, output, or public diagnostics.
+- [x] Reused the reviewed deterministic role identity/scope definition in the
+  installed-release candidate build while keeping routine Nightly deployment
+  data-preserving and role creation exclusive to explicit provision/reset.
+- [x] Required exactly seven active fixture identities with Argon2id hashes,
+  exact roles/scopes/memberships, and no overrides. Candidate verification
+  rejects wrong or duplicate assignments, extra active personas, weak or
+  missing credentials, real domains, Secure Notes material, unexpected
+  fingerprints, Search divergence, and database/Files mismatches.
+- [x] Strengthened exact-target refusal so host, target, and origin validation
+  happens before either protected credential source is read. Protected files
+  and paths must be root-owned, non-symlinked, and privately mode-restricted;
+  `rt-ltf`, preview/customer/self-hosted identities, nested/substituted paths,
+  and copied application secrets fail closed before backup or mutation.
+- [x] Expanded the isolated host regression across non-mutating preflight,
+  secret redaction, protected-file contracts, minimal environment propagation,
+  wrong-target refusal, backup-first staging, atomic database-and-Files
+  promotion, retained prior state, candidate corruption, and automatic
+  rollback. Normal startup and deployment paths remain unable to invoke the
+  operation.
+- [x] Updated the demo runbook, runtime/artifact/data/permission/regression
+  ownership docs, and governing decision. The reviewed `0.33.26.9` checklist
+  requires immutable deployment identity, preflight, restorable backup,
+  exact-target reset, seven-login proof, and explicit Friends-and-Family
+  exclusion.
+
+Acceptance criteria:
+
+- [x] The installed-release tooling safely builds and verifies the same private
+  role fixture on exact `rt-ltf-demo`; every other environment, including
+  Friends-and-Family, fails closed before backup, seed, credential read, or
+  data mutation.
+
+## Version 0.33.26.7 - Local sanitized-demo role identities and permission journey
+
+Completed on 2026-07-30. The explicit local sanitized-demo profile now creates
+one deterministic private identity per shipped role and the complete
+authenticated permission journey verifies the 0.33.26.1-.6 behavior. The
+active cursor advances to `0.33.26.8`.
+
+**Model: High Effort** — Login-capable seeded identities cross authentication,
+permission, deterministic-data, and secret-handling boundaries even though
+the target is local.
+
+- [x] Added one private login identity for every shipped role to the explicit
+  local `sanitized-demo` seed. The protected bootstrap identity supplies
+  installation Super Admin; every other fixture has exactly one active
+  Northwind Studio membership and one deterministic assignment at Workspace,
+  Cedar & Bloom Client, or Website Refresh Project scope with no overrides.
+- [x] Kept IDs, usernames, memberships, scopes, and semantic data deterministic
+  while reading seven unique strong passwords from one ignored private JSON
+  source. Missing, duplicate, weak, placeholder, command-line,
+  repository-tracked, unexpected, symlinked, or printed secrets are rejected;
+  generated databases contain normal Argon2id hashes only.
+- [x] Required the exact local role-fixture option, `LONGTAIL_ENV=development`,
+  no release branch, and an empty or loopback public URL. Ordinary development
+  personas remain inactive, while production, deployment, preview, customer,
+  Friends-and-Family, and ordinary self-hosted use fails closed.
+- [x] Expanded database verification across paired independent seeds to prove
+  exactly seven active fixture logins, every other persona disabled, exact
+  roles/scopes/memberships, no overrides, reserved domains, no Secure Notes,
+  deterministic semantic fingerprints, Files/Search projections, SQLite
+  integrity, and zero foreign-key violations.
+- [x] Added a disposable complete role journey that authenticates and logs out
+  all seven identities through normal password verification and throttling,
+  then proves representative allowed/denied Client creation, Project
+  Settings, declarative-action, role-catalog, and delegated-assignment
+  behavior from 0.33.26.1-.6 without exposing credentials.
+- [x] Documented credential creation, sync-aware storage, local seed/reset
+  regeneration, exact usernames/scopes, verification, runtime configuration,
+  and the strict separation from `rt-ltf-demo` host work and the
+  Friends-and-Family Preview.
+
+Acceptance criteria:
+
+- [x] A local sanitized-demo reset reproducibly creates one private test login
+  per shipped role with exact scopes and no extra authority, and the complete
+  role journey proves the branch's permission behavior without exposing
+  secrets.
+
+Docs updated: `DECISIONS.md`, `.env.example`,
+`docs/development-and-demo-data.md`, `docs/docs-ownership.json`,
+`docs/longtail_forge_permissions_matrix.md`, `docs/regression-suite.md`, and
+`docs/runtime-configuration.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.6 - Delegated role-assignment browser surface
+
+Completed on 2026-07-30. Scoped administrators now have a dedicated,
+non-enumerating browser workflow for exactly identified accounts and only their
+currently delegable assignments. The active cursor advances to `0.33.26.7`.
+
+**Model: High Effort** — The browser must expose the new narrow delegation
+workflow without accidentally reopening the full User Admin, membership,
+profile, or session-management surface.
+
+- [x] Added a dedicated Users-owned Role Assignments surface eligible through
+  `roles.assign`; the existing User Admin page retains `users.manage` and its
+  full user table/edit workflow is not reused.
+- [x] Added complete-email lookup with calm found/not-found parity,
+  server-shaped labeled role/scope options, a clear current delegable list, and
+  explicit add/remove confirmation. The page never renders a member directory,
+  hidden assignment count/details, raw IDs, profile editing, membership,
+  password/session, permission-override, or deletion controls.
+- [x] Added the Admin navigation contribution only when the server confirms a
+  currently usable delegable role/scope. Shared modal/recovery anatomy,
+  focus return, error/empty states, accessible labels and status announcements,
+  keyboard behavior, and the branded denial surface remain intact.
+- [x] Added browser-source, app-shell, module-manifest, accessibility, and
+  permission regressions for Client, Project, and Workspace Administrators,
+  roles without `roles.assign`, exact-account non-enumeration, scope-option
+  filtering, stale/denied mutation behavior, hidden-assignment
+  non-disclosure, and unchanged User Admin authorization.
+- [x] Updated Help and the authoritative permissions matrix with the boundary
+  between full User Administration and scoped Role Assignments.
+
+Acceptance criteria:
+
+- [x] Client/Project Administrators have one usable, accessible, scope-bounded
+  role-delegation workflow; they gain no user-directory, membership, profile,
+  session, deletion, or hidden-assignment access.
+
+Docs updated: `help/framework/users-roles-and-permissions.md`,
+`docs/longtail_forge_permissions_matrix.md`, and
+`docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.5 - Delegated role-assignment service and API contract
+
+Completed on 2026-07-30. Scoped administrators now use exact-account discovery
+and transaction-revalidated subset mutation without learning or replacing
+hidden assignments. The active cursor advances to `0.33.26.6`.
+
+**Model: High Effort** — A scoped administrator must be able to delegate lower
+roles without learning or overwriting higher, hidden, or out-of-scope identity
+data.
+
+- [x] Preserved `roles.assign` for Client Administrator and Project
+  Administrator and formalized the existing `ROLE_LIMITS`: Client
+  Administrator delegates only Project Administrator, Client User, Project
+  User, and Client User (External) within administered Client/Project scope;
+  Project Administrator delegates only Project User within administered
+  Projects. Workspace Administrator/Super Admin behavior remains full
+  replacement.
+- [x] Added exact-normalized-account lookup for an active member of the current
+  workspace. Scoped responses contain only matched user ID, username/display
+  label, active-membership result, actor-manageable assignments, and an opaque
+  revision; unknown/inactive parity and the field allowlist exclude directory,
+  unrelated membership, hidden role/scope, profile, session, assignment-ID,
+  and permission-override disclosure.
+- [x] Replaced scoped all-assignment replacement with an atomic manageable-set
+  diff. The revision is process-private and bound to actor, target, and
+  workspace. Omitted manageable rows can be removed and new authorized rows
+  inserted, while unchanged, higher, installation, hidden, and out-of-scope
+  rows remain byte-for-byte intact; attempts to name unauthorized rows fail.
+- [x] Revalidated active actor/target/workspace state, workspace type, fresh
+  authority, role ceiling, concrete active Client/Project ownership,
+  Project-to-Client ancestry, and self/protected-user safety inside the
+  mutation transaction. Successful mutations reconcile private feeds before
+  safe audit and internal-event emission.
+- [x] Expanded the permission harness from 370 to 397 checks for lookup parity,
+  filtered options, allowed delegation, cross-scope denial, hidden and higher
+  preservation, stale/concurrent and actor-bound revisions, protected/self
+  targets, Family/Personal restrictions, revoked authority, audit safety, and
+  unchanged full-administrator behavior.
+
+Acceptance criteria:
+
+- [x] Scoped administrators can safely read and mutate only their delegable
+  assignment subset for an exactly identified active member; all other
+  identity and assignment state remains undisclosed and unchanged.
+
+Docs updated: `docs/longtail_forge_permissions_matrix.md` and
+`docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.4 - Role seed and scope convergence
+
+Completed on 2026-07-30. The consolidated baseline and forward migration 086
+now converge with migration 074 and the runtime authorization maps on a
+project-scoped Project Administrator. The active cursor advances to
+`0.33.26.5`.
+
+**Model: High Effort** — Fresh-install and upgraded-install role metadata is a
+database authorization contract; the slice must correct drift without
+rewriting an applied migration or broadening any role.
+
+- [x] Corrected the consolidated `project_admin` baseline row to project scope
+  and added forward-only migration 086 to repair stale current role metadata;
+  migration 074 remains byte-for-byte unchanged. Added the two reviewed
+  prior-baseline line-ending checksums to the migration runner's compatibility
+  set so existing installations reach the repair and unknown drift still
+  fails closed.
+- [x] Audited all seven shipped role IDs, database/runtime scope requirements,
+  module and framework default permission grants, Business/Family/Personal
+  availability, and the existing `ROLE_LIMITS`. No additional drift or
+  unrelated permission change was found.
+- [x] Added one isolated database regression covering the consolidated
+  baseline, fresh migration path, pre-074 assignment expansion, current
+  metadata repair, generated schema relationships, SQLite integrity, foreign
+  keys, and byte-for-byte survival of valid assignments.
+- [x] Updated established fresh-database, baseline-adoption,
+  migration-compatibility, schema-workflow, and native-driver migration
+  identity expectations through migration 086.
+- [x] Updated the database, permissions, and regression-suite documentation,
+  changelog, package metadata, and roadmap/archive handoff.
+
+Acceptance criteria:
+
+- [x] Fresh and upgraded installations expose the same seven role definitions
+  and scope requirements.
+- [x] Project Administrator is project-scoped in the baseline, migration path,
+  runtime map, permissions matrix, and repaired current database.
+- [x] Existing valid assignments survive unchanged, and applied migration 074
+  was not edited.
+
+Docs updated: `docs/database.md`,
+`docs/longtail_forge_permissions_matrix.md`, and `docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.3 - Client-side permission wiring for view surfaces
+
+Completed on 2026-07-30. Declarative view actions now consume the actor's
+effective any-scope permission IDs from every workspace bootstrap, while
+record-specific capabilities and server authorization remain authoritative.
+The active cursor advances to `0.33.26.4`.
+
+**Model: Medium Effort** — Presentation-only filtering with an existing but
+previously unfed contract; the main risk was hiding valid scoped actions or
+surfacing workspace-level actions from a record-scoped grant.
+
+- [x] Added the effective any-scope permission ID set to login, session, and
+  app-shell workspace context.
+- [x] Applied declarative `requiredPermissions` filtering to shared page,
+  surface, row, item, modal, menu, and inline actions, with a second live check
+  before dispatch.
+- [x] Preserved module-shaped record eligibility: roles without
+  `clients.manage` receive no Client action, and Client Administrators receive
+  eligible Add Child Client actions without workspace-level Add Client.
+- [x] Added behavioral and static regressions for absent grants, scoped
+  any-scope grants, child-client visibility, hidden unauthorized actions,
+  session/app-shell parity, and unchanged service denial after bypass.
+
+Acceptance criteria:
+
+- View-surface `requiredPermissions` declarations filter rendered actions with
+  documented any-scope semantics; record-scoped actions remain module-owned;
+  invalid visible buttons are removed; server enforcement remains
+  authoritative.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`, `docs/settings-ownership.md`,
+`docs/view-building-contract.md`, and
+`help/framework/users-roles-and-permissions.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.2 - Scope-aware navigation, permission hints, and Project Settings access
+
+Completed on 2026-07-30. Administrative shell hints now use any-scope
+permission semantics, scoped Client/Project administrators can reach only
+their usable Settings surfaces and records, and the active cursor advances to
+`0.33.26.3`.
+
+**Model: High Effort** — A sweep across every admin navigation gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
+
+- [x] Made app-shell hints such as `projectsManage` and `clientsManage`
+  any-scope checks within the active workspace.
+- [x] Gave Client Administrators Clients and Project Settings navigation and
+  Project Administrators Project Settings only, with independently protected
+  pages and permission-filtered data.
+- [x] Kept Users, Audit Log, Workspace Settings, API Keys, and Admin Module
+  Settings behind deliberate workspace-administrator gates.
+- [x] Gated the Clients link with `clientsManage` instead of workspace
+  capability alone.
+- [x] Added server-shaped Project create/move and per-record manage
+  capabilities plus regressions for scoped administrators, denied roles, and
+  unchanged Workspace Administrator navigation.
+
+Acceptance criteria:
+
+- Every admin navigation gate reflects a deliberate, scope-aware decision;
+  Client/Project Administrators can reach and use the Project Settings surface
+  within their scope; no link leads to a surface the role cannot use.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`,
+`help/framework/administration-and-settings.md`, and
+`help/framework/clients-and-projects.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.1 - Child-client creation scope correction
+
+Completed on 2026-07-30. Client creation now authorizes a child against its
+requested parent while retaining workspace scope for top-level creation. The
+browser exposes only server-shaped top-level or per-parent actions, and the
+active cursor advances to `0.33.26.2`.
+
+**Model: High Effort** — This restructures an authorization gate on a create
+path; the failure modes are continued lockout or letting scoped admins create
+top-level clients.
+
+- [x] Restructured the shared `createClient` service so child creation checks
+  `clients.manage` against the requested parent and top-level creation keeps its
+  workspace-scoped check.
+- [x] Kept browser, public API `POST /api/v1/clients`, and registered actions on
+  the same service-owned authorization path.
+- [x] Added server-shaped top-level and per-record capabilities plus an Add
+  Child Client row action with its authorized parent locked in the
+  module-owned dialog.
+- [x] Added permission and static regressions for allowed scoped creation,
+  top-level and cross-scope denial, Project Administrator denial, unchanged
+  Workspace/Super Administrator behavior, Business gating, public API
+  delegation, and Client tag-target scope shaping.
+
+Acceptance criteria:
+
+- A Client Administrator can create child clients under clients they
+  administer and nothing more; top-level client creation remains
+  workspace-scoped; every create path enforces the same split.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`,
+`help/framework/action-catalog.md`, and
+`help/framework/clients-and-projects.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.25.6 - Marketing refresh and branch closeout
+
+Completed on 2026-07-30. The marketing foundation now matches the shipped
+application through the complete `0.33.25` branch, the package is
+`0.33.25.6`, and the active cursor advances to `0.33.26.1`. Professional legal
+review is not claimed or required for this closeout; the decision appropriate
+to a future public analytics/interest-capture launch is deferred explicitly to
+`0.33.32`.
+
+**Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
+
+- [x] Re-baselined `docs/marketing/` from its stale `0.33.13.5` status to the
+  actual shipped application, keeping future Secure Catalogs at `0.33.29` and
+  the separate signed invite/no-invite decision explicit.
+- [x] Updated the claims-and-proof register and re-verified that marketing
+  documents make no invented customer, numeric, guarantee, legal-approval, or
+  absolute-security claims.
+- [x] Reconciled preview, design-partner, and launch planning with the actual
+  bounded preview state.
+- [x] Ran documentation, licensing, Help, and canonical slice verification;
+  updated the changelog, package metadata, archive handoff, and governing
+  deferral decision.
+
+Acceptance criteria:
+
+- Marketing status labels and evidence match the shipped app, the legal/about
+  and third-party-notice gates are active, public legal surfaces remain neutral
+  operator templates without a legal-approval claim, and branch bookkeeping is
+  complete.
+
+## Version 0.33.25.3 - Public terms, privacy, and pre-authentication legal footer
+
+Completed on 2026-07-30. Session-less Terms and Privacy surfaces and the public
+AGPL/source notice are shipped with neutral operator-scoped templates.
+Raymond Tec does not currently retain an attorney, and professional review is
+not represented as having occurred. Choosing the review path appropriate to
+future first-party public analytics, feedback, or interest capture is deferred
+to the `0.33.32` public-demo privacy gate.
+
+**Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
+
+- [x] Added publicly reachable Terms and Privacy pages linked from public and
+  authenticated footers with the same security-header posture as other public
+  responses and no session, workspace, or user data.
+- [x] Kept ownership operator-truthful: the repository ships clearly labeled
+  neutral templates, and each operator may supply installation-specific
+  content through protected runtime configuration.
+- [x] Deferred the professional-review decision to `0.33.32`, before any
+  first-party public analytics, feedback, or interest capture is enabled;
+  `0.33.25` makes no legal-approval claim.
+- [x] Added the version-accurate public `AGPL-3.0-only` and Corresponding Source
+  notice while keeping the full legal and notices articles authenticated.
+- [x] Added regression coverage for session-less access, footer links,
+  operator overrides, neutral fallback content, security headers, and absence
+  of authenticated data.
+
+Acceptance criteria:
+
+- Terms and Privacy are publicly reachable and operator-scoped, neutral
+  defaults do not impersonate first-party legal documents, the public
+  AGPL/source notice is version-accurate, and future launch-specific review is
+  owned explicitly by `0.33.32` rather than blocking this repository slice.
+
+## Version 0.33.25.5 - Help feature and concept coverage, and drift audit
+
+Repository implementation merged into `nightly` through cumulative PR #78 on
+2026-07-30. The Help concept/drift audit is complete and ships in the
+`0.33.25.6` branch closeout.
+
+**Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
+
+- [x] Added how-it-works articles for Workbench focus modes, resume behavior,
+  Dashboard versus Workbench, notifications and reminders, tags and search,
+  and the calendar-subscription model that has actually shipped.
+- [x] Audited existing Help against behavior changed by `0.33.20` through
+  `0.33.24`, including the post-conversion Files anatomy and the note-level
+  Secure Notes versus non-inheriting Catalog/Collection boundary; future Secure
+  Catalogs remain explicitly future `0.33.29` work.
+- [x] Verified that the Help table of contents has no dangling entries or
+  orphaned articles and that module-gated articles follow module activation.
+- [x] Extended regression coverage so Help declarations, Markdown sources, and
+  table-of-contents links are compared as exact sets.
+
+Acceptance criteria:
+
+- A user can learn what the focus modes and other conceptual features are for,
+  no Help article describes superseded behavior, and table-of-contents
+  integrity is regression-checked.
+
+## Version 0.33.25.4 - Help action catalog and task-oriented guidance
+
+Repository implementation merged into `nightly` through cumulative PR #78 on
+2026-07-30. The Help action/task-guidance work is complete and ships in the
+`0.33.25.6` branch closeout.
+
+**Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
+
+- [x] Built the action inventory from the real framework and first-party module
+  registries, including quick capture, page/card actions, and bulk operations.
+- [x] Added task-oriented "What do you want to do?" articles that route user
+  goals to concrete action and feature guidance without duplicating it.
+- [x] Covered user settings, user administration, roles and permissions,
+  workspace settings, and module settings within their existing ownership
+  boundaries.
+- [x] Kept framework Help framework-owned and module Help module-owned, updated
+  `help/toc.md`, and confirmed that the new articles index into Help search.
+
+Acceptance criteria:
+
+- Every framework and first-party action shipped through `0.33.24` has a Help
+  home stating its intent and location, goal-oriented articles lead to concrete
+  steps, and settings/admin/roles guidance stays within existing ownership
+  boundaries.
+
 ## Version 0.33.25.2 - In-app legal and licensing surface in Help
 
 Completed locally on 2026-07-30. Authenticated framework Help now exposes

@@ -32,6 +32,7 @@ try {
   await runApiKeyTests(api, fixtures);
   await runClientMutationTests(api, fixtures);
   await runProjectMutationTests(api, fixtures);
+  await runScopedAdminNavigationTests(api, fixtures);
   await runTaskMutationTests(api, fixtures);
   await runTimeEntryMutationTests(api, fixtures);
   await runActiveTimerMutationTests(api, fixtures);
@@ -204,6 +205,28 @@ async function runApiKeyTests(api, fixtures) {
     api.get("/api/v1/projects", { bearer: personalClientKey.rawKey }),
     200,
   );
+  const clientReadKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["clients:read"]);
+  const clientFullKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["clients:read", "clients:write"]);
+  await expectStatus(
+    "public API Client creation requires clients write scope",
+    api.post("/api/v1/clients", {
+      name: "Denied Public API Child Client",
+      parent_client_id: fixtures.clients.alpha.id,
+    }, { bearer: clientReadKey.rawKey }),
+    403,
+  );
+  await expectStatus(
+    "public API Client creation retains the shared parent-scoped service path",
+    api.post("/api/v1/clients", {
+      name: "Public API Child Client",
+      parent_client_id: fixtures.clients.alpha.id,
+    }, { bearer: clientFullKey.rawKey }),
+    201,
+  ).then((response) => {
+    check("public API child creation keeps the requested parent", () => {
+      assert.equal(response.body.data.parent_client_id, fixtures.clients.alpha.id);
+    });
+  });
 
   const taskReadKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read"]);
   const taskWriteKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:write"]);
@@ -289,6 +312,75 @@ async function runClientMutationTests(api, fixtures) {
   const childClient = await createClient(api, fixtures.sessions.workspaceAdmin, "Nested Child Client", {
     parent_client_id: fixtures.clients.alpha.id,
   });
+  const scopedChildClient = await createClient(api, fixtures.sessions.clientAdmin, "Scoped Nested Child Client", {
+    parent_client_id: fixtures.clients.alpha.id,
+  });
+  check("client administrator child creation keeps the authorized parent", () => {
+    assert.equal(scopedChildClient.parent_client_id, fixtures.clients.alpha.id);
+  });
+  await expectStatus(
+    "client administrator receives scoped child-create capabilities",
+    api.get("/api/client-projects", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  ).then((response) => {
+    check("client administrator has no top-level create capability", () => {
+      assert.equal(response.body.capabilities?.can_create_top_level_client, false);
+    });
+    check("client administrator can add a child only from an administered Client row", () => {
+      assert.equal(response.body.clients.find((candidate) => candidate.id === fixtures.clients.alpha.id)?.can_create_child, true);
+      assert.equal(response.body.clients.some((candidate) => (
+        candidate.id !== fixtures.clients.alpha.id &&
+        candidate.can_create_child === true
+      )), false);
+    });
+  });
+  await expectStatus(
+    "client administrator cannot create top-level clients",
+    api.post("/api/clients", { name: "Denied Scoped Top-Level Client" }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await expectStatus(
+    "client administrator cannot create children outside their Client scope",
+    api.post("/api/clients", {
+      name: "Denied Cross-Scope Child Client",
+      parent_client_id: fixtures.clients.beta.id,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await expectStatus(
+    "project administrator cannot create child clients",
+    api.post("/api/clients", {
+      name: "Denied Project Administrator Child Client",
+      parent_client_id: fixtures.clients.alpha.id,
+    }, { cookie: fixtures.sessions.projectAdmin }),
+    403,
+  );
+  const superAdminTopLevelClient = await createClient(
+    api,
+    fixtures.sessions.superAdmin,
+    "Super Administrator Top-Level Client",
+  );
+  const superAdminChildClient = await createClient(
+    api,
+    fixtures.sessions.superAdmin,
+    "Super Administrator Child Client",
+    { parent_client_id: fixtures.clients.beta.id },
+  );
+  check("super administrator client creation remains unchanged", () => {
+    assert.equal(superAdminTopLevelClient.parent_client_id, "");
+    assert.equal(superAdminChildClient.parent_client_id, fixtures.clients.beta.id);
+  });
+  await expectStatus(
+    "workspace administrator receives top-level and row-scoped create capabilities",
+    api.get("/api/client-projects", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("workspace administrator create capabilities remain unchanged", () => {
+      assert.equal(response.body.capabilities?.can_create_top_level_client, true);
+      assert.ok(response.body.clients.length > 0);
+      assert.ok(response.body.clients.every((candidate) => candidate.can_create_child === true));
+    });
+  });
   await expectStatus(
     "workspace admin can update clients",
     api.put(`/api/clients/${encodeURIComponent(client.id)}`, { name: "Mutation Client Updated" }, { cookie: fixtures.sessions.workspaceAdmin }),
@@ -330,6 +422,7 @@ async function runClientMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("personal workspace combined payload has only workspace projects", () => {
+      assert.equal(response.body.capabilities?.can_create_top_level_client, false);
       assert.equal(response.body.clients.length, 0);
       assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
     });
@@ -401,6 +494,220 @@ async function runProjectMutationTests(api, fixtures) {
     api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: fixtures.clients.beta.id, name: "Denied Target Move" }, { cookie: fixtures.sessions.projectAdmin }),
     403,
   );
+}
+
+async function runScopedAdminNavigationTests(api, fixtures) {
+  const clientAdminShell = await expectStatus(
+    "client administrator can load the scope-aware app shell",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  const clientAdminHrefs = navigationHrefs(clientAdminShell.body.navigation);
+  check("client administrator receives scoped Client and Project navigation only", () => {
+    assert.equal(clientAdminShell.body.permissionHints?.clientsManage, true);
+    assert.equal(clientAdminShell.body.permissionHints?.projectsManage, true);
+    assert.equal(clientAdminShell.body.permissionHints?.roleAssignmentsDelegate, true);
+    assert.ok(clientAdminShell.body.workspaceContext?.permissionIds?.includes("clients.manage"));
+    assert.ok(clientAdminShell.body.workspaceContext?.permissionIds?.includes("projects.manage"));
+    assert.equal(clientAdminShell.body.workspaceContext?.permissionIds?.includes("workspace_settings.manage"), false);
+    assert.ok(clientAdminHrefs.has("clients.html"));
+    assert.ok(clientAdminHrefs.has("projects.html"));
+    assert.ok(clientAdminHrefs.has("role-assignments.html"));
+    assert.equal(clientAdminHrefs.has("user-admin.html"), false);
+    assert.equal(clientAdminHrefs.has("workspace-settings.html"), false);
+    assert.equal(clientAdminHrefs.has("audit-log.html"), false);
+    assert.equal(clientAdminHrefs.has("api-keys.html"), false);
+    assert.equal(clientAdminShell.body.navigation
+      .find((item) => item.id === "settings")?.items
+      .find((item) => item.id === "admin-settings-group")?.items
+      .some((item) => item.id === "module-settings-group"), false);
+  });
+
+  const projectAdminShell = await expectStatus(
+    "project administrator can load the scope-aware app shell",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  const projectAdminHrefs = navigationHrefs(projectAdminShell.body.navigation);
+  check("project administrator receives Project navigation without Client or workspace administration", () => {
+    assert.equal(projectAdminShell.body.permissionHints?.clientsManage, false);
+    assert.equal(projectAdminShell.body.permissionHints?.projectsManage, true);
+    assert.equal(projectAdminShell.body.permissionHints?.roleAssignmentsDelegate, true);
+    assert.equal(projectAdminShell.body.workspaceContext?.permissionIds?.includes("clients.manage"), false);
+    assert.ok(projectAdminShell.body.workspaceContext?.permissionIds?.includes("projects.manage"));
+    assert.equal(projectAdminHrefs.has("clients.html"), false);
+    assert.ok(projectAdminHrefs.has("projects.html"));
+    assert.ok(projectAdminHrefs.has("role-assignments.html"));
+    assert.equal(projectAdminHrefs.has("user-admin.html"), false);
+    assert.equal(projectAdminHrefs.has("workspace-settings.html"), false);
+    assert.equal(projectAdminHrefs.has("audit-log.html"), false);
+    assert.equal(projectAdminHrefs.has("api-keys.html"), false);
+  });
+
+  const clientUserShell = await expectStatus(
+    "role without management grants can load the ordinary app shell",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.clientUser }),
+    200,
+  );
+  const clientUserHrefs = navigationHrefs(clientUserShell.body.navigation);
+  check("role without management grants receives no Client or Project Settings links", () => {
+    assert.equal(clientUserShell.body.permissionHints?.clientsManage, false);
+    assert.equal(clientUserShell.body.permissionHints?.projectsManage, false);
+    assert.equal(clientUserShell.body.permissionHints?.roleAssignmentsDelegate, false);
+    assert.equal(clientUserShell.body.workspaceContext?.permissionIds?.includes("clients.manage"), false);
+    assert.equal(clientUserShell.body.workspaceContext?.permissionIds?.includes("projects.manage"), false);
+    assert.equal(clientUserHrefs.has("clients.html"), false);
+    assert.equal(clientUserHrefs.has("projects.html"), false);
+    assert.equal(clientUserHrefs.has("role-assignments.html"), false);
+  });
+
+  const clientAdminSession = await expectStatus(
+    "session bootstrap carries the same any-scope browser permission set",
+    api.get("/api/session", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("session workspace context preserves scoped grants without workspace elevation", () => {
+    const permissionIds = clientAdminSession.body.user?.workspaceContext?.permissionIds || [];
+    assert.ok(permissionIds.includes("clients.manage"));
+    assert.ok(permissionIds.includes("projects.manage"));
+    assert.equal(permissionIds.includes("workspace_settings.manage"), false);
+  });
+
+  const workspaceAdminShell = await expectStatus(
+    "workspace administrator can load unchanged administrative navigation",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  const workspaceAdminHrefs = navigationHrefs(workspaceAdminShell.body.navigation);
+  check("workspace administrator navigation remains complete", () => {
+    for (const href of [
+      "clients.html",
+      "projects.html",
+      "role-assignments.html",
+      "user-admin.html",
+      "workspace-settings.html",
+      "api-keys.html",
+      "audit-log.html",
+    ]) {
+      assert.ok(workspaceAdminHrefs.has(href), `workspace administrator should retain ${href}`);
+    }
+  });
+
+  await expectStatus(
+    "client administrator can load dedicated Role Assignments",
+    api.get("/role-assignments.html", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "project administrator can load dedicated Role Assignments",
+    api.get("/role-assignments.html", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace administrator can load dedicated Role Assignments",
+    api.get("/role-assignments.html", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "role without roles.assign cannot load dedicated Role Assignments",
+    api.get("/role-assignments.html", { cookie: fixtures.sessions.clientUser }),
+    403,
+  );
+  await expectStatus(
+    "client administrator still cannot load full User Admin",
+    api.get("/user-admin.html", { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await expectStatus(
+    "workspace administrator retains full User Admin",
+    api.get("/user-admin.html", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "client administrator can load protected Project Settings",
+    api.get("/projects.html", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "project administrator can load protected Project Settings",
+    api.get("/projects.html", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  await expectStatus(
+    "client administrator can load protected Client Settings",
+    api.get("/clients.html", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "project administrator cannot load Client Settings",
+    api.get("/clients.html", { cookie: fixtures.sessions.projectAdmin }),
+    403,
+  );
+  await expectStatus(
+    "role without projects.manage cannot load Project Settings",
+    api.get("/projects.html", { cookie: fixtures.sessions.clientUser }),
+    403,
+  );
+  await expectStatus(
+    "role without clients.manage cannot load Client Settings",
+    api.get("/clients.html", { cookie: fixtures.sessions.clientUser }),
+    403,
+  );
+
+  const clientAdminProjects = await expectStatus(
+    "client administrator receives only scoped Project Settings data",
+    api.get("/api/projects?status=All", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("client administrator project rows are scoped and actionable", () => {
+    assert.equal(clientAdminProjects.body.capabilities?.can_create_workspace_project, false);
+    assert.ok(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.alpha.id));
+    assert.ok(clientAdminProjects.body.projects.every((project) => project.client_id === fixtures.clients.alpha.id));
+    assert.ok(clientAdminProjects.body.projects.every((project) => project.can_manage === true));
+    assert.equal(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.beta.id), false);
+    assert.equal(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.workspace.id), false);
+  });
+
+  const projectAdminProjects = await expectStatus(
+    "project administrator receives only assigned Project Settings data",
+    api.get("/api/projects?status=All", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  check("project administrator project row is scoped and actionable without create authority", () => {
+    assert.equal(projectAdminProjects.body.capabilities?.can_create_workspace_project, false);
+    assert.deepEqual(
+      projectAdminProjects.body.projects.map((project) => project.id),
+      [fixtures.projects.alpha.id],
+    );
+    assert.equal(projectAdminProjects.body.projects[0]?.can_manage, true);
+  });
+
+  const clientAdminData = await expectStatus(
+    "client administrator receives scoped project-create targets",
+    api.get("/api/client-projects", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("client administrator can create and manage projects only in the administered Client", () => {
+    assert.equal(clientAdminData.body.capabilities?.can_create_workspace_project, false);
+    assert.deepEqual(clientAdminData.body.clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.equal(clientAdminData.body.clients[0]?.can_create_project, true);
+    assert.equal(clientAdminData.body.clients[0]?.can_manage_projects, true);
+    assert.equal(clientAdminData.body.clients[0]?.projects[0]?.can_manage, true);
+  });
+
+  const projectAdminData = await expectStatus(
+    "project administrator receives a non-creatable scoped Project view",
+    api.get("/api/client-projects", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  check("project administrator receives no Client or workspace project-create target", () => {
+    assert.equal(projectAdminData.body.capabilities?.can_create_workspace_project, false);
+    assert.deepEqual(projectAdminData.body.clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.equal(projectAdminData.body.clients[0]?.can_create_project, false);
+    assert.equal(projectAdminData.body.clients[0]?.can_manage, false);
+    assert.equal(projectAdminData.body.clients[0]?.can_manage_projects, false);
+    assert.equal(projectAdminData.body.clients[0]?.projects[0]?.can_manage, true);
+  });
 }
 
 async function runTaskMutationTests(api, fixtures) {
@@ -1637,14 +1944,201 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
 }
 
 async function runRoleAssignmentTests(api, fixtures) {
-  await expectStatus(
+  const rolesResponse = await expectStatus(
     "client admin can read role options for scoped assignments",
     api.get("/api/roles", { cookie: fixtures.sessions.clientAdmin }),
     200,
   );
+  check("client admin role options disclose only delegable roles and authorized scopes", () => {
+    assert.deepEqual(
+      rolesResponse.body.roles.map((role) => role.role_id).sort(),
+      ["client_external_user", "client_user", "project_admin", "project_user"],
+    );
+    const disclosedScopeIds = rolesResponse.body.roles.flatMap((role) => (
+      role.scopes.map((scope) => scope.scopeId)
+    ));
+    assert.ok(disclosedScopeIds.includes(fixtures.clients.alpha.id));
+    assert.ok(disclosedScopeIds.includes(fixtures.projects.alpha.id));
+    assert.equal(disclosedScopeIds.includes(fixtures.clients.beta.id), false);
+    assert.equal(disclosedScopeIds.includes(fixtures.projects.beta.id), false);
+    assert.equal(disclosedScopeIds.includes(fixtures.projects.workspace.id), false);
+    assert.equal(disclosedScopeIds.includes(fixtures.otherWorkspace.clientId), false);
+  });
+  const projectAdminRoles = await expectStatus(
+    "project admin receives only Project User at its authorized Project",
+    api.get("/api/roles", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  check("project admin server-shaped role options contain no broader scope", () => {
+    assert.deepEqual(projectAdminRoles.body.roles.map((role) => role.role_id), ["project_user"]);
+    assert.deepEqual(
+      projectAdminRoles.body.roles[0].scopes.map((scope) => scope.scopeId),
+      [fixtures.projects.alpha.id],
+    );
+  });
+  const workspaceAdminRoles = await expectStatus(
+    "workspace admin receives its full authorized Business role catalog with server-shaped scopes",
+    api.get("/api/roles", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("workspace admin role options retain its six-role ceiling and labeled scopes", () => {
+    assert.deepEqual(
+      workspaceAdminRoles.body.roles.map((role) => role.role_id).sort(),
+      [
+        "client_admin",
+        "client_external_user",
+        "client_user",
+        "project_admin",
+        "project_user",
+        "workspace_admin",
+      ],
+    );
+    assert.ok(workspaceAdminRoles.body.roles.every((role) => (
+      role.assignment_scope_type
+      && role.scopes.length > 0
+      && role.scopes.every((scope) => scope.scopeId && scope.label)
+    )));
+  });
+  const superAdminRoles = await expectStatus(
+    "super admin receives all seven Business roles with server-shaped scopes",
+    api.get("/api/roles", { cookie: fixtures.sessions.superAdmin }),
+    200,
+  );
+  check("only super admin role options include Super Admin", () => {
+    assert.equal(superAdminRoles.body.roles.length, 7);
+    assert.ok(superAdminRoles.body.roles.some((role) => role.role_id === "super_admin"));
+  });
   await expectStatus(
+    "scoped admins cannot enumerate assignments by user ID",
+    api.get(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      cookie: fixtures.sessions.clientAdmin,
+    }),
+    403,
+  );
+
+  const unknownLookup = await expectStatus(
+    "delegated account lookup returns a calm not-found result",
+    api.post("/api/role-assignments/lookup", {
+      username: uniqueEmail("missing-delegated-account"),
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("delegated account lookup not-found response contains no directory data", () => {
+    assert.deepEqual(unknownLookup.body, { match: null });
+  });
+  await runSql(`
+UPDATE user_workspaces
+SET status = 'inactive'
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND user_id = ${sqlText(fixtures.users.externalClientUser.userId)};
+`);
+  const inactiveLookup = await expectStatus(
+    "delegated account lookup gives inactive membership not-found parity",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.externalClientUser.username,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("inactive membership lookup matches the unknown-account shape", () => {
+    assert.deepEqual(inactiveLookup.body, unknownLookup.body);
+  });
+  await runSql(`
+UPDATE user_workspaces
+SET status = 'active'
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND user_id = ${sqlText(fixtures.users.externalClientUser.userId)};
+`);
+
+  const hiddenAssignmentId = randomUUID();
+  const hiddenHigherAssignmentId = randomUUID();
+  const hiddenCreatedAt = "2026-06-10T12:00:00.000Z";
+  const hiddenOverrides = '{"operationAccess":{"tasks":{"read":false}},"sentinel":"preserve-byte-for-byte"}';
+  await runSql(`
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(hiddenAssignmentId)},
+  ${sqlText(fixtures.workspaceId)},
+  ${sqlText(fixtures.users.unscopedUser.userId)},
+  'client_user',
+  'client',
+  ${sqlText(fixtures.clients.beta.id)},
+  ${sqlText(fixtures.clients.beta.id)},
+  NULL,
+  ${sqlText(hiddenOverrides)},
+  ${sqlText(hiddenCreatedAt)},
+  ${sqlText(hiddenCreatedAt)}
+);
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(hiddenHigherAssignmentId)},
+  ${sqlText(fixtures.workspaceId)},
+  ${sqlText(fixtures.users.unscopedUser.userId)},
+  'workspace_admin',
+  'workspace',
+  ${sqlText(fixtures.workspaceId)},
+  NULL,
+  NULL,
+  ${sqlText('{"sentinel":"higher-role-preserved"}')},
+  ${sqlText(hiddenCreatedAt)},
+  ${sqlText(hiddenCreatedAt)}
+);`);
+  const hiddenBefore = await querySql(`
+SELECT *
+FROM user_role_assignments
+WHERE assignment_id IN (
+  ${sqlText(hiddenAssignmentId)},
+  ${sqlText(hiddenHigherAssignmentId)}
+)
+ORDER BY assignment_id;
+`);
+
+  const initialLookup = await expectStatus(
+    "client admin can find an exact active workspace member",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.unscopedUser.username.toUpperCase(),
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("exact delegated lookup returns only minimum identity and manageable assignments", () => {
+    assert.equal(initialLookup.body.match.userId, fixtures.users.unscopedUser.userId);
+    assert.equal(initialLookup.body.match.username, fixtures.users.unscopedUser.username);
+    assert.equal(initialLookup.body.match.activeMembership, true);
+    assert.match(initialLookup.body.match.assignmentRevision, /^[a-f0-9]{64}$/);
+    assert.deepEqual(initialLookup.body.match.assignments, []);
+    assert.deepEqual(
+      Object.keys(initialLookup.body.match).sort(),
+      ["activeMembership", "assignmentRevision", "assignments", "displayName", "userId", "username"],
+    );
+  });
+
+  const delegatedUpdate = await expectStatus(
     "client admin can assign project users in assigned client",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: initialLookup.body.match.assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -1653,9 +2147,62 @@ async function runRoleAssignmentTests(api, fixtures) {
     }, { cookie: fixtures.sessions.clientAdmin }),
     200,
   );
+  check("delegated mutation returns only its manageable assignment and a new revision", () => {
+    assert.deepEqual(delegatedUpdate.body.assignments, [{
+      role_id: "project_user",
+      scope_id: fixtures.projects.alpha.id,
+      scope_type: "project",
+    }]);
+    assert.match(delegatedUpdate.body.assignmentRevision, /^[a-f0-9]{64}$/);
+    assert.notEqual(
+      delegatedUpdate.body.assignmentRevision,
+      initialLookup.body.match.assignmentRevision,
+    );
+  });
+  const hiddenAfter = await querySql(`
+SELECT *
+FROM user_role_assignments
+WHERE assignment_id IN (
+  ${sqlText(hiddenAssignmentId)},
+  ${sqlText(hiddenHigherAssignmentId)}
+)
+ORDER BY assignment_id;
+`);
+  check("delegated mutation preserves hidden assignments byte-for-byte", () => {
+    assert.deepEqual(hiddenAfter, hiddenBefore);
+  });
+  await expectStatus(
+    "scoped mutation cannot name a hidden higher role",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignments: [{
+        role_id: "workspace_admin",
+        scope_type: "workspace",
+        scope_id: fixtures.workspaceId,
+      }],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await expectStatus(
+    "scoped mutation cannot set permission overrides",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.projects.alpha.id,
+        permission_overrides: {
+          operationAccess: { tasks: { read: false } },
+        },
+      }],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+
   await expectStatus(
     "client admin cannot assign project users outside assigned client",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: delegatedUpdate.body.assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -1664,17 +2211,152 @@ async function runRoleAssignmentTests(api, fixtures) {
     }, { cookie: fixtures.sessions.clientAdmin }),
     403,
   );
+
   await expectStatus(
-    "project admin can assign project users in assigned client",
+    "stale delegated assignment revisions fail closed",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: initialLookup.body.match.assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
         scope_id: fixtures.projects.alpha.id,
       }],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    409,
+  );
+  await expectStatus(
+    "delegated assignment revisions cannot be reused by another actor",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignments: delegatedUpdate.body.assignments,
+    }, { cookie: fixtures.sessions.projectAdmin }),
+    409,
+  );
+
+  const projectLookup = await expectStatus(
+    "project admin exact lookup sees the lower assignment in its project only",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.unscopedUser.username,
     }, { cookie: fixtures.sessions.projectAdmin }),
     200,
   );
+  check("project admin lookup does not disclose hidden client assignment data", () => {
+    assert.deepEqual(projectLookup.body.match.assignments, [{
+      role_id: "project_user",
+      scope_id: fixtures.projects.alpha.id,
+      scope_type: "project",
+    }]);
+    assert.equal(JSON.stringify(projectLookup.body).includes(fixtures.clients.beta.id), false);
+    assert.equal(JSON.stringify(projectLookup.body).includes("permission"), false);
+  });
+  await expectStatus(
+    "project admin can preserve project users in its assigned project",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: projectLookup.body.match.assignmentRevision,
+      assignments: projectLookup.body.match.assignments,
+    }, { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+
+  const selfLookup = await expectStatus(
+    "delegated exact lookup can resolve the actor without exposing hidden roles",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.clientAdmin.username,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "delegated role mutation rejects self-assignment",
+    api.put(`/api/users/${fixtures.users.clientAdmin.userId}/role-assignments`, {
+      assignmentRevision: selfLookup.body.match.assignmentRevision,
+      assignments: [],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    400,
+  );
+
+  const protectedLookup = await expectStatus(
+    "delegated exact lookup returns no protected role details",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.superAdmin.username,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("protected exact lookup omits protected state and assignments", () => {
+    assert.deepEqual(protectedLookup.body.match.assignments, []);
+    assert.equal(Object.hasOwn(protectedLookup.body.match, "protectedUser"), false);
+  });
+  await expectStatus(
+    "delegated role mutation rejects protected users",
+    api.put(`/api/users/${fixtures.users.superAdmin.user_id}/role-assignments`, {
+      assignmentRevision: protectedLookup.body.match.assignmentRevision,
+      assignments: [],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    400,
+  );
+
+  const scopedAudit = (await querySql(`
+SELECT previous_value_json, new_value_json, metadata_json, record_url
+FROM audit_logs
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND actor_user_id = ${sqlText(fixtures.users.clientAdmin.userId)}
+  AND action = 'user_role_assignments_updated'
+ORDER BY created_at DESC
+LIMIT 1;
+`))[0];
+  check("delegated role audit contains only the visible subset", () => {
+    const serializedAudit = JSON.stringify(scopedAudit);
+    assert.equal(serializedAudit.includes(fixtures.clients.beta.id), false);
+    assert.equal(serializedAudit.includes("permission_overrides"), false);
+    assert.equal(JSON.parse(scopedAudit.metadata_json).delegation_mode, "scoped");
+    assert.equal(scopedAudit.record_url, null);
+  });
+
+  const revokedLookup = await expectStatus(
+    "client admin can refresh its delegated target before authority revocation",
+    api.post("/api/role-assignments/lookup", {
+      username: fixtures.users.unscopedUser.username,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  const revokedActorAssignment = (await querySql(`
+SELECT *
+FROM user_role_assignments
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND user_id = ${sqlText(fixtures.users.clientAdmin.userId)}
+  AND role_id = 'client_admin'
+LIMIT 1;
+`))[0];
+  await runSql(`
+DELETE FROM user_role_assignments
+WHERE assignment_id = ${sqlText(revokedActorAssignment.assignment_id)};
+`);
+  await expectStatus(
+    "revoked actor authority cannot apply a previously discovered mutation",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignmentRevision: revokedLookup.body.match.assignmentRevision,
+      assignments: revokedLookup.body.match.assignments,
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await runSql(`
+INSERT INTO user_role_assignments (
+  assignment_id, workspace_id, user_id, role_id, scope_type, scope_id,
+  client_id, project_id, permission_overrides_json, created_at, updated_at
+)
+VALUES (
+  ${sqlText(revokedActorAssignment.assignment_id)},
+  ${sqlText(revokedActorAssignment.workspace_id)},
+  ${sqlText(revokedActorAssignment.user_id)},
+  ${sqlText(revokedActorAssignment.role_id)},
+  ${sqlText(revokedActorAssignment.scope_type)},
+  ${sqlText(revokedActorAssignment.scope_id)},
+  ${sqlText(revokedActorAssignment.client_id)},
+  NULL,
+  NULL,
+  ${sqlText(revokedActorAssignment.created_at)},
+  ${sqlText(revokedActorAssignment.updated_at)}
+);`);
+
   await expectStatus(
     "workspace admin can update role assignments",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
@@ -1686,6 +2368,20 @@ async function runRoleAssignmentTests(api, fixtures) {
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
+  const fullAdminRows = await querySql(`
+SELECT role_id, scope_type, scope_id
+FROM user_role_assignments
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND user_id = ${sqlText(fixtures.users.unscopedUser.userId)}
+ORDER BY role_id, scope_id;
+`);
+  check("workspace admin full replacement remains unchanged", () => {
+    assert.deepEqual(fullAdminRows, [{
+      role_id: "client_user",
+      scope_id: fixtures.clients.alpha.id,
+      scope_type: "client",
+    }]);
+  });
   await expectStatus(
     "role assignment scope IDs must belong to the active workspace",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
@@ -1696,6 +2392,28 @@ async function runRoleAssignmentTests(api, fixtures) {
       }],
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     400,
+  );
+  await expectStatus(
+    "Family workspace rejects Business-only delegated roles",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignments: [{
+        role_id: "client_user",
+        scope_type: "client",
+        scope_id: fixtures.clients.alpha.id,
+      }],
+    }, { cookie: fixtures.sessions.familyWorkspaceAdmin }),
+    403,
+  );
+  await expectStatus(
+    "Personal workspace rejects Project User role assignment",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.personalWorkspace.projectId,
+      }],
+    }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    403,
   );
 }
 
@@ -3038,6 +3756,21 @@ function localDateOffset(days = 0, timeZone = "America/New_York") {
   }).formatToParts(date).map((part) => [part.type, part.value]));
 
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function navigationHrefs(items = []) {
+  const hrefs = new Set();
+  const visit = (entries) => {
+    for (const item of Array.isArray(entries) ? entries : []) {
+      if (item?.href) {
+        hrefs.add(item.href);
+      }
+      visit(item?.items);
+    }
+  };
+
+  visit(items);
+  return hrefs;
 }
 
 function listen(app) {

@@ -334,6 +334,11 @@ ORDER BY version;
       module_id: "core",
       name: "named_calendar_subscriptions",
     },
+    {
+      version: "086",
+      module_id: "core",
+      name: "role_seed_scope_convergence",
+    },
   ]);
 }
 

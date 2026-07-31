@@ -31,6 +31,12 @@ const usersModule = {
   repairHooks: [],
   navigation: [
     { label: "User Admin", href: "user-admin.html", parent: "settings.html" },
+    {
+      label: "Role Assignments",
+      href: "role-assignments.html",
+      parent: "settings.html",
+      requiredPermissions: ["roles.assign"],
+    },
   ],
   protectedViews: [
     {
@@ -41,9 +47,25 @@ const usersModule = {
       requiredPermissions: ["users.manage"],
       requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
     },
+    {
+      id: "role-assignments",
+      path: "/role-assignments.html",
+      moduleId: "users",
+      file: "role-assignments.html",
+      requiredPermissions: ["roles.assign"],
+      requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
+    },
   ],
   publicViews: [],
   browserAssets: [
+    {
+      id: "role-assignments-script",
+      moduleId: "users",
+      path: "/js/role-assignments.js",
+      type: "script",
+      views: ["role-assignments"],
+      requiredPermissions: ["roles.assign"],
+    },
     {
       id: "user-admin-script",
       moduleId: "users",
@@ -114,6 +136,13 @@ const usersModule = {
   publicApiEndpoints: [],
   apiScopes: [],
   eventTypes: [
+    {
+      event: "user.role_assignments_updated",
+      moduleId: "users",
+      label: "User Role Assignments Updated",
+      description: "A user's authorized role-assignment set changed.",
+      recordType: "user_role_assignment",
+    },
     {
       event: "module.disabled",
       moduleId: "users",

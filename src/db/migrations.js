@@ -26,6 +26,10 @@ const RECORD_MIGRATION_SQL = databaseDialect.conflict.buildInsertOrIgnore({
 const LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS = new Set([
   "b7d790032a9d8cd5505ba02fb34478798ae0c28e79ad720f8961de49ef10ae73",
 ]);
+const LEGACY_ROLE_SEED_BASELINE_CHECKSUMS = new Set([
+  "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c",
+  "67ec76af2c94f84eff8b5c90191e652ec4a449177317547da95eb0c159ca5d2c",
+]);
 const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
   {
     tableName: "lists",
@@ -667,10 +671,14 @@ async function applyFreshBaseline() {
 
 async function readBaselineSchema() {
   const sql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
+  const compatibleChecksums = createCompatibleMigrationChecksums(sql);
+  for (const checksum of LEGACY_ROLE_SEED_BASELINE_CHECKSUMS) {
+    compatibleChecksums.add(checksum);
+  }
 
   return {
     checksum: createMigrationChecksum(sql),
-    compatibleChecksums: createCompatibleMigrationChecksums(sql),
+    compatibleChecksums,
     fileName: path.basename(CURRENT_SCHEMA_FILE),
     moduleId: BASELINE_MODULE_ID,
     name: BASELINE_NAME,

@@ -1333,7 +1333,7 @@ VALUES
   ('super_admin', 'Super Admin', 'Controls all workspaces and all app administration.', 'global', '10'),
   ('workspace_admin', 'Workspace Administrator', 'Controls users, settings, clients, projects, time, reporting, and audit logs inside one workspace.', 'workspace', '20'),
   ('client_admin', 'Client Administrator', 'Controls client details, projects, and users for one client.', 'client', '30'),
-  ('project_admin', 'Project Administrator', 'Controls projects and project assignments for one client.', 'client', '40'),
+  ('project_admin', 'Project Administrator', 'Controls one project and its project assignments.', 'project', '40'),
   ('client_user', 'Client User', 'Can contribute time to projects within one client.', 'client', '50'),
   ('project_user', 'Project User', 'Can contribute time to one project.', 'project', '60'),
   ('client_external_user', 'Client User (External)', 'External collaborator who can contribute time for one client.', 'client', '70');
@@ -1681,4 +1681,3 @@ VALUES
   ('workspace_admin', 'time_entries.edit_all'),
   ('workspace_admin', 'users.manage'),
   ('workspace_admin', 'workspace_settings.manage');
-

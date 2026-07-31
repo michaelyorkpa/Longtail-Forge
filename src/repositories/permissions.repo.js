@@ -28,6 +28,16 @@ ORDER BY role_id, permission_id;
 `);
 }
 
+async function readPermissionIds() {
+  const rows = await db.query(`
+SELECT permission_id
+FROM permissions
+ORDER BY permission_id;
+`);
+
+  return rows.map((row) => row.permission_id);
+}
+
 async function hasSuperAdminAssignment(userId) {
   const row = await db.get(`
 SELECT assignment_id
@@ -197,13 +207,204 @@ VALUES (
   });
 }
 
+async function mutateUserAssignmentsAtomically({
+  actorUserId,
+  planMutation,
+  userId,
+  workspaceId,
+}) {
+  return db.transaction(async (transaction) => {
+    const [workspace, actor, targetUser, roles, actorAssignments, previousAssignments, clients, projects] = await Promise.all([
+      transaction.get(`
+SELECT workspace_id, workspace_type, status
+FROM workspaces
+WHERE workspace_id = :workspaceId
+LIMIT 1;
+`, { workspaceId }),
+      transaction.get(`
+SELECT
+  users.user_id,
+  users.username,
+  users.user_status,
+  users.protected_user,
+  user_workspaces.status AS membership_status
+FROM users
+LEFT JOIN user_workspaces
+  ON user_workspaces.user_id = users.user_id
+  AND user_workspaces.workspace_id = :workspaceId
+WHERE users.user_id = :actorUserId
+LIMIT 1;
+`, { actorUserId, workspaceId }),
+      transaction.get(`
+SELECT
+  users.user_id,
+  users.username,
+  users.display_name,
+  users.user_status,
+  users.protected_user,
+  user_workspaces.status AS membership_status
+FROM users
+LEFT JOIN user_workspaces
+  ON user_workspaces.user_id = users.user_id
+  AND user_workspaces.workspace_id = :workspaceId
+WHERE users.user_id = :userId
+LIMIT 1;
+`, { userId, workspaceId }),
+      transaction.query(`
+SELECT role_id, role_name, description, assignable_scope_type
+FROM roles
+ORDER BY sort_order, role_name;
+`),
+      transaction.query(`
+SELECT
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+FROM user_role_assignments
+WHERE user_id = :actorUserId
+  AND (
+    workspace_id = :workspaceId
+    OR (role_id = 'super_admin' AND scope_type = 'all')
+  )
+ORDER BY updated_at DESC, assignment_id;
+`, { actorUserId, workspaceId }),
+      readAssignmentsWithClient(transaction, workspaceId, userId),
+      transaction.query(`
+SELECT id, workspace_id, name, status
+FROM clients
+WHERE workspace_id = :workspaceId
+ORDER BY id;
+`, { workspaceId }),
+      transaction.query(`
+SELECT id, workspace_id, client_id, name, status
+FROM projects
+WHERE workspace_id = :workspaceId
+ORDER BY id;
+`, { workspaceId }),
+    ]);
+    const plan = await planMutation({
+      actor,
+      actorAssignments,
+      clients,
+      previousAssignments,
+      projects,
+      roles,
+      targetUser,
+      workspace,
+    });
+
+    for (const assignmentId of plan.assignmentIdsToDelete || []) {
+      await transaction.run(`
+DELETE FROM user_role_assignments
+WHERE assignment_id = :assignmentId
+  AND workspace_id = :workspaceId
+  AND user_id = :userId;
+`, { assignmentId, userId, workspaceId });
+    }
+
+    const now = new Date().toISOString();
+    for (const assignment of plan.assignmentsToInsert || []) {
+      await insertAssignment(transaction, {
+        ...assignment,
+        assignment_id: randomUUID(),
+        created_at: now,
+        updated_at: now,
+        user_id: userId,
+        workspace_id: workspaceId,
+      });
+    }
+
+    return {
+      actor,
+      plan,
+      previousAssignments,
+      targetUser,
+      nextAssignments: await readAssignmentsWithClient(transaction, workspaceId, userId),
+    };
+  });
+}
+
+function readAssignmentsWithClient(transaction, workspaceId, userId) {
+  return transaction.query(`
+SELECT
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+FROM user_role_assignments
+WHERE workspace_id = :workspaceId
+  AND user_id = :userId
+ORDER BY updated_at DESC, assignment_id;
+`, { userId, workspaceId });
+}
+
+async function insertAssignment(transaction, assignment) {
+  await transaction.run(`
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  :assignmentId,
+  :workspaceId,
+  :userId,
+  :roleId,
+  :scopeType,
+  :scopeId,
+  :clientId,
+  :projectId,
+  :permissionOverridesJson,
+  :createdAt,
+  :updatedAt
+);
+`, {
+    assignmentId: assignment.assignment_id,
+    clientId: assignment.client_id || null,
+    createdAt: assignment.created_at,
+    permissionOverridesJson: assignment.permission_overrides_json || null,
+    projectId: assignment.project_id || null,
+    roleId: assignment.role_id,
+    scopeId: assignment.scope_id || null,
+    scopeType: assignment.scope_type,
+    updatedAt: assignment.updated_at,
+    userId: assignment.user_id,
+    workspaceId: assignment.workspace_id,
+  });
+}
+
 export const permissionsRepository = {
   ensurePermissionContracts,
   hasSuperAdminAssignment,
   readAssignmentsForWorkspace,
   readAssignmentsForUser,
   readOldestActiveUserForRoleScope,
+  readPermissionIds,
   readRolePermissions,
   readRoles,
+  mutateUserAssignmentsAtomically,
   replaceUserAssignments,
 };
