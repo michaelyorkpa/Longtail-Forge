@@ -79,7 +79,7 @@ assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and bulk d
 assert.match(clientsProjectsScript, /\/api\/clients/, "Client saves should keep existing Client route calls");
 assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should keep existing Project route calls");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.26\.3[\s\S]*strict enforcement is active/, "Inventory should mark the current Clients/Projects strict guardrails active");
+assert.match(inventoryDoc, /Current as of 0\.33\.27\.4[\s\S]*strict enforcement is active/, "Inventory should mark the current Clients/Projects strict guardrails active");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*no database schema, route payload, permission, or workflow changes/, "Changelog should record the no-contract-change boundary");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");

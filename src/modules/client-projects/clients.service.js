@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
@@ -660,7 +660,7 @@ async function readClient(clientId, session) {
 
 async function createClient(payload, session) {
   await assertBusinessWorkspace(session);
-  const client = normalizeClientPayload(payload, { id: payload?.id || randomUUID() });
+  const client = normalizeClientPayload(payload, { id: payload?.id || createRecordId() });
   let parentClient = null;
 
   if (client.parent_client_id) {
@@ -938,7 +938,7 @@ async function createProject(clientId, payload, session) {
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
   assertProjectClientAssignmentAllowed(workspaceSettings.workspaceType, clientId, payload);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
-  const projectId = normalizedPayload?.id || randomUUID();
+  const projectId = normalizedPayload?.id || createRecordId();
   const decodedClientId = usesProjectRoundingOnly
     ? ""
     : decodeURIComponent(clientId || normalizedPayload?.client_id || "");

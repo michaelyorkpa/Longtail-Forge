@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { listsRepository } from "./lists.repo.js";
 import {
   LIST_PERMISSIONS,
@@ -134,7 +133,7 @@ async function read(listId, session, options = {}) {
 async function create(payload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const normalized = await normalizeListPayload(payload, session, {
-    list_id: payload?.list_id || payload?.id || randomUUID(),
+    list_id: payload?.list_id || payload?.id,
     status: LIST_STATUSES.ACTIVE,
     is_reusable: false,
     created_by_user_id: session.user_id,
@@ -264,7 +263,7 @@ async function duplicate(listId, payload = {}, session) {
     description: sourceList.description,
     duplicated_from_list_id: sourceList.list_id,
     is_reusable: false,
-    list_id: payload.list_id || payload.id || randomUUID(),
+    list_id: payload.list_id || payload.id,
     list_type: sourceList.list_type,
     project_id: sourceList.project_id,
     source_list_id: sourceList.is_reusable ? sourceList.list_id : sourceList.source_list_id,
@@ -432,7 +431,7 @@ async function createCatalogItem(payload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await assertCanManageCatalog(session);
   const normalized = await normalizeCatalogPayload(payload, session, {
-    catalog_item_id: payload?.catalog_item_id || payload?.id || randomUUID(),
+    catalog_item_id: payload?.catalog_item_id || payload?.id,
     created_by_user_id: session.user_id,
     updated_by_user_id: session.user_id,
   });
@@ -489,7 +488,7 @@ async function createItem(listId, payload, session) {
   const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
   const item = normalizeItemPayload(payload, session, listRecord, {
     ...itemFallback,
-    list_item_id: payload?.list_item_id || payload?.id || randomUUID(),
+    list_item_id: payload?.list_item_id || payload?.id,
     purchase_status: LIST_ITEM_PURCHASE_STATUSES.NEEDED,
     quantity: itemFallback.quantity ?? 1,
     sort_order: await nextSortOrder(session.workspace_id, listRecord.list_id),
@@ -1347,7 +1346,6 @@ function duplicateItemPayload(item, listRecord, session, index) {
     estimated_cost: item.estimated_cost,
     item_name: item.item_name,
     list_id: listRecord.list_id,
-    list_item_id: randomUUID(),
     metadata_json: {
       ...(item.metadata_json || {}),
       duplicated_from_list_item_id: item.list_item_id,
@@ -1792,7 +1790,7 @@ function normalizeLinkPayload(payload = {}, listRecord, session) {
     created_by_user_id: session.user_id,
     link_role: normalizeOptionalText(payload.linkRole || payload.link_role) || "related",
     list_id: listRecord.list_id,
-    list_link_id: normalizeOptionalText(payload.listLinkId || payload.list_link_id || payload.id) || randomUUID(),
+    list_link_id: normalizeOptionalText(payload.listLinkId || payload.list_link_id || payload.id),
     metadata_json: normalizeMetadata(payload.metadata_json || payload.metadata),
     module_id: target.module_id,
     target_id: target.target_id,

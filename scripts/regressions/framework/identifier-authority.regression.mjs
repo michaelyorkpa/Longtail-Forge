@@ -44,6 +44,19 @@ const FRAMEWORK_OPAQUE_CALLS = Object.freeze({
   "src/services/workspace-backups.service.js": 1,
   "src/services/workspace-purge.service.js": 1,
 });
+const MODULE_RECORD_CALLS = Object.freeze({
+  "src/modules/client-projects/clients.service.js": 2,
+  "src/modules/lists/lists.repo.js": 4,
+  "src/modules/notes/notes.repo.js": 7,
+  "src/modules/tasks/task-checklists.repo.js": 2,
+  "src/modules/tasks/task-recurrence.repo.js": 5,
+  "src/modules/tasks/task-relationships.repo.js": 1,
+  "src/modules/tasks/task-reminders.repo.js": 1,
+  "src/modules/tasks/tasks.repo.js": 3,
+  "src/modules/time-tracking/active-timers.service.js": 1,
+  "src/modules/time-tracking/public-api.service.js": 1,
+  "src/modules/time-tracking/time-entries.service.js": 1,
+});
 const DEDICATED_SECURITY_PATTERNS = Object.freeze({
   "src/core/csrf-protection.js": [/randomBytes\(32\)/, /randomBytes\(24\)/, /createHmac\("sha256"/],
   "src/modules/notes/secure-crypto.js": [/randomBytes\(32\)/, /randomBytes\(12\)/, /createCipheriv/],
@@ -93,6 +106,14 @@ for (const [filePath, expectedCalls] of Object.entries(FRAMEWORK_OPAQUE_CALLS)) 
     `${filePath} must keep each audited framework operational UUID on createOpaqueId()`,
   );
 }
+for (const [filePath, expectedCalls] of Object.entries(MODULE_RECORD_CALLS)) {
+  const source = await fs.readFile(filePath, "utf8");
+  assert.equal(
+    countMatches(source, /\bcreateRecordId\s*\(/g),
+    expectedCalls,
+    `${filePath} must keep each audited first-party module record generator on createRecordId()`,
+  );
+}
 assert.deepEqual(
   Object.entries(baseline.productionDirectRandomUuid)
     .filter(([filePath, entry]) => Object.hasOwn(FRAMEWORK_RECORD_CALLS, filePath) && String(entry.classification).includes("record"))
@@ -101,11 +122,9 @@ assert.deepEqual(
   "the exact migration baseline must not retain framework persistent-record entries after their rollout",
 );
 assert.deepEqual(
-  Object.entries(baseline.productionDirectRandomUuid)
-    .filter(([, entry]) => entry.classification !== "record")
-    .map(([filePath]) => filePath),
-  [],
-  "the exact migration baseline must contain only the first-party module and temporary browser record generators",
+  Object.keys(baseline.productionDirectRandomUuid),
+  [baseline.temporaryBrowserGenerator.path],
+  "the exact migration baseline must contain only the temporary Clients/Projects browser generator after the server-side module rollout",
 );
 
 for (const [filePath, patterns] of Object.entries(DEDICATED_SECURITY_PATTERNS)) {

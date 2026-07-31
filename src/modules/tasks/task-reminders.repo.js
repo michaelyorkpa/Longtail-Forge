@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
 const TARGET_TYPES = new Set(["workspace", "client", "project", "task"]);
@@ -116,7 +116,7 @@ VALUES (
         createdAt: now,
         dueKind: textParam(offset.due_kind),
         offsetMinutes: integerParam(offset.offset_minutes),
-        reminderOffsetId: randomUUID(),
+        reminderOffsetId: createRecordId(),
         sortOrder: integerParam(index),
         targetId: textParam(targetId),
         targetType: textParam(targetType),

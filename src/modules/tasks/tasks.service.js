@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   CreateTaskSchema,
   TaskChecklistItemCreateSchema,
@@ -707,7 +706,7 @@ async function create(rawPayload, session) {
     payload,
     session,
     fallback: {
-      task_id: payload?.task_id || payload?.id || randomUUID(),
+      task_id: payload?.task_id || payload?.id,
       status: taskDefaults.status,
       priority: taskDefaults.priority,
       created_by_user_id: session.user_id,

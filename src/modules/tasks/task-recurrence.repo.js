@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
-  const templateId = template.recurrence_template_id || randomUUID();
+  const templateId = template.recurrence_template_id || createRecordId();
 
   await db.run(`
 INSERT INTO task_recurrence_templates (
@@ -216,7 +216,7 @@ VALUES (
 `, {
         assignedAt: now,
         assignedByUserId: nullableTextParam(assignedByUserId),
-        recurrenceAssigneeId: randomUUID(),
+        recurrenceAssigneeId: createRecordId(),
         templateId: textParam(templateId),
         userId: textParam(userId),
         workspaceId: textParam(workspaceId),
@@ -303,7 +303,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
-        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        itemId: textParam(item.recurrence_checklist_item_id || createRecordId()),
         label: textParam(item.label),
         now,
         sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
@@ -375,7 +375,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
-        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        itemId: textParam(item.recurrence_checklist_item_id || createRecordId()),
         label: textParam(item.label),
         now,
         sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
@@ -478,7 +478,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(link.created_by_user_id || updatedByUserId),
-        linkId: textParam(link.recurrence_note_link_id || randomUUID()),
+        linkId: textParam(link.recurrence_note_link_id || createRecordId()),
         linkRole: textParam(link.link_role || "related"),
         noteId: textParam(link.note_id),
         now,

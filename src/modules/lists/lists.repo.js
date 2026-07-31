@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
 const LIST_COLUMNS = [
@@ -169,7 +169,7 @@ ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}
 }
 
 async function create(workspaceId, listPayload) {
-  const listId = listPayload.list_id || randomUUID();
+  const listId = listPayload.list_id || createRecordId();
   const now = listPayload.created_at || new Date().toISOString();
 
   await db.run(`
@@ -336,7 +336,7 @@ LIMIT 1;
 }
 
 async function createItem(workspaceId, item) {
-  const itemId = item.list_item_id || randomUUID();
+  const itemId = item.list_item_id || createRecordId();
   const now = item.created_at || new Date().toISOString();
 
   await db.run(`
@@ -473,7 +473,7 @@ WHERE workspace_id = :workspaceId
 }
 
 async function createCatalogItem(workspaceId, item) {
-  const catalogItemId = item.catalog_item_id || randomUUID();
+  const catalogItemId = item.catalog_item_id || createRecordId();
   const now = item.created_at || new Date().toISOString();
 
   await db.run(`
@@ -655,7 +655,7 @@ WHERE workspace_id = :workspaceId
 }
 
 async function createLink(workspaceId, link) {
-  const linkId = link.list_link_id || randomUUID();
+  const linkId = link.list_link_id || createRecordId();
   const now = link.created_at || new Date().toISOString();
 
   await db.run(`

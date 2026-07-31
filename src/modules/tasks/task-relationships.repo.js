@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
 async function create(workspaceId, relationship) {
   const now = new Date().toISOString();
-  const relationshipId = relationship.task_relationship_id || randomUUID();
+  const relationshipId = relationship.task_relationship_id || createRecordId();
 
   await db.run(`
 INSERT INTO task_relationships (

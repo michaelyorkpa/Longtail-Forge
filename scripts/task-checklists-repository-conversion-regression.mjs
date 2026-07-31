@@ -68,6 +68,7 @@ async function assertRepositoryLifecycle(session) {
     next_action: "Verify converted checklist persistence.",
     title: "Checklist repository conversion parent task",
   }, session)).task;
+  assertUuidVersion(task.task_id, 7, "new Tasks record identity");
 
   assert.equal((await taskChecklistsRepository.readProgressForTasks(session.workspace_id, [])).size, 0, "empty progress reads should stay a no-op");
 
@@ -82,6 +83,8 @@ async function assertRepositoryLifecycle(session) {
     sort_order: 2500,
     updated_by_user_id: session.user_id,
   });
+  assertUuidVersion(first.task_checklist_item_id, 7, "new Tasks checklist child identity");
+  assertUuidVersion(second.task_checklist_item_id, 7, "second new Tasks checklist child identity");
 
   assert.equal(first.sort_order, 1000, "first implicit checklist sort order should start at 1000");
   assert.equal(second.sort_order, 2500, "explicit checklist sort order should be preserved");
@@ -180,6 +183,11 @@ function assertProgress(progressByTaskId, taskId, expected) {
   assert.equal(progress.total_count, expected.total);
   assert.equal(progress.completed_count, expected.completed);
   assert.equal(progress.next_incomplete_item_label, expected.next);
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function readSeedSession() {

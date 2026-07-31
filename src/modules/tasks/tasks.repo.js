@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
@@ -132,7 +132,7 @@ ORDER BY tasks.updated_at DESC, ${db.dialect.comparison.orderByNoCase("tasks.tit
 
 async function create(workspaceId, task) {
   const now = new Date().toISOString();
-  const taskId = task.task_id || randomUUID();
+  const taskId = task.task_id || createRecordId();
 
   await db.run(`
 INSERT INTO tasks (
@@ -209,7 +209,7 @@ VALUES (
 
 async function createRecurrenceInstance(workspaceId, task) {
   const now = new Date().toISOString();
-  const taskId = task.task_id || randomUUID();
+  const taskId = task.task_id || createRecordId();
   const params = taskWriteParams({ includeCreatedAt: true, now, task, taskId, workspaceId });
   let wasCreated = false;
 
@@ -384,7 +384,7 @@ VALUES (
 `, {
         assignedAt: now,
         assignedByUserId,
-        taskAssigneeId: randomUUID(),
+        taskAssigneeId: createRecordId(),
         taskId,
         userId,
         workspaceId,

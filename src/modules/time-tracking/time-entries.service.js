@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
@@ -41,7 +41,7 @@ async function createFromActiveTimer(entry, session) {
     operation: "create",
   });
 
-  const entryId = randomUUID();
+  const entryId = createRecordId();
   const data = normalizeTimeEntry({
     entry_id: entryId,
     workspace_id: session.workspace_id,

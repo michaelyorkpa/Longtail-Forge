@@ -1,3 +1,28 @@
+## Version 0.33.27.4 - 2026-07-31
+
+- Routed every audited server-side first-party module persistent-record
+  generator through the central `createRecordId()` UUIDv7 authority across
+  Clients/Projects, Tasks and its children, Time Tracking entries/timers,
+  Notes/revisions/links/collections, and Lists/items/catalogs/links.
+- Removed duplicate service/repository ID generation so one authoritative
+  layer owns each record family while accepted caller-supplied UUIDv4/UUIDv7
+  IDs remain unchanged for public API, import, recurrence, retry, restoration,
+  and internal compatibility paths.
+- Added representative mixed-version proof for Clients/Projects, Tasks,
+  Notes, and Lists, including UUIDv7 children related to caller-supplied
+  UUIDv4 parents, and retained canonical timestamp, due-date, sequence,
+  revision, title, timer-slot, relationship, and paging order.
+- Ratcheted the identifier guardrail to the exact 28 central module-record
+  calls across 11 authoritative owners. The production direct-generator
+  baseline now contains only the Clients/Projects browser generator assigned
+  to 0.33.27.5.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`,
+  `docs/module-development.md`,
+  `docs/clients-projects-strict-guardrail-inventory.md`, `docs/tasks-module.md`,
+  `docs/time-tracking-module.md`, `docs/notes-module.md`,
+  `docs/lists-module.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Tasks, Time Tracking, Notes, Lists, and Clients/Projects workflows and Help remain unchanged; this slice changes only server-side persistent-record identity generation.
+
 ## Version 0.33.27.3 - 2026-07-31
 
 - Routed every audited non-secret framework and operator UUID through the

@@ -2,6 +2,8 @@
 
 Time Tracking is the first-party module for active timers, saved time entries, billing/reporting duration, and time-entry corrections.
 
+As of 0.33.27.4, new Time Tracking entries and active/saved timers use the framework `createRecordId()` UUIDv7 authority at their existing authoritative service boundary. Public API entry creation preserves an accepted caller-supplied UUIDv4/UUIDv7 `entry_id`; timer finalization and Tasks timer delegation do not generate competing IDs. Existing project/task relationships remain version-agnostic, and entry/timer reads retain their canonical end-time, updated-time, and timer-slot ordering rather than UUID order.
+
 Time Tracking declares its module-status control as a workspace Settings contribution. Fiscal-year month/day and billing-rounding enabled/increment are Time Tracking-owned contributions persisted in the generic store and read through `timeTrackingSettingsService`; its explicit app activation hook registers the fiscal effect after the complete module graph validates. Module lifecycle state still persists through `workspace_modules`.
 
 When Time Tracking is disabled, its Settings route remains a permission-checked shared Settings host with a disabled message and Workspace Settings recovery link. The refreshed app shell removes Time Keeping navigation and the Capture Timer action immediately. Tasks and Workbench omit task-timer UI whenever Time Tracking is unavailable; if Time Tracking stays enabled while Tasks -> Task Timers is disabled, manual timers and the Time Tracking navigation remain available while task-sourced controls and Workbench task-timer rows are suppressed.

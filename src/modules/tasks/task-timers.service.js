@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { taskTimersRepository } from "./task-timers.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
 import { activeTimersService } from "../time-tracking/active-timers.service.js";
@@ -39,7 +38,7 @@ async function save(taskId, payload, session) {
 
   try {
     result = await activeTimersService.saveSourced(taskTimerSource(task), {
-      active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id || randomUUID(),
+      active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id,
       client_id: task.client_id,
       client_name: task.client_name,
       project_id: task.project_id,

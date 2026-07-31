@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.4`.
+Active cursor: `0.33.27.5`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,22 +34,7 @@ Non-goals:
 
 Delivery shape:
 
-The remaining plan has three implementation slices. Complete the children in order. The split follows real isolation boundaries: perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
-
-### Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
-
-**Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.27.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
-
-- [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
-- [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
-- [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
-- [ ] Ratchet the source guardrail to zero server-side production bypasses outside the central authority. Keep only the exact temporary Clients/Projects browser `createUuid()` exception assigned to 0.33.27.5; fail on any new Node or browser UUID generator.
-- [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
-- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.4`, and run `npm run verify:slice` exactly once at final closeout.
-
-Acceptance criteria:
-
-- Every audited server-side first-party module record generator uses the central ordered-record authority; caller-supplied legacy IDs remain compatible; representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely; module ordering is unchanged; and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.5.
+The remaining plan has two implementation slices. Complete the children in order. The split follows real isolation boundaries: change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
 
 ### Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
 

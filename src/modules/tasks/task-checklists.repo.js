@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
 async function readForTask(workspaceId, taskId) {
@@ -99,7 +99,7 @@ LIMIT 1;
 
 async function create(workspaceId, taskId, item) {
   const now = new Date().toISOString();
-  const itemId = item.task_checklist_item_id || randomUUID();
+  const itemId = item.task_checklist_item_id || createRecordId();
   const sortOrder = Number.isInteger(item.sort_order)
     ? item.sort_order
     : await nextSortOrder(workspaceId, taskId);
@@ -308,7 +308,7 @@ VALUES (
 `, {
         createdByUserId: nullableTextParam(updatedByUserId),
         isChecked: booleanParam(false),
-        itemId: randomUUID(),
+        itemId: createRecordId(),
         label: textParam(item.label),
         now,
         sortOrder,

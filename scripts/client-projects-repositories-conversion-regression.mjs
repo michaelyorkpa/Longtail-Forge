@@ -1,5 +1,6 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -117,6 +118,27 @@ async function assertClientProjectRepositoryRuntime(session) {
     name: "Repository Completed Project",
     status: "Completed",
   }, session)).project;
+  const legacyClientId = randomUUID();
+  const legacyClient = (await clientsService.createClient({
+    id: legacyClientId,
+    name: "Repository Legacy UUIDv4 Client",
+  }, session)).client;
+  const legacyClientProject = (await clientsService.createProject(legacyClient.id, {
+    name: "Repository UUIDv7 Project Under Legacy Client",
+  }, session)).project;
+
+  for (const [label, recordId] of [
+    ["new client", parentClient.id],
+    ["new child client", childClient.id],
+    ["new project", parentProject.id],
+    ["new child project", childProject.id],
+    ["project created under a legacy client", legacyClientProject.id],
+  ]) {
+    assertUuidVersion(recordId, 7, `${label} should use the central UUIDv7 record generator`);
+  }
+  assert.equal(legacyClient.id, legacyClientId, "caller-supplied UUIDv4 client ids should remain unchanged");
+  assertUuidVersion(legacyClient.id, 4, "legacy client compatibility should preserve UUIDv4 ids");
+  assert.equal(legacyClientProject.client_id, legacyClient.id, "UUIDv7 projects should retain their UUIDv4 client relationship");
 
   const readClients = await clientsRepository.readByIds(session.workspace_id, [
     childClient.id,
@@ -231,4 +253,12 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
+}
+
+function assertUuidVersion(value, version, message) {
+  assert.match(
+    String(value || ""),
+    new RegExp(`^[0-9a-f]{8}-[0-9a-f]{4}-${version}[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, "i"),
+    message,
+  );
 }
