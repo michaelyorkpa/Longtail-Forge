@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "../core/jobs/job-types.js";
 import { workspaceDeletionLifecycleRepository } from "../repositories/workspace-deletion-lifecycle.repo.js";
 import { workspacePurgeRepository } from "../repositories/workspace-purge.repo.js";
@@ -78,7 +79,7 @@ async function purgeWorkspace(options = {}) {
     now,
     purgeJobId: String(options.purgeJobId || "").trim(),
     purgeToken: randomUUID(),
-    purgeTombstoneId: randomUUID(),
+    purgeTombstoneId: createRecordId(),
     workspaceFingerprint,
     workspaceId,
   });

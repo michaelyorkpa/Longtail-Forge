@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.2`.
+Active cursor: `0.33.27.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,20 +34,7 @@ Non-goals:
 
 Delivery shape:
 
-The remaining plan has five implementation slices. Complete the children in order. The split follows real isolation boundaries: migrate framework record identity, migrate framework operational UUIDs without crossing secret boundaries, perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
-
-### Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
-
-**Model: High Effort** — This is a framework-wide persistent-record conversion where a missed caller-supplied compatibility path or misclassified row could break identity, relationships, or restore behavior.
-
-- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, purge tombstone row identity, production recovery-created audit rows, and any newly discovered durable framework record. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
-- [ ] Add representative integration coverage proving audit and job rows receive UUIDv7, API-key row identity stays independent from its random secret, Files record identity stays independent from its opaque storage key, mixed UUIDv4/UUIDv7 relationships remain valid, and recovery-created persistent rows use record identity without rewriting restored identifiers.
-- [ ] Ratchet only the framework persistent-record entries out of the exact migration baseline. Do not convert request correlation, lock ownership, storage keys, backup artifact/package identity, purge fencing tokens, module records, browser creation, test fixtures, or bearer credentials in this slice.
-- [ ] Run `npm run docs:suggest`, update only framework/database documentation whose shipped record-identity behavior changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
-
-Acceptance criteria:
-
-- Every audited framework-owned persistent-record generator uses `createRecordId()`; caller-supplied legacy identifiers remain compatible; representative framework relationships and recovery-created rows mix UUIDv4/UUIDv7 safely; and the exact baseline has shrunk without changing operational UUID or secret behavior.
+The remaining plan has four implementation slices. Complete the children in order. The split follows real isolation boundaries: migrate framework operational UUIDs without crossing secret boundaries, perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
 
 ### Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
 

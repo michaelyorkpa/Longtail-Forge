@@ -33,6 +33,7 @@ const markerKey = `backup-drill-${randomUUID()}`;
 const originalMarker = "original-before-backup";
 const mutatedMarker = "mutated-after-backup";
 const storageKey = `drill/${randomUUID()}.txt`;
+const legacyFileId = randomUUID();
 const originalFile = "original Files payload\n";
 const mutatedFile = "mutated Files payload\n";
 let server;
@@ -155,7 +156,10 @@ try {
   assert.ok(auditEntries.some((entry) => entry.action === "backup_restore_failed" && entry.errorCode === "checksum_validation"));
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_logs WHERE action = 'instance_backup_restored';").get().count > 0);
+    const recoveryAuditRows = database.prepare("SELECT audit_id FROM audit_logs WHERE action = 'instance_backup_restored';").all();
+    assert.ok(recoveryAuditRows.length > 0);
+    recoveryAuditRows.forEach((row) => assertUuidVersion(row.audit_id, 7, "recovery-created audit identity"));
+    assert.equal(database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
   } finally {
     database.close();
   }
@@ -185,7 +189,7 @@ INSERT INTO files (
   file_id, workspace_id, storage_provider, storage_key, original_filename, stored_filename,
   display_name, file_size_bytes, sha256_hash, status, scan_status, created_at, updated_at
 ) VALUES (?, ?, 'local', ?, 'drill.txt', 'drill.txt', 'Backup drill', ?, ?, 'available', 'not_required', ?, ?);
-`).run(randomUUID(), workspaceId, storageKey, Buffer.byteLength(originalFile), sha256(originalFile), now, now);
+`).run(legacyFileId, workspaceId, storageKey, Buffer.byteLength(originalFile), sha256(originalFile), now, now);
     database.prepare(`
 INSERT INTO notes (
   note_id, workspace_id, title, security_mode, secure_payload, secure_payload_version,
@@ -241,6 +245,11 @@ async function createTamperedArchive(sourceArchive, outputArchive) {
 function runTar(args) {
   const result = spawnSync("tar", args, { encoding: "utf8", windowsHide: true });
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout || result.error));
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function startServer() {

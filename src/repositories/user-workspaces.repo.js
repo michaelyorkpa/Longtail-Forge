@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
   columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
@@ -108,7 +108,7 @@ async function upsert({ userId, workspaceId, status = "active" }) {
     status: normalizedStatus,
     updatedAt: now,
     userId,
-    userWorkspaceId: randomUUID(),
+    userWorkspaceId: createRecordId(),
     workspaceId,
   });
   if (normalizedStatus === "active") {
