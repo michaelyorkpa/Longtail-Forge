@@ -1,11 +1,11 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
-import { createRecordId } from "../../src/core/identifiers.js";
+import { createOpaqueId, createRecordId } from "../../src/core/identifiers.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(moduleDir, "../..");
@@ -38,7 +38,7 @@ async function createBackup(options) {
     options.secureNotesKeyBackupPath,
     { databaseFile, filesRoot, outputPath },
   );
-  const backupId = randomUUID();
+  const backupId = createOpaqueId();
   const createdAt = new Date().toISOString();
   const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-backup-create-"));
   const archiveRoot = path.join(workspace, ARCHIVE_ROOT);
@@ -193,7 +193,7 @@ async function restoreBackup(options) {
       runtime: options.runtime,
       secureNotesKeyBackupPath: options.secureNotesKeyBackupPath,
     });
-    const operationId = randomUUID();
+    const operationId = createOpaqueId();
     const databaseParent = path.dirname(databaseFile);
     const filesParent = path.dirname(filesRoot);
     const stagedDatabase = path.join(databaseParent, `.ltf-restore-${operationId}.db`);

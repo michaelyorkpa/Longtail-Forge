@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { createOpaqueId } from "../../src/core/identifiers.js";
 import { parseRuntimeEnvText } from "../../src/runtime-env.js";
 import {
   assertOperatorPassword,
@@ -352,7 +352,7 @@ async function runDemoDataOperation(options) {
       appVersion,
     });
   }
-  const operationId = dependencies.operationId ? dependencies.operationId() : randomUUID();
+  const operationId = createDemoOperationId(dependencies);
   const timestamp = dependencies.timestamp ? dependencies.timestamp() : compactTimestamp();
   const generatedName = `longtail-demo-${timestamp}-${operationId.slice(0, 8)}`;
   const stageRoot = path.join(path.dirname(paths.dataRoot), `.${generatedName}-stage`);
@@ -526,6 +526,10 @@ function createHostDependencies() {
       });
     },
   });
+}
+
+function createDemoOperationId(dependencies = {}) {
+  return dependencies.operationId ? dependencies.operationId() : createOpaqueId();
 }
 
 async function seedCandidate({
@@ -1038,6 +1042,7 @@ export {
   assertNoPartialDemoState,
   assertProtectedFile,
   createHostDependencies,
+  createDemoOperationId,
   minimalSeedEnvironment,
   parseDemoDataArgs,
   parseDemoHelperConfig,

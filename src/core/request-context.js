@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createOpaqueId } from "./identifiers.js";
 
 function configureTrustedProxy(app, trustedProxies = []) {
   app.set("trust proxy", trustedProxies.length ? [...trustedProxies] : false);
@@ -26,7 +26,7 @@ function getRequestContext(request) {
     isSecure: protocol === "https",
     origin: resolveRequestOrigin(request, protocol, hostname),
     protocol,
-    requestId: randomUUID(),
+    requestId: createOpaqueId(),
     socketPeerAddress,
   });
 

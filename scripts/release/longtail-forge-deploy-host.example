@@ -238,12 +238,30 @@ operation_trigger_reason="none"
 
 timestamp_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+resolve_identifier_authority_path() {
+  local authority_path
+  authority_path="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).releaseDir)' "$operation_candidate_json")/src/core/identifiers.js"
+  [[ -f "$authority_path" && ! -L "$authority_path" ]] || fail "candidate identifier authority is missing or unsafe"
+  printf '%s' "$authority_path"
+}
+
+create_opaque_operation_id() {
+  local authority_path
+  authority_path="$(resolve_identifier_authority_path)"
+  IDENTIFIER_AUTHORITY_PATH="$authority_path" node --input-type=module -e '
+    import { pathToFileURL } from "node:url";
+    const { createOpaqueId } = await import(pathToFileURL(process.env.IDENTIFIER_AUTHORITY_PATH).href);
+    process.stdout.write(createOpaqueId());
+  '
+}
+
 write_operation_state() {
-  local phase="$1" reason_class="$2" outcome="$3" ended_at="${4:-}"
+  local phase="$1" reason_class="$2" outcome="$3" ended_at="${4:-}" identifier_authority_path
   [[ -n "$operation_id" && -n "$operation_record" && -n "$operation_started_at" ]] \
     || fail "deployment operation state is not initialized"
   validate_protected_file "$operation_record" "600" "deployment operation record"
   validate_protected_file "$LATEST_OPERATION_FILE" "600" "latest deployment operation"
+  identifier_authority_path="$(resolve_identifier_authority_path)"
   OPERATION_ID="$operation_id" \
   OPERATION_PHASE="$phase" \
   OPERATION_REASON_CLASS="$reason_class" \
@@ -256,10 +274,12 @@ write_operation_state() {
   OPERATION_RECOVERY_JSON="$operation_recovery_json" \
   OPERATION_BACKUP="$operation_backup" \
   OPERATION_RECOVERY_BACKUP="$operation_recovery_backup" \
-  node -e '
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const { randomUUID } = require("node:crypto");
+  IDENTIFIER_AUTHORITY_PATH="$identifier_authority_path" \
+  node --input-type=module -e '
+    import fs from "node:fs";
+    import path from "node:path";
+    import { pathToFileURL } from "node:url";
+    const { createOpaqueId } = await import(pathToFileURL(process.env.IDENTIFIER_AUTHORITY_PATH).href);
     const value = {
       schemaVersion: 1,
       operationId: process.env.OPERATION_ID,
@@ -282,7 +302,7 @@ write_operation_state() {
         const stat = fs.lstatSync(target);
         if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe operation-state target: ${path.basename(target)}`);
       }
-      const temporary = path.join(path.dirname(target), `.${path.basename(target)}.tmp-${process.pid}-${randomUUID()}`);
+      const temporary = path.join(path.dirname(target), `.${path.basename(target)}.tmp-${process.pid}-${createOpaqueId()}`);
       fs.writeFileSync(temporary, serialized, { encoding: "utf8", flag: "wx", mode: 0o600 });
       fs.renameSync(temporary, target);
       fs.chmodSync(target, 0o600);
@@ -295,7 +315,7 @@ write_operation_state() {
 begin_deploy_operation() {
   operation_kind="deploy"
   operation_started_at="$(timestamp_iso)"
-  operation_id="deploy-$(date -u +%Y%m%dT%H%M%SZ)-$expected_commit-$$"
+  operation_id="$(create_opaque_operation_id)"
   operation_record="$OPERATIONS_DIR/$operation_id.json"
   [[ ! -e "$operation_record" && ! -L "$operation_record" ]] || fail "deployment operation identifier collision"
   write_operation_state "prepared" "none" "in_progress"
@@ -304,7 +324,7 @@ begin_deploy_operation() {
 begin_rollback_operation() {
   operation_kind="rollback"
   operation_started_at="$(timestamp_iso)"
-  operation_id="rollback-$(date -u +%Y%m%dT%H%M%SZ)-$expected_commit-$$"
+  operation_id="$(create_opaque_operation_id)"
   operation_record="$OPERATIONS_DIR/$operation_id.json"
   [[ ! -e "$operation_record" && ! -L "$operation_record" ]] || fail "rollback operation identifier collision"
   write_operation_state "prepared" "none" "in_progress"

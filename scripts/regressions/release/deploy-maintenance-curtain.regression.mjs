@@ -57,6 +57,9 @@ for (const requirement of [
   /triggerReasonClass/,
   /startedAt:[\s\S]*endedAt:[\s\S]*candidate:[\s\S]*recovery:[\s\S]*outcome:/,
   /recoveryBackup:/,
+  /create_opaque_operation_id\(\)[\s\S]*createOpaqueId\(\)/,
+  /operation_id="\$\(create_opaque_operation_id\)"/,
+  /tmp-\$\{process\.pid\}-\$\{createOpaqueId\(\)\}/,
   /trap 'handle_deploy_signal HUP' HUP/,
   /trap 'handle_deploy_signal INT' INT/,
   /trap 'handle_deploy_signal TERM' TERM/,
@@ -889,11 +892,17 @@ async function executeDeployment({
   const stageRoot = path.join(rootDir, `stage-${identity.canonicalVersion}`);
   const packageRoot = path.join(stageRoot, `longtail-forge-${identity.canonicalVersion}`);
   await fs.mkdir(path.join(packageRoot, "scripts"), { recursive: true });
+  await fs.mkdir(path.join(packageRoot, "src", "core"), { recursive: true });
   await fs.writeFile(path.join(packageRoot, "package.json"), JSON.stringify({
     name: "longtail-forge-fixture",
+    type: "module",
     version: identity.canonicalVersion,
   }));
   await fs.writeFile(path.join(packageRoot, "scripts", "backup.mjs"), backupStubSource());
+  await fs.writeFile(
+    path.join(packageRoot, "src", "core", "identifiers.js"),
+    `import { randomUUID } from "node:crypto";\nexport function createOpaqueId() { return randomUUID(); }\n`,
+  );
   run(fixtureEnvironment.LTF_FIXTURE_REAL_TAR, [
     "-czf",
     artifactPath,

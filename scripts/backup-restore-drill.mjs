@@ -65,6 +65,7 @@ try {
     },
     secureNotesKeyBackupPath: keyBackupPath,
   });
+  assertUuidVersion(created.backupId, 4, "whole-instance backup identity");
   assert.equal(created.manifest.secureNotes.masterKeyIncluded, false);
   assert.equal(created.manifest.secureNotes.recoveryPrerequisiteRequired, true);
   assert.equal(created.manifest.secureNotes.recoveryPrerequisiteConfirmed, true);
@@ -93,11 +94,14 @@ try {
     secureNotesKeyBackupPath: keyBackupPath,
   });
   assert.equal(restored.backupId, created.backupId);
-  assert.equal((await inspectBackup({
+  const preRestoreInspection = await inspectBackup({
     archivePath: preRestoreBackupPath,
     expectedAppVersion: packageJson.version,
     secureNotesKeyBackupPath: keyBackupPath,
-  })).restorable, true);
+  });
+  assert.equal(preRestoreInspection.restorable, true);
+  assertUuidVersion(preRestoreInspection.manifest.backupId, 4, "automatic pre-restore backup identity");
+  assert.notEqual(preRestoreInspection.manifest.backupId, created.backupId, "recovery backup identity must stay independent from the restored archive identity");
 
   await assertRestoredState(originalMarker, originalFile);
   server = await startServer();

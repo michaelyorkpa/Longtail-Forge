@@ -2,13 +2,6 @@
   "schemaVersion": 1,
   "productionDirectRandomUuid": {
     "public/js/clients-projects.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.5" },
-    "scripts/lib/backup-archive.mjs": { "calls": 2, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "scripts/lib/demo-data-operation.mjs": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "scripts/release/longtail-forge-deploy-host.example": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/core/files/local-storage-adapter.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/core/files/s3-storage-adapter.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/core/request-context.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/db/migration-lock.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
     "src/modules/client-projects/clients.service.js": { "calls": 2, "classification": "record", "plannedSlice": "0.33.27.4" },
     "src/modules/lists/lists.repo.js": { "calls": 4, "classification": "record", "plannedSlice": "0.33.27.4" },
     "src/modules/lists/lists.service.js": { "calls": 6, "classification": "record", "plannedSlice": "0.33.27.4" },
@@ -23,10 +16,7 @@
     "src/modules/tasks/tasks.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
     "src/modules/time-tracking/active-timers.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
     "src/modules/time-tracking/public-api.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/time-tracking/time-entries.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/services/workspace-backup-package.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/services/workspace-backups.service.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" },
-    "src/services/workspace-purge.service.js": { "calls": 1, "classification": "opaque", "plannedSlice": "0.33.27.3" }
+    "src/modules/time-tracking/time-entries.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" }
   },
   "temporaryBrowserGenerator": {
     "path": "public/js/clients-projects.js",

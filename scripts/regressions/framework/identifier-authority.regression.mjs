@@ -32,6 +32,28 @@ const FRAMEWORK_RECORD_CALLS = Object.freeze({
   "src/services/work-resume-state.service.js": 1,
   "src/services/workspace-purge.service.js": 1,
 });
+const FRAMEWORK_OPAQUE_CALLS = Object.freeze({
+  "scripts/lib/backup-archive.mjs": 2,
+  "scripts/lib/demo-data-operation.mjs": 1,
+  "scripts/release/longtail-forge-deploy-host.example": 2,
+  "src/core/files/local-storage-adapter.js": 1,
+  "src/core/files/s3-storage-adapter.js": 1,
+  "src/core/request-context.js": 1,
+  "src/db/migration-lock.js": 1,
+  "src/services/workspace-backup-package.js": 1,
+  "src/services/workspace-backups.service.js": 1,
+  "src/services/workspace-purge.service.js": 1,
+});
+const DEDICATED_SECURITY_PATTERNS = Object.freeze({
+  "src/core/csrf-protection.js": [/randomBytes\(32\)/, /randomBytes\(24\)/, /createHmac\("sha256"/],
+  "src/modules/notes/secure-crypto.js": [/randomBytes\(32\)/, /randomBytes\(12\)/, /createCipheriv/],
+  "src/security/passwords.js": [/randomBytes\(18\)/, /randomBytes\(policy\.saltLength\)/, /argon2id/],
+  "src/security/sessions.js": [/randomBytes\(32\)/],
+  "src/services/api-keys.service.js": [/randomBytes\(24\)/],
+  "src/services/permissions.service.js": [/randomBytes\(32\)/, /createHmac\("sha256"/],
+  "src/services/private-feeds.service.js": [/randomBytes\(12\)/, /randomBytes\(32\)/, /createHash\("sha256"/],
+  "src/services/sessions.service.js": [/randomBytes\(32\)/, /createHmac\("sha256"/],
+});
 
 const baseline = JSON.parse(await fs.readFile(BASELINE_PATH, "utf8"));
 assert.equal(baseline.schemaVersion, 1, "identifier migration baseline schema must remain recognized");
@@ -63,6 +85,14 @@ for (const [filePath, expectedCalls] of Object.entries(FRAMEWORK_RECORD_CALLS)) 
     `${filePath} must keep each audited framework persistent-record generator on createRecordId()`,
   );
 }
+for (const [filePath, expectedCalls] of Object.entries(FRAMEWORK_OPAQUE_CALLS)) {
+  const source = await fs.readFile(filePath, "utf8");
+  assert.equal(
+    countMatches(source, /\bcreateOpaqueId\s*\(/g),
+    expectedCalls,
+    `${filePath} must keep each audited framework operational UUID on createOpaqueId()`,
+  );
+}
 assert.deepEqual(
   Object.entries(baseline.productionDirectRandomUuid)
     .filter(([filePath, entry]) => Object.hasOwn(FRAMEWORK_RECORD_CALLS, filePath) && String(entry.classification).includes("record"))
@@ -70,6 +100,20 @@ assert.deepEqual(
   [],
   "the exact migration baseline must not retain framework persistent-record entries after their rollout",
 );
+assert.deepEqual(
+  Object.entries(baseline.productionDirectRandomUuid)
+    .filter(([, entry]) => entry.classification !== "record")
+    .map(([filePath]) => filePath),
+  [],
+  "the exact migration baseline must contain only the first-party module and temporary browser record generators",
+);
+
+for (const [filePath, patterns] of Object.entries(DEDICATED_SECURITY_PATTERNS)) {
+  const source = await fs.readFile(filePath, "utf8");
+  for (const pattern of patterns) {
+    assert.match(source, pattern, `${filePath} must retain its dedicated credential or cryptographic helper boundary`);
+  }
+}
 
 const packageImportViolations = [];
 const packageScanFiles = (await Promise.all(PACKAGE_SCAN_ROOTS.map(listCodeFiles))).flat().sort();
