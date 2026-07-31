@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
+import { createOpaqueId } from "../core/identifiers.js";
 import { appVersion } from "../core/version.js";
 import { workspaceBackupExportsRepository } from "../repositories/workspace-backup-exports.repo.js";
 import { workspacesRepository } from "../repositories/workspaces.repo.js";
@@ -15,7 +15,7 @@ async function create(session) {
   await assertCanManageWorkspaceBackup(session);
   const workspace = await workspacesRepository.readById(session.workspace_id);
   if (!workspace) throw new AppError("Workspace not found.", 404);
-  const backupId = randomUUID();
+  const backupId = createOpaqueId();
   const archiveFilename = `${backupId}.ltfworkspace.tgz`;
   const outputPath = path.join(config.workspaceBackups.root, safeSegment(session.workspace_id), archiveFilename);
 

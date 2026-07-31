@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import Database from "better-sqlite3";
+import { createOpaqueId } from "../core/identifiers.js";
 
 const WORKSPACE_ARCHIVE_ROOT = "longtail-forge-workspace-backup";
 const WORKSPACE_BACKUP_FORMAT = "longtail-forge-workspace-backup";
@@ -27,7 +28,7 @@ async function createWorkspaceBackupPackage(options) {
   const outputPath = requiredPath(options.outputPath, "workspace backup output");
   const workspaceId = requiredText(options.workspaceId, "workspace ID");
   const appVersion = requiredText(options.appVersion, "application version");
-  const backupId = requiredText(options.backupId || randomUUID(), "backup ID");
+  const backupId = requiredText(options.backupId || createOpaqueId(), "backup ID");
   await assertRegularFile(sourceDatabaseFile, "source SQLite database");
   await assertNewOutput(outputPath);
 

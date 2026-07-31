@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { createOpaqueId } from "../identifiers.js";
 import { AppError } from "../../utils/app-error.js";
 
 const S3_PROVIDER_ID = "s3";
@@ -134,7 +134,7 @@ function createWriteTarget(options = {}) {
 
 function createStorageKey(prefix) {
   const safePrefix = normalizePathSegment(prefix || "workspace");
-  return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}`;
+  return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${createOpaqueId()}`;
 }
 
 function normalizeS3Settings(options = {}) {

@@ -1,5 +1,50 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
+
+Completed on 2026-07-31. Every audited non-secret framework and operator UUID
+now uses the central opaque UUIDv4 authority without changing its existing
+request, lock, storage, backup, purge, or recovery semantics. Durable row
+identity and dedicated bearer/cryptographic helpers remain separate. The exact
+migration baseline now contains only the first-party module and
+Clients/Projects browser generators assigned to 0.33.27.4 and 0.33.27.5. The
+active cursor advances to `0.33.27.4`.
+
+**Model: High Effort** — Operational UUIDs cross request, lock, storage,
+backup, purge, and deployment tooling boundaries where accidental ordering or
+credential semantics would be a security and recovery regression.
+
+- [x] Routed request correlation IDs, migration-lock owners, local/S3 storage
+  keys, workspace and whole-instance backup package/operation IDs, workspace
+  purge fencing tokens, demo-data operation IDs, and deployment operation and
+  temporary-path IDs through `createOpaqueId()`.
+- [x] Kept purge tombstone rows and recovery audit rows on `createRecordId()`;
+  kept each workspace-backup receipt keyed by its existing opaque package ID;
+  and introduced no schema or existing-data rewrite.
+- [x] Added representative proof that request, lock, storage, backup, purge,
+  and operator identities are canonical UUIDv4 values, independent from
+  accompanying UUIDv7 records, while paths, manifests, checksums, and restore
+  behavior remain unchanged.
+- [x] Pinned the existing dedicated `randomBytes`, HMAC, hash, password, and
+  Secure Notes helpers and retained the central authority's narrow non-token
+  surface.
+- [x] Ratcheted every operational entry out of the exact migration baseline;
+  only the module and Clients/Projects browser entries remain.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`,
+  `docs/architecture.md`, `docs/database.md`, `docs/operational-security.md`,
+  `docs/preview-deployment.md`, and `docs/regression-suite.md`; recorded the
+  shipped result in `CHANGELOG.md`; advanced through
+  `npm run version:bump -- 0.33.27.3`; and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- Every audited production operational UUID uses `createOpaqueId()` without
+  changing its non-time-ordered or non-secret semantics; durable row identity
+  remains separate; dedicated credential/token/crypto helpers remain
+  unchanged; and only the exact module/browser migration entries remain in
+  the production baseline.
+
 ## Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
 
 Completed on 2026-07-31. Every audited framework-owned ordinary persistent

@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.3`.
+Active cursor: `0.33.27.4`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,21 +34,7 @@ Non-goals:
 
 Delivery shape:
 
-The remaining plan has four implementation slices. Complete the children in order. The split follows real isolation boundaries: migrate framework operational UUIDs without crossing secret boundaries, perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
-
-### Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
-
-**Model: High Effort** — Operational UUIDs cross request, lock, storage, backup, purge, and deployment tooling boundaries where accidental ordering or credential semantics would be a security and recovery regression.
-
-- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` while preserving their non-time-ordered semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing tokens, and classified production operator operation/temporary-path IDs. Keep durable purge tombstone row identity on `createRecordId()`. The existing workspace-backup receipt remains keyed by the same opaque artifact/package ID; do not invent a second receipt-row identifier or schema migration in this branch.
-- [ ] Prove representative request, lock, storage, backup, purge, and operator values are canonical non-v7 UUIDs and remain independent from any accompanying persistent row ID. Preserve existing prefixes, paths, filenames, manifests, checksums, and recovery contracts.
-- [ ] Prove dedicated `randomBytes`/HMAC/hash helpers remain unchanged for sessions, CSRF, API-key secrets, private calendar-feed credentials, authentication/password material, Secure Notes cryptography, and other bearer or access-bearing values. The central authority must not expose a generic token helper.
-- [ ] Ratchet the framework/operator operational UUID entries out of the exact migration baseline while retaining the exact first-party module and Clients/Projects browser entries assigned to 0.33.27.4/.5.
-- [ ] Run `npm run docs:suggest`, update only owning security/runtime/recovery documentation whose implementation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, and run `npm run verify:slice` exactly once at final closeout.
-
-Acceptance criteria:
-
-- Every audited production operational UUID uses `createOpaqueId()` without changing its non-time-ordered or non-secret semantics; durable row identity remains separate; dedicated credential/token/crypto helpers remain unchanged; and only the exact module/browser migration entries remain in the production baseline.
+The remaining plan has three implementation slices. Complete the children in order. The split follows real isolation boundaries: perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
 
 ### Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
 

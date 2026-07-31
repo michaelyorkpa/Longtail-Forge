@@ -112,6 +112,7 @@ async function assertAdapterObjectOperations() {
   const saved = await adapter.save(Buffer.from("buffer body"), { workspaceId: "workspace/proof" });
   assert.equal(saved.storedFilename, path.posix.basename(saved.storageKey), "stored filename should be the safe object-key basename");
   assert.match(saved.storageKey, /^workspace-proof\/\d{4}-\d{2}-\d{2}\//, "S3 storage keys should be app-generated object keys");
+  assertUuidVersion(path.posix.basename(saved.storageKey), 4, "S3 object-key identity");
   assertSafeS3Payload(saved, "save result");
 
   assert.equal(await streamToText(await adapter.read(saved.storageKey)), "buffer body", "read() should return a Node Readable for saved objects");
@@ -365,6 +366,11 @@ function assertSafeS3Payload(payload, label) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, /private-proof-bucket|private-proof-access-key|private-proof-secret-key|objects\.private\.invalid/i, `${label} should not expose S3 config values`);
   assert.doesNotMatch(serialized, /signedUrl|presigned|protectedPath/i, `${label} should not expose signed URLs or protected internals`);
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 function escapeRegExp(value) {

@@ -101,6 +101,7 @@ async function assertRequestCorrelation() {
     await waitForImmediate();
     assert.equal(result.status, 200);
     assert.match(result.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+    assertUuidVersion(result.headers["x-request-id"], 4, "framework request correlation identity");
     assert.notEqual(result.headers["x-request-id"], inboundId, "inbound IDs should not control trusted correlation fields");
     assert.equal(result.body.requestId, result.headers["x-request-id"]);
     const requestLog = JSON.parse(lines.at(-1));
@@ -257,4 +258,9 @@ function request(server, requestPath, headers = {}) {
     outgoing.on("error", reject);
     outgoing.end();
   });
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }

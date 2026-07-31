@@ -134,6 +134,9 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   const holderExitPromise = waitForExit(holder);
 
   await waitForOutput(holder, () => holderOutput.includes("lock-ready"));
+  const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
+  const lockMetadata = JSON.parse(await fs.readFile(lockPath, "utf8"));
+  assertUuidVersion(lockMetadata.ownerId, 4, "SQLite migration-lock owner identity");
 
   const contender = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     process.env.LONGTAIL_DATABASE_FILE = ${JSON.stringify(lockedDatabaseFile)};
@@ -165,7 +168,6 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   const holderExit = await holderExitPromise;
   assert.equal(holderExit.code, 0, holderError || holderOutput);
 
-  const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
   await assert.rejects(
     () => fs.access(lockPath),
     /ENOENT/,
@@ -241,4 +243,9 @@ function readText(filePath) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }

@@ -32,6 +32,8 @@ try {
     readFileObject: ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
     workspaceId: "target-workspace",
   });
+  assertUuidVersion(created.backupId, 4, "workspace backup package identity");
+  assert.equal(created.manifest.backupId, created.backupId, "the workspace backup manifest and durable receipt identity must share the same opaque package ID");
   assert.match(created.archiveSha256, /^[a-f0-9]{64}$/);
   assert.equal(created.manifest.workspace.name, "Recovery Workspace");
   assert.equal(created.manifest.storage.objectCount, 1);
@@ -85,6 +87,11 @@ try {
   console.log("Workspace backup disposable restore drill passed.");
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function createFixture() {

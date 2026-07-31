@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import { createReadStream, createWriteStream } from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
+import { createOpaqueId } from "../identifiers.js";
 import { AppError } from "../../utils/app-error.js";
 import { config } from "../../config.js";
 
@@ -74,7 +74,7 @@ function createWriteTarget(rootDir, options = {}) {
 
 function createStorageKey(prefix) {
   const safePrefix = normalizePathSegment(prefix || "workspace");
-  return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}`;
+  return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${createOpaqueId()}`;
 }
 
 function resolveStoragePath(rootDir, storageKey) {

@@ -1,3 +1,29 @@
+## Version 0.33.27.3 - 2026-07-31
+
+- Routed every audited non-secret framework and operator UUID through the
+  central `createOpaqueId()` UUIDv4 authority: request correlation,
+  migration-lock ownership, local/S3 storage keys, workspace and
+  whole-instance backup package/operation identity, workspace-purge fencing,
+  demo-data operations, and deployment operation/temporary-path identity.
+- Preserved the mixed identity boundaries: purge tombstones and recovery audit
+  rows remain UUIDv7 records, workspace-backup receipts retain the same opaque
+  package ID, Files storage keys remain independent from Files rows, and no
+  schema, path, manifest, checksum, or restore contract changed.
+- Extended the identifier guardrail to pin all operational authority calls and
+  the unchanged dedicated `randomBytes`, HMAC, hash, password, API-key,
+  private-feed, session, CSRF, and Secure Notes helpers. The exact migration
+  baseline now contains only the first-party module and Clients/Projects
+  browser generators assigned to 0.33.27.4 and 0.33.27.5.
+- Added representative UUIDv4 proof for request, lock, local/S3 storage,
+  whole-instance/workspace backup, purge-fence, demo-data, and deployment
+  identities, including independence from accompanying UUIDv7 rows.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`,
+  `docs/operational-security.md`, `docs/preview-deployment.md`,
+  `docs/regression-suite.md`.
+- No docs change needed: Files, Settings, Permissions, backup/restore,
+  workspace deletion, demo-data, and public API workflows keep their existing
+  behavior and formats; only internal non-secret UUID generation changed.
+
 ## Version 0.33.27.2 - 2026-07-31
 
 - Moved all 27 audited framework-owned persistent-record generators to the

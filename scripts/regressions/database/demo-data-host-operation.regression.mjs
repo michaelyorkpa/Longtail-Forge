@@ -22,6 +22,7 @@ import {
   assertDemoMarkerForAction,
   assertNoPartialDemoState,
   assertProtectedFile,
+  createDemoOperationId,
   createHostDependencies,
   minimalSeedEnvironment,
   parseDemoDataArgs,
@@ -45,6 +46,9 @@ const rolePasswords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixtu
   fixture.roleId,
   `H${index}r!Demo-Host-Private-75319zZ`,
 ]));
+const generatedOperatorId = createDemoOperationId();
+assertUuidVersion(generatedOperatorId, 4, "demo-data operator identity");
+assert.notEqual(createDemoOperationId(), generatedOperatorId, "separate demo-data operations must receive independent opaque identities");
 const appEnvironment = Object.freeze({
   LONGTAIL_ENV: "production",
   LONGTAIL_PUBLIC_URL: "https://demo.longtailforge.com",
@@ -492,6 +496,11 @@ function makeDependencies(hostDependencies, events, overrides) {
     inspectBackup: async (args) => { events.push("inspect"); return await hostDependencies.inspectBackup(args); },
     seedCandidate: async (args) => { events.push("seed"); return await hostDependencies.seedCandidate(args); },
   };
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function seedDevelopmentData(dataDir, anchorDate, password, roleCredentialsFile) {
