@@ -203,6 +203,7 @@ async function prepareDemoHostContext({
   requireRoot = true,
   readApplicationEnvironment = (filePath) => readProtectedEnvironmentFile(filePath, {
     label: "application environment",
+    requireRoot,
   }),
   readRoleCredentials = readDemoRoleFixtures,
 }) {

@@ -20,6 +20,7 @@
   logins, normal Argon2id hashes, preserved operator identity/administration,
   disabled personas, Files/Search parity, SQLite integrity, and zero foreign
   key violations.
+- No docs change needed: the CI repairs preserve documented production behavior and only correct regression execution plus ignored local-state scanning.
 
 ## Version 0.33.26.8 - 2026-07-30
 

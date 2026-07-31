@@ -5,6 +5,7 @@ const EXCLUDED_DIRECTORIES = new Set([
   ".agents",
   ".codex",
   ".git",
+  ".local",
   "coverage",
   "data",
   "dist",
