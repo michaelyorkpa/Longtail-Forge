@@ -116,7 +116,7 @@ assert.match(filesInventory, /0\.33\.5\.18\.15 branch closeout preserves this Fi
 assert.match(filesInventory, /does not reopen Files scope[\s\S]*route changes, schema changes, permission changes, payload changes, and workflow changes remain deferred/, "Files inventory should keep future Files work deferred");
 assert.match(tasksInventory, /0\.33\.5\.18\.15 branch closeout preserves this Tasks boundary/, "Tasks inventory should acknowledge the branch closeout without reopening Tasks scope");
 assert.match(tasksInventory, /does not reopen Tasks scope[\s\S]*route calls, permissions, and workflow meaning remain Tasks-owned/, "Tasks inventory should keep future Tasks work deferred");
-assert.match(clientsProjectsInventory, /Current as of 0\.33\.26\.3/, "Clients/Projects inventory should report its current version while preserving closeout history");
+assert.match(clientsProjectsInventory, /Current as of 0\.33\.27\.4/, "Clients/Projects inventory should report its current version while preserving closeout history");
 assert.match(clientsProjectsInventory, /0\.33\.5\.18\.15 Cross-Surface Closeout[\s\S]*Notes-style searchable tag filters with service-side tag text resolution/, "Clients/Projects inventory should preserve the accepted tag-search outcome");
 assert.match(clientsProjectsInventory, /Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior, drag\/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout/, "Clients/Projects inventory should keep deferred work explicit");
 

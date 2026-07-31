@@ -1,5 +1,48 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
+
+Completed on 2026-07-31. Every audited server-side first-party module record
+generator now uses the central UUIDv7 authority, duplicate service/repository
+generation is removed, and accepted caller-supplied UUIDv4/UUIDv7 identifiers
+remain compatible. The exact direct-generator baseline now contains only the
+Clients/Projects browser path assigned to 0.33.27.5. The active cursor advances
+to `0.33.27.5`.
+
+**Model: High Effort** — This was a high-volume mechanical conversion across
+every first-party workflow module where a missed or duplicated generator could
+fragment identity policy or break relationships.
+
+- [x] Converted all 28 audited server-side persistent-record generators across
+  Clients/Projects, Tasks and its children, Time Tracking entries/timers,
+  Notes/revisions/links/collections, and Lists/items/catalogs/links to
+  `createRecordId()` across 11 authoritative owners.
+- [x] Removed duplicate service/repository generation while preserving accepted
+  caller-supplied UUIDv4/UUIDv7 identifiers used by public APIs, imports,
+  recurrence, retries, restoration, and existing internal contracts.
+- [x] Added representative UUIDv7 and mixed-version integration coverage across
+  Clients/Projects, Tasks/checklists, Notes/revisions/links/collections, and
+  Lists/items, including UUIDv7 children related to UUIDv4 parents.
+- [x] Ratcheted the production direct-generator baseline to the one exact
+  Clients/Projects browser exception assigned to 0.33.27.5 and pinned every
+  authoritative module `createRecordId()` call.
+- [x] Preserved canonical timestamp, due-date, sequence, title, revision,
+  timer-slot, relationship, and paging order rather than relying on UUID
+  lexical order.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, architecture,
+  database, future-module, Tasks, Time Tracking, Notes, Lists, and regression
+  documentation; recorded the shipped result in `CHANGELOG.md`; advanced
+  through `npm run version:bump -- 0.33.27.4`; and completed the canonical
+  local slice verification.
+
+Acceptance criteria:
+
+- Every audited server-side first-party module record generator uses the
+  central ordered-record authority; caller-supplied legacy IDs remain
+  compatible; representative parent/child relationships mix UUIDv4/UUIDv7
+  safely; module ordering is unchanged; and the only remaining production
+  bypass is the exact Clients/Projects browser path assigned to 0.33.27.5.
+
 ## Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
 
 Completed on 2026-07-31. Every audited non-secret framework and operator UUID

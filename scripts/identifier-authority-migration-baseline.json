@@ -1,22 +1,7 @@
 {
   "schemaVersion": 1,
   "productionDirectRandomUuid": {
-    "public/js/clients-projects.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.5" },
-    "src/modules/client-projects/clients.service.js": { "calls": 2, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/lists/lists.repo.js": { "calls": 4, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/lists/lists.service.js": { "calls": 6, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/notes/notes.repo.js": { "calls": 7, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/notes/notes.service.js": { "calls": 4, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/task-checklists.repo.js": { "calls": 2, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/task-recurrence.repo.js": { "calls": 5, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/task-relationships.repo.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/task-reminders.repo.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/task-timers.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/tasks.repo.js": { "calls": 3, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/tasks/tasks.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/time-tracking/active-timers.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/time-tracking/public-api.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" },
-    "src/modules/time-tracking/time-entries.service.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.4" }
+    "public/js/clients-projects.js": { "calls": 1, "classification": "record", "plannedSlice": "0.33.27.5" }
   },
   "temporaryBrowserGenerator": {
     "path": "public/js/clients-projects.js",

@@ -8,6 +8,8 @@ Lists is a first-party workflow module registered by `src/modules/lists/module.j
 
 The framework owns module registration, route mounting, protected view serving, app-shell navigation, permissions, tags, search persistence, file storage, audit logging, internal events, Help discovery, and module enablement. Lists consumes those framework services through declarations and service calls instead of adding parallel storage or UI systems.
 
+As of 0.33.27.4, the Lists repository is the authoritative generator for new list, item, catalog-item, and linked-record IDs through the framework `createRecordId()` UUIDv7 operation. The service preserves accepted caller-supplied UUIDv4/UUIDv7 values without generating a competing ID, and mixed-version list/item relationships remain valid. List and item reads retain their explicit updated-time/title, `sort_order`, creation-time, match-rank, and use-count ordering rather than UUID order.
+
 As of 0.33.6.12e-1, Workbench Task Focus related context consumes Lists through Lists-owned list and linked-record service paths. Lists linked directly to the selected task outrank shared-tag matches, shared-tag matches use direct tags only, and related rows expose safe list titles, labels, badges, and existing `lists.edit` action descriptors without moving list workflow into Workbench.
 
 Important files:

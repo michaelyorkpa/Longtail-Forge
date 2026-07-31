@@ -1,12 +1,14 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.26.3. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
+Current as of 0.33.27.4. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
 
 This inventory records the active strict boundary for the Clients and Projects
 page conversion. Later sections identify the deliberately authorized behavior
 changes that extend that boundary.
 
 Calendar-subscription entitlement is a framework credential concern, not a Clients/Projects workflow. As of 0.33.22.9, the canonical Client and Project archive paths notify the framework reconciliation owner after their existing status changes, audits, Search updates, and hierarchy rules. Any active subscription whose required target is now inactive is revoked with a safe reason; no calendar selector, digest, URL, or Tasks content enters this module.
+
+As of 0.33.27.4, the Clients/Projects service uses the framework `createRecordId()` authority for server-generated Client and Project IDs while continuing to preserve accepted caller-supplied UUIDv4/UUIDv7 IDs. Hierarchy reads and writes remain version-agnostic and retain their established service-owned ordering. The browser `createUuid()` payload path remains the one temporary production exception and is assigned to 0.33.27.5; this slice does not change browser save, optimistic replacement, focus, deep-link, or event behavior.
 
 ## Inventoried Surfaces
 

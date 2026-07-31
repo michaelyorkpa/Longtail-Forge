@@ -78,12 +78,14 @@ function assertStaticContract() {
 
 async function assertRepositoryMutationLifecycle(session) {
   const suffix = randomUUID().slice(0, 8);
+  const legacyRootCollectionId = randomUUID();
   const rootCollection = await notesRepository.createCollection(session.workspace_id, {
     collection_source: "manual",
     created_by_user_id: session.user_id,
     depth: "",
     library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
     metadata_json: JSON.stringify({ slice: "0.33.5.27.15-root" }),
+    note_library_collection_id: legacyRootCollectionId,
     path_cache: `27.15 Root ${suffix}`,
     slug: `27-15-root-${suffix}`,
     sort_order: "",
@@ -105,6 +107,10 @@ async function assertRepositoryMutationLifecycle(session) {
   const activeCollections = await notesRepository.listCollections(session.workspace_id, {
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
   });
+  assert.equal(rootCollection.note_library_collection_id, legacyRootCollectionId, "caller-supplied UUIDv4 Notes collection identity must remain byte-for-byte unchanged");
+  assertUuidVersion(rootCollection.note_library_collection_id, 4, "caller-supplied legacy Notes collection identity");
+  assertUuidVersion(childCollection.note_library_collection_id, 7, "new Notes child-collection identity");
+  assert.equal(childCollection.parent_collection_id, legacyRootCollectionId, "UUIDv7 Notes collections must retain UUIDv4 parent relationships");
   assert.ok(activeCollections.some((collection) => collection.note_library_collection_id === rootCollection.note_library_collection_id), "collection reads should include the created root");
   assert.ok(activeCollections.some((collection) => collection.note_library_collection_id === childCollection.note_library_collection_id), "collection reads should include the created child");
   assert.equal(await notesRepository.countChildCollections(session.workspace_id, rootCollection.note_library_collection_id), 1, "child collection counts should include active children");
@@ -141,6 +147,7 @@ async function assertRepositoryMutationLifecycle(session) {
   ]);
 
   assert.equal(noteResult.title, `27.15 Write Needle ${suffix}`);
+  assertUuidVersion(noteResult.note_id, 7, "new Notes record identity");
   assert.equal(noteResult.slug, null, "blank slug should preserve nullable text behavior");
   assert.deepEqual(noteResult.metadata, { slice: "0.33.5.27.15" });
   assert.equal(await notesRepository.countNotesInCollection(session.workspace_id, childCollection.note_library_collection_id), 1, "collection note counts should include active notes");
@@ -152,6 +159,7 @@ async function assertRepositoryMutationLifecycle(session) {
     "createWithLinks should persist staged links inside the transaction",
   );
   const workspaceLink = links.find((link) => link.target_type === "workspace");
+  links.forEach((link) => assertUuidVersion(link.note_link_id, 7, "new Notes relationship identity"));
   assert.equal(workspaceLink.metadata.staged, "workspace", "link metadata should remain parsed after conversion");
   const batchedLinks = await notesRepository.listLinksForNotes(session.workspace_id, [noteResult.note_id, noteResult.note_id]);
   assert.equal(batchedLinks.length, 2, "batched link reads should use unique note ids and preserve active links");
@@ -218,6 +226,8 @@ async function assertRepositoryMutationLifecycle(session) {
     visibility: updatedNote.visibility,
   });
   const revisions = await notesRepository.listRevisions(session.workspace_id, noteResult.note_id);
+  assertUuidVersion(revisionOne.note_revision_id, 7, "first new Notes revision identity");
+  assertUuidVersion(revisionTwo.note_revision_id, 7, "second new Notes revision identity");
   assert.deepEqual(revisions.map((revision) => revision.revision_number), [2, 1], "revision lists should remain newest-first");
   assert.equal((await notesRepository.readRevisionById(session.workspace_id, noteResult.note_id, revisionTwo.note_revision_id)).title, updatedNote.title);
 
@@ -259,6 +269,11 @@ async function assertRepositoryMutationLifecycle(session) {
     visibility: NOTE_VISIBILITIES.INTERNAL,
   });
   assert.equal(await notesRepository.countPlaintextSecurePlaceholders(session.workspace_id), 1, "secure plaintext placeholder count should preserve the existing safety check");
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function readSeedSession() {

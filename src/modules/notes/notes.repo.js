@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
 const NOTE_COLUMNS = [
@@ -213,7 +213,7 @@ ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}
 }
 
 async function create(workspaceId, note) {
-  const noteId = note.note_id || randomUUID();
+  const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
 
   await insertNote(db, workspaceId, note, noteId, now);
@@ -221,7 +221,7 @@ async function create(workspaceId, note) {
 }
 
 async function createWithLinks(workspaceId, note, links = []) {
-  const noteId = note.note_id || randomUUID();
+  const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
 
   await db.transaction(async (transaction) => {
@@ -231,7 +231,7 @@ async function createWithLinks(workspaceId, note, links = []) {
       await insertNoteLink(transaction, workspaceId, {
         ...link,
         note_id: noteId,
-      }, link.note_link_id || randomUUID(), link.created_at || now);
+      }, link.note_link_id || createRecordId(), link.created_at || now);
     }
   });
 
@@ -406,7 +406,7 @@ WHERE workspace_id = :workspaceId
 }
 
 async function createRevision(workspaceId, revision) {
-  const revisionId = revision.note_revision_id || randomUUID();
+  const revisionId = revision.note_revision_id || createRecordId();
 
   await db.run(`
 INSERT INTO note_revisions (
@@ -567,7 +567,7 @@ LIMIT 1;
 }
 
 async function createLink(workspaceId, link) {
-  const linkId = link.note_link_id || randomUUID();
+  const linkId = link.note_link_id || createRecordId();
   const now = link.created_at || new Date().toISOString();
 
   await insertNoteLink(db, workspaceId, link, linkId, now);
@@ -767,7 +767,7 @@ LIMIT 1;
         continue;
       }
 
-      const linkId = randomUUID();
+      const linkId = createRecordId();
       await insertNoteLink(transaction, workspaceId, {
         created_by_user_id: propagation.created_by_user_id,
         link_role: link.link_role,
@@ -869,7 +869,7 @@ LIMIT 1;
 }
 
 async function createCollection(workspaceId, collection) {
-  const collectionId = collection.note_library_collection_id || randomUUID();
+  const collectionId = collection.note_library_collection_id || createRecordId();
   const now = collection.created_at || new Date().toISOString();
 
   await db.run(`
