@@ -42,6 +42,7 @@ assert.deepEqual(
     "permissions",
     "security-audit",
     "database",
+    "identifiers",
     "module-contracts",
     "view-building",
     "public-api",
@@ -75,6 +76,10 @@ const securityAudit = suggestDocsForPaths(["src/security/security-events.js"], {
 assert.deepEqual(securityAudit.matchedAreas.map((area) => area.id), ["security-audit"]);
 assert.ok(securityAudit.docs.includes("docs/runtime-configuration.md"));
 assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md"));
+
+const identifiers = suggestDocsForPaths(["src/core/identifiers.js"], { index: rawIndex });
+assert.deepEqual(identifiers.matchedAreas.map((area) => area.id), ["identifiers"]);
+assert.deepEqual(identifiers.docs, ["DECISIONS.md", "docs/architecture.md", "docs/database.md"]);
 
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);

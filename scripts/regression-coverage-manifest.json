@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 423,
+    "discoveredScripts": 424,
     "legacyScripts": 311,
-    "releaseGateScripts": 55,
+    "releaseGateScripts": 56,
     "areaCounts": {
       "dashboard": 2,
       "database": 39,
       "docs": 10,
       "files": 44,
-      "framework": 71,
+      "framework": 72,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,7 +30,7 @@
     "tierCounts": {
       "focused": 199,
       "integration": 161,
-      "release-gate": 55,
+      "release-gate": 56,
       "slow": 8
     },
     "runModeCounts": {
@@ -38,7 +38,7 @@
       "isolated-files": 9,
       "serial-database": 6,
       "serial-files": 20,
-      "static": 209
+      "static": 210
     }
   },
   "coverageFamilies": [
@@ -2940,6 +2940,23 @@
         "modules",
         "routing",
         "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Keeps production UUID generation behind the central authority and freezes the temporary direct-generator migration baseline.",
+      "id": "framework.identifier-authority",
+      "legacy": false,
+      "path": "scripts/regressions/framework/identifier-authority.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "architecture",
+        "database",
+        "identifiers",
+        "security",
+        "static"
       ],
       "tier": "release-gate"
     },

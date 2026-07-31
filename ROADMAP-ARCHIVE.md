@@ -1,5 +1,55 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.1 - Identifier authority, classification, and migration baseline
+
+Completed on 2026-07-31. The 0.33.27 branch was re-audited against its live
+code seams and resized from three oversized slices to six independently
+verifiable sessions. The initial implementation establishes the governing
+identifier contract and exact migration inventory without prematurely mixing
+in the framework, module, browser, or recovery conversions. The active cursor
+advances to `0.33.27.2`.
+
+**Model: High Effort** — This slice established a framework-wide
+data-integrity and security classification, selected the UUIDv7 dependency,
+and froze the audited migration inventory before high-volume conversion.
+
+- [x] Re-audited every production UUID generator across runtime framework
+  records, first-party modules, the Clients/Projects browser, operational
+  request/lock/storage/backup/purge identity, and production operator tooling.
+  Dedicated credential/crypto helpers and test, fixture, seed, and drill
+  generation are classified separately.
+- [x] Selected the maintained zero-dependency `uuid` 14.0.1 package and added
+  `src/core/identifiers.js` with `createRecordId()` for UUIDv7 and
+  `createOpaqueId()` for random UUIDv4. No UUID layout, timestamp encoding,
+  sequencing, or randomness is hand-built.
+- [x] Added focused Vitest coverage for canonical versions, 2,000-value batch
+  uniqueness per operation, and deterministic supported dependency options.
+- [x] Added `framework.identifier-authority` plus the exact machine-readable
+  migration baseline. Only the authority may import `uuid`; current production
+  direct generators must match exactly and can only shrink through
+  `0.33.27.2`-`0.33.27.5`.
+- [x] Preserved sessions, CSRF, API-key secrets, private calendar feeds,
+  password/recovery material, Secure Notes cryptography, and other bearer or
+  access-bearing values on their dedicated random/crypto helpers. The
+  identifier authority is not a secrets service.
+- [x] Recorded UUIDv4/UUIDv7 coexistence, SQLite `TEXT` and future PostgreSQL
+  native `uuid` compatibility, explicit timestamp/ordering authority, and the
+  workspace-backup artifact/receipt semantic exception without a schema or
+  data-rewrite migration.
+- [x] Ran `npm run docs:suggest`, updated the governing decisions, architecture,
+  database, docs-ownership, and regression-suite contracts, recorded the
+  shipped result in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.1`, and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- The central authority and its record/opaque operations are implemented and
+  tested; the production inventory is completely classified; dedicated token
+  helpers remain outside the authority; SQLite and future PostgreSQL
+  representation remain valid; and a no-growth guardrail contains the exact
+  temporary framework/module/browser/operator migration baseline.
+
 ## Version 0.33.26 - Permissions Role-Capability Alignment
 
 Completed on 2026-07-31. Nine independently closeable slices aligned scoped

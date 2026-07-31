@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.1`.
+Active cursor: `0.33.27.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,56 +34,210 @@ Non-goals:
 
 Delivery shape:
 
-This version is a three-slice tracking umbrella, not one implementation slice. Complete the children in order. The split follows real isolation boundaries: establish the framework/security policy first, perform the server-side module conversion as one mechanical rollout rather than one slice per module, then change browser/API identity ownership and run the system-level mixed-version closeout proof.
+The remaining plan has five implementation slices. Complete the children in order. The split follows real isolation boundaries: migrate framework record identity, migrate framework operational UUIDs without crossing secret boundaries, perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
 
-### Version 0.33.27.1 - Identifier authority, framework adoption, and opaque-value boundary
+### Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
 
-**Model: High Effort** — This slice establishes a framework-wide data-integrity and security classification, selects the UUIDv7 dependency, and changes identity generation for shared persistent records while preserving every credential, storage, lock, and recovery boundary.
+**Model: High Effort** — This is a framework-wide persistent-record conversion where a missed caller-supplied compatibility path or misclassified row could break identity, relationships, or restore behavior.
 
-- [ ] Re-audit every production UUID generator and record a complete classification in the owning architecture/database documentation. The current framework inventory includes startup maintenance, Workspaces, Users, memberships, assignments, permissions, Tags/relationships, Files records/attachments/reports, Notifications/subscriptions, audit events, jobs, work-resume state, API-key row identity, request correlation, migration-lock ownership, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing/tombstones, and any new call sites present when the slice starts.
-- [ ] Select the smallest reputable maintained runtime dependency with standards-compliant UUIDv7 support, install it through npm, and add one framework utility following nearby naming/export conventions (expected shape: `src/core/identifiers.js`) with intent-revealing operations such as `createRecordId()` for UUIDv7 and `createOpaqueId()` for random non-v7 UUIDs. Do not hand-roll UUID layout, timestamp encoding, sequencing, or randomness.
-- [ ] Add focused unit coverage proving canonical UUIDv7 record IDs, canonical random non-v7 opaque UUIDs, meaningful-batch uniqueness, and deterministic timestamp behavior only through supported dependency injection/options rather than a fake UUID format.
-- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, and other verified durable framework records. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
-- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` when appropriate, while explicitly preserving their semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, and workspace-purge fencing tokens remain random and non-time-ordered. Classify durable purge tombstone/backup receipt row identity separately from the token or artifact name it accompanies.
-- [ ] Preserve dedicated secret boundaries unchanged, including `randomBytes`-based sessions, CSRF nonces/signatures, API-key secrets, session references, password/reset/invitation/activation material, private calendar-feed tokens, signed-link tokens, authentication challenges, access-bearing idempotency keys, and future bearer credentials. Do not broadly ban `randomBytes` or turn the identifier authority into a secrets service.
-- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.27.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
-- [ ] Prove representative framework behavior: audit and job rows receive UUIDv7, the API-key record ID is independent from its random secret, Files record IDs are independent from opaque storage keys, and request/lock/fencing examples remain non-time-ordered. Keep SQLite `TEXT` compatibility and future PostgreSQL native `uuid` compatibility without a schema or data-rewrite migration.
-- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.1`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, purge tombstone row identity, production recovery-created audit rows, and any newly discovered durable framework record. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
+- [ ] Add representative integration coverage proving audit and job rows receive UUIDv7, API-key row identity stays independent from its random secret, Files record identity stays independent from its opaque storage key, mixed UUIDv4/UUIDv7 relationships remain valid, and recovery-created persistent rows use record identity without rewriting restored identifiers.
+- [ ] Ratchet only the framework persistent-record entries out of the exact migration baseline. Do not convert request correlation, lock ownership, storage keys, backup artifact/package identity, purge fencing tokens, module records, browser creation, test fixtures, or bearer credentials in this slice.
+- [ ] Run `npm run docs:suggest`, update only framework/database documentation whose shipped record-identity behavior changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
-- The central authority and its record/opaque operations are implemented and tested; all framework-owned ordinary persistent records in the audited inventory use UUIDv7; security-sensitive and non-record values retain the documented random/token behavior; SQLite and future PostgreSQL representation remain valid; and a no-growth guardrail contains the exact remaining module/browser migration baseline.
+- Every audited framework-owned persistent-record generator uses `createRecordId()`; caller-supplied legacy identifiers remain compatible; representative framework relationships and recovery-created rows mix UUIDv4/UUIDv7 safely; and the exact baseline has shrunk without changing operational UUID or secret behavior.
 
-### Version 0.33.27.2 - First-party module persistent-record UUIDv7 rollout
+### Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
+
+**Model: High Effort** — Operational UUIDs cross request, lock, storage, backup, purge, and deployment tooling boundaries where accidental ordering or credential semantics would be a security and recovery regression.
+
+- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` while preserving their non-time-ordered semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing tokens, and classified production operator operation/temporary-path IDs. Keep durable purge tombstone row identity on `createRecordId()`. The existing workspace-backup receipt remains keyed by the same opaque artifact/package ID; do not invent a second receipt-row identifier or schema migration in this branch.
+- [ ] Prove representative request, lock, storage, backup, purge, and operator values are canonical non-v7 UUIDs and remain independent from any accompanying persistent row ID. Preserve existing prefixes, paths, filenames, manifests, checksums, and recovery contracts.
+- [ ] Prove dedicated `randomBytes`/HMAC/hash helpers remain unchanged for sessions, CSRF, API-key secrets, private calendar-feed credentials, authentication/password material, Secure Notes cryptography, and other bearer or access-bearing values. The central authority must not expose a generic token helper.
+- [ ] Ratchet the framework/operator operational UUID entries out of the exact migration baseline while retaining the exact first-party module and Clients/Projects browser entries assigned to 0.33.27.4/.5.
+- [ ] Run `npm run docs:suggest`, update only owning security/runtime/recovery documentation whose implementation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Every audited production operational UUID uses `createOpaqueId()` without changing its non-time-ordered or non-secret semantics; durable row identity remains separate; dedicated credential/token/crypto helpers remain unchanged; and only the exact module/browser migration entries remain in the production baseline.
+
+### Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
 
 **Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.27.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
 
 - [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
 - [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
 - [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
-- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.27.3; fail on any new browser UUID generator.
+- [ ] Ratchet the source guardrail to zero server-side production bypasses outside the central authority. Keep only the exact temporary Clients/Projects browser `createUuid()` exception assigned to 0.33.27.5; fail on any new Node or browser UUID generator.
 - [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
-- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.4`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
-- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.3.
+- Every audited server-side first-party module record generator uses the central ordered-record authority; caller-supplied legacy IDs remain compatible; representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely; module ordering is unchanged; and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.5.
 
-### Version 0.33.27.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
+### Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
 
-**Model: High Effort** — This slice changes the Clients/Projects browser-to-server creation contract and then proves identifier compatibility across APIs, seeds, search, export, and destructive recovery tooling; those behavioral and data-integrity checks must close together.
+**Model: High Effort** — This changes the Clients/Projects browser-to-server creation contract and must preserve nested creation, optimistic replacement, event metadata, focus, deep links, and compatibility for existing UUIDv4 callers.
 
 - [ ] Move new Client/Project persistent identity off `public/js/clients-projects.js` `window.crypto.randomUUID()` and its v4 fallback. Make the server authority generate canonical IDs and return them to the browser while preserving nested create behavior, local collection replacement, audit/event metadata, optimistic status, focus return, deep links, and navigation. Do not introduce a browser UUIDv7 implementation or tighten create payloads in a way that rejects existing UUIDv4 callers.
-- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture or stronger dedicated-token exceptions.
+- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture/seed/drill or stronger dedicated-token exceptions.
+- [ ] Add focused browser/API regression coverage for Client and Project creation, including nested creation and caller-supplied UUIDv4 compatibility. Keep the server as the sole canonical persistent-ID authority.
+- [ ] Run `npm run docs:suggest`, update only the Clients/Projects or API documentation whose creation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.5`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions; existing UUIDv4 callers remain valid; the temporary production migration baseline is empty; and one framework authority is the only normal production UUID entry point.
+
+### Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
+
+**Model: High Effort** — Final proof spans compatibility, explicit ordering, seeds, export, and destructive recovery, but it deliberately changes no identity policy or workflow after the preceding isolated conversions.
+
 - [ ] Prove forward compatibility with pre-existing UUIDv4 fixtures across read, update, relate, search, export, and current APIs; create and exercise mixed UUIDv4/UUIDv7 foreign-key relationships; and verify seeded development and sanitized-demo data continue working without regeneration merely to normalize identifier versions.
 - [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
 - [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
-- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional exceptions/deferred sites, and docs disposition.
-- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
+- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional test/fixture exceptions, and docs disposition.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.6`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
 
 Acceptance criteria:
 
-- Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
+- New ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
+
+## Version 0.33.27.7 - Regression and Pre-Rollout Check Pipeline Efficiency
+
+**Model: High Effort** - This branch changes release-critical test discovery, isolation, coverage ratchets, local closeout orchestration, recovery proofs, and protected GitHub workflows; an optimization that silently skips evidence is more damaging than a slower gate.
+
+Purpose:
+
+Reduce the elapsed time and manual bookkeeping cost of the full local and GitHub verification pipeline without reducing regression membership, permission coverage, browser coverage, data-safety proof, or required protected checks. This branch consumes the dated read-only audit in `archive/2026-07-31-regression-and-check-pipeline-efficiency-findings.md` after the complete 0.33.27 UUIDv7 rollout and must close before the active cursor advances to 0.33.28.
+
+Baseline and sequencing:
+
+- The archive's 0.33.26.9 measurements - 423 active regressions, about 186.3 seconds for `npm run test:regressions`, about 105.3 seconds for the isolated-database bucket, about 70 seconds across the two serial buckets, and about 30-50 seconds for `npm run closeout` - are diagnostic evidence, not permanent counts or performance pins. Re-measure the unchanged post-0.33.27.6 tree on the same 6-core/12-thread Windows workstation before the first implementation edit, retain timing JSON, and compare every claimed saving against that refreshed baseline.
+- Complete the children in order. Land runner and fixture speedups before ceremony-wide assertion consolidation and CI changes so later slices pay the faster local gate. Keep each slice independently revertible and record measured before/after wall time, bucket time, failures, recovered flakes, and coverage inventory.
+- Preserve the discovered regression registry, its relative cheap-first bucket order, explicit run modes, isolated-database one-time serial retry, fail-fast scheduling boundary, changed-area fallback for unknown non-empty paths, and the separate permission harness. Bucket movement or new concurrency requires a checked-in isolation rationale and bounded repeat stress; filename or apparent speed alone never proves parallel safety.
+- `npm run verify:slice` remains the one ordinary final local conductor. Each slice may use the cheapest focused checks while iterating, then updates only owning docs plus `CHANGELOG.md`, advances only through `npm run version:bump -- <slice-version>`, regenerates reviewed derived artifacts when required, and runs `npm run verify:slice` exactly once on the final unchanged tree.
+- Do not optimize TypeScript's intentional `allowJs` / opt-in `@ts-check` boundary, replace bounded-pagination integration coverage with helper-only tests, refactor the efficient one-database permission harness, restore workflow `paths-ignore`, or trade exact-SHA/data-integrity/recovery evidence for a green status. Every direct underlying package command remains independently runnable for diagnosis and exceptional release work.
+
+Delivery shape:
+
+Eight slices cover one primary blast radius each: runner scheduling and process overhead, isolated-database fixtures, changed-file routing, generated ceremony, duplicate-validation ownership, Windows backup portability, fast/browser harness correctness, and exact-SHA CI reuse. Small measurements are folded into the change they inform rather than receiving measure-only slices.
+
+### Version 0.33.27.7.1 - Regression runner scheduling and process-throughput quick wins
+
+**Model: High Effort** - The edits are concentrated in the runner, but they alter process environment, concurrency, bucket assignment, failure scheduling, and resource cleanup across the full suite.
+
+- [ ] Capture the refreshed full-suite/bucket baseline and slowest scripts, then give spawned Node regressions one runner-owned `NODE_COMPILE_CACHE` directory with deterministic cleanup and no checkout, cross-run, or secret-bearing state. Prefetch the template database early enough to overlap safe static work instead of serializing its construction after that bucket.
+- [ ] Add an explicit static-bucket parallelism control with a conservative host-aware default and retain a serial override for diagnosis. Replace only the exact bucket-size assertion that blocks safe classification with invariant/floor coverage that still proves flattened bucket membership exactly equals discovery and that each entry appears once.
+- [ ] Re-audit and move the seven named pure-static candidates, including `file-scanner-setup-docs`, only when they perform no stateful side effect. Port-namespace and move remaining `serial-files` entries only after per-script temporary storage, port, process, scanner, and singleton isolation passes bounded repeat stress at representative concurrency; retain every unproven entry as serial.
+- [ ] Remove avoidable Windows `cmd.exe -> npm shim -> node` hops from closeout/changed-regression child execution while keeping the public package scripts independently runnable. Measure and either safely improve or explicitly retain child-output buffering, repeated metadata discovery, and the current retry queue/fail-fast interaction; never hide successful-run diagnostics needed for recovered-flake and timing evidence.
+- [ ] Update runner/discovery regressions and `docs/regression-suite.md`, record the exact re-bucketed and retained-serial inventory with reasons, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.1`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Regression membership and relative bucket order are unchanged; every bucket move has isolation proof; failures and recovered retries remain visible; no runner cache or fixture state escapes its owned temporary boundary; and the refreshed full suite shows a material, repeatable wall-clock improvement toward the branch target without increasing unexplained flakes.
+
+### Version 0.33.27.7.2 - Verified-baseline isolated-database and fixture fast path
+
+**Model: High Effort** - This optimization crosses the migration runner and 179-process-style fixture boundary, so a forged or stale fast path could conceal checksum, schema, or migration defects.
+
+- [ ] Add a fail-closed verified-baseline handshake used only when the regression runner has just copied its own checksum-validated template database. Skip redundant lock, legacy-repair, migration-file read/sort, baseline hash, and applied-checksum work only for that proven copy; normal startup, direct invocation, production, restore, and untrusted caller-set environment must continue through the full migration validation chain.
+- [ ] Keep `fresh-database-regression` and every genuine schema/migration/startup compatibility owner on the real baseline-bypass path. Audit all named regressions that delete `LTF_REGRESSION_BASELINE_DB`; remove only unnecessary opt-outs and document each retained full-chain owner.
+- [ ] Let static regressions that truly need an app/database explicitly opt into the runner baseline instead of replaying migrations from empty. Standardize disposable fixture adoption enough to stop discarding runner-provisioned directories; either make `reuseExisting` a tested supported path or remove it and its dead contract.
+- [ ] Prove copied databases still enforce current migration identity, checksums, foreign keys, and cleanup; prove tampered, stale, absent, direct-run, and forged-fast-path cases take the full validation path or fail closed. Record `PRAGMA integrity_check` evidence because this slice changes migration/fixture behavior.
+- [ ] Update database and regression-suite documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.2`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- The isolated-database bucket approaches or beats 60 seconds on the refreshed reference baseline; full-chain migration coverage remains explicit and green; no production/direct-run path trusts the regression-only shortcut; and fixture reuse reduces duplicate work without weakening isolation, checksum, schema, or integrity proof.
+
+### Version 0.33.27.7.3 - Complete and precise changed-file routing
+
+**Model: High Effort** - Routing decides which evidence is allowed to replace the full suite, so false precision can create silent under-testing across modules and protected contracts.
+
+- [ ] Fix the missing `time-tracking` area command first, then add shared package commands and path rules for the currently unroutable `search`, `tags`, `lists`, `jobs`, `notifications`, `public-api`, and `licensing` areas. Every canonical area must resolve to an executable focused command or an intentional documented full escalation.
+- [ ] Replace bare permission/session/workspace/membership filename substring matching with ownership-aware path rules. Tighten runner-self and release matching, and distinguish pure current-version roadmap/changelog ceremony from executable release-tool changes only where regression evidence proves de-escalation is safe.
+- [ ] Keep routing additive for cross-cutting paths, keep Files, permission, framework, view, database, workflow, generated-contract, executable-package, and unknown-path escalation where their blast radius requires it, and keep the permission harness selected exactly once when permission meaning is present.
+- [ ] Add table-driven regression cases for every positive route, overlapping route, false-positive name, rename/delete, generated file, bookkeeping-only edit, runner/release-tool edit, and unknown non-empty fallback. Prove advice-only, local changed execution, `verify:slice`, and CI consume the same routing result.
+- [ ] Update `docs/regression-suite.md` and any package-script documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.3`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- All populated canonical areas are routable; contained changes select their complete narrow owner set; shared/security/data/release changes still escalate; false-positive path names no longer force unrelated full checks; unknown work still falls back safely; and no route can silently produce an empty green plan for a non-empty diff.
+
+### Version 0.33.27.7.4 - Generated coverage inventory and closeout ceremony automation
+
+**Model: High Effort** - Coverage floors and generated release records are enforcement policy, not formatting; automation must re-arm ratchets without making coverage loss self-approving.
+
+- [ ] Fix the credited-retirement self-test formula before any consolidation can add another `floorCredit: true` record. Add an explicit reviewed `--ratchet-floors` generator mode that derives active, per-area, release-gate, and coverage-family floors from current discovery plus credited retirements; the ordinary check remains non-mutating and no default generation path may silently lower a floor.
+- [ ] Remove tautological exact aggregate-count and bucket-length upkeep once equivalent membership, uniqueness, populated-area, required-ID, retirement, and monotonic-floor invariants are enforced. Keep exact membership in the deterministic generated manifest rather than hand-authored prose or assertions.
+- [ ] Generate one clearly delimited numeric inventory block in `docs/regression-suite.md` from the same authoritative manifest data, with `--write` and non-mutating `--check` behavior. Normalize the one canonical phrase for convention-path metadata coverage and forbid unrelated documentation rewrites.
+- [ ] Add a safe `closeout --fix` mode that regenerates only reviewed deterministic derived artifacts before validation and an opt-in `--fail-fast` mode; preserve the default human-oriented run-all-gates report and every direct gate command. Never auto-edit judgment-bearing exceptions, roadmap, changelog, decisions, or arbitrary docs.
+- [ ] Correct the `version:bump` printed checklist and its regression to point to the actual roadmap-cursor, changelog/docs, manifest-generation, and one-time `npm run verify:slice` sequence. It must not instruct agents to rerun `version:guard` or `npm run check` after the canonical conductor.
+- [ ] Update owning regression/versioning documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.4`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Adding a regression requires no hand-copied numeric edits; live floors cannot lag silently or decrease without explicit reviewed retirement credit; default checks remain non-mutating; optional fix/fail-fast modes preserve their stated boundaries; and the version helper directs one coherent closeout instead of duplicating expensive gates.
+
+### Version 0.33.27.7.5 - Single ownership for validation, source scans, and repeated assertions
+
+**Model: High Effort** - This is a high-volume coverage consolidation across hundreds of assertions and several release gates; each removal needs an explicit retained owner so faster execution cannot mask lost protection.
+
+- [ ] Give `version:guard` one ordinary local/CI execution owner while keeping the direct command available. Move historical/ignored-path exclusion before file reads, make files at or beyond the scan ceiling explicit rather than silently unscanned, and preserve exact current-version, package/lock, runtime, asset-key, and changelog/roadmap protection.
+- [ ] De-duplicate closeout-versus-suite respawns for parameter binding, licensing, bundled-module registry, and manifest generation/checking. Keep schema, docs, and third-party-notice gates as the audit found them, and preserve direct focused entry points plus synthetic failure-path coverage for every conductor.
+- [ ] Consolidate the distributed package/package-lock version triples, legacy-snapshot self-registration checks, changelog current-heading checks, duplicate pure-function unit/regression expectations, repeated tsconfig facts, and exact package-script string pins behind their authoritative gates. Use `retiredScripts` and/or `assertionMovements` with retained owners, floor credit, required release-gate IDs, and verification evidence in the same change; do not delete assertions ad hoc.
+- [ ] Introduce shared source/Markdown/hot-file scan helpers where they reduce repeated reads without hiding file boundaries, then replace the worst measured greedy `[^]`/`[\s\S]*` patterns with bounded or parsed checks. Prioritize measured offenders and record untouched cases rather than mechanically rewriting all 977 read sites or 5,551 patterns without proof.
+- [ ] Merge near-identical manifest fixture regressions only if the combined owner retains every synthetic invalid/valid case and the coverage ratchet records the consolidation. Update `docs/regression-suite.md` and performance evidence, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.5`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Each protected fact has one clearly named execution owner in an ordinary closeout path, direct diagnostics remain available, every removed or moved assertion has machine-readable retirement evidence, large historical files cannot silently escape version scanning, and measured scan/process work drops without reducing the generated coverage inventory or required release contracts.
+
+### Version 0.33.27.7.6 - Windows backup-archive portability repair
+
+**Model: High Effort** - The observed failure is platform-specific, but the affected code creates and restores backup archives; path normalization must not weaken traversal defenses, checksums, atomic restore, or Linux compatibility.
+
+- [ ] Reproduce or disprove on the post-UUID branch the three archived deterministic Windows failures: `backup-restore-foundation`, `demo-data-host-operation`, and `workspace-backup-package`. If already fixed, record the exact owning change and current direct/full-suite evidence instead of making speculative edits.
+- [ ] If still present, correct drive-colon handling with the narrowest portable tar invocation/path strategy, such as a verified `--force-local` boundary or normalized working-directory-relative operands. Preserve archive entry validation, protected-path rules, symlink/type rejection, checksum verification, database-and-Files unity, pre-restore backup, rollback-on-failure, and POSIX behavior.
+- [ ] Add focused Windows drive-letter/colon coverage and retain Linux/container backup, workspace-backup, demo-host, restore, and restored-rollback proof. Do not change archive format or operator semantics merely to accommodate one tar implementation.
+- [ ] Run `npm run docs:suggest`, update backup/recovery docs only if the supported operator contract changed, record `PRAGMA integrity_check`, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.6`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- The three named regressions pass deterministically on Windows and remain green on clean Linux CI; archives remain cross-platform and security-validated; restore remains atomic and migration-aware; and no platform workaround weakens data-integrity or path-safety contracts.
+
+### Version 0.33.27.7.7 - Fast-check, permission-doc, Vitest, and Playwright harness hygiene
+
+**Model: High Effort** - These are contained harness defects, but changes to lint globs, test selection, skip timing, retry/trace policy, and worker counts can silently remove executed coverage if treated as cosmetic cleanup.
+
+- [ ] Add `worker.js` to the intended ESLint file set and required-glob regression. Resolve the permanently no-op `test:files` command by pointing it to real Files-owned Vitest coverage or retiring the misleading alias and all pins/docs through the normal assertion-movement contract; `--passWithNoTests` must not masquerade as Files proof.
+- [ ] Correct `docs/regression-suite.md` to state that the separate permission harness is not part of `npm run check` and runs once only when selected by `verify:slice` or by named CI/release gates. Preserve its efficient one-database/one-server shape rather than registering 351 assertions into every full check by reflex.
+- [ ] Move the 18 identified in-body Playwright project skips into explicit project/tag selection so excluded projects do not pay browser/storage-state setup. Set and regression-pin a deliberate CI retries/trace policy and bounded worker policy; preserve the same desktop/mobile test intent, authentication setup, accessibility coverage, failure artifacts, and required Browser check name.
+- [ ] Measure Vitest pool/process alternatives against its current spawn/import-dominated baseline and adopt a tuning only if repeat runs improve wall time without isolation leaks or changed membership. Preserve the intentional TypeScript boundary and record a no-change disposition if Vitest tuning is not material.
+- [ ] Update owning developer/test documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.7.7`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- `worker.js` receives the intended lint rules; no package test alias passes because it selected zero tests; permission-harness ownership is accurate; Playwright performs the same intended desktop/mobile coverage with cheaper selection and actionable failure artifacts; and any Vitest tuning is evidence-backed and isolation-safe.
+
+### Version 0.33.27.7.8 - Exact-SHA CI reuse, caching, workflow hygiene, and branch closeout
+
+**Model: High Effort** - Protected development, nightly, promotion, main-release, CodeQL, browser, packaging, and deployment workflows are a release trust chain; reuse and caching are valid only when bound to the identical immutable revision and required context.
+
+- [ ] Add finite job `timeout-minutes`, cancellation-safe concurrency for main release and CodeQL where missing, and remove full-history checkout only from jobs proven not to read Git history. Preserve required check names and branch-protection behavior.
+- [ ] Let a normal `nightly -> main` promotion reuse a successful, unexpired nightly proof only when repository, workflow/ref, exact promoted SHA, required check set, conclusion, artifact checksums/provenance, and policy version all match. Hotfixes, missing/stale/ambiguous evidence, workflow-policy changes, and failed/cancelled runs must execute the full path rather than self-attest.
+- [ ] Download and verify the retained exact-SHA runtime artifact instead of rebuilding it four times, pass it to artifact/bare-metal/container recovery smokes, and parallelize independent packaging proofs where their state is isolated. Set a job-owned npm cache for nested production installs and add keyed Node dependency, Playwright browser/system dependency, ESLint, Caddy, and Docker layer caches only when lock/version/digest inputs and cache-poisoning boundaries are explicit.
+- [ ] Remove duplicate CodeQL push/PR runs only after proving the remaining triggers satisfy protected `nightly` and `main` contexts. Let scheduled nightly skip the expensive path only when an exact prior green SHA/policy proof exists, while retaining a visible successful preflight record and required artifact/deployment behavior.
+- [ ] Evaluate five-bucket regression matrix execution against billed minutes, wall time, fail-fast visibility, fixture isolation, result aggregation, and required-check stability; adopt it only if it materially improves end-to-end latency without multiplying cost or weakening the canonical full-suite result. Similarly inline or retain change classification based on measured benefit; never restore `paths-ignore`.
+- [ ] Re-run the complete post-branch timing baseline and document local full-suite, isolated-database, serial-bucket, scoped-route, closeout, CI wall-time/billed-time, artifact-build-count, regression-membership, permission, and Playwright results. Target about 90-110 seconds for the full local regression suite, about 50-60 seconds for isolated-database work, zero hand-copied inventory counts, no manifest-staleness redo, and 30-60 recoverable CI minutes per normal promoted change; explain any miss rather than weakening coverage to claim it.
+- [ ] Run `npm run docs:suggest`, update `docs/regression-suite.md`, `docs/regression-suite-performance.md`, `docs/development/github-workflow.md`, `docs/versioning.md`, and other owning docs only where contracts changed; update `DECISIONS.md` only for durable policy changes; update `CHANGELOG.md`; advance only through `npm run version:bump -- 0.33.27.7.8`; and run `npm run verify:slice` exactly once on the final unchanged repository state before archiving 0.33.27.7 and advancing to 0.33.28.
+
+Acceptance criteria:
+
+- The branch preserves complete regression, permission, browser, recovery, and required-check coverage while materially reducing local and normal promotion latency; CI reuse is fail-closed and exact-SHA/policy bound; hotfix and ambiguous-evidence paths still run fully; packaging consumes one verified artifact lineage; caches are deterministic and untrusted-input safe; every job is bounded; and the measured final report reconciles the archive's findings with the shipped post-UUID pipeline.
 
 ## Version 0.33.28 - Docker Compose-Only Public Preview Production Support
 

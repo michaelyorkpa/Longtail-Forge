@@ -107,7 +107,7 @@ assert.match(command.stdout, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();
 assert.equal(noticeCheck.current, true, noticeCheck.message);
-assert.equal(noticeCheck.componentCount, 90);
+assert.equal(noticeCheck.componentCount, 91);
 const generatedNotices = generateThirdPartyNotices();
 assert.equal(
   escapeTable("one\\two|three\\\\four"),
@@ -117,6 +117,7 @@ assert.equal(
 assert.equal(escapeTable("a||b"), "a\\|\\|b", "notice table escaping should escape repeated pipes");
 assert.match(generatedNotices.content, /\| better-sqlite3 \| 13\.0\.1 \| MIT \|/);
 assert.match(generatedNotices.content, /\| argparse \| 2\.0\.1 \| Python-2\.0 \|/);
+assert.match(generatedNotices.content, /\| uuid \| 14\.0\.1 \| MIT \|/);
 assert.match(generatedNotices.content, /Lucide Icons \(bundled inline SVG subset\)/);
 assert.match(generatedNotices.content, /Bundled fonts: none/);
 assert.doesNotMatch(generatedNotices.content, /\| vitest \||\| eslint \||\| playwright \|/);
