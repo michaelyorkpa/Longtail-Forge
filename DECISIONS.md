@@ -234,6 +234,21 @@ Governing rules:
 
 This does not weaken scope discipline or coverage preservation: no slice may bundle unrelated blast radii, drop coverage, or skip the closeout verification gate. It only removes ceremonies that add cost without isolation value.
 
+## Identifier Authority and Forward UUIDv7 Policy
+
+As of 0.33.27.1, `src/core/identifiers.js` is the intrinsically framework-wide authority for UUID-shaped application identity. It is an explicit Two-Module Rule exception because persistent identity spans framework records, every first-party module, browser/server creation contracts, database portability, and recovery tooling. Only this authority may import the selected `uuid` package.
+
+The authority exposes two deliberately narrow operations:
+
+- `createRecordId()` creates RFC 9562 UUIDv7 values for newly created ordinary persistent records. Framework and first-party module call sites migrate to it prospectively in 0.33.27.2 and 0.33.27.4; existing or accepted caller-supplied identifiers are never rewritten.
+- `createOpaqueId()` creates cryptographically random UUIDv4 values for non-secret operational identity that must not become time-ordered, including request correlation, lock ownership, storage object keys, backup/package identity, purge fencing, and classified operator-operation IDs. The workspace-backup receipt is an intentional semantic exception: its existing primary key is the same opaque package/artifact ID, so this branch does not invent a second row identifier or schema migration.
+
+Bearer credentials, access-bearing values, and cryptographic material do not use either operation merely because they need randomness. Sessions, CSRF nonces/signatures, API-key secrets, private calendar-feed selectors/secrets, passwords and account-recovery material, Secure Notes keys/nonces, authentication challenges, signed links, and future credentials retain their dedicated `randomBytes`, HMAC, hash, or crypto helpers. The identifier authority is not a secrets service and must not expose a generic token helper.
+
+UUIDv4 and UUIDv7 remain canonical opaque identifiers at every database, API, browser, import, export, seed, backup, and restore boundary. Existing UUIDv4 rows and relationships remain valid indefinitely. SQLite continues storing identifiers as `TEXT`; a future PostgreSQL provider may use native `uuid` representation without changing application semantics. `created_at`, `updated_at`, due dates, explicit sequence fields, and existing sort/paging cursors remain authoritative; UUIDv7 provides insertion locality and approximate time ordering only, never causal or business ordering.
+
+The selected runtime dependency is `uuid` 14.0.1: the maintained, zero-dependency reference package supports RFC 9562 UUIDv7 and cryptographically random UUIDv4 on the supported Node 24 runtime, and its documented options permit deterministic timestamp tests without a hand-built UUID implementation. Production direct generators remain temporarily enumerated in `scripts/identifier-authority-migration-baseline.json`; `framework.identifier-authority` requires that exact inventory to match and only shrink through 0.33.27.2-0.33.27.5. Regression, unit, seed, fixture, and recovery-drill data may continue using direct test-only UUID generation, but production runtime/browser/operator code may not add or relocate a bypass.
+
 ## User Mental Model by Module
 
 - Workbench is the live work surface: active work, next actions, active timers, resumable work, blocked/stale work, and quick capture.

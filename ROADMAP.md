@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.1`.
+Active cursor: `0.33.27.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -34,56 +34,76 @@ Non-goals:
 
 Delivery shape:
 
-This version is a three-slice tracking umbrella, not one implementation slice. Complete the children in order. The split follows real isolation boundaries: establish the framework/security policy first, perform the server-side module conversion as one mechanical rollout rather than one slice per module, then change browser/API identity ownership and run the system-level mixed-version closeout proof.
+The remaining plan has five implementation slices. Complete the children in order. The split follows real isolation boundaries: migrate framework record identity, migrate framework operational UUIDs without crossing secret boundaries, perform the server-side module conversion as one mechanical rollout rather than one slice per module, change browser/API identity ownership, then run the system-level mixed-version and recovery closeout proof.
 
-### Version 0.33.27.1 - Identifier authority, framework adoption, and opaque-value boundary
+### Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
 
-**Model: High Effort** — This slice establishes a framework-wide data-integrity and security classification, selects the UUIDv7 dependency, and changes identity generation for shared persistent records while preserving every credential, storage, lock, and recovery boundary.
+**Model: High Effort** — This is a framework-wide persistent-record conversion where a missed caller-supplied compatibility path or misclassified row could break identity, relationships, or restore behavior.
 
-- [ ] Re-audit every production UUID generator and record a complete classification in the owning architecture/database documentation. The current framework inventory includes startup maintenance, Workspaces, Users, memberships, assignments, permissions, Tags/relationships, Files records/attachments/reports, Notifications/subscriptions, audit events, jobs, work-resume state, API-key row identity, request correlation, migration-lock ownership, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing/tombstones, and any new call sites present when the slice starts.
-- [ ] Select the smallest reputable maintained runtime dependency with standards-compliant UUIDv7 support, install it through npm, and add one framework utility following nearby naming/export conventions (expected shape: `src/core/identifiers.js`) with intent-revealing operations such as `createRecordId()` for UUIDv7 and `createOpaqueId()` for random non-v7 UUIDs. Do not hand-roll UUID layout, timestamp encoding, sequencing, or randomness.
-- [ ] Add focused unit coverage proving canonical UUIDv7 record IDs, canonical random non-v7 opaque UUIDs, meaningful-batch uniqueness, and deterministic timestamp behavior only through supported dependency injection/options rather than a fake UUID format.
-- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, and other verified durable framework records. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
-- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` when appropriate, while explicitly preserving their semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, and workspace-purge fencing tokens remain random and non-time-ordered. Classify durable purge tombstone/backup receipt row identity separately from the token or artifact name it accompanies.
-- [ ] Preserve dedicated secret boundaries unchanged, including `randomBytes`-based sessions, CSRF nonces/signatures, API-key secrets, session references, password/reset/invitation/activation material, private calendar-feed tokens, signed-link tokens, authentication challenges, access-bearing idempotency keys, and future bearer credentials. Do not broadly ban `randomBytes` or turn the identifier authority into a secrets service.
-- [ ] Add the initial source guardrail: only the authority may import the UUID dependency; no new production direct `randomUUID` call is allowed; the still-unconverted first-party module files and `public/js/clients-projects.js` are captured in a temporary exact migration baseline that can only shrink in 0.33.27.2/.3. Test/fixture generation may remain a separately documented exception so compatibility tests do not depend on production generation.
-- [ ] Prove representative framework behavior: audit and job rows receive UUIDv7, the API-key record ID is independent from its random secret, Files record IDs are independent from opaque storage keys, and request/lock/fencing examples remain non-time-ordered. Keep SQLite `TEXT` compatibility and future PostgreSQL native `uuid` compatibility without a schema or data-rewrite migration.
-- [ ] Run `npm run docs:suggest`, update the owning database/architecture documentation and `DECISIONS.md` with the durable classification, record the dependency choice and temporary migration baseline, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.1`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Convert framework-owned ordinary persistent identity to `createRecordId()`: startup-created Workspaces/Users/memberships/assignments, permission and Tag relationship rows, Notification/subscription records, audit events, durable jobs, work-resume rows, API-key database-row identity, Files database rows/attachments/reports, purge tombstone row identity, production recovery-created audit rows, and any newly discovered durable framework record. Preserve caller-supplied identifiers required for import, restore, retries, idempotency, or existing API compatibility.
+- [ ] Add representative integration coverage proving audit and job rows receive UUIDv7, API-key row identity stays independent from its random secret, Files record identity stays independent from its opaque storage key, mixed UUIDv4/UUIDv7 relationships remain valid, and recovery-created persistent rows use record identity without rewriting restored identifiers.
+- [ ] Ratchet only the framework persistent-record entries out of the exact migration baseline. Do not convert request correlation, lock ownership, storage keys, backup artifact/package identity, purge fencing tokens, module records, browser creation, test fixtures, or bearer credentials in this slice.
+- [ ] Run `npm run docs:suggest`, update only framework/database documentation whose shipped record-identity behavior changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
-- The central authority and its record/opaque operations are implemented and tested; all framework-owned ordinary persistent records in the audited inventory use UUIDv7; security-sensitive and non-record values retain the documented random/token behavior; SQLite and future PostgreSQL representation remain valid; and a no-growth guardrail contains the exact remaining module/browser migration baseline.
+- Every audited framework-owned persistent-record generator uses `createRecordId()`; caller-supplied legacy identifiers remain compatible; representative framework relationships and recovery-created rows mix UUIDv4/UUIDv7 safely; and the exact baseline has shrunk without changing operational UUID or secret behavior.
 
-### Version 0.33.27.2 - First-party module persistent-record UUIDv7 rollout
+### Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
+
+**Model: High Effort** — Operational UUIDs cross request, lock, storage, backup, purge, and deployment tooling boundaries where accidental ordering or credential semantics would be a security and recovery regression.
+
+- [ ] Route non-secret UUID-shaped framework values through `createOpaqueId()` while preserving their non-time-ordered semantics: request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup artifact/package IDs, workspace-purge fencing tokens, and classified production operator operation/temporary-path IDs. Keep durable purge tombstone row identity on `createRecordId()`. The existing workspace-backup receipt remains keyed by the same opaque artifact/package ID; do not invent a second receipt-row identifier or schema migration in this branch.
+- [ ] Prove representative request, lock, storage, backup, purge, and operator values are canonical non-v7 UUIDs and remain independent from any accompanying persistent row ID. Preserve existing prefixes, paths, filenames, manifests, checksums, and recovery contracts.
+- [ ] Prove dedicated `randomBytes`/HMAC/hash helpers remain unchanged for sessions, CSRF, API-key secrets, private calendar-feed credentials, authentication/password material, Secure Notes cryptography, and other bearer or access-bearing values. The central authority must not expose a generic token helper.
+- [ ] Ratchet the framework/operator operational UUID entries out of the exact migration baseline while retaining the exact first-party module and Clients/Projects browser entries assigned to 0.33.27.4/.5.
+- [ ] Run `npm run docs:suggest`, update only owning security/runtime/recovery documentation whose implementation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Every audited production operational UUID uses `createOpaqueId()` without changing its non-time-ordered or non-secret semantics; durable row identity remains separate; dedicated credential/token/crypto helpers remain unchanged; and only the exact module/browser migration entries remain in the production baseline.
+
+### Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
 
 **Model: High Effort** — This is a high-volume mechanical conversion across every first-party workflow module; the design is settled by 0.33.27.1, but a missed or misclassified call site could silently fragment the identifier policy or alter record relationships.
 
 - [ ] Convert all verified server-side ordinary persistent-record generators in Clients/Projects, Tasks and its checklist/assignee/relationship/recurrence/reminder children, Time Tracking entries and saved/active timers, Notes/revisions/links/collections, and Lists/items/catalogs/links to `createRecordId()` in one mechanical rollout. Include any newly added first-party module call sites found by the refreshed audit rather than treating the queued inventory as frozen.
 - [ ] Resolve duplicate service/repository generation so one authoritative layer creates each new ID, while preserving accepted caller-supplied UUIDv4 or UUIDv7 identifiers needed by imports, public APIs, recurrence/idempotent retries, restoration, and existing internal contracts. Do not refactor unrelated repository or workflow behavior.
 - [ ] Add representative integration coverage across at least two materially different modules plus persistent child/relationship rows, proving new IDs are UUIDv7 and mixed UUIDv4/UUIDv7 foreign-key relationships work. Avoid exact-random-value assertions and do not infer business chronology from the generated IDs.
-- [ ] Ratchet the source guardrail to zero server-side production bypasses: reject direct `randomUUID`, UUID-package `v4`, and UUID-package `v7` imports/calls outside the central authority and documented test-only exceptions. Keep only the exact temporary browser `createUuid()` exception assigned to 0.33.27.3; fail on any new browser UUID generator.
+- [ ] Ratchet the source guardrail to zero server-side production bypasses outside the central authority. Keep only the exact temporary Clients/Projects browser `createUuid()` exception assigned to 0.33.27.5; fail on any new Node or browser UUID generator.
 - [ ] Prove module ordering and paging remain explicit: Tasks, Time Tracking, Notes, Lists, recurrence/reminder selection, and relationship reads continue to sort/page by their canonical timestamp, due-date, sequence, or module-owned fields rather than UUID lexical order.
-- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.2`, and run `npm run verify:slice` exactly once at final closeout.
+- [ ] Run `npm run docs:suggest`, update only module/developer documentation whose identity contract actually changed, record the completed server inventory and any intentional deferral, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.4`, and run `npm run verify:slice` exactly once at final closeout.
 
 Acceptance criteria:
 
-- Every audited server-side first-party module record generator uses the central ordered-record authority, caller-supplied legacy IDs remain compatible, representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely, module ordering is unchanged, and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.3.
+- Every audited server-side first-party module record generator uses the central ordered-record authority; caller-supplied legacy IDs remain compatible; representative parent/child and cross-record relationships mix UUIDv4/UUIDv7 safely; module ordering is unchanged; and the only remaining production UUID-generation bypass is the exact Clients/Projects browser path assigned to 0.33.27.5.
 
-### Version 0.33.27.3 - Server-authoritative browser creation, mixed-version recovery proof, and closeout
+### Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
 
-**Model: High Effort** — This slice changes the Clients/Projects browser-to-server creation contract and then proves identifier compatibility across APIs, seeds, search, export, and destructive recovery tooling; those behavioral and data-integrity checks must close together.
+**Model: High Effort** — This changes the Clients/Projects browser-to-server creation contract and must preserve nested creation, optimistic replacement, event metadata, focus, deep links, and compatibility for existing UUIDv4 callers.
 
 - [ ] Move new Client/Project persistent identity off `public/js/clients-projects.js` `window.crypto.randomUUID()` and its v4 fallback. Make the server authority generate canonical IDs and return them to the browser while preserving nested create behavior, local collection replacement, audit/event metadata, optimistic status, focus return, deep links, and navigation. Do not introduce a browser UUIDv7 implementation or tighten create payloads in a way that rejects existing UUIDv4 callers.
-- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture or stronger dedicated-token exceptions.
+- [ ] Remove the final browser migration-baseline exception and prove the guardrail fails on unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` generation while retaining only documented test/fixture/seed/drill or stronger dedicated-token exceptions.
+- [ ] Add focused browser/API regression coverage for Client and Project creation, including nested creation and caller-supplied UUIDv4 compatibility. Keep the server as the sole canonical persistent-ID authority.
+- [ ] Run `npm run docs:suggest`, update only the Clients/Projects or API documentation whose creation contract changed, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.5`, and run `npm run verify:slice` exactly once at final closeout.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions; existing UUIDv4 callers remain valid; the temporary production migration baseline is empty; and one framework authority is the only normal production UUID entry point.
+
+### Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
+
+**Model: High Effort** — Final proof spans compatibility, explicit ordering, seeds, export, and destructive recovery, but it deliberately changes no identity policy or workflow after the preceding isolated conversions.
+
 - [ ] Prove forward compatibility with pre-existing UUIDv4 fixtures across read, update, relate, search, export, and current APIs; create and exercise mixed UUIDv4/UUIDv7 foreign-key relationships; and verify seeded development and sanitized-demo data continue working without regeneration merely to normalize identifier versions.
 - [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
 - [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
-- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional exceptions/deferred sites, and docs disposition.
-- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.3`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
+- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional test/fixture exceptions, and docs disposition.
+- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.6`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
 
 Acceptance criteria:
 
-- Client/Project creation is server-authoritative without workflow regressions; one framework authority is the only normal production UUID entry point; new ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
+- New ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
 
 ## Version 0.33.28 - Docker Compose-Only Public Preview Production Support
 

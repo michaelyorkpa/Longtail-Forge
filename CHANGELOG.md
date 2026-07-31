@@ -1,3 +1,32 @@
+## Version 0.33.27.1 - 2026-07-31
+
+- Added the framework-owned identifier authority with standards-compliant
+  UUIDv7 record IDs and cryptographically random UUIDv4 opaque IDs through the
+  maintained zero-dependency `uuid` 14.0.1 package. The tracked third-party
+  notices now include its MIT terms. Focused unit coverage pins canonical
+  format/version, meaningful-batch uniqueness, and supported deterministic
+  dependency options without hand-building UUID bit layouts.
+- Completed the production UUID-generator audit and introduced an exact
+  machine-readable migration baseline plus release-gate guardrail. Only the
+  central authority may import `uuid`; current framework, module, browser, and
+  production operator `randomUUID` call sites cannot grow or move and will be
+  ratcheted away in the following conversion slices. Dedicated credentials,
+  crypto helpers, and documented test/fixture/seed/drill generators remain
+  outside the production authority.
+- Resized the 0.33.27 branch from three oversized slices to six independently
+  verifiable sessions: authority/classification, framework record rollout,
+  framework opaque rollout, consolidated first-party module rollout,
+  server-authoritative Clients/Projects browser creation, and final
+  mixed-version/recovery closeout. This keeps the mechanical module migration
+  together while isolating browser and destructive recovery risk.
+- Documented the durable record/opaque/secret classification, SQLite `TEXT`
+  and future PostgreSQL `uuid` compatibility, UUIDv4/UUIDv7 coexistence,
+  explicit-ordering rule, and the existing workspace-backup artifact/receipt
+  identity exception. Docs updated: `DECISIONS.md`, `docs/architecture.md`,
+  `docs/database.md`, `docs/docs-ownership.json`,
+  `docs/docs-ownership.md`, `docs/regression-suite.md`,
+  `THIRD_PARTY_NOTICES.md`.
+
 ## Version 0.33.26.9 - 2026-07-31
 
 - Published the complete 0.33.26 runtime through protected PR #79 and green

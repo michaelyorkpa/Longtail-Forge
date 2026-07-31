@@ -322,6 +322,21 @@
       ]
     },
     {
+      "id": "identifiers",
+      "label": "Identifier authority",
+      "sourcePatterns": [
+        "^scripts/identifier-authority-migration-baseline\\.json$",
+        "^scripts/regressions/framework/identifier-authority\\.regression\\.mjs$",
+        "^src/core/identifiers\\.js$",
+        "^tests/unit/identifiers\\.test\\.mjs$"
+      ],
+      "docs": [
+        "DECISIONS.md",
+        "docs/architecture.md",
+        "docs/database.md"
+      ]
+    },
+    {
       "id": "module-contracts",
       "label": "Module contracts",
       "sourcePatterns": [
