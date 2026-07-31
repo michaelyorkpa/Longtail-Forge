@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import packageJson from "../package.json" with { type: "json" };
+import { createRecordId } from "../src/core/identifiers.js";
 import {
   REQUIRED_DESTRUCTIVE_CONFIRMATION,
   createBackup,
@@ -34,9 +35,14 @@ const originalMarker = "original-before-backup";
 const mutatedMarker = "mutated-after-backup";
 const storageKey = `drill/${randomUUID()}.txt`;
 const legacyFileId = randomUUID();
+const legacyClientId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const forwardProjectId = createRecordId();
+const forwardNoteId = createRecordId();
+const forwardAuditId = createRecordId();
 const originalFile = "original Files payload\n";
 const mutatedFile = "mutated Files payload\n";
 let server;
+let identifierWorkspaceId = "";
 
 try {
   await fs.mkdir(keyDir, { recursive: true });
@@ -164,6 +170,7 @@ try {
     assert.ok(recoveryAuditRows.length > 0);
     recoveryAuditRows.forEach((row) => assertUuidVersion(row.audit_id, 7, "recovery-created audit identity"));
     assert.equal(database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
+    assertIdentifierSnapshot(database);
   } finally {
     database.close();
   }
@@ -183,6 +190,8 @@ async function seedRepresentativeState() {
   const database = new Database(databaseFile, { fileMustExist: true });
   try {
     const workspaceId = database.prepare("SELECT workspace_id AS workspaceId FROM workspaces ORDER BY workspace_id LIMIT 1;").get().workspaceId;
+    identifierWorkspaceId = workspaceId;
+    assertUuidVersion(identifierWorkspaceId, 7, "fresh backup fixture workspace identity");
     const now = new Date().toISOString();
     database.prepare(`
 INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at) VALUES (?, ?, ?, ?)
@@ -195,6 +204,20 @@ INSERT INTO files (
 ) VALUES (?, ?, 'local', ?, 'drill.txt', 'drill.txt', 'Backup drill', ?, ?, 'available', 'not_required', ?, ?);
 `).run(legacyFileId, workspaceId, storageKey, Buffer.byteLength(originalFile), sha256(originalFile), now, now);
     database.prepare(`
+INSERT INTO clients (
+  id, workspace_id, parent_client_id, name, status, billable,
+  billing_contact_name, billing_contact_email, billing_contact_alternate_name,
+  billing_contact_alternate_email, billing_contact_phone_number,
+  billing_contact_alternate_phone_number, billing_contact_street_address_1,
+  billing_contact_street_address_2, billing_contact_city, billing_contact_state,
+  billing_contact_zip_code, created_at, updated_at
+) VALUES (?, ?, NULL, 'Backup legacy UUIDv4 Client', 'Active', 'yes', '', '', '', '', '', '', '', '', '', '', '', ?, ?);
+`).run(legacyClientId, workspaceId, now, now);
+    database.prepare(`
+INSERT INTO projects (id, workspace_id, client_id, parent_project_id, name, status, billable, created_at, updated_at)
+VALUES (?, ?, ?, NULL, 'Backup UUIDv7 Project', 'Active', 'yes', ?, ?);
+`).run(forwardProjectId, workspaceId, legacyClientId, now, now);
+    database.prepare(`
 INSERT INTO notes (
   note_id, workspace_id, title, security_mode, secure_payload, secure_payload_version,
   encrypted_data_key, encryption_key_version, encryption_algorithm, key_wrapping_algorithm,
@@ -202,7 +225,24 @@ INSERT INTO notes (
   encrypted_at, created_at, updated_at
 ) VALUES (?, ?, 'Backup drill secure note', 'secure', 'ciphertext', 'v1', 'wrapped-key', 'test-v1',
           'aes-256-gcm', 'aes-256-gcm', 'nonce', 'auth-tag', 'wrap-nonce', 'wrap-tag', ?, ?, ?);
-`).run(randomUUID(), workspaceId, now, now, now);
+`).run(forwardNoteId, workspaceId, now, now, now);
+    database.prepare(`
+INSERT INTO audit_logs (
+  audit_id, workspace_id, created_at, actor_user_id, actor_user_name, action,
+  change_type, record_type, record_id, record_label, record_url, ip_address,
+  previous_value_json, new_value_json, metadata_json
+) VALUES (?, ?, ?, NULL, 'Backup drill', 'identifier_compatibility_snapshot',
+          'create', 'project', ?, 'Backup UUIDv7 Project', ?, '127.0.0.1', NULL, ?, ?);
+`).run(
+      forwardAuditId,
+      workspaceId,
+      now,
+      forwardProjectId,
+      `projects.html?project=${forwardProjectId}`,
+      JSON.stringify({ id: forwardProjectId, client_id: legacyClientId }),
+      JSON.stringify({ forwardProjectId, legacyClientId, storageKey }),
+    );
+    assertIdentifierSnapshot(database);
   } finally {
     database.close();
   }
@@ -225,8 +265,10 @@ async function assertRestoredState(expectedMarker, expectedFile) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
     assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
+    assert.deepEqual(database.pragma("foreign_key_check"), []);
     assert.equal(database.prepare("SELECT setting_value AS value FROM app_settings WHERE setting_key = ?;").get(markerKey).value, expectedMarker);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count, 1);
+    assertIdentifierSnapshot(database);
   } finally {
     database.close();
   }
@@ -249,6 +291,37 @@ async function createTamperedArchive(sourceArchive, outputArchive) {
 function runTar(args) {
   const result = spawnSync("tar", args, { encoding: "utf8", windowsHide: true });
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout || result.error));
+}
+
+function assertIdentifierSnapshot(database) {
+  assert.deepEqual(
+    database.prepare("SELECT id, workspace_id FROM clients WHERE id = ?;").get(legacyClientId),
+    { id: legacyClientId, workspace_id: identifierWorkspaceId },
+    "whole-instance recovery must preserve the legacy Client identity and workspace relationship byte-for-byte",
+  );
+  assert.deepEqual(
+    database.prepare("SELECT id, client_id FROM projects WHERE id = ?;").get(forwardProjectId),
+    { client_id: legacyClientId, id: forwardProjectId },
+    "whole-instance recovery must preserve the UUIDv7 Project to UUIDv4 Client relationship byte-for-byte",
+  );
+  assert.deepEqual(
+    database.prepare("SELECT note_id FROM notes WHERE note_id = ?;").get(forwardNoteId),
+    { note_id: forwardNoteId },
+    "whole-instance recovery must preserve forward UUIDv7 Note identity byte-for-byte",
+  );
+  assert.deepEqual(
+    database.prepare("SELECT file_id, storage_key FROM files WHERE file_id = ?;").get(legacyFileId),
+    { file_id: legacyFileId, storage_key: storageKey },
+    "whole-instance recovery must preserve UUIDv4 Files identity and opaque storage key independently",
+  );
+  const audit = database.prepare("SELECT audit_id, record_id, record_url, new_value_json, metadata_json FROM audit_logs WHERE audit_id = ?;").get(forwardAuditId);
+  assert.deepEqual(audit, {
+    audit_id: forwardAuditId,
+    metadata_json: JSON.stringify({ forwardProjectId, legacyClientId, storageKey }),
+    new_value_json: JSON.stringify({ id: forwardProjectId, client_id: legacyClientId }),
+    record_id: forwardProjectId,
+    record_url: `projects.html?project=${forwardProjectId}`,
+  }, "whole-instance recovery must preserve IDs embedded in audit URLs and JSON metadata byte-for-byte");
 }
 
 function assertUuidVersion(value, expectedVersion, label) {

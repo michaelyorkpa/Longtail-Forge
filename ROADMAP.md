@@ -2,53 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.6`.
+Active cursor: `0.33.27.7.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.27 - Centralized Identifier Authority and Forward UUIDv7 Adoption
-
-**Model: High Effort** — Identifier generation is a framework-wide data-integrity contract spanning persistent records, jobs, audit infrastructure, storage metadata, tests, and future database portability; the rollout must distinguish ordinary record identity from security-sensitive opaque values.
-
-Purpose:
-
-Introduce one framework-owned identifier authority and use standards-compliant UUIDv7 values for the majority of newly created persistent records. Time-ordered record identifiers improve insertion/index locality and operational inspection as Longtail Forge grows while preparing ordinary identity columns for the future PostgreSQL/distributed hosted architecture. This is a forward-only policy: existing UUIDv4 identifiers and every relationship that refers to them remain unchanged and valid indefinitely.
-
-Decision:
-
-- Ordinary newly created persistent records use a centralized ordered-record generator backed by a reputable maintained UUIDv7 implementation. Opaque non-secret UUIDs use a separate centralized cryptographically random UUID generator. Bearer credentials and secrets continue through their dedicated cryptographically random token helpers rather than being forced into a UUID abstraction.
-- UUIDv4 and UUIDv7 coexist as canonical opaque identifiers at every API, service, browser, module, backup, export, and database boundary. No migration rewrites existing primary keys, foreign keys, storage keys, URLs, audit history, JSON metadata, backups, seeded records, or development/demo databases merely to normalize UUID versions.
-- UUIDv7 supplies approximate creation-time ordering and insertion locality only. `created_at`, `updated_at`, due dates, explicit sequence fields, and existing canonical sort/paging rules remain authoritative. Application correctness, causal ordering, pagination, and business behavior must never depend on lexical ID order; distributed clock skew is expected.
-- The framework authority is an explicit Two-Module Rule exception because persistent identity spans framework records and every first-party workflow module. Only that authority may directly import the selected UUID package or Node's UUIDv4 generator, apart from a narrowly allowlisted security-specific exception with a documented rationale.
-- Persistent database identity is server-authoritative. The Clients/Projects browser `createUuid()` path must not become a second UUIDv7 implementation; convert those create flows to receive canonical server-generated record IDs while preserving save, optimistic UI, focus, and event behavior.
-- Files keeps record identity separate from object identity: a file/attachment/report database record may use UUIDv7, while local/S3 storage keys and protected paths remain independently random and opaque. An API-key database row may use UUIDv7, while its presented secret remains the existing dedicated random token.
-
-Non-goals:
-
-- No rewriting or replacing existing UUIDv4 primary keys, foreign keys, filenames, object keys, backup contents, exported references, bookmarks, audit rows, or historical metadata; no old-to-new mapping table and no database rebuild for ID normalization.
-- No UUIDv7-only validation. Consumers continue accepting canonical UUIDv4 and UUIDv7 strings, and UUIDs remain opaque rather than exposing decoded timestamps or versions in normal APIs or UI.
-- No replacement of explicit timestamp, ordering, paging, or cursor contracts with `ORDER BY id`; no claim that UUIDv7 is a global sequence, trusted causal clock, bearer-secret format, or unguessable security boundary.
-- No user-facing UUID settings, distributed ID service, network dependency, Snowflake-style custom identifier, sequential-integer replacement, unrelated schema change, or broad repository/service refactor.
-- No hand-rolled UUID bit layout, timestamp encoding, randomness, or monotonic sequencing, and no expansion of the identifier authority into a general secrets service.
-
-Delivery shape:
-
-The remaining plan has one implementation slice: the system-level mixed-version and recovery closeout proof.
-
-### Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
-
-**Model: High Effort** — Final proof spans compatibility, explicit ordering, seeds, export, and destructive recovery, but it deliberately changes no identity policy or workflow after the preceding isolated conversions.
-
-- [ ] Prove forward compatibility with pre-existing UUIDv4 fixtures across read, update, relate, search, export, and current APIs; create and exercise mixed UUIDv4/UUIDv7 foreign-key relationships; and verify seeded development and sanitized-demo data continue working without regeneration merely to normalize identifier versions.
-- [ ] Prove whole-instance backup/restore and workspace backup/restore preserve every identifier byte-for-byte, retain storage object keys and protected paths, and never rewrite IDs embedded in database rows, manifests, filenames, JSON metadata, audit history, or exported references. Run or document the required SQLite `PRAGMA integrity_check` evidence selected by the recovery paths.
-- [ ] Add/complete ordering guardrails showing canonical list ordering, pagination, cursors, recurrence/job selection, audit chronology, and visible creation order continue using explicit fields. Document that UUIDv7 offers insertion locality and approximate time ordering only, distributed clocks may skew, and two UUIDv7 values do not establish trusted causal order.
-- [ ] Run `npm run docs:suggest` and finish only the owning documentation. Ensure `DECISIONS.md`, database/architecture docs, and future-module guidance state the record-ID/opaque-UUID/bearer-secret rules; record the final call-site classification, dependency rationale, intentional test/fixture exceptions, and docs disposition.
-- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.6`, run the focused identifier guardrail while developing, and complete the branch through `npm run verify:slice` exactly once. Include the seed/reset and backup/workspace-backup coverage selected by changed-area routing; because no existing row or schema shape changes, do not create an ID-rewrite migration.
-
-Acceptance criteria:
-
-- New ordinary persistent framework and module records use UUIDv7; opaque/security values retain their correct random/token boundary; existing UUIDv4 and new UUIDv7 records coexist unchanged across CRUD, relationships, APIs, search, seeds, export, backup, and restore; SQLite remains supported; and no business ordering, paging, cursor, security, or authorization behavior depends on UUID order or decoded timestamps.
 
 ## Version 0.33.27.7 - Regression and Pre-Rollout Check Pipeline Efficiency
 

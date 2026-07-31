@@ -185,6 +185,7 @@ try {
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
     assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
     assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
+    assertSeedIdentifierCompatibility(database, earliestWorkspace, operator);
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   } finally {
     database.close();
@@ -340,6 +341,32 @@ try {
 } finally {
   await fs.rm(repositoryCredentialFile, { force: true });
   await fs.rm(root, { recursive: true, force: true });
+}
+
+function assertSeedIdentifierCompatibility(database, earliestWorkspace, operator) {
+  assertUuidVersion(earliestWorkspace.workspace_id, 7, "fresh bootstrap workspace");
+  const operatorId = database.prepare("SELECT user_id FROM users WHERE username = ?").get(operator.username).user_id;
+  assertUuidVersion(operatorId, 7, "fresh bootstrap operator");
+
+  const client = database.prepare("SELECT id, workspace_id FROM clients ORDER BY name LIMIT 1").get();
+  const project = database.prepare("SELECT id, client_id FROM projects WHERE client_id = ? ORDER BY name LIMIT 1").get(client.id);
+  const taskId = database.prepare("SELECT task_id FROM tasks ORDER BY title LIMIT 1").get().task_id;
+  const representativeIds = [
+    [client.id, "deterministic development Client"],
+    [project.id, "deterministic development Project"],
+    [taskId, "deterministic development Task"],
+    [database.prepare("SELECT note_id FROM notes ORDER BY title LIMIT 1").get().note_id, "deterministic development Note"],
+    [database.prepare("SELECT list_id FROM lists ORDER BY title LIMIT 1").get().list_id, "deterministic development List"],
+  ];
+  representativeIds.forEach(([value, label]) => assertUuidVersion(value, 4, label));
+  assert.equal(project.client_id, client.id, "deterministic UUIDv4 seed relationships must remain intact beneath a UUIDv7 bootstrap workspace");
+  const indexedTask = database.prepare("SELECT record_id FROM search_index WHERE record_type = 'task' AND record_id = ?").get(taskId);
+  assert.deepEqual(indexedTask, { record_id: taskId }, "Search must retain the deterministic seed Task UUIDv4 byte-for-byte");
+}
+
+function assertUuidVersion(value, version, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(version), `${label} should use UUIDv${version}`);
 }
 
 function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername, credentialsFile) {

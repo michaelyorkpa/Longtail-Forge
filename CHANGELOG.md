@@ -1,3 +1,26 @@
+## Version 0.33.27.6 - 2026-07-31
+
+- Completed the forward UUIDv7 compatibility closeout with legacy UUIDv4
+  read/update, mixed UUIDv4/UUIDv7 Client/Project relationships, current/public
+  API, Search identity, and audit-export proof while preserving every accepted
+  caller-supplied identifier.
+- Proved fresh bootstrap records use UUIDv7 while deterministic development and
+  sanitized-demo fixtures remain UUIDv4-compatible without normalization or
+  regeneration.
+- Expanded whole-instance and workspace backup/restore drills to preserve mixed
+  IDs, relationships, storage keys and paths, URLs, audit payloads, and embedded
+  JSON exactly, with clean post-restore integrity and foreign-key checks.
+- Added source guardrails proving canonical Tasks, Notes, Lists, Time Tracking,
+  job, Search, and audit ordering stays anchored to explicit domain fields;
+  identifiers remain stable tie-breakers only where already defined.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`,
+  `docs/module-development.md`, `docs/development-and-demo-data.md`,
+  `docs/backup-restore.md`, `docs/workspace-backup.md`,
+  `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, route contracts, database schema,
+  deployment operations, and module workflows are unchanged; this slice adds
+  compatibility and recovery proof for the already-shipped identifier policy.
+
 ## Version 0.33.27.5 - 2026-07-31
 
 - Made new Client and Project identity server-authoritative: browser create

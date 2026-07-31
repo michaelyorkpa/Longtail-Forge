@@ -87,6 +87,15 @@ async function assertClientWriteFlow(baseUrl, rawKey) {
   assert.equal(legacy.body.data.id, legacyClientId, "caller-supplied public API Client UUIDv4 should remain unchanged");
   assertUuidVersion(legacy.body.data.id, 4, "legacy public API Client compatibility should preserve UUIDv4");
 
+  const updatedLegacy = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(legacyClientId)}`, {
+    body: { name: "API Legacy UUIDv4 Client Updated", status: "Active" },
+    method: "PUT",
+    rawKey,
+  });
+  assert.equal(updatedLegacy.status, 200);
+  assert.equal(updatedLegacy.body.data.id, legacyClientId, "public API updates must preserve an existing UUIDv4 Client ID");
+  assert.equal(updatedLegacy.body.data.name, "API Legacy UUIDv4 Client Updated");
+
   const updated = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(created.body.data.id)}`, {
     body: { name: "API Client Alpha Updated", status: "Active" },
     method: "PUT",
@@ -143,6 +152,15 @@ async function assertProjectWriteFlow(baseUrl, rawKey) {
   assert.equal(legacy.status, 201);
   assert.equal(legacy.body.data.id, legacyProjectId, "caller-supplied public API Project UUIDv4 should remain unchanged");
   assertUuidVersion(legacy.body.data.id, 4, "legacy public API Project compatibility should preserve UUIDv4");
+
+  const updatedLegacy = await apiRequest(baseUrl, `/api/v1/projects/${encodeURIComponent(legacyProjectId)}`, {
+    body: { name: "API Legacy UUIDv4 Project Updated", client_id: client.body.data.id, status: "Active" },
+    method: "PUT",
+    rawKey,
+  });
+  assert.equal(updatedLegacy.status, 200);
+  assert.equal(updatedLegacy.body.data.id, legacyProjectId, "public API updates must preserve an existing UUIDv4 Project ID");
+  assert.equal(updatedLegacy.body.data.client_id, client.body.data.id, "public API updates must retain a mixed UUIDv4 Project to UUIDv7 Client relationship");
 
   const updated = await apiRequest(baseUrl, `/api/v1/projects/${encodeURIComponent(created.body.data.id)}`, {
     body: { name: "API Project Alpha Updated", client_id: client.body.data.id, status: "Active" },

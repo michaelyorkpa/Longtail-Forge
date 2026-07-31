@@ -182,6 +182,28 @@ const clientsProjectsBrowserSource = await fs.readFile("public/js/clients-projec
 assert.doesNotMatch(clientsProjectsBrowserSource, /\bcreateUuid\b/);
 assert.doesNotMatch(clientsProjectsBrowserSource, /10000000-1000-4000-8000-100000000000/);
 
+const tasksRepositorySource = await fs.readFile("src/modules/tasks/tasks.repo.js", "utf8");
+const notesRepositorySource = await fs.readFile("src/modules/notes/notes.repo.js", "utf8");
+const listsRepositorySource = await fs.readFile("src/modules/lists/lists.repo.js", "utf8");
+const timeEntriesRepositorySource = await fs.readFile("src/modules/time-tracking/time-entries.repo.js", "utf8");
+const jobRunnerSource = await fs.readFile("src/core/jobs/job-runner.js", "utf8");
+const searchAdapterSource = await fs.readFile("src/core/search/adapters/sqlite-search-adapter.js", "utf8");
+const auditRepositorySource = await fs.readFile("src/repositories/audit-logs.repo.js", "utf8");
+assert.match(tasksRepositorySource, /const stableTitle = "tasks\.title ASC, tasks\.created_at ASC, tasks\.task_id ASC"/,
+  "Task paging must use title and created_at before the ID tie-breaker");
+assert.match(notesRepositorySource, /notes\.title[\s\S]*notes\.created_at ASC, notes\.note_id ASC/,
+  "Notes paging must retain explicit title and timestamp ordering before the ID tie-breaker");
+assert.match(listsRepositorySource, /ORDER BY sort_order ASC, created_at ASC/,
+  "List items must retain explicit sort_order and created_at ordering");
+assert.match(timeEntriesRepositorySource, /ORDER BY end_time DESC, entry_id DESC/,
+  "Time entries must retain end_time as the primary chronological order");
+assert.match(jobRunnerSource, /priority DESC,[\s\S]*available_at ASC,[\s\S]*created_at ASC,[\s\S]*job_id ASC/,
+  "Job selection must retain priority, availability, and creation time before the ID tie-breaker");
+assert.match(searchAdapterSource, /ORDER BY \$\{rankSql\}, si\.indexed_at DESC, si\.search_index_id ASC/,
+  "Search must retain rank and indexed_at before the ID tie-breaker");
+assert.match(auditRepositorySource, /ORDER BY created_at DESC[\s\S]*LIMIT :limit/,
+  "Audit chronology must remain based on the explicit created_at field");
+
 const decisions = await fs.readFile("DECISIONS.md", "utf8");
 const databaseDocs = await fs.readFile("docs/database.md", "utf8");
 for (const requiredPhrase of [
