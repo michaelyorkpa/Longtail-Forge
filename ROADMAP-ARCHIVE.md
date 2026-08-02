@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.8.1 - ESLint and Node type-definition baseline
+
+Completed locally on 2026-08-02. The static development-toolchain baseline now
+combines the reviewed intent of Dependabot PRs #67 and #68 without changing
+runtime dependencies, application behavior, browser policy, or the Node 24
+engine line. The active cursor advanced to `0.33.27.8.2`.
+
+**Model: Medium Effort** - The change is limited to development-only lint/type tooling and its reviewed lockfile contract, with no runtime or architectural decision.
+
+- [x] Advanced `@types/node` from 26.1.1 to 26.1.2 and ESLint from 10.7.0 to 10.8.0 in one clean npm 11 resolution. The only reviewed transitive metadata changes are `@eslint/config-helpers` 0.7.0 and ESLint's `minimatch` range at 10.2.5; resolved `minimatch` remains 10.2.5, `js-yaml` remains absent, and direct runtime dependencies plus the sole `better-sqlite3@13.0.1` lifecycle allowance are unchanged.
+- [x] Advanced `release.dependency-baseline` to enforce ESLint 10.8, `@types/node` 26.1.2, their root-lock and resolved versions, development-only placement, the reviewed transitive baseline, the Node `>=24.7 <25` engine, and the lifecycle-script allowlist while preserving the existing Markdown-it behavior contract.
+- [x] Proved a clean Node 24/npm 11 install, the resolved dependency tree, zero audit findings, cached full-source lint, typecheck, 184 unit tests, and the focused dependency-baseline regression. The latest #67 browser gate is green; a bounded three-repeat local run passed all 10 selected mobile-navigation tests, so no unrelated product/browser or retry-policy change entered the slice.
+- [x] Ran `npm run docs:suggest`. No docs change needed: development-only package baselines and their existing release regression changed without altering a documented workflow. Updated `CHANGELOG.md` and advanced only through `npm run version:bump -- 0.33.27.8.1`.
+
+Acceptance criteria:
+
+- A clean install resolves exactly the reviewed ESLint 10.8 and `@types/node` 26.1.2 development baselines; lint, typecheck, unit, dependency-baseline, audit, and canonical slice verification are green; Node/runtime/artifact/lifecycle boundaries are unchanged; and the unrelated browser failure is non-reproducing in the bounded named focus run. Protected dependency review remains the pull-request gate.
+
 ## Version 0.33.27.7 - Regression and Pre-Rollout Check Pipeline Efficiency
 
 Completed locally on 2026-08-01 through slices 0.33.27.7.1-0.33.27.7.8.

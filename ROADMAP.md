@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.8.1`.
+Active cursor: `0.33.27.8.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -17,27 +17,14 @@ Consolidate the three open Dependabot pull requests targeting `nightly` - [#66](
 
 Baseline and sequencing:
 
-- This branch is active after the completed 0.33.27.7 pipeline-efficiency branch was archived and the cursor advanced to `0.33.27.8.1`. Rebase the dependency intent onto the exact updated `nightly` revision before implementation; no dependency baseline change is part of the preceding pipeline closeout.
+- This branch became active after the completed 0.33.27.7 pipeline-efficiency branch was archived. Rebase each dependency slice onto the exact updated `nightly` revision before implementation; no dependency baseline change was part of the preceding pipeline closeout.
 - Treat the Dependabot commits as reviewed inputs, not three independently mergeable releases. Recreate one coherent `package.json` / `package-lock.json` resolution on the version branch, inspect every direct and transitive change, and keep `@types/node`, ESLint, Playwright, and Playwright's browser packages development-only. Do not change the Node 24 engine range, npm lifecycle-script allowlist, application runtime dependencies, production artifact contents, lint coverage/cache policy, or browser-gate ownership merely to accept an update.
-- Current CI is diagnostic evidence, not final branch proof: #66 is green; #68 fails the intentional `release.dependency-baseline` ESLint 10.7 pin; and #67's Development, maintenance, dependency-review, and CodeQL gates pass while one mobile navigation focus assertion times out in the browser job. The same browser job passes on #66 and #68, so reproduce or boundedly stress that focus failure before attributing it to `@types/node`; do not smuggle an unrelated navigation change or a broad retry into this dependency branch without repeatable evidence.
+- Current CI is diagnostic evidence, not final branch proof: #66 and #67 are green, while #68 fails only the superseded `release.dependency-baseline` ESLint 10.7 pin. #67's latest browser run passes the named mobile-navigation focus contract; unrelated shared-harness assertions recovered within the existing CI retry policy, and the prior one-off focus failure did not reproduce in the completed static-toolchain slice's bounded local run. Do not smuggle an unrelated navigation change or a broad retry into this dependency branch without repeatable evidence.
 - Use a clean Node 24/npm 11+ install to verify the lockfile and the existing single approved `better-sqlite3@13.0.1` lifecycle boundary. Review dependency audit and GitHub dependency-review results, but do not broaden the slice into unrelated vulnerability remediation, package modernization, new Playwright features, test-runner policy changes, or 0.33.27.7 pipeline work.
 
 Delivery shape:
 
 Two slices provide the useful isolation boundary: one combined static developer-toolchain baseline for ESLint and Node types, followed by one Playwright/browser-runtime baseline. Splitting ESLint and `@types/node` would duplicate release ceremony for the same package/lockfile, lint/typecheck, and development-only blast radius without adding meaningful revert or verification value.
-
-### Version 0.33.27.8.1 - ESLint and Node type-definition baseline
-
-**Model: Medium Effort** - The change is limited to development-only lint/type tooling and its reviewed lockfile contract, with no runtime or architectural decision.
-
-- [ ] Incorporate the reviewed intent of #67 and #68 in one clean lockfile resolution: advance `@types/node` from 26.1.1 to 26.1.2 and ESLint from 10.7.0 to 10.8.0, inspect the resolved `@eslint/config-helpers` and `minimatch` changes, and confirm no unexpected direct dependency, lifecycle script, runtime package, or obsolete `js-yaml` edge enters the graph.
-- [ ] Advance `scripts/regressions/release/dependency-baseline.regression.mjs` from the reviewed ESLint 10.7 baseline to 10.8 and add the missing reviewed `@types/node` package/root-lock/resolved-version and development-only assertions. Preserve the Node `>=24.7 <25` application engine, cached full-source lint command, check ordering, and the existing Markdown-it behavior and transitive baseline.
-- [ ] Prove the installed dependency tree, `npm run lint`, `npm run typecheck`, unit tests, and the focused dependency-baseline release regression. Re-run the mobile-navigation focus case only as bounded diagnosis of #67's red browser job; change product/browser code or retry policy only if the failure reproduces independently and is explicitly resliced rather than hidden inside the dependency bump.
-- [ ] Run `npm run docs:suggest`; update only the owning dependency/regression documentation if its current contract changes, otherwise record `No docs change needed: development-only package baselines and their existing release regression changed without altering a documented workflow.` Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.8.1`, and run `npm run verify:slice` exactly once on the final unchanged tree.
-
-Acceptance criteria:
-
-- A clean install resolves exactly the reviewed ESLint 10.8 and `@types/node` 26.1.2 development baselines; lint, typecheck, unit, dependency-baseline, audit/review, and canonical slice verification are green; Node/runtime/artifact/lifecycle boundaries are unchanged; and the unrelated one-off browser failure is either non-reproducing evidence recorded as such or moved into an explicit separately authorized scope.
 
 ### Version 0.33.27.8.2 - Playwright browser-runtime baseline and branch closeout
 

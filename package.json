@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.27.7.8",
+  "version": "0.33.27.8.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -114,8 +114,8 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
-    "@types/node": "^26.1.1",
-    "eslint": "^10.7.0",
+    "@types/node": "^26.1.2",
+    "eslint": "^10.8.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
