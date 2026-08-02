@@ -2,43 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.27.8.2`.
+Active cursor: `0.33.28.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.27.8 - Reviewed Development Dependency Baseline Refresh
-
-**Model: Medium Effort** - This is a bounded development-tooling refresh with no runtime dependency or product-behavior change, but the reviewed dependency baseline and rendered-browser gate must be advanced deliberately rather than bypassed to make bot pull requests green.
-
-Purpose:
-
-Consolidate the three open Dependabot pull requests targeting `nightly` - [#66](https://github.com/michaelyorkpa/Longtail-Forge/pull/66) for `@playwright/test` 1.62.0, [#67](https://github.com/michaelyorkpa/Longtail-Forge/pull/67) for `@types/node` 26.1.2, and [#68](https://github.com/michaelyorkpa/Longtail-Forge/pull/68) for ESLint 10.8.0 - into one reviewed Longtail Forge version branch after 0.33.27.7 closes. Keep the static developer-toolchain update separate from the browser-runtime update so a Playwright compatibility or browser-engine failure can be reverted without discarding the independently valid lint/type baseline.
-
-Baseline and sequencing:
-
-- This branch became active after the completed 0.33.27.7 pipeline-efficiency branch was archived. Rebase each dependency slice onto the exact updated `nightly` revision before implementation; no dependency baseline change was part of the preceding pipeline closeout.
-- Treat the Dependabot commits as reviewed inputs, not three independently mergeable releases. Recreate one coherent `package.json` / `package-lock.json` resolution on the version branch, inspect every direct and transitive change, and keep `@types/node`, ESLint, Playwright, and Playwright's browser packages development-only. Do not change the Node 24 engine range, npm lifecycle-script allowlist, application runtime dependencies, production artifact contents, lint coverage/cache policy, or browser-gate ownership merely to accept an update.
-- Current CI is diagnostic evidence, not final branch proof: #66 and #67 are green, while #68 fails only the superseded `release.dependency-baseline` ESLint 10.7 pin. #67's latest browser run passes the named mobile-navigation focus contract; unrelated shared-harness assertions recovered within the existing CI retry policy, and the prior one-off focus failure did not reproduce in the completed static-toolchain slice's bounded local run. Do not smuggle an unrelated navigation change or a broad retry into this dependency branch without repeatable evidence.
-- Use a clean Node 24/npm 11+ install to verify the lockfile and the existing single approved `better-sqlite3@13.0.1` lifecycle boundary. Review dependency audit and GitHub dependency-review results, but do not broaden the slice into unrelated vulnerability remediation, package modernization, new Playwright features, test-runner policy changes, or 0.33.27.7 pipeline work.
-
-Delivery shape:
-
-Two slices provide the useful isolation boundary: one combined static developer-toolchain baseline for ESLint and Node types, followed by one Playwright/browser-runtime baseline. Splitting ESLint and `@types/node` would duplicate release ceremony for the same package/lockfile, lint/typecheck, and development-only blast radius without adding meaningful revert or verification value.
-
-### Version 0.33.27.8.2 - Playwright browser-runtime baseline and branch closeout
-
-**Model: Medium Effort** - Playwright remains development-only, but its package, bundled browser runtime, configuration API, and desktop/mobile accessibility gate need one isolated rendered proof before the dependency branch can close.
-
-- [ ] Incorporate the reviewed intent of #66 by advancing `@playwright/test`, `playwright`, and `playwright-core` from 1.61.1 to 1.62.0 in one clean lockfile resolution. Confirm its Node `>=20` package floor remains compatible with the repository's Node 24 line and that Playwright, browser binaries, component-testing facilities, reporter hooks, screenshots, and related packages remain absent from production dependencies, runtime source, normal `npm start`, `npm run check`, and the pruned runtime artifact.
-- [ ] Inspect the existing Playwright configuration, fixtures, reporters, web-server lifecycle, saved authentication state, failure artifacts, and desktop/mobile projects against 1.62.0. Adopt no new component-test, WebP, abort-signal, filtering, or reporter behavior merely because the release provides it; preserve current test selection, timeouts, retry policy, trace/screenshot evidence, and the separate browser-gate contract unless a repeatable compatibility failure requires a deliberately documented change.
-- [ ] From a clean install, install the pinned Chromium runtime and run the complete rendered smoke/accessibility suite, including the mobile-navigation focus contract that failed once on #67. Verify the resolved Playwright package tree, dependency audit/review, production artifact exclusion, and existing Playwright dev-only release guardrail before final closeout.
-- [ ] Run `npm run docs:suggest`; update `docs/e2e-testing.md` or another owning document only if configuration or operator behavior changed, otherwise record `No docs change needed: the development-only Playwright baseline advanced without changing the documented harness contract.` Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.27.8.2`, and run `npm run verify:slice` exactly once on the final unchanged tree.
-- [ ] After protected pull-request checks prove the combined branch on clean Linux, archive 0.33.27.8, advance the active cursor to `0.33.28.1`, and close or supersede Dependabot PRs #66-#68 only after the reviewed replacement is safely represented on `nightly`; do not merge their overlapping package-lock changes independently afterward.
-
-Acceptance criteria:
-
-- Playwright 1.62.0 and its exact browser packages remain development-only and pass the complete desktop/mobile rendered and accessibility gates on a clean supported environment; production install/artifact/startup contracts remain Playwright-free; no new runner behavior is adopted accidentally; all protected dependency, development, maintenance, browser, and CodeQL checks are green; the three superseded bot PRs have a clear disposition; and the roadmap/archive handoff reaches 0.33.28 without bypassing the completed 0.33.27.7 line.
 
 ## Version 0.33.28 - Docker Compose-Only Public Preview Production Support
 

@@ -1,3 +1,27 @@
+## Version 0.33.27.8.2 - 2026-08-02
+
+- Advanced the development-only Playwright baseline from 1.61.1 to exactly
+  1.62.0 across `@playwright/test`, `playwright`, and `playwright-core`. Their
+  Node floor is now `>=20`, compatible with the unchanged application Node
+  `>=24.7 <25` line.
+- Expanded `release.playwright-dev-only-boundary` to pin direct/root-lock and
+  resolved versions, matching package edges, Node compatibility,
+  development-only placement, and absence of component-testing packages.
+- Preserved the existing Playwright configuration, saved authentication,
+  managed-server lifecycle, two-worker desktop/mobile projects, zero local or
+  one CI retry, trace/screenshot evidence, and separate browser-gate ownership;
+  no new 1.62 component, WebP, abort-signal, or reporter behavior was adopted.
+- Proved a clean Node 24/npm 11 install, zero audit findings, typecheck, ESLint,
+  184 unit tests, the dev-only guardrail, and the pruned production artifact.
+  The complete Chromium 151 rendered smoke/accessibility suite passed 129/129
+  tests locally with zero retries, including mobile-navigation focus.
+- Protected PR #89 passed dependency review, Development, complete maintenance,
+  browser, and CodeQL checks on the combined branch before roadmap closeout.
+  Dependabot PRs #66-#68 are superseded and close only after this reviewed
+  replacement lands on `nightly`.
+- No docs change needed: the development-only Playwright baseline advanced
+  without changing the documented harness contract.
+
 ## Version 0.33.27.8.1 - 2026-08-02
 
 - Advanced the development-only static toolchain to ESLint 10.8.0 and
