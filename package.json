@@ -114,7 +114,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "eslint": "^10.7.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
