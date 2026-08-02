@@ -1,3 +1,21 @@
+## Version 0.33.27.8.1 - 2026-08-02
+
+- Advanced the development-only static toolchain to ESLint 10.8.0 and
+  `@types/node` 26.1.2 in one reviewed lockfile resolution. The Node
+  `>=24.7 <25` engine, runtime dependencies, Playwright baseline, cached lint
+  command, check ordering, and sole `better-sqlite3@13.0.1` lifecycle allowance
+  are unchanged.
+- Expanded `release.dependency-baseline` to pin both direct/root-lock/resolved
+  baselines and their development-only placement, plus the reviewed
+  `@eslint/config-helpers` 0.7.0 and `minimatch` 10.2.5 graph. Obsolete
+  `js-yaml` remains absent and the Markdown-it behavior contract is preserved.
+- Proved a clean Node 24/npm 11 install, zero audit findings, lint, typecheck,
+  184 unit tests, and the focused dependency regression. A bounded
+  three-repeat mobile-navigation run passed all 10 selected tests, so no
+  unrelated browser or retry-policy change was introduced.
+- No docs change needed: development-only package baselines and their existing
+  release regression changed without altering a documented workflow.
+
 ## Version 0.33.27.7.8 - 2026-08-01
 
 - Added a fail-closed `nightly-proof-v1` contract for normal promotion and
