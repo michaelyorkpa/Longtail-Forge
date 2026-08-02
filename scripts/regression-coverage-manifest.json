@@ -3877,7 +3877,7 @@
     },
     {
       "area": "release",
-      "description": "Proves Playwright and axe stay dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e/a11y harness.",
+      "description": "Pins the reviewed Playwright 1.62 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
