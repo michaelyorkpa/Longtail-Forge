@@ -16,16 +16,26 @@ import {
 } from "../../lib/changed-regression-runner.mjs";
 import { suggestRegressionsForPaths } from "../../lib/regression-change-routing.mjs";
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const commandSource = readFileSync("scripts/run-changed-regressions.mjs", "utf8");
+const executionSource = readFileSync("scripts/lib/changed-regression-runner.mjs", "utf8");
 const routingSource = readFileSync("scripts/lib/regression-change-routing.mjs", "utf8");
+const adviceSource = readFileSync("scripts/suggest-regressions-for-changes.mjs", "utf8");
+const sliceSource = readFileSync("scripts/run-slice-verification.mjs", "utf8");
+const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 
-assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
 assert.match(commandSource, /collectChangedChangeSet\(\)/, "auto-run should inspect paths and package-version-only changes together");
 assert.match(commandSource, /--prechecked/, "CI should be able to skip already-passed fast checks during full escalation");
 assert.match(commandSource, /createChangedRegressionPlan/, "auto-run should consume the shared routing plan");
+assert.match(executionSource, /runPackageScript\(match\[1\]\)/, "focused Node package scripts should use the shared direct invocation path");
+assert.doesNotMatch(executionSource, /process\.env\.ComSpec|spawnSync\("npm"/, "changed execution should not rebuild the Windows npm shim path locally");
 assert.match(routingSource, /LTF_REGRESSION_BASE_SHA/, "clean CI checkouts should compare the pull-request head with its exact base SHA");
 assert.match(routingSource, /\$\{baseSha\}\.\.\.HEAD/, "CI comparison should use the merge-base diff rather than an empty working tree");
+assert.match(routingSource, /--name-status[\s\S]*--find-renames[\s\S]*--diff-filter=ACMRD/, "tracked collection must retain rename sources and deleted paths");
+for (const [label, source] of [["advice", adviceSource], ["local execution", commandSource], ["slice verification", sliceSource]]) {
+  assert.match(source, /collectChangedChangeSet/, `${label} must collect one shared change set`);
+  assert.match(source, /regression-change-routing\.mjs/, `${label} must consume the canonical routing owner directly or through its plan`);
+}
+assert.match(workflowSource, /test:regressions:changed:ci/, "CI must invoke the same local changed-regression entry point in prechecked mode");
 
 const taskPaths = ["src/modules/tasks/tasks.service.js"];
 const taskSuggestion = suggestRegressionsForPaths(taskPaths);

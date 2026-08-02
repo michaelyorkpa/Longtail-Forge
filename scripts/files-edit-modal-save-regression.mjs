@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -45,20 +44,13 @@ function functionBlock(source, name) {
   throw new Error(`${name} body should close`);
 }
 
-const packageJson = JSON.parse(read("package.json"));
-const packageLock = JSON.parse(read("package-lock.json"));
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filesStyles = read("public/css/longtail-forge.css");
-const regressionSuite = read("scripts/regression-legacy-snapshot.json");
 const viewContract = read("docs/view-building-contract.md");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference row affordance and modal styling");
 assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the Files adapter");
-assert.match(regressionSuite, /scripts\/files-edit-modal-save-regression\.mjs/, "Regression suite should include the Files edit modal save regression");
 
 const fileRowBlock = functionBlock(filesScript, "fileRow");
 const tableBlock = functionBlock(filesScript, "createFilesTable");

@@ -5,8 +5,13 @@ import { prepareRegressionBaselineDatabase } from "./test-support/database-fixtu
 import {
   resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
+  resolveStaticRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
+import {
+  cleanupRegressionNodeCompileCache,
+  prepareRegressionNodeCompileCache,
+} from "./test-support/regression-runtime-resources.mjs";
 import { runIsolatedItemsWithRetry } from "./test-support/isolated-regression-retry.mjs";
 import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
 import {
@@ -19,6 +24,7 @@ import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
 const ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions";
 const STATIC_BUCKET_NAME = "static/source regressions";
+const VERIFIED_BASELINE_PRELOADER = "./scripts/test-support/regression-child-bootstrap.mjs";
 const DEFAULT_REPEAT_COUNT = 1;
 const MAX_REGRESSION_REPEAT_COUNT = 5;
 
@@ -27,6 +33,7 @@ const canonicalWorkspaceInventoryBefore = captureCanonicalWorkspaceInventory();
 const completedResults = [];
 let regressionBaseline = null;
 let regressionBaselinePromise = null;
+let nodeCompileCacheDirectory = null;
 let scheduledScriptRuns = REGRESSION_SCRIPTS.length;
 
 try {
@@ -43,6 +50,10 @@ try {
   }
 
   if (!runOptions.list && !runOptions.dryRun) {
+    nodeCompileCacheDirectory = await prepareRegressionNodeCompileCache();
+    if (runOptions.buckets.some((bucket) => bucket.name !== STATIC_BUCKET_NAME || bucket.entries.some((entry) => entry.tags.includes("baseline-fixture")))) {
+      void getRegressionBaseline().catch(() => {});
+    }
     console.log(`Running ${scheduledScriptRuns} regression script run(s).`);
     if (runOptions.bucketFilter) {
       console.log(`Bucket filter: ${runOptions.bucketFilter}`);
@@ -89,7 +100,7 @@ try {
   process.exitCode = 1;
 } finally {
   await writeTimingReport(completedResults);
-  await cleanupRegressionBaseline();
+  await cleanupRegressionRuntimeResources();
   const canonicalWorkspaceInventoryAfter = captureCanonicalWorkspaceInventory();
 
   try {
@@ -105,14 +116,16 @@ try {
 
 async function runBucket(bucket, runContext) {
   const bucketStarted = performance.now();
-  const parallelismResolution = bucket.name === ISOLATED_BUCKET_NAME
+  const parallelismResolution = bucket.name === STATIC_BUCKET_NAME
+    ? resolveStaticRegressionParallelism({ fallbackParallelism: bucket.concurrency })
+    : bucket.name === ISOLATED_BUCKET_NAME
     ? resolveIsolatedRegressionParallelism({ fallbackParallelism: bucket.concurrency })
     : bucket.name === ISOLATED_FILES_BUCKET_NAME
       ? resolveIsolatedFilesParallelism({ fallbackParallelism: bucket.concurrency })
       : { parallelism: bucket.concurrency, source: "suite" };
   const concurrency = parallelismResolution.parallelism;
   const effectiveConcurrency = bucket.mode === "serial" ? 1 : Math.max(1, concurrency || 1);
-  const concurrencySource = [ISOLATED_BUCKET_NAME, ISOLATED_FILES_BUCKET_NAME].includes(bucket.name)
+  const concurrencySource = [STATIC_BUCKET_NAME, ISOLATED_BUCKET_NAME, ISOLATED_FILES_BUCKET_NAME].includes(bucket.name)
     ? ` (${parallelismResolution.source})`
     : "";
 
@@ -162,15 +175,27 @@ async function runIsolatedWithRetry(bucket, concurrency, runContext, bucketLabel
 async function runScript(entry, bucket, scriptIndex, runContext) {
   const script = entry.path;
   const started = performance.now();
-  const env = await createScriptEnv(entry, bucket, scriptIndex, runContext);
+  const launch = await createScriptLaunch(entry, bucket, scriptIndex, runContext);
 
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [script], {
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
     let stdout = "";
     let stderr = "";
+    const childArgs = launch.verifiedBaselineHandshake
+      ? ["--import", VERIFIED_BASELINE_PRELOADER, script]
+      : [script];
+    const child = spawn(process.execPath, childArgs, {
+      env: launch.env,
+      stdio: launch.verifiedBaselineHandshake
+        ? ["ignore", "pipe", "pipe", "pipe"]
+        : ["ignore", "pipe", "pipe"],
+    });
+
+    if (launch.verifiedBaselineHandshake) {
+      child.stdio[3].on("error", (error) => {
+        if (error.code !== "EPIPE") stderr += `${error.stack || error.message || error}\n`;
+      });
+      child.stdio[3].end(`${JSON.stringify(launch.verifiedBaselineHandshake)}\n`);
+    }
 
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
@@ -203,16 +228,27 @@ async function runScript(entry, bucket, scriptIndex, runContext) {
   });
 }
 
-async function createScriptEnv(entry, bucket, scriptIndex, runContext) {
-  if (bucket.name === STATIC_BUCKET_NAME) {
-    return process.env;
+async function createScriptLaunch(entry, bucket, scriptIndex, runContext) {
+  if (bucket.name === STATIC_BUCKET_NAME && !entry.tags.includes("baseline-fixture")) {
+    return { env: createChildProcessEnv(), verifiedBaselineHandshake: null };
   }
 
   const baseline = await getRegressionBaseline();
-  return baseline.createScriptEnv(entry.path, scriptIndex, {
+  const launch = await baseline.createScriptLaunch(entry.path, scriptIndex, {
     namespace: scriptEnvNamespace(bucket, runContext),
     useBaseline: !entry.tags.includes("baseline-bypass"),
   });
+  return {
+    ...launch,
+    env: createChildProcessEnv(launch.env),
+  };
+}
+
+function createChildProcessEnv(baseEnv = process.env) {
+  return {
+    ...baseEnv,
+    NODE_COMPILE_CACHE: nodeCompileCacheDirectory,
+  };
 }
 
 async function getRegressionBaseline() {
@@ -245,6 +281,21 @@ async function cleanupRegressionBaseline() {
   }
 
   await baseline.cleanup();
+}
+
+async function cleanupRegressionRuntimeResources() {
+  const cleanups = await Promise.allSettled([
+    cleanupRegressionBaseline(),
+    cleanupRegressionNodeCompileCache(nodeCompileCacheDirectory),
+  ]);
+  nodeCompileCacheDirectory = null;
+
+  for (const cleanup of cleanups) {
+    if (cleanup.status === "rejected") {
+      console.error(cleanup.reason?.message || cleanup.reason);
+      process.exitCode = 1;
+    }
+  }
 }
 
 function printResult(result) {

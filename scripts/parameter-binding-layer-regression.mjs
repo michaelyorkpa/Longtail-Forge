@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,8 +10,6 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-l
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-layer.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Layer-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const parameterBindingSource = readText("src/db/parameter-bindings.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
@@ -21,7 +18,6 @@ const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   createBulkValuesBindings,
@@ -41,9 +37,6 @@ const {
 } = await import("../src/core/search/adapters/sqlite-search-adapter.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the parameter-binding layer version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the parameter-binding layer version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameter-binding layer version");
 
   assert.match(parameterBindingSource, /function prepareDatabaseBindings/, "parameter binding layer should expose the shared translator");
   assert.match(parameterBindingSource, /createNamedBindingEntries/, "binding layer should centralize named list expansion");
@@ -87,10 +80,8 @@ try {
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should advance after the completed parameter-binding gap closeout branch");
   assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the binding-layer slice");
   assert.match(changelog, /Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");
   assert.match(changelog, /## Version 0\.33\.5\.23\.2 - [\s\S]*named-to-positional parameter binding layer/, "changelog should retain the binding-layer slice");
-  assert.match(regressionSuite, /scripts\/parameter-binding-layer-regression\.mjs/, "regression suite should include binding-layer coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "parameter-binding layer database should pass integrity check");
@@ -754,8 +745,4 @@ VALUES
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

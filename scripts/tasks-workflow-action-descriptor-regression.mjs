@@ -1,20 +1,13 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const tasksScript = readText("public/js/tasks.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksStyles = readText("public/css/longtail-forge.css");
 const tasksView = readText("views/protected/tasks.html");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const workflowHandlers = constBlock(tasksScript, "TASK_WORKFLOW_BEHAVIOR_HANDLERS");
@@ -86,7 +79,6 @@ assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\] 
 assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\]\[data-view-floating-menu-positioned\] \.view-detail-action-menu-list\s*\{[\s\S]*visibility:\s*visible/, "Workflow menu list should become visible only after shared viewport positioning");
 assert.match(tasksRoutes, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save/, "Browser API should keep timer start/pause/resume on the existing task timer route");
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the workflow descriptor cache key");
-assert.match(regressionSuite, /scripts\/tasks-workflow-action-descriptor-regression\.mjs/, "Regression suite should include the task workflow descriptor regression");
 
 console.log("Tasks workflow action descriptor regression passed.");
 

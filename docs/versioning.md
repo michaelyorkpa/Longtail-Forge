@@ -26,21 +26,32 @@ Do not use a repository-wide find/replace for an application version bump. Roadm
 
 After the helper runs:
 
-1. Add the release entry to `CHANGELOG.md`.
-2. Update only active `ROADMAP.md` checklist and archive handoff text required by the completed slice.
-3. Run the closeout conductor, which includes the focused version guard plus the standing manifest, schema, parameter-binding, documentation, and licensing checks:
+1. Add the release entry to `CHANGELOG.md` and update only the documentation that owns changed behavior.
+2. Complete the active `ROADMAP.md` checklist, move the finished slice to `ROADMAP-ARCHIVE.md`, and advance the `Active cursor`; preserve historical version labels.
+3. Run `npm run docs:suggest` and record either the owning documents updated or why no documentation change is needed.
+4. If regression discovery or its policy changed, review and run the explicit floor advance plus generated documentation update:
 
    ```sh
-   npm run closeout
+   npm run regressions:manifest -- --ratchet-floors
+   npm run regressions:inventory:write
    ```
 
-   The conductor aggregates these maintenance gates and reports warning-only documentation/licensing results without replacing their existing policy. Each underlying package script remains independently runnable.
+   Ordinary `npm run regressions:manifest` never changes policy floors, and every non-mutating check fails when a live floor lags. The ratchet mode may only raise floors and refuses a decrease.
 
-4. Run the normal release verification, including the separate full `npm run check` regression and lint gate.
-5. Build the checksummed runtime artifact with `npm run artifact:build -- --source-branch <branch>`. `nightly` builds use `nightly`; main, preview, and tagged-release builds use `main`. For a release candidate, run `npm run artifact:smoke` to prove a clean `npm ci --omit=dev` install and boot without development dependencies; see [Runtime Artifact](runtime-artifact.md).
-6. For a deployable preview candidate, exercise the staged bare-metal and container paths against the retained prior artifact with `npm run bare-metal:smoke -- --previous-artifact <path>` and `npm run container:smoke -- --previous-artifact <path> --pull`. Both must prove persistence, readiness/version reporting, backup-first replacement, and restored rollback; a missing Docker engine is a failed prerequisite. See [Docker and Bare-Metal Preview Deployment](preview-deployment.md).
-7. Run `npm run backup:drill` after any material database, Files, Secure Notes encryption, archive, or restore change. A preview candidate also needs a protected real-install backup inspected through the shipped CLI and a recorded representative restore; see [Baseline Backup and Restore](backup-restore.md).
-8. Restart the app and verify `/api/app-info` reports the intended canonical version, source branch, and qualified display version. Served JavaScript/CSS URLs continue to use only the canonical version.
+5. If reviewed deterministic artifacts are stale, `npm run closeout -- --fix` may regenerate only the regression manifest, the delimited regression-suite numeric block, the bundled-module catalog, and the generated database schema snapshot before validation. It never edits coverage exceptions, roadmap, changelog, decisions, or free-form documentation. `-- --fail-fast` is an optional diagnostic mode; default closeout still runs every standing hard or warning-only gate.
+
+6. After the final tree is complete, run the canonical local conductor exactly once:
+
+   ```sh
+   npm run verify:slice
+   ```
+
+   It includes closeout, fast checks, changed/full regression escalation, and the separate permission harness when selected. Do not separately rerun `version:guard`, `closeout`, `check`, an included area, or the permission harness after a green result unless a source, test, documentation, package, lockfile, workflow, or configuration file changes.
+
+7. Build the checksummed runtime artifact once with `npm run artifact:build -- --source-branch <branch>`. `nightly` builds use `nightly`; main, preview, and tagged-release builds use `main`. For a release candidate, run `npm run artifact:smoke -- --artifact <path>` to prove that exact retained artifact has a clean `npm ci --omit=dev` install and boot without development dependencies; omitting `--artifact` remains the local build-and-smoke convenience. See [Runtime Artifact](runtime-artifact.md).
+8. For a deployable preview candidate, exercise the staged bare-metal and container paths against the same candidate artifact with `npm run bare-metal:smoke -- --artifact <path> --previous-artifact <prior-path>` and `npm run container:smoke -- --artifact <path> --previous-artifact <prior-path> --pull`. When no distinct prior artifact is supplied, the smoke uses the candidate for both sides while retaining persistence, readiness/version, backup-first replacement, and restored rollback checks. A missing Docker engine is a failed prerequisite. See [Docker and Bare-Metal Preview Deployment](preview-deployment.md).
+9. Run `npm run backup:drill` after any material database, Files, Secure Notes encryption, archive, or restore change. A preview candidate also needs a protected real-install backup inspected through the shipped CLI and a recorded representative restore; see [Baseline Backup and Restore](backup-restore.md).
+10. Restart the app and verify `/api/app-info` reports the intended canonical version, source branch, and qualified display version. Served JavaScript/CSS URLs continue to use only the canonical version.
 
 ## Literal Guardrail
 

@@ -21,14 +21,14 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const DEFAULT_E2E_PORT = 8101;
 
 const externalBaseUrl = String(process.env.LTF_E2E_BASE_URL || "").trim().replace(/\/+$/, "");
-const usesManagedServer = externalBaseUrl === "";
+const usesManagedServer = process.env.LTF_E2E_MANAGED_SERVER === "true" || externalBaseUrl === "";
 
 const parsedPort = Number.parseInt(String(process.env.LTF_E2E_PORT || ""), 10);
 const E2E_PORT = Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535
   ? parsedPort
   : DEFAULT_E2E_PORT;
 
-const E2E_BASE_URL = usesManagedServer ? `http://127.0.0.1:${E2E_PORT}` : externalBaseUrl;
+const E2E_BASE_URL = externalBaseUrl || `http://127.0.0.1:${E2E_PORT}`;
 
 // Harness-owned throwaway data directory for managed-server runs. Lives under
 // the git-ignored data/ tree, separate from the real dev database and files.

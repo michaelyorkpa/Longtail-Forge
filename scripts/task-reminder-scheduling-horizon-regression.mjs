@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,8 +10,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-rem
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Reminder-Horizon-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const appSource = readText("src/core/app.js");
@@ -20,7 +17,6 @@ const workerCliSource = readText("src/core/jobs/worker-cli.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, db, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
@@ -92,9 +88,6 @@ async function assertOptionalSecondaryReminderRoundTrip(session, now) {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the reminder scheduling version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the reminder scheduling version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the reminder scheduling version");
   assert.match(taskJobsSource, /TASK_REMINDER_SCHEDULING_HORIZON_DAYS = 30/, "task reminder jobs should document the bounded scheduling horizon");
   assert.match(taskJobsSource, /TASK_REMINDER_SWEEP_INTERVAL_HOURS = 12/, "task reminder jobs should document the sweep top-up interval");
   assert.match(taskJobsSource, /operation:\s*"sweep_reminders"/, "task reminder jobs should queue a durable sweep operation");
@@ -108,7 +101,6 @@ function assertStaticContract() {
   assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*30-day scheduling horizon[\s\S]*12-hour sweep/, "database docs should document reminder horizon and sweep behavior");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*30-day scheduling horizon[\s\S]*12-hour top-up sweep/, "runtime docs should document reminder horizon and sweep behavior");
-  assert.match(regressionSuite, /scripts\/task-reminder-scheduling-horizon-regression\.mjs/, "regression suite should include reminder horizon coverage");
 }
 
 async function assertBackfillQueuesExistingTask(session, now) {

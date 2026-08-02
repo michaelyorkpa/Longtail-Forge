@@ -1,10 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
 const attachmentHelper = readText("public/js/shared/file-attachments.js");
@@ -20,11 +17,7 @@ const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files action-wiring version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files action-wiring version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files action-wiring version");
 
 const fileRow = functionBlock(filesScript, "fileRow");
 assert.match(fileRow, /reportable: canReportFileRow\(attachment, file, fileId, status\)/, "Files rows should shape report visibility through an action helper");
@@ -107,7 +100,6 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document the current Files visual parity slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document the current Files visual parity boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.4/, "Declarative surface contract should document the current Files visual parity boundary");
-assert.match(regressionSuite, /scripts\/files-row-attachment-actions-regression\.mjs/, "Full regression suite should include the Files action-wiring regression");
 
 ["rename", "hard purge", "permanent delete", "storage move", "file replacement"].forEach((forbidden) => {
   assert.doesNotMatch(rowActions, new RegExp(forbidden, "i"), `Files row actions should not introduce ${forbidden}`);

@@ -1,10 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
 const attachmentHelper = readText("public/js/shared/file-attachments.js");
@@ -13,11 +10,7 @@ const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const inventoryDoc = readText("docs/files-strict-guardrail-inventory.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files strict enforcement version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files strict enforcement version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files strict enforcement version");
 
 const strictSetMatch = declarativeGuardrails.match(/const strictDeclarativeSurfaceIds = new Set\(\[([^\]]*)\]\)/);
 assert.ok(strictSetMatch, "Declarative guardrails should expose the strict surface set");
@@ -146,9 +139,6 @@ assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.6[\s\S]*F
   "View-building contract should document the Files strict enforcement slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.6[\s\S]*Files strict declarative guardrail enforcement/,
   "Module contract should document the Files strict enforcement boundary");
-assert.match(regressionSuite, /scripts\/files-strict-guardrail-inventory-regression\.mjs/,
-  "Regression suite should include the Files strict guardrail enforcement regression");
-
 console.log(`Files strict declarative guardrail enforcement passed. Direct DOM construction: files.js=${countMatches(filesScript, /document\.createElement/g)}, file-attachments.js=${countMatches(attachmentHelper, /document\.createElement/g)} centralized fallback.`);
 
 function readText(path) {

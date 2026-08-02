@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -13,17 +12,13 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Record-Filter-Repository-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-record-filter-regression-master-key";
 process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v4";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const notesDocs = readText("docs/notes-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
@@ -56,9 +51,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Notes records/filter conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes records/filter conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes records/filter conversion version");
 
   const convertedBlocks = [
     sourceBlock(/async function list\(workspaceId, filters = \{\}\)/, /async function queryList\(workspaceId, options = \{\}\)/),
@@ -83,8 +75,7 @@ function assertStaticContract() {
   assert.match(notesDocs, /As of 0\.33\.5\.27\.14[\s\S]*record list\/read\/filter SQL[\s\S]*named params[\s\S]*dialect comparison seams/, "Notes docs should document the converted Notes read/filter repository boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.14 - Conversion wave: Notes records and filters[\s\S]*- \[x\] Convert the note record list\/read\/filter paths[\s\S]*- \[x\] Preserve secure\/private placeholders[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.14 - [\s\S]*Notes records and filters repository conversion[\s\S]*helper invocations[\s\S]*direct interpolated operation sites[\s\S]*bound operation sites/, "changelog should record the Notes records/filter conversion burndown");
-  assert.match(regressionSuite, /scripts\/notes-records-filters-repository-conversion-regression\.mjs/, "regression suite should include the Notes records/filter conversion proof");
-}
+  }
 
 async function createFixtures(session) {
   const suffix = randomUUID().slice(0, 8);

@@ -76,9 +76,7 @@ test("stacked tags child dialog state passes the WCAG scan", async ({ page }, te
   await expectNoWcagViolations(page, testInfo, "stacked-tags-dialog");
 });
 
-test("open mobile navigation drawer passes the WCAG scan", async ({ page, isMobile }, testInfo) => {
-  test.skip(!isMobile, "the nav drawer only exists at the mobile viewport");
-
+test("open mobile navigation drawer passes the WCAG scan", { tag: "@mobile" }, async ({ page }, testInfo) => {
   await page.goto("/dashboard.html");
   await page.waitForLoadState("networkidle");
 

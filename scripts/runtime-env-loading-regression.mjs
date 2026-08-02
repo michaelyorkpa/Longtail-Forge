@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -7,19 +6,12 @@ import path from "node:path";
 import { loadRuntimeEnvFile, parseRuntimeEnvText } from "../src/runtime-env.js";
 
 const root = process.cwd();
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const serverSource = readText("server.js");
 const runtimeEnvSource = readText("src/runtime-env.js");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const gitignore = readText(".gitignore");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the local .env loading slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the local .env loading slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the local .env loading slice version");
 
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(serverSource, /loadRuntimeEnvFile\(\);[\s\S]*await import\("\.\/src\/core\/app\.js"\)/, "server startup should load .env before importing app/config");
@@ -27,8 +19,6 @@ assert.doesNotMatch(runtimeEnvSource, /from "\.\/config\.js"|from "\.\.\/config\
 assert.match(runtimeDocs, /At app startup, `server\.js` loads a local root `.env` file when present/, "runtime docs should document startup .env loading");
 assert.match(runtimeDocs, /Process environment values win over `.env` values/, "runtime docs should document precedence");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the local .env loading slice");
-assert.match(regressionSuite, /scripts\/runtime-env-loading-regression\.mjs/, "regression suite should include the runtime env loading regression");
 
 const parsed = parseRuntimeEnvText(`
 # Leading comments and blank lines are ignored.
@@ -165,8 +155,4 @@ function listFiles(dir) {
 
 function readText(filePath) {
   return fs.readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

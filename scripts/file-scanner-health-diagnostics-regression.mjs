@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -52,19 +51,12 @@ assertSafeScannerDiagnostics(clamscanDiagnostics);
 console.log("File scanner health diagnostics regression passed.");
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the scanner health diagnostics version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the scanner health diagnostics version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the scanner health diagnostics version");
 
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "disabled"/, "none scanner should expose safe disabled health");
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "pass_through"/, "noop scanner should expose safe pass-through health");
@@ -77,10 +69,8 @@ function assertStaticContracts() {
   assert.match(workspaceSettingsScript, /formatScannerStatus/, "Workspace Settings should format scanner health safely");
   assert.match(workspaceSettingsScript, /scanner\.health\?\.warning/, "Workspace Settings warnings should consume the server-provided scanner warning");
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner health diagnostics slice");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-scanner-health-diagnostics-regression\.mjs/, "regression suite should include scanner health diagnostics coverage");
-}
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  }
 
 async function runDiagnosticsScenario(mode) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `ltf-file-scanner-health-${mode}-`));

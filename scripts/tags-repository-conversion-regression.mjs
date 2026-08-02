@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,16 +11,12 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tags-repository-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Tags-Repository-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tagsRepoSource = readText("src/repositories/tags.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
@@ -41,9 +36,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Tags repository conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Tags repository conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tags repository conversion version");
 
   assert.match(tagsRepoSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "tags repo should import the provider-neutral db facade");
   assert.doesNotMatch(tagsRepoSource, /\.\.\/db\/index\.js/, "tags repo should not import legacy db helpers after conversion");
@@ -101,8 +93,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.23[\s\S]*`tags\.repo` is converted[\s\S]*403 remaining helper invocations/, "database docs should record the concrete Tags repository conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.23 - Conversion wave: Tags repository[\s\S]*- \[x\] Convert `tags\.repo`[\s\S]*- \[x\] Preserve tag create\/update\/archive[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.23 - [\s\S]*Tags repository conversion[\s\S]*403 helper invocations[\s\S]*86 direct interpolated operation sites[\s\S]*273 bound operation sites/, "changelog should record the Tags repository conversion burndown");
-  assert.match(regressionSuite, /scripts\/tags-repository-conversion-regression\.mjs/, "regression suite should include the Tags repository conversion proof");
-}
+  }
 
 function assertConvertedFunction(functionName) {
   const block = functionBlock(tagsRepoSource, functionName);

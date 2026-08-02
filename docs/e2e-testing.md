@@ -31,6 +31,7 @@ npm run test:e2e:ui  # Playwright UI mode for local debugging
 
 By default the harness boots its own **managed, isolated server**:
 
+- `scripts/run-playwright-e2e.mjs` is the canonical process owner behind `test:e2e`, `test:e2e:ui`, and `test:a11y`. It launches the server and Playwright CLI as direct Node children, waits for `/api/app-info`, always awaits server cleanup, and uses a five-second forced fallback. This avoids Playwright's shell-wrapped web-server teardown on Windows, which can leave a completely green full suite waiting indefinitely after its last test.
 - `tests/e2e/support/start-e2e-server.mjs` wipes the harness-owned, git-ignored `data/e2e` directory, pins every runtime environment value the harness depends on (so a local `.env` can never redirect the managed server at real data), and boots the unchanged `server.js` entry point on dedicated local port **8101** — deliberately not the canonical dev port 8001, so the throwaway e2e database can never collide with the real dev server or its data.
 - The bootstrap seeds the super admin with a test-only password against that throwaway database. No real credential is committed or reused.
 - `tests/e2e/auth.setup.mjs` (a Playwright setup project) logs in once via `POST /api/login` and saves the authenticated `storageState` cookies to git-ignored `tests/e2e/.auth/`; the viewport projects consume it so protected surfaces are reachable.
@@ -52,7 +53,9 @@ Two named projects are defined in `playwright.config.js` and reused across every
 | `desktop` | 1280x800 Chromium | Inline primary navigation |
 | `mobile` | 375x812 Chromium | `isMobile`, `hasTouch`, 3x scale; collapsed nav toggle |
 
-Every spec runs in both projects unless it opts out (see the mobile-nav spec's `test.skip(!isMobile, ...)` pattern for mobile-only behavior).
+Every spec runs in both projects unless its declaration carries `{ tag: "@mobile" }` or `{ tag: "@desktop" }`. The project-level `grepInvert` rules exclude the opposite tag before browser and storage-state setup; do not use an in-body `test.skip` to choose a viewport. Untagged tests, including the login and accessibility baselines, continue to run in both projects.
+
+Local runs use zero retries, two workers, retained traces on failure, and failure-only screenshots. CI uses the same measured shared-server-safe two-worker bound with one retry; the trace is collected on that first retry and screenshots remain failure-only. A six-worker local probe produced three shared-harness failures, while all three passed together at two workers, so the bound is isolation evidence rather than an arbitrary throughput cap. The canonical Node runner, worker policy, retry/trace policy, and protected development pull-request name `Browser smoke and accessibility` are release-guarded contracts.
 
 The viewport projects run fully parallel against one managed server and throwaway database. Keep cross-viewport assertions read-only whenever possible. A test that must mutate durable shared state should run that mutation in only one project, restore the original value in `finally`, and leave the other viewport's relevant read-only coverage intact.
 
@@ -100,7 +103,7 @@ Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surf
 1. Create `tests/e2e/<concern>.spec.mjs`. Use the `.spec.mjs` suffix — Vitest discovers `tests/**/*.test.mjs`, so `.test.mjs` names would collide with the unit-test runner.
 2. Import shared surfaces/anatomy from `tests/e2e/support/surfaces.mjs` rather than redefining selectors.
 3. Keep selectors resilient: prefer stable framework anatomy hooks (module host `data-*` attributes, `.site-header`, `.nav-toggle`, `#primary-menu`) over text or positional selectors.
-4. Remember every spec runs at both viewports; use the `isMobile` fixture to branch or skip.
+4. Remember every untagged spec runs at both viewports. Use `{ tag: "@mobile" }` or `{ tag: "@desktop" }` when only one named project owns the test; use `isMobile` only when one deliberately shared test needs viewport-specific assertions.
 5. Specs run against the seeded authenticated session by default. Do not hard-code credentials in specs; the auth setup project owns login.
 6. Do not let parallel viewport tests race over durable shared state. Isolate a required mutation to one project and restore it before the test finishes.
 7. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.

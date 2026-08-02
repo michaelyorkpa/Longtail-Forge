@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -17,14 +16,11 @@ const expectedRouteIds = Object.freeze([
   "workbench-bootstrap",
 ]);
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const performanceScript = readText("scripts/sqlite-small-office-performance.mjs");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 assertPerformanceSmoke();
@@ -32,9 +28,6 @@ assertPerformanceSmoke();
 console.log("SQLite small-office performance regression passed.");
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the SQLite small-office performance version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the SQLite small-office performance version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the SQLite small-office performance version");
 
   assert.match(performanceScript, /DEFAULT_PROFILE = "sqlite-small-office-50"/, "performance script should default to the supported SQLite small-office profile");
   assert.match(performanceScript, /TARGET_NOTE = "Local development hardware sanity targets/, "performance script should label targets as local development sanity targets");
@@ -52,7 +45,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.20\.6/, "Database docs should mention the performance pass");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, /Version 0\.33\.5\.20\.6/, "Changelog should include the SQLite small-office performance release");
-  assert.match(regressionSuite, /scripts\/sqlite-small-office-performance-regression\.mjs/, "Regression suite should include SQLite small-office performance coverage");
 }
 
 function assertPerformanceSmoke() {

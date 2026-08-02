@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,16 +11,12 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifications-inbox-lifecycle-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Notifications-Inbox-Lifecycle-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notificationsRepoSource = readText("src/repositories/notifications.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { notificationsRepository } = await import("../src/repositories/notifications.repo.js");
@@ -42,9 +37,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Notifications inbox/lifecycle conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Notifications inbox/lifecycle conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notifications inbox/lifecycle conversion version");
 
   assert.match(notificationsRepoSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "notifications repo should import the provider-neutral db facade");
 
@@ -102,8 +94,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.21[\s\S]*Notifications inbox and lifecycle paths in `notifications\.repo` are partially converted[\s\S]*536 remaining helper invocations/, "database docs should record the concrete Notifications inbox/lifecycle conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.21 - Conversion wave: Notifications inbox and lifecycle[\s\S]*- \[x\] Convert notification create[\s\S]*- \[x\] Preserve in-app notification display[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.21 - [\s\S]*Notifications inbox and lifecycle conversion[\s\S]*536 helper invocations[\s\S]*111 direct interpolated operation sites[\s\S]*246 bound operation sites/, "changelog should record the Notifications inbox/lifecycle conversion burndown");
-  assert.match(regressionSuite, /scripts\/notifications-inbox-lifecycle-conversion-regression\.mjs/, "regression suite should include the Notifications inbox/lifecycle conversion proof");
-}
+  }
 
 function assertConvertedFunction(functionName) {
   const block = functionBlock(notificationsRepoSource, functionName);

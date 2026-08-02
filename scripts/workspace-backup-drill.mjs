@@ -7,11 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { createOpaqueId, createRecordId } from "../src/core/identifiers.js";
-import {
-  createWorkspaceBackupPackage,
-  inspectWorkspaceBackupPackage,
-  restoreWorkspaceBackupPackage,
-} from "../src/services/workspace-backup-package.js";
+import { createWorkspaceBackupPackage, inspectWorkspaceBackupPackage, restoreWorkspaceBackupPackage } from "../src/services/workspace-backup-package.js";
 import { resolveStoragePath } from "../src/core/files/local-storage-adapter.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

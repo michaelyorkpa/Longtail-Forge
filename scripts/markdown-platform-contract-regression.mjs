@@ -1,20 +1,14 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
 const contract = await readText("docs/markdown-platform-contract.md");
 const roadmap = await readText("ROADMAP.md");
-const packageJson = JSON.parse(await readText("package.json"));
-const packageLock = JSON.parse(await readText("package-lock.json"));
 const notesMarkdown = await readText("src/modules/notes/markdown.js");
 const helpService = await readText("src/services/help.service.js");
 const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root version should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package metadata should report the current app version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");

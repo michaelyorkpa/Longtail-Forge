@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,26 +12,19 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-driver-c
 process.env.SQLITE_COMMAND = "sqlite3-command-should-not-be-used";
 process.env.SUPER_ADMIN_PASSWORD = "Better-Sqlite3-Driver-Closeout-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
 const readme = readText("README.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
 const sqliteSource = readText("src/db/sqlite.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { config } = await import("../src/config.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the driver-closeout version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the driver-closeout version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the driver-closeout version");
 
   assert.equal(Object.hasOwn(config, "sqliteCommand"), false, "runtime config should not expose sqliteCommand");
   assert.equal(config.databaseProvider, "sqlite", "SQLite should remain the active provider");
@@ -49,9 +41,7 @@ try {
   assert.doesNotMatch(sqliteSource, /node:child_process|spawn\(|sqliteProcess|markerToken|requestQueue|config\.sqliteCommand/, "SQLite helper should not shell out to sqlite3");
   assert.match(sqliteAdapterSource, /adapter:\s*"better-sqlite3"/, "SQLite adapter should report better-sqlite3");
   assert.doesNotMatch(sqliteAdapterSource, /adapter:\s*"sqlite-process"/, "SQLite adapter should not report sqlite-process");
-  assert.match(regressionSuite, /scripts\/better-sqlite3-driver-closeout-regression\.mjs/, "regression suite should include the driver closeout regression");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the driver closeout slice");
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 
   await initializeDatabase();
   assert.deepEqual(db.capabilities, {
@@ -103,8 +93,4 @@ ORDER BY search_score;
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -8,13 +7,7 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const css = readText("public/css/longtail-forge.css");
 const footerScript = readText("public/js/footer.js");
 const changelog = readText("CHANGELOG.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");
@@ -273,7 +266,6 @@ const slideOutCssBlock = css.match(/\.view-slideout-sidebar\s*\{[\s\S]*?\n\}/)?.
 assert.doesNotMatch(slideOutCssBlock, /grid-template-columns:/, "Slide-out sidebar layout should not allocate a permanent split grid column");
 assert.doesNotMatch(renderer, /descriptor\.layout === "split-list-detail"/, "Renderer should not reactivate the retired split-list-detail layout");
 assert.match(changelog, /## Version 0\.33\.5\.16\.4 - /, "Changelog should include renderer shell version");
-assert.match(regressionSuite, /scripts\/view-renderer-shell-regression\.mjs/, "Regression suite should include renderer regression");
 
 console.log("View renderer shell regression passed.");
 

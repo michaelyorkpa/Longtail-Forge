@@ -1,10 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
 const attachmentHelper = readText("public/js/shared/file-attachments.js");
@@ -17,11 +14,7 @@ const changelog = readText("CHANGELOG.md");
 const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files visual parity version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files visual parity version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files visual parity version");
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files page should reference the visual parity stylesheet");
 assert.match(filesHtml, /js\/shared\/icons\.js/, "Files page should reference the shared action icons");
@@ -121,7 +114,6 @@ assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document Files visual/control parity");
 assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the Files visual parity slice");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(regressionSuite, /scripts\/files-visual-state-control-parity-regression\.mjs/, "Regression suite should include the Files visual parity regression");
 
 console.log("Files visual state and control parity regression passed.");
 

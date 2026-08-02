@@ -20,13 +20,16 @@ const markerValue = `persisted-${process.pid}-${Date.now()}`;
 let server;
 
 try {
-  const currentArtifact = await buildRuntimeArtifact({ outputDir: path.join(workspace, "artifacts") });
+  const currentArtifact = options.artifact
+    ? await inspectRuntimeArtifact(path.resolve(options.artifact))
+    : await buildRuntimeArtifact({ outputDir: path.join(workspace, "artifacts") });
+  const currentArtifactPath = currentArtifact.artifactPath || currentArtifact.path;
   const previousArtifact = options.previousArtifact
     ? await inspectRuntimeArtifact(path.resolve(options.previousArtifact))
-    : await inspectRuntimeArtifact(currentArtifact.artifactPath);
+    : await inspectRuntimeArtifact(currentArtifactPath);
 
   await installArtifact(previousArtifact.path, previousInstall);
-  await installArtifact(currentArtifact.artifactPath, candidateInstall);
+  await installArtifact(currentArtifactPath, candidateInstall);
   await assertDevelopmentDependenciesMissing(previousInstall);
   await assertDevelopmentDependenciesMissing(candidateInstall);
 
@@ -203,9 +206,11 @@ async function findAvailablePort() {
 }
 
 function parseArgs(cliArgs) {
-  const parsed = { previousArtifact: undefined };
+  const parsed = { artifact: undefined, previousArtifact: undefined };
   for (let index = 0; index < cliArgs.length; index += 1) {
-    if (cliArgs[index] === "--previous-artifact") {
+    if (cliArgs[index] === "--artifact") {
+      parsed.artifact = cliArgs[++index];
+    } else if (cliArgs[index] === "--previous-artifact") {
       parsed.previousArtifact = cliArgs[++index];
     } else {
       throw new Error(`Unknown bare-metal smoke option: ${cliArgs[index]}`);

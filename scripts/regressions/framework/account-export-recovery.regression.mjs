@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.account-export-recovery",
   area: "framework",
   tier: "release-gate",
-  tags: ["authentication", "database", "permissions", "security", "sessions", "workspaces"],
+  tags: ["authentication", "baseline-bypass", "database", "permissions", "security", "sessions", "workspaces"],
   description: "Proves former sole-workspace administrators receive only a portable account export and logout, while other zero-workspace identities remain non-enumerating and former workspace data stays inaccessible.",
   runMode: "isolated-database",
 });

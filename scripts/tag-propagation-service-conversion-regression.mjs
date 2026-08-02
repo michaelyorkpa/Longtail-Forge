@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,17 +11,13 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-propagation-service-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Tag-Propagation-Service-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const registrySource = readText("src/services/tag-propagation-registry.js");
 const tagsServiceSource = readText("src/services/tags.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { readTagPropagationResolver } = await import("../src/services/tag-propagation-registry.js");
@@ -46,9 +41,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Tag propagation service conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Tag propagation service conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tag propagation service conversion version");
 
   assert.match(registrySource, /import \{ db \} from "\.\.\/core\/database\.js";/, "tag propagation registry should import the provider-neutral db facade");
   assert.doesNotMatch(registrySource, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "tag propagation registry should be fully off literal helpers");
@@ -73,7 +65,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.24[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are converted[\s\S]*367 remaining helper invocations/, "database docs should record the concrete Tag propagation service conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.24 - Conversion wave: Tag propagation and tags service[\s\S]*- \[x\] Convert `services\/tag-propagation-registry`[\s\S]*- \[x\] Preserve Client\/Project\/Task\/Note propagation targets[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.24 - [\s\S]*Tag propagation and tags service conversion[\s\S]*367 helper invocations[\s\S]*68 direct interpolated operation sites[\s\S]*291 bound operation sites/, "changelog should record the Tag propagation service conversion burndown");
-  assert.match(regressionSuite, /scripts\/tag-propagation-service-conversion-regression\.mjs/, "regression suite should include the Tag propagation service conversion proof");
 }
 
 async function readProtectedSession() {

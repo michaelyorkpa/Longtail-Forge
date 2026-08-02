@@ -122,9 +122,7 @@ test("the Tasks filter sidebar closes on Escape and returns focus", async ({ pag
   await expect(trigger, "focus must return to the sidebar trigger after Escape").toBeFocused();
 });
 
-test("the open mobile nav drawer has no keyboard trap", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "the nav drawer only exists at the mobile viewport");
-
+test("the open mobile nav drawer has no keyboard trap", { tag: "@mobile" }, async ({ page }) => {
   await page.goto(dashboard.path);
   await page.locator(SHELL.navToggle).click();
   await expect(page.locator(SHELL.primaryMenu)).toBeVisible();

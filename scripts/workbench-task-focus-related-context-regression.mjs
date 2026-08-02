@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -122,15 +121,10 @@ async function assertRelatedContextReadModel(session, fixtures) {
 
 async function assertStaticContracts() {
   const changelog = readText("CHANGELOG.md");
-  const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  const packageLock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
   const serviceSource = readText("src/services/workbench-task-focus-related-context.service.js");
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
 
-  assert.equal(packageJson.version, appVersion);
-  assert.equal(packageLock.version, appVersion);
-  assert.equal(packageLock.packages[""].version, appVersion);
-  assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
+        assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");
   assert.match(serviceSource, /record\.directTags \|\| record\.direct_tags/, "shared-tag matching should inspect direct tags only");

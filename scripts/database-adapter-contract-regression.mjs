@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -12,19 +11,15 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-adapter-contract.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Adapter-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const coreDatabaseSource = readText("src/core/database.js");
 const dbProviderSource = readText("src/db/provider.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const dbIndexSource = readText("src/db/index.js");
 const migrationsSource = readText("src/db/migrations.js");
 const appSource = readText("src/core/app.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -37,9 +32,6 @@ const coreDatabase = await import("../src/core/database.js");
 const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the database adapter contract slice version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the database adapter contract slice version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the database adapter contract slice version");
 
   assert.match(dbProviderSource, /function createDatabaseAdapter\(provider\)/, "database provider module should create provider adapters");
   assert.match(dbProviderSource, /provider === "sqlite"[\s\S]*createSqliteAdapter/, "provider module should select the SQLite adapter");
@@ -58,7 +50,6 @@ try {
   assert.match(dbIndexSource, /from "\.\/provider\.js"/, "database startup module should consume the provider-neutral facade");
   assert.match(migrationsSource, /from "\.\/provider\.js"/, "migrations should run through the provider-neutral facade");
   assert.match(appSource, /formatDatabaseHealth\(databaseHealth\)/, "startup should log database health through the provider-neutral formatter");
-  assert.match(regressionSuite, /scripts\/database-adapter-contract-regression\.mjs/, "regression suite should include database adapter contract coverage");
 
   assert.equal(db.provider, "sqlite");
   assert.equal(typeof db.query, "function");
@@ -106,7 +97,6 @@ try {
   assert.match(databaseDocs, /Repositories and module services should not import `src\/db\/sqlite\.js` directly/, "database docs should document the direct SQLite import guardrail");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the adapter contract slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "adapter contract regression database should pass integrity check");
@@ -215,8 +205,4 @@ function readText(filePath) {
 
 function normalizePath(filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

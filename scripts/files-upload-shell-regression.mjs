@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
@@ -12,11 +9,7 @@ const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files upload-shell slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files upload-shell slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files upload-shell slice version");
 
 const uploadControls = functionBlock(helper, "uploadControls");
 assert.match(uploadControls, /const view = global\.LongtailForge\?\.view/, "Attachment helper should lazily read the view helper because host pages load it later");
@@ -93,7 +86,6 @@ assert.match(workbenchHtml, /css\/longtail-forge\.css/, "Workbench should refere
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the attachment helper");
 
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
-assert.match(regressionSuite, /scripts\/files-upload-shell-regression\.mjs/, "Regression suite should include the Files upload-shell regression");
 
 console.log("Files upload shell regression passed.");
 

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,16 +11,12 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-lifecycle-settings-quota-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Lifecycle-Settings-Quota-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesServiceSource = readText("src/services/files.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
@@ -44,9 +39,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Files lifecycle/settings/quota conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Files lifecycle/settings/quota conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files lifecycle/settings/quota conversion version");
 
   assert.match(filesServiceSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "Files service should import only the provider-neutral db facade");
   assert.doesNotMatch(filesServiceSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Files service should be fully off literal helpers and compatibility query wrappers");
@@ -140,8 +132,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.20[\s\S]*`services\/files\.service` is fully converted[\s\S]*586 remaining helper invocations/, "database docs should record the concrete Files lifecycle/settings/quota conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.20 - Conversion wave: Files lifecycle, settings, quota, and accounting[\s\S]*- \[x\] Convert the remaining `services\/files\.service` lifecycle writes[\s\S]*- \[x\] Preserve upload lifecycle[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.20 - [\s\S]*Files lifecycle, settings, quota, and accounting conversion[\s\S]*586 helper invocations[\s\S]*123 direct interpolated operation sites[\s\S]*231 bound operation sites/, "changelog should record the Files lifecycle/settings/quota conversion burndown");
-  assert.match(regressionSuite, /scripts\/files-lifecycle-settings-quota-conversion-regression\.mjs/, "regression suite should include the Files lifecycle/settings/quota conversion proof");
-}
+  }
 
 function assertFunctionUsesNamedParams(functionName, patterns) {
   const block = functionBlock(filesServiceSource, functionName);

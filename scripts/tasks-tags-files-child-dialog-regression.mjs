@@ -1,21 +1,14 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
 const tasksDocs = readText("docs/tasks-module.md");
 const roadmap = readText("ROADMAP.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Task child-dialog slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Task child-dialog slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task child-dialog slice version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the Task child-dialog slice version");
 
 const createElements = functionBlock(taskDialog, "createTaskDialogElements");
@@ -65,7 +58,6 @@ assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the ownin
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(regressionSuite, /scripts\/tasks-tags-files-child-dialog-regression\.mjs/, "Full regression suite should include the Task child-dialog regression");
 
 console.log("Tasks Tags and Files child-dialog regression passed.");
 

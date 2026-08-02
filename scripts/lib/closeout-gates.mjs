@@ -1,8 +1,9 @@
-import { spawnSync } from "node:child_process";
+import { runPackageScript } from "./package-script-runner.mjs";
 
 const CLOSEOUT_GATES = Object.freeze([
   gate("version-guard", "Version literal guard", "version:guard", true),
   gate("regression-manifest", "Regression manifest", "regressions:manifest:check", true),
+  gate("regression-doc-inventory", "Regression documentation inventory", "regressions:inventory:check", true),
   gate("module-registry", "Bundled module catalog", "modules:registry:check", true),
   gate("database-schema", "Database schema", "db:schema:check", true),
   gate("parameter-binding", "Parameter binding", "audit:params:check", true),
@@ -10,7 +11,17 @@ const CLOSEOUT_GATES = Object.freeze([
   gate("licensing", "Licensing readiness", "licensing:gates", false),
 ]);
 
-function runCloseoutGates(gates = CLOSEOUT_GATES, { onGateStart, runCommand = runNpmScript } = {}) {
+const CLOSEOUT_FIXES = Object.freeze([
+  fix("regression-manifest", "Regression manifest", "regressions:manifest"),
+  fix("regression-doc-inventory", "Regression documentation inventory", "regressions:inventory:write"),
+  fix("module-registry", "Bundled module catalog", "modules:registry:generate"),
+  fix("database-schema", "Database schema", "db:schema:refresh"),
+]);
+
+function runCloseoutGates(
+  gates = CLOSEOUT_GATES,
+  { failFast = false, onGateStart, runCommand = runNpmScript } = {},
+) {
   const results = [];
 
   for (const gateDefinition of gates) {
@@ -27,6 +38,9 @@ function runCloseoutGates(gates = CLOSEOUT_GATES, { onGateStart, runCommand = ru
       exitCode,
       outcome: exitCode === 0 ? "pass" : gateDefinition.hard ? "fail" : "warn",
     }));
+    if (failFast && results.at(-1).outcome === "fail") {
+      break;
+    }
   }
 
   return Object.freeze({
@@ -44,27 +58,62 @@ function formatCloseoutSummary(result) {
     lines.push(`[${marker}] ${gateResult.label} [${policy}]: ${gateResult.command}${suffix}`);
   }
   lines.push(result.status === 0 ? "Closeout gates completed without hard failures." : "Closeout gates failed one or more hard checks.");
-  lines.push("Full release regression gate remains: npm run check");
+  lines.push("Canonical ordinary final verification remains: npm run verify:slice");
   return lines.join("\n");
 }
 
 function runNpmScript(gateDefinition) {
-  const command = gateDefinition.command;
-  if (process.platform === "win32") {
-    return spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", command], {
-      stdio: "inherit",
-      windowsHide: true,
-    });
+  return runPackageScript(gateDefinition.script);
+}
+
+function runCloseoutFixes(fixes = CLOSEOUT_FIXES, { onFixStart, runCommand = runNpmScript } = {}) {
+  const results = [];
+  for (const fixDefinition of fixes) {
+    onFixStart?.(fixDefinition);
+    let commandResult;
+    try {
+      commandResult = runCommand(fixDefinition);
+    } catch (error) {
+      commandResult = { error, status: 1 };
+    }
+    const exitCode = Number.isInteger(commandResult?.status) ? commandResult.status : 1;
+    results.push(Object.freeze({ ...fixDefinition, exitCode, outcome: exitCode === 0 ? "pass" : "fail" }));
+    if (exitCode !== 0) {
+      break;
+    }
   }
-  return spawnSync("npm", ["run", gateDefinition.script], { stdio: "inherit" });
+  return Object.freeze({
+    results: Object.freeze(results),
+    status: results.some((result) => result.outcome === "fail") ? 1 : 0,
+  });
+}
+
+function formatCloseoutFixSummary(result) {
+  const lines = ["Closeout deterministic-fix summary"];
+  for (const fixResult of result.results) {
+    const marker = fixResult.outcome === "pass" ? "PASS" : "FAIL";
+    const suffix = fixResult.exitCode === 0 ? "" : ` (exit ${fixResult.exitCode})`;
+    lines.push(`[${marker}] ${fixResult.label}: ${fixResult.command}${suffix}`);
+  }
+  lines.push(result.status === 0
+    ? "Reviewed deterministic artifacts regenerated; validation follows."
+    : "Deterministic regeneration failed; validation was not started.");
+  return lines.join("\n");
 }
 
 function gate(id, label, script, hard) {
   return Object.freeze({ command: `npm run ${script}`, hard, id, label, script });
 }
 
+function fix(id, label, script) {
+  return Object.freeze({ command: `npm run ${script}`, id, label, script });
+}
+
 export {
+  CLOSEOUT_FIXES,
   CLOSEOUT_GATES,
+  formatCloseoutFixSummary,
   formatCloseoutSummary,
+  runCloseoutFixes,
   runCloseoutGates,
 };

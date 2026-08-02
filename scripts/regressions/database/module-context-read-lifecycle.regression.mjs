@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.module-context-read-lifecycle",
   area: "database",
   tier: "focused",
-  tags: ["lifecycle", "modules", "performance", "workspace"],
+  tags: ["baseline-bypass", "lifecycle", "modules", "performance", "workspace"],
   description: "Proves module-context reads perform zero writes, workspace module rows are ensured by the startup and workspace-creation lifecycle, enable/disable stays immediately visible through the context cache, and repeated request-scoped settings reads hit the memo.",
   runMode: "isolated-database",
 });

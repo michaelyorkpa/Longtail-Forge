@@ -1,3 +1,238 @@
+## Version 0.33.27.7.8 - 2026-08-01
+
+- Added a fail-closed `nightly-proof-v1` contract for normal promotion and
+  scheduled Nightly reuse. Repository, workflow/ref and workflow checksum,
+  exact SHA, required successful jobs, run conclusion and age, release
+  metadata, retained artifact names, policy version, and artifact/metadata
+  checksums must all agree; every hotfix, ambiguity, expiry, cancellation,
+  failure, mismatch, or policy change runs the complete path.
+- Replaced four implicit promotion artifact builds with one exact-SHA artifact
+  source: accepted promotion downloads the retained Nightly bundle, while
+  fallback and hotfix paths build once. Runtime-artifact, bare-metal,
+  container, and backup recovery jobs run independently and the protected
+  `Packaging and recovery` result aggregates them without changing its name.
+- Added external `--artifact` inputs to the runtime-artifact, bare-metal, and
+  container smokes, plus job-owned npm caches for nested production installs.
+  The same checksummed local artifact passed all three replacement/rollback
+  consumers; Docker required one retry after a transient Desktop metadata lock.
+- Added finite timeouts to every release-workflow job, cancellation-safe main
+  release and CodeQL concurrency, shallow checkout where history is not read,
+  lock-scoped Playwright/npm caches, and a digest-reverified Caddy cache.
+  Shared ESLint result and Docker clean-build caches remain deliberately
+  rejected at their poisoning/proof boundaries.
+- Removed duplicate CodeQL push scans after live branch-protection inspection
+  confirmed `CodeQL JavaScript analysis` remains required through PR triggers
+  on both `nightly` and `main`. Required names and the no-`paths-ignore`
+  contract are unchanged.
+- Closed the regression-efficiency branch with 427/427 regressions in 152.08
+  seconds, 174 isolated-database owners in 101.13 seconds, 29 scoped release
+  owners in 7.70 seconds, 409 permission checks, and 129/129 Playwright tests
+  in 1.5 minutes. The 90-110/50-60-second aspirations remain honestly missed;
+  complete process/data owners were retained instead of weakened.
+- Measured the last normal promotion at 5.3 minutes wall and about 11.9
+  combined promotion-plus-CodeQL runner-minutes. Exact-SHA reuse removes the
+  duplicate full/browser gates and reduces promotion artifact builds from four
+  to zero on reuse or one on fallback; the much larger 30-60-minute recovery
+  target was not claimable from the actual baseline.
+- Retained the five-bucket canonical full result and separate seven-second
+  classifier after matrix/inlining evaluation found no justified isolation,
+  aggregation, fail-fast, or cost trade for the now-reused normal path.
+- Docs updated: `docs/regression-suite.md`,
+  `docs/regression-suite-performance.md`,
+  `docs/development/github-workflow.md`, `docs/runtime-artifact.md`,
+  `docs/versioning.md`, and `DECISIONS.md`.
+
+## Version 0.33.27.7.7 - 2026-08-01
+
+- Added `worker.js` to the normal cached ESLint source set and its fail-closed
+  required-glob guardrail.
+- Replaced the permissive Files Vitest filter with the exact 40-test Files
+  contract suite, so missing Files coverage can no longer pass as an empty
+  selection.
+- Corrected the permission-harness contract: it remains separate from
+  `npm run check` and is added once only for permission-owned slice changes or
+  explicit CI/release gates.
+- Replaced 18 in-body Playwright viewport skips with nine explicit mobile-only
+  and nine desktop-only tags. Discovery now selects 129 intended tests (64 per
+  viewport plus authentication setup) before browser setup while preserving
+  dual-viewport login, accessibility, and shared workflow coverage.
+- Pinned browser execution to a measured shared-server-safe two-worker bound,
+  with zero local retries or one CI retry and first-retry traces. A six-worker
+  probe produced three transient failures that all passed together at two;
+  failure screenshots and the required `Browser smoke and accessibility`
+  check name remain protected.
+- Replaced Playwright's Windows shell-wrapped managed-server teardown with one
+  direct-Node process owner for full, UI, and accessibility commands. It waits
+  for readiness and guarantees bounded cleanup; the full 129-test suite passed
+  in 1.4 minutes and left no listener on port 8101 after two earlier green test
+  lists had timed out only in the old teardown path.
+- Replaced Playwright's Windows shell-wrapped managed-server teardown with one
+  direct-Node process owner for full, UI, and accessibility commands. It waits
+  for readiness and guarantees bounded cleanup; a focused login pass returned
+  green and left no listener after two complete 129-test lists had otherwise
+  timed out only after every assertion passed.
+- Adopted Vitest's host-aware 50% threads pool after three repeats retained all
+  13 files and 184 tests while reducing the measured median wrapper wall time
+  from 6.389 to 3.951 seconds on the same workstation.
+- Docs updated: `docs/e2e-testing.md`, `docs/regression-suite.md`,
+  `docs/regression-suite-performance.md`, and `DECISIONS.md`.
+
+## Version 0.33.27.7.6 - 2026-08-01
+
+- Rechecked the three archived Windows failures before editing: whole-instance
+  backup/restore, demo-host operation, and workspace backup all passed under
+  the current Windows `bsdtar`, but the unchanged archive owners still supplied
+  absolute drive-letter paths as tar archive operands and therefore retained
+  the historical GNU tar remote-shell failure mode.
+- Added one shared local-tar boundary that runs from the archive directory and
+  supplies only the archive basename after `-f`; Windows drive colons no longer
+  reach the archive operand, while flags, staging paths, entry layout, and the
+  compressed tar format remain unchanged on Windows and POSIX systems.
+- Routed whole-instance create/list/extract and workspace create/list/extract
+  through that boundary without changing traversal validation, link/type
+  rejection, checksum verification, database-and-Files unity, pre-restore
+  backup, rollback, migration identity, or operator semantics.
+- Added focused platform-independent Windows drive-letter and POSIX operand
+  coverage. The three named end-to-end regressions pass after the repair, and
+  the installation database reports `PRAGMA integrity_check = ok`.
+- Docs updated: `docs/regression-suite.md`.
+- No docs change needed: `docs/backup-restore.md`,
+  `docs/backup-and-restore.md`, and `docs/workspace-backup.md` already describe
+  the unchanged supported archive and operator contracts; this repair changes
+  only how the local tar process receives an archive filesystem path.
+
+## Version 0.33.27.7.5 - 2026-08-01
+
+- Made ordinary closeout the single automatic execution owner for version,
+  parameter-binding, licensing, bundled-module catalog, and generated-manifest
+  validation while preserving every direct diagnostic and synthetic failure
+  path.
+- Retired duplicate suite execution of the direct version guard and merged the
+  legacy coverage-ratchet fixtures into the convention-path manifest owner with
+  credited retirement, required-gate, and raised floor evidence.
+- Consolidated 534 package/lock version assertions, 187 legacy membership
+  checks, 49 dynamic current-changelog checks, 57 exact root package-script
+  pins, repeated TypeScript facts, and duplicate pure asset-version examples
+  behind named owners with machine-readable source and assertion movements.
+- Made version scanning enumerate tracked and non-ignored files before reads,
+  exclude historical paths before size checks, and fail explicitly instead of
+  silently skipping included files at or above the two-megabyte ceiling.
+- Added cached explicit source/Markdown reads, balanced function extraction,
+  and ordered literal checks; targeted greedy-pattern counts fell from 170 to
+  159, 138 to 121, and 125 to 119 while untouched cross-region cases remain
+  recorded for later behavior-specific review.
+- Direct samples fell from 418 to 211 ms for parameter binding and 882 to 662 ms
+  for licensing after removing one child process from each; the full path also
+  removes the duplicate roughly 2.7-second version-guard execution.
+- Docs updated: `docs/regression-suite.md`,
+  `docs/regression-suite-performance.md`.
+- No docs change needed: user Help, runtime/security behavior, security-event
+  semantics, development/demo data, database schema, licensing policy,
+  deployment, backup/recovery, and module workflows are unchanged; this slice
+  consolidates developer validation and source-test ownership only.
+
+## Version 0.33.27.7.4 - 2026-08-01
+
+- Added an explicit reviewed regression-floor ratchet that derives global,
+  per-area, release-gate, and coverage-family floors from active discovery plus
+  credited retirements, rejects every decrease, and makes ordinary generation
+  and checking fail visibly when floors lag without mutating policy.
+- Fixed the credited-retirement self-test formula and removed hand-maintained
+  aggregate registry and bucket-count assertions while retaining exact generated
+  membership, uniqueness, populated-area, required-ID, retirement, and floor
+  invariants.
+- Added one delimited generated numeric inventory in the regression-suite
+  contract with independent write/check commands and one canonical
+  `convention-path metadata regressions` phrase.
+- Added `closeout --fix` for the enumerated manifest, documentation-inventory,
+  module-catalog, and schema-snapshot outputs plus opt-in `--fail-fast`; default
+  closeout still reports every hard and warning-only gate, and policy/history
+  documents remain outside automatic editing.
+- Corrected the version helper and versioning workflow to cover changelog and
+  owning docs, roadmap archive/cursor handoff, reviewed manifest generation,
+  exactly one final `npm run verify:slice`, and runtime proof without directing
+  duplicate `version:guard` or `npm run check` runs.
+- Docs updated: `DECISIONS.md`, `docs/docs-ownership.json`,
+  `docs/regression-suite.md`, `docs/versioning.md`.
+- No docs change needed: user Help, runtime/security behavior, security-event
+  semantics, development/demo data, database schema, deployment, GitHub workflow
+  policy, backup/recovery behavior, and module workflows are unchanged; this
+  slice changes developer coverage inventory and closeout ceremony only.
+
+## Version 0.33.27.7.3 - 2026-08-01
+
+- Added independently runnable regression commands for every populated canonical
+  area, including the previously missing Time Tracking command and new Search,
+  Tags, Lists, jobs, Notifications, public API, and licensing commands.
+- Replaced broad permission/session/workspace/membership filename matching with
+  explicit authority paths and added precise product ownership for every newly
+  routable area while keeping cross-cutting matches additive.
+- Routed existing regressions through generated manifest ownership, retained
+  both sides of renames and deleted paths through Git name-status collection,
+  and kept unknown non-empty changes on a fail-safe full fallback.
+- Preserved complete escalation for Files, permissions, public API authority,
+  repositories/database, shared framework/views/jobs, generated contracts,
+  executable package/release tooling, and non-version package changes; permission
+  ownership still schedules the separate harness exactly once.
+- Expanded table-driven routing proof across all positive owners, overlaps,
+  false-positive names, rename/delete cases, generated contracts, bookkeeping,
+  runner self-edits, unknown fallback, and the shared advice/local/verify/CI
+  consumer chain.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`.
+- No docs change needed: user Help, runtime/security behavior, security-event
+  semantics, development/demo data, database schema, GitHub workflow policy,
+  deployment, and module workflows are unchanged; this slice changes only
+  developer regression routing and package-command coverage.
+
+## Version 0.33.27.7.2 - 2026-08-01
+
+- Added a fail-closed, pipe-attested regression template fast path that copies
+  the runner's exact closed SQLite baseline before provider open and skips only
+  redundant migration locking, repair, source/hash, and applied-checksum work.
+- Bound eligible copies to runner parent identity, temp paths, size, SHA-256,
+  complete applied-migration identity, integrity, foreign keys, and a one-shot
+  descriptor that nested processes cannot inherit; direct, production,
+  environment-only, existing-target, stale, forged, and tampered paths retain
+  the full chain or fail closed.
+- Audited every migration-baseline bypass and nested environment opt-out,
+  removed redundant repository/service deletions, classified genuine
+  compatibility, custom-bootstrap, and seeded-child owners, and made verified
+  disposable-fixture reuse a tested supported path including an explicit static
+  fixture consumer.
+- Added copied-database checksum/migration identity, `PRAGMA integrity_check`,
+  foreign-key, cleanup, and trust-boundary regressions. The same-turn normal
+  six-worker isolated bucket improved from 121.95 to 109.36 seconds while
+  growing from 173 to 174 scripts; no failures or recoveries occurred.
+- Docs updated: `DECISIONS.md`, `docs/database.md`,
+  `docs/regression-suite.md`, `docs/regression-suite-performance.md`.
+- No docs change needed: user Help, module workflows, deployment, backup,
+  development/demo-data behavior, security-event behavior, and runtime
+  configuration are unchanged; this is regression-only database-fixture
+  infrastructure.
+
+## Version 0.33.27.7.1 - 2026-07-31
+
+- Added one runner-owned temporary Node compile cache with deterministic cleanup,
+  overlapped regression-baseline prefetch with safe static work, and introduced
+  conservative host-aware static scheduling with an explicit serial override.
+- Reclassified seven resource-audited source/in-memory regressions as static and
+  all 28 stateful Files regressions as isolated after bounded repeat stress;
+  regression membership, cheap-first bucket order, fail-fast behavior, and the
+  isolated-database-only visible retry remain unchanged.
+- Removed avoidable Windows npm/cmd child hops for simple Node package scripts in
+  closeout and changed-regression execution while preserving composed-script npm
+  fallback and every independently runnable public package command.
+- Replaced brittle exact bucket-size assertions with exact flattened membership,
+  uniqueness, and safety-floor invariants. The refreshed 424-script baseline was
+  171.76 seconds; repeatable post-change runs were 155.66 and 150.93 seconds with
+  zero failures or recoveries, and the complete Files family fell from 47.66 to
+  16.72 seconds.
+- Docs updated: `DECISIONS.md`, `docs/regression-suite.md`,
+  `docs/regression-suite-performance.md`.
+- No docs change needed: user Help, module workflows, routes, database schema,
+  deployment operations, backup behavior, and runtime configuration are
+  unchanged; this is release-runner and developer-workflow infrastructure.
+
 ## Version 0.33.27.6 - 2026-07-31
 
 - Completed the forward UUIDv7 compatibility closeout with legacy UUIDv4

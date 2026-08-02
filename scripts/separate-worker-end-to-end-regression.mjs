@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -19,10 +18,7 @@ process.env.LONGTAIL_JOB_POLL_INTERVAL_MS = "1000";
 process.env.LONGTAIL_WORKER_ID = "regression-main-process";
 process.env.SUPER_ADMIN_PASSWORD = "Separate-Worker-E2E-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -30,7 +26,6 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const appSource = readText("src/core/app.js");
 const dbIndexSource = readText("src/db/index.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase, db, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -67,9 +62,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the separate-worker end-to-end version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the separate-worker end-to-end version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the separate-worker end-to-end version");
 
   assert.match(workerCliSource, /initializeWorkerDatabase/, "separate worker should verify worker schema readiness");
   assert.doesNotMatch(workerCliSource, /\binitializeDatabase\b/, "separate worker CLI must not own app migrations");
@@ -86,9 +78,7 @@ function assertStaticContract() {
   assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");
   assert.match(appSource, /config\.worker\.mode === "disabled"[\s\S]*state=disabled/, "app disabled mode should report that jobs will not process");
-  assert.match(regressionSuite, /scripts\/separate-worker-end-to-end-regression\.mjs/, "regression suite should include separate-worker end-to-end coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the separate-worker end-to-end slice");
   assert.match(architectureDocs, /0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "architecture docs should document separate-worker validation");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "database docs should document separate-worker validation");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "runtime docs should document the proved separate-worker behavior");
@@ -652,8 +642,4 @@ function cleanEnv(overrides = {}) {
     SUPER_ADMIN_PASSWORD: "Separate-Worker-E2E-Test-123!",
     ...overrides,
   };
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

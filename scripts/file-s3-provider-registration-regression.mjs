@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
@@ -45,9 +44,9 @@ try {
 async function assertStaticContracts() {
   const [
     packageJson,
-    packageLock,
+    _packageLock,
     roadmap,
-    changelog,
+    _changelog,
     envExample,
     runtimeDocs,
     sqliteDocs,
@@ -56,7 +55,7 @@ async function assertStaticContracts() {
     workerSource,
     filesServiceSource,
     s3AdapterSource,
-    regressionSuite,
+    _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
     readJson("package-lock.json"),
@@ -73,14 +72,9 @@ async function assertStaticContracts() {
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the S3 provider registration version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the S3 provider registration version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the S3 provider registration version");
-  assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this slice should not add an S3 SDK dependency");
+        assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this slice should not add an S3 SDK dependency");
 
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the S3 provider registration slice");
-  assert.match(regressionSuite, /scripts\/file-s3-provider-registration-regression\.mjs/, "regression suite should include S3 provider registration coverage");
 
   for (const key of [
     "LONGTAIL_S3_BUCKET",

@@ -3,16 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  DEFAULT_HELPER_ENV,
-  assertProtectedFile,
-  parseDemoDataArgs,
-  parseDemoHelperConfig,
-  prepareDemoHostContext,
-  redactDemoError,
-  resolveDemoPaths,
-  runDemoDataOperation,
-} from "./lib/demo-data-operation.mjs";
+import { DEFAULT_HELPER_ENV, assertProtectedFile, parseDemoDataArgs, parseDemoHelperConfig, prepareDemoHostContext, redactDemoError, resolveDemoPaths, runDemoDataOperation } from "./lib/demo-data-operation.mjs";
 
 const scriptPath = await fs.realpath(fileURLToPath(import.meta.url));
 const invokedScriptPath = process.argv[1]

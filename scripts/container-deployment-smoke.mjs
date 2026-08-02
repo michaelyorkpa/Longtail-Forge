@@ -22,12 +22,13 @@ assertDockerAvailable();
 
 try {
   const previous = await buildContainerImage({
-    artifactPath: args.previousArtifact,
+    artifactPath: args.previousArtifact || args.artifact,
     noCache: true,
     pull: args.pull,
     tag: previousImage,
   });
   const candidate = await buildContainerImage({
+    artifactPath: args.artifact,
     noCache: true,
     pull: args.pull,
     tag: candidateImage,
@@ -362,9 +363,11 @@ function requestApi(port, pathname, options = {}) {
 }
 
 function parseArgs(cliArgs) {
-  const parsed = { previousArtifact: undefined, pull: false };
+  const parsed = { artifact: undefined, previousArtifact: undefined, pull: false };
   for (let index = 0; index < cliArgs.length; index += 1) {
-    if (cliArgs[index] === "--previous-artifact") {
+    if (cliArgs[index] === "--artifact") {
+      parsed.artifact = cliArgs[++index];
+    } else if (cliArgs[index] === "--previous-artifact") {
       parsed.previousArtifact = cliArgs[++index];
     } else if (cliArgs[index] === "--pull") {
       parsed.pull = true;

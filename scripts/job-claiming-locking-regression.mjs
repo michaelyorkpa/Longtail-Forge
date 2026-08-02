@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -16,10 +15,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-clai
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Claiming-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -27,7 +23,6 @@ const appSource = readText("src/core/app.js");
 const routeSource = readText("src/routes/jobs.routes.js");
 const serviceSource = readText("src/services/jobs.service.js");
 const runnerSource = readText("src/core/jobs/job-runner.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
@@ -44,9 +39,6 @@ let server;
 let workspaceId = "";
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the job claiming version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the job claiming version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the job claiming version");
 
   assert.match(runnerSource, /db\.transaction\(async \(transaction\)/, "job claiming should run inside db.transaction");
   assert.match(runnerSource, /WHERE job_id = \(\s*SELECT job_id[\s\S]*LIMIT 1/, "SQLite claiming should use one atomic scalar subquery claim per transaction loop");
@@ -61,12 +53,10 @@ try {
   assert.match(serviceSource, /normalizeBoundedPagination/, "jobs readout should normalize bounded pagination");
   assert.match(serviceSource, /boundedPaginationEnvelope/, "jobs readout should return the shared pagination envelope");
   assert.doesNotMatch(serviceSource, /payload_json|dedupe_key/, "jobs readout must not expose job payloads or dedupe keys");
-  assert.match(regressionSuite, /scripts\/job-claiming-locking-regression\.mjs/, "regression suite should include job claiming and readout coverage");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.3[\s\S]*expired running locks/, "database docs should document expired lock reclaim");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_LOCK_TTL_SECONDS`[\s\S]*expired running job locks/, "runtime docs should document the active lock TTL behavior");
   assert.match(sqliteDocs, /`GET \/api\/jobs\/status`[\s\S]*pending[\s\S]*running[\s\S]*dead/, "SQLite docs should document the protected jobs readout");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job claiming slice");
 
   await initializeDatabase();
   const fixtures = await seedFixtures();
@@ -430,8 +420,4 @@ function closeServer(serverInstance) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

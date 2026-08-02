@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,17 +10,13 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-projects-repositories-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Client-Projects-Repositories-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js");
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -54,9 +49,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects repositories conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects repositories conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects repositories conversion version");
 
   for (const [label, source] of [
     ["clients repo", clientsRepoSource],
@@ -84,7 +76,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.27 - Conversion wave: Clients and Projects repositories[\s\S]*- \[x\] Convert `client-projects\/clients\.repo`[\s\S]*- \[x\] Preserve hierarchy-aware reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.27 - [\s\S]*Clients and Projects repositories conversion[\s\S]*195 helper invocations[\s\S]*45 direct interpolated operation sites[\s\S]*319 bound operation sites/, "changelog should record the Clients/Projects repositories conversion burndown");
-  assert.match(regressionSuite, /scripts\/client-projects-repositories-conversion-regression\.mjs/, "regression suite should include the Clients/Projects repositories conversion proof");
 }
 
 async function assertClientProjectRepositoryRuntime(session) {

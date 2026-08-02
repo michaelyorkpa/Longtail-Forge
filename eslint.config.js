@@ -34,7 +34,7 @@ export default [
     ],
   },
   {
-    files: ["src/**/*.js", "server.js", "scripts/**/*.mjs", "tests/**/*.mjs", "vitest.config.mjs", "playwright.config.js", "eslint.config.js"],
+    files: ["src/**/*.js", "server.js", "worker.js", "scripts/**/*.mjs", "tests/**/*.mjs", "vitest.config.mjs", "playwright.config.js", "eslint.config.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

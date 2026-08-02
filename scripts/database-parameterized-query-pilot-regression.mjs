@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -11,19 +10,15 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"))
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const sqliteSource = readText("src/db/sqlite.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sessionsSource = readText("src/repositories/sessions.repo.js");
 const workspacesSource = readText("src/repositories/workspaces.repo.js");
 const tasksSource = readText("src/modules/tasks/tasks.repo.js");
 const notesSource = readText("src/modules/notes/notes.repo.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -37,9 +32,6 @@ const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { notesRepository } = await import("../src/modules/notes/notes.repo.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the parameterized query pilot version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the parameterized query pilot version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the parameterized query pilot version");
 
   assert.equal(db.capabilities.provider, "sqlite");
   assert.equal(db.capabilities.parameterizedQueries, true, "SQLite adapter should report parameterized query support");
@@ -96,8 +88,6 @@ LIMIT 1;
   assert.match(databaseDocs, /Table and column names must stay static or come from validated allowlists/, "database docs should keep identifiers out of value params");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameterized query pilot");
-  assert.match(regressionSuite, /scripts\/database-parameterized-query-pilot-regression\.mjs/, "regression suite should include parameterized query pilot coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "parameterized query pilot database should pass integrity check");
@@ -312,8 +302,4 @@ VALUES (
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

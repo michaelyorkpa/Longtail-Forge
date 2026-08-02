@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
+  resolveStaticRegressionParallelism,
   resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
   runLimitedItems,
 } from "./test-support/regression-runner-scheduler.mjs";
+import {
+  cleanupRegressionNodeCompileCache,
+  prepareRegressionNodeCompileCache,
+} from "./test-support/regression-runtime-resources.mjs";
 import {
   ISOLATED_RETRY_LIMIT,
   runIsolatedItemsWithRetry,
@@ -24,7 +31,6 @@ const dialectGuardrail = await readProjectFile("scripts/dialect-enforcement-guar
 const discoverySupport = await readProjectFile("scripts/lib/regression-discovery.mjs");
 const metadataSupport = await readProjectFile("scripts/lib/regression-metadata.mjs");
 const runnerOptionsSupport = await readProjectFile("scripts/lib/regression-runner-options.mjs");
-const packageJson = JSON.parse(await readProjectFile("package.json"));
 
 const staticBucket = bucketByName("static/source regressions");
 const defaultDatabaseBucket = bucketByName("default database regressions");
@@ -49,16 +55,6 @@ assert.deepEqual(
   "fast-fail ordering should retain every discovered script exactly once",
 );
 
-assert.equal(
-  packageJson.scripts.check,
-  "npm run check:fast && npm run test:regressions",
-);
-assert.equal(packageJson.scripts["check:fast"], "npm run typecheck && npm run test:unit && npm run lint");
-assert.equal(
-  packageJson.scripts.lint,
-  "eslint . --cache --cache-strategy content --cache-location .eslintcache",
-  "lint should use the same cached ESLint contract as npm run check",
-);
 assert.ok(staticBucket.concurrency > 1, "static source regressions should stay parallel");
 assert.equal(defaultDatabaseBucket.mode, "serial", "default database regressions should remain serial");
 assert.equal(fileStorageBucket.mode, "serial", "file storage regressions should remain serial");
@@ -86,14 +82,24 @@ assert.ok(
 assert.match(runner, /prepareRegressionBaselineDatabase/);
 assert.match(runner, /regressionBaselinePromise/, "runner should share one in-flight baseline preparation across parallel scripts");
 assert.match(runner, /regressionBaselinePromise = prepareRegressionBaselineDatabase\(\)/, "parallel isolated startup should not prepare multiple baseline databases");
-assert.match(runner, /createScriptEnv\(entry, bucket, scriptIndex, runContext\)/);
+assert.match(runner, /void getRegressionBaseline\(\)\.catch/, "baseline preparation should overlap the static bucket without producing an unhandled rejection");
+assert.match(runner, /createScriptLaunch\(entry, bucket, scriptIndex, runContext\)/);
+assert.match(runner, /VERIFIED_BASELINE_PRELOADER/, "runner should preload the one-shot baseline handshake before the regression entrypoint");
+assert.match(runner, /stdio: launch\.verifiedBaselineHandshake[\s\S]*"pipe"/, "runner should deliver the verified baseline attestation over a dedicated inherited pipe");
+assert.match(databaseFixtureSupport, /createVerifiedRegressionBaselineHandshake/, "runner baseline preparation should bind the closed template to a verified handshake");
+assert.match(databaseFixtureSupport, /PRAGMA integrity_check/, "runner baseline preparation should prove SQLite integrity before attestation");
+assert.match(databaseFixtureSupport, /PRAGMA foreign_key_check/, "runner baseline preparation should prove foreign-key integrity before attestation");
+assert.match(runner, /NODE_COMPILE_CACHE: nodeCompileCacheDirectory/, "every spawned regression should share the runner-owned compile cache");
+assert.match(runner, /cleanupRegressionNodeCompileCache\(nodeCompileCacheDirectory\)/, "the runner should clean its compile cache at finalization");
 assert.match(runner, /namespace: scriptEnvNamespace\(bucket, runContext\)/, "runner should namespace isolated DB fixtures by bucket and repeat pass");
 assert.match(runner, /LTF_REGRESSION_TIMING_JSON/);
 assert.match(databaseFixtureSupport, /path\.join\(root, "script-data", namespace/, "database fixture should include the runner namespace in script data paths");
 assert.match(databaseFixtureSupport, /function sanitizePathSegment/, "database fixture should sanitize namespace and script path segments");
 assert.match(runnerSchedulerSupport, /LTF_ISOLATED_REGRESSION_PARALLELISM/);
 assert.match(runnerSchedulerSupport, /LTF_ISOLATED_FILES_PARALLELISM/);
+assert.match(runnerSchedulerSupport, /LTF_STATIC_REGRESSION_PARALLELISM/);
 assert.match(runnerSchedulerSupport, /LTF_REGRESSION_PARALLELISM/);
+assert.match(runner, /resolveStaticRegressionParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
 assert.match(runner, /resolveIsolatedRegressionParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
 assert.match(runner, /resolveIsolatedFilesParallelism\(\{ fallbackParallelism: bucket\.concurrency \}\)/);
 assert.match(runner, /runLimitedItems\(/);
@@ -132,6 +138,35 @@ assert.match(parameterBindingAudit, /from "\.\/test-support\/source-scan\.mjs"/,
 assert.match(interpolationGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
 assert.match(dialectGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
 assert.match(runnerSchedulerSupport, /AUTO_ISOLATED_PARALLELISM_CAP = 6/, "isolated auto-tuning should keep a conservative cap");
+assert.match(runnerSchedulerSupport, /AUTO_STATIC_PARALLELISM_CAP = 8/, "static auto-tuning should keep a conservative host-aware cap");
+
+assert.deepEqual(
+  resolveStaticRegressionParallelism({
+    availableParallelism: 12,
+    env: {},
+    fallbackParallelism: 6,
+  }),
+  { parallelism: 8, source: "auto:12-available" },
+  "static scheduling should use a conservative two-thirds host default up to eight workers",
+);
+assert.deepEqual(
+  resolveStaticRegressionParallelism({
+    availableParallelism: 12,
+    env: { LTF_REGRESSION_PARALLELISM: "7", LTF_STATIC_REGRESSION_PARALLELISM: "1" },
+    fallbackParallelism: 6,
+  }),
+  { parallelism: 1, source: "LTF_STATIC_REGRESSION_PARALLELISM" },
+  "the static-specific override should retain an explicit serial diagnosis mode",
+);
+assert.equal(
+  resolveStaticRegressionParallelism({
+    availableParallelism: 12,
+    env: { LTF_REGRESSION_PARALLELISM: "5" },
+    fallbackParallelism: 6,
+  }).parallelism,
+  5,
+  "the shared regression parallelism override should also control static work",
+);
 
 const autoParallelism = resolveIsolatedRegressionParallelism({
   availableParallelism: 12,
@@ -176,6 +211,18 @@ assert.equal(
   2,
   "auto-tuning should not exceed available workers on small machines",
 );
+
+const runtimeResourceParent = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-regression-runtime-proof-"));
+try {
+  const compileCache = await prepareRegressionNodeCompileCache({ parentDirectory: runtimeResourceParent });
+  assert.equal(path.dirname(compileCache), runtimeResourceParent, "compile cache should live under the caller-owned OS-temp boundary");
+  assert.notEqual(path.dirname(compileCache), process.cwd(), "compile cache must not live in the checkout");
+  await fs.writeFile(path.join(compileCache, "proof.cache"), "runner-owned");
+  await cleanupRegressionNodeCompileCache(compileCache);
+  await assert.rejects(fs.stat(compileCache), { code: "ENOENT" }, "compile cache cleanup should remove the complete owned directory");
+} finally {
+  await fs.rm(runtimeResourceParent, { force: true, recursive: true });
+}
 
 const observedIndexes = await runLimitedItems(["first", "second", "third"], 2, async (script, scriptIndex) => ({
   exitCode: 0,

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -15,10 +14,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-i
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Search-Index-Jobs-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
@@ -28,7 +24,6 @@ const searchJobsSource = readText("src/services/search-index-jobs.service.js");
 const syncSource = readText("src/services/search-index-sync.service.js");
 const routeSource = readText("src/routes/search-index.routes.js");
 const searchScript = readText("public/js/search.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { clearSearchIndexersForTests, registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");
@@ -51,9 +46,6 @@ const { activateModuleRuntime } = await import("../src/core/modules/module-runti
 let server;
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the search index jobs version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the search index jobs version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the search index jobs version");
 
   assert.match(searchJobsSource, /SEARCH_INDEX_JOB_TYPE = "search\.index"/, "search indexing should have one durable job type");
   assert.match(searchJobsSource, /registerJobHandler\(SEARCH_INDEX_JOB_TYPE/, "search indexing should register a worker handler");
@@ -70,9 +62,7 @@ try {
   assert.match(appSource, /registerSearchIndexJobHandlers/, "app startup should register search index job handlers");
   assert.match(workerCliSource, /registerSearchIndexJobHandlers/, "separate worker startup should register search index job handlers");
   assert.doesNotMatch(appSource, /searchIndexRebuildService\.rebuildApp|scheduleStartupSearchIndexRebuild/, "normal startup must not run a full synchronous app rebuild");
-  assert.match(regressionSuite, /scripts\/search-index-jobs-regression\.mjs/, "regression suite should include search index job coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the search index jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.4[\s\S]*search\.index/, "architecture docs should document search indexing jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.4[\s\S]*Search indexing uses the durable job runner/, "database docs should document the search job handoff");
   assert.match(moduleDocs, /Search indexing side effects are queued as durable jobs/, "module docs should document queued search indexing");
@@ -319,8 +309,4 @@ function closeServer(activeServer) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

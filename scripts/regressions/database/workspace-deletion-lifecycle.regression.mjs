@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.workspace-deletion-lifecycle",
   area: "database",
   tier: "release-gate",
-  tags: ["audit", "backup", "database", "permissions", "sessions", "workspaces"],
+  tags: ["audit", "backup", "baseline-bypass", "database", "permissions", "sessions", "workspaces"],
   description: "Proves authorized workspace-deletion requests are backup-aware, restart-durable, operational during the 30-day grace period, cancelable before the boundary, and non-destructive.",
   runMode: "isolated-database",
 });

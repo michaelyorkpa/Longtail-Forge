@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
@@ -20,11 +17,7 @@ const viewContract = readText("docs/view-building-contract.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const relationshipRegression = readText("scripts/task-relationships-regression.mjs");
 const linkedPanelRegression = readText("scripts/notes-linked-panel-regression.mjs");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const appendContext = functionBlock(tasksScript, "appendTaskContext");
@@ -92,7 +85,6 @@ assert.match(notesDocs, /Tasks module mounts this helper[\s\S]*Task-created note
 assert.match(moduleContract, /0\.33\.5\.18\.10\.4[\s\S]*Task relationship and linked-note display/, "Module contract should document the 10.4 ownership boundary");
 assert.match(viewContract, /createLinkedContextList/, "View-building contract should document the linked-context read-list helper");
 assert.match(declarativeGuide, /0\.33\.5\.18\.10\.4[\s\S]*createLinkedContextList/, "Declarative guide should document the 10.4 linked-context helper boundary");
-assert.match(regressionSuite, /scripts\/tasks-relationship-linked-context-regression\.mjs/, "Regression suite should include the relationship and linked-context cleanup regression");
 
 console.log("Tasks relationship and linked context regression passed.");
 

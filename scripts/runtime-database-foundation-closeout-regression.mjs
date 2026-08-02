@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -6,19 +5,13 @@ import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the runtime/database closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime/database closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime/database closeout version");
 
 assert.doesNotMatch(
   roadmap,
@@ -73,7 +66,6 @@ assert.match(
   "the deferred PostgreSQL/database-extraction work should inherit the 0.33.5.19 seam and carry the migration advisory-lock boundary",
 );
 
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the runtime/database closeout");
 assert.match(changelog, /archived the completed 0\.33\.5\.19 roadmap branch/, "changelog should record the roadmap archive handoff");
 assert.match(changelog, /Runtime configuration, SQLite hardening, database adapter, parameter pilot, transaction pilot, migration locking, diagnostics, and small-office readout/, "changelog should summarize the verified foundation");
 
@@ -99,14 +91,9 @@ assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite smal
 assert.match(sqliteDocs, /roughly 50 total users[\s\S]*5-15 concurrent users/i, "SQLite small-office docs should keep the support target");
 assert.match(sqliteDocs, /Runtime Diagnostics panel[\s\S]*does not edit runtime configuration/i, "SQLite docs should keep diagnostics read-only");
 
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "regression suite should include the consolidated static closeout regression");
 
 console.log("Runtime/database foundation closeout regression passed.");
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

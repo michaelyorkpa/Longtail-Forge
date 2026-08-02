@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -14,15 +13,11 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-outbox-schema.db");
 process.env.SUPER_ADMIN_PASSWORD = "Job-Outbox-Schema-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const currentSchema = readText("src/db/schema/current.sql");
 const migrationSql = readText(migrationFile);
 const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 let cachedWorkspaceId = "";
 
 const {
@@ -34,19 +29,14 @@ const {
 } = await import("../src/db/index.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the job/outbox schema version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the job/outbox schema version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the job/outbox schema version");
 
   assert.doesNotMatch(currentSchema, /\bCREATE TABLE jobs\b/, "frozen current.sql baseline should not be edited for the job/outbox schema");
   assert.match(migrationSql, /\bCREATE TABLE jobs\b/, "core migration should create the durable jobs table");
   assert.match(migrationSql, /\bCREATE UNIQUE INDEX idx_jobs_active_dedupe\b[\s\S]*status IN \('pending', 'running', 'failed'\)/, "migration should enforce active dedupe only for retryable/in-flight work");
-  assert.match(regressionSuite, /scripts\/job-outbox-schema-regression\.mjs/, "regression suite should include the job/outbox schema regression");
-  assert.match(databaseDocs, /As of version 0\.33\.5\.21\.1[\s\S]*`jobs`[\s\S]*pending[\s\S]*running[\s\S]*completed[\s\S]*failed[\s\S]*dead/i, "database docs should explain the shipped job states");
+    assert.match(databaseDocs, /As of version 0\.33\.5\.21\.1[\s\S]*`jobs`[\s\S]*pending[\s\S]*running[\s\S]*completed[\s\S]*failed[\s\S]*dead/i, "database docs should explain the shipped job states");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.2[\s\S]*framework-owned `jobs` table[\s\S]*v1 worker runner/, "architecture docs should record the durable job table handoff into the worker runner");
   assert.match(databaseDocs, /table shipped as schema only in 0\.33\.5\.21\.1[\s\S]*v1 worker runner shipped in 0\.33\.5\.21\.2/, "database docs should preserve the schema-only handoff while documenting the worker runner");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job/outbox schema slice");
 
   await initializeDatabase();
   await assertMigrationRecorded();
@@ -245,8 +235,4 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

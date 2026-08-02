@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,15 +11,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-active-t
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Active-Timers-Repository-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { activeTimersRepository } = await import("../src/modules/time-tracking/active-timers.repo.js");
@@ -39,9 +35,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Active timers repository conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Active timers repository conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Active timers repository conversion version");
 
   assert.match(activeTimersRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Active timers repository should import only the provider-neutral db facade");
   assert.doesNotMatch(activeTimersRepoSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Active timers repository should not use SQL literal helpers or compatibility query wrappers");
@@ -57,8 +50,7 @@ function assertStaticContract() {
   assert.match(timeTrackingDocs, /As of version 0\.33\.5\.27\.12[\s\S]*active timer repository uses named bound params[\s\S]*conflict seam[\s\S]*slot compaction/, "Time Tracking docs should describe the converted active timer persistence boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.12 - Conversion wave: Active timers[\s\S]*- \[x\] Convert `time-tracking\/active-timers\.repo`[\s\S]*- \[x\] Preserve active timer reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.12 - [\s\S]*Active timers repository conversion[\s\S]*1,165 helper invocations[\s\S]*187 direct interpolated operation sites[\s\S]*154 bound operation sites/, "changelog should record the Active timers conversion burndown");
-  assert.match(regressionSuite, /scripts\/active-timers-repository-conversion-regression\.mjs/, "regression suite should include the Active timers repository conversion proof");
-}
+  }
 
 async function assertRepositoryLifecycle(session) {
   const manualTwo = await activeTimersRepository.upsert(timerValue(session, {

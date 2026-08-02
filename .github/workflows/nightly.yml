@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -18,14 +19,17 @@ jobs:
   classify_changes:
     name: Classify nightly changes
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       github_only_docs: ${{ steps.changes.outputs.github_only_docs }}
       runtime_help_changed: ${{ steps.changes.outputs.runtime_help_changed }}
+      revision: ${{ steps.revision.outputs.sha }}
+      reuse_exact_proof: ${{ steps.reuse.outputs.value }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
@@ -41,12 +45,38 @@ jobs:
             echo "github_only_docs=false" >> "$GITHUB_OUTPUT"
             echo "runtime_help_changed=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Record the exact checked-out nightly revision
+        id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Reuse only one complete exact-SHA proof for the scheduled preflight
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NIGHTLY_SHA: ${{ steps.revision.outputs.sha }}
+        run: |
+          echo "value=false" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then
+            exit 0
+          fi
+          if node scripts/release/nightly-proof.mjs select --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_REPOSITORY/.github/workflows/nightly.yml@refs/heads/nightly" --commit "$NIGHTLY_SHA" --token "$GH_TOKEN" --output "$RUNNER_TEMP/nightly-proof-selection.json"; then
+            RUN_ID="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runId")"
+            RUNTIME_NAME="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runtimeArtifactName")"
+            PROOF_NAME="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').proofArtifactName")"
+            mkdir -p "$RUNNER_TEMP/nightly-proof-bundle"
+            if gh run download "$RUN_ID" --name "$RUNTIME_NAME" --dir "$RUNNER_TEMP/nightly-proof-bundle" \
+              && gh run download "$RUN_ID" --name "$PROOF_NAME" --dir "$RUNNER_TEMP/nightly-proof-bundle" \
+              && node scripts/release/nightly-proof.mjs verify --directory "$RUNNER_TEMP/nightly-proof-bundle" --proof "$RUNNER_TEMP/nightly-proof-bundle/nightly-proof.json" --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_REPOSITORY/.github/workflows/nightly.yml@refs/heads/nightly" --commit "$NIGHTLY_SHA" --run-id "$RUN_ID"; then
+              echo "value=true" >> "$GITHUB_OUTPUT"
+              echo "Scheduled preflight accepted the unexpired exact-SHA proof; required jobs and retained artifact remain visible and verified."
+            fi
+          fi
 
   integration-gate:
     name: Nightly full gate
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     outputs:
       revision: ${{ steps.revision.outputs.sha }}
       artifact: ${{ steps.artifact.outputs.path }}
@@ -55,12 +85,15 @@ jobs:
         if: needs.classify_changes.outputs.github_only_docs == 'true'
         run: |
           echo "GitHub-only documentation changed; no runtime artifact, browser gate, or deployment is required."
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - name: Scheduled exact-SHA integration proof reuse
+        if: needs.classify_changes.outputs.reuse_exact_proof == 'true'
+        run: echo "The scheduled run verified an unexpired exact-SHA full-gate proof and retained artifact; application work is not repeated."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
-          fetch-depth: 0
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+          ref: ${{ needs.classify_changes.outputs.revision }}
+          fetch-depth: 1
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
@@ -69,28 +102,30 @@ jobs:
         if: needs.classify_changes.outputs.runtime_help_changed == 'true'
         run: |
           echo "Runtime Help changed; full validation, artifact creation, browser proof, and demo deployment remain required."
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
+        run: npm audit --audit-level=high
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch nightly
       - id: revision
         name: Record the exact nightly revision
-        run: echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+        run: echo "sha=${{ needs.classify_changes.outputs.revision }}" >> "$GITHUB_OUTPUT"
       - id: artifact
         name: Locate and describe the immutable artifact
-        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: |
           echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"
-          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$(git rev-parse HEAD)" --channel nightly --source-branch nightly --output dist/release-metadata.json
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "${{ needs.classify_changes.outputs.revision }}" --channel nightly --source-branch nightly --output dist/release-metadata.json
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nightly-${{ steps.revision.outputs.sha }}
@@ -106,26 +141,70 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: GitHub-only documentation browser fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
         run: |
           echo "GitHub-only documentation changed; no Playwright installation or browser execution is required."
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - name: Scheduled exact-SHA browser proof reuse
+        if: needs.classify_changes.outputs.reuse_exact_proof == 'true'
+        run: echo "The scheduled run verified one successful unexpired Nightly browser gate for this exact SHA and policy."
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+          ref: ${{ needs.classify_changes.outputs.revision }}
+          fetch-depth: 1
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: npx playwright install --with-deps chromium
-      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
+
+  publish-proof:
+    name: Publish exact-SHA nightly proof
+    if: >-
+      ${{
+        always()
+        && github.event_name == 'push'
+        && needs.classify_changes.result == 'success'
+        && needs.classify_changes.outputs.github_only_docs != 'true'
+        && needs.integration-gate.result == 'success'
+        && needs.browser-gate.result == 'success'
+      }}
+    needs: [classify_changes, integration-gate, browser-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.classify_changes.outputs.revision }}
+          fetch-depth: 1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: nightly-${{ needs.classify_changes.outputs.revision }}
+          path: dist
+      - name: Create the exact repository, workflow, SHA, policy, jobs, and artifact proof
+        env:
+          NIGHTLY_SHA: ${{ needs.classify_changes.outputs.revision }}
+        run: node scripts/release/nightly-proof.mjs create --directory dist --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_WORKFLOW_REF" --commit "$NIGHTLY_SHA" --run-id "$GITHUB_RUN_ID" --output dist/nightly-proof.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-proof-${{ needs.classify_changes.outputs.revision }}
+          if-no-files-found: error
+          retention-days: 14
+          path: dist/nightly-proof.json
 
   github-docs-no-deploy:
     name: GitHub-only docs - no deployment
@@ -140,6 +219,7 @@ jobs:
       }}
     needs: [classify_changes, integration-gate, browser-gate]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - run: echo "GitHub-only documentation is complete; no environment deployment was created."
 
@@ -153,9 +233,11 @@ jobs:
         && needs.classify_changes.outputs.github_only_docs != 'true'
         && needs.integration-gate.result == 'success'
         && needs.browser-gate.result == 'success'
+        && needs.publish-proof.result == 'success'
       }}
-    needs: [classify_changes, integration-gate, browser-gate]
+    needs: [classify_changes, integration-gate, browser-gate, publish-proof]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment: demo-development
     steps:
       - name: Check whether persistent demo deployment is configured

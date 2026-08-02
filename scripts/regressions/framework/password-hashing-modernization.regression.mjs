@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.password-hashing-modernization",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "passwords", "security"],
+  tags: ["authentication", "baseline-bypass", "passwords", "security"],
   description: "Proves new Argon2id hashes, bounded constant-time verification, legacy PBKDF2 login upgrades, safe rehash events, and centralized async credential writes.",
   runMode: "isolated-database",
 });

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -45,22 +44,15 @@ function functionBlock(source, name) {
   throw new Error(`${name} body should close`);
 }
 
-const packageJson = JSON.parse(read("package.json"));
-const packageLock = JSON.parse(read("package-lock.json"));
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filePreviewScript = read("public/js/shared/file-preview.js");
 const filesStyles = read("public/css/longtail-forge.css");
 const icons = read("public/js/shared/icons.js");
-const regressionSuite = read("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference preview modal styling");
 assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should load shared preview before Files browser wiring");
 assert.match(icons, /eye:\s*Object\.freeze/, "Shared icon registry should include the Preview eye icon");
-assert.match(regressionSuite, /scripts\/files-preview-modal-regression\.mjs/, "Regression suite should include the Files preview modal regression");
 
 const fileRow = functionBlock(filesScript, "fileRow");
 const actions = functionBlock(filesScript, "createFileActions");

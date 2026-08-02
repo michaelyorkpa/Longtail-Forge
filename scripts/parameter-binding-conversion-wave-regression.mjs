@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,12 +11,9 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-w
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const convertedSources = new Map([
   ["app-settings.repo", readText("src/repositories/app-settings.repo.js")],
   ["permissions.repo", readText("src/repositories/permissions.repo.js")],
@@ -41,9 +37,6 @@ const { usersRepository } = await import("../src/repositories/users.repo.js");
 const { workspacesRepository } = await import("../src/repositories/workspaces.repo.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the conversion-wave version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the conversion-wave version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the conversion-wave version");
 
   assertConvertedSourceShape();
   await assertConvertedRepositoriesRuntime();
@@ -59,8 +52,6 @@ try {
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
   assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameter-binding closeout");
-  assert.match(regressionSuite, /scripts\/parameter-binding-conversion-wave-regression\.mjs/, "regression suite should include conversion-wave coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "conversion-wave database should pass integrity check");
@@ -173,8 +164,4 @@ async function assertConvertedRepositoriesRuntime() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

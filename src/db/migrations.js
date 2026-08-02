@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { withMigrationLock } from "./migration-lock.js";
+import { consumeMaterializedVerifiedRegressionBaseline } from "./regression-baseline-fast-path.js";
 import { databaseDialect, querySql, runSql } from "./provider.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
@@ -127,12 +128,19 @@ const LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS = [
 ];
 
 async function runMigrations() {
+  if (consumeMaterializedVerifiedRegressionBaseline(config.databaseFile)) {
+    const foreignKeys = await querySql("PRAGMA foreign_keys;");
+    if (Number(foreignKeys[0]?.foreign_keys) !== 1) {
+      throw new Error("Verified regression baseline requires SQLite foreign-key enforcement.");
+    }
+    return;
+  }
+
   return withMigrationLock(runMigrationsWithAcquiredLock);
 }
 
 async function runMigrationsWithAcquiredLock() {
   await fs.mkdir(config.dataDir, { recursive: true });
-  await maybeCopyRegressionBaseline();
 
   if (!(await tableExists(MIGRATIONS_TABLE)) && !(await hasExistingApplicationSchema())) {
     await applyFreshBaseline();
@@ -387,26 +395,6 @@ LIMIT 1;
 `);
 
   return !/\bREFERENCES\s+organizations\b/i.test(userWorkspaceRows[0]?.sql || "");
-}
-
-async function maybeCopyRegressionBaseline() {
-  const baselinePath = process.env.LTF_REGRESSION_BASELINE_DB;
-
-  if (!baselinePath || path.resolve(baselinePath) === path.resolve(config.databaseFile)) {
-    return;
-  }
-
-  try {
-    await fs.access(config.databaseFile);
-    return;
-  } catch (error) {
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
-
-  await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
-  await fs.copyFile(baselinePath, config.databaseFile);
 }
 
 async function ensureMigrationsTable() {

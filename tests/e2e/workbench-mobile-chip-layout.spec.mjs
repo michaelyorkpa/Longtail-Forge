@@ -5,9 +5,7 @@ import { expect, test } from "@playwright/test";
 
 const TASK_ID = "mobile-layout-task";
 
-test("mobile Task Focus and Other Active Timers keep chips with their records", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "chip stacking is a mobile-viewport contract");
-
+test("mobile Task Focus and Other Active Timers keep chips with their records", { tag: "@mobile" }, async ({ page }) => {
   const consoleErrors = [];
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -55,9 +53,7 @@ test("mobile Task Focus and Other Active Timers keep chips with their records", 
   expect(consoleErrors).toEqual([]);
 });
 
-test("desktop keeps Task Focus and timer badges in their compact side positions", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "desktop layout is covered once at the named desktop viewport");
-
+test("desktop keeps Task Focus and timer badges in their compact side positions", { tag: "@desktop" }, async ({ page }) => {
   await stubWorkbenchLayoutData(page);
   await page.goto(`/workbench.html?taskId=${TASK_ID}`);
 

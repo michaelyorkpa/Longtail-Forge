@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.security-event-logging",
   area: "framework",
   tier: "focused",
-  tags: ["audit", "authentication", "permissions", "security", "workspace-isolation"],
+  tags: ["audit", "authentication", "baseline-bypass", "permissions", "security", "workspace-isolation"],
   description: "Proves consolidated security-event persistence, safe failed-login records, admin-only workspace views, retention, and non-blocking auth logging.",
   runMode: "isolated-database",
 });

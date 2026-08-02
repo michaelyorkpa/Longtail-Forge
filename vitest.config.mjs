@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.mjs"],
     environment: "node",
+    pool: "threads",
+    maxWorkers: "50%",
   },
 });

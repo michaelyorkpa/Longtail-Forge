@@ -1,25 +1,17 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
 const gitignore = readText(".gitignore");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
 const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the local .env materialization slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the local .env materialization slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the local .env materialization slice version");
 
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(envExample, /^LONGTAIL_INITIAL_WORKSPACE_NAME=Longtail Forge Workspace$/m, ".env.example should document the generic initial workspace name");
@@ -27,7 +19,6 @@ assert.match(envExample, /^SUPER_ADMIN_DISPLAY_NAME=Super Admin$/m, ".env.exampl
 assert.match(runtimeDocs, /`LONGTAIL_INITIAL_WORKSPACE_NAME`[\s\S]*first fresh-start workspace/, "runtime docs should describe the initial workspace name");
 assert.match(runtimeDocs, /`SUPER_ADMIN_DISPLAY_NAME`[\s\S]*initial protected super-admin account/, "runtime docs should describe the super-admin display name");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the local .env materialization slice");
 
 assert.match(configSource, /DEFAULT_INITIAL_WORKSPACE_NAME = "Longtail Forge Workspace"/, "config should keep only a generic fallback for first workspace name");
 assert.match(configSource, /initialWorkspaceName: readText\(env, "LONGTAIL_INITIAL_WORKSPACE_NAME"/, "config should read the initial workspace name from runtime config");
@@ -46,7 +37,6 @@ const customConfig = readConfig({
 assert.equal(customConfig.initialWorkspaceName, "Acme Local Workspace");
 assert.equal(customConfig.superAdminDisplayName, "Primary Admin");
 
-assert.match(regressionSuite, /scripts\/runtime-local-env-materialization-regression\.mjs/, "regression suite should include the local .env materialization regression");
 
 console.log("Runtime local .env materialization regression passed.");
 
@@ -93,8 +83,4 @@ function cleanEnv(overrides = {}) {
 
 function readText(filePath) {
   return fs.readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

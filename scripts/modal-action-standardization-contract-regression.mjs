@@ -1,11 +1,8 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const notesModule = readText("src/modules/notes/module.js");
 const roadmap = readText("ROADMAP.md");
@@ -17,11 +14,7 @@ const notesDocs = readText("docs/notes-module.md");
 const viewBuilder = readText("public/js/shared/view-builder.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const notesJs = readText("public/js/notes.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the modal action contract version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the modal action contract version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the modal action contract version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should report the modal action contract version");
 assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should report the modal action contract version");
 
@@ -81,7 +74,6 @@ assert.doesNotMatch(notesJs, /data-note-dialog-close|noteDialogClose/, "Notes sh
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(modalStandardVersion)} - `), "Changelog should include the modal action contract version");
 assert.match(changelog, /Finalized the cross-module converted modal action standard/, "Changelog should summarize the finalized modal standard");
 assert.match(changelog, /strict converted-surface guardrails protect the standardized footer\/heading pattern/, "Changelog should summarize the guardrail closeout");
-assert.match(regressionSuite, /scripts\/modal-action-standardization-contract-regression\.mjs/, "Regression suite should include the modal action contract regression");
 
 console.log("Modal action standardization contract regression passed.");
 

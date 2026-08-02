@@ -1,12 +1,9 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const listsModule = readText("src/modules/lists/module.js");
 const notesModule = readText("src/modules/notes/module.js");
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -22,7 +19,6 @@ const filesInventory = readText("docs/files-strict-guardrail-inventory.md");
 const tasksInventory = readText("docs/tasks-strict-guardrail-inventory.md");
 const clientsProjectsInventory = readText("docs/clients-projects-strict-guardrail-inventory.md");
 const declarativeGuardrailRegression = readText("scripts/view-descriptor-declarative-guardrails.mjs");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const strictSurfaceIds = [
   "client-projects.clients",
@@ -41,9 +37,6 @@ const strictSurfaceIdsInCloseoutOrder = [
   "client-projects.projects",
 ];
 
-assert.equal(packageJson.version, appVersion, "package.json should report the branch closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the branch closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the branch closeout version");
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should track the current app version");
 assert.match(notesModule, /version:\s*appVersion/, "Notes module should track the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should track the current app version");
@@ -89,7 +82,6 @@ assert.match(changelog, /## Version 0\.33\.5\.18\.15 - /, "Changelog should incl
 assert.match(changelog, /Strict declarative guardrails now close on `lists\.workspace`, `notes\.workspace`, `tasks\.workspace`, `files\.browse`, `client-projects\.clients`, and `client-projects\.projects`/, "Changelog should record the strict surface set");
 assert.match(changelog, /Tags management and Developer Example descriptors as reported proofs[\s\S]*Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior, and non-view workflow changes remain deferred/, "Changelog should record reported and deferred surfaces");
 assert.match(changelog, /no database schema, write payload, permission, public API, route, or workflow changes/, "Changelog should record the no-contract-change closeout boundary");
-assert.match(changelog, /scripts\/view-conversion-branch-closeout-regression\.mjs/, "Changelog should name the closeout regression");
 
 assert.match(declarativeGuide, /current `viewSurfaces` authoring contract as of 0\.33\.5\.18\.15/, "Declarative guide should report the closeout version");
 assert.match(declarativeGuide, strictSurfaceRegex("Strict fail-on-violation guardrails cover"), "Declarative guide should record the strict surface set");
@@ -120,7 +112,6 @@ assert.match(clientsProjectsInventory, /Current as of 0\.33\.27\.5/, "Clients/Pr
 assert.match(clientsProjectsInventory, /0\.33\.5\.18\.15 Cross-Surface Closeout[\s\S]*Notes-style searchable tag filters with service-side tag text resolution/, "Clients/Projects inventory should preserve the accepted tag-search outcome");
 assert.match(clientsProjectsInventory, /Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior, drag\/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout/, "Clients/Projects inventory should keep deferred work explicit");
 
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("View conversion branch closeout regression passed.");
 

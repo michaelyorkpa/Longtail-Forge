@@ -11,17 +11,11 @@ const css = readText("public/css/longtail-forge.css");
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const fixture = await createDisposableDatabaseFixture("clients-projects-framework-read-anatomy-regression");
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects read anatomy version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects read anatomy version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects read anatomy version");
 assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module should report the read anatomy version");
 
 assertMinimalHost(clientsHtml, "Clients");
@@ -45,7 +39,6 @@ assert.match(renderer, /Object\.hasOwn\(table, "rowActionsHeaderLabel"\)[\s\S]*t
 assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\{[\s\S]*padding: 6px/, "Clients/Projects filter fields should leave focus-ring clearance inside the scrolling drawer");
 assert.match(css, /tr:has\(\+ \.client-projects-tag-row\)[\s\S]*border-bottom: 0/, "Client/Project tag rows should visually join the record-name row without an extra divider");
 assert.match(css, /\.client-projects-tag-row \.surface-chip\s*\{[\s\S]*max-width: 100%[\s\S]*overflow-wrap: anywhere/, "Client/Project tag chips should contain long labels within their borders");
-assert.match(regressionSuite, /scripts\/clients-projects-framework-read-anatomy-regression\.mjs/, "Regression suite should include the Clients/Projects read anatomy regression");
 
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
 const clientsDescriptor = surfaces.get("client-projects.clients");

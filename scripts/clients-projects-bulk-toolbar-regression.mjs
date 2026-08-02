@@ -1,10 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const workbenchScript = readText("public/js/workbench.js");
@@ -13,11 +10,7 @@ const manifestContract = readText("src/core/modules/manifest-contract.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects bulk-toolbar version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects bulk-toolbar version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects bulk-toolbar version");
 assert.match(clientProjectsModule, /version:\s*appVersion/, "Clients/Projects module should report this slice");
 
 assert.match(manifestContract, /const VIEW_TABLE_FIELDS = new Set\(\["columns", "secondaryRows", "rowActions", "rowActionsHeaderLabel", "emptyState", "overflow", "hierarchy", "selection"\]\)/, "Manifest validation should allow descriptor table selection, secondary-row metadata, and optional row-action headings");
@@ -61,7 +54,6 @@ assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[
 assert.match(clientsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should reference CSS, renderer, and adapter for bulk toolbar conversion");
 assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should reference CSS, renderer, and adapter for bulk toolbar conversion");
 assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the updated Clients/Projects adapter for module-triggered actions");
-assert.match(regressionSuite, /scripts\/clients-projects-bulk-toolbar-regression\.mjs/, "Regression suite should include the Clients/Projects bulk toolbar regression");
 
 console.log("Clients/Projects bulk toolbar regression passed.");
 

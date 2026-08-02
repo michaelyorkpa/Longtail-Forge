@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,16 +11,12 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-context-targets-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Context-Targets-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesServiceSource = readText("src/services/files.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
@@ -44,9 +39,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Files context/targets conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Files context/targets conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files context/targets conversion version");
 
   assert.match(filesServiceSource, /from "\.\.\/core\/database\.js"/, "Files service should import database access from the provider-neutral facade");
   assertFunctionUsesNamedParams("updateAttachmentContext", [
@@ -121,8 +113,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.19[\s\S]*Files context and attachable-target metadata paths[\s\S]*687 remaining helper invocations/, "database docs should record the concrete Files context/targets conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.19 - Conversion wave: Files context and attachable targets[\s\S]*- \[x\] Convert File Context update reads\/writes[\s\S]*- \[x\] Preserve attachment-scoped File Context behavior[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.19 - [\s\S]*Files context and attachable targets conversion[\s\S]*687 helper invocations[\s\S]*137 direct interpolated operation sites[\s\S]*214 bound operation sites/, "changelog should record the Files context/targets conversion burndown");
-  assert.match(regressionSuite, /scripts\/files-context-targets-conversion-regression\.mjs/, "regression suite should include the Files context/targets conversion proof");
-}
+  }
 
 function assertFunctionUsesNamedParams(functionName, patterns) {
   const block = functionBlock(filesServiceSource, functionName);

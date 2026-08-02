@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.authentication-throttle",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "security", "throttling"],
+  tags: ["authentication", "baseline-bypass", "security", "throttling"],
   description: "Proves login verification admission and password-sensitive throttling are pre-verification, concurrency-bounded, durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, and event emitting.",
   runMode: "isolated-database",
 });

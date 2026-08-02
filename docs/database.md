@@ -35,6 +35,21 @@ before migration 074, and a current database receiving migration 086, with
 exact seven-role metadata/default-grant convergence, byte-for-byte assignment
 preservation, `PRAGMA integrity_check`, and zero foreign-key violations.
 
+As of version 0.33.27.7.2, the regression runner may materialize its own closed,
+checksum-validated SQLite template before the provider opens a per-script target.
+Authorization arrives only through a one-shot inherited pipe and binds the exact
+template SHA-256, size, applied-migration identity, runner parent, integrity and
+foreign-key results, and a nonce. Only that exact copied target skips redundant
+migration locking, historical repairs, migration-source reads/sorts, baseline
+hashing, and applied-checksum validation. Direct invocation, normal application
+or worker startup, production, restore, caller-set environment alone, existing
+or seeded targets, and explicitly audited compatibility/custom-bootstrap owners
+retain the complete migration chain. Missing authority falls back; malformed,
+stale, forged, moved, or tampered authority fails closed. The runner proof checks
+the copied migration identity, `PRAGMA integrity_check`, foreign-key enforcement,
+zero foreign-key violations, and cleanup without changing the production schema
+or migration format.
+
 ## Identifier Authority and Forward UUIDv7 Policy
 
 As of version 0.33.27.6, `src/core/identifiers.js` owns UUID-shaped application identity. `createRecordId()` creates RFC 9562 UUIDv7 values for newly created ordinary persistent rows; `createOpaqueId()` creates random UUIDv4 values for non-secret operational identity that must remain non-time-ordered. The maintained zero-dependency `uuid` 14.0.1 package supplies both algorithms and is the only production dependency entry point. Dedicated bearer credentials and cryptographic material remain outside this authority.

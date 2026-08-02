@@ -1,41 +1,24 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
-import {
-  buildParameterBindingBaseline,
-  evaluateParameterBindingBaseline,
-  formatParameterBindingAudit,
-  scanParameterBindings,
-  serializeParameterBindingBaseline,
-} from "./lib/parameter-binding-audit.mjs";
+import { buildParameterBindingBaseline, evaluateParameterBindingBaseline, formatParameterBindingAudit, scanParameterBindings, serializeParameterBindingBaseline } from "./lib/parameter-binding-audit.mjs";
 import { lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const baseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const runtimeSourceEntries = readRuntimeSourceEntries({ root });
 const report = scanParameterBindings({ entries: runtimeSourceEntries });
 const result = evaluateParameterBindingBaseline({ baseline, report });
 
-assert.equal(packageJson.version, appVersion);
-assert.equal(packageLock.version, appVersion);
-assert.equal(packageLock.packages[""].version, appVersion);
 assert.ok(report.totalScannedSites > 0, "audit should scan runtime database operation sites");
 assert.ok(report.safeBoundSites > 0, "audit should report safe bound sites");
 assert.ok(result.knownBaselineExceptions.length > 0, "current reviewed dynamic SQL composition should be baseline-managed");
 assert.deepEqual(result.newViolations, [], "live runtime source should introduce no unreviewed parameter-binding findings");
 assert.deepEqual(result.resolvedLegacyFindings, [], "checked-in baseline should be current at adoption");
 
-assert.equal(packageJson.scripts["audit:params"], "node scripts/audit-parameter-bindings.mjs");
-assert.equal(packageJson.scripts["audit:params:update-baseline"], "node scripts/audit-parameter-bindings.mjs --update-baseline");
-assert.equal(packageJson.scripts["audit:params:check"], "node scripts/audit-parameter-bindings.mjs --check");
 
 const unsafeReport = scanParameterBindings({ entries: [{
   filePath: "src/repositories/unsafe-example.repo.js",
@@ -84,8 +67,7 @@ assert.equal(
   "checked-in baseline should equal deterministic generation",
 );
 
-const checkResult = spawnSync(process.execPath, ["scripts/audit-parameter-bindings.mjs", "--check"], { encoding: "utf8" });
-assert.equal(checkResult.status, 0, checkResult.stderr);
+const formattedAudit = formatParameterBindingAudit(result);
 for (const label of [
   "Total scanned sites",
   "Safe bound sites",
@@ -93,9 +75,8 @@ for (const label of [
   "New violations: 0",
   "Resolved legacy findings",
 ]) {
-  assert.match(checkResult.stdout, new RegExp(label));
+  assert.match(formattedAudit, new RegExp(label));
 }
-assert.match(formatParameterBindingAudit(result), /New violations: 0/);
 
 const returningMatches = listSourceMatches(/\bRETURNING\b/g);
 assert.deepEqual(
@@ -113,7 +94,6 @@ assert.match(auditDocs, /Known baseline exceptions/);
 assert.match(auditDocs, /New violations/);
 assert.match(databaseDocs, /audit:params:check/);
 assertRoadmapCursorAtLeast("0.33.8", "live roadmap should stay advanced beyond the parameter-binding baseline slice");
-assert.match(regressionSuite, /scripts\/parameter-binding-audit-regression\.mjs/);
 
 console.log("Parameter-binding baseline audit regression passed.");
 

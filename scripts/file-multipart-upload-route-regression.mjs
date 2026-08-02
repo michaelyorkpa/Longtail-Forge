@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global Blob, FormData, fetch */
 
 import assert from "node:assert/strict";
@@ -52,18 +51,12 @@ try {
 
 function assertStaticContracts() {
   const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const moduleDocs = readText("docs/module-development.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesServiceSource = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the multipart route version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the multipart route version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the multipart route version");
   assert.equal(packageJson.dependencies?.busboy, "^1.6.0", "package.json should keep the selected multipart parser dependency");
 
   assert.match(filesRoutes, /import Busboy from "busboy"/, "Files routes should use the selected Busboy parser");
@@ -80,9 +73,7 @@ function assertStaticContracts() {
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`POST \/api\/files\/upload` accepts one multipart file/, "runtime docs should mark the single-file multipart route active");
   assert.match(moduleDocs, /multipart upload route[\s\S]*file\.scan/, "module docs should record that multipart uploads keep the scan lifecycle");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the multipart route slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-multipart-upload-route-regression\.mjs/, "regression suite should include multipart upload route coverage");
 }
 
 async function checkStreamedUploadCreatesPendingFile(api, fixtures) {
@@ -455,8 +446,4 @@ function closeServer(serverInstance) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const renderer = readText("public/js/shared/view-renderer.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"[\s\S]*className:\s*"tasks-main-list-region"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks descriptor should bind the task list to a labeled main-panel detail region");
@@ -67,7 +60,6 @@ assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder
 assert.match(renderer, /detail\.itemRows\s*\? renderItemCollection\(detail\.itemRows, view, state\)/, "Renderer should only show the generic Items placeholder when itemRows are declared");
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Framework region wrapper should not visually redesign the task list");
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");
-assert.match(regressionSuite, /scripts\/tasks-readonly-list-binding-regression\.mjs/, "Regression suite should include the Tasks read-only list binding regression");
 
 console.log("Tasks read-only list binding regression passed.");
 

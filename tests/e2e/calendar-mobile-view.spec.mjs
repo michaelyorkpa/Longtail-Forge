@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "responsive Day fallback is a mobile-viewport contract");
-
+test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", { tag: "@mobile" }, async ({ page }) => {
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -41,9 +39,7 @@ test("mobile Dashboard and Actions Calendar default to Day with their deliberate
   expect(requests[1].searchParams.get("statuses")).toBe("open,in_progress,blocked,complete");
 });
 
-test("opening a planned occurrence materializes it once and replaces the ghost", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one viewport is sufficient for materialize-on-touch behavior");
-
+test("opening a planned occurrence materializes it once and replaces the ghost", { tag: "@desktop" }, async ({ page }) => {
   const state = { materialized: false, materializationRequests: [] };
   await stubCalendarPreference(page, "day");
   await stubCalendarReads(page, [], state);
@@ -91,18 +87,14 @@ test("saved calendar preference wins on Dashboard and Actions Calendar", async (
   }
 });
 
-test("Actions Calendar query view takes precedence over the saved preference", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "one viewport is sufficient for explicit query precedence");
-
+test("Actions Calendar query view takes precedence over the saved preference", { tag: "@mobile" }, async ({ page }) => {
   await stubCalendarPreference(page, "week");
   await stubCalendarReads(page);
   await page.goto("/calendar.html?view=month");
   await expect(page.locator('[data-calendar-view-option="month"]')).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one viewport is sufficient for the full Calendar status and range contract");
-
+test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", { tag: "@desktop" }, async ({ page }) => {
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);

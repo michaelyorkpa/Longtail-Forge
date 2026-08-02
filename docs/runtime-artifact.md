@@ -10,7 +10,7 @@ From a reviewed source checkout with aligned package metadata, run:
 npm run artifact:build -- --source-branch nightly
 ```
 
-Use `nightly` for nightly integration artifacts and `main` for main, preview, and tagged-release artifacts. The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`; the canonical filename stays unsuffixed. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion.
+Use `nightly` for nightly integration artifacts and `main` for main, preview, and tagged-release artifacts. The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`; the canonical filename stays unsuffixed. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion. The artifact, bare-metal, and container smokes accept `--artifact <path>` so CI can build or retrieve one checksummed exact-SHA candidate and pass the identical bytes through every independent recovery proof instead of silently rebuilding a different candidate in each job.
 
 For the full clean-install proof, run:
 

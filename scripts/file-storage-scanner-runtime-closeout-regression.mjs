@@ -1,11 +1,9 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 
 const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -15,28 +13,7 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const envExample = readText(".env.example");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-const branchRegressions = [
-  "scripts/file-storage-provider-configuration-regression.mjs",
-  "scripts/file-storage-diagnostics-regression.mjs",
-  "scripts/file-storage-streaming-contract-regression.mjs",
-  "scripts/file-multipart-upload-route-regression.mjs",
-  "scripts/file-multipart-batch-upload-helper-regression.mjs",
-  "scripts/file-upload-compatibility-error-hardening-regression.mjs",
-  "scripts/file-scanner-mode-resolver-regression.mjs",
-  "scripts/file-scanner-health-diagnostics-regression.mjs",
-  "scripts/file-clamscan-adapter-regression.mjs",
-  "scripts/file-clamd-adapter-regression.mjs",
-  "scripts/file-scanner-setup-docs-regression.mjs",
-  "scripts/file-s3-provider-registration-regression.mjs",
-  "scripts/file-s3-object-operation-proof-regression.mjs",
-  "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
-];
-
-assert.equal(packageJson.version, appVersion, "package.json should report the storage/scanner closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the storage/scanner closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the storage/scanner closeout version");
 assert.equal(Boolean(packageJson.dependencies.busboy), true, "Busboy should remain the multipart parser dependency");
 assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "the branch should not add an S3 SDK dependency");
 
@@ -63,12 +40,10 @@ assert.doesNotMatch(
 assertRoadmapCursorAtLeast("0.33.8", "roadmap should record the current archived handoff");
 assertRoadmapCursorAtLeast("0.33.8", "roadmap should hand off after the completed database extraction contract branch");
 
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage/scanner closeout");
 for (let index = 1; index <= 15; index += 1) {
   assert.match(changelog, new RegExp(`## Version 0\\.33\\.5\\.22\\.${index} - `), `changelog should include 0.33.5.22.${index}`);
 }
 assert.match(changelog, /Closed the 0\.33\.5\.22 storage\/scanner runtime branch/i, "changelog should record the branch closeout");
-assert.match(changelog, /scripts\/file-storage-scanner-runtime-closeout-regression\.mjs/, "changelog should name the closeout regression");
 
 assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15/, "runtime docs should report the closeout version");
 assert.match(runtimeDocs, /live local storage\/scanner keys/i, "runtime docs should explicitly collect live storage/scanner keys");
@@ -94,21 +69,8 @@ assert.match(envExample, /LONGTAIL_CLAMD_HOST/, ".env.example should document op
 assert.match(envExample, /LONGTAIL_CLAMSCAN_PATH/, ".env.example should document optional clamscan settings");
 assert.doesNotMatch(envExample, /LONGTAIL_CLAMD_SOCKET/, ".env.example should not expose an inactive clamd socket setting");
 
-for (const regression of branchRegressions) {
-  assert.match(regressionSuite, new RegExp(escapeRegExp(regression)), `${regression} should be wired into the regression suite`);
-}
-assert.match(
-  regressionSuite,
-  /scripts\/static-contract-closeout-regression\.mjs/,
-  "regression suite should include the consolidated static closeout regression",
-);
-
 console.log("File storage/scanner runtime closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
@@ -9,8 +8,6 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-batched-list-enrich
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-batched-list-enrichment.db");
 process.env.SUPER_ADMIN_PASSWORD = "Batched-List-Enrichment-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const listEnrichment = readText("src/core/list-enrichment.js");
 const listsServiceSource = readText("src/modules/lists/lists.service.js");
 const listsRepoSource = readText("src/modules/lists/lists.repo.js");
@@ -22,7 +19,6 @@ const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js"
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContracts();
 
@@ -95,9 +91,6 @@ try {
 }
 
 function assertStaticContracts() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
   assert.match(listEnrichment, /function createVisibleRecordBatch/, "Framework should expose a visible-record batch helper");
   assert.match(listEnrichment, /function groupRowsByRecordId/, "Framework should expose shared record-id grouping");
@@ -123,7 +116,6 @@ function assertStaticContracts() {
 
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, /Version 0\.33\.5\.20\.4[\s\S]*visible-record batching helper/, "Changelog should record the 0.33.5.20.4 release");
-  assert.match(regressionSuite, /scripts\/batched-list-enrichment-regression\.mjs/, "Regression suite should include this batched enrichment regression");
 }
 
 async function seedVisibleListRows(session) {

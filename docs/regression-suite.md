@@ -1,6 +1,26 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.27.6. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.27.7.8. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.27.7.1, one runner invocation owns one `NODE_COMPILE_CACHE` below the operating-system temp directory, passes it to every regression child, and removes it with the baseline fixture during final cleanup. Baseline construction starts before static execution and may overlap that safe work, but fixture consumers still await the same validated promise. Static scheduling resolves `LTF_STATIC_REGRESSION_PARALLELISM`, then the shared concurrency override, then a conservative two-thirds host-aware default capped at eight; `1` remains the diagnostic serial override. Successful output remains buffered per script to avoid interleaving, while failures, retries, recovered-flake labels, bucket summaries, and timing JSON stay visible. Metadata discovery remains one bootstrap read, the retry queue remains exclusive to isolated-database failures, and bucket fail-fast ordering is unchanged.
+
+As of 0.33.27.7.2, eligible database-backed children receive a one-shot pipe attestation for the runner's exact closed template. A preloader consumes the descriptor before the regression entry point and registers it only when the recorded parent matches; nested children cannot inherit it. Before the provider opens SQLite, the child validates the temporary template path, environment binding, size, SHA-256 and attestation, copies into an absent temporary target, and binds the migration skip to that exact target. The copied database retains the runner-proven complete migration identity, checksum rows, `PRAGMA integrity_check`, foreign-key enforcement and zero foreign-key violations. Missing/direct/environment-only/existing-target cases use the complete normal migration chain; malformed, stale, forged, moved and tampered cases fail closed. Production, restore and worker paths have no authority source.
+
+As of 0.33.27.7.3, every populated canonical area exposes `npm run test:regressions:<area>`. The routing owner reads existing regression ownership from the generated manifest, handles new convention-path owners directly, and maps product sources through explicit area rules rather than broad filename substrings. Tracked collection uses Git name-status data so deletes retain their former owner and renames inspect both source and destination. Search, Tags, Lists, Notifications, Time Tracking, jobs, public API, licensing, and permission/session/workspace authority all have explicit positive routes. Cross-cutting matches remain additive, and Files, permissions, repositories/database, shared framework/views/jobs, public API authority, generated contracts, executable package/release tooling, and unknown non-empty paths fail toward complete coverage. Permission ownership adds the separate permission harness exactly once. Advice-only output, local changed execution, `verify:slice`, and CI prechecked execution all consume this same routing result.
+
+As of 0.33.27.7.4, coverage floors are machine-derived from active discovery plus reviewed credited retirements. Ordinary manifest generation and checking detect lag without mutating policy; only the explicit reviewed `--ratchet-floors` mode may raise global, per-area, release-gate, and coverage-family floors, and it refuses every decrease. One delimited numeric block below is generated from the manifest and policy with separate write/check modes. `closeout --fix` regenerates only the manifest, that delimited block, the bundled-module catalog, and the database schema snapshot before validation; it never edits exceptions, roadmap, changelog, decisions, or free-form documentation. Default closeout still reports every gate, while `--fail-fast` is opt-in. The version helper now points to roadmap-cursor/archive handoff, changelog and owning docs, reviewed manifest generation, one final `verify:slice`, and runtime identity without duplicating `version:guard` or `check`.
+
+As of 0.33.27.7.5, ordinary closeout is the sole automatic owner for the direct version, parameter-binding, licensing, bundled-module catalog, and generated-manifest checks. The suite keeps in-process synthetic valid/invalid cases without respawning the live commands; module-catalog child checks remain fixture-rooted because they prove generated-file failure paths rather than duplicate the live catalog check. `legacy.version.literal.guardrail` and `legacy.regression.coverage.ratchet` are credited retirements: `version:guard` remains directly runnable and the ratchet fixtures moved into `release.regression-manifest-generation`. `release.validation-single-ownership`, `scripts/package-script-contracts.json`, and `scripts/validation-ownership-consolidation.json` enforce one owner for exact root command strings, current package/lock version equality, legacy discovery membership, current changelog heading, repeated TypeScript facts, and recorded assertion movements. The version scan obtains tracked and non-ignored paths before reads, excludes historical paths before size checks, and fails explicitly on any included file at or above its two-megabyte ceiling.
+
+As of 0.33.27.7.6, `database.backup-archive-portability` proves Windows drive-letter archive paths are reduced to basename-only tar archive operands under the archive directory while POSIX paths retain the same local boundary. Whole-instance and workspace backup creation, listing, and extraction share that command owner; their existing release-gate regressions retain the compressed archive layout, checksum and entry validation, database-and-Files scope, pre-restore backup, rollback, migration, and restored-integrity proof. `database.demo-data-host-operation` retains its backup-first recovery coverage through the same whole-instance owner.
+
+As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and nine desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired full suite passes 129/129 in 1.4 minutes and leaves port 8101 clean. The required check remains `Browser smoke and accessibility`.
+
+As of 0.33.27.7.8, every release-workflow job has a finite timeout; main-release and CodeQL runs have cancellation-safe concurrency; and only history-owning classifiers plus deliberate main-revision reachability checks retain full checkout history. Live branch-protection inspection confirmed the exact required names before CodeQL push scans were retired: PR analysis still supplies `CodeQL JavaScript analysis` on both `nightly` and `main`. `release.nightly-proof-reuse` proves a normal promotion reuses Nightly evidence only for one successful unexpired exact-SHA push run whose repository, workflow/ref and workflow checksum, `nightly-proof-v1` policy, required job set, release metadata, artifact and metadata checksums, and retained artifact names match. Every mismatch, ambiguity, expiry, failure, cancellation, policy change, and every `hotfix/*` source selects the full path. Runtime-artifact, bare-metal, and container smokes accept the same `--artifact` candidate; promotion builds at most once on fallback, downloads on accepted reuse, fans isolated recovery consumers out in parallel, and retains `Packaging and recovery` as the required aggregation result. Scheduled Nightly uses the same verifier before any expensive skip, while the preflight stays visible. No workflow uses `paths-ignore`.
+
+The exact new static inventory is `clients-projects-strict-guardrail-inventory`, `help-markdown-source-layout`, `task-modal-compact-layout`, `task-modal-reflow`, `task-modal-followup`, `database.private-calendar-subscriptions-migration`, and `file-scanner-setup-docs`. The first five are read-only repository assertions, the calendar migration uses only process-local in-memory SQLite plus one read-only migration file, and the Files setup owner asserts documentation/source membership without starting a scanner or mutating storage. `scripts/regression-static-isolation-audit.json` records every resource dimension and the three-pass, 651-run stress proof.
+
+All 28 stateful original Files entries now run in `isolated-files`; the exact script-by-script database, storage, port, scanner, environment, worker/process, singleton, and rationale inventory remains checked in at `scripts/regression-files-isolation-audit.json`. The only other original Files entry is the static documentation owner above, so the retained current serial inventory is empty. This is not a blanket Files rule: future entries must declare and prove their own run mode, Files failures still receive no automatic retry, and the empty serial bucket remains supported in cheap-first order. The 28-entry cohort passed 84 stress runs at concurrency six with zero failures or recoveries before reclassification.
 
 As of 0.33.23.1, `framework.http-error-contract` owns the shared internal/public API error envelopes, header/body request-ID correlation, API-over-HTML route classification, final middleware order, 403/404 non-enumeration, safe explicit dependency 503 handling, generic unexpected responses, one sanitized protected diagnostic, browser document HTML classification, and the shared browser parser contract.
 
@@ -54,38 +74,42 @@ The 0.33.19.4 runtime-configuration split is the reference partial-movement cont
 
 | Entry point | Current responsibility |
 | --- | --- |
-| `scripts/run-regressions.mjs` | Runs the registered buckets in order, schedules safe parallel work, prepares baseline-derived database fixtures, supports bounded bucket/repeat filters, prints timings, and stops later scheduling after a failure. |
+| `scripts/run-regressions.mjs` | Runs the registered buckets in order, owns the invocation-scoped compile cache and baseline-prefetch lifecycle, schedules safe parallel work, supports bounded bucket/repeat filters, prints timings, and stops later scheduling after a failure. |
 | `scripts/regression-suite.mjs` | Builds and exports the executable suite index from deterministic discovery metadata. Compatibility exports retain the four historical script arrays for existing consumers. |
-| `scripts/lib/regression-discovery.mjs` | Discovers new convention-path scripts, preserves snapshot-backed legacy paths, applies the explicit Files isolation audit, validates metadata, and builds the five execution buckets. |
+| `scripts/lib/regression-discovery.mjs` | Discovers new convention-path scripts, preserves snapshot-backed legacy paths, applies the explicit Files and static isolation audits, validates metadata, and builds the five execution buckets. |
 | `scripts/lib/regression-metadata.mjs` | Defines canonical metadata values, statically parses `regressionMeta` object exports without importing regression modules, validates metadata, and supplies transitional legacy metadata. |
 | `scripts/lib/regression-runner-options.mjs` | Parses area/tag/tier/list/dry-run options and filters the discovered bucket entries. |
 | `scripts/lib/regression-change-routing.mjs` | Maps changed paths to focused areas, inspects package/lock content for exact application-version-only bookkeeping, and retains full escalation for executable/high-risk boundaries. |
 | `scripts/suggest-regressions-for-changes.mjs` | Inspects tracked and untracked working-tree changes and prints likely focused commands plus the unchanged release gate. |
-| `scripts/lib/changed-regression-runner.mjs` | Converts shared routing into focused, empty, full-check, or CI-prechecked full-regression execution and runs only controlled package commands. |
+| `scripts/lib/changed-regression-runner.mjs` | Converts shared routing into focused, empty, full-check, or CI-prechecked full-regression execution and runs controlled package commands through direct Node execution or the composed-script npm fallback. |
 | `scripts/run-changed-regressions.mjs` | Inspects the same working-tree changes as the suggester, prints selected areas and reasons, then executes the shared plan. |
 | `scripts/lib/slice-verification-plan.mjs` | De-duplicates closeout, fast checks, changed/full regressions, and the separate permission harness into one timed immutable local plan with explicit skipped stages. |
 | `scripts/run-slice-verification.mjs` | Collects one content-aware change set, runs the canonical local plan, and prints included/skipped/passed/failed stage timings. |
 | `scripts/run-timed-stage.mjs` | Wraps a CI command with elapsed time, status propagation, console evidence, and a GitHub job-summary entry. |
 | `scripts/agent-brief.mjs` | Generates the active-slice packet from `ROADMAP.md`, `DECISIONS.md`, documentation ownership, and regression routing at runtime. |
-| `scripts/lib/closeout-gates.mjs` | Defines hard versus warning-only maintenance gates, runs every gate, and formats the consolidated closeout status board. |
-| `scripts/run-closeout.mjs` | Runs the seven standing maintenance gates through their existing package scripts and exits nonzero only when a hard gate fails. |
+| `scripts/lib/closeout-gates.mjs` | Defines hard versus warning-only maintenance gates, runs every gate through direct Node execution or the composed-script npm fallback, and formats the consolidated closeout status board. |
+| `scripts/run-closeout.mjs` | Runs the standing maintenance gates, optionally regenerates the enumerated deterministic artifacts with `--fix`, optionally stops after the first hard failure with `--fail-fast`, and exits nonzero only when a hard gate fails. |
 | `scripts/test-support/isolated-regression-retry.mjs` | Applies the isolated-database bucket's one-retry policy while preserving fail-fast scheduling and logical script counts. |
 | `scripts/test-support/regression-bucket-orchestrator.mjs` | Executes selected buckets sequentially in their discovered order and returns immediately after the first bucket failure. |
+| `scripts/test-support/regression-runtime-resources.mjs` | Creates and deterministically removes the one invocation-scoped operating-system-temp Node compile-cache directory. |
+| `scripts/lib/package-script-runner.mjs` | Executes simple `node` package scripts without Windows cmd/npm shim hops and falls back to npm for composed commands while preserving public scripts. |
 | `scripts/test-support/disposable-database.mjs` | Gives direct database-backed regressions a temp-directory database target before runtime/database imports. |
 | `scripts/test-support/canonical-workspace-inventory.mjs` | Fingerprints the canonical workspace and membership inventory before and after the full runner. |
 | `scripts/lib/docs-change-routing.mjs` | Validates the data-only documentation ownership index and maps changed source paths to likely owning documents. |
 | `scripts/suggest-docs-for-changes.mjs` | Prints changed-area documentation suggestions and the warning-only closeout disposition gate. |
-| `scripts/regression-legacy-snapshot.json` | Recorded the 312-script 0.33.6.16.1 legacy path/run-mode set and now contains 311 active legacy entries after the documented `check-js.mjs` assertion-moved retirement. |
-| `scripts/regression-files-isolation-audit.json` | Human-reviewed resource inventory, decision, stress evidence, timing, and retained-serial rationale for all 29 original Files regressions. Discovery may reclassify only entries explicitly approved here. |
+| `scripts/regression-legacy-snapshot.json` | Records the frozen 0.33.6.16.1 legacy path/run-mode set; the policy reconciles its active membership with the documented credited `check-js.mjs` assertion-moved retirement. |
+| `scripts/regression-files-isolation-audit.json` | Human-reviewed resource inventory, decision, stress evidence, timing, and rationale for all 29 original Files regressions. Discovery may reclassify only entries explicitly approved here. |
+| `scripts/regression-static-isolation-audit.json` | Human-reviewed resource inventory and repeat/full-suite timing evidence for the seven entries moved to static scheduling. |
 | `scripts/regression-coverage-ratchet.mjs` | Validates discovered metadata against the generated index and explicit policy, including active/area/release-gate/family floors plus retirement evidence. |
-| `scripts/lib/regression-manifest.mjs` | Builds the deterministic metadata index and owns coverage-policy validation shared by the generator and ratchet regressions. |
-| `scripts/generate-regression-manifest.mjs` | Writes or checks the generated coverage index from the discovered registry and exceptions policy. |
+| `scripts/lib/regression-manifest.mjs` | Builds the deterministic metadata index and owns coverage-policy validation shared by the generator and consolidated manifest regression. |
+| `scripts/generate-regression-manifest.mjs` | Writes or checks the generated coverage index and exposes the explicit reviewed `--ratchet-floors` policy-advance mode, which refuses floor decreases. |
+| `scripts/generate-regression-doc-inventory.mjs` | Writes or checks only the delimited numeric inventory block in this document from the generated manifest and reviewed policy. |
 | `scripts/regression-clean-clone-contract.mjs` | Proves every registered script and required support file exists in a clean clone and does not depend on ignored local bookkeeping files. |
 | `scripts/regression-coverage-manifest.json` | Generated schema-v3 index of every discovered regression's ID, path, area, tier, tags, description, run mode, legacy state, release-gate state, summaries, coverage families, partial assertion movements, and retirement records. Do not edit it manually. |
 | `scripts/regression-coverage-exceptions.json` | Human-maintained policy for active and per-area floors, protected areas, required release-gate IDs, coverage families, legacy migration allowance, partial assertion movements, and explicit retirement evidence. |
 | `package.json` | Exposes the broad and focused command entry points described below. |
 
-As of 0.33.19.5, the discovered registry contains 383 scripts and protects 44 release-gate entries. The required `release.files-regression-isolation-audit` owner proves all 29 original Files scripts remain classified, only nine fully disposable entries move, 20 ambiguous entries stay serial with script-specific reasons, the 2/4/6-worker repeat proof remains recorded, and Files failures never receive automatic retries. No regression, assertion, identity, permission, browser, promotion, integration, packaging owner, coverage family, or floor was retired. Twenty obsolete current-package-document assertions remain replaced by stable owning-document/behavior checks from the 0.33.18.7 streamlining pass.
+As of 0.33.27.7.2, the required `release.files-regression-isolation-audit` owner proves all original Files scripts remain classified, seven named entries have explicit static resource proof, all stateful Files entries have isolated resource proof and repeat stress, the current serial Files inventory is empty, and Files failures never receive automatic retries. No regression, assertion, identity, permission, browser, promotion, integration, packaging owner, coverage family, or floor was retired. Bucket upkeep uses exact flattened discovery membership, uniqueness, and safety floors rather than brittle aggregate or per-bucket equality pins. Obsolete current-package-document assertions remain replaced by stable owning-document and behavior checks from the 0.33.18.7 streamlining pass.
 
 Current package commands:
 
@@ -96,15 +120,16 @@ Current package commands:
 | `npm run typecheck` | Runs `tsc --noEmit` against the narrow `tsconfig.json` scope; `checkJs` stays off so JavaScript files opt in per file with `// @ts-check`. |
 | `npm run test:unit` | Runs the Vitest suite (`tests/**/*.test.mjs`) once. |
 | `npm run test:watch` | Runs Vitest in watch mode for local iteration. |
-| `npm run test:contracts` / `test:files` / `test:tasks` | Filtered Vitest passes for contract/schema, Files, and Tasks tests; they tolerate an empty match (`--passWithNoTests`) until 0.33.7.3+ land their tests. |
+| `npm run test:contracts` / `test:tasks` | Filtered Vitest passes for contract/schema and Tasks tests; the optional filters retain `--passWithNoTests`. |
+| `npm run test:files` | Runs the exact Files contract suite and fails closed if that owned test file is missing. |
 | `npm run test:regressions` | Runs the full discovered regression registry without the lint stage. |
 | `npm run test:regressions:changed` | Runs content-aware routing; version-only package/lock plus roadmap/changelog ceremony stays focused, while executable/high-risk and unknown paths escalate to `npm run check`. |
 | `npm run test:regressions:changed:ci` | Same routing after that CI job has already passed fast checks; a full escalation runs the complete registry without repeating typecheck/unit/lint. |
 | `npm run verify:slice` | Canonical local final verification with timed context, closeout, fast-check, regression, permission, browser, and packaging stage rows; non-applicable stages are visibly skipped. |
 | `npm run agent:brief` | Prints the current active slice, relevant decision paragraphs, documentation owners, and likely test commands from canonical sources. |
 | `npm run test:regressions:list` | Lists every discovered regression and its metadata without executing it. |
-| `npm run test:regressions:<area>` | Runs one supported focused area, including module/framework areas plus `docs` and `release`. |
-| `npm run test:permissions` | Runs `scripts/permission-regression.mjs` directly; the same script is also registered in the full suite. |
+| `npm run test:regressions:<area>` | Runs one canonical focused area: `framework`, `views`, `dashboard`, `workbench`, `tasks`, `notes`, `lists`, `files`, `search`, `notifications`, `tags`, `time-tracking`, `database`, `permissions`, `jobs`, `public-api`, `release`, `docs`, or `licensing`. |
+| `npm run test:permissions` | Runs the separate one-database/one-server permission harness directly. It is not registered in `npm run check`; `verify:slice` adds it exactly once when changed-area routing selects permission ownership, and named CI/release gates invoke it explicitly where required. |
 | `npm run test:sqlite-driver` | Runs the standalone better-sqlite3 install smoke check; the same script is also registered in the full suite. |
 | `npm run audit:params` | Reports parameter-binding scan totals, reviewed baseline exceptions, new violations, and resolved findings without pinning informational counts. |
 | `npm run audit:params:check` | Fails on new unreviewed legacy-helper or template-interpolated SQL findings. |
@@ -113,20 +138,22 @@ Current package commands:
 | `npm run docs:check` | Runs the same documentation review as a warning-only closeout gate and accepts an optional explicit `--note`. |
 | `npm run modules:registry:generate` | Deterministically regenerates the tracked first-party ESM catalog from repository-owned `src/modules/*/module.js` entries. |
 | `npm run modules:registry:check` | Fails on a missing, extra, reordered, or stale bundled-module catalog and runs as a hard closeout gate. |
-| `npm run closeout` | Runs all standing maintenance gates and prints one hard/warning-only status board; it does not invoke or replace `npm run check`. |
+| `npm run closeout` | Runs all standing maintenance gates and prints one hard/warning-only status board; `-- --fix` first regenerates only the enumerated deterministic artifacts, and `-- --fail-fast` opts out of the default run-all report after the first hard failure. |
 | `npm run licensing:gates` | Confirms the active reviewed third-party-notices inventory and reports missing future public-app/outside-contribution artifacts without failing ordinary private development. |
 | `npm run third-party-notices:check` | Hard-checks that `THIRD_PARTY_NOTICES.md` exactly matches the production lockfile closure, reviewed license texts, and bundled-asset inventory. |
 | `npm run db:migration:create -- <name>` | Creates the next globally numbered core migration with a forward-only template after validating core/module migration numbers. |
 | `npm run db:schema:refresh` | Replays the fresh-start baseline plus ordered migrations into disposable SQLite and rewrites the generated final-schema snapshot. |
 | `npm run db:schema:check` | Fails on migration-number collisions, invalid names, generated snapshot drift, or an unaccompanied baseline-schema change. |
-| `npm run regressions:manifest` | Regenerates `scripts/regression-coverage-manifest.json` deterministically from discovery metadata and the exceptions policy. |
-| `npm run regressions:manifest:check` | Fails when the checked-in generated manifest differs from current discovery metadata or policy. |
+| `npm run regressions:manifest` | Regenerates `scripts/regression-coverage-manifest.json` deterministically without changing floors; `-- --ratchet-floors` is the explicit reviewed mode that raises every live floor and refuses decreases. |
+| `npm run regressions:manifest:check` | Non-mutating check that fails when the manifest differs from discovery/policy or a live floor lags discovered coverage plus credits. |
+| `npm run regressions:inventory:write` | Rewrites only the single delimited numeric inventory block in this document from the manifest and policy. |
+| `npm run regressions:inventory:check` | Non-mutating hard closeout gate for the delimited inventory block. |
 | `npm run lint` | Runs cached ESLint without the custom regression suite. |
-| `npm run version:guard` | Runs the current-version literal guardrail directly; the same script is also registered in the full suite. |
+| `npm run version:guard` | Runs the current-version literal guardrail directly; ordinary closeout invokes it once, and it is intentionally retired from duplicate suite discovery. |
 
 ## Current Execution Model
 
-The current suite contains 424 discovered scripts: 311 active paths in `scripts/regression-legacy-snapshot.json` plus 113 convention-metadata guardrails. The only post-snapshot retirement is the credited `check-js.mjs` assertion movement to the cached ESLint stage; every stateful script and all high-risk contract coverage remain registered. The 56 required release-gate entries include the identifier-authority and exact migration-baseline guardrail, HTTP error contract and development guardrail, browser recovery boundary, complete maintenance release rehearsal, root-owned maintenance asset/marker boundary, successful deployment-curtain sequencing, Admin Calendar Subscription Settings closeout owner, the complete sanitized-demo role permission journey, and rename-aware GitHub-only documentation classifier with its protected Development/nightly routing contract, including the rule that runtime Help retains artifact and deployment handling. The marketing claims guardrail keeps the shipped baseline, proof register, private calendar-subscription claim, Secure Catalog boundary, and deployment-versus-invitation distinction aligned. The Client child-create scope guardrail pins the shared browser/public API service path, server-shaped top-level and per-parent capabilities, locked parent action, and exact Client tag-target scope. The scope-aware Admin navigation guardrail pins any-scope hints, protected Client/Project page eligibility, deliberate workspace-admin-only gates, and server-shaped scoped Project actions/targets. The view-surface permission-wiring guardrail pins effective permission IDs in every workspace bootstrap, shared action filtering, record-shaped child-client eligibility, and unchanged service denial after browser bypass. The role-seed convergence owner executes the corrected baseline, full fresh migration chain, pre-074 assignment expansion, and current-database metadata repair while reconciling all seven roles, scope maps, default grants, workspace-type availability, delegation ceilings, generated schema relationships, assignment preservation, integrity, and foreign keys. The delegated Role Assignments browser owner pins Users-module registration, server-qualified navigation, exact-account entry, server-shaped labeled choices, current delegable-subset rendering, add/remove confirmation, stale-state recovery, focus and accessible status behavior, branded denial, non-disclosure, and unchanged `users.manage` protection for User Admin. The private sanitized-demo journey authenticates all seven deterministic scoped fixtures through normal Argon2id and throttled login/logout, then exercises representative allowed/denied Client creation, Project Settings, declarative-action, role-catalog, and exact-account delegation behavior without printing credentials. The permission harness also pins the delegated role-assignment API and browser-eligibility contracts: exact active-member lookup parity and minimum disclosure, filtered ceilings/scopes, actor-bound stale revisions, hidden-row byte preservation, transactional authority/scope revalidation, safe audit data, Family/Personal and self/protected refusal, authorized Role Assignments navigation/page access, and unchanged full-administrator replacement and User Admin access. The isolated private-calendar owners split cleanly: framework coverage proves protected management-page authorization, collection lifecycle revocation, trusted-IP throttling, immutable secret-free provider dispatch, one-time URL handling, and generic rejection; Tasks coverage proves bounded RFC 5545 content plus Workspace/Client/current-child-Project/Project SQL ceilings, live permission intersection, Project moves, and title-free recurrence suppression. The native SQLite data-compatibility owner proves the pinned driver, fresh migration identity, transaction and deferred-foreign-key behavior, WAL/concurrency and busy-timeout semantics, bindings/results/BLOBs, FTS5 ranking, checkpoint/reopen persistence, and clean integrity/foreign-key results.
+Current numeric membership and ratchet data live only in the generated block below. Exact per-path membership remains in `scripts/regression-coverage-manifest.json`; prose names only durable high-risk owners. These include identifier authority, exact migration-baseline proof, HTTP and browser recovery boundaries, maintenance rehearsal and deployment-curtain sequencing, Calendar Subscription Settings, sanitized-demo permissions, GitHub-only documentation classification, marketing claims, Client child-create scope, scoped Admin navigation, view permission wiring, role-seed convergence, delegated Role Assignments, private calendar authentication/content, and native SQLite compatibility.
 
 As of 0.33.24.2, `framework.reference-internet-deployment` statically owns the identical marker matcher, exact diagnostic bypass, hardened curtain, generic diagnostic failure, and upstream-error route in both checked-in Caddy examples while retaining their distinct forwarding contracts. `scripts/reference-caddy-security-smoke.mjs` executes both disposable topologies and proves operator/deployment/both-marker state, GET/HEAD/POST and query behavior, exact diagnostic paths and near-misses, page and header policy, unexpected Node failure, recovery without reload, and rejection of forged forwarding input.
 
@@ -142,33 +169,87 @@ As of 0.33.24.4, `release.deploy-maintenance-curtain` owns the complete bare-met
 
 As of 0.33.24.5, that same release regression also owns explicit rollback: marker-before-stop and continuous-Caddy ordering, current-state backup plus recorded-target restore, direct/public identity before the state swap and reopening, target restore/start/identity failures, current-backup restore/start/identity failures, protected dual-recovery evidence, same-target retry, interrupted phases, operator-hold preservation, and identity-reviewed stale-marker recovery. The Linux fixture performs rollback and restore-forward, injects each rollback failure/signal, retries unresolved operations from retained state, and proves a mismatched or unresolved state never reopens traffic.
 
-| Bucket | Registered scripts | Declared mode | Declared concurrency | Current safety boundary |
-| --- | ---: | --- | ---: | --- |
-| `static/source regressions` | 210 | parallel | 6 | Read-only/parallel-safe checks only; these do not receive a runner database fixture, and database access from a regression entry point is refused unless the script selected an OS-temp database before importing runtime/database modules. |
-| `default database regressions` | 6 | serial | 1 | Search/database checks whose current ordering and shared-state assumptions remain serial. |
-| `file storage regressions` | 20 | serial | 1 | HTTP applications, workers, scanners, child processes, provider registries, and coupled scanner-inventory proof remain serial for the script-specific reasons in the audit. |
-| `isolated file storage regressions` | 9 | parallel | 4 fallback | Only repeat-stressed Files checks with unique runner/script database and storage roots and no server, scanner process, worker, nested child, or ambiguous singleton state. Auto-tunes up to six workers and never retries failures. |
-| `isolated database regressions` | 179 | parallel | 4 fallback | Database-backed checks receive per-script fixture environments. The runner auto-tunes isolated parallelism with a conservative cap while preserving explicit environment overrides. |
+<!-- GENERATED REGRESSION INVENTORY START -->
+<!-- Generated by `node scripts/generate-regression-doc-inventory.mjs --write`; edit only through discovery metadata or the reviewed floor policy. -->
+### Generated coverage inventory
+
+Ratchet floors include credited retirements; validation subtracts the matching credit when enforcing the active minimum.
+
+| Inventory | Count |
+| --- | ---: |
+| Active discovered regressions | 427 |
+| Legacy-snapshot regressions | 309 |
+| Convention-path metadata regressions | 118 |
+| Credited retirements | 3 |
+| Active release-gate regressions | 57 |
+| Required release-gate IDs | 47 |
+| Global ratchet floor | 430 |
+| Release-gate ratchet floor | 59 |
+
+| Canonical area | Active | Credits | Ratchet floor |
+| --- | ---: | ---: | ---: |
+| `framework` | 72 | 0 | 72 |
+| `views` | 33 | 0 | 33 |
+| `dashboard` | 2 | 0 | 2 |
+| `workbench` | 32 | 0 | 32 |
+| `tasks` | 57 | 0 | 57 |
+| `notes` | 37 | 0 | 37 |
+| `lists` | 12 | 0 | 12 |
+| `files` | 44 | 0 | 44 |
+| `search` | 12 | 0 | 12 |
+| `notifications` | 3 | 0 | 3 |
+| `tags` | 12 | 0 | 12 |
+| `time-tracking` | 9 | 0 | 9 |
+| `database` | 41 | 0 | 41 |
+| `permissions` | 11 | 0 | 11 |
+| `jobs` | 7 | 0 | 7 |
+| `public-api` | 3 | 0 | 3 |
+| `release` | 29 | 3 | 32 |
+| `docs` | 10 | 0 | 10 |
+| `licensing` | 1 | 0 | 1 |
+
+| Canonical tier | Active |
+| --- | ---: |
+| `unit-like` | 0 |
+| `focused` | 201 |
+| `integration` | 161 |
+| `release-gate` | 57 |
+| `slow` | 8 |
+
+| Run mode | Active |
+| --- | ---: |
+| `static` | 219 |
+| `serial-database` | 6 |
+| `serial-files` | 0 |
+| `isolated-files` | 28 |
+| `isolated-database` | 174 |
+
+| Coverage family | Active | Credits | Ratchet floor |
+| --- | ---: | ---: | ---: |
+| `closeout-regressions` | 16 | 0 | 16 |
+<!-- GENERATED REGRESSION INVENTORY END -->
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
 
 ### Fast-fail bucket order
 
-The default full run uses the table order above: 210 cheap static/source checks run first, followed by 6 serial default-database checks, 20 retained serial Files checks, 9 isolated Files checks with adaptive safe parallelism, and 179 isolated-database checks with adaptive safe parallelism. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
+The default full run stays cheap-first: static/source checks, serial default-database checks, the retained serial Files safety bucket, isolated Files checks, and isolated-database checks. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
 
-This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the 424 discovered registry entries, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
+This is an explicit ordering guarantee, not a coverage reduction. The flattened bucket paths must remain exactly equal to the discovered registry, each bucket retains its declared concurrency and fixture boundary, and narrow area/tag/tier filters preserve the relative order of whichever buckets they select. `LTF_REGRESSION_BUCKET=file-storage` selects both Files buckets; `isolated-files` selects only the audited parallel subset. A focused runner regression seeds a static failure and proves that no stateful bucket is scheduled. Typecheck, Vitest, and cached ESLint run before this sequence without replacing it.
 
 ### Canonical database isolation
 
 As of 0.33.11.4, suite bucket metadata and direct invocation share one database safety rule. A regression entry point whose file name ends in `regression.mjs` may initialize the database only when `LONGTAIL_DATABASE_FILE` resolves beneath the operating-system temp directory. `src/db/regression-database-safety.js` enforces the rule before the database adapter opens. A database-backed direct regression must therefore create its temp fixture and set `LONGTAIL_DATABASE_FILE` / `LONGTAIL_DATA_DIR` before dynamically importing database or runtime modules; a static import is too early because module imports are evaluated before the script body.
 
-The suite continues to give every non-static bucket a per-script fixture through `scripts/test-support/database-fixture.mjs`. Static/source scripts receive no fixture and must remain read-only unless they explicitly create a disposable fixture themselves. The five legacy Search regressions that previously imported the database statically and the static/runtime contract regressions that transitively reach module registration now use `scripts/test-support/disposable-database.mjs`, so suite and direct invocation follow the same rule. Nested static closeout imports may reuse an already configured temp fixture without replacing or closing the parent fixture.
+The suite gives every non-static bucket a per-script fixture through `scripts/test-support/database-fixture.mjs`; static/source entries receive one only through explicit `baseline-fixture` metadata. `createDisposableDatabaseFixture()` automatically reuses a runner-provisioned temporary target while a verified handshake is registered, returns `ownsFixture: false`, and leaves runner cleanup authoritative. Direct invocation or an unverified environment creates and owns a fresh OS-temp fixture. The checked-in bypass audit keeps historical schema/startup owners, custom bootstrap identities, and nested seeded-child databases on their intended full-chain paths.
 
 `scripts/run-regressions.mjs` also captures the canonical `data/longtail-forge.db` workspace and membership fingerprint before the first bucket and compares it after cleanup of the regression baseline. Any workspace/membership change fails the run even if every individual assertion passed. `database.workspace-cleanup-isolation` proves the refusal path without creating the requested non-disposable file, runs representative formerly-leaking and already-isolated regressions directly, and verifies the canonical fingerprint stays unchanged.
 
 ### Closeout maintenance conductor
 
-`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `modules:registry:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
+`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `regressions:inventory:check`, `modules:registry:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
+
+`npm run closeout -- --fix` first runs only `regressions:manifest`, `regressions:inventory:write`, `modules:registry:generate`, and `db:schema:refresh`, stopping if deterministic regeneration fails, then performs normal validation. This mode does not ratchet policy floors and never edits exceptions, roadmap, changelog, decisions, or arbitrary documentation. `npm run closeout -- --fail-fast` stops validation after the first hard failure; without that option the complete report remains the default. The options may be combined.
 
 The closeout conductor remains a bookkeeping command and does not itself run the discovered regression suite or ESLint. `npm run verify:slice` is the ordinary local final conductor around it: it runs closeout exactly once, stops before regressions on a hard closeout failure, executes the existing changed-regression plan exactly once, and adds `npm run test:permissions` exactly once when routing selected permissions. The underlying commands remain independently runnable. The auto-discovered closeout regression still injects pass, hard-failure, and warning-only outcomes without deliberately breaking repository state.
 
@@ -327,7 +408,7 @@ Discovery reads the exported object literal statically; it does not import or ex
 | `isolated-files` | `isolated file storage regressions` | May run in parallel only when the checked-in audit proves unique disposable state through bounded repeat stress; failures are never automatically retried. |
 | `isolated-database` | `isolated database regressions` | May run in parallel only with the existing per-script isolated fixture environment. |
 
-The `fresh-database-regression.mjs` baseline bypass is represented by the generated legacy `baseline-bypass` tag and consumed from its discovered entry. The runner does not infer parallel safety from a filename, area, tier, or aggregate time; `runMode` is explicit in exported metadata, the frozen legacy snapshot, or the audited Files override layered on that snapshot.
+The `baseline-bypass` tag is consumed from discovered metadata and its complete owner set is enforced by `scripts/regression-baseline-bypass-audit.json`. Full-chain migration/startup owners, custom-bootstrap identity owners, and nested seeded-child environment opt-outs remain explicit; ordinary repository/service regressions no longer delete the runner baseline defensively. The runner does not infer parallel safety from a filename, area, tier, or aggregate time; `runMode` is explicit in exported metadata, the frozen legacy snapshot, or the audited Files override layered on that snapshot.
 
 ## Runner Selection Options
 
@@ -361,14 +442,20 @@ Use a focused package command while iterating on one owner:
 
 ```sh
 npm run test:regressions:tasks
+npm run test:regressions:time-tracking
+npm run test:regressions:lists
 npm run test:regressions:files
-npm run test:regressions:workbench
-npm run test:regressions:database
+npm run test:regressions:search
+npm run test:regressions:notifications
+npm run test:regressions:tags
+npm run test:regressions:jobs
+npm run test:regressions:public-api
+npm run test:regressions:licensing
 ```
 
-Run `npm run test:regressions:changed` when direct execution of the routing plan is useful during iteration: it inspects the current tracked and untracked working-tree changes, prints the selected areas and matching route reasons, and then executes the shared routing plan. A one-module change runs only its narrow area command. Any selected `framework`, `views`, `database`, or `release` area escalates to `npm run check`; this intentionally prefers too much coverage over too little for shared or release-sensitive changes. An unrecognized non-empty path falls back to `npm run test:regressions`. An empty change set prints `No changed files found. No regressions were run.`, exits successfully, and never claims a passing test run.
+Run `npm run test:regressions:changed` when direct execution of the routing plan is useful during iteration: it inspects tracked and untracked working-tree changes, including deleted paths and both sides of renames, prints the selected areas and matching reasons, and executes the shared plan. Existing regression files use their generated manifest area; new convention-path regressions use their declared directory area. A contained module or product-area change runs its complete narrow owner set. Files, permissions, public API authority, repositories/database, shared framework/views/jobs, generated contracts, executable package/release tooling, and unknown non-empty work retain complete escalation. Exact application-version-only package/lock edits plus roadmap/changelog ceremony stay on the focused release owner. Unknown work cannot produce an empty green plan, and an empty change set prints `No changed files found. No regressions were run.` without claiming test success.
 
-`node scripts/suggest-regressions-for-changes.mjs` remains the advice-only view of the same routing result. Both commands consume `scripts/lib/regression-change-routing.mjs`; route rules are not duplicated in the auto-runner. The helper routes module paths to their owning area, shared view-builder/renderer paths to both `framework` and `views`, database/migration/repository paths to `database`, permission/session/workspace/membership paths to `permissions`, and package/version/app-info/release paths to `release`. Rules are additive: a repository file with permission meaning selects both database and permissions checks.
+`node scripts/suggest-regressions-for-changes.mjs` remains the advice-only view of the same result. It, local execution, `verify:slice`, and CI's `--prechecked` entry all consume `scripts/lib/regression-change-routing.mjs`; route rules are not duplicated in their callers. Permission/session/workspace routing names reviewed authority paths explicitly, so unrelated filenames such as documentation containing “session” or “workspace” do not select permissions merely by substring. Rules are additive: a Tags repository selects Tags plus database, shared Tags browser code selects Tags plus framework, and workspace recovery selects permissions plus database/release owners.
 
 Operator guidance:
 
@@ -387,7 +474,8 @@ Operator guidance:
 4. Keep the file import-safe for metadata discovery: assertions may run normally when Node executes the script, but metadata extraction must not depend on module execution.
 5. Run `node scripts/run-regressions.mjs --area <area> --list` to confirm discovery and metadata.
 6. Run the new regression directly while iterating.
-7. Run `npm run regressions:manifest`, review the generated index diff, then run `npm run regressions:manifest:check` and the normal closeout checks.
+7. Review and run `npm run regressions:manifest -- --ratchet-floors`; this raises active, area, release-gate, and family floors without permitting a decrease and regenerates the manifest.
+8. Run `npm run regressions:inventory:write`, review only the delimited numeric block, and use the ordinary non-mutating closeout checks before final `npm run verify:slice`.
 
 Do not edit `scripts/regression-suite.mjs` or hand-edit `scripts/regression-coverage-manifest.json` for a new convention-path regression. Discovery and generation own both lists. The exceptions policy changes only when the coverage policy or an explicit exception changes.
 

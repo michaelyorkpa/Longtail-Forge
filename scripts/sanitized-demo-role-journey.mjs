@@ -279,7 +279,6 @@ function configureJourneyRuntime(dataDir, roleFixtures) {
   process.env.SUPER_ADMIN_DISPLAY_NAME = roleFixtures.credentials.get("super_admin").displayName;
   process.env.SUPER_ADMIN_PASSWORD = roleFixtures.credentials.get("super_admin").password;
   process.env.SUPER_ADMIN_USERNAME = roleFixtures.credentials.get("super_admin").username;
-  delete process.env.LTF_REGRESSION_BASELINE_DB;
 }
 
 function createApi(baseUrl) {

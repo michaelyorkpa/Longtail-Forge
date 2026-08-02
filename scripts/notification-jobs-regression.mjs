@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -13,16 +12,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifica
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Notification-Jobs-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
 const notificationsSource = readText("src/services/notifications.service.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const {
@@ -34,18 +29,13 @@ const { closeDatabase, initializeDatabase, querySql, runSql, sqlText } = await i
 const { notificationsService } = await import("../src/services/notifications.service.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the notification jobs version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the notification jobs version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the notification jobs version");
 
   assert.match(notificationsSource, /NOTIFICATION_EVENT_JOB_TYPE = "notification\.event"/, "notifications should declare one durable event job type");
   assert.match(notificationsSource, /registerJobHandler\(NOTIFICATION_EVENT_JOB_TYPE/, "notifications should register a worker handler");
   assert.match(notificationsSource, /queueNotificationEvent\(event, declaration\)/, "notification event handlers should queue jobs");
   assert.match(notificationsSource, /return createFromEvent\(event, declaration, \{ job \}\)/, "notification jobs should reuse the fan-out path with job retry context");
   assert.match(workerCliSource, /registerNotificationJobHandlers/, "separate worker startup should register notification job handlers");
-  assert.match(regressionSuite, /scripts\/notification-jobs-regression\.mjs/, "regression suite should include notification job coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the notification jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.5[\s\S]*notification\.event/, "architecture docs should document notification fan-out jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.5[\s\S]*Notification fan-out uses the durable job runner/, "database docs should document the notification job handoff");
   assert.match(moduleDocs, /Notification-producing internal events are queued as durable jobs/, "module docs should document queued notification fan-out");
@@ -347,8 +337,4 @@ VALUES (
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

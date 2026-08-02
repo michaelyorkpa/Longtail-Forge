@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -11,17 +10,13 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-se
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Server-List-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-server-side-list-regression-master-key";
 process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v3";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesRepositorySource = readText("src/modules/notes/notes.repo.js");
 const notesServiceSource = readText("src/modules/notes/notes.service.js");
 const notesScript = readText("public/js/notes.js");
 const linkedPanelScript = readText("public/js/shared/notes-linked-panel.js");
 const notesView = readText("views/protected/notes.html");
 const notesDocs = readText("docs/notes-module.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 
@@ -59,9 +54,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Notes server-side list version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes server-side list version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes server-side list version");
 
   assert.match(notesRepositorySource, /async function queryList\(workspaceId, options = \{\}\)/, "Notes repository should expose a bounded list projection query");
   assert.match(notesRepositorySource, /const NOTE_LIST_COLUMNS = \[[\s\S]*"body_excerpt"[\s\S]*\]/, "Notes list projection should keep safe excerpts");
@@ -85,7 +77,6 @@ function assertStaticContract() {
   assert.match(notesView, /css\/longtail-forge\.css[\s\S]*js\/notes\.js/, "Notes host should reference list paging assets");
   assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
   assert.match(notesDocs, /As of 0\.33\.5\.20\.3, the protected Notes workspace uses a lightweight server-shaped list read/, "Notes docs should keep the server-side list version on the shipped list-read contract");
-  assert.match(regressionSuite, /scripts\/notes-server-side-list-paging-regression\.mjs/, "Regression suite should include Notes server-side paging coverage");
 }
 
 async function createFixtures(session) {

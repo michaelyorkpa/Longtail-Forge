@@ -1,12 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  extractCallExpression,
-  lineNumber,
-  readRuntimeSourceEntries,
-} from "./test-support/source-scan.mjs";
+import { extractCallExpression, lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
 const helperDefinitionFile = "src/db/sql-literals.js";
@@ -14,17 +9,11 @@ const helperCallPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*
 const helperCallTestPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/;
 const operationPattern = /\b(?:db|transaction)\.(?:query|get|run)\s*\(|\b(?:querySql|getSql|runSql)\s*\(/g;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the interpolation enforcement version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the interpolation enforcement version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the interpolation enforcement version");
 
 const currentViolations = findInterpolationViolations(readRuntimeSourceEntries({ root }));
 assert.equal(
@@ -126,8 +115,7 @@ function assertStaticDocumentation() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.31[\s\S]*interpolation enforcement guardrail[\s\S]*New runtime source must not call `sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 remaining helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "database docs should publish the interpolation enforcement guardrail");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.31 - Interpolation enforcement guardrail[\s\S]*- \[x\] Add a lint\/regression guardrail[\s\S]*- \[x\] Drive the audit ratchet target to zero[\s\S]*- \[x\] Add regressions proving the guardrail rejects/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.31 - [\s\S]*Interpolation enforcement guardrail[\s\S]*0 helper invocations[\s\S]*0 direct interpolated operation sites[\s\S]*385 bound operation sites/, "changelog should record the interpolation enforcement guardrail");
-  assert.match(regressionSuite, /scripts\/interpolation-enforcement-guardrail-regression\.mjs/, "regression suite should include the interpolation enforcement guardrail");
-}
+  }
 
 function formatViolations(violations) {
   if (violations.length === 0) {

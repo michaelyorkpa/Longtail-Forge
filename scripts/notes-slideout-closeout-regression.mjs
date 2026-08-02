@@ -1,27 +1,18 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const notesDocs = readText("docs/notes-module.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the closeout version");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.6\.11 - Notes slide-out sidebar regression pass and docs closeout/, "Live roadmap should not keep the prior completed Notes closeout slice after Tasks 7.1 completes");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.10\.7 - Notes List slide-out behavior/, "Live roadmap should not keep the prior completed slice after the closeout");
 
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the closeout version");
 
 assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes developer guide should retain its canonical owning document");
 assert.match(notesDocs, /layout: "slide-out-sidebar"/, "Notes guide should document the slide-out descriptor layout");
@@ -48,25 +39,8 @@ assert.match(surfaceContract, /\.view-slideout-sidebar/, "Surface contract shoul
 assert.match(surfaceContract, /The trigger stays near the lower-left viewport edge and lifts above the visible footer without overlapping it/, "Surface contract should document trigger placement");
 assert.match(surfaceContract, /opening the drawer must not squeeze or re-center the selected-record view/, "Surface contract should document central detail behavior");
 
-for (const script of [
-  "scripts/view-renderer-shell-regression.mjs",
-  "scripts/view-descriptor-manifest-regression.mjs",
-  "scripts/notes-declarative-readonly-surface-regression.mjs",
-  "scripts/notes-ui-workflow-regression.mjs",
-  "scripts/notes-modal-stack-guardrails-regression.mjs",
-  "scripts/notes-preview-editor-regression.mjs",
-  "scripts/linked-context-picker-shell-regression.mjs",
-  "scripts/static-contract-closeout-regression.mjs",
-]) {
-  assert.match(regressionSuite, new RegExp(escapeRegExp(script)), `Regression suite should include ${script}`);
-}
-
 console.log("Notes slide-out closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
