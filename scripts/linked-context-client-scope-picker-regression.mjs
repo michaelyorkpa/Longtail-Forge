@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -36,17 +35,11 @@ try {
 }
 
 async function assertStaticContract() {
-  const packageJson = JSON.parse(await readText("package.json"));
-  const packageLock = JSON.parse(await readText("package-lock.json"));
   const pickerShell = await readText("public/js/shared/view-builder.js");
   const notesJs = await readText("public/js/notes.js");
   const notesServiceSource = await readText("src/modules/notes/notes.service.js");
   const pickerContract = await readText("docs/linked-context-picker-contract.md");
-  const regressionSuite = await readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the Linked Context client-scope version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Linked Context client-scope version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Linked Context client-scope version");
 
   assert.match(pickerShell, /clientContextSelect/, "Picker shell should expose an optional client-context select");
   assert.match(pickerShell, /setClientContexts/, "Picker shell should expose a client-context update hook");
@@ -67,7 +60,6 @@ async function assertStaticContract() {
   assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
   assertRoadmapCursorAtLeast("0.33.8", "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
-  assert.match(regressionSuite, /scripts\/linked-context-client-scope-picker-regression\.mjs/, "Regression suite should include the Linked Context client-scope picker proof");
 }
 
 async function createBusinessFixtures(session, workspace) {

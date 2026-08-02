@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.password-reset-hardening",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "passwords", "permissions", "security"],
+  tags: ["authentication", "baseline-bypass", "passwords", "permissions", "security"],
   description: "Proves admin reset forces a restricted next-login password change, remains scoped and throttled, emits safe events, and never logs generated credentials.",
   runMode: "isolated-database",
 });

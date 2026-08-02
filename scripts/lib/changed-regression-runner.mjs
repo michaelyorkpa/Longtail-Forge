@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
 import { suggestRegressionsForPaths } from "./regression-change-routing.mjs";
+import { runPackageScript } from "./package-script-runner.mjs";
 
 function createChangedRegressionPlan(filePaths = [], { prechecked = false, versionBookkeepingPaths = [] } = {}) {
   const suggestion = suggestRegressionsForPaths(filePaths, { versionBookkeepingPaths });
@@ -82,13 +82,7 @@ function runNpmCommand(command) {
   if (!match) {
     throw new Error(`Unsupported changed-regression command: ${command}`);
   }
-  if (process.platform === "win32") {
-    return spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", command], {
-      stdio: "inherit",
-      windowsHide: true,
-    });
-  }
-  return spawnSync("npm", ["run", match[1]], { stdio: "inherit" });
+  return runPackageScript(match[1]);
 }
 
 export {

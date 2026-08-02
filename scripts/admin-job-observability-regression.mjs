@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -16,10 +15,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-admin-jo
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Admin-Job-Observability-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const workspaceSettingsView = readText("views/protected/workspace-settings.html");
@@ -29,7 +25,6 @@ const styles = readText("public/css/longtail-forge.css");
 const jobsRouteSource = readText("src/routes/jobs.routes.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
 const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
@@ -63,9 +58,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the admin job observability version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the admin job observability version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the admin job observability version");
 
   assert.match(workspaceSettingsView, /data-settings-host="workspace"/, "Workspace Settings should expose the minimal framework host");
   assert.match(settingsHostScript, /jobObservabilityFieldset/, "Workspace Settings should include a Jobs readout fieldset");
@@ -90,9 +82,7 @@ function assertStaticContract() {
   assert.match(runtimeDiagnosticsSource, /lastRunAt[\s\S]*lastSuccessAt/, "runtime diagnostics should include worker health timestamps");
   assert.doesNotMatch(runtimeDiagnosticsSource, /payload_json|dedupe_key|process\.env|storageKey|signedUrl|clamdHost|clamscanPath|masterKey/i, "runtime diagnostics must not expose sensitive internals");
 
-  assert.match(regressionSuite, /scripts\/admin-job-observability-regression\.mjs/, "regression suite should include admin job observability coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the admin job observability slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.5[\s\S]*admin job observability/, "database docs should document admin job observability");
   assert.match(runtimeDocs, /Jobs Admin Readout[\s\S]*Workspace Settings[\s\S]*recent failures/, "runtime docs should document the admin jobs readout placement");
 }
@@ -377,8 +367,4 @@ function closeServer(serverInstance) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

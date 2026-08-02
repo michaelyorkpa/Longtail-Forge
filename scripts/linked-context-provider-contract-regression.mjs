@@ -1,29 +1,18 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
-import {
-  LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
-  LINKED_CONTEXT_TARGET_RESPONSE_FIELDS,
-  assertLinkedContextTargetContract,
-  validateLinkedContextTarget,
-} from "../src/core/linked-context/provider-contract.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT, LINKED_CONTEXT_TARGET_RESPONSE_FIELDS, assertLinkedContextTargetContract, validateLinkedContextTarget } from "../src/core/linked-context/provider-contract.js";
 
 const fixture = await createDisposableDatabaseFixture("linked-context-provider-contract-regression");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
-const packageLock = JSON.parse(await fs.readFile(path.join(root, "package-lock.json"), "utf8"));
 const workflowContract = await fs.readFile(path.join(root, "docs", "workflow-context-contract.md"), "utf8");
 const pickerContract = await fs.readFile(path.join(root, "docs", "linked-context-picker-contract.md"), "utf8");
 const moduleContract = await fs.readFile(path.join(root, "docs", "module-contract.md"), "utf8");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.deepEqual(LINKED_CONTEXT_TARGET_RESPONSE_FIELDS, [
   "moduleId",

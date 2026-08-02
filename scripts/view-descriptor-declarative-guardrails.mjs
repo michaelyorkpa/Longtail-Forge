@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
@@ -7,15 +6,12 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const listsHtml = readText("views/protected/lists.html");
@@ -90,9 +86,6 @@ const inventory = protectedHtmlFiles.map((fileName) => {
   };
 });
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should track the current app version");
 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
@@ -408,7 +401,6 @@ assert.match(surfaceContract, /As of 0\.33\.5\.16\.12/, "Surface contract should
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.16\.12/, "View-building contract should document declarative guardrail closeout");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.12 - /, "Changelog should include the declarative guardrail closeout version");
-assert.match(regressionSuite, /scripts\/view-descriptor-declarative-guardrails\.mjs/, "Regression suite should include declarative guardrails");
 
 nodeReport(inventory);
 console.log("View descriptor declarative guardrails passed.");

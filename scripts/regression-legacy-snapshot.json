@@ -19,10 +19,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/version-literal-guardrail-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/runtime-env-loading-regression.mjs",
       "runMode": "static"
     },
@@ -84,10 +80,6 @@
     },
     {
       "path": "scripts/regression-suite-inventory-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/regression-coverage-ratchet.mjs",
       "runMode": "static"
     },
     {

@@ -1,5 +1,337 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.7 - Regression and Pre-Rollout Check Pipeline Efficiency
+
+Completed locally on 2026-08-01 through slices 0.33.27.7.1-0.33.27.7.8.
+The branch reduced measured local verification overhead without retiring
+permission, browser, recovery, or regression coverage; exact-SHA CI reuse now
+removes duplicate normal-promotion work without granting hotfix or ambiguous
+evidence a shortcut. The active cursor advances to `0.33.27.8.1`.
+
+**Model: High Effort** - The branch changed release-critical scheduling,
+fixtures, routing, coverage ratchets, validation ownership, archive portability,
+browser execution, and protected GitHub workflows while keeping every speedup
+bound to explicit coverage and safety evidence.
+
+- [x] Added invocation-owned compile caching, safe static/Files concurrency,
+  verified SQLite baseline reuse, complete changed-file routing, generated
+  coverage-floor/inventory upkeep, and single execution ownership for repeated
+  validation and source assertions.
+- [x] Repaired Windows archive operands without changing backup format or
+  restore safety, and made lint, narrow Vitest, permission, Playwright viewport,
+  retry, worker, and managed-server contracts fail closed.
+- [x] Added finite workflow timeouts, cancellation-safe concurrency, verified
+  branch-scoped/digest-bound caches, and shallow checkout only where history is
+  not consumed; live required check names remain unchanged.
+- [x] Added unexpired `nightly-proof-v1` exact-SHA reuse for normal promotion
+  and scheduled Nightly. Repository, workflow/ref/checksum, required job set,
+  run result, SHA, policy, release metadata, artifact names, and checksums must
+  all agree; hotfix, stale, missing, ambiguous, failed, cancelled, expired, or
+  changed-policy evidence executes the full path.
+- [x] Reduced normal-promotion artifact construction from four builds to zero
+  on accepted reuse or one on fallback, passed the same verified artifact to
+  parallel runtime/bare-metal/container recovery consumers, and retained the
+  protected `Packaging and recovery` aggregation result.
+- [x] Retired duplicate CodeQL push scans after live protection proved the PR
+  context on both permanent branches; scheduled CodeQL and every required name
+  remain present, and no workflow uses `paths-ignore`.
+- [x] Evaluated but retained the canonical five-bucket runner and one shared
+  change-classification job because matrix/inlining cost, isolation evidence,
+  fail-fast visibility, and required aggregation did not justify adoption.
+- [x] Closed with 427/427 regressions in 152.08 seconds, the 174-script isolated
+  tail in 101.13 seconds, scoped release in 7.70 seconds, closeout in 5.6
+  seconds, 409 permission checks, and 129/129 Playwright tests in 1.5 minutes.
+  The 90-110 and 50-60-second aspirations remain recorded misses rather than
+  reasons to weaken complete process/data proof.
+- [x] Measured the prior promotion at 5.3 minutes wall / about 11.9 combined
+  promotion-plus-CodeQL runner-minutes; the larger 30-60-minute saving target
+  was not claimable from that real baseline, while exact-SHA reuse removes the
+  material duplicate work that existed.
+- [x] Updated owning docs, durable decisions, changelog, generated coverage
+  records, version metadata, and completed the canonical final verification.
+
+Acceptance criteria:
+
+- Complete regression, permission, browser, recovery, and required-check
+  coverage remains enforced; exact-SHA reuse fails closed; artifact lineage is
+  singular and checksummed; caches have explicit authority; every job is
+  bounded; and measured misses are documented without coverage concessions.
+
+## Version 0.33.27.7.7 - Fast-check, permission-doc, Vitest, and Playwright harness hygiene
+
+Completed locally on 2026-08-01. Fast and browser harnesses now fail closed on
+their claimed coverage, viewport exclusions happen before browser setup, and
+the measured Vitest tuning preserves membership while reducing wall time. The
+active cursor advances to `0.33.27.7.8`.
+
+**Model: High Effort** - These were contained harness defects, but lint globs,
+test selection, retry policy, and worker counts are coverage boundaries rather
+than cosmetic configuration.
+
+- [x] Added `worker.js` to the ESLint source set and required-glob regression,
+  and made `test:files` name its exact 40-test contract suite without
+  `--passWithNoTests`.
+- [x] Corrected permission documentation to keep the one-database/one-server
+  harness separate from `npm run check` and selected once only by relevant
+  slice or named CI/release gates.
+- [x] Replaced 18 in-body viewport skips with nine `@mobile` and nine
+  `@desktop` declarations plus project-level exclusion. Listing proves 64
+  intended tests per viewport plus authentication setup, while shared login
+  and accessibility coverage remains dual-viewport.
+- [x] Pinned local and CI retries, traces, screenshots, and the measured
+  shared-server-safe two-worker bound after all three six-worker probe failures
+  passed together at two workers, while retaining the required
+  `Browser smoke and accessibility` check name.
+- [x] Replaced Playwright's Windows shell-wrapped managed-server lifecycle with
+  a direct-Node owner shared by full, UI, and accessibility commands; all 129
+  tests pass in 1.4 minutes and leave port 8101 clean, while the guardrail pins
+  readiness and bounded teardown ownership.
+- [x] Adopted a host-aware 50% Vitest threads pool after repeat measurement
+  preserved all 13 files and 184 tests and reduced same-workstation median wall
+  time from 6.389 to 3.951 seconds.
+- [x] Updated owning test documentation, changelog, durable decisions, roadmap
+  handoff, version metadata, and completed the canonical local slice
+  verification once on the final tree.
+
+Acceptance criteria:
+
+- Worker lint coverage, fail-closed Files proof, accurate permission ownership,
+  cheaper equivalent desktop/mobile browser selection with actionable failure
+  artifacts, and evidence-backed isolation-safe Vitest tuning are all present.
+
+## Version 0.33.27.7.6 - Windows backup-archive portability repair
+
+Completed locally on 2026-08-01. Whole-instance and workspace tar operations
+now keep Windows drive colons out of the archive operand without changing the
+archive format, validation, or atomic restore contracts. The active cursor
+advances to `0.33.27.7.7`.
+
+**Model: High Effort** - Backup creation and restore are data-integrity
+boundaries; a platform repair must preserve path safety, checksums, rollback,
+and Linux compatibility rather than merely silence one tar implementation.
+
+- [x] Re-ran the three archived deterministic failures before editing. All
+  three passed under the current Windows `bsdtar`, proving the immediate suite
+  was green, while history confirmed neither archive owner had received a code
+  fix for the absolute drive-letter operand reported under GNU tar.
+- [x] Added one shared local-tar command boundary that uses the resolved archive
+  directory as the child working directory and the basename as the archive
+  operand for create, list, verbose-list, and extract operations.
+- [x] Preserved archive entry validation, protected-path rules, link/type
+  rejection, SHA-256 verification, SQLite and Files unity, Secure Notes
+  prerequisite handling, pre-restore backup, rollback, migration identity, and
+  POSIX behavior.
+- [x] Added focused Windows drive-letter/colon and POSIX operand coverage, and
+  retained the whole-instance backup/restore, workspace backup, demo-host,
+  restored-integrity, and rollback release gates.
+- [x] Recorded `PRAGMA integrity_check = ok`, updated the owning regression-suite
+  documentation and changelog, regenerated reviewed coverage artifacts, bumped
+  version metadata, and completed the canonical local slice verification.
+
+Acceptance criteria:
+
+- The three named regressions pass deterministically on Windows, archive
+  operands are local on Windows and POSIX, archive format and security checks
+  are unchanged, and restore remains atomic, migration-aware, and rollback-safe.
+
+## Version 0.33.27.7.5 - Single ownership for validation, source scans, and repeated assertions
+
+Completed locally on 2026-08-01. Repeated validation now has one named ordinary
+execution owner, every moved or retired assertion family has machine-readable
+evidence, and targeted source scanning is cheaper and bounded without hiding
+large files or weakening generated coverage. The active cursor advances to
+`0.33.27.7.6`.
+
+**Model: High Effort** - This was a high-volume coverage consolidation across
+hundreds of assertions and several release gates; each removal has an explicit
+retained owner so faster execution cannot mask lost protection.
+
+- [x] Made closeout the one ordinary owner for `version:guard` while retaining
+  the direct command, exact package/lock/runtime/app-info/changelog/roadmap
+  checks, pre-read ignored/historical exclusion, and explicit failure for
+  included files at or above the scan ceiling.
+- [x] Removed parameter-binding and licensing CLI respawns, retained the
+  fixture-rooted bundled-module generator failures, and kept live catalog,
+  manifest, schema, docs, notices, and licensing checks in closeout.
+- [x] Consolidated package/lock triples, legacy membership, dynamic changelog
+  headings, exact root package commands, TypeScript facts, and pure asset
+  examples through `assertionMovements`, source inventory, retained owners, and
+  the `release.validation-single-ownership` guard.
+- [x] Retired duplicate suite execution of the direct version guard and merged
+  every legacy ratchet valid/invalid fixture into
+  `release.regression-manifest-generation`; three credited retirements plus 425
+  active scripts produce a raised 428-script gross floor.
+- [x] Added shared cached source/Markdown reads, balanced function extraction,
+  and ordered-literal checks. The three measured priority files reduced greedy
+  pattern counts from 170/138/125 to 159/121/119; intentionally untouched cases
+  remain recorded with rationale.
+- [x] Updated the owning regression-suite and performance docs, changelog,
+  generated inventory/manifest, roadmap/archive handoff, version metadata, and
+  completed the canonical final local verification once on the final tree.
+
+Acceptance criteria:
+
+- Each protected fact has one named ordinary owner, direct diagnostics remain
+  available, moved assertions and retired scripts retain machine-readable
+  evidence, included large files cannot silently escape version scanning, and
+  measured child-process/source-pattern work drops without losing required
+  release contracts or gross coverage floors.
+
+## Version 0.33.27.7.4 - Generated coverage inventory and closeout ceremony automation
+
+Completed on 2026-08-01. Coverage floors now stay exactly armed through an
+explicit reviewed ratchet, current numeric inventory has one deterministic
+documentation owner, and closeout can safely repair only enumerated generated
+artifacts or stop early by explicit request. The active cursor advances to
+`0.33.27.7.5`.
+
+**Model: High Effort** - Coverage floors and generated release records are
+enforcement policy, not formatting; automation must re-arm ratchets without
+making coverage loss self-approving.
+
+- [x] Fixed the credited-retirement self-test formula and added an explicit
+  `--ratchet-floors` mode for active, per-area, release-gate, and coverage-family
+  floors; ordinary generation/checking remains non-policy-mutating and every
+  attempted decrease is refused.
+- [x] Removed tautological aggregate and bucket-count upkeep while preserving
+  exact generated membership, uniqueness, populated-area, required-ID,
+  retirement, and monotonic-floor enforcement.
+- [x] Added one clearly delimited manifest/policy-generated numeric block in
+  `docs/regression-suite.md`, independent write/check commands, and the canonical
+  convention-path metadata coverage phrase.
+- [x] Added safe `closeout --fix` regeneration for only the manifest, bounded
+  documentation block, bundled-module catalog, and schema snapshot plus opt-in
+  `--fail-fast`; default closeout still reports every gate.
+- [x] Corrected the version-helper checklist and owning regression/versioning
+  documentation to require roadmap archive/cursor handoff, changelog/docs,
+  reviewed manifest generation, one final `verify:slice`, and runtime identity
+  without duplicate expensive gates.
+- [x] Updated the changelog and owning docs, advanced only through
+  `npm run version:bump -- 0.33.27.7.4`, and completed the canonical final local
+  verification once on the final tree.
+
+Acceptance criteria:
+
+- New regressions require no hand-copied numeric edits; floors cannot lag or
+  decrease silently; generated repair stays bounded; default and opt-in closeout
+  modes preserve their contracts; and the version helper directs one coherent
+  closeout.
+
+## Version 0.33.27.7.3 - Complete and precise changed-file routing
+
+Completed on 2026-08-01. Every populated canonical regression area now has an
+independently runnable focused command and a precise registered or source-path
+route. Deletes and both rename paths retain ownership; unrelated permission-like
+filenames no longer trigger by substring; unknown non-empty work still fails
+toward complete coverage. The active cursor advances to `0.33.27.7.4`.
+
+**Model: High Effort** - Routing determines which evidence may replace the full
+suite, so false precision could silently under-test protected behavior.
+
+- [x] Added commands and positive routes for Time Tracking, Search, Tags, Lists,
+  jobs, Notifications, public API, and licensing; every populated canonical area
+  now resolves to an executable focused command.
+- [x] Replaced bare permission/session/workspace/membership substring matching
+  with explicit authority paths and tightened release/runner-self matching while
+  preserving focused version and roadmap/changelog ceremony.
+- [x] Kept route matches additive and retained full escalation for Files,
+  permissions, public API authority, repositories/database, shared
+  framework/views/jobs, generated contracts, executable package/release tools,
+  and unknown work; permission meaning selects its harness once.
+- [x] Added table-driven proof for positive routes, overlaps, false positives,
+  rename/delete inputs, generated files, bookkeeping, runner changes, unknown
+  fallback, and shared advice/local/verify/CI routing consumption.
+- [x] Updated governing regression/package-command documentation and changelog,
+  advanced through `npm run version:bump -- 0.33.27.7.3`, and completed the
+  canonical local slice verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- All populated areas are routable; contained work selects its complete narrow
+  owner set; shared/security/data/release work still escalates; false-positive
+  names stay out of unrelated routes; and non-empty unknown work cannot return
+  an empty green plan.
+
+## Version 0.33.27.7.2 - Verified-baseline isolated-database and fixture fast path
+
+Completed on 2026-08-01. Eligible regression children now copy the runner's
+closed, checksum-validated SQLite template before provider open through a
+one-shot pipe attestation; only that exact target skips redundant migration
+work. Direct, production, environment-only, existing-target and nested process
+paths retain the complete chain, while malformed, stale, forged and tampered
+authority fails closed. The active cursor advances to `0.33.27.7.3`.
+
+**Model: High Effort** - The optimization crosses the migration runner and
+process-style fixture boundary, where stale or forged authority could otherwise
+conceal checksum, schema or migration defects.
+
+- [x] Bound the fast path to runner parent identity, temporary paths, exact
+  closed-template size/SHA-256, complete applied-migration identity, integrity,
+  foreign keys and a nonce delivered over a consumed inherited descriptor.
+- [x] Kept genuine migration/startup owners and custom-bootstrap identities on
+  the full chain; removed redundant service/repository opt-outs and checked in
+  exact rationales for every retained nested seeded-child environment deletion.
+- [x] Made verified runner-target reuse a supported disposable-fixture path and
+  added an explicit static fixture opt-in without weakening direct-run temp
+  ownership or runner cleanup.
+- [x] Proved copied identity/checksums, `PRAGMA integrity_check`, foreign-key
+  enforcement, zero violations and cleanup, plus direct, absent, existing,
+  environment-only, stale, forged and tampered behavior.
+- [x] Updated the governing database/regression documentation and changelog,
+  advanced only through `npm run version:bump -- 0.33.27.7.2`, and completed the
+  canonical local slice verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- Full-chain coverage remains explicit and green; no production/direct path
+  trusts the shortcut; fixture reuse preserves isolation and migration identity.
+  On the loaded same-turn reference workstation the normal six-worker bucket
+  improved from 121.95 to 109.36 seconds while adding one 15.70-second owner;
+  the ratio normalizes near 81 seconds against the clean 90.41-second reference,
+  moving toward but not claiming to beat the branch's final 50-60-second target.
+
+## Version 0.33.27.7.1 - Regression runner scheduling and process-throughput quick wins
+
+Completed on 2026-07-31. The regression runner now owns and cleans one
+invocation-scoped Node compile cache, overlaps template-baseline prefetch with
+safe static work, uses conservative host-aware static scheduling, and avoids
+Windows cmd/npm hops for simple Node package scripts invoked by closeout and
+changed-regression conductors. All 424 regressions remain discovered in the same
+cheap-first bucket order, and the active cursor advances to `0.33.27.7.2`.
+
+**Model: High Effort** - The edits are concentrated in the runner, but they
+alter process environment, concurrency, bucket assignment, failure scheduling,
+and resource cleanup across the full suite.
+
+- [x] Captured the refreshed 424-script baseline and slow tail, introduced one
+  operating-system-temp `NODE_COMPILE_CACHE` with deterministic cleanup, and
+  overlapped baseline prefetch with static execution without exposing checkout,
+  cross-run, or secret-bearing state.
+- [x] Added explicit static parallelism control with a conservative host-aware
+  default and serial override, while replacing brittle bucket-size equality with
+  exact flattened membership, uniqueness, and safety-floor invariants.
+- [x] Resource-audited and moved seven source/in-memory entries to static; all 28
+  stateful Files regressions moved to no-retry isolated scheduling only after
+  script-specific resource proof and three-pass representative stress. The one
+  remaining original Files entry is now static, so current retained serial Files
+  inventory is empty.
+- [x] Used direct Node execution for simple closeout/changed-regression package
+  scripts while retaining npm fallback and independently runnable public scripts;
+  per-script output buffering, one-bootstrap metadata discovery, fail-fast bucket
+  order, and isolated-database-only visible recovery remain explicit contracts.
+- [x] Updated governing regression and performance documentation, recorded the
+  release in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.7.1`, and completed the canonical local slice
+  verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- Regression membership and relative bucket order are unchanged; every bucket
+  move has checked-in isolation proof; failures and recovered retries remain
+  visible; runner cache state is temporary and cleaned; the 28-script Files
+  family fell from 47.66 to 16.72 seconds; and repeatable clean full-suite runs
+  improved from 171.76 seconds to 155.66 and 150.93 seconds with no recoveries.
+
 ## Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
 
 Completed on 2026-07-31. The centralized identifier rollout now has system-level

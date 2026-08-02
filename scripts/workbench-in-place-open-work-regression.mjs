@@ -1,19 +1,13 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const workbenchScript = readText("public/js/workbench.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the in-place Workbench open-work version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the in-place Workbench open-work version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the in-place Workbench open-work version");
 
 assert.match(
   workbenchScript,

@@ -23,14 +23,10 @@ import {
 } from "../../lib/migration-schema-workflow.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const databaseDocs = readFileSync("docs/database.md", "utf8");
 const tempRoots = [];
 
 try {
-  assert.equal(packageJson.scripts["db:migration:create"], "node scripts/create-migration.mjs");
-  assert.equal(packageJson.scripts["db:schema:refresh"], "node scripts/schema-snapshot.mjs --refresh");
-  assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
   assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086"]);

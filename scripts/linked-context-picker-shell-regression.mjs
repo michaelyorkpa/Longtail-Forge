@@ -1,21 +1,14 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const pickerContract = readText("docs/linked-context-picker-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
@@ -167,7 +160,6 @@ assert.match(viewContract, /createLinkedContextList/, "view-building contract sh
 assert.match(moduleContract, /shared Linked Context picker shell/, "module contract should document framework picker anatomy ownership");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Linked Context picker shell/, "completed picker shell slice should be archived out of the live roadmap");
-assert.match(regressionSuite, /scripts\/linked-context-picker-shell-regression\.mjs/, "regression suite should include picker shell regression");
 
 console.log("Linked Context picker shell regression passed.");
 

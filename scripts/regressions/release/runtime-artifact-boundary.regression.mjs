@@ -26,7 +26,6 @@ const runtimeSmoke = await fs.readFile("scripts/runtime-artifact-smoke.mjs", "ut
 const runtimePackage = createRuntimePackage(packageJson);
 const runtimeLock = createRuntimeLock(packageLock);
 
-assert.equal(packageJson.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
 assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
@@ -115,8 +114,7 @@ try {
     );
   }
 
-  assert.match(path.basename(result.artifactPath), new RegExp(`${escapeRegExp(packageJson.version)}\\.tgz$`));
-  const checksumText = await fs.readFile(result.checksumPath, "utf8");
+    const checksumText = await fs.readFile(result.checksumPath, "utf8");
   assert.equal(checksumText, `${result.checksum}  ${path.basename(result.artifactPath)}\n`);
   assert.match(result.checksum, /^[a-f0-9]{64}$/);
 } finally {
@@ -124,7 +122,3 @@ try {
 }
 
 console.log("Runtime artifact boundary regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

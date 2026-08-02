@@ -1,10 +1,8 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createProjectTextReader, extractFunctionBlock, sourceContainsInOrder } from "./test-support/source-scan.mjs";
 
-
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
+const { readText } = createProjectTextReader();
+const functionBlock = extractFunctionBlock;
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const taskTimerService = readText("src/modules/tasks/task-timers.service.js");
@@ -14,11 +12,7 @@ const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const viewContract = readText("docs/view-building-contract.md");
 const taskTimerRegression = readText("scripts/task-timer-status-regression.mjs");
 const notificationRegression = readText("scripts/notification-regression.mjs");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const editorDialog = functionBlock(taskDialogScript, "createTaskEditorDialog");
@@ -51,9 +45,9 @@ const upsertTimer = functionBlock(taskDialogScript, "upsertTaskTimer");
 const removeTimer = functionBlock(taskDialogScript, "removeTaskTimer");
 const copyTaskLink = functionBlock(taskDialogScript, "copyTaskLink");
 
-assert.match(editorDialog, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*utilityActions: taskEditorUtilityActions\(descriptor\)[\s\S]*actions: taskEditorCommitActions\(descriptor\)/, "Task editor should keep framework-owned modal footer placement");
-assert.match(editorDialog, /view\.createActionButton\(\{[\s\S]*action: "follow-task-notifications"[\s\S]*icon: "bell"[\s\S]*iconOnly: true[\s\S]*role: "utility"/, "Notification follow should stay a framework action button in the modal heading");
-assert.match(editorDialog, /notificationToggle\.dataset\.taskNotificationToggle = ""[\s\S]*notificationToggle\.hidden = true[\s\S]*notificationToggle\.setAttribute\("aria-pressed", "false"\)/, "Notification follow button should keep task-owned state hooks");
+assert.ok(sourceContainsInOrder(editorDialog, ["view.renderDescriptorModalForm(descriptor, {", "utilityActions: taskEditorUtilityActions(descriptor)", "actions: taskEditorCommitActions(descriptor)"]), "Task editor should keep framework-owned modal footer placement");
+assert.ok(sourceContainsInOrder(editorDialog, ["view.createActionButton({", 'action: "follow-task-notifications"', 'icon: "bell"', "iconOnly: true", 'role: "utility"']), "Notification follow should stay a framework action button in the modal heading");
+assert.ok(sourceContainsInOrder(editorDialog, ['notificationToggle.dataset.taskNotificationToggle = ""', "notificationToggle.hidden = true", 'notificationToggle.setAttribute("aria-pressed", "false")']), "Notification follow button should keep task-owned state hooks");
 assert.match(editorDescriptor, /id: "timer", label: "Task Timer", type: "section", width: "full"[\s\S]*id: "reminders", label: "Reminders"[\s\S]*id: "notes", label: "Notes"/, "Task editor descriptor should preserve Timer, Reminders, and Notes section placement");
 assert.match(editorDescriptor, /utilityActions:\s*\[[\s\S]*id: "tags", label: "Task tags", icon: "tag", role: "utility"[\s\S]*id: "files", label: "Task files", icon: "file", role: "utility"[\s\S]*id: "copy-link", label: "Copy task link", icon: "copy", role: "utility"/, "Task editor descriptor should preserve utility footer actions");
 assert.match(utilityActions, /view\.createActionButton\(\{[\s\S]*className: "surface-modal-footer-action"[\s\S]*iconOnly: false[\s\S]*role: action\.role[\s\S]*text: action\.text \|\| action\.label[\s\S]*title: action\.label/, "Utility footer actions should be framework action buttons with visible labels");
@@ -66,7 +60,7 @@ assert.match(filesDialog, /view\.createModal\(\{[\s\S]*title: "Task Files"[\s\S]
 assert.match(notesSection, /className: \["task-notes-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-notes-panel": ""[\s\S]*taskEditorSectionHeading\(view, "summary", "Notes"\)[\s\S]*"data-task-notes": ""/, "Notes linked panel should stay in its shared modal section shell");
 assert.doesNotMatch(taskDialogScript, /createTaskTimerDialog|data-task-timer-dialog|<dialog[^>]+timer/i, "Timer utility fragments should not create duplicate modal shells");
 
-assert.match(ensureDialog, /fields\.timerStart\?\.addEventListener\("click", \(\) => saveTaskTimer\("running"\)\)[\s\S]*fields\.timerPause\?\.addEventListener\("click", \(\) => saveTaskTimer\("paused"\)\)[\s\S]*fields\.timerFinalize\?\.addEventListener\("click", finalizeTaskTimer\)[\s\S]*fields\.timerReset\?\.addEventListener\("click", resetTaskTimer\)/, "Task timer buttons should still dispatch to Tasks-owned handlers");
+assert.ok(sourceContainsInOrder(ensureDialog, ['fields.timerStart?.addEventListener("click", () => saveTaskTimer("running"))', 'fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"))', 'fields.timerFinalize?.addEventListener("click", finalizeTaskTimer)', 'fields.timerReset?.addEventListener("click", resetTaskTimer)']), "Task timer buttons should still dispatch to Tasks-owned handlers");
 assert.match(ensureDialog, /fields\.copyLink\?\.addEventListener\("click", copyCurrentTaskLink\)/, "Copy Link should still dispatch to Tasks-owned behavior");
 assert.match(ensureDialog, /fields\.tagToggle\?\.addEventListener\("click", openTaskTagsDialog\)[\s\S]*fields\.fileToggle\?\.addEventListener\("click", openTaskFilesDialog\)/, "Tags and Files footer buttons should still dispatch to Tasks-owned handlers");
 assert.match(ensureDialog, /fields\.notificationToggle\?\.addEventListener\("click", toggleTaskNotificationFollow\)[\s\S]*fields\.notesContainer\?\.addEventListener\("notes-linked-panel:link"[\s\S]*fields\.notesContainer\?\.addEventListener\("notes-linked-panel:unlink"/, "Notification and linked-notes events should stay wired");
@@ -133,18 +127,5 @@ assert.match(notificationRegression, /task notification follow UI uses shared su
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.9\.6[\s\S]*Task Timer section keeps the shared `\.surface-modal-group` shell[\s\S]*Tags and Files stay in framework-placed footer utility actions[\s\S]*linked Notes panel stays mounted through the Notes-owned helper/, "Tasks docs should document the 9.6 timer and utility boundary");
 assert.match(declarativeGuide, /As of 0\.33\.5\.18\.10\.3[\s\S]*timer state, tags, files, linked notes, copy-link, notification follow/, "Declarative guide should document the utility escape hatches");
 assert.match(viewContract, /timer and utility preservation shipped in 0\.33\.5\.18\.9\.6[\s\S]*Task Timer state, Tags, Files, linked Notes, Copy Link, and notification follow\/unfollow/, "View-building contract should record the 9.6 preservation slice");
-assert.match(regressionSuite, /scripts\/tasks-timer-utility-escape-hatch-regression\.mjs/, "Regression suite should include the timer/utility escape-hatch regression");
 
 console.log("Tasks timer and utility escape-hatch regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

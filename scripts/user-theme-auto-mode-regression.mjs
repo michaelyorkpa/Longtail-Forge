@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -10,8 +9,6 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-theme-auto-mode-"))
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-theme-auto-mode.db");
 process.env.SUPER_ADMIN_PASSWORD = "Theme-Auto-Mode-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const migrationSql = readText("src/db/migrations/067_user_theme_auto_source.sql");
 const normalizers = readText("src/utils/normalizers.js");
 const usersRepo = readText("src/repositories/users.repo.js");
@@ -33,8 +30,6 @@ const userSettingsScript = readText("public/js/user-settings.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { staticService } = await import("../src/services/static.service.js");
@@ -59,9 +54,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the theme auto mode version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the theme auto mode version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the theme auto mode version");
 
   assert.match(migrationSql, /ADD COLUMN theme_auto_source TEXT NOT NULL DEFAULT 'system' CHECK \(theme_auto_source IN \('system'\)\)/, "migration should add the persisted auto-source preference");
   assert.match(normalizers, /function normalizeThemeMode\(value\)[\s\S]*\["light", "auto", "dark"\]\.includes\(value\)/, "theme mode normalizer should allow light, auto, and dark");
@@ -129,8 +121,6 @@ function assertStaticContract() {
   assert.match(moduleContract, /The only shipped auto source is `system`/, "tracked docs should record the OS-match auto source");
   assert.match(moduleContract, /Sunrise\/sunset theme automation is deferred/, "tracked docs should record the sunrise/sunset deferral");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the theme auto mode slice");
-  assert.match(regressionSuite, /scripts\/user-theme-auto-mode-regression\.mjs/, "regression suite should include theme auto mode coverage");
 }
 
 async function assertMigrationAndColumn() {
@@ -245,8 +235,4 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

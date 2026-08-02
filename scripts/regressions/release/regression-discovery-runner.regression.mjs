@@ -24,9 +24,17 @@ import {
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
 const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8"));
+const coveragePolicy = JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8"));
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
 
-assert.equal(legacySnapshot.scripts.length, 311, "migration snapshot should preserve the 0.33.6.16.1 suite minus the credited syntax-gate retirement");
+const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
+  entry.floorCredit === true && entry.legacy === true
+)).length;
+assert.equal(
+  legacySnapshot.scripts.length + creditedLegacyRetirements,
+  coveragePolicy.legacyMetadataException.expectedScripts,
+  "migration snapshot plus reviewed credits should preserve the recorded legacy baseline",
+);
 for (const entry of legacySnapshot.scripts) {
   assert.ok(discoveredPaths.has(entry.path), `${entry.path} must survive metadata discovery`);
 }
@@ -141,8 +149,14 @@ assert.deepEqual(
 assert.throws(() => parseRegressionCliArgs(["--area", "unknown"]), /--area must be one of/);
 assert.throws(() => parseRegressionCliArgs(["--tag", "Not Valid"]), /lowercase kebab-case/);
 
+const nestedRunnerEnv = { ...process.env };
+delete nestedRunnerEnv.LTF_REGRESSION_BUCKET;
+delete nestedRunnerEnv.LTF_REGRESSION_REPEAT;
+delete nestedRunnerEnv.LTF_REGRESSION_TIMING_JSON;
+
 const listResult = spawnSync(process.execPath, ["scripts/run-regressions.mjs", "--area", "release", "--list"], {
   encoding: "utf8",
+  env: nestedRunnerEnv,
 });
 assert.equal(listResult.status, 0, listResult.stderr);
 assert.match(listResult.stdout, /release\.regression-discovery-runner/);
@@ -151,6 +165,7 @@ assert.doesNotMatch(listResult.stdout, /scripts\/task-checklist-regression\.mjs/
 
 const dryRunResult = spawnSync(process.execPath, ["scripts/run-regressions.mjs", "--tag", "metadata", "--dry-run"], {
   encoding: "utf8",
+  env: nestedRunnerEnv,
 });
 assert.equal(dryRunResult.status, 0, dryRunResult.stderr);
 assert.match(dryRunResult.stdout, /Dry run: 1 regression script run\(s\) selected/);

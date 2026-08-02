@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -14,10 +13,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(dataDir, "longtail-forge-worker-r
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Worker-Runner-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -27,7 +23,6 @@ const runnerSource = readText("src/core/jobs/job-runner.js");
 const handlersSource = readText("src/core/jobs/job-handlers.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
 const workerRootSource = readText("worker.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -56,9 +51,6 @@ const {
 let workspaceId = "";
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the worker runner version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the worker runner version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the worker runner version");
 
   assert.match(workerRootSource, /loadRuntimeEnvFile\(\)/, "worker.js should load the same local .env contract as server.js");
   assert.match(workerRootSource, /startWorkerCli/, "worker.js should start the Node worker CLI");
@@ -78,12 +70,10 @@ try {
   assert.doesNotMatch(workerCliSource, /\binitializeDatabase\b/, "separate worker CLI must not run app migrations/startup maintenance");
   assert.match(workerCliSource, /acquireWorkerProcessLock/, "separate SQLite worker should enforce one local worker process");
   assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup must verify schema without owning migrations or app startup maintenance");
-  assert.match(regressionSuite, /scripts\/worker-runner-regression\.mjs/, "regression suite should include worker runner coverage");
   assert.match(runtimeDocs, /`LONGTAIL_WORKER_MODE`[\s\S]*`inline`[\s\S]*`separate`[\s\S]*`disabled`/, "runtime docs should document worker modes as active settings");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.2[\s\S]*Worker runner v1/, "database docs should document the worker runner");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.2[\s\S]*at most one local worker process/, "SQLite docs should document the one-worker boundary");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the worker runner slice");
 
   assertWorkerConfigModes();
   assertWorkerSchemaReadinessFailsBeforeMigrations();
@@ -365,8 +355,4 @@ function functionBlock(source, name) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const rendererShellRegression = readText("scripts/view-renderer-shell-regression.mjs");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 const sidebarPanels = sourceSlice(tasksModule, "sidebarPanels: [", "      ],");
 assert.match(sidebarPanels, /id:\s*"tasks-view-selector"[\s\S]*title:\s*"Saved Task Views"[\s\S]*behavior:\s*"tasks\.sidebar\.view-selector"[\s\S]*collapsible:\s*false/, "Tasks descriptor should put a non-collapsible Saved Task Views selector first");
@@ -56,7 +49,6 @@ assert.match(styles, /\.view-slideout-sidebar-drawer \.tasks-filters-panel \.vie
 assert.match(rendererShellRegression, /Trigger click should open the slide-out drawer/, "Shared renderer regression should cover slide-out trigger open behavior");
 assert.match(rendererShellRegression, /Backdrop click should close the drawer/, "Shared renderer regression should cover slide-out backdrop close behavior");
 assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared renderer regression should cover slide-out Escape close behavior");
-assert.match(regressionSuite, /scripts\/tasks-filter-sidebar-anatomy-regression\.mjs/, "Regression suite should include the Tasks filter sidebar anatomy regression");
 
 console.log("Tasks filter sidebar anatomy regression passed.");
 

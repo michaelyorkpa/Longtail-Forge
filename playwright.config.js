@@ -14,17 +14,20 @@ import { defineConfig } from "@playwright/test";
 import {
   E2E_BASE_URL,
   E2E_STORAGE_STATE_PATH,
-  usesManagedServer,
 } from "./tests/e2e/support/e2e-env.mjs";
+
+const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: "tests/e2e",
   outputDir: "test-results",
   fullyParallel: true,
   reporter: "list",
+  retries: isCI ? 1 : 0,
+  workers: 2,
   use: {
     baseURL: E2E_BASE_URL,
-    trace: "retain-on-failure",
+    trace: isCI ? "on-first-retry" : "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
@@ -37,6 +40,7 @@ export default defineConfig({
       // Named desktop viewport, reused across specs.
       name: "desktop",
       dependencies: ["setup"],
+      grepInvert: /@mobile/,
       use: {
         browserName: "chromium",
         viewport: { width: 1280, height: 800 },
@@ -47,6 +51,7 @@ export default defineConfig({
       // Named mobile viewport, reused across specs.
       name: "mobile",
       dependencies: ["setup"],
+      grepInvert: /@desktop/,
       use: {
         browserName: "chromium",
         viewport: { width: 375, height: 812 },
@@ -57,12 +62,4 @@ export default defineConfig({
       },
     },
   ],
-  webServer: usesManagedServer
-    ? {
-        command: "node tests/e2e/support/start-e2e-server.mjs",
-        url: `${E2E_BASE_URL}/api/app-info`,
-        reuseExistingServer: false,
-        timeout: 120000,
-      }
-    : undefined,
 });

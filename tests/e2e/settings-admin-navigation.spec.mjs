@@ -34,9 +34,7 @@ test("Workspace groups optional modules and repaired Files Settings host loads",
   await expect(page.locator("[data-module-settings-status]")).not.toContainText("undefined");
 });
 
-test("Developer Example can be enabled and its Settings host loads", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === "mobile", "The shared-server lifecycle mutation is covered once on desktop.");
-
+test("Developer Example can be enabled and its Settings host loads", { tag: "@desktop" }, async ({ page }) => {
   await page.goto("/workspace-settings.html");
   const developerToggle = page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]');
   const saveButton = page.locator('[data-settings-page-save][data-settings-action-position="top"]');

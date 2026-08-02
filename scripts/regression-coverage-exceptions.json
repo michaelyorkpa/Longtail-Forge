@@ -1,28 +1,28 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 416,
+  "minimumActiveScripts": 430,
   "minimumAreaScripts": {
     "dashboard": 2,
-    "database": 36,
-    "docs": 9,
+    "database": 41,
+    "docs": 10,
     "files": 44,
-    "framework": 70,
+    "framework": 72,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
     "notes": 37,
     "notifications": 3,
-    "permissions": 6,
+    "permissions": 11,
     "public-api": 3,
-    "release": 26,
+    "release": 32,
     "search": 12,
     "tags": 12,
-    "tasks": 54,
+    "tasks": 57,
     "time-tracking": 9,
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 53,
+  "minimumReleaseGateScripts": 59,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -55,6 +55,7 @@
     "release.changed-regression-auto-run",
     "release.github-only-docs-workflow-routing",
     "release.closeout-conductor",
+    "release.validation-single-ownership",
     "release.regression-manifest-generation",
     "release.regression-routing-commands",
     "release.fast-check-pipeline",
@@ -98,7 +99,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 10
+      "minimumActiveScripts": 16
     }
   ],
   "legacyMetadataException": {
@@ -120,6 +121,100 @@
         "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
         "node scripts/runtime-configuration-contract-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 534,
+      "rationale": "Package, lock-root, and lock-package current-version equality was repeated across legacy regressions even though the direct version guard already owns the canonical runtime and metadata relationship.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; release.closeout-conductor runs that direct gate once.",
+      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/clients-projects-action-registration-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 187,
+      "rationale": "Legacy regressions repeatedly asserted their own or a consolidated owner's snapshot membership even though discovery and the generated manifest already reconcile every active and credited-retired path.",
+      "assertionDisposition": "release.regression-manifest-generation owns exact discovered membership, legacy snapshot reconciliation, required release gates, credited retirements, and stale-manifest failure proof.",
+      "movedTo": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run regressions:manifest:check",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/admin-job-observability-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 49,
+      "rationale": "Feature regressions repeated a dynamic current-version CHANGELOG heading check unrelated to their behavior contract.",
+      "assertionDisposition": "The direct version guard owns the one current CHANGELOG heading check while historical feature-specific changelog assertions remain with their feature regressions.",
+      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/parameter-binding-audit-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 57,
+      "rationale": "Exact root package-script strings were distributed across feature and release regressions, making command wiring a many-owner contract.",
+      "assertionDisposition": "scripts/package-script-contracts.json is the reviewed exact command inventory and release.validation-single-ownership is its single execution owner; feature regressions keep behavior and independent-runnability assertions.",
+      "movedTo": "scripts/regressions/release/validation-single-ownership.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/validation-single-ownership.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 5,
+      "rationale": "The fast-check regression repeated TypeScript compiler scope facts already enforced by the framework typecheck-seams release gate.",
+      "assertionDisposition": "framework.typecheck-seams remains the single regression owner for noEmit, allowJs, selective checkJs, strict compiler settings, and included type contracts; fast-check still owns command ordering and dependency boundaries.",
+      "movedTo": "scripts/regressions/framework/typecheck-seams.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/framework/typecheck-seams.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "node scripts/regressions/framework/typecheck-seams.regression.mjs",
+        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/regressions/framework/asset-cache-version.regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 5,
+      "rationale": "Pure assetVersion and withAssetVersion return-value examples were duplicated between Vitest and the framework integration regression.",
+      "assertionDisposition": "tests/unit/asset-version.test.mjs owns pure URL transformation and canonical asset-version expectations; framework.asset-cache-version remains active for HTML injection, served assets, runtime loaders, module assets, and raw-key guard integration.",
+      "movedTo": "tests/unit/asset-version.test.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/framework/asset-cache-version.regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/asset-version.test.mjs",
+        "node scripts/regressions/framework/asset-cache-version.regression.mjs",
         "npm run verify:slice"
       ]
     }
@@ -372,6 +467,53 @@
       "tags": [
         "release",
         "slow"
+      ],
+      "legacy": true
+    },
+    {
+      "script": "scripts/version-literal-guardrail-regression.mjs",
+      "retiredInVersion": "0.33.27.7.5",
+      "retirementType": "assertions-moved",
+      "rationale": "The version guard remains a direct diagnostic but now has one ordinary execution owner in the closeout conductor instead of running again as a discovered regression.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs remains the direct implementation and synthetic failure owner; release.closeout-conductor invokes version:guard exactly once in ordinary local and CI closeout.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/closeout-conductor.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/closeout-conductor.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.version.literal.guardrail",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "contract",
+        "release"
+      ],
+      "legacy": true
+    },
+    {
+      "script": "scripts/regression-coverage-ratchet.mjs",
+      "retiredInVersion": "0.33.27.7.5",
+      "retirementType": "assertions-moved",
+      "rationale": "The legacy ratchet and convention-path manifest regression exercised the same manifest policy and synthetic invalid-policy fixtures in separate Node processes.",
+      "assertionDisposition": "release.regression-manifest-generation now retains deterministic generation, floor drift and ratcheting, missing required-gate, malformed retirement, malformed assertion-movement, protected-area retirement, and stale-manifest cases in one owner.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run regressions:manifest:check",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.regression.coverage.ratchet",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "release"
       ],
       "legacy": true
     }

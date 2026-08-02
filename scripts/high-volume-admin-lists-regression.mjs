@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -13,8 +12,6 @@ const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-high-volume-admin-lists-"));
 const disposableDb = path.join(tempDir, "longtail-forge-high-volume-admin-lists-scale-demo.db");
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const paginationHelper = readText("src/core/bounded-pagination.js");
 const auditServiceSource = readText("src/services/audit.service.js");
 const notificationsServiceSource = readText("src/services/notifications.service.js");
@@ -26,7 +23,6 @@ const filesScript = readText("public/js/files.js");
 const notificationsScript = readText("public/js/notifications.js");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 runSeed();
@@ -35,7 +31,6 @@ process.env.LONGTAIL_DATABASE_PROVIDER = "sqlite";
 process.env.LONGTAIL_DATABASE_FILE = disposableDb;
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.SUPER_ADMIN_PASSWORD = "Scale-Seed-Password-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
 const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, getSql, initializeDatabase, querySql } = await import("../src/db/index.js");
@@ -67,9 +62,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the high-volume admin lists version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the high-volume admin lists version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the high-volume admin lists version");
 
   assert.match(paginationHelper, /function normalizeBoundedPagination/, "framework should expose a bounded pagination normalizer");
   assert.match(paginationHelper, /function boundedPaginationEnvelope/, "framework should expose a reusable pagination envelope");
@@ -98,7 +90,6 @@ function assertStaticContract() {
 
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(changelog, /Version 0\.33\.5\.20\.5/, "Changelog should include the high-volume admin lists release");
-  assert.match(regressionSuite, /scripts\/high-volume-admin-lists-regression\.mjs/, "Regression suite should include high-volume admin list coverage");
 }
 
 async function assertSeedCounts() {

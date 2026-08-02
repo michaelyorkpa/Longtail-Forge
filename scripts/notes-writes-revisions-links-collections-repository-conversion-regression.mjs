@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -13,17 +12,13 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Write-Repository-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-write-repo-regression-master-key";
 process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v5";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const notesDocs = readText("docs/notes-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { notesRepository } = await import("../src/modules/notes/notes.repo.js");
@@ -50,9 +45,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Notes write conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes write conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes write conversion version");
 
   assert.match(notesRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Notes repository should import only the provider-neutral db facade");
   assert.doesNotMatch(notesRepoSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Notes repository should not use literal helpers or compatibility query wrappers after the .15 wave");
@@ -73,7 +65,6 @@ function assertStaticContract() {
   assert.match(notesDocs, /As of 0\.33\.5\.27\.15[\s\S]*Notes repository is fully converted[\s\S]*writes[\s\S]*revisions[\s\S]*links[\s\S]*collections[\s\S]*count helpers/, "Notes docs should document the fully converted Notes repository boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.15 - Conversion wave: Notes writes, revisions, links, and collections[\s\S]*- \[x\] Convert the remaining `notes\/notes\.repo`[\s\S]*- \[x\] Preserve revision numbering[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.15 - [\s\S]*Notes writes, revisions, links, and collections repository conversion[\s\S]*904 helper invocations[\s\S]*166 direct interpolated operation sites[\s\S]*180 bound operation sites/, "changelog should record the Notes write conversion burndown");
-  assert.match(regressionSuite, /scripts\/notes-writes-revisions-links-collections-repository-conversion-regression\.mjs/, "regression suite should include the Notes write conversion proof");
 }
 
 async function assertRepositoryMutationLifecycle(session) {

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,17 +11,13 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-help
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-transaction-helper.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Transaction-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const tasksSource = readText("src/modules/tasks/tasks.repo.js");
 const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const notesServiceSource = readText("src/modules/notes/notes.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -34,9 +29,6 @@ const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the transaction helper version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the transaction helper version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the transaction helper version");
 
   assert.equal(typeof db.transaction, "function", "provider-neutral db should expose db.transaction(callback)");
   assert.equal(db.capabilities.transactions, true, "SQLite adapter should report transaction support");
@@ -67,8 +59,6 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.4[\s\S]*transaction-only tail[\s\S]*migration scripts/, "database docs should describe the transaction and migration fidelity slice");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the transaction helper slice");
-  assert.match(regressionSuite, /scripts\/database-transaction-helper-regression\.mjs/, "regression suite should include transaction helper coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "transaction helper regression database should pass integrity check");
@@ -360,8 +350,4 @@ function functionBlock(source, name) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

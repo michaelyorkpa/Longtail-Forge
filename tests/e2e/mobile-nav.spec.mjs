@@ -12,9 +12,7 @@ import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
 
 const dashboard = SMOKE_SURFACES.find((surface) => surface.name === "Dashboard");
 
-test("mobile header keeps search and notifications outside the navigation drawer", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "the compact app-shell header only applies at the mobile viewport");
-
+test("mobile header keeps search and notifications outside the navigation drawer", { tag: "@mobile" }, async ({ page }) => {
   await page.goto(dashboard.path);
 
   const header = page.locator(SHELL.header);
@@ -52,9 +50,7 @@ test("mobile header keeps search and notifications outside the navigation drawer
   await expect(notificationPanel).toBeHidden();
 });
 
-test("desktop app-shell header layout remains expanded", async ({ page, isMobile }) => {
-  test.skip(isMobile, "the desktop layout is covered by the desktop viewport");
-
+test("desktop app-shell header layout remains expanded", { tag: "@desktop" }, async ({ page }) => {
   await page.goto(dashboard.path);
 
   const header = page.locator(SHELL.header);
@@ -65,9 +61,7 @@ test("desktop app-shell header layout remains expanded", async ({ page, isMobile
   await expect(page.locator(SHELL.navToggle)).toBeHidden();
 });
 
-test("mobile nav toggle opens and closes the primary menu", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "the collapsed nav toggle only exists at the mobile viewport");
-
+test("mobile nav toggle opens and closes the primary menu", { tag: "@mobile" }, async ({ page }) => {
   await page.goto(dashboard.path);
 
   const toggle = page.locator(SHELL.navToggle);
@@ -91,9 +85,7 @@ test("mobile nav toggle opens and closes the primary menu", async ({ page, isMob
   await expect(toggle, "focus must return to a visible control after closing the menu").toBeFocused();
 });
 
-test("mobile nav drawer provides overlay, escape, focus, and scroll-lock affordances", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "the nav drawer only exists at the mobile viewport");
-
+test("mobile nav drawer provides overlay, escape, focus, and scroll-lock affordances", { tag: "@mobile" }, async ({ page }) => {
   await page.goto(dashboard.path);
 
   const toggle = page.locator(SHELL.navToggle);

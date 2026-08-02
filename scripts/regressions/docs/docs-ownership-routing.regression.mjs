@@ -17,7 +17,6 @@ import {
 
 const rawIndex = JSON.parse(readFileSync("docs/docs-ownership.json", "utf8"));
 const index = validateDocsOwnershipIndex(rawIndex);
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const guide = readFileSync("docs/docs-ownership.md", "utf8");
 const readme = readFileSync("README.md", "utf8");
 
@@ -266,8 +265,6 @@ assert.deepEqual(unmapped.docs, []);
 assert.deepEqual(unmapped.warnings, []);
 
 assert.match(formatDocsSuggestion(tasks, { check: true }), /Warnings \(warning-only\):[\s\S]*Documentation gate mode: warning-only/);
-assert.equal(packageJson.scripts["docs:suggest"], "node scripts/suggest-docs-for-changes.mjs");
-assert.equal(packageJson.scripts["docs:check"], "node scripts/suggest-docs-for-changes.mjs --check");
 assert.match(guide, /No docs change needed: <short reason>/);
 assert.match(readme, /docs\/docs-ownership\.md/);
 

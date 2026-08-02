@@ -1,21 +1,14 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksScript = readText("public/js/tasks.js");
 const workbenchScript = readText("public/js/workbench.js");
 const workbenchView = readText("views/protected/workbench.html");
 const moduleActions = readText("public/js/shared/module-actions.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current Tasks release");
 
 assert.match(taskDialogScript, /async function openTaskEditor\(params = \{\}, hostContext = null\)/, "Task dialog should expose one canonical editor opener");
@@ -46,7 +39,6 @@ assert.match(taskDialogScript, /await notifyTaskEditorSaved\(result\)/, "Task sa
 assert.match(taskDialogScript, /function notifyTaskEditorSaved\(result\)[\s\S]*configuredCallback[\s\S]*requestCallback[\s\S]*requestRefresh[\s\S]*hostRefresh/, "Task save should support configured callbacks, per-open callbacks, and caller refresh hooks");
 assert.match(taskDialogScript, /restoreTaskEditorFocus\(returnFocusTo\)/, "Task dialog should restore focus when the editor closes");
 assert.match(taskDialogScript, /function restoreTaskEditorFocus\(target\)[\s\S]*target\.isConnected[\s\S]*target\.focus\(\)/, "Focus restoration should target a live caller control");
-assert.match(regressionSuite, /scripts\/tasks-canonical-editor-opener-regression\.mjs/, "Regression suite should include the canonical task editor opener regression");
 
 console.log("Tasks canonical editor opener regression passed.");
 

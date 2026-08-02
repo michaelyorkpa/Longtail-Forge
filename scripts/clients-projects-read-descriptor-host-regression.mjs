@@ -25,18 +25,12 @@ const businessUserId = "clients-projects-descriptor-business-user";
 const personalUserId = "clients-projects-descriptor-personal-user";
 const familyUserId = "clients-projects-descriptor-family-user";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const clientsServiceSource = readText("src/modules/client-projects/clients.service.js");
 const clientsRoutes = readText("src/modules/client-projects/clients.routes.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects read descriptor version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects read descriptor version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects read descriptor version");
 assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module should report the descriptor host version");
 
 assertMinimalHost(clientsHtml, {
@@ -196,7 +190,6 @@ try {
     "Clients read should remain Business-only in Family workspaces",
   );
 
-  assert.match(regressionSuite, /scripts\/clients-projects-read-descriptor-host-regression\.mjs/, "Regression suite should include the 13.2 Clients/Projects descriptor host regression");
 
   console.log("Clients/Projects read descriptor and minimal host regression passed.");
 } finally {

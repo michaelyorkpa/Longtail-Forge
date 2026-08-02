@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const tasksPublicRoutes = readText("src/modules/tasks/public-api.routes.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const behaviorHandlers = constBlock(tasksScript, "TASK_LIFECYCLE_BEHAVIOR_HANDLERS");
@@ -71,7 +64,6 @@ assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURICompone
 assert.doesNotMatch(tasksRoutes, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");
 assert.doesNotMatch(tasksPublicRoutes, /tasksPublicApiRoutes\.delete|\/api\/v1\/tasks\/:taskId\/delete/, "Public API should not expose a task delete route");
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the lifecycle descriptor cache key");
-assert.match(regressionSuite, /scripts\/tasks-lifecycle-action-descriptor-regression\.mjs/, "Regression suite should include the task lifecycle descriptor regression");
 
 console.log("Tasks lifecycle action descriptor regression passed.");
 

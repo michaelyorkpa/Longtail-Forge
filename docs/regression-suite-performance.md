@@ -1,5 +1,165 @@
 # Regression Suite Performance Baseline
 
+## 0.33.27.7.8 Branch Closeout And CI Reuse Measurement
+
+The final same-workstation full runner passed 427/427 scripts with no recovery
+in 152.08 seconds. Direct bucket readouts were 23.42 seconds for 219 static
+scripts at concurrency eight, 11.52 seconds for six serial default-database
+scripts, 17.69 seconds for all 28 isolated Files scripts at concurrency six,
+and 101.13 seconds for 174 isolated-database scripts at concurrency six. The
+29-script scoped release route passed in 7.70 seconds, closeout passed in 5.6
+seconds with no manifest redo, and the separate permission harness passed all
+409 checks in 8.8 seconds. Generated discovery and documentation now report
+427 scripts with no hand-copied count.
+
+The clean 152.08-second full result is 19.68 seconds (11.5%) below the
+171.76-second refreshed branch-opening reference, while preserving and adding
+coverage. It does not meet the aspirational 90-110-second closeout range, and
+the 101.13-second isolated-database tail does not meet the 50-60-second target.
+That miss is recorded rather than hidden: the tail still contains 593.06
+aggregate script seconds, with development-data seed, backup/restore,
+demo-host, verified-baseline, startup-maintenance, worker, and calendar-feed
+owners intentionally retaining their complete process/data proof. The branch
+removed redundant setup and ceremony around those owners but did not weaken
+them to claim the target.
+
+The final rendered run passed 129/129 at the protected two-worker bound in 1.5
+minutes. One locally built artifact with SHA-256
+`03b698223666c4d880645b5a97b6c97bff6ee3b09e279778b4560f1917985798`
+passed runtime-artifact, bare-metal replacement/rollback, and container
+replacement/rollback smokes through the new `--artifact` input. The first
+Docker attempt hit a Docker Desktop metadata-file lock; one bounded retry
+passed the complete container flow. This is local contract evidence, not a
+published release artifact.
+
+The last pre-change normal promotion run (`30560294164`) took 318 seconds wall
+time. Its five jobs occupied about 9.7 runner-minutes; the separately required
+CodeQL run for the same SHA took another 129 seconds, for about 11.9 combined
+runner-minutes. Release regressions alone occupied 282 seconds, and the serial
+packaging job rebuilt the runtime artifact four times across artifact,
+bare-metal, and two container candidates. GitHub reported zero billable
+milliseconds for the public repository, so runner occupancy is the useful cost
+measure here. Exact-SHA reuse removes the duplicate release/browser execution,
+promotion artifact rebuild count falls from four to zero on reuse (or one on
+fallback/hotfix), recovery proofs run in parallel, and redundant CodeQL push
+runs are gone. The older 30-60-minute recovery target cannot be demonstrated
+per normal promotion because the measured entire required promotion path was
+only 5.3 minutes wall / 11.9 runner-minutes; the shipped change recovers the
+material work that actually exists without inventing a larger baseline.
+
+A three-way fast/medium/slow isolated-database matrix was evaluated but not
+adopted. It would replace the one canonical fail-fast result with shard and
+aggregation jobs, multiply clean-checkout/npm/template startup, and increase
+concurrent fixture load without a checked-in cross-runner partition stress
+proof; normal promotions now reuse the already-green Nightly result, so that
+cost would be paid chiefly on the authoritative Nightly run. The existing
+five-bucket local order and single required result remain clearer and cheaper.
+The seven-second Nightly classifier also remains a separate once-per-run job:
+inlining would duplicate classification in application/browser consumers and
+would not shorten their shared dependency boundary materially. Both choices
+can be revisited from future GitHub timing evidence, never through
+`paths-ignore`.
+
+## 0.33.27.7.7 Vitest Pool Measurement
+
+The unchanged 13-file, 184-test unit suite was measured three times with the
+default forks pool at 5.587, 6.389, and 6.408 seconds of wrapper wall time
+(6.389-second median). The threads pool completed the same membership at a
+4.690-second median, and a six-worker cap produced a comparable 4.725-second
+median. After adopting host-aware `threads` with `maxWorkers: "50%"`, three
+normal `npm run test:unit` repeats passed all 13 files and 184 tests in 4.424,
+3.951, and 3.763 seconds (3.951-second median). That is a 38.2% observed median
+wall-time reduction from the same-workstation default sample, with zero
+membership drift or isolation failures. The percentage is evidence for this
+configuration choice, not a cross-machine hard budget; the existing
+`tests/**/*.test.mjs` discovery and TypeScript opt-in boundary are unchanged.
+
+## 0.33.27.7.5 Validation And Source-Scan Single Ownership
+
+Ordinary closeout now invokes the live version, parameter-binding, licensing,
+bundled-module catalog, and manifest checks once. The parameter-binding
+regression formats its already-computed in-process result instead of spawning
+the CLI again (418 ms before, 211 ms after), and the licensing regression does
+the same for its warning report (882 ms before, 662 ms after). These are
+same-workstation warm direct-Node samples; they demonstrate the removed child
+processes rather than establish hard budgets. Retiring duplicate suite execution
+of `version-literal-guardrail-regression.mjs` removes one additional roughly
+2.7-second run from the ordinary full path. The near-identical legacy coverage
+ratchet process was also retired after every synthetic case moved into
+`release.regression-manifest-generation`.
+
+Machine-readable ownership and source inventories live in
+`scripts/validation-ownership-consolidation.json` and
+`scripts/source-scan-consolidation-evidence.json`. The consolidation moved 534
+package/lock version assertions, 187 legacy membership assertions, 49 dynamic
+current-changelog assertions, 57 exact root package-script pins, five repeated
+TypeScript assertions, and five pure asset-version assertions behind named
+owners. Two direct-CLI respawns were removed. Active discovery is 425 scripts;
+three credited retirements preserve the 428-script gross floor, and the new
+single-ownership release gate raises the gross release/area/family floors rather
+than trading coverage for speed.
+
+The shared scan helper now caches explicit repository-relative reads within one
+process, distinguishes Markdown reads, parses balanced named-function bodies,
+and supports ordered literal checks. Targeted greedy-pattern counts fell from
+170 to 159 in the Tasks timer/utility proof, 138 to 121 in the Clients/Projects
+strict inventory, and 125 to 119 in the Tasks strict inventory. The 116-pattern
+Notes workflow and 97-pattern Dashboard/Workbench proofs are recorded as
+untouched because their cross-region assertions need separate behavior review;
+this slice does not claim a mechanical rewrite of all source reads or patterns.
+
+## 0.33.27.7.2 Verified-Baseline Isolated-Database Fast Path
+
+The same-turn pre-edit isolated-database sample passed 173/173 at the normal
+six-worker cap in 121.95 seconds wall time and 716.15 aggregate script seconds.
+After the copy-before-open handshake and fixture reuse landed, the 174-script
+bucket passed at the same cap in 109.36 seconds and 637.24 aggregate seconds,
+with no failures or recovered flakes. That is a 12.59-second (10.3%) observed
+wall reduction despite adding the 15.70-second fail-closed contract regression.
+The workstation was materially slower than the clean 90.41-second 0.33.27.7.1
+reference sample throughout this measurement window; normalizing the observed
+ratio to that clean sample places the changed bucket near 81 seconds. This moves
+toward, but does not claim to beat, the branch's 50-60-second final target.
+
+An explicit 12-worker stress pass also completed all 174 scripts with no failure
+or recovery, but took 96.50 seconds and 1,087.01 aggregate seconds, confirming
+CPU/IO saturation rather than justifying a concurrency-default change in this
+fixture slice. The normal host-aware cap therefore remains six. Timing variance
+does not weaken the trust boundary or justify retiring coverage.
+
+The runner now prepares one closed template, proves exact current migration
+readiness, `PRAGMA integrity_check`, foreign-key enforcement and zero violations,
+then sends each eligible child a pipe-only attestation. The copy occurs before
+SQLite creates the target; an exact copied target skips only redundant migration
+work. The descriptor is consumed before the regression entry point, so nested
+children cannot inherit it. Direct/environment-only, existing-target, missing,
+stale, forged and tampered cases either execute the full chain or fail closed.
+`scripts/regression-baseline-bypass-audit.json` classifies every full-chain,
+custom-bootstrap and nested seeded-child exception. Static
+`static-contract-closeout-regression.mjs` explicitly opts into the runner fixture for its nested
+`module-file-closeout-regression.mjs`,
+and `createDisposableDatabaseFixture()` now supports and proves reuse of the
+runner-provisioned temp target while preserving direct-run isolation.
+
+## 0.33.27.7.1 Runner Scheduling And Process-Throughput Quick Wins
+
+The refreshed pre-edit Windows reference run discovered and passed 424/424 scripts in 171.76 seconds with zero recovered flakes. Its bucket wall times were 23.41 seconds for 210 static scripts at concurrency six, 10.27 seconds for six serial default-database scripts, 44.42 seconds for 20 serial Files scripts, 3.24 seconds for nine isolated Files scripts, and 90.41 seconds for 179 isolated-database scripts. This same-workstation measurement supersedes the older 0.33.26.9 audit estimate for this slice.
+
+The runner now owns one operating-system-temp Node compile cache for its lifetime and removes it during cleanup, begins template-baseline prefetch before safe static work, and selects a conservative host-aware static default capped at eight. Simple Node package scripts invoked by closeout and changed-regression execution bypass Windows cmd/npm shims; composed package commands retain npm fallback. Per-script output buffering, one-bootstrap metadata discovery, fail-fast bucket order, and the isolated-database-only visible serial retry were measured and deliberately retained.
+
+Seven entries moved to static after resource audit: `clients-projects-strict-guardrail-inventory-regression.mjs`, `help-markdown-source-layout-regression.mjs`, `task-modal-compact-layout-regression.mjs`, `task-modal-reflow-regression.mjs`, and `task-modal-followup-regression.mjs` are read-only repository assertions; `private-calendar-subscriptions-migration.regression.mjs` uses process-local in-memory SQLite and one read-only migration file; `file-scanner-setup-docs-regression.mjs` reads only documentation, source, environment-example, and metadata contracts. The resulting 217-script static bucket passed three complete repeats at concurrency eight: 651 logical runs in 66.22 seconds with zero failures or recoveries.
+
+All 28 stateful Files entries moved to `isolated-files` after the checked-in audit proved unique mutable state and representative stress:
+
+- Runner/script-owned database and storage with no external server: `file-framework-contract-regression.mjs`, `file-storage-streaming-contract-regression.mjs`, `file-storage-quota-enforcement-regression.mjs`, `files-lifecycle-settings-quota-conversion-regression.mjs`, `files-browse-attachment-reads-conversion-regression.mjs`, `files-context-targets-conversion-regression.mjs`, `file-storage-accounting-regression.mjs`, `file-settings-regression.mjs`, and `files-attachment-readmodel-regression.mjs`.
+- Operating-system-assigned HTTP ports plus runner-owned data and process-local application state: `file-api-lifecycle-regression.mjs`, `file-storage-diagnostics-regression.mjs`, `file-streamed-validation-download-metadata-regression.mjs`, `file-multipart-upload-route-regression.mjs`, `file-multipart-batch-upload-helper-regression.mjs`, `file-upload-compatibility-error-hardening-regression.mjs`, `files-attachment-context-route-regression.mjs`, `files-attachable-target-options-regression.mjs`, `files-preview-availability-route-regression.mjs`, and `files-preview-content-route-regression.mjs`.
+- Process-local provider/worker or scanner state over unique data: `file-storage-provider-configuration-regression.mjs`, `file-s3-provider-registration-regression.mjs`, `file-s3-object-operation-proof-regression.mjs`, `file-s3-diagnostics-signed-url-boundary-regression.mjs`, and `file-scan-job-handoff-regression.mjs`.
+- Script-owned scanner children, executables, configuration, or operating-system-assigned TCP ports: `file-scanner-mode-resolver-regression.mjs`, `file-scanner-health-diagnostics-regression.mjs`, `file-clamscan-adapter-regression.mjs`, and `file-clamd-adapter-regression.mjs`.
+
+The retained current serial Files inventory is empty; the original 29th Files entry is the static documentation owner above. The 28-script isolated cohort passed three repeats at concurrency six (84 logical runs in 47.77 seconds) with zero failures or recoveries, and the complete current Files family passed in 16.72 seconds versus the refreshed 47.66-second combined baseline. Files failures still never receive automatic retries, and future Files scripts are not parallel by default: each must carry its own resource classification and proof.
+
+Two comparable clean full-suite samples passed 424/424 in 155.66 and 150.93 seconds with zero recovered flakes, improvements of 16.10 seconds (9.4%) and 20.83 seconds (12.1%) from the 171.76-second baseline. An earlier post-edit sample took 188.43 seconds while the isolated-database tail rose from 90.41 to 101.80 seconds and Files serial work rose to 51.14 seconds; it was retained as host-load evidence rather than presented as an optimization result. The clean repeat pair shows the runner gain without claiming that this slice optimized the still-dominant isolated-database fixture path, which remains owned by 0.33.27.7.2.
+
 ## 0.33.21.19 Dashboard Load Performance Closeout
 
 The Dashboard branch uses `npm run bench:dashboard` as its reproducible measurement harness. The command opens the configured local database without reseeding it, creates and removes a short-lived operator session, warms each endpoint once, records seven steady-state HTTP samples, and then measures the real browser bootstrap. The closeout run used the canonical `development-data-v2` seed at 5 workspaces, 400 Tasks, and 604 time entries. Its date horizon was anchored to `Today()` at execution, never to a committed calendar date.

@@ -22,7 +22,8 @@ const workflowPaths = [
 ];
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 const REVIEWED_CODEQL_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81";
-const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, packageSource] = await Promise.all([
+const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
+const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
@@ -35,7 +36,6 @@ const [development, promotion, nightly, mainRelease, manualRelease, manualPrevie
   read("package.json"),
 ]);
 const workflows = [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql];
-const packageJson = JSON.parse(packageSource);
 const { createConfig } = await import("../../../src/config.js");
 
 for (const [index, source] of workflows.entries()) {
@@ -62,8 +62,8 @@ for (const requirement of [
 
 for (const requirement of [
   /branches: \[main\]/,
-  /nightly\) echo "Promoting exact nightly revision/,
-  /hotfix\/\*\) echo "Validating focused main hotfix/,
+  /nightly\)[^\n]*echo "Promoting exact nightly revision/,
+  /hotfix\/\*\)[^\n]*echo "Validating focused main hotfix/,
   /name: Promotion source/,
   /name: Release gate/,
   /npm run closeout/,
@@ -128,6 +128,13 @@ assert.equal(
 );
 assert.doesNotMatch(codeql, /github\/codeql-action\/(?:init|analyze)@99df26d4f13ea111d4ec1a7dddef6063f76b97e9/);
 assert.match(codeql, /security-events: write/);
+assert.doesNotMatch(codeql, /^\s*push:/m);
+for (const workflow of [development, promotion, nightly]) {
+  const cacheUses = [...workflow.matchAll(/actions\/cache@([a-f0-9]{40})/g)].map((match) => match[1]);
+  assert.ok(cacheUses.length > 0, "reviewed CI workflows should use at least one bounded cache");
+  assert.ok(cacheUses.every((sha) => sha === REVIEWED_CACHE_SHA), "cache actions must use the reviewed immutable SHA");
+}
+for (const source of workflows) assert.match(source, /timeout-minutes:/, "every release workflow should bound its jobs");
 assert.match(dependabot, /package-ecosystem: npm/);
 assert.match(dependabot, /package-ecosystem: github-actions/);
 assert.match(dependabot, /package-ecosystem: docker/);
@@ -212,9 +219,5 @@ assert.deepEqual(configuredIdentity.release, {
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_COMMIT: "main" }), /40 hexadecimal characters/);
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_ARTIFACT_SHA256: "latest" }), /64 hexadecimal characters/);
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_BRANCH: "feature/bad" }), /Source branch/);
-assert.equal(packageJson.scripts["release:metadata"], "node scripts/release/create-release-metadata.mjs");
-assert.equal(packageJson.scripts["release:validate"], "node scripts/release/validate-release-revision.mjs");
-assert.equal(packageJson.scripts["deploy:ssh"], "node scripts/release/deploy-via-ssh.mjs");
-assert.equal(packageJson.scripts["github:configure"], "node scripts/release/configure-github-release-operations.mjs");
 
 console.log("GitHub release operations regression passed.");

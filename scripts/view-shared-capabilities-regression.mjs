@@ -9,7 +9,6 @@ const { validateModuleManifest } = await import("../src/core/modules/manifest-co
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const contract = readText("src/core/modules/manifest-contract.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 // --- Source guards: the three shared capabilities live in the framework, not modules. ---
 assert.match(renderer, /function appendFilterQuery/, "Renderer should build dataSource query params from filters");
@@ -24,7 +23,6 @@ assert.match(renderer, /function renderItemRow/, "Renderer should render rich it
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
 assert.match(renderer, /function interpolateRoute/, "Renderer should interpolate row-action route tokens");
 assert.match(contract, /function validateRegionsDescriptor/, "Manifest contract should validate descriptor regions");
-assert.match(regressionSuite, /scripts\/view-shared-capabilities-regression\.mjs/, "Regression suite should include the shared capabilities regression");
 
 // --- Manifest validation of the new descriptor fields. ---
 const validErrors = validateModuleManifest(createModule());

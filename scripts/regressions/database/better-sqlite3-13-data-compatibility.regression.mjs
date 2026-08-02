@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.better-sqlite3-13-data-compatibility",
   area: "database",
   tier: "release-gate",
-  tags: ["adapter", "backup", "bindings", "concurrency", "migration", "recovery", "sqlite"],
+  tags: ["adapter", "backup", "baseline-bypass", "bindings", "concurrency", "migration", "recovery", "sqlite"],
   description: "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
   runMode: "isolated-database",
 });

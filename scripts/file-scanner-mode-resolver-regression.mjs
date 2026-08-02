@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -46,20 +45,13 @@ assertResolveSucceeds("clamscan");
 console.log("File scanner mode resolver regression passed.");
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const moduleDocs = readText("docs/module-development.md");
   const configSource = readText("src/config.js");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the scanner resolver version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the scanner resolver version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the scanner resolver version");
 
   assert.match(configSource, /FILE_SCANNER_MODES = new Set\(\["none", "noop", "clamd", "clamscan"\]\)/, "config should formalize scanner modes");
   assert.match(configSource, /LONGTAIL_FILE_SCANNER[\s\S]*FILE_SCANNER_MODES/, "config should validate scanner mode");
@@ -74,9 +66,7 @@ function assertStaticContracts() {
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
   assert.match(moduleDocs, /As of 0\.33\.5\.22\.15[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner resolver slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-scanner-mode-resolver-regression\.mjs/, "regression suite should include scanner resolver coverage");
 }
 
 async function runScenario(mode) {
@@ -328,8 +318,4 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

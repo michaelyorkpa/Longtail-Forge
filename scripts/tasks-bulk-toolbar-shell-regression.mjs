@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const viewBuilder = readText("public/js/shared/view-builder.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(viewBuilder, /function createBulkActionToolbar\(options = \{\}\)[\s\S]*className:\s*\["view-bulk-action-toolbar", "surface-main-panel"/, "Framework should own the bulk action toolbar shell helper");
@@ -49,7 +42,6 @@ assert.match(styles, /\.view-bulk-action-toolbar\[open\] > \.view-bulk-action-to
 assert.match(styles, /\.view-bulk-action-toolbar-count\s*\{[\s\S]*margin-left:\s*auto[\s\S]*white-space:\s*nowrap/, "Shared CSS should own the selected-count chip placement");
 assert.match(styles, /\.task-bulk-grid \.checkbox-line\s*\{[\s\S]*display:\s*inline-flex;[\s\S]*justify-self:\s*center;[\s\S]*white-space:\s*nowrap;/, "Tasks bulk clear controls should center the checkbox and label under their fields");
 assert.match(styles, /\.task-bulk-grid \.checkbox-line input\[type="checkbox"\]\s*\{[\s\S]*width:\s*auto;[\s\S]*margin:\s*0;/, "Tasks bulk clear checkboxes should not inherit full-width input styling");
-assert.match(regressionSuite, /scripts\/tasks-bulk-toolbar-shell-regression\.mjs/, "Regression suite should include the Tasks bulk toolbar shell regression");
 
 console.log("Tasks bulk toolbar shell regression passed.");
 

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -6,8 +5,6 @@ import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 const root = process.cwd();
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
@@ -16,11 +13,7 @@ const moduleContractDocs = readText("docs/module-contract.md");
 const moduleDevelopmentDocs = readText("docs/module-development.md");
 const viewContractDocs = readText("docs/view-building-contract.md");
 const declarativeViewDocs = readText("docs/declarative-view-surfaces.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the database agnostic contract closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the database agnostic contract closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the database agnostic contract closeout version");
 
 assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*fails only when runtime source introduces an unreviewed legacy helper call or template-interpolated database operation[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should publish the baseline-driven parameter-binding ratchet");
 assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0/, "audit docs should publish the final dialect ratchet");
@@ -40,7 +33,6 @@ assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction con
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should not keep the completed closeout slice body");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*completed 0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*interpolation and raw-dialect ratchets enforced at zero[\s\S]*not an app-wide SQL rewrite[\s\S]*consume the closed 0\.33\.5\.27 decisions/, "0.40.0 should be reduced to PostgreSQL implementation and proof behind the established seams");
 
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "regression suite should include the consolidated static closeout regression");
 
 console.log("Database agnostic contract closeout regression passed.");
 

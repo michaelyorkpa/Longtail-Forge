@@ -1,12 +1,8 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const notesDocs = readText("docs/notes-module.md");
 const moduleContract = readText("docs/module-contract.md");
 const filesScript = readText("public/js/files.js");
@@ -16,11 +12,7 @@ const filesView = readText("views/protected/files.html");
 const notesView = readText("views/protected/notes.html");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Notes file preview action version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes file preview action version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes file preview action version");
 
 assert.match(filePreviewScript, /namespace\.filePreview = Object\.freeze\(\{[\s\S]*normalizeFilePreviewRow[\s\S]*openFilePreview[\s\S]*previewAvailabilityForRow[\s\S]*previewKindForExtension[\s\S]*previewUnavailableLabel/,
   "Shared file preview helper should expose the preview modal and eligibility helpers");
@@ -81,15 +73,10 @@ assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/,
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
   "live roadmap should not carry completed-history breadcrumbs");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `),
-  "Changelog should include the Notes file preview action slice");
 assert.match(notesDocs, /As of 0\.33\.5\.21\.9\.3[\s\S]*shared Files Preview modal[\s\S]*icon-only action buttons/,
   "Notes docs should document preview and icon attachment actions");
 assert.match(moduleContract, /As of 0\.33\.5\.21\.9\.3[\s\S]*public\/js\/shared\/file-preview\.js[\s\S]*LongtailForge\.filePreview/,
   "Module contract should document the shared preview helper boundary");
-assert.match(regressionSuite, /scripts\/notes-file-preview-actions-regression\.mjs/,
-  "Regression suite should include Notes file preview action coverage");
-
 console.log("Notes file preview actions regression passed.");
 
 function readText(path) {

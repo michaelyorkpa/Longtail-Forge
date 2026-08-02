@@ -14,7 +14,6 @@ const listsView = readText("views/protected/lists.html");
 const filesView = readText("views/protected/files.html");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 let checks = 0;
 
 function check(name, assertion) {
@@ -84,7 +83,6 @@ check("documentation and suite registration cover the 0.33.6.12j boundary", () =
   assert.match(moduleContract, /Files exposes attachment-scoped `files\.edit` and `files\.preview` registrations/);
   assert.match(surfaceContract, /As of 0\.33\.6\.10b[\s\S]*Task, Note, and List capture rows use registered module actions/);
   assert.match(surfaceContract, /File capture remains an explicit temporary page fallback/);
-  assert.match(regressionSuite, /scripts\/quick-action-opener-rollout-regression\.mjs/);
 });
 
 console.log(`Quick Action opener rollout regression passed ${checks} checks.`);

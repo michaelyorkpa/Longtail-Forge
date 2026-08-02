@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -14,8 +13,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-conflict
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Conflict-Identity-Seams-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
@@ -26,7 +23,6 @@ const jobQueueSource = readText("src/core/jobs/job-queue.js");
 const jobRunnerSource = readText("src/core/jobs/job-runner.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
 const parameterAuditRegression = readText("scripts/parameter-binding-audit-regression.mjs");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -55,9 +51,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the conflict and identity seam version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the conflict and identity seam version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the conflict and identity seam version");
 
   assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /buildInsertOrIgnore/, "SQLite dialect seams should expose a full insert-or-ignore builder");
@@ -80,8 +73,7 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.3[\s\S]*`databaseDialect\.conflict\.buildInsertOrIgnore\(\.\.\.\)`[\s\S]*[Dd]urable job[\s\S]*returning seam/, "database docs should describe the conflict and identity seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.3 Upsert\/Conflict and Identity Seams[\s\S]*durable-job `RETURNING` statements are converted to the provider returning seam/, "audit docs should record the durable-job RETURNING resolution");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(conflictIdentitySliceVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job`), "changelog should record the conflict and identity seam slice");
-  assert.match(regressionSuite, /scripts\/database-conflict-identity-seam-regression\.mjs/, "regression suite should include conflict and identity seam coverage");
-}
+  }
 
 async function assertStartupConflictProofPath() {
   const row = await db.get(`

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -7,13 +6,7 @@ const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 // Framework primitive structure and accessibility.
 const context = createBrowserContext();
@@ -81,7 +74,6 @@ assert.match(css, /\.view-split-list-detail\s*\{[\s\S]*width:\s*100%/, "framewor
 assert.match(css, /@media[^{]*\{\s*\.view-split-list-detail\s*\{[\s\S]*grid-template-columns:\s*1fr/, "framework split should own responsive collapse");
 assert.doesNotMatch(css, /\.lists-workspace\s*\{[\s\S]*grid-template-columns/, "legacy one-off Lists grid override should be removed");
 
-assert.match(regressionSuite, /scripts\/view-index-primitive-regression\.mjs/, "Regression suite should include the index primitive regression");
 
 console.log("View index primitive regression passed.");
 

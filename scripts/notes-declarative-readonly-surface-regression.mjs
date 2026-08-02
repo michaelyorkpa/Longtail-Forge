@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -8,13 +7,7 @@ const notesJs = readText("public/js/notes.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
@@ -110,7 +103,6 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.3 - Notes Declarative Read-Only Surface Proof/, "completed Notes declarative proof slice should be archived out of the live roadmap");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.3 - /, "Changelog should record the Notes read-only proof");
-assert.match(regressionSuite, /scripts\/notes-declarative-readonly-surface-regression\.mjs/, "Regression suite should include the Notes declarative proof regression");
 
 console.log("Notes declarative read-only surface regression passed.");
 

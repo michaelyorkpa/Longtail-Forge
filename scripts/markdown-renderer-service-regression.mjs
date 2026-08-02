@@ -1,26 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import {
-  MARKDOWN_RENDER_MODES,
-  createMarkdownExcerpt,
-  isSafeMarkdownUrl,
-  markdownService,
-  markdownToPlainText,
-  normalizeMarkdownSource,
-  renderMarkdownToHtml,
-} from "../src/core/markdown/markdown.service.js";
+import { MARKDOWN_RENDER_MODES, createMarkdownExcerpt, isSafeMarkdownUrl, markdownService, markdownToPlainText, normalizeMarkdownSource, renderMarkdownToHtml } from "../src/core/markdown/markdown.service.js";
 
 const packageJson = JSON.parse(await readText("package.json"));
-const packageLock = JSON.parse(await readText("package-lock.json"));
 const roadmap = await readText("ROADMAP.md");
 const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
-const regressionSuite = await readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should carry the Markdown renderer slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root version should carry the Markdown renderer slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package metadata should carry the Markdown renderer slice version");
 assert.equal(packageJson.dependencies["markdown-it"], "^14.3.0", "markdown-it should use the reviewed 14.3 baseline");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
@@ -109,7 +95,6 @@ assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.2 - Shared Server-Side M
 
 assert.match(changelog, /## Version 0\.33\.5\.17\.2 - /, "changelog should include the renderer service slice");
 assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should note the renderer service implementation");
-assert.match(regressionSuite, /scripts\/markdown-renderer-service-regression\.mjs/, "regression suite should include the Markdown renderer service regression");
 
 console.log("Markdown renderer service regression passed.");
 

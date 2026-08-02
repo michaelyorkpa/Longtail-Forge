@@ -1,14 +1,10 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
@@ -16,11 +12,7 @@ const workspaceSettingsView = readText("views/protected/workspace-settings.html"
 const settingsHostScript = readText("public/js/shared/settings-host.js");
 const workspaceSettingsScript = readText("public/js/workspace-settings.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the SQLite small-office readout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the SQLite small-office readout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the SQLite small-office readout version");
 
 assert.match(sqliteDocs, /# SQLite Small-Office Mode/, "SQLite small-office docs should exist");
 assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite docs should state one app server/process");
@@ -66,16 +58,10 @@ assert.doesNotMatch(workspaceSettingsScript, /DATABASE_URL|process\.env|localRoo
 assert.match(styles, /\.runtime-diagnostics-readout/, "styles should cover the runtime diagnostics fieldset");
 assert.match(styles, /\.runtime-diagnostics-warning/, "styles should cover runtime diagnostics warnings");
 
-assert.match(regressionSuite, /scripts\/sqlite-small-office-readout-regression\.mjs/, "regression suite should include SQLite small-office readout coverage");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the SQLite small-office readout slice");
 
 console.log("SQLite small-office readout regression passed.");
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

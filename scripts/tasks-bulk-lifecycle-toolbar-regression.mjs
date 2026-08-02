@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,8 +5,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
 const tasksPublicRoutesSource = readText("src/modules/tasks/public-api.routes.js");
@@ -15,11 +12,7 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
@@ -53,7 +46,6 @@ assert.doesNotMatch(reloadTaskList, /buildTasksViewShell|createTaskMainListChrom
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the lifecycle bulk cache keys");
 assert.match(styles, /\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*4;[\s\S]*align-self:\s*end;/, "Desktop bulk apply action should remain aligned with the lifecycle column");
 assert.match(styles, /@media[\s\S]*\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*auto;/, "Mobile bulk apply action should return to the one-column grid");
-assert.match(regressionSuite, /scripts\/tasks-bulk-lifecycle-toolbar-regression\.mjs/, "Regression suite should include the lifecycle bulk toolbar regression");
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-bulk-lifecycle-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tasks-bulk-lifecycle.db");

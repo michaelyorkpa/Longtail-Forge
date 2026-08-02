@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,16 +10,12 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-result-fidelity.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Result-Fidelity-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const sqliteSource = readText("src/db/sqlite.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -30,9 +25,6 @@ const {
 } = await import("../src/db/index.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the result-fidelity version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the result-fidelity version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the result-fidelity version");
 
   assert.deepEqual(db.capabilities, {
     adapter: "better-sqlite3",
@@ -52,7 +44,6 @@ try {
   assert.doesNotMatch(sqliteAdapterSource, /adapter:\s*"sqlite-process"/, "SQLite adapter should not report the retired sqlite-process label");
   assert.match(sqliteSource, /Buffer\.isBuffer\(value\)/, "SQLite helper should pass Buffer parameters through to better-sqlite3");
   assert.doesNotMatch(sqliteSource, /\.safeIntegers\(/, "SQLite helper should not enable safeIntegers for the current TEXT-key schema");
-  assert.match(regressionSuite, /scripts\/database-result-fidelity-regression\.mjs/, "regression suite should include result-fidelity coverage");
 
   await initializeDatabase();
   await assertRowShapeAndAliases();
@@ -64,7 +55,6 @@ try {
   assert.match(sqliteDocs, /one Longtail Forge app process\/server[\s\S]*at most one local worker process/i, "SQLite small-office docs should allow at most one local worker");
   assert.match(sqliteDocs, /No worker fleet/, "SQLite small-office docs should keep the no-worker-fleet rule explicit");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the result-fidelity slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "result-fidelity regression database should pass integrity check");
@@ -200,8 +190,4 @@ ORDER BY bm25(result_fidelity_fts), rowid;
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

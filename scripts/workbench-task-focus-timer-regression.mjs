@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
@@ -8,10 +7,6 @@ const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const moduleContract = readText("docs/module-contract.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionManifest = readText("scripts/regression-coverage-manifest.json");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const tasksDoc = readText("docs/tasks-module.md");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const taskTimersService = readText("src/modules/tasks/task-timers.service.js");
@@ -22,9 +17,6 @@ const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Task Focus timer version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Task Focus timer version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task Focus timer version");
 assert.match(
   workbenchHtml,
   /longtail-forge\.css[\s\S]*workbench\.js/,
@@ -267,8 +259,6 @@ assert.match(
   "Changelog should preserve the Workbench Task Focus timer de-duplication closeout",
 );
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
-assert.match(regressionSuite, /scripts\/workbench-task-focus-timer-regression\.mjs/);
-assert.match(regressionManifest, /scripts\/workbench-task-focus-timer-regression\.mjs/);
 
 console.log("Workbench Task Focus timer regression passed.");
 

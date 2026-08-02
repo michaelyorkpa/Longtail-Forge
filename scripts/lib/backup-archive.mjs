@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { createOpaqueId, createRecordId } from "../../src/core/identifiers.js";
+import { runLocalTarArchiveCommand } from "../../src/core/tar-archive-command.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(moduleDir, "../..");
@@ -75,7 +75,7 @@ async function createBackup(options) {
     await writeJson(path.join(archiveRoot, "checksums.json"), checksums);
 
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
-    runTar(["-czf", outputPath, "-C", workspace, ARCHIVE_ROOT]);
+    runTar(outputPath, "-czf", ["-C", workspace, ARCHIVE_ROOT]);
     const archiveSha256 = await hashFile(outputPath);
     const checksumPath = `${outputPath}.sha256`;
     await fs.writeFile(checksumPath, `${archiveSha256}  ${path.basename(outputPath)}\n`, "utf8");
@@ -283,7 +283,7 @@ async function withInspectedBackup(options, callback) {
   validateTarEntries(entries);
   const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-backup-inspect-"));
   try {
-    runTar(["-xzf", archivePath, "-C", workspace, "--no-same-owner", "--no-same-permissions"]);
+    runTar(archivePath, "-xzf", ["-C", workspace, "--no-same-owner", "--no-same-permissions"]);
     const archiveRoot = path.join(workspace, ARCHIVE_ROOT);
     await assertNoLinks(archiveRoot);
     const manifest = await readControlJson(path.join(archiveRoot, "manifest.json"));
@@ -552,8 +552,8 @@ async function verifyArchiveSidecar(archivePath) {
 }
 
 function listTarEntries(archivePath) {
-  const names = runTar(["-tzf", archivePath]).split(/\r?\n/).filter(Boolean);
-  const verbose = runTar(["-tvzf", archivePath]).split(/\r?\n/).filter(Boolean);
+  const names = runTar(archivePath, "-tzf").split(/\r?\n/).filter(Boolean);
+  const verbose = runTar(archivePath, "-tvzf").split(/\r?\n/).filter(Boolean);
   if (names.length !== verbose.length) {
     throw new Error("Backup archive entry listing is inconsistent.");
   }
@@ -688,15 +688,14 @@ async function appendOperatorAudit(auditLogPath, entry) {
   await restrictFile(auditLogPath);
 }
 
-function runTar(args) {
-  const result = spawnSync("tar", args, { encoding: "utf8", windowsHide: true });
-  if (result.error?.code === "ENOENT") {
-    throw new Error("The system tar command is required for backup archive operations.");
-  }
-  if (result.status !== 0) {
-    throw new Error(`Backup archive command failed: ${String(result.stderr || result.stdout || result.error).trim()}`);
-  }
-  return String(result.stdout || "").trim();
+function runTar(archivePath, flags, trailingArgs = []) {
+  return runLocalTarArchiveCommand({
+    archivePath,
+    failureMessagePrefix: "Backup archive command failed",
+    flags,
+    missingCommandMessage: "The system tar command is required for backup archive operations.",
+    trailingArgs,
+  });
 }
 
 async function hashFile(filePath) {

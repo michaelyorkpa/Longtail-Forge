@@ -37,7 +37,7 @@ describe("slice verification planning", () => {
   });
 
   it("fully escalates permission changes and adds the separate permission harness exactly once", () => {
-    const plan = planFor(["src/services/permission-policy.js"]);
+    const plan = planFor(["src/services/permissions.service.js"]);
 
     expect(plan.commands).toEqual([
       "npm run closeout",

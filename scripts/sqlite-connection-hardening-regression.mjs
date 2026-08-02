@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -12,12 +11,9 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-sqlite-h
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "2500";
 process.env.SUPER_ADMIN_PASSWORD = "SQLite-Hardening-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const configSource = readText("src/config.js");
 const sqliteSource = readText("src/db/sqlite.js");
 const dbIndexSource = readText("src/db/index.js");
@@ -25,7 +21,6 @@ const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js"
 const schemaSource = readText("src/db/schema/current.sql");
 const migrationsSource = readText("src/db/migrations.js");
 const appSource = readText("src/core/app.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeSqlite,
@@ -35,17 +30,12 @@ const {
 } = await import("../src/db/index.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the SQLite hardening slice version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the SQLite hardening slice version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the SQLite hardening slice version");
 
   assert.match(runtimeDocs, /`LONGTAIL_SQLITE_FOREIGN_KEYS`[\s\S]*`on`[\s\S]*Must stay enabled/, "runtime docs should document active foreign-key enforcement");
   assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*`wal`[\s\S]*WAL/, "runtime docs should document WAL mode");
   assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*`5000`[\s\S]*busy timeout/, "runtime docs should document the busy timeout");
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.2[\s\S]*foreign-key enforcement[\s\S]*WAL/, "database docs should describe SQLite hardening");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the SQLite hardening slice");
-  assert.match(regressionSuite, /scripts\/sqlite-connection-hardening-regression\.mjs/, "regression suite should include SQLite hardening coverage");
 
   assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
   assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
@@ -333,8 +323,4 @@ function cleanEnv(overrides = {}) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

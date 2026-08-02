@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "measurement": "source-scan-consolidation",
+  "pattern": "[\\s\\S]* or [^]*",
+  "targetedFiles": [
+    {
+      "path": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "before": 170,
+      "after": 159
+    },
+    {
+      "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
+      "before": 138,
+      "after": 121
+    },
+    {
+      "path": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
+      "before": 125,
+      "after": 119
+    }
+  ],
+  "sharedOwner": "scripts/test-support/source-scan.mjs",
+  "sharedBehavior": [
+    "explicit repository-relative source and Markdown reads",
+    "per-process hot-file caching",
+    "balanced named-function extraction",
+    "ordered literal checks without unbounded greedy regex"
+  ],
+  "untouchedMeasuredCases": [
+    {
+      "path": "scripts/notes-ui-workflow-regression.mjs",
+      "count": 116,
+      "rationale": "The patterns span distinct workflow regions and need a separate behavior-preserving review rather than a mechanical rewrite."
+    },
+    {
+      "path": "scripts/dashboard-workbench-regression.mjs",
+      "count": 97,
+      "rationale": "The combined Dashboard and Workbench proof crosses several source owners and remains outside this targeted helper rollout."
+    }
+  ]
+}

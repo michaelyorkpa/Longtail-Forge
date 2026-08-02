@@ -5,6 +5,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -15,68 +16,299 @@ jobs:
   promotion-source:
     name: Promotion source
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      reuse_nightly_proof: ${{ steps.decision.outputs.reuse }}
+      nightly_run_id: ${{ steps.decision.outputs.run_id }}
     steps:
       - name: Require nightly promotion or an explicit hotfix branch
+        id: source
         env:
           HEAD_REF: ${{ github.head_ref }}
           PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           test -n "$PROMOTED_SHA"
           case "$HEAD_REF" in
-            nightly) echo "Promoting exact nightly revision $PROMOTED_SHA" ;;
-            hotfix/*) echo "Validating focused main hotfix $HEAD_REF at $PROMOTED_SHA" ;;
+            nightly) echo "kind=nightly" >> "$GITHUB_OUTPUT"; echo "Promoting exact nightly revision $PROMOTED_SHA" ;;
+            hotfix/*) echo "kind=hotfix" >> "$GITHUB_OUTPUT"; echo "Validating focused main hotfix $HEAD_REF at $PROMOTED_SHA" ;;
             *) echo "main accepts only nightly promotion or hotfix/* pull requests" >&2; exit 1 ;;
           esac
+      - name: Check out the exact proposed revision without unnecessary history
+        if: steps.source.outputs.kind == 'nightly'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - name: Select one unexpired exact-SHA nightly proof
+        id: select
+        if: steps.source.outputs.kind == 'nightly'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/release/nightly-proof.mjs select --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_REPOSITORY/.github/workflows/nightly.yml@refs/heads/nightly" --commit "$PROMOTED_SHA" --token "$GH_TOKEN" --output "$RUNNER_TEMP/nightly-proof-selection.json"
+      - name: Download the selected proof and runtime bundle
+        id: download
+        if: steps.source.outputs.kind == 'nightly' && steps.select.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runId")"
+          RUNTIME_NAME="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runtimeArtifactName")"
+          PROOF_NAME="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').proofArtifactName")"
+          mkdir -p "$RUNNER_TEMP/nightly-proof-bundle"
+          gh run download "$RUN_ID" --name "$RUNTIME_NAME" --dir "$RUNNER_TEMP/nightly-proof-bundle"
+          gh run download "$RUN_ID" --name "$PROOF_NAME" --dir "$RUNNER_TEMP/nightly-proof-bundle"
+      - name: Verify exact repository, workflow, SHA, policy, jobs, age, and artifact lineage
+        id: verify
+        if: steps.source.outputs.kind == 'nightly' && steps.download.outcome == 'success'
+        continue-on-error: true
+        env:
+          PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          RUN_ID="$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runId")"
+          node scripts/release/nightly-proof.mjs verify --directory "$RUNNER_TEMP/nightly-proof-bundle" --proof "$RUNNER_TEMP/nightly-proof-bundle/nightly-proof.json" --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_REPOSITORY/.github/workflows/nightly.yml@refs/heads/nightly" --commit "$PROMOTED_SHA" --run-id "$RUN_ID"
+      - name: Choose proof reuse or the complete fallback path
+        id: decision
+        env:
+          SOURCE_KIND: ${{ steps.source.outputs.kind }}
+          SELECT_OUTCOME: ${{ steps.select.outcome }}
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          if [ "$SOURCE_KIND" = "nightly" ] && [ "$SELECT_OUTCOME" = "success" ] && [ "$DOWNLOAD_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "run_id=$(node -p "require(process.env.RUNNER_TEMP + '/nightly-proof-selection.json').runId")" >> "$GITHUB_OUTPUT"
+            echo "The exact-SHA nightly proof is complete and reusable."
+          else
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            echo "No complete reusable proof was accepted; the full release, browser, and packaging path remains mandatory."
+          fi
 
   release-gate:
     name: Release gate
+    needs: promotion-source
+    if: ${{ always() && needs.promotion-source.result == 'success' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reuse the complete exact-SHA nightly application proof
+        if: needs.promotion-source.outputs.reuse_nightly_proof == 'true'
+        run: echo "Exact repository/workflow/SHA/policy/job/artifact proof is unexpired; the full nightly application gate is reused."
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
-      - run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
-      - run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
-      - run: npm audit --audit-level=high
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: npm audit --audit-level=high
 
   browser-gate:
     name: Browser gate
+    needs: promotion-source
+    if: ${{ always() && needs.promotion-source.result == 'success' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Reuse the complete exact-SHA nightly browser proof
+        if: needs.promotion-source.outputs.reuse_nightly_proof == 'true'
+        run: echo "The unexpired exact-SHA nightly proof includes one successful Nightly browser gate."
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
+
+  artifact-source:
+    name: Exact-SHA artifact source
+    needs: promotion-source
+    if: ${{ always() && needs.promotion-source.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - if: needs.promotion-source.outputs.reuse_nightly_proof == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_ID: ${{ needs.promotion-source.outputs.nightly_run_id }}
+        run: gh run download "$RUN_ID" --name "nightly-$PROMOTED_SHA" --dir dist
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - name: Build one fallback artifact for all recovery consumers
+        if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
+        env:
+          PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_KIND: ${{ github.head_ref == 'nightly' && 'nightly' || 'main' }}
+        run: |
+          node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch "$SOURCE_KIND"
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$PROMOTED_SHA" --channel "$SOURCE_KIND" --source-branch "$SOURCE_KIND" --output dist/release-metadata.json
+      - name: Verify the selected artifact bundle before fan-out
+        env:
+          PROMOTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/release/nightly-proof.mjs bundle --directory dist --commit "$PROMOTED_SHA"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: promotion-${{ github.event.pull_request.head.sha }}
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            dist/*.tgz
+            dist/*.tgz.sha256
+            dist/release-metadata.json
+
+  artifact-smoke:
+    name: Runtime artifact recovery proof
+    needs: artifact-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      LTF_NPM_CACHE_DIR: ${{ runner.temp }}/ltf-npm-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: promotion-${{ github.event.pull_request.head.sha }}
+          path: dist
+      - run: node scripts/run-timed-stage.mjs "packaging artifact smoke" -- npm run artifact:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+
+  backup-recovery:
+    name: Backup recovery proof
+    needs: artifact-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/run-timed-stage.mjs "packaging backup drill" -- npm run backup:drill
+
+  bare-metal-recovery:
+    name: Bare-metal recovery proof
+    needs: artifact-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      LTF_NPM_CACHE_DIR: ${{ runner.temp }}/ltf-npm-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: promotion-${{ github.event.pull_request.head.sha }}
+          path: dist
+      - run: node scripts/run-timed-stage.mjs "packaging bare-metal smoke" -- npm run bare-metal:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+
+  container-recovery:
+    name: Container recovery proof
+    needs: artifact-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LTF_NPM_CACHE_DIR: ${{ runner.temp }}/ltf-npm-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: promotion-${{ github.event.pull_request.head.sha }}
+          path: dist
+      - run: node scripts/run-timed-stage.mjs "packaging container smoke" -- npm run container:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
 
   packaging-recovery:
     name: Packaging and recovery
+    needs: [artifact-smoke, backup-recovery, bare-metal-recovery, container-recovery]
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
-      - run: node scripts/run-timed-stage.mjs "packaging artifact smoke" -- npm run artifact:smoke
-      - run: node scripts/run-timed-stage.mjs "packaging backup drill" -- npm run backup:drill
-      - run: node scripts/run-timed-stage.mjs "packaging bare-metal smoke" -- npm run bare-metal:smoke
-      - run: node scripts/run-timed-stage.mjs "packaging container smoke" -- npm run container:smoke
+      - name: Aggregate every exact-artifact recovery result
+        env:
+          ARTIFACT_RESULT: ${{ needs.artifact-smoke.result }}
+          BACKUP_RESULT: ${{ needs.backup-recovery.result }}
+          BARE_METAL_RESULT: ${{ needs.bare-metal-recovery.result }}
+          CONTAINER_RESULT: ${{ needs.container-recovery.result }}
+        run: |
+          test "$ARTIFACT_RESULT" = "success"
+          test "$BACKUP_RESULT" = "success"
+          test "$BARE_METAL_RESULT" = "success"
+          test "$CONTAINER_RESULT" = "success"
 
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

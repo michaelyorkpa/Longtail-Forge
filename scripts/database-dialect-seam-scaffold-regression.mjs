@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -12,8 +11,6 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-dialect-seams.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Dialect-Seams-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const roadmap = readText("ROADMAP.md");
@@ -22,7 +19,6 @@ const providerSource = readText("src/db/provider.js");
 const coreDatabaseSource = readText("src/core/database.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -35,9 +31,6 @@ const {
 const coreDatabase = await import("../src/core/database.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the dialect seam scaffold version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the dialect seam scaffold version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the dialect seam scaffold version");
 
   assert.match(sqliteDialectSource, /function createSqliteDialectSeams/, "SQLite dialect seam factory should exist");
   assert.match(sqliteDialectSource, /insertOrIgnoreInto/, "SQLite dialect seams should expose conflict write helpers");
@@ -49,7 +42,6 @@ try {
   assert.match(sqliteAdapterSource, /dialect,/, "SQLite adapter and transaction client should expose the dialect object");
   assert.match(providerSource, /const databaseDialect = db\.dialect/, "provider facade should expose a stable databaseDialect binding");
   assert.match(coreDatabaseSource, /databaseDialect/, "core database facade should re-export the dialect seam surface");
-  assert.match(regressionSuite, /scripts\/database-dialect-seam-scaffold-regression\.mjs/, "regression suite should include dialect seam scaffold coverage");
 
   assert.equal(db.provider, "sqlite");
   assert.equal(db.dialect.provider, "sqlite");

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,10 +10,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-mod
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Modal-Complete-Action-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const docs = readText("docs/tasks-module.md");
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
@@ -23,7 +19,6 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
@@ -46,9 +41,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the task modal complete action version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the task modal complete action version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the task modal complete action version");
   assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
   assert.match(taskDialogScript, /const complete = view\.createActionButton\([\s\S]*action: "complete-task"[\s\S]*iconOnly: true[\s\S]*label: "Complete task"/, "Task editor header should declare the icon-only Complete action");
@@ -82,10 +74,8 @@ function assertStaticContract() {
   assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should load the updated Task dialog cache key");
   assert.match(workbenchView, /js\/workbench\.js/, "Workbench should load the Workbench cache keys");
   assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the updated Task dialog");
-  assert.match(regressionSuite, /scripts\/task-modal-complete-action-regression\.mjs/, "Regression suite should include modal complete action coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the task modal complete action slice");
   assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,
     "Tasks docs should document the modal Complete action contract");
 }
@@ -207,8 +197,4 @@ LIMIT 1;
 
 function readText(pathname) {
   return readFileSync(new URL(`../${pathname}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

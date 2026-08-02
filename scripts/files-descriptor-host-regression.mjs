@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -19,17 +18,11 @@ const deniedUserId = "files-descriptor-host-denied-user";
 const protectedSession = sessionFor(protectedUserId);
 const deniedSession = sessionFor(deniedUserId);
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should be a minimal descriptor host");
 assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load client/project helpers plus the view builder, renderer, and shared preview before the Files adapter");
@@ -51,7 +44,6 @@ assert.match(frameworkSurfaceSource, /behavior:\s*"files\.browse\.filters"/, "Fi
 assert.match(frameworkSurfaceSource, /behavior:\s*"files\.browse\.results"/, "Files descriptor should mount the browse results behavior");
 assert.match(modulesServiceSource, /listFrameworkViewSurfaces\(\)/, "Modules service should merge framework-owned descriptors into app-shell delivery");
 assert.match(modulesServiceSource, /listFrameworkProtectedViews\(\)/, "Modules service should merge framework-owned protected view gates into descriptor delivery");
-assert.match(regressionSuite, /scripts\/files-descriptor-host-regression\.mjs/, "Regression suite should include the Files descriptor host regression");
 
 try {
   await initializeDatabase();

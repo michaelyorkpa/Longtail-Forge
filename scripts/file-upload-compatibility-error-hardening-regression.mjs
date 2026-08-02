@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global Blob, FormData, fetch */
 
 import assert from "node:assert/strict";
@@ -51,21 +50,14 @@ try {
 }
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const moduleContract = readText("docs/module-contract.md");
   const moduleDevelopment = readText("docs/module-development.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesServiceSource = readText("src/services/files.service.js");
   const previewRegression = readText("scripts/files-preview-availability-route-regression.mjs");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the upload hardening version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the upload hardening version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the upload hardening version");
 
   assert.match(filesRoutes, /request\.on\("aborted", handleRequestAborted\)/, "multipart routes should handle aborted client requests");
   assert.match(filesRoutes, /Multipart upload was cancelled before it finished/, "aborted uploads should return useful cancellation copy");
@@ -78,10 +70,8 @@ function assertStaticContracts() {
   assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.15[\s\S]*base64 compatibility routes/, "module docs should guide new module uploads to streamed routes");
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*retired no earlier than 0\.33\.5\.23\.0/, "runtime docs should define the base64 retirement floor");
   assert.match(previewRegression, /download_only[\s\S]*unsupported_file_type/, "preview coverage should keep unsupported files download-only");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the upload hardening slice");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-upload-compatibility-error-hardening-regression\.mjs/, "regression suite should include upload hardening coverage");
-}
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  }
 
 async function checkLegacyJsonCompatibility(api, fixtures) {
   const singleResponse = await api.postJson("/api/files", {
@@ -539,8 +529,4 @@ function delay(ms) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

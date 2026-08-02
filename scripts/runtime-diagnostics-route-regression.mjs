@@ -15,15 +15,11 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-runtime-diagnostics.db");
 process.env.SUPER_ADMIN_PASSWORD = "Runtime-Diagnostics-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const appSource = readText("src/core/app.js");
 const routeSource = readText("src/routes/runtime-diagnostics.routes.js");
 const serviceSource = readText("src/services/runtime-diagnostics.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
@@ -32,9 +28,6 @@ const { createSession } = await import("../src/security/sessions.js");
 let server;
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the runtime diagnostics version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime diagnostics version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime diagnostics version");
 
   assert.match(routeSource, /runtimeDiagnosticsRoutes\.get\("\/runtime-diagnostics"/, "runtime diagnostics route should expose GET /api/runtime-diagnostics");
   assert.match(routeSource, /runtimeDiagnosticsService\.read\(request\.session\)/, "runtime diagnostics route should delegate to the service read model");
@@ -46,7 +39,6 @@ try {
   assert.match(serviceSource, /configurationWarnings/, "runtime diagnostics service should expose safe config warnings");
   assert.doesNotMatch(serviceSource, /process\.env/, "runtime diagnostics service must not expose raw environment variables");
   assert.doesNotMatch(serviceSource, /clamdHost|clamdPort|clamscanPath|masterKey/i, "runtime diagnostics service must not expose scanner internals or key material");
-  assert.match(regressionSuite, /scripts\/runtime-diagnostics-route-regression\.mjs/, "regression suite should include runtime diagnostics route coverage");
 
   await initializeDatabase();
   const fixtures = await seedFixtures();
@@ -72,7 +64,6 @@ try {
   assert.match(runtimeDocs, /`GET \/api\/runtime-diagnostics`/, "runtime docs should document the protected runtime diagnostics route");
   assert.match(runtimeDocs, /Runtime diagnostics[\s\S]*workspace_settings\.manage/i, "runtime docs should record the diagnostics permission boundary");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the runtime diagnostics slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "runtime diagnostics regression database should pass integrity check");

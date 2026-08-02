@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global Blob, FormData, fetch */
 
 import assert from "node:assert/strict";
@@ -47,10 +46,7 @@ try {
 }
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesService = readText("src/services/files.service.js");
   const helper = readText("public/js/shared/file-attachments.js");
@@ -59,11 +55,7 @@ function assertStaticContracts() {
   const notesHtml = readText("views/protected/notes.html");
   const tasksHtml = readText("views/protected/tasks.html");
   const workbenchHtml = readText("views/protected/workbench.html");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the streamed batch upload version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the streamed batch upload version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the streamed batch upload version");
 
   assert.match(filesRoutes, /filesRoutes\.post\("\/files\/upload\/batch"/, "Files routes should expose the streamed multipart batch route");
   assert.match(filesRoutes, /MAX_MULTIPART_BATCH_FILES = 50/, "Multipart batch uploads should keep a bounded file count");
@@ -99,9 +91,7 @@ function assertStaticContracts() {
   assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the streamed attachment helper");
   assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the streamed attachment helper");
   assert.match(moduleContract, /As of 0\.33\.5\.22\.15[\s\S]*\/api\/files\/upload\/batch/, "module contract should record the streamed batch boundary");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streamed batch upload slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-multipart-batch-upload-helper-regression\.mjs/, "regression suite should include streamed batch upload coverage");
 }
 
 async function checkSuccessfulMultiFileUpload(api, fixtures) {
@@ -420,8 +410,4 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

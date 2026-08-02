@@ -1,17 +1,10 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects related-region version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects related-region version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects related-region version");
 
 assert.match(
   readFunctionBody(clientsProjectsScript, "openClientDetailDialog"),
@@ -56,7 +49,6 @@ assert.match(
 
 assert.match(css, /\.client-projects-related-context\s*\{[\s\S]*grid-column:\s*1 \/ -1/, "Related Project context should stay full-width in the Project editor grid");
 assert.match(css, /\.client-projects-related-region/, "Related Project regions should have shared styling hooks");
-assert.match(regressionSuite, /scripts\/clients-projects-related-regions-regression\.mjs/, "Regression suite should include the Clients/Projects related-region regression");
 
 console.log("Clients/Projects related regions regression passed.");
 

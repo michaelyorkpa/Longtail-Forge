@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -59,19 +58,12 @@ try {
 }
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the storage diagnostics version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the storage diagnostics version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the storage diagnostics version");
 
   assert.match(runtimeDiagnosticsSource, /readSafeStorageHealth/, "runtime diagnostics should own a safe storage health read");
   assert.match(runtimeDiagnosticsSource, /getFileStorageAdapter/, "runtime diagnostics should resolve the configured Files storage adapter");
@@ -88,10 +80,8 @@ function assertStaticContracts() {
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
   assert.match(sqliteDocs, /safe local storage root label/i, "SQLite small-office docs should mention the safe storage root label");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage diagnostics slice");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-storage-diagnostics-regression\.mjs/, "regression suite should include storage diagnostics coverage");
-}
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  }
 
 function assertStorageDiagnostics(diagnostics) {
   assert.equal(diagnostics.storage.provider, "local");

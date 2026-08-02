@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "fullChainOwners": [
+    "scripts/baseline-adoption-regression.mjs",
+    "scripts/database-migration-locking-regression.mjs",
+    "scripts/fresh-database-regression.mjs",
+    "scripts/migration-compatibility-regression.mjs",
+    "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
+    "scripts/regressions/database/module-context-read-lifecycle.regression.mjs",
+    "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+    "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs",
+    "scripts/startup-maintenance-compatibility-regression.mjs"
+  ],
+  "customBootstrapOwners": [
+    "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs",
+    "scripts/regressions/database/workspace-final-purge.regression.mjs",
+    "scripts/regressions/framework/account-export-recovery.regression.mjs",
+    "scripts/regressions/framework/authentication-throttle.regression.mjs",
+    "scripts/regressions/framework/password-hashing-modernization.regression.mjs",
+    "scripts/regressions/framework/password-reset-hardening.regression.mjs",
+    "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs",
+    "scripts/regressions/framework/remembered-sessions.regression.mjs",
+    "scripts/regressions/framework/security-event-logging.regression.mjs",
+    "scripts/regressions/framework/session-revocation.regression.mjs",
+    "scripts/regressions/framework/user-landing-preferences.regression.mjs"
+  ],
+  "retainedEnvironmentOptOuts": [
+    {
+      "path": "scripts/high-volume-admin-lists-regression.mjs",
+      "rationale": "The nested smoke process must validate startup against the deliberately seeded scale database instead of replacing it with the runner template."
+    },
+    {
+      "path": "scripts/migration-compatibility-regression.mjs",
+      "rationale": "Owns upgrades from historical schemas and must execute the complete migration and checksum chain."
+    },
+    {
+      "path": "scripts/reference-caddy-security-smoke.mjs",
+      "rationale": "The nested server must bootstrap its independently configured security-smoke database."
+    },
+    {
+      "path": "scripts/regressions/database/development-data-seed.regression.mjs",
+      "rationale": "The nested seed command must populate and validate its purpose-built empty database."
+    },
+    {
+      "path": "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs",
+      "rationale": "The nested cleanup process must operate on the regression's explicitly prepared workspace database."
+    },
+    {
+      "path": "scripts/scale-seed-framework-regression.mjs",
+      "rationale": "The nested runtime proof must preserve the scale data created by the owning regression."
+    },
+    {
+      "path": "scripts/sqlite-small-office-performance-regression.mjs",
+      "rationale": "The child benchmark must measure its explicitly prepared small-office dataset."
+    },
+    {
+      "path": "scripts/sqlite-small-office-performance.mjs",
+      "rationale": "The nested app process must use the benchmark database populated by the parent harness."
+    },
+    {
+      "path": "scripts/startup-maintenance-compatibility-regression.mjs",
+      "rationale": "Owns historical startup repair compatibility and must execute the complete migration and maintenance chain."
+    },
+    {
+      "path": "scripts/tasks-server-side-list-paging-regression.mjs",
+      "rationale": "The nested route proof must use the task dataset seeded by the parent regression."
+    }
+  ]
+}

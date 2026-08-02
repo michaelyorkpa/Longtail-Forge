@@ -6,7 +6,6 @@ const html = await readProjectFile("views/protected/search.html");
 const script = await readProjectFile("public/js/search.js");
 const styles = await readProjectFile("public/css/longtail-forge.css");
 const staticService = await readProjectFile("src/services/static.service.js");
-const packageJson = JSON.parse(await readProjectFile("package.json"));
 
 assert.match(staticService, /\["search\.html",\s*\{\s*id: "search",\s*file: "search\.html"\s*\}\]/);
 
@@ -52,7 +51,6 @@ assert.match(styles, /\.search-result-row/);
 assert.match(styles, /\.search-pagination/);
 assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.search-workspace/);
 
-assert.equal(packageJson.scripts["test:regressions"], "node scripts/run-regressions.mjs");
 assert.ok(
   REGRESSION_COMMANDS.includes("node scripts/search-results-page-regression.mjs"),
   "Search results page regression must remain in the full regression suite",

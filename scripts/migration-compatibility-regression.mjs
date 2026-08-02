@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -14,15 +13,12 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Migration-Compatibility-Test-123!";
 delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const migrationsSource = readText("src/db/migrations.js");
 const projectAdminScopeMigration = readText("src/db/migrations/074_project_admin_project_scope.sql");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const previousRoleSeedBaselineChecksum = "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c";
 
 const {
@@ -55,9 +51,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the migration compatibility version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the migration compatibility version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the migration compatibility version");
 
   assertNoLiteralHelperCalls("db/migrations migration compatibility", migrationsSource);
   assert.doesNotMatch(migrationsSource, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b/, "migration compatibility should not import or call literal SQL helpers");
@@ -88,7 +81,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migrations\.js` has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*current baseline SQL[\s\S]*future migration SQL files remain migration-owned compatibility SQL[\s\S]*385 existing bound operation sites/, "database docs should record the migration compatibility outcome");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.30 - Migration compatibility path[\s\S]*- \[x\] Review `src\/db\/migrations\.js`[\s\S]*- \[x\] Convert paths that can safely move[\s\S]*- \[x\] Account for dialect-sensitive migration statements[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.30 - [\s\S]*Migration compatibility path[\s\S]*0 helper invocations[\s\S]*0 direct interpolated operation sites[\s\S]*385 bound operation sites/, "changelog should record the migration compatibility burndown");
-  assert.match(regressionSuite, /scripts\/migration-compatibility-regression\.mjs/, "regression suite should include the migration compatibility proof");
 }
 
 async function assertMigrationRows() {

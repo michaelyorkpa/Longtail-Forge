@@ -84,6 +84,7 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   validateTierAndFamilyFloors({ activeEntries, creditedRetirements, errors, policy });
   validateRequiredReleaseGates({ activeIds, creditedRetirements, errors, policy });
   validateLegacyException({ activeEntries, creditedRetirements, errors, policy });
+  errors.push(...collectCoverageFloorDriftErrors({ entries: activeEntries, policy }));
 
   try {
     const expectedManifest = buildRegressionManifest({ entries: activeEntries, policy });
@@ -95,6 +96,130 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   }
 
   return errors;
+}
+
+function buildRatchetedCoveragePolicy({ entries, policy }) {
+  const nextPolicy = cloneJson(policy);
+  const targets = buildCoverageFloorTargets({ entries, policy });
+  const loweringErrors = [];
+
+  rejectFloorLowering(loweringErrors, "minimumActiveScripts", policy?.minimumActiveScripts, targets.minimumActiveScripts);
+  rejectFloorLowering(
+    loweringErrors,
+    "minimumReleaseGateScripts",
+    policy?.minimumReleaseGateScripts,
+    targets.minimumReleaseGateScripts,
+  );
+  for (const [area, target] of Object.entries(targets.minimumAreaScripts)) {
+    rejectFloorLowering(
+      loweringErrors,
+      `minimumAreaScripts.${area}`,
+      policy?.minimumAreaScripts?.[area],
+      target,
+    );
+  }
+  for (const family of targets.coverageFamilies) {
+    const current = policy?.coverageFamilies?.find((entry) => entry.id === family.id)?.minimumActiveScripts;
+    rejectFloorLowering(
+      loweringErrors,
+      `coverageFamilies.${family.id}.minimumActiveScripts`,
+      current,
+      family.minimumActiveScripts,
+    );
+  }
+
+  if (loweringErrors.length > 0) {
+    throw new Error(`Refusing to lower regression coverage floors:\n- ${loweringErrors.join("\n- ")}`);
+  }
+
+  nextPolicy.minimumActiveScripts = targets.minimumActiveScripts;
+  nextPolicy.minimumAreaScripts = targets.minimumAreaScripts;
+  nextPolicy.minimumReleaseGateScripts = targets.minimumReleaseGateScripts;
+  nextPolicy.coverageFamilies = nextPolicy.coverageFamilies.map((family) => ({
+    ...family,
+    minimumActiveScripts: targets.coverageFamilies.find((target) => target.id === family.id).minimumActiveScripts,
+  }));
+  return nextPolicy;
+}
+
+function collectCoverageFloorDriftErrors({ entries, policy }) {
+  if (!policy || typeof policy !== "object") {
+    return [];
+  }
+  const targets = buildCoverageFloorTargets({ entries, policy });
+  const errors = [];
+  reportLag(errors, "minimumActiveScripts", policy.minimumActiveScripts, targets.minimumActiveScripts);
+  reportLag(
+    errors,
+    "minimumReleaseGateScripts",
+    policy.minimumReleaseGateScripts,
+    targets.minimumReleaseGateScripts,
+  );
+  for (const [area, target] of Object.entries(targets.minimumAreaScripts)) {
+    reportLag(errors, `minimumAreaScripts.${area}`, policy.minimumAreaScripts?.[area], target);
+  }
+  for (const family of targets.coverageFamilies) {
+    const current = policy.coverageFamilies?.find((entry) => entry.id === family.id)?.minimumActiveScripts;
+    reportLag(errors, `coverageFamilies.${family.id}.minimumActiveScripts`, current, family.minimumActiveScripts);
+  }
+  return errors;
+}
+
+function buildCoverageFloorTargets({ entries, policy }) {
+  const activeEntries = Array.isArray(entries) ? entries : [];
+  const creditedRetirements = Array.isArray(policy?.retiredScripts)
+    ? policy.retiredScripts.filter((entry) => entry?.floorCredit === true)
+    : [];
+  const activeAreaCounts = countBy(activeEntries, (entry) => entry.area);
+  const creditedAreaCounts = countBy(
+    creditedRetirements.filter((entry) => typeof entry.area === "string" && entry.area),
+    (entry) => entry.area,
+  );
+  const areas = new Set([
+    ...Object.keys(policy?.minimumAreaScripts || {}),
+    ...(policy?.protectedAreas || []),
+    ...Object.keys(activeAreaCounts),
+    ...Object.keys(creditedAreaCounts),
+  ]);
+  const minimumAreaScripts = Object.fromEntries(
+    [...areas]
+      .sort((left, right) => left.localeCompare(right))
+      .map((area) => [area, (activeAreaCounts[area] || 0) + (creditedAreaCounts[area] || 0)]),
+  );
+  const releaseGateCredits = creditedRetirements.filter((entry) => entry.tier === "release-gate").length;
+  const coverageFamilies = (policy?.coverageFamilies || []).map((family) => {
+    const matchTags = Array.isArray(family.matchTags) ? family.matchTags : [];
+    return {
+      id: family.id,
+      minimumActiveScripts: activeEntries.filter((entry) => (
+        matchTags.every((tag) => entry.tags.includes(tag))
+      )).length + creditedRetirements.filter((entry) => (
+        matchTags.every((tag) => retirementTags(entry).includes(tag))
+      )).length,
+    };
+  });
+
+  return {
+    minimumActiveScripts: activeEntries.length + creditedRetirements.length,
+    minimumAreaScripts,
+    minimumReleaseGateScripts: activeEntries.filter((entry) => entry.tier === "release-gate").length
+      + releaseGateCredits,
+    coverageFamilies,
+  };
+}
+
+function rejectFloorLowering(errors, label, current, target) {
+  if (Number.isInteger(current) && target < current) {
+    errors.push(`${label} would decrease from ${current} to ${target}`);
+  }
+}
+
+function reportLag(errors, label, current, target) {
+  if (Number.isInteger(current) && current < target) {
+    errors.push(
+      `${label} lags current discovered coverage (${current} < ${target}); run ${MANIFEST_GENERATOR} --ratchet-floors`,
+    );
+  }
 }
 
 function validateRegressionCoverage({ entries, manifest, policy }) {
@@ -184,8 +309,9 @@ function validateAssertionMovement({ activePaths, errors, movement }) {
       errors.push(`${label} should include ${field}`);
     }
   }
-  if (movement.movementType !== "pure-contract-to-vitest") {
-    errors.push(`${label} movementType should be pure-contract-to-vitest`);
+  const supportedTypes = new Set(["pure-contract-to-vitest", "duplicate-contract-to-regression"]);
+  if (!supportedTypes.has(movement.movementType)) {
+    errors.push(`${label} movementType should be pure-contract-to-vitest or duplicate-contract-to-regression`);
   }
   if (!Number.isInteger(movement.assertionCount) || movement.assertionCount < 1) {
     errors.push(`${label} should include a positive assertionCount`);
@@ -196,8 +322,17 @@ function validateAssertionMovement({ activePaths, errors, movement }) {
   if (!activePaths.has(movement.retainedIntegrationOwner)) {
     errors.push(`${label} retained integration owner should remain discovered`);
   }
-  if (!/^tests\/.+\.test\.mjs$/.test(movement.movedTo || "") || !existsSync(movement.movedTo)) {
-    errors.push(`${label} movedTo should identify an existing Vitest test`);
+  if (movement.movementType === "pure-contract-to-vitest") {
+    if (!/^tests\/.+\.test\.mjs$/.test(movement.movedTo || "") || !existsSync(movement.movedTo)) {
+      errors.push(`${label} movedTo should identify an existing Vitest test`);
+    }
+  } else if (!existsSync(movement.movedTo || "")) {
+    errors.push(`${label} movedTo should identify an existing authoritative regression or direct gate`);
+  }
+  if (movement.movementType === "duplicate-contract-to-regression") {
+    if (typeof movement.sourceInventory !== "string" || !movement.sourceInventory.trim() || !existsSync(movement.sourceInventory)) {
+      errors.push(`${label} should identify an existing sourceInventory`);
+    }
   }
   if (!Array.isArray(movement.verificationPerformed) || movement.verificationPerformed.length === 0) {
     errors.push(`${label} should include verificationPerformed`);
@@ -360,6 +495,8 @@ export {
   MANIFEST_SCHEMA_VERSION,
   POLICY_SOURCE,
   buildRegressionManifest,
+  buildRatchetedCoveragePolicy,
+  collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
   serializeRegressionManifest,
   validateRegressionCoverage,

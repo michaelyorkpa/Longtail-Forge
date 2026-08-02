@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.private-calendar-feed-authentication",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "calendar", "security", "tasks", "throttling", "workspace-isolation"],
+  tags: ["authentication", "baseline-bypass", "calendar", "security", "tasks", "throttling", "workspace-isolation"],
   description: "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
   runMode: "isolated-database",
 });

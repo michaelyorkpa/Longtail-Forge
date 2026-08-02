@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,17 +5,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
@@ -54,7 +47,6 @@ assert.match(tasksServiceSource, /if \(action === "status"\)[\s\S]*return update
 assert.match(tasksServiceSource, /if \(action === "priority"\)[\s\S]*return update\(taskId, \{ priority: payload\.priority \}/, "Priority bulk action should be service-owned");
 assert.match(tasksServiceSource, /if \(action === "project_assign"\)[\s\S]*Project is required for bulk Project assignment[\s\S]*return update\(taskId, \{[\s\S]*client_id:[\s\S]*project_id: projectId/, "Project bulk assignment should delegate to the canonical Task update path with a required Project");
 assert.match(tasksServiceSource, /if \(action === "assignee_replace"\)[\s\S]*assignee_ids: normalizeAssigneeIds/, "Assignee replacement should be service-owned");
-assert.match(regressionSuite, /scripts\/tasks-bulk-nondestructive-toolbar-regression\.mjs/, "Regression suite should include the non-destructive bulk toolbar regression");
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-bulk-nondestructive-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tasks-bulk-nondestructive.db");

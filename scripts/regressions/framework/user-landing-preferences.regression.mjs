@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.user-landing-preferences",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "database", "navigation", "permissions", "settings", "workspaces"],
+  tags: ["authentication", "baseline-bypass", "database", "navigation", "permissions", "settings", "workspaces"],
   description: "Proves per-user app preferences persist calendar defaults and resolve login and workspace-switch landings only to enabled, authorized protected pages with Dashboard fallback.",
   runMode: "isolated-database",
 });

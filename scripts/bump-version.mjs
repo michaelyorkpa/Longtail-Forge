@@ -69,10 +69,11 @@ function assertAlignedCurrentVersions(packageJson, packageLock) {
 function formatFollowUpChecklist(version) {
   return [
     "Follow-up release checklist:",
-    `- Add the ${version} entry to CHANGELOG.md.`,
-    "- Update only active ROADMAP.md checklist/bookkeeping text; preserve roadmap, changelog, archive, and docs history.",
-    "- Run npm run version:guard.",
-    "- Run npm run check.",
+    `- Add the ${version} entry to CHANGELOG.md and update only the documentation that owns changed behavior.`,
+    "- Complete the active ROADMAP.md checklist, archive the finished slice, and advance the Active cursor; preserve historical labels.",
+    "- Run npm run docs:suggest and record the documentation disposition.",
+    "- When regression discovery or policy changed, run npm run regressions:manifest; use -- --ratchet-floors only after reviewing floor increases, then run npm run regressions:inventory:write.",
+    "- Run npm run verify:slice exactly once after the final tree is complete.",
     `- Restart the app and verify /api/app-info reports ${version}.`,
   ].join("\n");
 }

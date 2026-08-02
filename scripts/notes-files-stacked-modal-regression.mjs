@@ -1,17 +1,10 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const notesCss = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the stacked Files modal browser wiring");
@@ -41,7 +34,6 @@ assert.match(notesJs, /filesToggle\.hidden = secure \|\| !filesAvailable[\s\S]*c
 assert.match(notesJs, /function resetNoteEditorPanels\(\)[\s\S]*closeTagsDialog\(\)[\s\S]*closeFilesDialog\(\)/, "Resetting the note editor should close any stacked utility dialogs");
 
 assert.match(notesCss, /\.notes-files-save-first-warning\s*\{[\s\S]*border:\s*1px solid var\(--color-danger-border\);[\s\S]*background:\s*var\(--color-danger-bg\);[\s\S]*color:\s*var\(--color-danger\);/, "The unsaved-note Files warning should use danger styling");
-assert.match(regressionSuite, /scripts\/notes-files-stacked-modal-regression\.mjs/, "The stacked Files modal regression should be part of the full suite");
 
 console.log("Notes Files stacked modal regression passed.");
 

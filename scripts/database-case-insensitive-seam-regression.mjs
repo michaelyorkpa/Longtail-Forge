@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -15,15 +14,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-case-ins
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Case-Insensitive-Seams-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const filesServiceSource = readText("src/services/files.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -47,9 +43,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the case-insensitive seam version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the case-insensitive seam version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the case-insensitive seam version");
 
   assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /containsNoCase/, "SQLite dialect seams should expose a case-insensitive contains helper");
@@ -70,7 +63,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.4[\s\S]*case-insensitive[\s\S]*`db\.dialect\.comparison\.containsNoCase\(\.\.\.\)`[\s\S]*LIKE pattern/, "database docs should describe the case-insensitive comparison seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.4 Case-Insensitive Comparison and Ordering Seams[\s\S]*`services\/files\.service` attachable-target option read/, "audit docs should record the converted proof path");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(caseInsensitiveSliceVersion)} - [\\s\\S]*case-insensitive comparison and ordering seams[\\s\\S]*Files attachable-target option`), "changelog should record the case-insensitive seam slice");
-  assert.match(regressionSuite, /scripts\/database-case-insensitive-seam-regression\.mjs/, "regression suite should include case-insensitive seam coverage");
 }
 
 async function assertComparisonHelpers(dialect) {

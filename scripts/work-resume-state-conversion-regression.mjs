@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,17 +11,13 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Work-Resume-State-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const resumeServiceSource = readText("src/services/work-resume-state.service.js");
 const initialProducersSource = readText("src/services/work-resume-state-initial-producers.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -55,9 +50,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Work resume state conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Work resume state conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Work resume state conversion version");
 
   assert.match(resumeServiceSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "work resume state service should import the provider-neutral db facade");
   assert.doesNotMatch(resumeServiceSource, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "work resume state service should be fully off literal helpers");
@@ -78,7 +70,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.26[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are converted[\s\S]*304 remaining helper invocations/, "database docs should record the concrete Work resume state conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.26 - Conversion wave: Work resume state[\s\S]*- \[x\] Convert `services\/work-resume-state\.service`[\s\S]*- \[x\] Preserve resume state upsert[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.26 - [\s\S]*Work resume state conversion[\s\S]*304 helper invocations[\s\S]*57 direct interpolated operation sites[\s\S]*302 bound operation sites/, "changelog should record the Work resume state conversion burndown");
-  assert.match(regressionSuite, /scripts\/work-resume-state-conversion-regression\.mjs/, "regression suite should include the Work resume state conversion proof");
 }
 
 async function assertConvertedRuntime(session) {

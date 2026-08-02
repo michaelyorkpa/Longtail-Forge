@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -47,19 +46,13 @@ assert.equal(unavailableLifecycle.storageText, "clamscan unavailable body", "sca
 console.log("File clamscan adapter regression passed.");
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
-  const packageLock = JSON.parse(readText("package-lock.json"));
   const roadmap = readText("ROADMAP.md");
   const changelog = readText("CHANGELOG.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the clamscan adapter version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the clamscan adapter version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the clamscan adapter version");
 
   assert.match(scannerAdapterSource, /function createClamscanFileScannerAdapter/, "scanner adapter module should expose clamscan");
   assert.match(scannerAdapterSource, /CLAMSCAN_HEALTH_ARGS = Object\.freeze\(\["--version"\]\)/, "clamscan health should probe --version");
@@ -75,8 +68,7 @@ function assertStaticContracts() {
   assert.match(changelog, /clamscan[\s\S]*unavailable or timed-out scanner executions[\s\S]*without auto-deleting stored files/i, "tracked docs should record clamscan quarantine policy");
   assert.match(changelog, /## Version 0\.33\.5\.22\.9 - /, "changelog should include the clamscan adapter slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/file-clamscan-adapter-regression\.mjs/, "regression suite should include clamscan adapter coverage");
-}
+  }
 
 async function runAdapterOutcomeChecks() {
   const fake = {

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -6,20 +5,13 @@ import { readFileSync } from "node:fs";
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
 assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
 assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
-assert.match(regressionSuite, /scripts\/view-renderer-actions-regression\.mjs/, "Regression suite should include renderer action regression");
 
 const context = createBrowserContext();
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });

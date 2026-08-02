@@ -1,13 +1,15 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { hasRegisteredVerifiedRegressionBaselineHandshake } from "../../src/db/regression-baseline-fast-path.js";
 
 const DEFAULT_FIXTURE_PASSWORD = "Regression-Fixture-Password-123!";
 
 async function createDisposableDatabaseFixture(name, { reuseExisting = false } = {}) {
   const existingDatabaseFile = String(process.env.LONGTAIL_DATABASE_FILE || "").trim();
 
-  if (reuseExisting && existingDatabaseFile && isPathWithin(os.tmpdir(), existingDatabaseFile)) {
+  const mayReuseRunnerFixture = reuseExisting || hasRegisteredVerifiedRegressionBaselineHandshake();
+  if (mayReuseRunnerFixture && existingDatabaseFile && isPathWithin(os.tmpdir(), existingDatabaseFile)) {
     return {
       databaseFile: path.resolve(existingDatabaseFile),
       ownsFixture: false,

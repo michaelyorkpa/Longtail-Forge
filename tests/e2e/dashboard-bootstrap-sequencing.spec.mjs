@@ -2,9 +2,7 @@
 
 import { expect, test } from "@playwright/test";
 
-test("Dashboard starts panel reads before contributed assets finish and lazy-loads the Task editor", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one rendered viewport is sufficient for bootstrap sequencing");
-
+test("Dashboard starts panel reads before contributed assets finish and lazy-loads the Task editor", { tag: "@desktop" }, async ({ page }) => {
   const requestedPaths = [];
   await page.addInitScript(() => {
     const originalFetch = window.fetch;

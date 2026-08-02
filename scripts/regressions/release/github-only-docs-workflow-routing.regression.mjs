@@ -169,9 +169,14 @@ assert.match(nightly, /LTF_CHANGE_BASE_SHA: \$\{\{ github\.event\.before \}\}/);
 assert.match(nightly, /LTF_CHANGE_COMPARISON: range/);
 assert.equal(
   (nightly.match(/ref: \$\{\{ github\.event_name == 'push' && github\.sha \|\| 'nightly' \}\}/g) || []).length,
-  3,
-  "push workflows must classify, validate, and package the exact pushed SHA while scheduled/manual runs select nightly",
+  1,
+  "classification must resolve the exact pushed SHA or the current nightly ref once",
 );
+assert.ok(
+  (nightly.match(/ref: \$\{\{ needs\.classify_changes\.outputs\.revision \}\}/g) || []).length >= 3,
+  "validation, browser, and proof jobs must reuse the exact checked-out nightly revision",
+);
+assert.match(nightly, /sha=\$\(git rev-parse HEAD\)/);
 assert.match(nightly, /node scripts\/classify-github-changes\.mjs --github-output/);
 assert.match(nightly, /name: GitHub-only docs - no deployment/);
 assert.match(nightly, /GitHub-only documentation is complete; no environment deployment was created\./);

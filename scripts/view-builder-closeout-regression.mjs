@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -10,13 +9,7 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const architecture = readText("docs/architecture.md");
 const viewContract = readText("docs/view-building-contract.md");
 const helpModules = readText("help/framework/modules-and-optional-features.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.14 - /m, "live roadmap should not keep completed branch bodies");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "Completed 0.33.5.15 should be archived out of the live roadmap after 0.33.5.16 closes");
@@ -34,7 +27,6 @@ assert.match(architecture, /framework-owned view-building helper layer/, "Archit
 assert.match(helpModules, /Shared framework view patterns/, "Help should describe shared module view behavior without developer-only class details");
 
 assert.match(changelog, /## Version 0\.33\.5\.15\.6 - /, "Changelog should include the closeout version");
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("View builder closeout regression passed.");
 

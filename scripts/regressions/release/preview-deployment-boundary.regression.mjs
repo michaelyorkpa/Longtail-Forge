@@ -19,7 +19,7 @@ import {
 } from "../../build-container-image.mjs";
 
 const read = (filePath) => fs.readFile(filePath, "utf8");
-const [dockerfile, dockerignore, compose, docs, envExample, service, packageJsonSource, containerSmoke, bareMetalSmoke] = await Promise.all([
+const [dockerfile, dockerignore, compose, docs, envExample, service, _packageJsonSource, containerSmoke, bareMetalSmoke] = await Promise.all([
   read("Dockerfile"),
   read(".dockerignore"),
   read("compose.yaml"),
@@ -30,7 +30,6 @@ const [dockerfile, dockerignore, compose, docs, envExample, service, packageJson
   read("scripts/container-deployment-smoke.mjs"),
   read("scripts/bare-metal-deployment-smoke.mjs"),
 ]);
-const packageJson = JSON.parse(packageJsonSource);
 
 for (const requirement of [
   /node:24\.18\.0-bookworm-slim@sha256:[a-f0-9]{64}/,
@@ -95,9 +94,6 @@ assert.match(service, /WorkingDirectory=\/opt\/longtail-forge\/current/);
 assert.match(service, /ExecStart=\/usr\/bin\/node server\.js/);
 assert.match(service, /ProtectSystem=strict/);
 
-assert.equal(packageJson.scripts["container:build"], "node scripts/build-container-image.mjs");
-assert.equal(packageJson.scripts["container:smoke"], "node scripts/container-deployment-smoke.mjs");
-assert.equal(packageJson.scripts["bare-metal:smoke"], "node scripts/bare-metal-deployment-smoke.mjs");
 assert.match(containerSmoke, /--read-only/);
 assert.match(containerSmoke, /10001:10001/);
 assert.match(containerSmoke, /nativeBinding[\s\S]*linux-x64/);

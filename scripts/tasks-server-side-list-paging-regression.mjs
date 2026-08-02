@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -11,14 +10,11 @@ const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-server-side-paging-"));
 const disposableDb = path.join(tempDir, "longtail-forge-tasks-server-side-paging-demo.db");
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksRepositorySource = readText("src/modules/tasks/tasks.repo.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const tasksDocs = readText("docs/tasks-module.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 assertStaticContract();
 runSeed();
@@ -27,7 +23,6 @@ process.env.LONGTAIL_DATABASE_PROVIDER = "sqlite";
 process.env.LONGTAIL_DATABASE_FILE = disposableDb;
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.SUPER_ADMIN_PASSWORD = "Scale-Seed-Password-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
 const { closeSqlite, getSql, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
@@ -57,9 +52,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Tasks server-side paging version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Tasks server-side paging version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tasks server-side paging version");
 
   assert.match(tasksRepositorySource, /async function queryList\(workspaceId, options = \{\}\)/, "Tasks repository should expose a bounded list query");
   assert.match(tasksRepositorySource, /LIMIT :limit OFFSET :offset/, "Tasks repository list query should use bounded SQL paging");
@@ -79,8 +71,7 @@ function assertStaticContract() {
   assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/tasks\.js/, "Tasks host should reference list paging assets");
   assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
   assert.match(tasksDocs, /As of 0\.33\.5\.20\.2, the protected Tasks list route returns bounded server-side pages/, "Tasks docs should keep the server-side paging version on the shipped list contract");
-  assert.match(regressionSuite, /scripts\/tasks-server-side-list-paging-regression\.mjs/, "Regression suite should include Tasks server-side paging coverage");
-}
+  }
 
 async function assertPagedList(session, taskCount) {
   assert.ok(taskCount >= 80, "scale seed should provide a non-trivial task set");

@@ -48,8 +48,11 @@ assert.match(moduleDevelopment, /all eight bundled modules consume the canonical
 assert.match(moduleDevelopment, /`LongtailForge\.esModuleBridge` remains Dashboard page-local compatibility machinery/);
 assert.match(uiLayout, /Dashboard native entry and `LongtailForge\.esModuleBridge` are page-local transition machinery[\s\S]*Tasks and Time Tracking are the two real consumers/);
 assert.match(database, /explicit Two-Module Rule exception[\s\S]*App bootstrap and separate-worker readiness are the two execution hosts/);
-assert.match(regressionSuite, /current regression-suite contract through[\s\S]*discovered registry contains \d+ scripts and protects \d+ release-gate entries/);
-assert.match(regressionSuite, /Twenty obsolete current-package-document assertions/);
+assert.match(
+  regressionSuite,
+  /current regression-suite contract through[\s\S]*GENERATED REGRESSION INVENTORY START[\s\S]*Convention-path metadata regressions/,
+);
+assert.match(regressionSuite, /Exact per-path membership remains in `scripts\/regression-coverage-manifest\.json`/);
 
 for (const gateId of [
   "database.startup-maintenance-lifecycle",

@@ -10,9 +10,9 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import {
   LICENSING_GATE_PATHS,
+  formatLicensingGateReport,
   inspectLicensingGates,
 } from "../../lib/licensing-gates.mjs";
 import {
@@ -94,16 +94,12 @@ assert.deepEqual(
   "complete future-gate artifacts should clear the warning readout",
 );
 
-const command = spawnSync(process.execPath, ["scripts/check-licensing-gates.mjs"], {
-  encoding: "utf8",
-  windowsHide: true,
-});
-assert.equal(command.status, 0, command.stderr || command.stdout);
-assert.match(command.stdout, /Mode: warning-only/);
-assert.match(command.stdout, /Third-party notices: satisfied/);
-assert.match(command.stdout, /In-app legal\/about: satisfied/);
-assert.match(command.stdout, /Public legal surfaces: present/);
-assert.match(command.stdout, /do not fail ordinary development/);
+const gateReport = formatLicensingGateReport(live);
+assert.match(gateReport, /Mode: warning-only/);
+assert.match(gateReport, /Third-party notices: satisfied/);
+assert.match(gateReport, /In-app legal\/about: satisfied/);
+assert.match(gateReport, /Public legal surfaces: present/);
+assert.match(gateReport, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();
 assert.equal(noticeCheck.current, true, noticeCheck.message);

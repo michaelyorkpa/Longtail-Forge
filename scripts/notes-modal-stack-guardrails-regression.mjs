@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should reference the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should reference the shared view renderer modal opener");
@@ -36,7 +29,6 @@ assert.match(viewBuilderJs, /function isTopModal\(dialog\)/, "View builder shoul
 assert.match(viewBuilderJs, /event\.target === dialog && !isTopModal\(dialog\)/, "Backdrop-style clicks on non-top dialogs should be guarded");
 assert.match(viewBuilderJs, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\(\)/, "Escape/cancel on non-top dialogs should be guarded");
 assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor modal opening should route through the shared stack helper");
-assert.match(regressionSuite, /scripts\/notes-modal-stack-guardrails-regression\.mjs/, "The modal stack regression should be part of the full suite");
 
 const context = createBrowserContext();
 vm.runInNewContext(viewBuilderJs, context, { filename: "view-builder.js" });

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -10,8 +9,6 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-external-link
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-external-links.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-External-Links-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const migrationSql = readText("src/db/migrations/066_user_markdown_link_preference.sql");
 const usersRepo = readText("src/repositories/users.repo.js");
 const normalizers = readText("src/utils/normalizers.js");
@@ -22,8 +19,6 @@ const userSettingsScript = readText("public/js/user-settings.js");
 const notesScript = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
@@ -48,9 +43,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the external Markdown links preference version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the external Markdown links preference version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the external Markdown links preference version");
 
   assert.match(migrationSql, /ADD COLUMN open_external_links_new_tab INTEGER NOT NULL DEFAULT 0 CHECK \(open_external_links_new_tab IN \(0, 1\)\)/, "migration should add the default-off user preference column");
   assert.match(usersRepo, /open_external_links_new_tab/, "users repository should select the Markdown link preference column");
@@ -80,9 +72,7 @@ function assertStaticContract() {
   assert.match(notesScript, /anchor\.setAttribute\("rel", "noopener noreferrer"\)/, "enabled preference should protect new-tab external links");
   assert.match(notesScript, /anchor\.removeAttribute\("target"\)/, "disabled preference should leave external links as same-tab anchors");
 
-  assert.match(regressionSuite, /scripts\/notes-external-markdown-links-preference-regression\.mjs/, "regression suite should include this preference coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the external Markdown links preference slice");
 }
 
 async function assertMigrationAndColumn() {
@@ -201,8 +191,4 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

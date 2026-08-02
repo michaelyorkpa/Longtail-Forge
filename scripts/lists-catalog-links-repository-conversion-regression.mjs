@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -11,10 +10,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-catalog-links
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-catalog-links-repo.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Lists-Catalog-Links-Repository-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const listsRepoSource = readText("src/modules/lists/lists.repo.js");
 const listsModuleSource = readText("src/modules/lists/module.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
@@ -22,7 +18,6 @@ const databaseDocs = readText("docs/database.md");
 const listsDocs = readText("docs/lists-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
@@ -54,9 +49,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Lists catalog/link conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Lists catalog/link conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Lists catalog/link conversion version");
   assert.match(listsModuleSource, /version:\s*appVersion/, "Lists module should report the current app version");
 
   assert.match(listsRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Lists repository should import only the provider-neutral db facade after the .17 wave");
@@ -81,7 +73,6 @@ function assertStaticContract() {
   assert.match(listsDocs, /As of 0\.33\.5\.27\.17[\s\S]*Lists repository is fully converted[\s\S]*catalog[\s\S]*linked-record/, "Lists docs should document the fully converted repository boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.17 - Conversion wave: Lists catalog and linked records[\s\S]*- \[x\] Convert the remaining `lists\/lists\.repo`[\s\S]*- \[x\] Preserve catalog suggestions[\s\S]*- \[x\] Because the 0\.33\.5\.27\.16\/0\.33\.5\.27\.17 split[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.17 - [\s\S]*Lists catalog and linked records repository conversion[\s\S]*726 helper invocations[\s\S]*149 direct interpolated operation sites[\s\S]*201 bound operation sites/, "changelog should record the Lists catalog/link conversion burndown");
-  assert.match(regressionSuite, /scripts\/lists-catalog-links-repository-conversion-regression\.mjs/, "regression suite should include the Lists catalog/link conversion proof");
 }
 
 async function createFixtures(session) {

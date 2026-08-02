@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const styles = readText("public/css/longtail-forge.css");
 const icons = readText("public/js/shared/icons.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files host should reference the compact reset stylesheet");
 assert.match(filesHtml, /js\/shared\/icons\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the referenceed icon helper, shared preview, and Files adapter after the renderer");
@@ -118,7 +111,6 @@ assert.doesNotMatch(styles, /\.files-truncate\[data-full-text\]:hover[\s\S]*over
 assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*10000[\s\S]*pointer-events:\s*none/, "Files truncated labels should reveal through one fixed floating tooltip above overflow containers");
 assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap[\s\S]*justify-content:\s*flex-end/, "Files actions should stay compact, wrapped, and right-aligned");
 
-assert.match(regressionSuite, /scripts\/files-browse-list-shell-regression\.mjs/, "Regression suite should include the Files browse list shell regression");
 
 console.log("Files browse list shell regression passed.");
 

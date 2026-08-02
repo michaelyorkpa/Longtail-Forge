@@ -335,7 +335,6 @@ try {
   assert.match(credentialSource, /Every sanitized-demo role password must be unique/);
   assert.match(gitignore, /^\.local\/$/m);
   assert.match(packageJson.scripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
-  assert.equal(packageJson.scripts["demo:roles:journey"], "node scripts/sanitized-demo-role-journey.mjs");
 
   console.log("Development and sanitized demo data regression passed.");
 } finally {

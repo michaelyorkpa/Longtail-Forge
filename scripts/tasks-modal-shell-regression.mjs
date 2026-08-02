@@ -1,20 +1,13 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should match the current Tasks release");
 
 assert.match(taskDialogScript, /function createTaskEditorDialog\(\)/, "Task dialog should create one canonical editor dialog");
@@ -75,7 +68,6 @@ assert.ok(
   workbenchView.indexOf("js/shared/view-builder.js") < workbenchView.indexOf("js/shared/view-renderer.js"),
   "Workbench host should load framework view helpers for the lazy shared Task dialog",
 );
-assert.match(regressionSuite, /scripts\/tasks-modal-shell-regression\.mjs/, "Task modal shell regression should be included in the regression suite");
 
 console.log("Tasks modal shell regression passed.");
 

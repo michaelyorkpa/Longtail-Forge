@@ -1,17 +1,10 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const notesServiceJs = readText("src/modules/notes/notes.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the stacked Tags and Files modal browser wiring");
@@ -36,7 +29,6 @@ assert.doesNotMatch(notesJs, /noteFilesPanel|toggleNoteEditorPanel\("files"\)/, 
 assert.match(notesJs, /state\.tagPicker = await window\.LongtailForge\.tags\.mountPicker\(tagsEditor, \{[\s\S]*selectedTags: note\?\.tags \|\| \[\]/, "Opening an editor should hydrate the Tags modal picker from the current note tags");
 assert.match(notesJs, /tagIds: state\.tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/, "Saving the note should still persist staged tag picker selections");
 assert.match(notesServiceJs, /await tagsService\.replaceAssignments\(session, \{[\s\S]*targetType: "note"[\s\S]*tagIds: payload\.tagIds \|\| payload\.tag_ids \|\| \[\]/, "Notes service should keep tag persistence on create/update payloads");
-assert.match(regressionSuite, /scripts\/notes-tags-stacked-modal-regression\.mjs/, "The stacked Tags modal regression should be part of the full suite");
 
 console.log("Notes Tags stacked modal regression passed.");
 

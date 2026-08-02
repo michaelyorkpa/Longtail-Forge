@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.workspace-final-purge",
   area: "database",
   tier: "release-gate",
-  tags: ["database", "files", "jobs", "permissions", "sessions", "workspaces"],
+  tags: ["baseline-bypass", "database", "files", "jobs", "permissions", "sessions", "workspaces"],
   description: "Proves the operator-queued final workspace purge is deadline-exact, fenced, restart-resumable, artifact-complete, idempotent, and isolated from every retained workspace.",
   runMode: "isolated-database",
 });

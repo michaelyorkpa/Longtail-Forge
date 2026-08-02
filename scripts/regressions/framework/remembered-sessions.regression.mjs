@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.remembered-sessions",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "cookies", "security", "sessions"],
+  tags: ["authentication", "baseline-bypass", "cookies", "security", "sessions"],
   description: "Proves strict remembered-login validation, matched absolute database and cookie lifetimes, restart persistence, expiry, and logout revocation.",
   runMode: "isolated-database",
 });
