@@ -72,21 +72,34 @@ console.log("Verified regression baseline fast-path regression passed.");
 
 async function runProbe(launch, { usePreloader = true, sendHandshake = true } = {}) {
   const handshake = sendHandshake ? launch.verifiedBaselineHandshake : null;
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let stdout = "";
     let stderr = "";
+    let handshakePipeError = null;
     const child = spawn(process.execPath, usePreloader ? ["--import", PRELOADER, PROBE] : [PROBE], {
       env: launch.env,
       stdio: handshake ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"],
     });
     if (handshake) {
-      child.stdio[3].end(`${JSON.stringify(handshake)}\n`);
+      const handshakePipe = child.stdio[3];
+      handshakePipe.on("error", (error) => {
+        if (error?.code !== "EPIPE" && error?.code !== "ECONNRESET") {
+          handshakePipeError = error;
+          child.kill();
+        }
+      });
+      handshakePipe.end(`${JSON.stringify(handshake)}\n`);
     }
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.once("error", reject);
     child.on("close", (status) => {
+      if (handshakePipeError) {
+        reject(handshakePipeError);
+        return;
+      }
       const marker = stdout.split(/\r?\n/).find((line) => line.startsWith("VERIFIED_BASELINE_PROBE="));
       resolve({
         probe: marker ? JSON.parse(marker.slice("VERIFIED_BASELINE_PROBE=".length)) : null,
