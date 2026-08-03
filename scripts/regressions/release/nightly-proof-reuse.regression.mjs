@@ -71,6 +71,16 @@ try {
     /bare-metal:smoke -- --artifact/,
     /container:smoke -- --artifact/,
   ]) assert.match(promotion, requirement);
+  assert.equal(
+    (promotion.match(/^\s{10}LTF_NPM_CACHE_DIR: \$\{\{ runner\.temp \}\}\/ltf-npm-cache$/gm) || []).length,
+    3,
+    "artifact recovery jobs must scope runner.temp cache paths to their run steps",
+  );
+  assert.doesNotMatch(
+    promotion,
+    /^\s{6}LTF_NPM_CACHE_DIR:/m,
+    "runner.temp is not available to job-level workflow environment expressions",
+  );
   assert.match(nightly, /name: Publish exact-SHA nightly proof/);
   assert.match(nightly, /GITHUB_EVENT_NAME" != "schedule/);
   assert.doesNotMatch(codeql, /^\s*push:/m, "duplicate CodeQL push runs should remain retired after protected PR contexts were verified");

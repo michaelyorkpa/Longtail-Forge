@@ -38,6 +38,7 @@ assert.deepEqual(violations, [], formatViolations(violations));
 assert.deepEqual(
   scanEntriesForCurrentVersion([
     { path: "CHANGELOG.md", source: `## Version ${appVersion} - historical release` },
+    { path: "CHANGELOG.md", source: `## Version ${appVersion} - Windows checkout\r\n` },
     { path: ["DECISIONS", "md"].join("."), source: `As of ${appVersion}, this decision is current.` },
     { path: "TODO.md", source: `Deferred from ${appVersion}` },
     { path: "docs/release-history.md", source: `As of ${appVersion}` },
