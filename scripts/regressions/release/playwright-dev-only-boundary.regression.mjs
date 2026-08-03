@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["closeout", "e2e", "release", "tooling"],
-  description: "Pins the reviewed Playwright 1.62 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
+  description: "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
   runMode: "static",
 });
 
@@ -24,17 +24,17 @@ const scripts = packageJson.scripts || {};
 
 // Dependency placement: Playwright and axe are dev tooling, never runtime
 // dependencies.
-assert.equal(devDependencies["@playwright/test"], "^1.62.0", "@playwright/test must use the reviewed 1.62 development baseline");
+assert.equal(devDependencies["@playwright/test"], "^1.62.1", "@playwright/test must use the reviewed 1.62.1 development baseline");
 assert.equal(dependencies["@playwright/test"], undefined, "@playwright/test must never ship as a runtime dependency");
-assert.equal(rootLock.devDependencies["@playwright/test"], "^1.62.0", "the lockfile root should match the Playwright package contract");
-assert.equal(playwrightTestLock.version, "1.62.0", "@playwright/test should resolve to the reviewed 1.62.0 baseline");
+assert.equal(rootLock.devDependencies["@playwright/test"], "^1.62.1", "the lockfile root should match the Playwright package contract");
+assert.equal(playwrightTestLock.version, "1.62.1", "@playwright/test should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightTestLock.dev, true, "@playwright/test must remain development-only in the resolved graph");
-assert.equal(playwrightTestLock.dependencies.playwright, "1.62.0", "@playwright/test should depend on the matching Playwright runtime");
+assert.equal(playwrightTestLock.dependencies.playwright, "1.62.1", "@playwright/test should depend on the matching Playwright runtime");
 assert.equal(playwrightTestLock.engines.node, ">=20", "Playwright's Node floor must remain compatible with the repository's Node 24 line");
-assert.equal(playwrightLock.version, "1.62.0", "playwright should resolve to the reviewed 1.62.0 baseline");
+assert.equal(playwrightLock.version, "1.62.1", "playwright should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightLock.dev, true, "playwright must remain development-only in the resolved graph");
-assert.equal(playwrightLock.dependencies["playwright-core"], "1.62.0", "playwright should depend on the matching core runtime");
-assert.equal(playwrightCoreLock.version, "1.62.0", "playwright-core should resolve to the reviewed 1.62.0 baseline");
+assert.equal(playwrightLock.dependencies["playwright-core"], "1.62.1", "playwright should depend on the matching core runtime");
+assert.equal(playwrightCoreLock.version, "1.62.1", "playwright-core should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightCoreLock.dev, true, "playwright-core must remain development-only in the resolved graph");
 assert.deepEqual(
   Object.keys(packageLock.packages).filter((name) => /(?:experimental-ct|playwright-ct)/i.test(name)),
