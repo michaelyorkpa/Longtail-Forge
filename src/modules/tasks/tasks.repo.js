@@ -438,6 +438,157 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+async function readRecurrenceInstancesBefore(workspaceId, templateId, beforeDate) {
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.recurrence_template_id = :templateId
+  AND tasks.recurrence_instance_date < :beforeDate
+ORDER BY tasks.recurrence_instance_date, tasks.task_id;
+`), { beforeDate, templateId, workspaceId });
+  const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
+  return attachAssignees(rows.map(taskRowToAppValue), assignees);
+}
+
+async function recoverRecurrenceToCurrent(workspaceId, {
+  actorUserId,
+  expectedTaskIds = [],
+  checkpointDate,
+  expectedTemplate = {},
+  targetTask = null,
+  templateId,
+}) {
+  const now = new Date().toISOString();
+  const targetTaskId = targetTask?.task_id || createRecordId();
+  let result = null;
+
+  await db.transaction(async (transaction) => {
+    const template = await transaction.get(`
+SELECT recurrence_anchor_date, due_time, due_timezone, rrule, recurrence_end_date,
+       recovery_checkpoint_date, template_status
+FROM task_recurrence_templates
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+LIMIT 1;
+`, { templateId, workspaceId });
+    if (!template || template.template_status !== "active") {
+      result = { status: "unavailable" };
+      return;
+    }
+    if ((template.recovery_checkpoint_date || "") > checkpointDate
+      || !recurrenceTemplateMatches(template, expectedTemplate)) {
+      result = { status: "changed" };
+      return;
+    }
+
+    const rows = await transaction.query(`
+SELECT task_id
+FROM tasks
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId
+  AND recurrence_instance_date < :checkpointDate
+  AND status IN ('open', 'in_progress', 'blocked')
+  AND archived_at IS NULL
+ORDER BY recurrence_instance_date, task_id;
+`, { checkpointDate, templateId, workspaceId });
+    const taskIds = rows.map((row) => row.task_id);
+    const allowedIds = new Set(expectedTaskIds);
+    if (taskIds.some((taskId) => !allowedIds.has(taskId))) {
+      result = { status: "changed" };
+      return;
+    }
+
+    if (taskIds.length > 0) {
+      const timers = await transaction.query(`
+SELECT source_id
+FROM active_work_timers
+WHERE workspace_id = :workspaceId
+  AND source_module_id = 'tasks'
+  AND source_type = 'task'
+  AND source_id IN (:taskIds)
+  AND timer_status IN ('running', 'paused')
+LIMIT 1;
+`, { taskIds, workspaceId });
+      if (timers.length > 0) {
+        result = { status: "timer_conflict", taskId: timers[0].source_id };
+        return;
+      }
+
+      await transaction.run(`
+UPDATE tasks
+SET status = 'complete',
+    completed_at = :now,
+    completed_by_user_id = :actorUserId,
+    last_worked_at = :now,
+    updated_by_user_id = :actorUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND task_id IN (:taskIds)
+  AND status IN ('open', 'in_progress', 'blocked')
+  AND archived_at IS NULL;
+`, { actorUserId, now, taskIds, workspaceId });
+    }
+
+    await transaction.run(`
+UPDATE task_recurrence_templates
+SET recovery_checkpoint_date = CASE
+      WHEN recovery_checkpoint_date IS NULL OR recovery_checkpoint_date < :checkpointDate
+        THEN :checkpointDate
+      ELSE recovery_checkpoint_date
+    END,
+    updated_by_user_id = :actorUserId,
+    updated_at = :now
+WHERE workspace_id = :workspaceId
+  AND recurrence_template_id = :templateId;
+`, { actorUserId, checkpointDate, now, templateId, workspaceId });
+
+    let targetCreated = false;
+    if (targetTask) {
+      const params = taskWriteParams({
+        includeCreatedAt: true,
+        now,
+        task: { ...targetTask, task_id: targetTaskId },
+        taskId: targetTaskId,
+        workspaceId,
+      });
+      const inserted = await transaction.query(TASK_RECURRENCE_INSTANCE_INSERT_SQL, params);
+      targetCreated = inserted.some((row) => row.task_id === targetTaskId);
+      if (targetCreated) {
+        await replaceAssigneesWithExecutor(
+          transaction,
+          workspaceId,
+          targetTaskId,
+          targetTask.assignee_ids || [],
+          actorUserId,
+          now,
+        );
+      }
+    }
+
+    result = { status: "recovered", completedTaskIds: taskIds, targetCreated, targetTaskId };
+  });
+
+  if (result?.status !== "recovered") {
+    return result;
+  }
+  return {
+    ...result,
+    completedTasks: await readByIds(workspaceId, result.completedTaskIds),
+    targetTask: targetTask
+      ? await readByRecurrenceInstance(workspaceId, templateId, checkpointDate)
+      : null,
+  };
+}
+
+function recurrenceTemplateMatches(actual, expected) {
+  return [
+    "recurrence_anchor_date",
+    "due_time",
+    "due_timezone",
+    "rrule",
+    "recurrence_end_date",
+  ].every((key) => String(actual?.[key] || "") === String(expected?.[key] || ""));
+}
+
 async function readFutureRecurrenceInstances(workspaceId, templateId, afterInstanceDate) {
   const rows = await db.query(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
@@ -1491,6 +1642,7 @@ export const tasksRepository = {
   readByIds,
   readStatusByIds,
   readByRecurrenceInstance,
+  readRecurrenceInstancesBefore,
   readFutureRecurrenceInstances,
   readDueBetween,
   readCalendarFeedCandidates,
@@ -1500,6 +1652,7 @@ export const tasksRepository = {
   readRecurrenceInstanceStats,
   readRecurrenceInstancesBetween,
   readReminderSchedulingCandidates,
+  recoverRecurrenceToCurrent,
   markWorkedAt,
   update,
   updateProjectCascade,

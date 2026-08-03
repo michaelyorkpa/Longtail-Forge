@@ -650,7 +650,7 @@ async function read(taskId, session) {
   await assertCanReadTask(session, task);
 
   return {
-    task: await attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0]),
+    task: await attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0], session),
     currentUserId: session.user_id,
     options: await readOptions(session),
   };
@@ -1019,6 +1019,200 @@ async function complete(taskId, session) {
     recurrenceContinuity: recurrenceHandoff.recurrenceContinuity,
     recurrenceJob: recurrenceHandoff.recurrenceJob,
   };
+}
+
+async function recurrenceRecoveryPlan(session, task, { enforcePermissions = false, now = new Date() } = {}) {
+  if (!task?.recurrence_template_id || !task?.recurrence_instance_date) {
+    return null;
+  }
+
+  const template = await taskRecurrenceRepository.readTemplateById(
+    session.workspace_id,
+    task.recurrence_template_id,
+  );
+  if (!template || template.template_status !== "active") {
+    return null;
+  }
+
+  const targetDate = taskRecurrenceService.nextNotPassedOccurrenceDate(template, now, session.timezone);
+  const today = localDateKey(now, session.timezone);
+  const checkpointDate = targetDate || addCalendarDaysKey(today, 1);
+  const instances = await tasksRepository.readRecurrenceInstancesBefore(
+    session.workspace_id,
+    template.recurrence_template_id,
+    checkpointDate,
+  );
+  const targetTask = targetDate
+    ? await tasksRepository.readByRecurrenceInstance(
+        session.workspace_id,
+        template.recurrence_template_id,
+        targetDate,
+      )
+    : null;
+  const activeTasks = instances.filter((instance) => (
+    ["open", "in_progress", "blocked"].includes(instance.status) && !instance.archived_at
+  ));
+  const scheduledDates = taskRecurrenceService.projectOccurrenceDates(
+    { ...template, recovery_checkpoint_date: "" },
+    template.recovery_checkpoint_date || template.recurrence_anchor_date,
+    addCalendarDaysKey(checkpointDate, -1),
+  );
+  const materializedDates = new Set(instances.map((instance) => instance.recurrence_instance_date));
+  const skippedOccurrenceCount = scheduledDates.filter((date) => !materializedDates.has(date)).length;
+
+  let permitted = true;
+  try {
+    await assertCanEditTask(session, template);
+    if (targetTask) {
+      await assertCanReadTask(session, targetTask);
+      await assertCanEditTask(session, targetTask);
+    }
+    for (const instance of activeTasks) {
+      await assertCanReadTask(session, instance);
+      await assertCanCompleteTask(session, instance);
+    }
+  } catch (error) {
+    permitted = false;
+    if (enforcePermissions) {
+      throw error;
+    }
+  }
+
+  let blockedByActiveTimer = false;
+  for (const instance of activeTasks) {
+    if (await taskTimersService.hasActiveTaskTimers(session.workspace_id, instance.task_id)) {
+      blockedByActiveTimer = true;
+      break;
+    }
+  }
+
+  return {
+    available: permitted && (activeTasks.length > 0 || skippedOccurrenceCount > 0),
+    blockedByActiveTimer,
+    checkpointDate,
+    completedTaskCount: activeTasks.length,
+    eligible: permitted,
+    seriesEnded: !targetDate,
+    skippedOccurrenceCount,
+    targetDate,
+    unchangedHistoryCount: instances.length - activeTasks.length,
+    instances,
+    taskIds: activeTasks.map((instance) => instance.task_id),
+    targetTask,
+    template,
+  };
+}
+
+async function skipToCurrent(taskId, session, options = {}) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const sourceTask = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanReadTask(session, sourceTask);
+  const plan = await recurrenceRecoveryPlan(session, sourceTask, {
+    enforcePermissions: true,
+    now: options.now || new Date(),
+  });
+
+  if (!plan?.available) {
+    throw new AppError("This recurring task is already current.", 409);
+  }
+  if (plan.blockedByActiveTimer) {
+    throw new AppError("Stop or save active timers on earlier tasks before skipping to current.", 409);
+  }
+
+  const targetDraft = plan.targetDate
+    ? {
+        ...taskRecurrenceService.instanceTaskDraft({
+          session,
+          template: plan.template,
+          instanceDate: plan.targetDate,
+        }),
+        created_by_user_id: plan.template.created_by_user_id || session.user_id,
+        updated_by_user_id: session.user_id,
+        completed_at: "",
+        completed_by_user_id: "",
+        archived_at: "",
+        archived_by_user_id: "",
+        last_worked_at: new Date().toISOString(),
+      }
+    : null;
+  const result = await tasksRepository.recoverRecurrenceToCurrent(session.workspace_id, {
+    actorUserId: session.user_id,
+    expectedTaskIds: plan.taskIds,
+    checkpointDate: plan.checkpointDate,
+    expectedTemplate: plan.template,
+    targetTask: targetDraft,
+    templateId: plan.template.recurrence_template_id,
+  });
+
+  if (result?.status === "timer_conflict") {
+    throw new AppError("Stop or save active timers on earlier tasks before skipping to current.", 409);
+  }
+  if (result?.status !== "recovered") {
+    throw new AppError("The recurrence changed while recovery was being prepared. Open the task and try again.", 409);
+  }
+
+  if (result.targetCreated && result.targetTask) {
+    await taskRecurrenceService.copyMaterializedInstanceContext({
+      session,
+      task: result.targetTask,
+      template: plan.template,
+    });
+  }
+
+  for (const completedTask of result.completedTasks || []) {
+    const previousTask = instancesById(plan, completedTask.task_id) || { ...completedTask, status: "open" };
+    await recordTaskAudit({
+      session,
+      action: "task_completed",
+      changeType: "update",
+      previousValue: previousTask,
+      newValue: completedTask,
+      metadata: { recurrence_recovery: "skip_to_current", recovery_checkpoint_date: plan.checkpointDate },
+    });
+    await emitTaskEvent("task.completed", {
+      session,
+      previousValue: previousTask,
+      newValue: completedTask,
+      metadata: { recurrence_recovery: "skip_to_current", recovery_checkpoint_date: plan.checkpointDate },
+    });
+    await syncTaskSearchIndex(session.workspace_id, completedTask.task_id, "task.skip_to_current");
+    await recoverParentsAfterChildStatusChange(session, completedTask);
+  }
+
+  if (result.targetCreated && result.targetTask) {
+    await recordTaskAudit({
+      session,
+      action: "task_recurrence_instance_materialized",
+      changeType: "create",
+      previousValue: null,
+      newValue: result.targetTask,
+      metadata: { recurrence_recovery: "skip_to_current" },
+    });
+    await emitTaskEvent("task.created", {
+      session,
+      previousValue: null,
+      newValue: result.targetTask,
+      metadata: { recurrence_recovery: "skip_to_current" },
+    });
+    await syncTaskSearchIndex(session.workspace_id, result.targetTask.task_id, "task.skip_to_current");
+    await queueTaskReminderJobsForTask(result.targetTask, { reason: "task.skip_to_current", session });
+  }
+
+  const targetTask = result.targetTask
+    ? await readTaggedTaskWithDetails(session, result.targetTask.task_id)
+    : null;
+  return {
+    completedTaskCount: result.completedTaskIds?.length || 0,
+    retainedTargetCount: result.targetTask ? 1 : 0,
+    seriesEnded: plan.seriesEnded,
+    skippedOccurrenceCount: plan.skippedOccurrenceCount,
+    targetTask,
+    unchangedHistoryCount: plan.unchangedHistoryCount,
+  };
+}
+
+function instancesById(plan, taskId) {
+  return plan.instances?.find((task) => task.task_id === taskId) || null;
 }
 
 async function completeRecurrenceHandoff(completedTask, session, options = {}) {
@@ -2471,7 +2665,7 @@ function recurringChecklistStructureItems(items = []) {
 
 async function readTaggedTaskWithDetails(session, taskId) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
-  return attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0]);
+  return attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0], session);
 }
 
 async function readableRelationshipsForTask(session, taskId) {
@@ -2720,7 +2914,7 @@ async function attachTaskListProjectionDetails(tasks, session, { canReadTaskRow 
   });
 }
 
-async function attachTaskDetails(task) {
+async function attachTaskDetails(task, session = null) {
   if (!task) {
     return null;
   }
@@ -2738,6 +2932,23 @@ async function attachTaskDetails(task) {
     recurrenceContinuity: await readTaskCompletionContinuity(taskWithReminders),
     resumeContext: taskResumeContext({ ...taskWithReminders, checklistProgress, relationshipSummary }),
     recurrenceDetails: await taskRecurrenceService.readTaskRecurrenceDetails(taskWithReminders),
+    recurrenceRecovery: session ? publicRecurrenceRecovery(await recurrenceRecoveryPlan(session, taskWithReminders)) : null,
+  };
+}
+
+function publicRecurrenceRecovery(plan) {
+  if (!plan) {
+    return null;
+  }
+  return {
+    available: plan.available,
+    blockedByActiveTimer: plan.blockedByActiveTimer,
+    completedTaskCount: plan.completedTaskCount,
+    eligible: plan.eligible,
+    seriesEnded: plan.seriesEnded,
+    skippedOccurrenceCount: plan.skippedOccurrenceCount,
+    targetDate: plan.targetDate,
+    unchangedHistoryCount: plan.unchangedHistoryCount,
   };
 }
 
@@ -3662,7 +3873,7 @@ function assigneesChanged(previousTask, nextTask) {
   return previous !== next;
 }
 
-async function recordTaskAudit({ session, action, changeType, previousValue, newValue }) {
+async function recordTaskAudit({ session, action, changeType, previousValue, newValue, metadata = {} }) {
   await auditService.record({
     session,
     action,
@@ -3687,6 +3898,7 @@ async function recordTaskAudit({ session, action, changeType, previousValue, new
       checklist_progress: (newValue || previousValue)?.checklistProgress || emptyChecklistProgress(),
       relationship_summary: (newValue || previousValue)?.relationshipSummary || emptyRelationshipSummary(),
       resume_context: taskResumeContext(newValue || previousValue || {}),
+      ...metadata,
     },
   });
 }
@@ -4080,6 +4292,7 @@ export const tasksService = {
   readCore,
   readLifecycleForIds,
   readRecurrenceContinuity,
+  skipToCurrent,
   reopen,
   removeChildTaskRelationship,
   reorderChecklistItems,

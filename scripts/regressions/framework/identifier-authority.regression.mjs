@@ -52,7 +52,7 @@ const MODULE_RECORD_CALLS = Object.freeze({
   "src/modules/tasks/task-recurrence.repo.js": 5,
   "src/modules/tasks/task-relationships.repo.js": 1,
   "src/modules/tasks/task-reminders.repo.js": 1,
-  "src/modules/tasks/tasks.repo.js": 3,
+  "src/modules/tasks/tasks.repo.js": 4,
   "src/modules/time-tracking/active-timers.service.js": 1,
   "src/modules/time-tracking/public-api.service.js": 1,
   "src/modules/time-tracking/time-entries.service.js": 1,

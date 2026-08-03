@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 430,
+  "minimumActiveScripts": 431,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 41,
@@ -17,7 +17,7 @@
     "release": 32,
     "search": 12,
     "tags": 12,
-    "tasks": 57,
+    "tasks": 58,
     "time-tracking": 9,
     "views": 33,
     "workbench": 32

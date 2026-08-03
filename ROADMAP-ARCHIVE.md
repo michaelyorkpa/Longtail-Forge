@@ -1,5 +1,56 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.9 - Recurring Task Backlog Recovery and Quiet Calendar Projection
+
+Completed locally on 2026-08-03 through slices 0.33.27.9.1-0.33.27.9.2. A user can recover an overdue recurring series from any occurrence, while Calendar now presents scheduled recurring Tasks without exposing whether a Task row has already been materialized. The active cursor returned to `0.33.28.1`.
+
+**Model: High Effort** - The branch combined one data-integrity-sensitive recurrence lifecycle action with a contained shared Calendar presentation follow-up.
+
+- [x] Added server-authoritative `Skip to current`, using a durable monotonic template checkpoint and one atomic recovery transaction to complete earlier active materialized Tasks, suppress unmaterialized history, and retain exactly one next-not-passed occurrence.
+- [x] Preserved completed/archived history, recurrence cadence, template context, occurrence-specific edits, permission/workspace boundaries, active-timer protection, completion side effects, and ordinary recurrence continuity.
+- [x] Removed the visible label, explanatory tooltip, dashed styling, and separate accessible action that exposed projected Calendar implementation state.
+- [x] Preserved server-side Calendar projection, internal recurrence identity, permission pruning, real-row precedence, exactly-once materialize-on-open, canonical Task-editor ownership, and independent occurrence edits.
+- [x] Passed focused recurrence/database/static proofs, focused rendered Calendar coverage across Dashboard and Actions Calendar Month/Week/Day, and the canonical local closeout gate.
+
+Acceptance criteria:
+
+- One confirmed recovery action clears overdue recurrence backlog and opens the next occurrence whose due boundary has not passed. Scheduled recurring Tasks appear like ordinary Tasks throughout Calendar while retaining permission-checked exactly-once materialization internally.
+
+## Version 0.33.27.9.2 - Calendar occurrence presentation and branch closeout
+
+Completed locally on 2026-08-03. Calendar no longer exposes the materialization state of scheduled recurring Tasks through visible, tooltip, styling, or accessible-name differences.
+
+**Model: Medium Effort** - This was a contained shared Calendar-renderer and Help wording change with no route, schema, recurrence, permission, or workflow redesign.
+
+- [x] Removed the visible `Planned occurrence` badge, implementation tooltip text, dashed projected-entry styling, and separate accessible action from the shared Month/Week/Day renderer.
+- [x] Gave real and projected occurrences the same title, status/priority/context metadata, styling, tooltip content, and `Open task: <title>` accessible name.
+- [x] Preserved internal `virtual`, `templateId`, and `instanceDate` identity, server-side projection/filtering, real-row deduplication, permission checks, exactly-once materialization, the canonical Task editor, and independent occurrence edits.
+- [x] Updated `views.calendar-host` and `tasks.task-recurrence-materialize-on-touch-permissions` to reject the retired user-facing distinction while retaining internal identity/actionability assertions. Updated `calendar-mobile-view.spec.mjs` to prove Dashboard and Actions Calendar presentation across Month, Week, and Day plus unchanged one-request materialization; the focused rendered file passed 8/8 desktop/mobile tests.
+- [x] Ran `npm run docs:suggest`. Docs updated: `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`, `help/modules/tasks/reminders-calendar-and-subscriptions.md`. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.9.2`, refreshed generated regression artifacts as needed, and passed `npm run verify:slice`.
+
+Acceptance criteria:
+
+- Calendar shows scheduled recurring Tasks without a visible, tooltip, styling, or accessible implementation distinction; opening a projected date remains permission-checked and exactly-once; real rows replace projections; and both Calendar hosts retain the same schedule and editor behavior across Month, Week, and Day.
+
+## Version 0.33.27.9.1 - Server-authoritative `Skip to current` recurrence recovery
+
+Completed locally on 2026-08-03. Tasks now recovers an overdue recurring series from any occurrence while retaining the first scheduled occurrence whose due boundary has not passed. The active cursor advanced to `0.33.27.9.2`.
+
+**Model: High Effort** - This was a Task lifecycle and data-integrity change spanning recurrence projection, a forward schema checkpoint, atomic multi-record completion, permissions, timers, side effects, and exactly-once continuity.
+
+- [x] Added migration 087 and the generated schema snapshot for a durable, monotonic per-template recovery checkpoint without rewriting recurrence anchors, rules, end dates, or historical Task rows.
+- [x] Added `POST /api/tasks/:taskId/skip-to-current`, with the server deriving the first not-passed canonical occurrence from due time, due timezone, and session-local date.
+- [x] Added whole-action module, workspace, permission, ownership, and active-timer preflight. The transaction rechecks affected rows and active timers before any status or checkpoint mutation.
+- [x] In one transaction, completed earlier active materialized occurrences, preserved completed/archived history, advanced the checkpoint, and inserted the retained occurrence through the existing unique recurrence identity.
+- [x] Preserved completion metadata, parent recovery, reminder scheduling, search synchronization, audit/events with `skip_to_current` metadata, and avoided per-row recurrence handoff jobs.
+- [x] Added the server-shaped `recurrenceRecovery` Task-detail model and a confirmation-gated `Skip to current` control in the canonical Task editor, which opens the retained current Task after recovery.
+- [x] Added `tasks.task-recurrence-skip-to-current` coverage for date-only and timed boundaries, materialized and projected backlog, mixed history, ended series, permission/workspace denial, active timers, durable suppression, retry convergence, context copying, audit metadata, route/UI ownership, and database integrity.
+- [x] Ran `npm run docs:suggest`. Docs updated: `docs/tasks-module.md`, `docs/database.md`, `docs/regression-suite.md`, `help/framework/tasks-basics.md`. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.9.1`, refreshed schema/regression artifacts, recorded SQLite integrity, and passed `npm run verify:slice`.
+
+Acceptance criteria:
+
+- From an eligible occurrence, one confirmed action clears prior incomplete materialized occurrences, suppresses unmaterialized history, preserves completed/archived history and cadence, and opens exactly one next-not-passed Task. Authorization and timer conflicts fail atomically, retries do not duplicate the retained Task, and ordinary recurrence completion remains unchanged.
+
 ## Version 0.33.27.8 - Reviewed Development Dependency Baseline Refresh
 
 Completed on 2026-08-03 through slices 0.33.27.8.1-0.33.27.8.3. The branch
@@ -7,7 +58,9 @@ replaced three overlapping Dependabot changes with two independently revertible
 reviewed baselines: static lint/type tooling first, then the Playwright browser
 runtime, followed by the reviewed Playwright 1.62.1 patch. Runtime dependencies, product behavior, the Node 24 application
 engine, lifecycle-script allowlist, production artifact, and test-gate
-ownership remain unchanged. The active cursor advances to `0.33.28.1`.
+ownership remain unchanged. At completion the active cursor advanced to
+`0.33.28.1`; the 2026-08-03 planning addition reopens 0.33.27 at
+`0.33.27.9.1` before 0.33.28 begins.
 
 **Model: Medium Effort** - This was a bounded development-tooling refresh with no runtime dependency or product-behavior change, but both package graphs and the rendered-browser gate required deliberate review.
 
@@ -19,7 +72,11 @@ ownership remain unchanged. The active cursor advances to `0.33.28.1`.
 
 Acceptance criteria:
 
-- The reviewed static and browser baselines remain development-only; runtime, artifact, startup, lifecycle, and gate-ownership contracts are unchanged; complete local and protected evidence is green; the bot PRs have an explicit post-merge disposition; and the roadmap handoff reaches 0.33.28 without bypassing 0.33.27.7.
+- The reviewed static and browser baselines remain development-only; runtime,
+  artifact, startup, lifecycle, and gate-ownership contracts are unchanged;
+  complete local and protected evidence is green; the bot PRs have an explicit
+  post-merge disposition; and the dependency branch remains closed while the
+  live roadmap resumes at 0.33.27.9.1 before the eventual 0.33.28 handoff.
 
 ## Version 0.33.27.8.3 - Playwright 1.62.1 patch baseline
 
