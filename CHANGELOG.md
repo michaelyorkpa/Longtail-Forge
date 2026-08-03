@@ -1,3 +1,24 @@
+## Version 0.33.27.8.3 - 2026-08-03
+
+- Advanced the development-only Playwright patch baseline from 1.62.0 to
+  exactly 1.62.1 across `@playwright/test`, `playwright`, and
+  `playwright-core`, incorporating upstream TypeScript-resolution,
+  accessibility-snapshot, and branded-primitive fixes.
+- Updated `release.playwright-dev-only-boundary` to pin the exact 1.62.1
+  direct, root-lock, resolved, package-edge, engine, development-only, and
+  component-testing-exclusion contracts.
+- Preserved the existing Playwright configuration, managed server, saved
+  authentication, desktop/mobile projects, two-worker bound, local/CI retry
+  policy, traces, screenshots, gate ownership, runtime dependencies, and
+  pruned production artifact.
+- Proved a clean Node 24/npm 11 install, zero audit findings, typecheck, ESLint,
+  184 unit tests, the dev-only guardrail, and the production artifact smoke.
+  One initial tag-picker suggestion timeout did not reproduce in three focused
+  desktop repeats; the complete confirmation suite then passed 129/129 tests
+  with zero retries.
+- No docs change needed: the Playwright patch baseline changed without altering
+  the documented harness or operator contract.
+
 ## Version 0.33.27.8.2 - 2026-08-02
 
 - Advanced the development-only Playwright baseline from 1.61.1 to exactly

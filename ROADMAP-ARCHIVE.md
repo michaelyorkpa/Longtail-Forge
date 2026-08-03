@@ -2,16 +2,16 @@
 
 ## Version 0.33.27.8 - Reviewed Development Dependency Baseline Refresh
 
-Completed on 2026-08-02 through slices 0.33.27.8.1-0.33.27.8.2. The branch
+Completed on 2026-08-03 through slices 0.33.27.8.1-0.33.27.8.3. The branch
 replaced three overlapping Dependabot changes with two independently revertible
 reviewed baselines: static lint/type tooling first, then the Playwright browser
-runtime. Runtime dependencies, product behavior, the Node 24 application
+runtime, followed by the reviewed Playwright 1.62.1 patch. Runtime dependencies, product behavior, the Node 24 application
 engine, lifecycle-script allowlist, production artifact, and test-gate
 ownership remain unchanged. The active cursor advances to `0.33.28.1`.
 
 **Model: Medium Effort** - This was a bounded development-tooling refresh with no runtime dependency or product-behavior change, but both package graphs and the rendered-browser gate required deliberate review.
 
-- [x] Combined ESLint 10.8.0 and `@types/node` 26.1.2 into one reviewed static-toolchain baseline, then isolated Playwright 1.62.0 and its browser runtime in a separate slice.
+- [x] Combined ESLint 10.8.0 and `@types/node` 26.1.2 into one reviewed static-toolchain baseline, isolated Playwright 1.62.0 and its browser runtime, then advanced the exact Playwright package trio to the 1.62.1 patch baseline.
 - [x] Preserved development-only placement, Node `>=24.7 <25`, the sole `better-sqlite3@13.0.1` lifecycle allowance, cached full-source lint, check ordering, startup, runtime dependencies, and pruned artifact contents.
 - [x] Replaced the bot PRs' overlapping lockfile edits with one coherent clean-install graph and release guardrails for the exact direct, root-lock, resolved, engine, and transitive baselines.
 - [x] Passed zero-finding npm audits, local static and canonical verification, the production artifact smoke, and the complete 129-test desktop/mobile/accessibility suite. Protected PR #89 then passed dependency review, Development, maintenance, browser, and CodeQL on the combined clean-Linux branch before closeout.
@@ -20,6 +20,23 @@ ownership remain unchanged. The active cursor advances to `0.33.28.1`.
 Acceptance criteria:
 
 - The reviewed static and browser baselines remain development-only; runtime, artifact, startup, lifecycle, and gate-ownership contracts are unchanged; complete local and protected evidence is green; the bot PRs have an explicit post-merge disposition; and the roadmap handoff reaches 0.33.28 without bypassing 0.33.27.7.
+
+## Version 0.33.27.8.3 - Playwright 1.62.1 patch baseline
+
+Completed locally on 2026-08-03. The exact Playwright package trio advances
+from 1.62.0 to 1.62.1 without changing product behavior, runtime dependencies,
+the browser harness, or its protected-gate ownership.
+
+**Model: Medium Effort** - This was an isolated development-only patch update with a bounded browser-runtime blast radius and no product or harness-design change.
+
+- [x] Advanced `@playwright/test`, `playwright`, and `playwright-core` together to exactly 1.62.1. Development-only placement, Node `>=24.7 <25`, the npm lifecycle allowlist, absence of component-testing packages, and production runtime/artifact boundaries remain intact.
+- [x] Reviewed the upstream TypeScript configuration resolution, accessibility snapshot, and branded primitive fixes against the repository. Playwright configuration, saved authentication, managed-server lifecycle, desktop/mobile projects, two-worker execution, local/CI retry policy, traces, screenshots, and gate ownership are unchanged.
+- [x] Proved a clean Node 24/npm 11 install, zero-finding audit, typecheck, 184 unit tests, ESLint, the exact dev-only guardrail, and pruned artifact smoke. One initial desktop tag-picker suggestion timeout passed three focused repeats, and the complete confirmation suite passed 129/129 rendered tests with zero retries.
+- [x] Ran `npm run docs:suggest`. No docs change needed: the Playwright patch baseline changed without altering the documented harness or operator contract. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.8.3`, and returned the live roadmap cursor to `0.33.28.1`.
+
+Acceptance criteria:
+
+- Playwright 1.62.1 and its exact browser packages remain development-only; the existing harness and production/runtime boundaries remain unchanged; clean dependency, static, artifact, rendered-browser, and canonical closeout evidence is green; and protected dependency review remains the publication gate.
 
 ## Version 0.33.27.8.2 - Playwright browser-runtime baseline and branch closeout
 
