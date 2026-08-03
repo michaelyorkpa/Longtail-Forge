@@ -209,7 +209,7 @@ function normalizeAllowlist(allowlist = {}) {
 }
 
 function isAllowedCurrentVersionLine(filePath, source, lineNumber, allowlist) {
-  const line = String(source || "").split("\n")[lineNumber - 1] || "";
+  const line = (String(source || "").split("\n")[lineNumber - 1] || "").replace(/\r$/, "");
   return allowlist.currentVersionLiteralLineRules.some((rule) => (
     rule.path === filePath && rule.pattern.test(line)
   ));

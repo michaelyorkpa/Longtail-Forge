@@ -26,10 +26,18 @@ jobs:
       revision: ${{ steps.revision.outputs.sha }}
       reuse_exact_proof: ${{ steps.reuse.outputs.value }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out the complete pushed nightly range
+        if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || 'nightly' }}
-          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Check out current nightly for scheduled or manual execution
+        if: github.event_name != 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: nightly
+          fetch-depth: 1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
