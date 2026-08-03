@@ -14,7 +14,7 @@ As of 0.33.27.7.5, ordinary closeout is the sole automatic owner for the direct 
 
 As of 0.33.27.7.6, `database.backup-archive-portability` proves Windows drive-letter archive paths are reduced to basename-only tar archive operands under the archive directory while POSIX paths retain the same local boundary. Whole-instance and workspace backup creation, listing, and extraction share that command owner; their existing release-gate regressions retain the compressed archive layout, checksum and entry validation, database-and-Files scope, pre-restore backup, rollback, migration, and restored-integrity proof. `database.demo-data-host-operation` retains its backup-first recovery coverage through the same whole-instance owner.
 
-As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and nine desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired full suite passes 129/129 in 1.4 minutes and leaves port 8101 clean. The required check remains `Browser smoke and accessibility`.
+As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and ten desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired 0.33.27.7.7 suite passed 129/129 in 1.4 minutes and left port 8101 clean. The required check remains `Browser smoke and accessibility`.
 
 As of 0.33.27.7.8, every release-workflow job has a finite timeout; main-release and CodeQL runs have cancellation-safe concurrency; and only history-owning classifiers plus deliberate main-revision reachability checks retain full checkout history. Live branch-protection inspection confirmed the exact required names before CodeQL push scans were retired: PR analysis still supplies `CodeQL JavaScript analysis` on both `nightly` and `main`. `release.nightly-proof-reuse` proves a normal promotion reuses Nightly evidence only for one successful unexpired exact-SHA push run whose repository, workflow/ref and workflow checksum, `nightly-proof-v1` policy, required job set, release metadata, artifact and metadata checksums, and retained artifact names match. Every mismatch, ambiguity, expiry, failure, cancellation, policy change, and every `hotfix/*` source selects the full path. Runtime-artifact, bare-metal, and container smokes accept the same `--artifact` candidate; promotion builds at most once on fallback, downloads on accepted reuse, fans isolated recovery consumers out in parallel, and retains `Packaging and recovery` as the required aggregation result. Scheduled Nightly uses the same verifier before any expensive skip, while the preflight stays visible. No workflow uses `paths-ignore`.
 
@@ -28,7 +28,7 @@ As of 0.33.23.2, `framework.browser-recovery-boundary` owns the self-contained s
 
 As of 0.33.23.3, `framework.http-error-contract` also proves that each user-visible API or unexpected-browser request ID maps to exactly one protected failure diagnostic whose exact field allowlist omits query values, request bodies, headers, credentials, SQL, filesystem paths, exception text, and raw protected user/workspace/record identifiers. `framework.http-error-development-guardrails` freezes the registered default-code table, canonical documentation sections, `AppError` route boundary, the two reviewed generic sessionless calendar-feed responses, shared parser/recovery injection order, and a `<head>` injection point on every repository browser entry.
 
-As of 0.33.27.6, `framework.identifier-authority` makes `src/core/identifiers.js` the only allowed `uuid` package entry point, proves that the authority exposes only record UUIDv7 and opaque UUIDv4 operations, pins every audited framework persistent-record generator to `createRecordId()`, every audited operational generator to `createOpaqueId()`, and the exact 28 server-side module record calls across 11 authoritative owners. The production direct-generator baseline is empty; the guard rejects unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` use while freezing dedicated security helpers and the explicit Tasks, Notes, Lists, Time Tracking, job, Search, and audit ordering fields that precede ID tie-breakers. Clients/Projects integration and public API regressions prove legacy UUIDv4 read/update, UUIDv4/UUIDv7 relationships in both directions, server-authoritative UUIDv7 creation, exact Search identity, and audit-export references. The development-data regression proves UUIDv7 bootstrap identity coexists with deterministic UUIDv4 Client, Project, Task, Note, List, relationship, and Search fixtures. Whole-instance and workspace recovery drills prove exact mixed IDs, foreign keys, storage keys and paths, URLs, audit JSON, integrity, and foreign keys after restore. Documented unit, regression, seed, fixture, and recovery-drill generators remain intentional non-production compatibility exceptions.
+The current `framework.identifier-authority` contract makes `src/core/identifiers.js` the only allowed `uuid` package entry point, proves that the authority exposes only record UUIDv7 and opaque UUIDv4 operations, pins every audited framework persistent-record generator to `createRecordId()`, every audited operational generator to `createOpaqueId()`, and the exact 29 server-side module record calls across 11 authoritative owners. The production direct-generator baseline is empty; the guard rejects unauthorized Node `randomUUID`, UUID-package `v4`/`v7`, and browser `crypto.randomUUID` use while freezing dedicated security helpers and the explicit Tasks, Notes, Lists, Time Tracking, job, Search, and audit ordering fields that precede ID tie-breakers. Clients/Projects integration and public API regressions prove legacy UUIDv4 read/update, UUIDv4/UUIDv7 relationships in both directions, server-authoritative UUIDv7 creation, exact Search identity, and audit-export references. The development-data regression proves UUIDv7 bootstrap identity coexists with deterministic UUIDv4 Client, Project, Task, Note, List, relationship, and Search fixtures. Whole-instance and workspace recovery drills prove exact mixed IDs, foreign keys, storage keys and paths, URLs, audit JSON, integrity, and foreign keys after restore. Documented unit, regression, seed, fixture, and recovery-drill generators remain intentional non-production compatibility exceptions.
 
 As of 0.33.25.5, `help-markdown-source-layout-regression.mjs` compares the complete framework and first-party Help declaration inventory, every Help Markdown file, and every `help/toc.md` link as exact sets. A dangling ToC link, duplicate entry, undeclared Markdown article, missing source-layout descriptor, or declared-but-unreachable article fails mechanically. The same owner pins current post-conversion Files and calendar-subscription wording plus the explicit note-level Secure Notes versus non-inheriting Catalog/Collection boundary. `help-workflow-regression.mjs` independently toggles Tasks, Time Tracking, Notes, and Lists and proves their Help articles and navigation disappear and return with module activation; Help search rebuild proof retains only active contributions.
 
@@ -177,13 +177,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 427 |
+| Active discovered regressions | 428 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 118 |
+| Convention-path metadata regressions | 119 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 57 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 430 |
+| Global ratchet floor | 431 |
 | Release-gate ratchet floor | 59 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -192,7 +192,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
-| `tasks` | 57 | 0 | 57 |
+| `tasks` | 58 | 0 | 58 |
 | `notes` | 37 | 0 | 37 |
 | `lists` | 12 | 0 | 12 |
 | `files` | 44 | 0 | 44 |
@@ -212,7 +212,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | --- | ---: |
 | `unit-like` | 0 |
 | `focused` | 201 |
-| `integration` | 161 |
+| `integration` | 162 |
 | `release-gate` | 57 |
 | `slow` | 8 |
 
@@ -222,7 +222,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 174 |
+| `isolated-database` | 175 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

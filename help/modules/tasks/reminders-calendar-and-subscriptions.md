@@ -20,7 +20,7 @@ Calendar entries open the canonical Task editor. Changing a Task in the editor c
 
 ## Recurring Tasks
 
-The in-app calendar projects recurrence dates without eagerly creating every future Task row. A date with no row appears as **Planned occurrence**. Opening it materializes only that occurrence, replaces the projected entry with the normal Task, and lets that occurrence change independently.
+Scheduled recurring Tasks appear on the in-app calendar like other Tasks. Opening a scheduled date opens that occurrence in the normal Task editor, where it can change independently without changing the other dates in the series.
 
 The private calendar feed uses the same recurrence meaning differently: it publishes a native recurring series plus exceptions and cancellations so the calendar client can project dates. Neither representation changes the normal completion-driven recurrence generator.
 

@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 427,
+    "discoveredScripts": 428,
     "legacyScripts": 309,
     "releaseGateScripts": 57,
     "areaCounts": {
@@ -22,19 +22,19 @@
       "release": 29,
       "search": 12,
       "tags": 12,
-      "tasks": 57,
+      "tasks": 58,
       "time-tracking": 9,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
       "focused": 201,
-      "integration": 161,
+      "integration": 162,
       "release-gate": 57,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 174,
+      "isolated-database": 175,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 219
@@ -4193,6 +4193,24 @@
       "tier": "integration"
     },
     {
+      "area": "tasks",
+      "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
+      "id": "tasks.task-recurrence-skip-to-current",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "database",
+        "permissions",
+        "recurrence",
+        "tasks",
+        "timers"
+      ],
+      "tier": "integration"
+    },
+    {
       "area": "time-tracking",
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
@@ -4244,7 +4262,7 @@
     },
     {
       "area": "views",
-      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with planned-occurrence affordances, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with quiet recurring projection, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
       "id": "views.calendar-host",
       "legacy": false,
       "path": "scripts/regressions/views/calendar-host.regression.mjs",

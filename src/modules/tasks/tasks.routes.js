@@ -102,6 +102,11 @@ tasksRoutes.post("/tasks/:taskId/complete", asyncRoute(async (request, response)
   response.status(200).json(result);
 }));
 
+tasksRoutes.post("/tasks/:taskId/skip-to-current", asyncRoute(async (request, response) => {
+  const result = await tasksService.skipToCurrent(request.params.taskId, request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.post("/tasks/:taskId/reopen", asyncRoute(async (request, response) => {
   const result = await tasksService.reopen(request.params.taskId, request.session);
   response.status(200).json(result);

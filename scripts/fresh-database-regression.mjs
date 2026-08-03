@@ -147,6 +147,11 @@ ORDER BY version;
       module_id: "core",
       name: "role_seed_scope_convergence",
     },
+    {
+      version: "087",
+      module_id: "core",
+      name: "task_recurrence_recovery_checkpoint",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 

@@ -77,7 +77,7 @@ async function createNextInstance({ session, completedTask, createTask }) {
     return null;
   }
 
-  const nextDate = nextOccurrenceDate(completedTask.recurrence_instance_date, template.rrule, template.recurrence_end_date);
+  const nextDate = nextTemplateOccurrenceDate(template, completedTask.recurrence_instance_date);
   if (!nextDate) {
     return null;
   }
@@ -130,11 +130,7 @@ async function readCompletionContinuity({ session, completedTask, findExisting }
     return endedContinuity();
   }
 
-  const nextScheduledDate = nextOccurrenceDate(
-    completedTask.recurrence_instance_date,
-    template.rrule,
-    template.recurrence_end_date,
-  );
+  const nextScheduledDate = nextTemplateOccurrenceDate(template, completedTask.recurrence_instance_date);
   if (!nextScheduledDate) {
     return endedContinuity();
   }
@@ -189,18 +185,20 @@ async function ensureUpcomingInstance({ session, template, latestInstanceDate, h
   }
 
   const normalizedToday = normalizeDate(today);
+  const recoveryCheckpointDate = normalizeDate(template.recovery_checkpoint_date);
+  const recoveryFloorDate = [normalizedToday, recoveryCheckpointDate].filter(Boolean).sort().at(-1) || "";
   const anchor = normalizeDate(latestInstanceDate) || normalizeDate(template.recurrence_anchor_date);
   if (!anchor) {
     return null;
   }
 
   let instanceDate;
-  if (!hasInstances && (!normalizedToday || anchor >= normalizedToday)) {
+  if (!hasInstances && (!recoveryFloorDate || anchor >= recoveryFloorDate)) {
     // Template that never produced an instance yet: its anchor date is itself a valid first
     // occurrence, so don't advance past it.
     instanceDate = anchor;
   } else {
-    instanceDate = upcomingOccurrenceDate(anchor, template.rrule, template.recurrence_end_date, normalizedToday);
+    instanceDate = upcomingOccurrenceDate(anchor, template.rrule, template.recurrence_end_date, recoveryFloorDate);
   }
 
   if (!instanceDate) {
@@ -219,11 +217,40 @@ async function materializeInstance({ session, template, instanceDate, createTask
     };
   }
 
+  const creationResult = await createTask.create(instanceTaskDraft({
+    session,
+    template,
+    instanceDate,
+  }));
+  const task = creationResult?.task || creationResult;
+  const wasCreated = creationResult?.wasCreated !== false;
+
+  if (!wasCreated) {
+    return {
+      task,
+      wasCreated: false,
+    };
+  }
+
+  await copyMaterializedInstanceContext({
+    session,
+    sourceTaskId,
+    task,
+    template,
+  });
+
+  return {
+    task,
+    wasCreated,
+  };
+}
+
+function instanceTaskDraft({ session, template, instanceDate }) {
   const dueAtUtc = template.due_time
     ? normalizeUtcIso(`${instanceDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
     : "";
 
-  const creationResult = await createTask.create({
+  return {
     client_id: template.client_id,
     project_id: template.project_id,
     title: template.title,
@@ -241,17 +268,10 @@ async function materializeInstance({ session, template, instanceDate, createTask
     recurrence_instance_date: instanceDate,
     reminder_override_enabled: false,
     assignee_ids: template.assignee_ids || [],
-  });
-  const task = creationResult?.task || creationResult;
-  const wasCreated = creationResult?.wasCreated !== false;
+  };
+}
 
-  if (!wasCreated) {
-    return {
-      task,
-      wasCreated: false,
-    };
-  }
-
+async function copyMaterializedInstanceContext({ session, task, template, sourceTaskId = "" }) {
   await copyTemplateChecklistToTask({
     session,
     task,
@@ -263,11 +283,6 @@ async function materializeInstance({ session, template, instanceDate, createTask
     task,
     template,
   });
-
-  return {
-    task,
-    wasCreated,
-  };
 }
 
 async function copyTemplateChecklistToTask({ session, task, template }) {
@@ -429,10 +444,27 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
   return finalEndDate && nextDate > finalEndDate ? "" : nextDate;
 }
 
+function nextTemplateOccurrenceDate(template, currentDate) {
+  const nextDate = nextOccurrenceDate(currentDate, template?.rrule || "", template?.recurrence_end_date || "");
+  const recoveryCheckpointDate = normalizeDate(template?.recovery_checkpoint_date);
+
+  if (!nextDate || !recoveryCheckpointDate || nextDate >= recoveryCheckpointDate) {
+    return nextDate;
+  }
+
+  return upcomingOccurrenceDate(
+    currentDate,
+    template?.rrule || "",
+    template?.recurrence_end_date || "",
+    recoveryCheckpointDate,
+  );
+}
+
 function projectOccurrenceDates(template, startDate, endDate) {
   const anchorDate = normalizeDate(template?.recurrence_anchor_date);
   const rangeStart = normalizeDate(startDate);
   const rangeEnd = normalizeDate(endDate);
+  const recoveryCheckpointDate = normalizeDate(template?.recovery_checkpoint_date);
 
   if (!anchorDate || !rangeStart || !rangeEnd || rangeEnd < rangeStart) {
     return [];
@@ -443,7 +475,11 @@ function projectOccurrenceDates(template, startDate, endDate) {
   const recurrenceEndDate = [parsedEndDate, storedEndDate].filter(Boolean).sort()[0] || "";
   const boundedEndDate = recurrenceEndDate && recurrenceEndDate < rangeEnd ? recurrenceEndDate : rangeEnd;
 
-  if (anchorDate > boundedEndDate) {
+  const projectionStartDate = recoveryCheckpointDate && recoveryCheckpointDate > rangeStart
+    ? recoveryCheckpointDate
+    : rangeStart;
+
+  if (anchorDate > boundedEndDate || projectionStartDate > boundedEndDate) {
     return [];
   }
 
@@ -451,7 +487,7 @@ function projectOccurrenceDates(template, startDate, endDate) {
   let cursor = anchorDate;
 
   for (let step = 0; step < MAX_PROJECTED_OCCURRENCE_STEPS; step += 1) {
-    if (cursor >= rangeStart && cursor <= boundedEndDate) {
+    if (cursor >= projectionStartDate && cursor <= boundedEndDate) {
       dates.push(cursor);
     }
 
@@ -467,6 +503,63 @@ function projectOccurrenceDates(template, startDate, endDate) {
   }
 
   return dates;
+}
+
+function nextNotPassedOccurrenceDate(template, referenceDate = new Date(), timezone = "America/New_York") {
+  const anchorDate = normalizeDate(template?.recurrence_anchor_date);
+  const reference = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+
+  if (!anchorDate || !Number.isFinite(reference.getTime())) {
+    return "";
+  }
+
+  const localToday = localDateKey(reference, timezone);
+  const recoveryCheckpointDate = normalizeDate(template?.recovery_checkpoint_date);
+  const recurrenceEndDate = normalizeDate(template?.recurrence_end_date || parseRRule(template?.rrule || "").endDate);
+  let cursor = anchorDate;
+
+  for (let step = 0; step < MAX_PROJECTED_OCCURRENCE_STEPS; step += 1) {
+    if ((!recoveryCheckpointDate || cursor >= recoveryCheckpointDate)
+      && !occurrenceDueBoundaryPassed(template, cursor, reference, localToday, timezone)) {
+      return cursor;
+    }
+
+    if (recurrenceEndDate && cursor >= recurrenceEndDate) {
+      return "";
+    }
+
+    const nextDate = nextOccurrenceDate(cursor, template?.rrule || "", recurrenceEndDate);
+    if (!nextDate || nextDate <= cursor) {
+      return "";
+    }
+    cursor = nextDate;
+  }
+
+  return "";
+}
+
+function occurrenceDueBoundaryPassed(template, instanceDate, referenceDate, localToday, timezone) {
+  if (!template?.due_time) {
+    return instanceDate < localToday;
+  }
+
+  const dueAtUtc = normalizeUtcIso(
+    `${instanceDate}T${template.due_time}:00`,
+    template.due_timezone || timezone,
+  );
+  const dueTime = Date.parse(dueAtUtc);
+  return Number.isFinite(dueTime) ? dueTime < referenceDate.getTime() : instanceDate < localToday;
+}
+
+function localDateKey(date, timezone = "America/New_York") {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 // Walk the recurrence forward from `fromDate` and return the first occurrence on or after
@@ -536,10 +629,13 @@ function normalizeUntilDate(value) {
 }
 
 export const taskRecurrenceService = {
+  copyMaterializedInstanceContext,
   createNextInstance,
   createTemplateFromTask,
   ensureUpcomingInstance,
+  instanceTaskDraft,
   materializeInstance,
+  nextNotPassedOccurrenceDate,
   parseRRule,
   prepareCompletionContinuity,
   projectOccurrenceDates,

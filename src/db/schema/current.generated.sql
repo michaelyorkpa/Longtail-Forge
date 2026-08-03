@@ -887,7 +887,7 @@ CREATE TABLE task_recurrence_templates (
 CHECK (
   estimate_minutes IS NULL
   OR (estimate_minutes >= 0 AND estimate_minutes % 15 = 0)
-),
+), recovery_checkpoint_date TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
 );
 

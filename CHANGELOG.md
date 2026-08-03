@@ -1,3 +1,20 @@
+## Version 0.33.27.9.2 - 2026-08-03
+
+- Removed the user-visible `Planned occurrence` badge, explanatory tooltip text, dashed projection styling, and separate accessible action from recurring Tasks on Calendar.
+- Scheduled recurring Tasks now use the same title, status/priority/context metadata, styling, tooltip content, and `Open task: <title>` accessible action as materialized Tasks across Dashboard and Actions Calendar Month, Week, and Day views.
+- Preserved server-owned projection, permission filtering, internal `virtual`/`templateId`/`instanceDate` identity, exactly-once materialize-on-open, real-row precedence, the canonical Task editor, and independent occurrence edits.
+- Updated focused static, integration, and rendered desktop/mobile Calendar coverage. The focused Playwright file passed 8/8 across both Calendar hosts and all three views.
+- Docs updated: `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`, `help/modules/tasks/reminders-calendar-and-subscriptions.md`.
+
+## Version 0.33.27.9.1 - 2026-08-03
+
+- Added `Skip to current` to eligible recurring Tasks. One confirmation completes earlier active materialized occurrences, suppresses unopened past schedule dates, and opens the first scheduled occurrence whose due boundary has not passed.
+- Added a durable per-series recovery checkpoint and one atomic repository transaction for backlog completion, checkpoint advancement, active-timer recheck, and exactly-once retained-occurrence creation. Existing completed and archived history, recurrence rules, cadence, checklist templates, and occurrence-specific edits remain intact.
+- Kept current calculation server-owned: date-only occurrences remain current for their full session-local date, while timed occurrences use their timezone-normalized due instant. Permission, workspace, disabled-module, or active-timer conflicts leave the series unchanged.
+- Preserved Task completion metadata, parent recovery, reminder scheduling, search synchronization, and audit/events with `skip_to_current` metadata without queueing one recurrence-generation handoff per recovered row.
+- Added the permission-shaped `recurrenceRecovery` detail model, canonical Task-dialog confirmation/action, focused isolated-database coverage, and schema snapshot checks.
+- Docs updated: `docs/tasks-module.md`, `docs/database.md`, `docs/regression-suite.md`, `help/framework/tasks-basics.md`.
+
 ## Version 0.33.27.8.3 - 2026-08-03
 
 - Advanced the development-only Playwright patch baseline from 1.62.0 to

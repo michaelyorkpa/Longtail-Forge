@@ -139,7 +139,7 @@ assert.doesNotMatch(
   "project selection must happen through explicit tags instead of in-body test.skip calls",
 );
 assert.equal((e2eSpecSource.match(/tag: "@mobile"/g) || []).length, 9, "all nine mobile-only tests must be tagged explicitly");
-assert.equal((e2eSpecSource.match(/tag: "@desktop"/g) || []).length, 9, "all nine desktop-only tests must be tagged explicitly");
+assert.equal((e2eSpecSource.match(/tag: "@desktop"/g) || []).length, 10, "all ten desktop-only tests must be tagged explicitly");
 
 const developmentWorkflow = readFileSync(".github/workflows/development-pr.yml", "utf8");
 assert.match(
