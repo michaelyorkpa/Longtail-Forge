@@ -1,0 +1,88 @@
+name: Manual protected-main image candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact 40-character commit SHA reachable from main
+        required: true
+        type: string
+      confirmation:
+        description: Enter PUBLISH CANDIDATE plus the full SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: manual-protected-main-image-candidate
+  cancel-in-progress: false
+
+jobs:
+  publish-candidate:
+    name: Publish immutable protected-main image candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Set up attestation-capable Docker Buildx builder
+        run: |
+          docker buildx create --name longtail-forge-candidate --driver docker-container --use
+          docker buildx inspect --bootstrap
+      - name: Validate the selected protected-main revision
+        env:
+          REVISION: ${{ inputs.revision }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          node scripts/release/validate-release-revision.mjs --operation deploy --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "PUBLISH CANDIDATE $REVISION"
+      - name: Check out and revalidate the immutable revision
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: git checkout --detach "$REVISION"
+      - run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
+      - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
+      - run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
+      - run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
+      - name: Build checksummed candidate assets
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
+          node scripts/run-timed-stage.mjs "packaging artifact smoke" -- npm run artifact:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata-base.json
+      - name: Publish and verify the immutable linux/amd64 candidate
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          IMAGE_REPOSITORY="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          npm run image:publish -- publish \
+            --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" \
+            --release-metadata dist/release-metadata-base.json \
+            --repository "$IMAGE_REPOSITORY" \
+            --output-metadata dist/release-metadata.json \
+            --output-platform-manifest dist/platform-manifest.json \
+            --output-build-metadata dist/buildx-metadata.json
+          npm run image:publish -- verify --metadata dist/release-metadata.json --expected-commit "$REVISION"
+          rm -f dist/release-metadata-base.json dist/buildx-metadata.json
+          docker logout ghcr.io
+      - name: Retain exact candidate metadata and controlled payload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: main-image-candidate-${{ inputs.revision }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            dist/*.tgz
+            dist/*.tgz.sha256
+            dist/release-metadata.json
+            dist/platform-manifest.json
