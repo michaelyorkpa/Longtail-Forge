@@ -1,11 +1,8 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const appShellService = readText("src/services/app-shell.service.js");
 const changelog = readText("CHANGELOG.md");
 const footer = readText("public/js/footer.js");
@@ -20,12 +17,7 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
 const architectureDocs = readText("docs/architecture.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const regressionManifest = readText("scripts/regression-coverage-manifest.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Create Timer modal version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Create Timer modal version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Create Timer modal version");
 
 const timerQuickAction = actionDefinitionBlock(appShellService, "timer");
 assert.match(
@@ -165,8 +157,6 @@ assert.match(
   "Changelog should preserve the Create Timer modal closeout",
 );
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
-assert.match(regressionSuite, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);
-assert.match(regressionManifest, /scripts\/time-tracking-create-timer-modal-regression\.mjs/);
 
 console.log("Time Tracking Create Timer modal regression passed.");
 

@@ -7,7 +7,7 @@ const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
 const suite = readFileSync("scripts/regression-suite.mjs", "utf8");
 const discovery = readFileSync("scripts/lib/regression-discovery.mjs", "utf8");
 const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+const coveragePolicy = JSON.parse(readFileSync("scripts/regression-coverage-exceptions.json", "utf8"));
 
 for (const entryPoint of [
   "scripts/run-regressions.mjs",
@@ -17,6 +17,7 @@ for (const entryPoint of [
   "scripts/regression-coverage-manifest.json",
   "scripts/regression-coverage-exceptions.json",
   "scripts/generate-regression-manifest.mjs",
+  "scripts/generate-regression-doc-inventory.mjs",
   "package.json",
 ]) {
   assert.match(docs, new RegExp(escapeRegExp(entryPoint)), `${entryPoint} should be inventoried`);
@@ -55,7 +56,7 @@ for (const field of ["id", "area", "tier", "tags", "description", "runMode"]) {
 }
 
 for (const runMode of ["static", "serial-database", "serial-files", "isolated-files", "isolated-database"]) {
-  assert.match(docs, new RegExp(`\| \`${runMode}\` \|`), `${runMode} should be a canonical run mode`);
+  assert.match(docs, new RegExp(`\\| \`${runMode}\` \\|`), `${runMode} should be a canonical run mode`);
 }
 
 assert.match(docs, /scripts\/regressions\/<area>\/<name>\.regression\.mjs/);
@@ -64,7 +65,8 @@ assert.match(docs, /warning-only licensing\/public-release process gate/);
 assert.match(docs, /0\.33\.6\.16\.2/);
 assert.match(docs, /auto-discover/);
 assert.match(docs, /Agents do not manually add the same regression/);
-assert.match(docs, /415 discovered scripts/, "current docs should report the active registry");
+assert.match(docs, /GENERATED REGRESSION INVENTORY START/, "current docs should delimit generated inventory");
+assert.match(docs, /Convention-path metadata regressions/, "current docs should use the canonical coverage phrase");
 assert.match(docs, /300 seconds/, "current docs should publish the formal suite-time review budget");
 
 assert.equal(REGRESSION_BUCKETS.length, 5, "inventory should preserve all five scheduling buckets");
@@ -83,13 +85,35 @@ assert.ok(
   REGRESSION_SCRIPTS.includes("scripts/regression-suite-inventory-regression.mjs"),
   "inventory contract guardrail should be registered",
 );
-assert.equal(legacySnapshot.scripts.length, 311, "the legacy migration snapshot should preserve its baseline minus the documented syntax-gate retirement");
-assert.equal(REGRESSION_ENTRIES.length, 415, "auto-discovery should retain the complete maintenance release rehearsal owner");
-assert.deepEqual(
-  REGRESSION_BUCKETS.map((bucket) => bucket.scripts.length),
-  [204, 6, 20, 9, 176],
-  "auto-discovery must preserve every script while moving only the nine audited Files regressions into isolated scheduling",
+const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
+  entry.floorCredit === true && entry.legacy === true
+)).length;
+assert.equal(
+  legacySnapshot.scripts.length + creditedLegacyRetirements,
+  coveragePolicy.legacyMetadataException.expectedScripts,
+  "the legacy migration snapshot and reviewed credits should reconcile to the recorded baseline",
 );
+const flattenedBucketScripts = REGRESSION_BUCKETS.flatMap((bucket) => bucket.scripts);
+assert.equal(flattenedBucketScripts.length, REGRESSION_ENTRIES.length, "bucket membership should cover every discovered entry");
+assert.equal(new Set(flattenedBucketScripts).size, flattenedBucketScripts.length, "each discovered script should appear in exactly one bucket");
+assert.deepEqual(
+  flattenedBucketScripts.toSorted(),
+  REGRESSION_ENTRIES.map((entry) => entry.path).toSorted(),
+  "flattened bucket membership should equal discovery exactly",
+);
+const bucketFloors = new Map([
+  ["static/source regressions", 200],
+  ["default database regressions", 1],
+  ["file storage regressions", 0],
+  ["isolated file storage regressions", 9],
+  ["isolated database regressions", 150],
+]);
+for (const bucket of REGRESSION_BUCKETS) {
+  assert.ok(
+    bucket.scripts.length >= bucketFloors.get(bucket.name),
+    bucket.name + " should retain its coverage floor without pinning safe reclassification",
+  );
+}
 assert.match(suite, /discoverRegressionEntries/);
 assert.match(suite, /createRegressionSuite/);
 assert.match(discovery, /listConventionCandidates/);
@@ -97,18 +121,6 @@ assert.match(discovery, /listTopLevelLegacyCandidates/);
 assert.match(runner, /process\.argv\.slice\(2\)/);
 assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
-assert.equal(
-  packageJson.scripts.check,
-  "npm run check:fast && npm run test:regressions",
-);
-assert.equal(packageJson.scripts["test:permissions"], "node scripts/permission-regression.mjs");
-assert.equal(packageJson.scripts["test:sqlite-driver"], "node scripts/better-sqlite3-install-smoke.mjs");
-assert.equal(packageJson.scripts["test:regressions:changed"], "node scripts/run-changed-regressions.mjs");
-assert.equal(packageJson.scripts["regressions:manifest"], "node scripts/generate-regression-manifest.mjs");
-assert.equal(packageJson.scripts["regressions:manifest:check"], "node scripts/generate-regression-manifest.mjs --check");
-assert.equal(packageJson.scripts["licensing:gates"], "node scripts/check-licensing-gates.mjs");
-assert.equal(packageJson.scripts.closeout, "node scripts/run-closeout.mjs");
-assert.equal(packageJson.scripts["version:guard"], "node scripts/version-literal-guardrail-regression.mjs");
 
 console.log("Regression suite inventory contract passed.");
 

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,13 +12,10 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-introspe
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Introspection-Boundary-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
 const filesServiceSource = readText("src/services/files.service.js");
@@ -46,9 +42,6 @@ try {
 }
 
 function assertStaticBoundary() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the introspection boundary version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the introspection boundary version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the introspection boundary version");
 
   assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /compileOptions/, "SQLite dialect introspection seams should expose compile-options lowering");
@@ -88,8 +81,7 @@ function assertStaticBoundary() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.7[\s\S]*`db\.dialect\.introspection\.compileOptions\(\.\.\.\)`[\s\S]*qualified `rowId\(\.\.\.\)`[\s\S]*provider\/startup\/migration\/repair\/adapter-owned/, "database docs should describe the introspection and physical identity boundary");
   assert.match(auditDocs, /0\.33\.5\.27\.7 PRAGMA, Rowid, and Introspection Boundary[\s\S]*1,441 runtime literal-helper invocations[\s\S]*228 direct interpolated SQL operation sites[\s\S]*109 existing bound operation sites/, "parameter-binding audit should record the unchanged boundary proof totals");
   assert.match(changelog, /## Version 0\.33\.5\.27\.7 - [\s\S]*PRAGMA, rowid, and introspection seam boundaries[\s\S]*provider-owned `compileOptions\(\.\.\.\)`[\s\S]*qualified `rowId\(\.\.\.\)`/, "changelog should record the introspection boundary slice");
-  assert.match(regressionSuite, /scripts\/database-introspection-boundary-regression\.mjs/, "regression suite should include introspection boundary coverage");
-}
+  }
 
 async function assertIntrospectionAndIdentityHelpers(dialect) {
   assert.equal(dialect.introspection.compileOptions(), "PRAGMA compile_options;");

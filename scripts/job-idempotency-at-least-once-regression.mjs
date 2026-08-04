@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,10 +10,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-idem
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Idempotency-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
@@ -23,7 +19,6 @@ const notificationsRepoSource = readText("src/repositories/notifications.repo.js
 const searchJobsSource = readText("src/services/search-index-jobs.service.js");
 const filesSource = readText("src/services/files.service.js");
 const importJobsSource = readText("src/services/import-jobs.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   resetJobWorkerStatusForTests,
@@ -60,9 +55,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the job idempotency version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the job idempotency version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the job idempotency version");
   assert.match(taskJobsSource, /notification_delivery_key:\s*taskReminderDedupeKey/, "reminder events should carry a stable notification delivery key");
   assert.match(notificationsSource, /notificationEventJobDedupeKey/, "notification event jobs should dedupe stable delivery keys");
   assert.match(notificationsSource, /notificationIdForDeliveryKey/, "notification fan-out should create deterministic recipient notification IDs");
@@ -72,9 +64,7 @@ function assertStaticContract() {
   assert.match(taskJobsSource, /readByRecurrenceInstance/, "recurrence jobs should keep existing-instance idempotency checks");
   assert.match(filesSource, /file\.status !== "pending" \|\| file\.scan_status !== "pending"/, "file scan jobs should skip already scanned rows");
   assert.match(importJobsSource, /reserved:\s*true[\s\S]*skipped:\s*true/, "future imports should remain a reserved no-op handler");
-  assert.match(regressionSuite, /scripts\/job-idempotency-at-least-once-regression\.mjs/, "regression suite should include at-least-once idempotency coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the idempotency slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*notification_delivery_key[\s\S]*at-least-once/, "database docs should document durable idempotency behavior");
   assert.match(moduleDocs, /As of 0\.33\.5\.21\.7\.3[\s\S]*at-least-once worker behavior/, "module docs should document current durable job idempotency expectations");
 }
@@ -325,9 +315,6 @@ function localDateTimeParts(date, timeZone) {
   };
 }
 
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function readText(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");

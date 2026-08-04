@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "auditId": "static-regression-isolation-2026-07-31",
+  "targetRunMode": "static",
+  "resourceDimensions": [
+    "database",
+    "fileSystem",
+    "networkPort",
+    "process",
+    "scanner",
+    "environment",
+    "singletonRuntime"
+  ],
+  "measurements": {
+    "concurrency": 8,
+    "passes": 3,
+    "scriptRuns": 651,
+    "wallSeconds": 66.22,
+    "failures": 0,
+    "recoveredFlakes": 0
+  },
+  "fullSuiteMeasurements": {
+    "baseline": { "scripts": 424, "wallSeconds": 171.76, "failures": 0, "recoveredFlakes": 0 },
+    "postChange": [
+      { "scripts": 424, "wallSeconds": 155.66, "failures": 0, "recoveredFlakes": 0 },
+      { "scripts": 424, "wallSeconds": 150.93, "failures": 0, "recoveredFlakes": 0 }
+    ]
+  },
+  "entries": [
+    {
+      "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only repository files", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Reads package, documentation, view, source, roadmap, changelog, and legacy-registry text only; its version import has no runtime or database side effect."
+    },
+    {
+      "path": "scripts/help-markdown-source-layout-regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only Help and source files", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Reads the declared Help Markdown, table-of-contents, module declaration, and service source inventory without importing runtime modules or creating mutable state."
+    },
+    {
+      "path": "scripts/task-modal-compact-layout-regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only view, browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Performs bounded read-only source and documentation assertions for Task modal anatomy and creates no database, server, process, scanner, or temporary file."
+    },
+    {
+      "path": "scripts/task-modal-reflow-regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only view, browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Performs read-only Task modal source, stylesheet, documentation, and release-metadata assertions with no runtime import or mutable external resource."
+    },
+    {
+      "path": "scripts/task-modal-followup-regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Performs read-only Task dialog and stylesheet contract assertions and does not import the application, create data, open a port, or spawn a child."
+    },
+    {
+      "path": "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
+      "sourceRunMode": "isolated-database",
+      "decision": "static",
+      "resources": { "database": "process-local in-memory SQLite only", "fileSystem": "one read-only migration file", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Executes one reviewed migration against a process-local in-memory SQLite database, closes it in a finally block, and touches no external database or mutable file."
+    },
+    {
+      "path": "scripts/file-scanner-setup-docs-regression.mjs",
+      "sourceRunMode": "serial-files",
+      "decision": "static",
+      "resources": { "database": "none", "fileSystem": "read-only docs, environment example, metadata, and source", "networkPort": "none", "process": "none", "scanner": "documentation assertions only", "environment": "none", "singletonRuntime": "none" },
+      "rationale": "Checks scanner documentation and static source membership only; it never starts a scanner, opens a port, spawns a process, or writes storage state."
+    }
+  ]
+}

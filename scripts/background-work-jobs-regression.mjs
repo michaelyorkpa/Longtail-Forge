@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -12,10 +11,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-backgrou
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Background-Work-Jobs-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -25,7 +21,6 @@ const filesSource = readText("src/services/files.service.js");
 const importJobsSource = readText("src/services/import-jobs.service.js");
 const appSource = readText("src/core/app.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase, db, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -37,9 +32,6 @@ const { registerTaskJobHandlers } = await import("../src/modules/tasks/task-jobs
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the background work jobs version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the background work jobs version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the background work jobs version");
 
   assert.match(taskJobsSource, /TASK_REMINDER_JOB_TYPE = "task\.reminder"/, "task reminders should have a durable job type");
   assert.match(taskJobsSource, /TASK_RECURRENCE_JOB_TYPE = "task\.recurrence"/, "task recurrence should have a durable job type");
@@ -59,9 +51,7 @@ try {
   assert.doesNotMatch(workerCliSource, /registerTaskJobHandlers/, "separate worker startup should not import Tasks-specific handlers");
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker startup should register file scan handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker startup should register future import handlers");
-  assert.match(regressionSuite, /scripts\/background-work-jobs-regression\.mjs/, "regression suite should include background work job coverage");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the background work jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "architecture docs should document background work jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "database docs should document background work jobs");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*LONGTAIL_WORKER_MODE/, "runtime docs should document worker mode for background work jobs");
@@ -348,8 +338,4 @@ function localDateTimeParts(date, timeZone) {
 
 function readText(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

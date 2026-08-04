@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -9,13 +8,7 @@ const css = readText("public/css/longtail-forge.css");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js/, "Lists protected view should load the framework view builder");
@@ -104,7 +97,6 @@ assert.match(css, /\.view-detail-action-strip,[\s\S]*\.view-inline-action-row\s*
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "View-building contract should document the current view-builder line");
 assert.match(viewContract, /Lists protected workspace now uses `LongtailForge\.view`/, "View-building contract should describe the converted Lists workspace");
 assert.match(changelog, /## Version 0\.33\.5\.15\.3 - /, "Changelog should include the Lists pilot version");
-assert.match(regressionSuite, /scripts\/lists-view-builder-pilot-regression\.mjs/, "Regression suite should include the Lists pilot regression");
 
 console.log("Lists view-builder pilot regression passed.");
 

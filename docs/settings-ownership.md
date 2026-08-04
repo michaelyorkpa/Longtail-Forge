@@ -21,6 +21,14 @@ Ordinary values read/write through the generic repository without registration. 
 
 The manifest contribution is the metadata catalog, not a value read. Each module setting declares a fixed `placement` (`workspace`, `user`, `module`, or `new-workspace`), optional module target, field metadata/defaults, and standard permission/capability/module dependencies. `modulesService.listSettingsContributions(...)` applies the shared eligibility filters and terminology resolution without resolving handlers, effects, or stored values. Framework-target and protected definitions use the framework-only registry; module manifests cannot claim those boundaries or collide with a registered framework setting ID.
 
+`settingsService.readWorkspaceBootstrap(session)` is a framework composition
+boundary, not another settings store. Alongside workspace identity,
+capabilities, module status, and deletion state, it includes the
+permission-service-owned effective any-scope permission ID list used for
+browser presentation. Login, `/api/session`, and the app shell consume this
+same shape. The list does not make Settings responsible for authorization,
+record capabilities, or role persistence.
+
 Paired columns that form one product value, such as billing-period type plus start day, are inventoried as one setting. Timestamps, row IDs, foreign keys, serialized metadata, and record lifecycle fields are called out but are not counted as independent settings.
 
 ## Ownership summary

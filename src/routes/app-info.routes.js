@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { config } from "../config.js";
+import { correspondingSourceUrl } from "../core/corresponding-source.js";
 
 const appInfoRoutes = Router();
 
@@ -13,6 +14,7 @@ appInfoRoutes.get("/app-info", (_request, response) => {
     sourceBranch: config.release.sourceBranch,
     commitSha: config.release.commitSha || null,
     artifactSha256: config.release.artifactSha256 || null,
+    correspondingSourceUrl: correspondingSourceUrl(),
   });
 });
 

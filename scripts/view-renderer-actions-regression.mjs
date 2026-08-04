@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -6,20 +5,13 @@ import { readFileSync } from "node:fs";
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
 assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
 assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
-assert.match(regressionSuite, /scripts\/view-renderer-actions-regression\.mjs/, "Regression suite should include renderer action regression");
 
 const context = createBrowserContext();
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
@@ -58,9 +50,13 @@ const missingButton = findButtonByText(surface, "Missing behavior");
 await missingButton.click();
 assert.match(surface.textContent, /Missing view behavior handler: sample\.missing/, "Missing behavior handlers should render a recoverable status");
 
-const deniedButton = findButtonByText(surface, "Denied route");
-await deniedButton.click();
-assert.match(surface.textContent, /You do not have permission to run this action/, "Client-visible permission metadata should fail recoverably when explicit permissions are unavailable");
+assert.equal(hasButtonByText(surface, "Denied route"), false, "Actions with absent declared permissions should not render");
+assert.equal(hasButtonByText(surface, "Denied row"), false, "Row actions with absent declared permissions should not render");
+
+context.window.LongtailForge.workspaceContext.permissionIds = [];
+await openButton.click();
+assert.match(surface.textContent, /You do not have permission to run this action/, "A rendered action should still recheck live permission hints before dispatch");
+assert.equal(behaviorCalls.length, 1, "A permission hint removed after render should block the behavior dispatch");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.8 - /, "Changelog should include renderer action version");
 
@@ -77,10 +73,18 @@ function descriptor() {
         label: "Open selected",
         role: "primary",
         behavior: "sample.open",
+        requiredPermissions: ["sample.view"],
       },
     },
     table: {
       columns: [{ field: "title", label: "Title" }],
+      rowActions: [{
+        id: "denied-row",
+        label: "Denied row",
+        role: "secondary",
+        behavior: "sample.open",
+        requiredPermissions: ["sample.manage"],
+      }],
     },
     dataSource: {
       route: "/api/sample-records",
@@ -281,6 +285,10 @@ function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
   return button;
+}
+
+function hasButtonByText(root, text) {
+  return root.querySelectorAll("button").some((candidate) => candidate.textContent === text);
 }
 
 function findElement(root, selector) {

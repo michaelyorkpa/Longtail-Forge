@@ -3,6 +3,8 @@ default: framework/help-center.md
 # Longtail Forge
 - [Help Center](framework/help-center.md)
 - [Getting Started](framework/getting-started.md)
+- [Dashboard and Workbench](framework/dashboard-and-workbench.md)
+- [Workbench Focus and Recovery](framework/workbench-focus-and-recovery.md)
 
 ## Framework
 - [Workspaces and Workspace Switching](framework/workspaces-and-switching.md)
@@ -12,21 +14,31 @@ default: framework/help-center.md
 - [Tasks Basics](framework/tasks-basics.md)
 - [Notifications](framework/notifications.md)
 - [Tags](framework/tags.md)
+- [Tags and Search](framework/tags-and-search.md)
 - [Search](framework/search.md)
 - [Files and Attachments](framework/files-and-attachments.md)
+- [Action Catalog](framework/action-catalog.md)
+- [What Do You Want to Do?](framework/what-do-you-want-to-do.md)
 - [Settings and User Preferences](framework/settings-and-user-preferences.md)
+- [Administration and Settings](framework/administration-and-settings.md)
 - [Modules and Optional Features](framework/modules-and-optional-features.md)
+- [Legal and Licensing](framework/legal-and-licensing.md)
+- [Third-Party Notices](framework/third-party-notices.md)
 
 # Modules
 
 ## Time Tracking
+- [Time Tracking Action Reference](modules/time-tracking/actions.md)
 - [Timers and Saved Duration](modules/time-tracking/timers-and-saved-duration.md)
 - [Time Entries and Corrections](modules/time-tracking/time-entries-and-corrections.md)
 
 ## Tasks
+- [Tasks Action Reference](modules/tasks/actions.md)
 - [Resuming Task Work](modules/tasks/resuming-task-work.md)
+- [Reminders, Calendar, and Subscriptions](modules/tasks/reminders-calendar-and-subscriptions.md)
 
 ## Notes
+- [Notes Action Reference](modules/notes/actions.md)
 - [Using Notes](modules/notes/using-notes.md)
 - [Notes Library](modules/notes/notes-library.md)
 ### Library Buckets
@@ -42,6 +54,7 @@ default: framework/help-center.md
 - [Notes, Files, and Search](modules/notes/notes-files-and-search.md)
 
 ## Lists
+- [Lists Action Reference](modules/lists/actions.md)
 - [Using Lists](modules/lists/using-lists.md)
 - [List Items and Progress](modules/lists/list-items-and-progress.md)
 - [List Statuses](modules/lists/list-statuses.md)

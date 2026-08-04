@@ -6,6 +6,10 @@
   ],
   "currentVersionLiteralLineRules": [
     {
+      "path": "CHANGELOG.md",
+      "pattern": "^## Version [0-9]+(?:\\.[0-9]+)+ - .+$"
+    },
+    {
       "path": "scripts/regression-coverage-exceptions.json",
       "pattern": "^\\s*\\\"retiredInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
     },
@@ -24,9 +28,7 @@
   ],
   "historicalLabelFiles": [
     "DECISIONS.md",
-    "ROADMAP.md",
     "ROADMAP-ARCHIVE.md",
-    "CHANGELOG.md",
     "TODO.md",
     "src/db/migrations/077_workspace_purge_boundary.sql"
   ],

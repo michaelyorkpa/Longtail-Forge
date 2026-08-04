@@ -2046,6 +2046,37 @@ fieldset.view-renderer-field {
     font-size: 11px;
 }
 
+.site-footer-legal {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.site-footer a {
+    color: inherit;
+}
+
+.legal-page {
+    width: min(760px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 48px 0;
+}
+
+.legal-document {
+    padding: clamp(24px, 5vw, 48px);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-card);
+}
+
+.legal-document h1:first-child {
+    margin-top: 0;
+}
+
 .quick-action-capture {
     --quick-action-bottom: calc(var(--site-footer-visible-offset, 0px) + 20px);
     position: fixed;
@@ -2932,6 +2963,34 @@ a.search-result-title:hover {
 .user-admin-page {
     width: min(94vw, var(--page-standard-width));
     text-align: left;
+}
+
+.delegated-role-assignments-page {
+    display: grid;
+    gap: 20px;
+}
+
+.delegated-role-assignments-page > h1,
+.delegated-role-assignments-page > p,
+.delegated-role-target h2,
+.delegated-role-target p {
+    margin: 0;
+}
+
+.delegated-role-target {
+    display: grid;
+    gap: 18px;
+}
+
+[data-role-assignment-status] {
+    min-height: 20px;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+[data-role-assignment-status].is-error {
+    color: var(--color-danger);
 }
 
 .login-page {
@@ -9031,17 +9090,6 @@ button:disabled {
     border-left-style: solid;
 }
 
-.calendar-entry[data-virtual="true"] {
-    border-style: dashed;
-    border-left-style: solid;
-    cursor: pointer;
-    opacity: 1;
-}
-
-.calendar-entry[data-virtual="true"]:hover {
-    background: var(--color-surface-muted);
-}
-
 .calendar-entry-time {
     font-size: 0.72rem;
     color: var(--color-muted);
@@ -9056,12 +9104,6 @@ button:disabled {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
     overflow-wrap: anywhere;
-}
-
-.calendar-entry-virtual {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
 }
 
 .calendar-reminder-indicator {

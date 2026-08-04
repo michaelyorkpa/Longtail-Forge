@@ -23,18 +23,14 @@ import {
 } from "../../lib/migration-schema-workflow.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const databaseDocs = readFileSync("docs/database.md", "utf8");
 const tempRoots = [];
 
 try {
-  assert.equal(packageJson.scripts["db:migration:create"], "node scripts/create-migration.mjs");
-  assert.equal(packageJson.scripts["db:schema:refresh"], "node scripts/schema-snapshot.mjs --refresh");
-  assert.equal(packageJson.scripts["db:schema:check"], "node scripts/schema-snapshot.mjs --check");
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "086_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "088_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -74,6 +70,7 @@ try {
   assert.match(liveSchema.sql, /CREATE TABLE startup_maintenance_runs/);
   assert.match(liveSchema.sql, /estimate_minutes INTEGER[\s\S]*estimate_minutes % 15 = 0/);
   assert.match(liveSchema.sql, /CREATE UNIQUE INDEX idx_tasks_recurrence_instance_unique/);
+  assert.match(liveSchema.sql, /recovery_checkpoint_date TEXT/);
   assert.match(liveSchema.sql, /CREATE TABLE "?private_feed_tokens"?/);
 
   for (const requiredPath of [

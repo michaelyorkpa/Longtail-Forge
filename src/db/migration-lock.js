@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { config } from "../config.js";
+import { createOpaqueId } from "../core/identifiers.js";
 
 const MIGRATION_LOCK_FILE_NAME = ".longtail-forge-migrations.lock";
 
@@ -43,7 +43,7 @@ async function acquireMigrationLock() {
     acquiredAt: new Date().toISOString(),
     databaseFile: config.databaseFile,
     hostname: os.hostname(),
-    ownerId: randomUUID(),
+    ownerId: createOpaqueId(),
     pid: process.pid,
     provider: config.databaseProvider,
   };

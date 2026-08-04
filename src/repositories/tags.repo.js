@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const ASSIGNMENT_SOURCES = new Set(["manual", "propagated", "system"]);
 
@@ -107,7 +107,7 @@ const TAG_SUPPRESSION_VALUE_EXPRESSIONS = {
 
 async function createTag(workspaceId, tag) {
   const now = new Date().toISOString();
-  const tagId = tag.tag_id || randomUUID();
+  const tagId = tag.tag_id || createRecordId();
 
   await db.run(`
 INSERT INTO tags (
@@ -353,7 +353,7 @@ ORDER BY tag_assignments.target_id, ${db.dialect.comparison.orderByNoCase("tags.
 }
 
 async function addAssignment(workspaceId, assignment) {
-  const assignmentId = randomUUID();
+  const assignmentId = createRecordId();
   const now = new Date().toISOString();
   const source = normalizeAssignmentSource(assignment.source);
 
@@ -475,7 +475,7 @@ LIMIT 1;
 }
 
 async function addSuppression(workspaceId, suppression) {
-  const suppressionId = suppression.tag_assignment_suppression_id || randomUUID();
+  const suppressionId = suppression.tag_assignment_suppression_id || createRecordId();
   const now = new Date().toISOString();
 
   await db.run(`${db.dialect.conflict.buildInsertOrIgnore({

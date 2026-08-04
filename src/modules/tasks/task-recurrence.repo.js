@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
-  const templateId = template.recurrence_template_id || randomUUID();
+  const templateId = template.recurrence_template_id || createRecordId();
 
   await db.run(`
 INSERT INTO task_recurrence_templates (
@@ -216,7 +216,7 @@ VALUES (
 `, {
         assignedAt: now,
         assignedByUserId: nullableTextParam(assignedByUserId),
-        recurrenceAssigneeId: randomUUID(),
+        recurrenceAssigneeId: createRecordId(),
         templateId: textParam(templateId),
         userId: textParam(userId),
         workspaceId: textParam(workspaceId),
@@ -303,7 +303,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
-        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        itemId: textParam(item.recurrence_checklist_item_id || createRecordId()),
         label: textParam(item.label),
         now,
         sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
@@ -375,7 +375,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(item.created_by_user_id || updatedByUserId),
-        itemId: textParam(item.recurrence_checklist_item_id || randomUUID()),
+        itemId: textParam(item.recurrence_checklist_item_id || createRecordId()),
         label: textParam(item.label),
         now,
         sortOrder: integerParam(item.sort_order || ((index + 1) * 1000)),
@@ -478,7 +478,7 @@ VALUES (
 );
 `, {
         createdByUserId: nullableTextParam(link.created_by_user_id || updatedByUserId),
-        linkId: textParam(link.recurrence_note_link_id || randomUUID()),
+        linkId: textParam(link.recurrence_note_link_id || createRecordId()),
         linkRole: textParam(link.link_role || "related"),
         noteId: textParam(link.note_id),
         now,
@@ -529,6 +529,7 @@ SELECT
   task_recurrence_templates.due_at_utc,
   task_recurrence_templates.rrule,
   task_recurrence_templates.recurrence_end_date,
+  task_recurrence_templates.recovery_checkpoint_date,
   task_recurrence_templates.template_status,
   task_recurrence_templates.created_by_user_id,
   task_recurrence_templates.updated_by_user_id,
@@ -582,6 +583,7 @@ function templateRowToAppValue(row) {
     due_at_utc: row.due_at_utc || "",
     rrule: row.rrule || "",
     recurrence_end_date: row.recurrence_end_date || "",
+    recovery_checkpoint_date: row.recovery_checkpoint_date || "",
     template_status: row.template_status || "active",
     created_by_user_id: row.created_by_user_id || "",
     updated_by_user_id: row.updated_by_user_id || "",

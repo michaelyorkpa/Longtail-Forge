@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { notesRepository } from "./notes.repo.js";
 import {
   NOTE_IMPORT_METADATA_FIELDS,
@@ -226,13 +225,8 @@ async function create(payload, session) {
   await assertNoteCollectionAccess(session, normalized);
   await assertCanAccess(session, normalized, "create");
 
-  const noteId = normalized.note_id || randomUUID();
-  const noteForCreate = {
-    ...normalized,
-    note_id: noteId,
-  };
-  const stagedLinks = await prepareCreateLinksFromPayload(session, noteForCreate, payload);
-  const note = await notesRepository.createWithLinks(session.workspace_id, noteForCreate, stagedLinks);
+  const stagedLinks = await prepareCreateLinksFromPayload(session, normalized, payload);
+  const note = await notesRepository.createWithLinks(session.workspace_id, normalized, stagedLinks);
   await saveTargetTags(session, note.note_id, payload);
   await requestTagPropagationRefresh(session, "note", note.note_id, "note.created_with_context");
   const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
@@ -1080,7 +1074,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
 
   return {
     ...(previousNote || {}),
-    note_id: previousNote?.note_id || payload.note_id || payload.noteId || randomUUID(),
+    note_id: previousNote?.note_id || payload.note_id || payload.noteId,
     workspace_id: session.workspace_id,
     title,
     slug: normalizeOptionalText(payload.slug ?? previousNote?.slug) || slugifyNoteTitle(title),
@@ -2254,7 +2248,7 @@ function normalizeLinkPayload(payload = {}, noteId, session) {
   const target = normalizeTarget(payload);
 
   return {
-    note_link_id: payload.noteLinkId || payload.note_link_id || randomUUID(),
+    note_link_id: payload.noteLinkId || payload.note_link_id,
     workspace_id: session.workspace_id,
     note_id: noteId,
     module_id: target.module_id,
@@ -3396,7 +3390,7 @@ async function normalizeCollectionPayload(payload = {}, session, previous = null
   const metadata = normalizeMetadata(payload.metadata || payload.metadata_json || previous?.metadata || {});
   return {
     ...(previous || {}),
-    note_library_collection_id: previous?.note_library_collection_id || payload.noteLibraryCollectionId || payload.note_library_collection_id || randomUUID(),
+    note_library_collection_id: previous?.note_library_collection_id || payload.noteLibraryCollectionId || payload.note_library_collection_id,
     workspace_id: session.workspace_id,
     title,
     slug: normalizeOptionalText(payload.slug) || (previous && title === previous.title ? previous.slug : slugifyNoteTitle(title)),

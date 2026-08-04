@@ -19,7 +19,7 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "b1d745bd05ea7c00199d9586aec2ea3695d7cf8ca8ceea20d0dc3bcfabd93f1e";
+const EXPECTED_INVENTORY_SHA256 = "1152f08f6dca593e5caeb4787278b6b34f22f377a7a0d5bbc625af50d5d2eb93";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
@@ -47,7 +47,7 @@ check("generated catalog is complete and deterministically ordered", () => {
   assert.deepEqual(entries.map((entry) => entry.directoryName), ids);
 });
 
-check("module and contribution inventory matches the pre-conversion baseline", () => {
+check("module and contribution inventory matches the approved baseline", () => {
   const inventory = stableValue(listModules().map(({ version: _version, ...moduleDefinition }) => moduleDefinition));
   const hash = createHash("sha256").update(JSON.stringify(inventory)).digest("hex");
   if (process.env.LTF_PRINT_MODULE_INVENTORY_HASH === "1") {

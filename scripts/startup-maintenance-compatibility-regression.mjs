@@ -14,15 +14,12 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Startup-Maintenance-Compatibility-Test-123!";
 delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const dbIndexSource = readText("src/db/index.js");
 const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -45,9 +42,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the startup maintenance compatibility version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the startup maintenance compatibility version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the startup maintenance compatibility version");
 
   assertNoLiteralHelperCalls("db/index startup maintenance", dbIndexSource);
   assertNoLiteralHelperCalls("application startup maintenance", appStartupMaintenanceSource);
@@ -69,7 +63,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.29[\s\S]*`src\/db\/index\.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*18 remaining helper invocations/, "database docs should record the startup maintenance compatibility outcome");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.29 - Startup maintenance compatibility path[\s\S]*- \[x\] Review `src\/db\/index\.js`[\s\S]*- \[x\] Convert paths that can safely move[\s\S]*- \[x\] Account for dialect-sensitive startup statements[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.29 - [\s\S]*Startup maintenance compatibility path[\s\S]*18 helper invocations[\s\S]*8 direct interpolated operation sites[\s\S]*375 bound operation sites/, "changelog should record the startup maintenance compatibility burndown");
-  assert.match(regressionSuite, /scripts\/startup-maintenance-compatibility-regression\.mjs/, "regression suite should include the startup maintenance compatibility proof");
 }
 
 async function assertFreshStartupMaintenance() {

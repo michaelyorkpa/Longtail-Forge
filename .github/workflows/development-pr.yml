@@ -15,6 +15,7 @@ jobs:
   classify_changes:
     name: Classify pull-request changes
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       github_only_docs: ${{ steps.changes.outputs.github_only_docs }}
       runtime_help_changed: ${{ steps.changes.outputs.runtime_help_changed }}
@@ -38,6 +39,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - name: Check out the proposed revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,6 +75,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: GitHub-only documentation browser fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
@@ -85,6 +88,11 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
       - name: Context/setup timing
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
@@ -99,6 +107,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: GitHub-only documentation proxy fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
@@ -119,6 +128,12 @@ jobs:
           npm ci
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends nginx openssl
+      - name: Restore the checksum-bound Caddy download cache
+        if: needs.classify_changes.outputs.github_only_docs != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/longtail-forge/caddy
+          key: caddy-${{ runner.os }}-${{ runner.arch }}-2.11.4-8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
       - name: Install pinned Caddy smoke binary
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         env:
@@ -126,9 +141,13 @@ jobs:
           CADDY_VERSION: 2.11.4
         run: |
           mkdir -p "$RUNNER_TEMP/caddy"
-          curl --fail --location --proto '=https' --tlsv1.2 --output "$RUNNER_TEMP/caddy.tar.gz" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
-          echo "${CADDY_ARCHIVE_SHA512}  $RUNNER_TEMP/caddy.tar.gz" | sha512sum --check --strict
-          tar --extract --gzip --file "$RUNNER_TEMP/caddy.tar.gz" --directory "$RUNNER_TEMP/caddy" caddy
+          mkdir -p "$HOME/.cache/longtail-forge/caddy"
+          CADDY_ARCHIVE="$HOME/.cache/longtail-forge/caddy/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          if [ ! -f "$CADDY_ARCHIVE" ]; then
+            curl --fail --location --proto '=https' --tlsv1.2 --output "$CADDY_ARCHIVE" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          fi
+          echo "${CADDY_ARCHIVE_SHA512}  $CADDY_ARCHIVE" | sha512sum --check --strict
+          tar --extract --gzip --file "$CADDY_ARCHIVE" --directory "$RUNNER_TEMP/caddy" caddy
           chmod 0755 "$RUNNER_TEMP/caddy/caddy"
           echo "$RUNNER_TEMP/caddy" >> "$GITHUB_PATH"
       - name: Execute the complete maintenance release rehearsal
@@ -138,6 +157,7 @@ jobs:
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

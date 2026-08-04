@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,8 +10,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-rel
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Relationships-Repository-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const taskRelationshipsRepoSource = readText("src/modules/tasks/task-relationships.repo.js");
 const tasksRepoSource = readText("src/modules/tasks/tasks.repo.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
@@ -21,7 +18,6 @@ const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskRelationshipsRepository } = await import("../src/modules/tasks/task-relationships.repo.js");
@@ -41,9 +37,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Task relationships repository conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Task relationships repository conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task relationships repository conversion version");
 
   assert.match(taskRelationshipsRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Task relationships repository should import only the provider-neutral db facade");
   assert.doesNotMatch(taskRelationshipsRepoSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Task relationships repository should not use SQL literal helpers or compatibility query wrappers");
@@ -65,7 +58,6 @@ function assertStaticContract() {
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.10[\s\S]*task relationships repository uses named bound params[\s\S]*array-valued task-id params[\s\S]*boolean seam/, "Tasks docs should describe the converted relationship persistence boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.10 - Conversion wave: Task relationships repository[\s\S]*- \[x\] Convert `tasks\/task-relationships\.repo`[\s\S]*- \[x\] Preserve parent\/child reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.10 - [\s\S]*Task relationships repository conversion[\s\S]*1,285 helper invocations[\s\S]*204 direct interpolated operation sites[\s\S]*134 bound operation sites/, "changelog should record the Task relationships conversion burndown");
-  assert.match(regressionSuite, /scripts\/task-relationships-repository-conversion-regression\.mjs/, "regression suite should include the Task relationships repository conversion proof");
 }
 
 async function assertRepositoryLifecycle(session) {

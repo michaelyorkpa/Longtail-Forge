@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
@@ -33,10 +33,41 @@ async function readClientProjects(session, options = {}) {
   const visibleWorkspaceProjects = (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id));
   // One decoration per record set: workspace projects decorate here and are
   // excluded from the client-project decoration below.
-  const [decoratedWorkspaceProjects, decoratedClients, decoratedClientProjects] = await Promise.all([
+  const [
+    decoratedWorkspaceProjects,
+    decoratedClients,
+    decoratedClientProjects,
+    canCreateTopLevelClient,
+    canCreateChildClient,
+    canCreateWorkspaceProject,
+    canManageWorkspaceProjects,
+    canCreateProjectForClient,
+    canManageProject,
+  ] = await Promise.all([
     tagsService.decorateRecordsForTarget(session, "project", visibleWorkspaceProjects),
     tagsService.decorateRecordsForTarget(session, "client", visibleClients),
     tagsService.decorateRecordsForTarget(session, "project", readableProjects.filter((project) => project.client_id)),
+    permissionsService.can(session, "clients.manage", {
+      workspace_id: session.workspace_id,
+      operation: "create",
+    }),
+    permissionsService.createPermissionEvaluator(session, "clients.manage", {
+      operation: "update",
+    }),
+    permissionsService.can(session, "projects.manage", {
+      workspace_id: session.workspace_id,
+      operation: "create",
+    }),
+    permissionsService.can(session, "projects.manage", {
+      workspace_id: session.workspace_id,
+      operation: "update",
+    }),
+    permissionsService.createPermissionEvaluator(session, "projects.manage", {
+      operation: "create",
+    }),
+    permissionsService.createPermissionEvaluator(session, "projects.manage", {
+      operation: "update",
+    }),
   ]);
   const policiesByTarget = includeReminderPolicies
     ? await readReminderPoliciesForVisibleRecords(session.workspace_id, {
@@ -46,18 +77,55 @@ async function readClientProjects(session, options = {}) {
     : null;
 
   const workspaceProjects = buildProjectShape(
-    decoratedWorkspaceProjects.map((project) => attachTargetReminderPolicy(project, "project", policiesByTarget)),
+    decoratedWorkspaceProjects.map((project) => ({
+      ...attachTargetReminderPolicy(project, "project", policiesByTarget),
+      can_manage: canManageProject({
+        workspace_id: session.workspace_id,
+        client_id: "",
+        project_id: project.id,
+      }),
+    })),
     { shape: "flat", includeDepth: true },
   ).map(stripProjectClientIdForWorkspacePayload);
   const projectsById = new Map(decoratedClientProjects
-    .map((project) => attachTargetReminderPolicy(project, "project", policiesByTarget))
+    .map((project) => ({
+      ...attachTargetReminderPolicy(project, "project", policiesByTarget),
+      can_manage: canManageProject({
+        workspace_id: session.workspace_id,
+        client_id: project.client_id,
+        project_id: project.id,
+      }),
+    }))
     .map((project) => [project.id, project]));
   const shapedClients = buildClientShape(
-    decoratedClients.map((client) => attachTargetReminderPolicy(client, "client", policiesByTarget)),
+    decoratedClients.map((client) => ({
+      ...attachTargetReminderPolicy(client, "client", policiesByTarget),
+      can_create_child: canCreateChildClient({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+      can_create_project: canCreateProjectForClient({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+      can_manage: canCreateChildClient({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+      can_manage_projects: canManageProject({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+    })),
     { shape: "flat", includeDepth: true },
   );
 
   return {
+    capabilities: {
+      can_create_top_level_client: workspaceSettings.workspaceType === "business" && canCreateTopLevelClient,
+      can_create_workspace_project: canCreateWorkspaceProject,
+      can_manage_workspace_projects: canManageWorkspaceProjects,
+    },
     workspaceProjects,
     clients: shapedClients
       .map((client) => ({
@@ -551,8 +619,25 @@ async function listClients(session, query = {}) {
     tagFilters,
   );
 
-  const decoratedClients = await tagsService.decorateRecordsForTarget(session, "client", filteredClients);
-  return { clients: buildClientShape(decoratedClients, shapeOptions) };
+  const [decoratedClients, canCreateChildClient] = await Promise.all([
+    tagsService.decorateRecordsForTarget(session, "client", filteredClients),
+    permissionsService.createPermissionEvaluator(session, "clients.manage", {
+      operation: "update",
+    }),
+  ]);
+  return {
+    clients: buildClientShape(decoratedClients.map((client) => ({
+      ...client,
+      can_create_child: canCreateChildClient({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+      can_manage: canCreateChildClient({
+        workspace_id: session.workspace_id,
+        client_id: client.id,
+      }),
+    })), shapeOptions),
+  };
 }
 
 async function readClient(clientId, session) {
@@ -575,26 +660,37 @@ async function readClient(clientId, session) {
 
 async function createClient(payload, session) {
   await assertBusinessWorkspace(session);
-  await permissionsService.assertCan(session, "clients.manage", {
-    workspace_id: session.workspace_id,
-    operation: "create",
-  });
-  const client = normalizeClientPayload(payload, { id: payload?.id || randomUUID() });
-  const parentClient = await validateClientParent(session.workspace_id, client.id, client.parent_client_id);
+  const client = normalizeClientPayload(payload, { id: payload?.id || createRecordId() });
+  let parentClient = null;
 
-  if (parentClient) {
+  if (client.parent_client_id) {
     await permissionsService.assertCan(session, "clients.manage", {
       workspace_id: session.workspace_id,
-      client_id: parentClient.id,
+      client_id: client.parent_client_id,
       operation: "update",
+    });
+    parentClient = await validateClientParent(session.workspace_id, client.id, client.parent_client_id);
+    if (
+      (Object.hasOwn(payload || {}, "tagIds") || Object.hasOwn(payload || {}, "tag_ids")) &&
+      !(await permissionsService.can(session, "clients.manage", {
+        workspace_id: session.workspace_id,
+        operation: "create",
+      }))
+    ) {
+      throw new AppError("Tags cannot be assigned while creating a scoped child client.", 403);
+    }
+  } else {
+    await permissionsService.assertCan(session, "clients.manage", {
+      workspace_id: session.workspace_id,
+      operation: "create",
     });
   }
 
   await clientsRepository.create(session.workspace_id, client);
   await saveClientReminderPolicy(session.workspace_id, client.id, payload);
   await saveTargetTags(session, "client", client.id, payload);
-  if (client.parent_client_id) {
-    await requestTagPropagationRefresh(session, "client", client.id, "client.created_with_parent");
+  if (parentClient) {
+    await requestTagPropagationRefresh(session, "client", parentClient.id, "client.created_with_parent");
   }
   await recordAudit(payload?.action, {
     session,
@@ -764,8 +860,29 @@ async function listProjects(session, query = {}) {
     tagFilters,
   );
 
-  const decoratedProjects = await tagsService.decorateRecordsForTarget(session, "project", filteredProjects);
-  return { projects: buildProjectReadShape(decoratedProjects, orderingClients, shapeOptions) };
+  const [decoratedProjects, canManageProject, canCreateWorkspaceProject] = await Promise.all([
+    tagsService.decorateRecordsForTarget(session, "project", filteredProjects),
+    permissionsService.createPermissionEvaluator(session, "projects.manage", {
+      operation: "update",
+    }),
+    permissionsService.can(session, "projects.manage", {
+      workspace_id: session.workspace_id,
+      operation: "create",
+    }),
+  ]);
+  return {
+    capabilities: {
+      can_create_workspace_project: canCreateWorkspaceProject,
+    },
+    projects: buildProjectReadShape(decoratedProjects.map((project) => ({
+      ...project,
+      can_manage: canManageProject({
+        workspace_id: session.workspace_id,
+        client_id: project.client_id,
+        project_id: project.id,
+      }),
+    })), orderingClients, shapeOptions),
+  };
 }
 
 async function listClientProjects(clientId, session) {
@@ -821,7 +938,7 @@ async function createProject(clientId, payload, session) {
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
   assertProjectClientAssignmentAllowed(workspaceSettings.workspaceType, clientId, payload);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
-  const projectId = normalizedPayload?.id || randomUUID();
+  const projectId = normalizedPayload?.id || createRecordId();
   const decodedClientId = usesProjectRoundingOnly
     ? ""
     : decodeURIComponent(clientId || normalizedPayload?.client_id || "");
@@ -1376,14 +1493,46 @@ async function assertUniqueProjectNameInScope(workspaceId, clientId, projectName
 }
 
 async function recordAudit(providedAction, auditEvent) {
+  const canonicalProvidedAction = canonicalizeProvidedAction(providedAction, auditEvent);
   await auditService.record({
     ...auditEvent,
-    action: providedAction?.action || auditEvent.action,
+    action: canonicalProvidedAction?.action || auditEvent.action,
     metadata: {
       ...(auditEvent.metadata || {}),
-      provided_action: providedAction || null,
+      provided_action: canonicalProvidedAction || null,
     },
   });
+}
+
+function canonicalizeProvidedAction(providedAction, auditEvent) {
+  if (!providedAction || typeof providedAction !== "object" || Array.isArray(providedAction)) {
+    return providedAction;
+  }
+
+  const metadata = auditEvent.metadata || {};
+  const canonical = {};
+  for (const field of [
+    "client_id",
+    "client_name",
+    "parent_client_id",
+    "project_id",
+    "project_name",
+    "parent_project_id",
+  ]) {
+    if (Object.hasOwn(metadata, field)) {
+      canonical[field] = metadata[field];
+    }
+  }
+
+  if (auditEvent.recordType === "client") {
+    canonical.client_id = auditEvent.recordId;
+    canonical.client_name = auditEvent.recordLabel;
+  } else if (auditEvent.recordType === "project") {
+    canonical.project_id = auditEvent.recordId;
+    canonical.project_name = auditEvent.recordLabel;
+  }
+
+  return { ...providedAction, ...canonical };
 }
 
 // One batched offsets read covers every permission-filtered client and

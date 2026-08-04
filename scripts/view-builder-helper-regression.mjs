@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
@@ -6,14 +5,8 @@ import { readFileSync } from "node:fs";
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
 const changelog = readText("CHANGELOG.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -236,7 +229,6 @@ assert.match(css, /\.view-linked-context-picker\s*\{[\s\S]*display:\s*grid/, "CS
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");
 assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");
-assert.match(regressionSuite, /scripts\/view-builder-helper-regression\.mjs/, "Regression suite should include helper regression");
 
 console.log("View builder helper regression passed.");
 

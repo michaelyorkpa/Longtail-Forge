@@ -32,6 +32,10 @@ The current licensing state is complete for ordinary private development:
 - Longtail Forge Core and the root package metadata use `AGPL-3.0-only`; the full license text is in the root [`LICENSE`](../LICENSE) file.
 - The commercial/hosted/private-tooling boundary remains separate from the public core license.
 - The [trademark policy](licensing/trademark-policy.md) governs use of the Longtail Forge name and branding.
+- The reviewed root [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) covers
+  the production dependency closure and bundled Lucide-derived icon subset.
+  `npm run third-party-notices:check` rejects lockfile, license-text, or
+  bundled-asset inventory drift.
 - Non-trivial outside code contributions are not currently being accepted. The existing contributor policy and agreement are planning documents, not an active public contribution process.
 
 Missing future publication or contribution artifacts do not mean the current license is broken, and they do not block ordinary private feature slices.
@@ -40,13 +44,27 @@ Missing future publication or contribution artifacts do not mean the current lic
 
 These gates activate only when their trigger is intentionally reached:
 
-| Gate | Trigger | Required before activation |
-| --- | --- | --- |
-| Public contribution acceptance | The project begins accepting non-trivial outside code contributions | Add `CONTRIBUTING.md`, add a pull-request template, activate the CLA workflow, and link those instructions to the contributor policy. Do not add public-contributor language before that decision. |
-| Public app legal/about notice | The app is prepared for a public release | Add the legal/about surface with project/version, copyright, AGPL/source, warranty, third-party notice, and trademark references described by the repository integration checklist. |
-| Third-party notices | A public release is prepared or dependency/asset notice requirements change | Generate and review `THIRD_PARTY_NOTICES.md` for shipped dependencies and bundled third-party material. |
+| Gate | Status | Trigger | Required before activation |
+| --- | --- | --- | --- |
+| Public contribution acceptance | Inactive | The project begins accepting non-trivial outside code contributions | Add `CONTRIBUTING.md`, add a pull-request template, activate the CLA workflow, and link those instructions to the contributor policy. Do not add public-contributor language before that decision. |
+| Public app legal/about notice | Active and satisfied | Public-release preparation began in 0.33.25.2 | Maintain the framework Help legal/about surface with live runtime version identity, version-accurate Corresponding Source and tracked policy links, AGPL warranty language, and notices hydrated from the root `THIRD_PARTY_NOTICES.md`. |
+| Public Terms and Privacy surfaces | Active with neutral operator templates | A hosted instance is exposed to users | Maintain session-less footer-linked pages and neutral downstream-safe defaults. Each hosted operator owns accurate installation-specific content. Before first-party public analytics, feedback, or interest capture is enabled, 0.33.32 must record the review path appropriate to the actual launch scope, including whether professional legal review is warranted. |
+| Third-party notices | Active and satisfied | A public release is prepared or dependency/asset notice requirements change | Maintain the reviewed root `THIRD_PARTY_NOTICES.md`; regenerate and hand-review it whenever the production dependency or bundled-asset inventory changes. |
 
-Run `npm run licensing:gates` to see the current future-gate readout. The command is deliberately warning-only: absent public-release or public-contribution artifacts do not fail normal private development.
+Run `npm run licensing:gates` to see the current gate readout. It confirms the
+active in-app legal/about and third-party-notices surfaces and reports future
+public-contribution artifacts as warnings. The command remains warning-only for
+ordinary private development; `npm run third-party-notices:check` is the
+standalone hard drift check.
+
+The public footer states `AGPL-3.0-only` and links Corresponding Source for the
+exact running commit or canonical release tag using the operator-configured
+source template. Terms and Privacy are public without a session, but the
+bundled documents are deliberately neutral templates. Do not relabel those
+templates as Raymond Tec terms, commit customer- or host-specific legal text,
+or treat the technical surface as evidence of legal approval. Longtail Forge
+does not claim professional legal review occurred in 0.33.25; that review-path
+decision is deferred to the 0.33.32 public-demo privacy gate.
 
 ### Private repository boundary
 

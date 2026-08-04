@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 
 const API_KEY_COLUMNS = [
   "api_key_id",
@@ -32,7 +32,7 @@ VALUES (
 `;
 
 async function create({ workspaceId, createdByUserId, name, keyHash, keyPrefix, scopes }) {
-  const apiKeyId = randomUUID();
+  const apiKeyId = createRecordId();
   const now = new Date().toISOString();
 
   await db.transaction(async (transaction) => {

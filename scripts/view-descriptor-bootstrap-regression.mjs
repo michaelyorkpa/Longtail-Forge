@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
@@ -18,16 +17,10 @@ const protectedUserId = "view-descriptor-bootstrap-protected-user";
 const deniedUserId = "view-descriptor-bootstrap-denied-user";
 const protectedSession = sessionFor(protectedUserId);
 const deniedSession = sessionFor(deniedUserId);
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const navigationScript = readText("public/js/navigation.js");
 const appShellServiceSource = readText("src/services/app-shell.service.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(appShellServiceSource, /modulesService\.listActiveViewSurfaces\(session\.workspace_id, session\)/, "App shell should deliver view descriptors through the existing bootstrap path");
 assert.doesNotMatch(appShellServiceSource, /view-surfaces|viewSurfaces\/bootstrap|descriptor\/bootstrap/, "Descriptors should not get a separate bootstrap transport");
@@ -35,7 +28,6 @@ assert.match(navigationScript, /viewSurfaces: shell\.viewSurfaces \|\| shell\.wo
 assert.match(navigationScript, /viewSurfaces: Array\.isArray\(settings\.viewSurfaces\)/, "Stored workspace context should preserve descriptors");
 assert.match(modulesServiceSource, /requiredPermissionsAllowed\(protectedView, session\)/, "Descriptor delivery should honor protected view permissions");
 assert.match(modulesServiceSource, /!enabledModuleIds\.has\(surface\.moduleId\)/, "Descriptor delivery should skip disabled modules");
-assert.match(regressionSuite, /scripts\/view-descriptor-bootstrap-regression\.mjs/, "Regression suite should include descriptor bootstrap regression");
 
 try {
   await initializeDatabase();

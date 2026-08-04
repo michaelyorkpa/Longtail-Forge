@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -519,7 +519,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
   }
 
   return {
-    active_timer_id: payload?.active_timer_id || randomUUID(),
+    active_timer_id: payload?.active_timer_id || createRecordId(),
     workspace_id: session.workspace_id,
     user_id: session.user_id,
     timer_slot: timerSlot,

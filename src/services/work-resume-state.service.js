@@ -1,7 +1,7 @@
 // @ts-check
-import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 import { AppError } from "../utils/app-error.js";
 import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
@@ -123,7 +123,7 @@ async function upsertResumeState(session, payload = {}) {
     dismissedAt: shouldClearDismissal ? null : previous?.dismissed_at,
     normalized,
     now,
-    resumeStateId: previous?.resume_state_id || normalized.resume_state_id || randomUUID(),
+    resumeStateId: previous?.resume_state_id || normalized.resume_state_id || createRecordId(),
     rowCreatedAt: previous?.created_at || now,
   }));
 

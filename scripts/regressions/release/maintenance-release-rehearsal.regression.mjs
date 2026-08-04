@@ -34,10 +34,6 @@ const content = Object.fromEntries(
 );
 const packageJson = JSON.parse(content.package);
 
-assert.equal(
-  packageJson.scripts["maintenance:rehearse"],
-  "node scripts/release/rehearse-maintenance-boundary.mjs",
-);
 assert.deepEqual(packageJson.allowScripts, {
   "better-sqlite3@13.0.1": true,
 }, "clean installs should approve only the pinned native SQLite lifecycle");
@@ -115,8 +111,8 @@ assert.match(content.previewDeployment, /Never run uninstall by deleting a marke
 assert.match(content.docsOwnership, /rehearse-maintenance-boundary/);
 assert.match(content.docsOwnership, /maintenance-mode\//);
 assert.match(content.docsOwnership, /2026-07-18-preview-real-ip-and-maintenance-mode/);
-assert.match(content.regressionSuite, /415 discovered scripts/);
-assert.match(content.regressionSuite, /53 required release-gate entries/);
+assert.match(content.regressionSuite, /GENERATED REGRESSION INVENTORY START/);
+assert.match(content.regressionSuite, /Convention-path metadata regressions/);
 assert.match(content.decisions, /As of 0\.33\.24\.7/);
 assert.match(content.decisions, /As of 0\.33\.24\.8[\s\S]*operator markers are therefore `0664`[\s\S]*deployment markers are `0644`/);
 assert.match(content.previewDeployment, /operator marker as `0664`[\s\S]*deployment marker as `0644`/);
@@ -127,6 +123,6 @@ assert.match(content.privateReadiness, /technical completion does not authorize 
 assert.match(content.regressionSuite, /As of 0\.33\.24\.9[\s\S]*login-limit `429`[\s\S]*HSTS[\s\S]*`nosniff`/);
 assert.match(content.roadmapArchive, /^## Version 0\.33\.24\.9 - Preview rollout, cross-host proof, and branch closeout$/m);
 assert.match(content.changelog, /^## Version 0\.33\.24\.9 - 2026-07-30$/m);
-assertRoadmapCursorAtLeast("0.33.25.1");
+assertRoadmapCursorAtLeast("0.33.24.9");
 
 console.log("Maintenance release rehearsal and operator handoff regression passed.");

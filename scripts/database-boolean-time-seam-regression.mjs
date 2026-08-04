@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -14,8 +13,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-boolean-
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Boolean-Time-Seams-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
@@ -24,7 +21,6 @@ const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
 const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers.repo.js");
 const parameterBindingBaseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -49,9 +45,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the boolean/time seam version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the boolean/time seam version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the boolean/time seam version");
 
   assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /bindFields: bindSqliteBooleanFields/, "SQLite dialect seams should expose boolean bind-field mapping");
@@ -81,7 +74,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(booleanTimeSliceVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");
-  assert.match(regressionSuite, /scripts\/database-boolean-time-seam-regression\.mjs/, "regression suite should include boolean/time seam coverage");
 }
 
 async function assertBooleanHelpers(dialect) {

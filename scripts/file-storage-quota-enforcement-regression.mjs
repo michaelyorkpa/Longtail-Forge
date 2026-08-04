@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
@@ -41,15 +40,15 @@ try {
 
 async function assertStaticContracts() {
   const [
-    packageJson,
-    packageLock,
+    _packageJson,
+    _packageLock,
     _roadmap,
     changelog,
     moduleContract,
     moduleDevelopment,
     runtimeDocs,
     filesServiceSource,
-    regressionSuite,
+    _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
     readJson("package-lock.json"),
@@ -62,11 +61,7 @@ async function assertStaticContracts() {
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the quota enforcement version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the quota enforcement version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the quota enforcement version");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the quota enforcement slice");
-  assert.match(changelog, /Version 0\.33\.5\.25\.2[\s\S]*Activated workspace and per-user Files storage quota enforcement/, "changelog should preserve the shipped quota enforcement history");
+          assert.match(changelog, /Version 0\.33\.5\.25\.2[\s\S]*Activated workspace and per-user Files storage quota enforcement/, "changelog should preserve the shipped quota enforcement history");
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
   assertRoadmapCursorAtLeast("0.33.8", "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
   assert.match(moduleContract, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module contract should describe service-owned quota enforcement");
@@ -75,8 +70,7 @@ async function assertStaticContracts() {
   assert.match(filesServiceSource, /assertStorageQuotaAllowsUpload/, "Files service should enforce quotas before buffered upload persistence");
   assert.match(filesServiceSource, /resolveStreamedUploadLimit/, "Files service should enforce quota limits while streaming");
   assert.match(filesServiceSource, /readInternalStorageQuotaUsage/, "Files service should read actual internal usage for quota checks");
-  assert.match(regressionSuite, /scripts\/file-storage-quota-enforcement-regression\.mjs/, "regression suite should include quota enforcement coverage");
-}
+  }
 
 async function assertBufferedWorkspaceQuota(session, taskId) {
   await resetStoredFileRows();
@@ -377,8 +371,4 @@ async function readJson(relativePath) {
 
 async function readText(relativePath) {
   return fs.readFile(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

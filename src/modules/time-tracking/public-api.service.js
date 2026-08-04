@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { auditService } from "../../core/audit.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -38,7 +38,7 @@ async function createTimeEntry(context, rawPayload) {
     settingsRepository.readWorkspaceSettings(context.workspace_id),
   ]);
 
-  const entryId = payload.entry_id || randomUUID();
+  const entryId = payload.entry_id || createRecordId();
   const entry = normalizeTimeEntry({
     entry_id: entryId,
     workspace_id: context.workspace_id,

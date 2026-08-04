@@ -16,6 +16,8 @@ const { activateModuleRuntime } = await import("../src/core/modules/module-runti
 const expectedFrameworkArticles = [
   "framework.help-center",
   "framework.getting-started",
+  "framework.dashboard-workbench",
+  "framework.workbench-focus",
   "framework.workspaces",
   "framework.users-permissions",
   "framework.clients-projects",
@@ -23,14 +25,22 @@ const expectedFrameworkArticles = [
   "framework.tasks",
   "framework.notifications",
   "framework.tags",
+  "framework.tags-search",
   "framework.search",
   "framework.files-attachments",
+  "framework.action-catalog",
+  "framework.goals",
   "framework.settings",
+  "framework.administration",
   "framework.modules",
+  "framework.legal-licensing",
+  "framework.third-party-notices",
 ];
 const expectedTitles = [
   "Help Center",
   "Getting Started",
+  "Dashboard and Workbench",
+  "Workbench Focus and Recovery",
   "Workspaces and Workspace Switching",
   "Users, Roles, and Permissions",
   "Clients and Projects",
@@ -38,10 +48,16 @@ const expectedTitles = [
   "Tasks Basics",
   "Notifications",
   "Tags",
+  "Tags and Search",
   "Search",
   "Files and Attachments",
+  "Action Catalog",
+  "What Do You Want to Do?",
   "Settings and User Preferences",
+  "Administration and Settings",
   "Modules and Optional Features",
+  "Legal and Licensing",
+  "Third-Party Notices",
 ];
 
 let checks = 0;
@@ -87,6 +103,8 @@ try {
     const articlePaths = new Map([
       ["framework.help-center", "help/framework/help-center.md"],
       ["framework.getting-started", "help/framework/getting-started.md"],
+      ["framework.dashboard-workbench", "help/framework/dashboard-and-workbench.md"],
+      ["framework.workbench-focus", "help/framework/workbench-focus-and-recovery.md"],
       ["framework.workspaces", "help/framework/workspaces-and-switching.md"],
       ["framework.users-permissions", "help/framework/users-roles-and-permissions.md"],
       ["framework.clients-projects", "help/framework/clients-and-projects.md"],
@@ -94,9 +112,13 @@ try {
       ["framework.tasks", "help/framework/tasks-basics.md"],
       ["framework.notifications", "help/framework/notifications.md"],
       ["framework.tags", "help/framework/tags.md"],
+      ["framework.tags-search", "help/framework/tags-and-search.md"],
       ["framework.search", "help/framework/search.md"],
       ["framework.files-attachments", "help/framework/files-and-attachments.md"],
+      ["framework.action-catalog", "help/framework/action-catalog.md"],
+      ["framework.goals", "help/framework/what-do-you-want-to-do.md"],
       ["framework.settings", "help/framework/settings-and-user-preferences.md"],
+      ["framework.administration", "help/framework/administration-and-settings.md"],
       ["framework.modules", "help/framework/modules-and-optional-features.md"],
     ]);
 
@@ -138,6 +160,161 @@ try {
     assert.match(modules.body, /Third-party modules use the same ownership model/);
   });
 
+  await check("action references cover registered framework and first-party actions", async () => {
+    const coverage = [
+      {
+        helpPath: "help/framework/action-catalog.md",
+        sourcePath: "src/services/app-shell.service.js",
+        sourceTokens: [
+          'label: "Timer"',
+          'label: "Task"',
+          'label: "Note"',
+          'label: "List"',
+          'label: "File"',
+          'label: "Reporting"',
+          'label: "Search"',
+        ],
+        helpTokens: ["| Timer |", "| Task |", "| Note |", "| List |", "| File |", "| Reporting |", "| Search |"],
+      },
+      {
+        helpPath: "help/framework/action-catalog.md",
+        sourcePath: "src/services/dashboard.service.js",
+        sourceTokens: ['label: "Open Workbench"', 'label: "Manage Modules"', 'label: "Open Notifications"', 'label: "Open Settings"'],
+        helpTokens: ["| Open Workbench |", "| Manage Modules |", "| Open Notifications |", "| Open Settings |"],
+      },
+      {
+        helpPath: "help/framework/action-catalog.md",
+        sourcePath: "public/js/clients-projects.js",
+        sourceTokens: ['actionId: "clients.add"', 'actionId: "clients.edit"', 'actionId: "projects.add"', 'actionId: "projects.edit"'],
+        helpTokens: ["| Add Client |", "| Edit Client |", "| Add Project |", "| Edit Project |"],
+      },
+      {
+        helpPath: "help/framework/action-catalog.md",
+        sourcePath: "public/js/files.js",
+        sourceTokens: ['action: "files.preview"', 'action: "files.report"', 'action: "files.quarantine"', 'action: "files.delete"', 'action: "files.restore"'],
+        helpTokens: ["| Preview |", "| Report |", "| Review |", "| Delete / Restore |"],
+      },
+      {
+        helpPath: "help/modules/tasks/actions.md",
+        sourcePath: "public/js/tasks.js",
+        sourceTokens: ['label: "Assign"', 'label: "Due Date"', 'label: "Recurrence"', 'label: "Complete"', 'label: "Reopen"', 'label: "Block"', 'label: "Resume"', 'label: "Archive"', 'label: "Restore"'],
+        helpTokens: ["| Assign |", "| Due Date / Due Time |", "| Recurrence |", "| Complete / Reopen |", "| Block / Resume |", "| Archive / Restore |"],
+      },
+      {
+        helpPath: "help/modules/time-tracking/actions.md",
+        sourcePath: "src/modules/time-tracking/module.js",
+        sourceTokens: ['label: "Start"', 'label: "Pause"', 'label: "Save & End"', 'label: "Discard"'],
+        helpTokens: ["| Start |", "| Pause |", "| Save & End / Save Time / Finalize |", "| Discard / Reset |"],
+      },
+      {
+        helpPath: "help/modules/notes/actions.md",
+        sourcePath: "src/modules/notes/module.js",
+        sourceTokens: ['label: "Edit"', 'label: "Archive"', 'label: "Restore"', 'label: "Add Link"', 'label: "Remove"', 'label: "Apply Changes"'],
+        helpTokens: ["| Edit |", "| Archive / Restore |", "| Add Link / Remove |", "**Apply Changes**"],
+      },
+      {
+        helpPath: "help/modules/lists/actions.md",
+        sourcePath: "src/modules/lists/module.js",
+        sourceTokens: ['label: "Duplicate"', 'label: "Complete"', 'label: "Finalize"', 'label: "Mark Reusable"', 'label: "Archive"', 'label: "Restore"', 'label: "Add Item"'],
+        helpTokens: ["| Duplicate |", "| Complete / Reopen |", "| Finalize |", "| Mark Reusable / Unmark Reusable |", "| Archive / Restore |", "| Add Item |"],
+      },
+    ];
+
+    for (const item of coverage) {
+      const [source, help] = await Promise.all([
+        fs.readFile(item.sourcePath, "utf8"),
+        fs.readFile(item.helpPath, "utf8"),
+      ]);
+
+      for (const token of item.sourceTokens) {
+        assert.ok(source.includes(token), `${item.sourcePath} should still register ${token}`);
+      }
+      for (const token of item.helpTokens) {
+        assert.ok(help.includes(token), `${item.helpPath} should document ${token}`);
+      }
+    }
+  });
+
+  await check("goal and administration Help route shipped workflows", async () => {
+    const goals = (await helpService.readArticle(session, "framework.goals")).article.body;
+    const administration = (await helpService.readArticle(session, "framework.administration")).article.body;
+    const help = await helpService.list(session);
+    const articleIds = new Set(help.articles.map((article) => article.id));
+
+    assert.match(goals, /Track time against a client or project/);
+    assert.match(goals, /Capture something without losing focus/);
+    assert.match(goals, /Hand a project to another user/);
+    assert.match(administration, /Settings → Admin → Users/);
+    assert.match(administration, /Settings → Admin → Modules/);
+    assert.match(administration, /Workbench/);
+    assert.match(administration, /Calendar subscription/);
+    for (const articleId of ["tasks.actions", "time-tracking.actions", "notes.actions", "lists.actions"]) {
+      assert.ok(articleIds.has(articleId), `${articleId} should appear while its first-party module is active`);
+    }
+  });
+
+  await check("concept Help stays tied to shipped focus, calendar, notification, tag, and search contracts", async () => {
+    const checksBySource = [
+      {
+        helpPath: "help/framework/workbench-focus-and-recovery.md",
+        sourcePath: "public/js/workbench.js",
+        sourceTokens: [
+          'label: "Pick up where I left off"',
+          'label: "Start with what\'s due"',
+          'label: "Work this week"',
+          'label: "Review blocked work"',
+          'label: "Focus on a project"',
+        ],
+        helpTokens: [
+          "| Pick up where I left off |",
+          "| Start with what’s due |",
+          "| Work this week |",
+          "| Review blocked work |",
+          "| Focus on a project |",
+        ],
+      },
+      {
+        helpPath: "help/framework/workbench-focus-and-recovery.md",
+        sourcePath: "src/core/settings/workbench-focus-policy.js",
+        sourceTokens: [
+          'label: "Candidate Groups"',
+          'label: "Candidate Priority"',
+          'label: "Recently touched first"',
+          'label: "Stale recovery first"',
+        ],
+        helpTokens: ["candidate groups", "Recently touched first", "Stale recovery first", "Running timers remain first"],
+      },
+      {
+        helpPath: "help/modules/tasks/reminders-calendar-and-subscriptions.md",
+        sourcePath: "src/modules/tasks/module.settings.js",
+        sourceTokens: [
+          'label: "Timed Reminder 1 (hours before)"',
+          'label: "Date-Only Reminder 1 (days before)"',
+        ],
+        helpTokens: ["offsets in hours", "offsets in days", "Override reminder defaults"],
+      },
+      {
+        helpPath: "help/modules/tasks/reminders-calendar-and-subscriptions.md",
+        sourcePath: "public/js/calendar-settings.js",
+        sourceTokens: ["Creating calendar subscription", "Rotate calendar subscription URL?", "Revoke calendar subscription?"],
+        helpTokens: ["Settings → Admin → Modules → Calendar", "Rotation invalidates", "Revoke and Remove"],
+      },
+    ];
+
+    for (const item of checksBySource) {
+      const [source, help] = await Promise.all([
+        fs.readFile(item.sourcePath, "utf8"),
+        fs.readFile(item.helpPath, "utf8"),
+      ]);
+      for (const token of item.sourceTokens) {
+        assert.ok(source.includes(token), `${item.sourcePath} should still contain ${token}`);
+      }
+      for (const token of item.helpTokens) {
+        assert.ok(help.includes(token), `${item.helpPath} should explain ${token}`);
+      }
+    }
+  });
+
   await check("framework Help articles index as Help search rows", async () => {
     const summary = await searchIndexRebuildService.rebuildWorkspace({
       audit: false,
@@ -151,6 +328,14 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND record_type = 'help_article'
 ORDER BY record_id;
 `);
+    const moduleActionRows = await querySql(`
+SELECT module_id, record_id, title, source, body
+FROM search_index
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND record_type = 'help_article'
+  AND record_id IN ('tasks.actions', 'tasks.reminders-calendar', 'time-tracking.actions', 'notes.actions', 'lists.actions')
+ORDER BY record_id;
+`);
 
     assert.equal(summary.counts.failed, 0);
     assert.deepEqual(rows.map((row) => row.record_id).sort(), [...expectedFrameworkArticles].sort());
@@ -158,6 +343,12 @@ ORDER BY record_id;
     assert.ok(rows.every((row) => row.body.length >= 120));
     assert.ok(rows.some((row) => /Search results are permission-shaped/.test(row.body)));
     assert.ok(rows.some((row) => /Protected internal files are the default/.test(row.body)));
+    assert.deepEqual(
+      moduleActionRows.map((row) => row.record_id),
+      ["lists.actions", "notes.actions", "tasks.actions", "tasks.reminders-calendar", "time-tracking.actions"],
+    );
+    assert.ok(moduleActionRows.every((row) => row.source === HELP_SEARCH_SOURCE));
+    assert.ok(moduleActionRows.every((row) => row.body.length >= 120));
   });
 
   console.log(`Help content regression passed ${checks} checks.`);

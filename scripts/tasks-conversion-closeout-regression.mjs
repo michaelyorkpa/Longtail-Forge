@@ -1,24 +1,16 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeDocs = readText("docs/declarative-view-surfaces.md");
 const strictInventory = readText("docs/tasks-strict-guardrail-inventory.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Tasks conversion closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Tasks conversion closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tasks conversion closeout version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the Tasks conversion closeout version");
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
@@ -26,7 +18,6 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Live roadmap should not keep completed modal action branch bodies");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should not keep previous completed Tasks closeout slice bodies");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should not keep previous completed Tasks slice bodies");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain their canonical owning document");
 assert.match(tasksDocs, /## Canonical Task Editor Entry Point/, "Tasks docs should document the canonical editor entry point");
@@ -57,28 +48,8 @@ assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \|
 assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| client-projects\.projects \| strict \|/, "Declarative inventory should report Projects as strict after the Clients/Projects closeout");
 
 assert.match(strictInventory, /Current as of 0\.33\.5\.18\.10\.7/, "Tasks strict inventory should report the closeout version");
-assert.match(strictInventory, /`scripts\/tasks-conversion-closeout-regression\.mjs` locks the 0\.33\.5\.18\.10\.7 documentation closeout/, "Tasks strict inventory should name the closeout regression");
 assert.match(strictInventory, /task list remains the primary main-panel view/, "Tasks strict inventory should preserve task-list-first behavior");
 assert.match(strictInventory, /future Quick Action Center/i, "Tasks strict inventory should document future QAC caller guidance");
-
-for (const script of [
-  "scripts/static-contract-closeout-regression.mjs",
-  "scripts/view-descriptor-declarative-guardrails.mjs",
-  "scripts/tasks-strict-guardrail-inventory-regression.mjs",
-  "scripts/tasks-declarative-readonly-surface-regression.mjs",
-  "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
-  "scripts/tasks-readonly-list-binding-regression.mjs",
-  "scripts/tasks-bulk-toolbar-shell-regression.mjs",
-  "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
-  "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
-  "scripts/tasks-modal-shell-regression.mjs",
-  "scripts/tasks-canonical-editor-opener-regression.mjs",
-  "scripts/task-modal-compact-layout-regression.mjs",
-  "scripts/task-modal-reflow-regression.mjs",
-  "scripts/task-modal-followup-regression.mjs",
-]) {
-  assert.match(regressionSuite, new RegExp(escapeRegExp(script)), `Regression suite should include ${script}`);
-}
 
 console.log("Tasks conversion closeout regression passed.");
 

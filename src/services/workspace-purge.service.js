@@ -1,7 +1,8 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { db } from "../core/database.js";
+import { createOpaqueId, createRecordId } from "../core/identifiers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "../core/jobs/job-types.js";
 import { workspaceDeletionLifecycleRepository } from "../repositories/workspace-deletion-lifecycle.repo.js";
 import { workspacePurgeRepository } from "../repositories/workspace-purge.repo.js";
@@ -77,8 +78,8 @@ async function purgeWorkspace(options = {}) {
   const fence = await workspacePurgeRepository.beginFence({
     now,
     purgeJobId: String(options.purgeJobId || "").trim(),
-    purgeToken: randomUUID(),
-    purgeTombstoneId: randomUUID(),
+    purgeToken: createOpaqueId(),
+    purgeTombstoneId: createRecordId(),
     workspaceFingerprint,
     workspaceId,
   });

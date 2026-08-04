@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,15 +10,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-che
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Checklists-Repository-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const taskChecklistsRepoSource = readText("src/modules/tasks/task-checklists.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskChecklistsRepository } = await import("../src/modules/tasks/task-checklists.repo.js");
@@ -39,9 +35,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Task checklist repository conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Task checklist repository conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task checklist repository conversion version");
 
   assert.match(taskChecklistsRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Task checklist repository should import only the provider-neutral db facade");
   assert.doesNotMatch(taskChecklistsRepoSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Task checklist repository should not use SQL literal helpers or compatibility query wrappers");
@@ -60,7 +53,6 @@ function assertStaticContract() {
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.9[\s\S]*task checklist repository uses named bound params[\s\S]*`db\.transaction\(callback\)`[\s\S]*boolean seam/, "Tasks docs should describe the converted checklist persistence boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.9 - Conversion wave: Task checklist repository[\s\S]*- \[x\] Convert `tasks\/task-checklists\.repo`[\s\S]*- \[x\] Preserve checklist read\/progress[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.9 - [\s\S]*Task checklist repository conversion[\s\S]*1,331 helper invocations[\s\S]*215 direct interpolated operation sites[\s\S]*123 bound operation sites/, "changelog should record the Task checklist conversion burndown");
-  assert.match(regressionSuite, /scripts\/task-checklists-repository-conversion-regression\.mjs/, "regression suite should include the Task checklist repository conversion proof");
 }
 
 async function assertRepositoryLifecycle(session) {
@@ -68,6 +60,7 @@ async function assertRepositoryLifecycle(session) {
     next_action: "Verify converted checklist persistence.",
     title: "Checklist repository conversion parent task",
   }, session)).task;
+  assertUuidVersion(task.task_id, 7, "new Tasks record identity");
 
   assert.equal((await taskChecklistsRepository.readProgressForTasks(session.workspace_id, [])).size, 0, "empty progress reads should stay a no-op");
 
@@ -82,6 +75,8 @@ async function assertRepositoryLifecycle(session) {
     sort_order: 2500,
     updated_by_user_id: session.user_id,
   });
+  assertUuidVersion(first.task_checklist_item_id, 7, "new Tasks checklist child identity");
+  assertUuidVersion(second.task_checklist_item_id, 7, "second new Tasks checklist child identity");
 
   assert.equal(first.sort_order, 1000, "first implicit checklist sort order should start at 1000");
   assert.equal(second.sort_order, 2500, "explicit checklist sort order should be preserved");
@@ -180,6 +175,11 @@ function assertProgress(progressByTaskId, taskId, expected) {
   assert.equal(progress.total_count, expected.total);
   assert.equal(progress.completed_count, expected.completed);
   assert.equal(progress.next_incomplete_item_label, expected.next);
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
 async function readSeedSession() {

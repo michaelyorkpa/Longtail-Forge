@@ -1,4 +1,6 @@
+import { createHmac, randomBytes } from "node:crypto";
 import { permissionsRepository } from "../repositories/permissions.repo.js";
+import { internalEventBus } from "../core/events/event-bus.js";
 import { readRequestScopedCache } from "../core/request-cache.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
@@ -6,7 +8,12 @@ import { settingsRepository } from "../repositories/settings.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
-import { normalizeProtectedUserFlag } from "../utils/normalizers.js";
+import {
+  isValidEmail,
+  normalizeDisplayName,
+  normalizeProtectedUserFlag,
+  normalizeUsername,
+} from "../utils/normalizers.js";
 
 const ROLE_LIMITS = {
   super_admin: new Set([
@@ -42,14 +49,12 @@ const ROLE_SCOPE_TYPES = {
 
 const FAMILY_ROLE_LIMITS = new Set(["workspace_admin", "project_user"]);
 const PERSONAL_ROLE_LIMITS = new Set(["workspace_admin"]);
+const DELEGATED_ASSIGNMENT_REVISION_SECRET = randomBytes(32);
 
 let rolePermissionsCache = null;
 
 async function listRoleOptions(session) {
-  await assertCanAssignRoles(session);
-  return {
-    roles: await permissionsRepository.readRoles(),
-  };
+  return listAssignableRoleOptions(session);
 }
 
 async function listAssignableRoleOptions(session) {
@@ -109,6 +114,15 @@ async function listAssignableRoleOptions(session) {
   return { roles: options };
 }
 
+async function hasUsableDelegatedRoleScope(session) {
+  try {
+    const options = await listAssignableRoleOptions(session);
+    return options.roles.some((role) => Array.isArray(role.scopes) && role.scopes.length > 0);
+  } catch {
+    return false;
+  }
+}
+
 async function validateUserAssignments(session, assignments) {
   await assertCanAssignRoles(session);
   return normalizeAssignments(session, Array.isArray(assignments) ? assignments : []);
@@ -116,41 +130,110 @@ async function validateUserAssignments(session, assignments) {
 
 async function readUserAssignments(session, userId) {
   await assertCanAssignRoles(session);
+
+  if (!(await isWorkspaceAdministrator(session))) {
+    throw new AppError("Use exact account lookup to manage delegated role assignments.", 403);
+  }
+
   return {
     assignments: await readDecoratedAssignments(session.workspace_id, userId),
   };
 }
 
-async function replaceUserAssignments(session, userId, payload) {
+async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
   await assertCanAssignRoles(session);
+  const username = normalizeUsername(payload.username);
 
-  const user = await usersRepository.readById(session.workspace_id, userId);
-
-  if (!user) {
-    throw new AppError("User was not found.", 404);
+  if (!isValidEmail(username)) {
+    return { match: null };
   }
 
-  const previousAssignments = await readDecoratedAssignments(session.workspace_id, userId);
-  const assignments = await normalizeAssignments(session, payload.assignments || []);
+  const user = await usersRepository.readExactActiveMemberByUsername(session.workspace_id, username);
+  if (!user) {
+    return { match: null };
+  }
 
-  await permissionsRepository.replaceUserAssignments(session.workspace_id, userId, assignments);
-  const nextAssignments = await readDecoratedAssignments(session.workspace_id, userId);
-  await auditService.record({
-    session,
-    action: "user_role_assignments_updated",
-    changeType: "update",
-    recordType: "user_role_assignment",
-    recordId: userId,
-    recordLabel: user.username,
-    recordUrl: "user-admin.html",
-    previousValue: previousAssignments,
-    newValue: nextAssignments,
-    metadata: {
-      assigned_user_id: userId,
-      assigned_username: user.username,
-      assignment_count: nextAssignments.length,
+  const allAssignments = await permissionsRepository.readAssignmentsForUser(
+    session.workspace_id,
+    user.user_id,
+  );
+  const manageableAssignments = [];
+
+  for (const assignment of allAssignments) {
+    if (await canAssignExistingRole(session, assignment)) {
+      manageableAssignments.push(assignment);
+    }
+  }
+
+  return {
+    match: {
+      activeMembership: true,
+      assignmentRevision: createDelegatedAssignmentRevision(manageableAssignments, {
+        actorUserId: session.user_id,
+        targetUserId: user.user_id,
+        workspaceId: session.workspace_id,
+      }),
+      assignments: manageableAssignments.map(decorateDelegatedAssignment),
+      displayName: normalizeDisplayName(user.display_name, user.username),
+      userId: user.user_id,
+      username: user.username,
     },
+  };
+}
+
+async function replaceUserAssignments(session, userId, payload) {
+  await assertCanAssignRoles(session);
+  const fullAdministrator = await isWorkspaceAdministrator(session);
+  if (!Array.isArray(payload.assignments)) {
+    throw new AppError("Role assignments must be a list.", 400);
+  }
+  if (
+    !fullAdministrator
+    && payload.assignments.some((assignment) => (
+      Object.hasOwn(assignment || {}, "permission_overrides")
+      || Object.hasOwn(assignment || {}, "permission_overrides_json")
+    ))
+  ) {
+    throw new AppError("Delegated role assignments cannot set permission overrides.", 403);
+  }
+  const assignments = await normalizeAssignments(session, payload.assignments);
+  const expectedRevision = String(payload.assignmentRevision || payload.assignment_revision || "").trim();
+
+  if (!fullAdministrator && !expectedRevision) {
+    throw new AppError("Refresh the account before changing delegated role assignments.", 409);
+  }
+
+  const mutation = await permissionsRepository.mutateUserAssignmentsAtomically({
+    actorUserId: session.user_id,
+    userId,
+    workspaceId: session.workspace_id,
+    planMutation: (state) => planRoleAssignmentMutation({
+      ...state,
+      assignments,
+      expectedRevision,
+      fullAdministrator,
+      session,
+    }),
   });
+  const previousAssignments = mutation.plan.safePreviousAssignments;
+  const nextAssignments = mutation.plan.fullAdministrator
+    ? mutation.nextAssignments.map(decorateAssignment)
+    : mutation.nextAssignments
+      .filter((assignment) => mutation.plan.manageableKeys.has(assignmentKey(assignment)))
+      .map(decorateDelegatedAssignment);
+  const response = mutation.plan.fullAdministrator
+    ? { assignments: nextAssignments }
+    : {
+      assignmentRevision: createDelegatedAssignmentRevision(
+        mutation.nextAssignments.filter((assignment) => mutation.plan.manageableKeys.has(assignmentKey(assignment))),
+        {
+          actorUserId: session.user_id,
+          targetUserId: userId,
+          workspaceId: session.workspace_id,
+        },
+      ),
+      assignments: nextAssignments,
+    };
 
   const { privateFeedsService } = await import("./private-feeds.service.js");
   await privateFeedsService.reconcileCalendarSubscriptions({
@@ -159,7 +242,379 @@ async function replaceUserAssignments(session, userId, payload) {
     workspaceId: session.workspace_id,
   });
 
-  return { assignments: nextAssignments };
+  await auditService.record({
+    session,
+    action: "user_role_assignments_updated",
+    changeType: "update",
+    recordType: "user_role_assignment",
+    recordId: userId,
+    recordLabel: mutation.targetUser.username,
+    recordUrl: mutation.plan.fullAdministrator ? "user-admin.html" : "",
+    previousValue: previousAssignments,
+    newValue: nextAssignments,
+    metadata: {
+      assigned_user_id: userId,
+      assigned_username: mutation.targetUser.username,
+      assignment_count: nextAssignments.length,
+      delegation_mode: mutation.plan.fullAdministrator ? "full" : "scoped",
+    },
+  });
+  await internalEventBus.emit("user.role_assignments_updated", {
+    metadata: {
+      assignment_count: nextAssignments.length,
+      delegation_mode: mutation.plan.fullAdministrator ? "full" : "scoped",
+    },
+    newValue: nextAssignments,
+    previousValue: previousAssignments,
+    recordId: userId,
+    recordType: "user_role_assignment",
+    session,
+    source: "permissions",
+  });
+
+  return response;
+}
+
+function planRoleAssignmentMutation({
+  actor,
+  actorAssignments,
+  assignments,
+  clients,
+  expectedRevision,
+  fullAdministrator,
+  previousAssignments,
+  projects,
+  roles,
+  session,
+  targetUser,
+  workspace,
+}) {
+  assertFreshRoleAssignmentActors({
+    actor,
+    actorAssignments,
+    session,
+    targetUser,
+    workspace,
+  });
+  const roleIds = new Set(roles.map((role) => role.role_id));
+  const clientsById = new Map(clients.map((client) => [client.id, client]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const freshFullAdministrator = actorHasFullAssignmentAuthority(
+    actor,
+    actorAssignments,
+    session.workspace_id,
+  );
+
+  if (fullAdministrator && !freshFullAdministrator) {
+    throw new AppError("Your role-assignment authority changed. Refresh and try again.", 409);
+  }
+
+  const requestedKeys = new Set();
+  for (const assignment of assignments) {
+    const key = assignmentKey(assignment);
+    if (requestedKeys.has(key)) {
+      throw new AppError("Role assignments cannot contain duplicates.", 400);
+    }
+    requestedKeys.add(key);
+
+    if (!roleIds.has(assignment.role_id)) {
+      throw new AppError("Role assignment contains an unknown role.", 400);
+    }
+
+    assertFreshAssignmentScope({
+      assignment,
+      clientsById,
+      projectsById,
+      workspace,
+    });
+  }
+
+  if (fullAdministrator) {
+    return {
+      assignmentIdsToDelete: previousAssignments.map((assignment) => assignment.assignment_id),
+      assignmentsToInsert: assignments,
+      fullAdministrator: true,
+      manageableKeys: requestedKeys,
+      safePreviousAssignments: previousAssignments.map(decorateAssignment),
+    };
+  }
+
+  if (!actorHasDelegatedAssignmentAuthority({
+    actorAssignments,
+    clientsById,
+    projectsById,
+    workspace,
+  })) {
+    throw new AppError("Your role-assignment authority changed. Refresh and try again.", 409);
+  }
+
+  const canManage = (assignment) => canAssignRoleFromFreshState({
+    actorAssignments,
+    assignment,
+    clientsById,
+    projectsById,
+    workspace,
+  });
+  const manageablePrevious = previousAssignments.filter(canManage);
+  const currentRevision = createDelegatedAssignmentRevision(manageablePrevious, {
+    actorUserId: session.user_id,
+    targetUserId: targetUser.user_id,
+    workspaceId: session.workspace_id,
+  });
+
+  if (expectedRevision !== currentRevision) {
+    throw new AppError("Role assignments changed. Refresh the account and try again.", 409);
+  }
+
+  for (const assignment of assignments) {
+    if (!canManage(assignment)) {
+      throw new AppError("You cannot assign that role.", 403);
+    }
+  }
+
+  const previousByKey = new Map(manageablePrevious.map((assignment) => [
+    assignmentKey(assignment),
+    assignment,
+  ]));
+
+  return {
+    assignmentIdsToDelete: manageablePrevious
+      .filter((assignment) => !requestedKeys.has(assignmentKey(assignment)))
+      .map((assignment) => assignment.assignment_id),
+    assignmentsToInsert: assignments.filter((assignment) => !previousByKey.has(assignmentKey(assignment))),
+    fullAdministrator: false,
+    manageableKeys: requestedKeys,
+    safePreviousAssignments: manageablePrevious.map(decorateDelegatedAssignment),
+  };
+}
+
+function actorHasDelegatedAssignmentAuthority({
+  actorAssignments,
+  clientsById,
+  projectsById,
+  workspace,
+}) {
+  return actorAssignments.some((assignment) => (
+    ROLE_LIMITS[assignment.role_id]?.size > 0
+    && workspaceTypeAllowsRole(workspace.workspace_type, assignment.role_id)
+    && assignmentAllowsAction(assignment, "roles.assign", { operation: "update" })
+    && Boolean(freshAssignmentResource(
+      assignment,
+      clientsById,
+      projectsById,
+      workspace.workspace_id,
+    ))
+  ));
+}
+
+function assertFreshRoleAssignmentActors({ actor, actorAssignments, session, targetUser, workspace }) {
+  const workspaceIsActive = String(workspace?.status || "").toLowerCase() === "active";
+  const actorHasInstallationAuthority = normalizeProtectedUserFlag(actor?.protected_user)
+    || actorAssignments.some((assignment) => (
+      assignment.role_id === "super_admin"
+      && assignment.scope_type === "all"
+    ));
+  const actorIsActive = actor?.user_status === "active"
+    && (actor?.membership_status === "active" || actorHasInstallationAuthority);
+  const targetIsActive = targetUser?.user_status === "active" && targetUser?.membership_status === "active";
+
+  if (!workspaceIsActive || !actorIsActive) {
+    throw new AppError("Your role-assignment authority changed. Refresh and try again.", 409);
+  }
+
+  if (!targetIsActive) {
+    throw new AppError("The account is not an active member of this workspace.", 409);
+  }
+
+  if (
+    targetUser.user_id === session.user_id
+    || normalizeProtectedUserFlag(targetUser.protected_user)
+  ) {
+    throw new AppError("Role assignments cannot be changed for that account.", 400);
+  }
+}
+
+function actorHasFullAssignmentAuthority(actor, actorAssignments, workspaceId) {
+  if (normalizeProtectedUserFlag(actor?.protected_user)) {
+    return true;
+  }
+
+  return actorAssignments.some((assignment) => (
+    (
+      assignment.role_id === "super_admin"
+      && assignment.scope_type === "all"
+    )
+    || (
+      assignment.role_id === "workspace_admin"
+      && assignment.scope_type === "workspace"
+      && assignment.scope_id === workspaceId
+    )
+  ) && assignmentAllowsAction(assignment, "roles.assign", { operation: "update" }));
+}
+
+function canAssignRoleFromFreshState({
+  actorAssignments,
+  assignment,
+  clientsById,
+  projectsById,
+  workspace,
+}) {
+  if (!workspaceTypeAllowsRole(workspace.workspace_type, assignment.role_id)) {
+    return false;
+  }
+
+  const resource = freshAssignmentResource(
+    assignment,
+    clientsById,
+    projectsById,
+    workspace.workspace_id,
+  );
+  if (!resource) {
+    return false;
+  }
+
+  return actorAssignments.some((actorAssignment) => {
+    if (!workspaceTypeAllowsRole(workspace.workspace_type, actorAssignment.role_id)) {
+      return false;
+    }
+
+    if (!assignmentAllowsAction(actorAssignment, "roles.assign", { operation: "update" })) {
+      return false;
+    }
+
+    if (
+      actorAssignment.role_id === "super_admin"
+      && actorAssignment.scope_type === "all"
+    ) {
+      return ROLE_LIMITS.super_admin.has(assignment.role_id);
+    }
+
+    if (
+      actorAssignment.role_id === "workspace_admin"
+      && actorAssignment.scope_type === "workspace"
+      && actorAssignment.scope_id === workspace.workspace_id
+    ) {
+      return ROLE_LIMITS.workspace_admin.has(assignment.role_id);
+    }
+
+    return ROLE_LIMITS[actorAssignment.role_id]?.has(assignment.role_id)
+      && assignmentMatchesResource(actorAssignment, resource, {
+        workspace_id: workspace.workspace_id,
+      });
+  });
+}
+
+function assertFreshAssignmentScope({ assignment, clientsById, projectsById, workspace }) {
+  if (!workspaceTypeAllowsRole(workspace.workspace_type, assignment.role_id)) {
+    throw new AppError("That role is not available for this workspace type.", 403);
+  }
+
+  if (assignment.scope_type !== ROLE_SCOPE_TYPES[assignment.role_id]) {
+    throw new AppError("Role assignment scope does not match the selected role.", 400);
+  }
+
+  if (assignment.scope_type === "workspace" && assignment.scope_id !== workspace.workspace_id) {
+    throw new AppError("Role assignment scope does not belong to this workspace.", 400);
+  }
+
+  if (assignment.scope_type === "all" && assignment.scope_id !== "all") {
+    throw new AppError("Role assignment scope does not match the selected role.", 400);
+  }
+
+  if (assignment.scope_type === "client" && !clientsById.has(assignment.scope_id)) {
+    throw new AppError("Role assignment scope does not belong to this workspace.", 400);
+  }
+
+  if (assignment.scope_type === "project" && !projectsById.has(assignment.scope_id)) {
+    throw new AppError("Role assignment scope does not belong to this workspace.", 400);
+  }
+}
+
+function freshAssignmentResource(assignment, clientsById, projectsById, workspaceId) {
+  if (assignment.scope_type === "all" || assignment.scope_type === "workspace") {
+    return { workspace_id: workspaceId };
+  }
+
+  if (assignment.scope_type === "client") {
+    const client = clientsById.get(assignment.scope_id);
+    if (!client || client.status === "Inactive") {
+      return null;
+    }
+
+    return {
+      client_id: assignment.scope_id,
+      workspace_id: workspaceId,
+    };
+  }
+
+  if (assignment.scope_type === "project") {
+    const project = projectsById.get(assignment.scope_id);
+    if (!project || project.status === "Inactive") {
+      return null;
+    }
+    const client = project.client_id ? clientsById.get(project.client_id) : null;
+    if (project.client_id && (!client || client.status === "Inactive")) {
+      return null;
+    }
+
+    return {
+      client_id: project.client_id || "",
+      project_id: project.id,
+      workspace_id: workspaceId,
+    };
+  }
+
+  return null;
+}
+
+async function canAssignExistingRole(session, assignment) {
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
+  if (!workspaceTypeAllowsRole(settings.workspaceType, assignment.role_id)) {
+    return false;
+  }
+
+  return canAssignRole(session, {
+    roleId: assignment.role_id,
+    scopeId: assignment.scope_id,
+    scopeType: assignment.scope_type,
+  });
+}
+
+function createDelegatedAssignmentRevision(assignments, {
+  actorUserId,
+  targetUserId,
+  workspaceId,
+}) {
+  const revisionSource = assignments
+    .map((assignment) => [
+      assignment.assignment_id,
+      assignment.role_id,
+      assignment.scope_type,
+      assignment.scope_id || "",
+      assignment.updated_at,
+    ].join("\u001f"))
+    .sort()
+    .join("\u001e");
+
+  return createHmac("sha256", DELEGATED_ASSIGNMENT_REVISION_SECRET)
+    .update([actorUserId, targetUserId, workspaceId, revisionSource].join("\u001d"))
+    .digest("hex");
+}
+
+function assignmentKey(assignment) {
+  return [
+    assignment.role_id,
+    assignment.scope_type,
+    assignment.scope_id || "",
+  ].join("\u001f");
+}
+
+function decorateDelegatedAssignment(assignment) {
+  return {
+    role_id: assignment.role_id,
+    scope_type: assignment.scope_type,
+    scope_id: assignment.scope_id,
+  };
 }
 
 async function can(session, action, resource = {}) {
@@ -248,6 +703,34 @@ async function canInAnyScope(session, action, resource = {}) {
     (permissionsByRole.get(assignment.role_id) || new Set()).has(action) &&
     assignmentAllowsAction(assignment, action, resource)
   ));
+}
+
+async function listGrantedPermissionIdsInAnyScope(session) {
+  if (!session?.workspace_id || !session?.user_id) {
+    return [];
+  }
+
+  const allPermissionIds = await permissionsRepository.readPermissionIds();
+  if (await isInstallationSuperAdmin(session)) {
+    return allPermissionIds;
+  }
+
+  const user = await readCurrentUser(session);
+  if (normalizeProtectedUserFlag(user?.protected_user)) {
+    return allPermissionIds;
+  }
+
+  const [assignments, permissionsByRole] = await Promise.all([
+    readAssignmentsForSession(session),
+    readPermissionsByRole(),
+  ]);
+
+  return allPermissionIds.filter((permissionId) => assignments.some((assignment) => (
+    (permissionsByRole.get(assignment.role_id) || new Set()).has(permissionId) &&
+    assignmentAllowsAction(assignment, permissionId, {
+      workspace_id: session.workspace_id,
+    })
+  )));
 }
 
 // Precomputes one synchronous permission predicate for row-scale filtering:
@@ -832,11 +1315,14 @@ export const permissionsService = {
   filterReadableProjects,
   filterReadableTasks,
   filterReadableTimeEntries,
+  hasUsableDelegatedRoleScope,
   readTimeEntryVisibility,
   isSuperAdmin,
   isWorkspaceAdministrator,
+  listGrantedPermissionIdsInAnyScope,
   listAssignableRoleOptions,
   listRoleOptions,
+  lookupDelegatedRoleAssignmentAccount,
   readUserAssignments,
   replaceUserAssignments,
   validateUserAssignments,

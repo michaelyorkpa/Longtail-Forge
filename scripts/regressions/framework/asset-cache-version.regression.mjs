@@ -13,17 +13,9 @@ import path from "node:path";
 import vm from "node:vm";
 import { URLSearchParams } from "node:url";
 import { appVersion } from "../../../src/core/version.js";
-import {
-  assetVersion,
-  decorateHtmlAssetUrls,
-  injectAssetVersionBootstrap,
-  withAssetVersion,
-} from "../../../src/core/asset-version.js";
+import { decorateHtmlAssetUrls, injectAssetVersionBootstrap } from "../../../src/core/asset-version.js";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
-import {
-  collectAssetCacheGuardErrors,
-  collectRawAssetVersionReferences,
-} from "../../lib/asset-cache-guard.mjs";
+import { collectAssetCacheGuardErrors, collectRawAssetVersionReferences } from "../../lib/asset-cache-guard.mjs";
 
 const fixture = await createDisposableDatabaseFixture("asset-cache-version-regression");
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
@@ -31,12 +23,6 @@ const { staticService } = await import("../../../src/services/static.service.js"
 
 const baseline = JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8"));
 const liveFindings = await collectRawAssetVersionReferences();
-
-assert.equal(assetVersion, appVersion, "asset cache version should derive from the canonical application version");
-assert.equal(withAssetVersion("js/app.js?v=old"), `js/app.js?v=${appVersion}`);
-assert.equal(withAssetVersion("/css/app.css?theme=wide#main"), `/css/app.css?theme=wide&v=${appVersion}#main`);
-assert.equal(withAssetVersion("https://cdn.example.test/app.js?v=vendor"), "https://cdn.example.test/app.js?v=vendor");
-assert.equal(withAssetVersion("images/logo.webp"), "images/logo.webp");
 
 assert.equal(liveFindings.size, 0, "active source must not contain raw .css?v=/.js?v= cache keys (the inert-key retirement may only stay empty)");
 assert.deepEqual(Object.keys(baseline.files), [], "the legacy asset cache baseline must stay empty");

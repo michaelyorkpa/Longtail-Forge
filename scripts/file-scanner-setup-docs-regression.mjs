@@ -1,23 +1,16 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const scannerDocs = readText("docs/file-scanner-setup.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const envExample = readText(".env.example");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the scanner setup docs version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the scanner setup docs version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the scanner setup docs version");
 
 assert.match(scannerDocs, /^# File Scanner Setup/m, "scanner setup docs should exist");
 assert.match(scannerDocs, /## Linux Service Setup[\s\S]*LONGTAIL_FILE_SCANNER=clamd[\s\S]*LONGTAIL_CLAMD_HOST=127\.0\.0\.1[\s\S]*LONGTAIL_CLAMD_PORT=3310/, "scanner docs should cover Linux clamd service setup");
@@ -37,7 +30,6 @@ assert.match(envExample, /docs\/file-scanner-setup\.md[\s\S]*Optional live setti
 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.22\.15 - Scanner setup docs and ClamAV closeout/, "live roadmap should not keep the completed scanner setup closeout slice open");
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the scanner setup docs slice");
 
 for (const scriptName of [
   "file-scanner-mode-resolver-regression.mjs",

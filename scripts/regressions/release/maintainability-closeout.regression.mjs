@@ -48,8 +48,11 @@ assert.match(moduleDevelopment, /all eight bundled modules consume the canonical
 assert.match(moduleDevelopment, /`LongtailForge\.esModuleBridge` remains Dashboard page-local compatibility machinery/);
 assert.match(uiLayout, /Dashboard native entry and `LongtailForge\.esModuleBridge` are page-local transition machinery[\s\S]*Tasks and Time Tracking are the two real consumers/);
 assert.match(database, /explicit Two-Module Rule exception[\s\S]*App bootstrap and separate-worker readiness are the two execution hosts/);
-assert.match(regressionSuite, /current regression-suite contract through[\s\S]*discovered registry contains \d+ scripts and protects \d+ release-gate entries/);
-assert.match(regressionSuite, /Twenty obsolete current-package-document assertions/);
+assert.match(
+  regressionSuite,
+  /current regression-suite contract through[\s\S]*GENERATED REGRESSION INVENTORY START[\s\S]*Convention-path metadata regressions/,
+);
+assert.match(regressionSuite, /Exact per-path membership remains in `scripts\/regression-coverage-manifest\.json`/);
 
 for (const gateId of [
   "database.startup-maintenance-lifecycle",
@@ -62,9 +65,9 @@ for (const gateId of [
   assert.ok(policy.requiredReleaseGateIds.includes(gateId), `${gateId} should remain a required release gate`);
 }
 
-assert.match(bundledGate, /EXPECTED_INVENTORY_SHA256 = "b1d745bd05ea7c00199d9586aec2ea3695d7cf8ca8ceea20d0dc3bcfabd93f1e"/);
+assert.match(bundledGate, /EXPECTED_INVENTORY_SHA256 = "1152f08f6dca593e5caeb4787278b6b34f22f377a7a0d5bbc625af50d5d2eb93"/);
 assert.match(bundledGate, /repository-file:/, "the frozen inventory should normalize repository file URLs across operating systems");
-assert.match(bundledGate, /module and contribution inventory matches the pre-conversion baseline/);
+assert.match(bundledGate, /module and contribution inventory matches the approved baseline/);
 assert.match(bundledGate, /module entry import is side-effect free and explicit app activation restores behavior/);
 assert.match(startupGate, /fresh startup should preserve the declared dependency order/);
 assert.match(startupGate, /completed versioned repairs should not repeat on later boots/);

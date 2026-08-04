@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
+import { createRecordId } from "../core/identifiers.js";
 import { normalizeSettings, normalizeThemeMode } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
@@ -415,7 +415,7 @@ VALUES (
         action: "redacted_seed_user_repaired",
         actorUserId: "system",
         actorUserName: "system",
-        auditId: randomUUID(),
+        auditId: createRecordId(),
         changeType: "repair",
         createdAt: now,
         metadataJson: JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }),
@@ -539,7 +539,7 @@ async function ensureDefaultWorkspace() {
   }
 
   const seedSettings = getDefaultSettings();
-  const workspaceId = randomUUID();
+  const workspaceId = createRecordId();
   const now = new Date().toISOString();
 
   await db.transaction(async (transaction) => {
@@ -647,7 +647,7 @@ LIMIT 1;
   }
 
   const password = getSuperAdminPassword();
-  const userId = randomUUID();
+  const userId = createRecordId();
 
   await db.run(`
 INSERT INTO users (
@@ -742,7 +742,7 @@ ${USER_WORKSPACE_INSERT_SQL};
           status: user.user_status === "inactive" ? "inactive" : "active",
           updated_at: now,
           user_id: user.user_id,
-          user_workspace_id: randomUUID(),
+          user_workspace_id: createRecordId(),
           workspace_id: workspaceId,
         });
       }
@@ -900,7 +900,7 @@ WHERE home_workspace_id = :workspaceId
         await transaction.run(`
 ${USER_ROLE_ASSIGNMENT_INSERT_SQL};
 `, {
-          assignment_id: randomUUID(),
+          assignment_id: createRecordId(),
           client_id: null,
           created_at: now,
           permission_overrides_json: null,

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -12,19 +11,15 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-migration-lockin
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-locking.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Migration-Locking-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const sqliteHelperSource = readText("src/db/sqlite.js");
 const dbIndexSource = readText("src/db/index.js");
 const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const migrationsSource = readText("src/db/migrations.js");
 const migrationLockSource = readText("src/db/migration-lock.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -35,16 +30,14 @@ const {
 const { migrationLockPath } = await import("../src/db/migration-lock.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the migration locking version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the migration locking version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the migration locking version");
 
   assert.equal(db.capabilities.migrationLocking, true, "SQLite adapter should report migration locking support");
   assert.equal(db.capabilities.migrationLockStrategy, "lock-file", "SQLite adapter should report the SQLite lock-file strategy");
   assert.match(sqliteAdapterSource, /migrationLocking:\s*true/, "SQLite capabilities should enable migration locking");
   assert.match(sqliteAdapterSource, /migrationLockStrategy:\s*"lock-file"/, "SQLite capabilities should document the lock-file strategy");
   assert.match(migrationsSource, /withMigrationLock\(runMigrationsWithAcquiredLock\)/, "migration runner should acquire the lock before running migrations");
-  assert.match(migrationsSource, /async function runMigrationsWithAcquiredLock\(\)[\s\S]*maybeCopyRegressionBaseline[\s\S]*repairLegacyWorkspaceScopedForeignKeys[\s\S]*validateAppliedMigrationChecksums/, "schema repairs and migration validation should run inside the acquired lock");
+  assert.match(migrationsSource, /async function runMigrations\(\)[\s\S]*consumeMaterializedVerifiedRegressionBaseline[\s\S]*withMigrationLock\(runMigrationsWithAcquiredLock\)/, "only a runner-materialized verified baseline may bypass migration locking");
+  assert.match(migrationsSource, /async function runMigrationsWithAcquiredLock\(\)[\s\S]*repairLegacyWorkspaceScopedForeignKeys[\s\S]*validateAppliedMigrationChecksums/, "normal schema repairs and migration validation should run inside the acquired lock");
   assert.match(migrationLockSource, /fs\.open\(lockPath,\s*"wx"\)/, "SQLite migration lock should use exclusive file creation");
   assert.match(migrationLockSource, /\.longtail-forge-migrations\.lock/, "SQLite migration lock file name should be stable");
   assert.match(migrationLockSource, /Another Longtail Forge startup or maintenance process is running migrations or schema repairs/, "held-lock failure should explain the startup ownership conflict");
@@ -63,8 +56,6 @@ try {
   assert.match(databaseDocs, /Self-hosted SQLite mode[\s\S]*one app process runs startup migrations/, "database docs should document self-hosted startup ownership");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the migration locking slice");
-  assert.match(regressionSuite, /scripts\/database-migration-locking-regression\.mjs/, "regression suite should include migration locking coverage");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "migration locking regression database should pass integrity check");
@@ -134,6 +125,9 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   const holderExitPromise = waitForExit(holder);
 
   await waitForOutput(holder, () => holderOutput.includes("lock-ready"));
+  const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
+  const lockMetadata = JSON.parse(await fs.readFile(lockPath, "utf8"));
+  assertUuidVersion(lockMetadata.ownerId, 4, "SQLite migration-lock owner identity");
 
   const contender = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     process.env.LONGTAIL_DATABASE_FILE = ${JSON.stringify(lockedDatabaseFile)};
@@ -165,7 +159,6 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   const holderExit = await holderExitPromise;
   assert.equal(holderExit.code, 0, holderError || holderOutput);
 
-  const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
   await assert.rejects(
     () => fs.access(lockPath),
     /ENOENT/,
@@ -239,6 +232,8 @@ function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
 }
 
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }

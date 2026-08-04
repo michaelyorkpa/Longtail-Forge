@@ -239,7 +239,8 @@ async function assertBrowserAndRouteContracts() {
   assert.match(dialog, /templateId[\s\S]*instanceDate[\s\S]*\/api\/tasks\/recurrence-instances\/materialize/);
   assert.match(calendar, /openCalendarTask\(taskId, trigger, occurrence/);
   assert.match(dashboard, /openTask\(taskId, trigger, occurrence/);
-  assert.match(renderer, /Open planned occurrence:/);
+  assert.match(renderer, /"aria-label": `Open task: \$\{task\.title\}`/);
+  assert.doesNotMatch(renderer, /Planned occurrence|Open planned occurrence:/);
   assert.doesNotMatch(renderer, /disabled: isVirtual/);
 }
 

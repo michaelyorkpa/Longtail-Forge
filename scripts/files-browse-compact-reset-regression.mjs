@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const filesService = readText("src/services/files.service.js");
@@ -11,9 +8,6 @@ const styles = readText("public/css/longtail-forge.css");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files host should reference the stylesheet for the compact reset");
 assert.match(filesHtml, /js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the compact-reset adapter after the renderer and shared preview");
@@ -115,7 +109,6 @@ assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S
   assert.doesNotMatch(styles, pattern, `Files compact CSS should not include inline detail/dashboard selector ${pattern}`);
 });
 
-assert.match(regressionSuite, /scripts\/files-browse-compact-reset-regression\.mjs/, "Regression suite should include the Files compact reset regression");
 assert.doesNotMatch(regressionSuite, /scripts\/files-detail-summary-regression\.mjs/, "Regression suite should not keep the replaced detail summary regression");
 
 console.log("Files browse compact reset regression passed.");

@@ -109,6 +109,24 @@ Recommended files or tooling:
 - dependency review notes for unusual licenses;
 - asset attribution records.
 
+The repository's current inventory is generated from every non-development
+package location in `package-lock.json`, deduplicated by package name and
+version, plus a reviewed explicit bundled-asset record. Use:
+
+```sh
+npm run third-party-notices:write
+npm run third-party-notices:check
+npm run licensing:gates
+```
+
+The write command is mechanical, not approval: review every added or changed
+component, version, license identifier, copyright holder, and full license text
+before committing the result. Missing/unrecognized licenses require a reviewed
+override in `scripts/lib/third-party-notices.mjs`; do not silently infer them.
+The current compatible set is MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
+Python-2.0. The bundled-asset audit explicitly records Lucide-derived icons and
+the absence of bundled fonts or vendored browser libraries.
+
 ## Updating Dependencies
 
 When adding or updating dependencies:

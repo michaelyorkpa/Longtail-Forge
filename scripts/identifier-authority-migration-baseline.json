@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "productionDirectRandomUuid": {},
+  "documentedNonProductionExceptions": [
+    "tests/**",
+    "scripts/**/*-regression.mjs",
+    "scripts/regressions/**",
+    "scripts/*-drill.mjs",
+    "development and sanitized-demo seed fixture generation"
+  ]
+}

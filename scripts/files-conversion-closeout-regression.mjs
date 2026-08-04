@@ -1,12 +1,9 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const filesCloseoutVersion = "0.33.5.18.12.7";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const notesModule = readText("src/modules/notes/module.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 const roadmap = readText("ROADMAP.md");
@@ -15,11 +12,7 @@ const viewContract = readText("docs/view-building-contract.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const moduleContract = readText("docs/module-contract.md");
 const filesInventory = readText("docs/files-strict-guardrail-inventory.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files conversion closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files conversion closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files conversion closeout version");
 assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should track the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
@@ -30,7 +23,6 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, cha
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(filesCloseoutVersion)} - `), "Changelog should include the Files conversion closeout version");
 assert.match(changelog, /Closed the Files browse\/edit\/preview\/upload\/action\/strict-guardrail conversion branch/, "Changelog should describe the completed Files conversion branch");
-assert.match(changelog, /scripts\/files-conversion-closeout-regression\.mjs/, "Changelog should name the closeout regression");
 
 assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(viewConversionCloseoutVersion)}, it also records`), "View-building contract should report the view-conversion closeout version");
 assert.match(viewContract, /## Implementation Notes For 0\.33\.5\.18\.12\.7/, "View-building contract should include closeout implementation notes");
@@ -49,8 +41,6 @@ assert.match(filesInventory, /Current as of 0\.33\.5\.18\.12\.7/, "Files invento
 assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Files inventory should include closeout coverage");
 assert.match(filesInventory, /compact listing-first browse[\s\S]*slide-out filters[\s\S]*shared upload and attachment panel shells[\s\S]*route-backed File Context editing[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/, "Files inventory should summarize the shipped closeout boundary");
 
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
-assert.match(regressionSuite, /scripts\/files-strict-guardrail-inventory-regression\.mjs/, "Regression suite should keep the Files strict guardrail regression");
 
 console.log("Files conversion closeout regression passed.");
 

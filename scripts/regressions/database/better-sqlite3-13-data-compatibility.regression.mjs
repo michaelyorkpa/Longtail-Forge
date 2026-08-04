@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.better-sqlite3-13-data-compatibility",
   area: "database",
   tier: "release-gate",
-  tags: ["adapter", "backup", "bindings", "concurrency", "migration", "recovery", "sqlite"],
+  tags: ["adapter", "backup", "baseline-bypass", "bindings", "concurrency", "migration", "recovery", "sqlite"],
   description: "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
   runMode: "isolated-database",
 });
@@ -74,13 +74,13 @@ SELECT version, module_id, name, checksum
 FROM schema_migrations
 ORDER BY applied_at, version;
 `);
-  assert.equal(migrations.length, 22, "fresh startup should preserve the complete migration identity");
+  assert.equal(migrations.length, 24, "fresh startup should preserve the complete migration identity");
   assert.deepEqual(migrations.at(-1), {
-    checksum: "0edcdf7564ced0efae2b85cc215d7dd7dc1802a642b5ab00b611543fbcc2bef3",
+    checksum: "ac13567c407a5686d22e56b05054a7c4486112151b4e5a9687235eb34c8f2ea6",
     module_id: "core",
-    name: "named_calendar_subscriptions",
-    version: "085",
-  }, "migration 085 should remain the unchanged latest migration");
+    name: "task_recurrence_recovery_checkpoint",
+    version: "087",
+  }, "migration 087 should be the latest checksum-tracked migration");
 
   const pragmaRows = {
     busyTimeout: await querySql("PRAGMA busy_timeout;"),

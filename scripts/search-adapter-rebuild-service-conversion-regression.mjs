@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,10 +10,7 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-adapter-rebuild-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Search-Adapter-Rebuild-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const rebuildServiceSource = readText("src/services/search-index-rebuild.service.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
 const tagTextSource = readText("src/core/search/tag-text.js");
@@ -23,7 +19,6 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -52,9 +47,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Search adapter/rebuild service conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Search adapter/rebuild service conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Search adapter/rebuild service conversion version");
 
   assert.match(rebuildServiceSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "search rebuild service should import the provider-neutral db facade");
   assert.doesNotMatch(rebuildServiceSource, /\.\.\/db\/index\.js/, "search rebuild service should not import legacy db helpers after conversion");
@@ -86,7 +78,6 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.25[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 remaining helper invocations/, "database docs should record the concrete Search adapter/rebuild service conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.25 - Conversion wave: Search adapter and rebuild service[\s\S]*- \[x\] Convert `core\/search\/adapters\/sqlite-search-adapter`[\s\S]*- \[x\] Keep FTS5 maintenance[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.25 - [\s\S]*Search adapter and rebuild service conversion[\s\S]*362 helper invocations[\s\S]*66 direct interpolated operation sites[\s\S]*293 bound operation sites/, "changelog should record the Search adapter/rebuild service conversion burndown");
-  assert.match(regressionSuite, /scripts\/search-adapter-rebuild-service-conversion-regression\.mjs/, "regression suite should include the Search adapter/rebuild service conversion proof");
 }
 
 async function seedWorkspace() {

@@ -1,5 +1,7 @@
 import { createAppStartupActions } from "./app-startup-maintenance.js";
+import { config } from "../config.js";
 import { runMigrations } from "./migrations.js";
+import { materializeVerifiedRegressionBaseline } from "./regression-baseline-fast-path.js";
 import {
   closeDatabase,
   databaseDialect,
@@ -29,6 +31,10 @@ async function initializeDatabase(options = {}) {
 }
 
 async function ensureDatabase(options = {}) {
+  await materializeVerifiedRegressionBaseline({
+    databaseFile: config.databaseFile,
+    databaseProvider: config.databaseProvider,
+  });
   const context = {};
   await runStartupActions(createDatabaseStartupActions(), {
     context,

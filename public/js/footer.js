@@ -9,19 +9,31 @@ footerInner.className = "site-footer-inner";
 
 const footerBrand = document.createElement("p");
 footerBrand.className = "site-footer-brand";
-footerBrand.textContent = [
-  "Longtail Forge",
-  "Copyright \u00a9 2026 Raymond Tec",
-].join("\n");
+footerBrand.textContent = "Longtail Forge";
 
 const footerLicense = document.createElement("p");
 footerLicense.className = "site-footer-license";
-footerLicense.textContent = [
-  "This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by",
-  "the Free Software Foundation, either version 3 of the License, or at your option any later version.",
-].join("\n");
+footerLicense.append("Licensed under AGPL-3.0-only. ");
 
-footerInner.append(footerBrand, footerLicense);
+const footerSourceLink = document.createElement("a");
+footerSourceLink.textContent = "Corresponding Source for this running version";
+
+const footerLegal = document.createElement("nav");
+footerLegal.className = "site-footer-legal";
+footerLegal.setAttribute("aria-label", "Legal");
+
+const termsLink = document.createElement("a");
+termsLink.href = "/terms.html";
+termsLink.textContent = "Terms";
+
+const privacyLink = document.createElement("a");
+privacyLink.href = "/privacy.html";
+privacyLink.textContent = "Privacy";
+
+footerLicense.append(footerSourceLink);
+footerLegal.append(termsLink, privacyLink);
+
+footerInner.append(footerBrand, footerLicense, footerLegal);
 footer.appendChild(footerInner);
 document.body.appendChild(footer);
 
@@ -61,13 +73,15 @@ async function updateFooterBrand() {
 
     footerBrand.textContent = [
       `${name}${version}`,
-      "Copyright \u00a9 2026 Raymond Tec",
+      "Copyright \u00a9 2026 Michael York d/b/a Raymond Tec",
     ].join("\n");
+    footerSourceLink.href = appInfo.correspondingSourceUrl || "#";
   } catch {
     footerBrand.textContent = [
       "Longtail Forge",
-      "Copyright \u00a9 2026 Raymond Tec",
+      "Copyright \u00a9 2026 Michael York d/b/a Raymond Tec",
     ].join("\n");
+    footerSourceLink.removeAttribute("href");
   } finally {
     updateFooterMetrics();
   }

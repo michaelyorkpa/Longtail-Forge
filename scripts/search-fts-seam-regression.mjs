@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,13 +12,10 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-f
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Search-Fts-Seams-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
 const searchServiceSource = readText("src/services/search.service.js");
@@ -50,9 +46,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the search FTS seam version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the search FTS seam version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the search FTS seam version");
 
   assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
   assert.match(sqliteDialectSource, /createVirtualTable/, "SQLite search dialect should own FTS virtual table creation syntax");
@@ -75,8 +68,7 @@ function assertStaticContract() {
 
   assert.match(searchServiceSource, /backendNeutralQueryModel: true/, "search service should keep callers on a backend-neutral query model");
   assert.match(searchServiceSource, /adapterSyntax: null/, "permission-safe search request shaping should not emit backend syntax");
-  assert.match(regressionSuite, /scripts\/search-fts-seam-regression\.mjs/, "regression suite should include search FTS seam coverage");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.6 - Search\/FTS seam extraction[\s\S]*- \[x\] Move backend search syntax ownership[\s\S]*- \[x\] Keep canonical `search_index` rows[\s\S]*- \[x\] Add focused search regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
+    assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.6 - Search\/FTS seam extraction[\s\S]*- \[x\] Move backend search syntax ownership[\s\S]*- \[x\] Keep canonical `search_index` rows[\s\S]*- \[x\] Add focused search regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.6[\s\S]*SQLite search adapter[\s\S]*`db\.dialect\.search\.match\(\.\.\.\)`[\s\S]*indexed `LIKE` fallback/, "database docs should describe the search FTS seam extraction");
   assert.match(auditDocs, /0\.33\.5\.27\.6 Search\/FTS Seam Extraction[\s\S]*`core\/search\/adapters\/sqlite-search-adapter`[\s\S]*1,441 runtime literal-helper invocations[\s\S]*228 direct interpolated SQL operation sites/, "audit docs should record the search adapter conversion");
   assert.match(changelog, /## Version 0\.33\.5\.27\.6 - [\s\S]*Search\/FTS seam extraction[\s\S]*canonical `search_index`[\s\S]*indexed LIKE fallback/, "changelog should record the search FTS seam slice");

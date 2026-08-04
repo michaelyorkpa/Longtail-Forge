@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "framework.session-revocation",
   area: "framework",
   tier: "focused",
-  tags: ["authentication", "permissions", "security", "sessions"],
+  tags: ["authentication", "baseline-bypass", "permissions", "security", "sessions"],
   description: "Proves immediate single/bulk revocation, password and deactivation forced logout, safe admin references, workspace boundaries, and security events.",
   runMode: "isolated-database",
 });

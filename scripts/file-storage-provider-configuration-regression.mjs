@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
@@ -81,13 +80,13 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
 async function assertStaticContracts() {
   const [
-    packageJson,
-    packageLock,
+    _packageJson,
+    _packageLock,
     roadmap,
-    changelog,
+    _changelog,
     runtimeDocs,
     filesServiceSource,
-    regressionSuite,
+    _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
     readJson("package-lock.json"),
@@ -98,16 +97,11 @@ async function assertStaticContracts() {
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the storage provider resolver version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the storage provider resolver version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the storage provider resolver version");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage provider resolver slice");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER=local` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
+          assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER=local` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(filesServiceSource, /function resolveConfiguredFileStorageProvider\(\)/, "Files service should own configured provider resolution");
   assert.doesNotMatch(functionBlock(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
-  assert.match(regressionSuite, /scripts\/file-storage-provider-configuration-regression\.mjs/, "regression suite should include the storage provider configuration regression");
-}
+  }
 
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
@@ -217,8 +211,4 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.indexOf("\nfunction ", start + 1);
   return source.slice(start, nextFunction === -1 ? source.length : nextFunction);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,10 +1,8 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createProjectTextReader, extractFunctionBlock, sourceContainsInOrder } from "./test-support/source-scan.mjs";
 
-
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
+const { readText } = createProjectTextReader();
+const functionBlock = extractFunctionBlock;
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
@@ -14,11 +12,7 @@ const inventoryDoc = readText("docs/tasks-strict-guardrail-inventory.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const moduleContract = readText("docs/module-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const taskViewSelector = functionBlock(tasksScript, "createTaskViewSelectorChrome");
@@ -35,6 +29,7 @@ const taskContext = functionBlock(tasksScript, "appendTaskContext");
 const fieldNodes = functionBlock(taskDialogScript, "taskEditorFieldNodes");
 const detailsSection = functionBlock(taskDialogScript, "taskEditorDetailsSection");
 const checklistSection = functionBlock(taskDialogScript, "taskEditorChecklistSection");
+const checklistAddButton = functionBlock(taskDialogScript, "taskEditorChecklistAddButton");
 const recurrenceSection = functionBlock(taskDialogScript, "taskEditorRecurrenceSection");
 const timerSection = functionBlock(taskDialogScript, "taskEditorTimerSection");
 const reminderSection = functionBlock(taskDialogScript, "taskEditorReminderSection");
@@ -65,7 +60,8 @@ assert.match(taskDialogScript, /const complete = view\.createActionButton\([\s\S
 assert.match(taskDialogScript, /children: \[block, complete, workbenchOpen, notificationToggle\]/, "Task header actions should place Block before Complete, Workbench, and notifications");
 assert.doesNotMatch(taskDialogScript, /function taskEditorModalDescriptor[\s\S]*footerActions: \[[\s\S]*id: "complete"/, "Task modal footer should not declare Complete");
 assert.match(detailsSection, /className: \["task-details-field", "surface-modal-group"\][\s\S]*"data-task-details-panel"[\s\S]*taskEditorLabel\(view, "Status"[\s\S]*taskEditorLabel\(view, "Priority"[\s\S]*data-task-estimate-minutes[\s\S]*taskEditorLabel\(view, "Client"[\s\S]*taskEditorLabel\(view, "Project"[\s\S]*taskEditorLabel\(view, "Parent Task"[\s\S]*taskEditorLabel\(view, "Due Date"[\s\S]*taskEditorLabel\(view, "Due Time"[\s\S]*taskEditorLabel\(view, "Description"[\s\S]*taskEditorLabel\(view, "Assignees"/, "Task Details standard field grid should be helper-built");
-assert.match(checklistSection, /className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field"[\s\S]*"data-task-checklist-status"[\s\S]*"data-task-checklist-input"[\s\S]*taskEditorChecklistAddButton\(view\)[\s\S]*"data-task-checklist-list"[\s\S]*function taskEditorChecklistAddButton\(view\)[\s\S]*button\.dataset\.taskChecklistAdd = ""/, "Checklist section shell should be helper-built");
+assert.match(checklistSection, /className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field"[\s\S]*"data-task-checklist-status"[\s\S]*"data-task-checklist-input"[\s\S]*taskEditorChecklistAddButton\(view\)[\s\S]*"data-task-checklist-list"/, "Checklist section shell should be helper-built");
+assert.match(checklistAddButton, /button\.dataset\.taskChecklistAdd = ""/, "Checklist add button behavior should remain helper-built");
 assert.match(recurrenceSection, /className: \["task-recurrence-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-recurrence-panel"[\s\S]*"data-task-recurring"[\s\S]*"data-task-recurrence-details"[\s\S]*"data-task-recurrence-summary"/, "Recurrence section shell should be helper-built");
 assert.match(timerSection, /className: \["task-timer-field", "surface-modal-group"\][\s\S]*"data-task-timer-field"[\s\S]*"data-task-timer-start"[\s\S]*"data-task-timer-pause"[\s\S]*"data-task-timer-finalize"[\s\S]*"data-task-timer-reset"/, "Task Timer section shell should be helper-built");
 assert.match(reminderSection, /className: \["task-reminder-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-reminder-details"[\s\S]*"data-task-reminder-override"[\s\S]*"data-task-reminder-override-fields"/, "Reminder section shell should be helper-built");
@@ -83,26 +79,13 @@ assert.match(timerWriter, /taskTimersEnabled[\s\S]*timeTrackingEnabled[\s\S]*tim
 assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.10\.7/, "Strict guardrail doc should report the current slice");
 assert.match(inventoryDoc, /`tasks\.workspace` is now a strict declarative surface/, "Strict guardrail doc should document active enforcement");
 assert.match(inventoryDoc, /Fail-On-Violation Tasks Guardrails[\s\S]*Raw template parsing[\s\S]*Page shell[\s\S]*Slide-out sidebar shell[\s\S]*Filter panel shell[\s\S]*Bulk toolbar shell[\s\S]*Modal shell\/footer[\s\S]*Standard field grids[\s\S]*Standard action placement/, "Strict guardrail doc should list hard failures");
-assert.match(inventoryDoc, /Documented Tasks-Owned Escape Hatches[\s\S]*Task row-specific content[\s\S]*Recurrence editor internals[\s\S]*Checklist behavior fragments[\s\S]*Timer state behavior/, "Strict guardrail doc should keep explicit Tasks-owned escape hatches");
+assert.ok(sourceContainsInOrder(inventoryDoc, ["Documented Tasks-Owned Escape Hatches", "Task row-specific content", "Recurrence editor internals", "Checklist behavior fragments", "Timer state behavior"]), "Strict guardrail doc should keep explicit Tasks-owned escape hatches");
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.10\.6[\s\S]*strict declarative guardrails now enforce `tasks\.workspace`/, "Tasks docs should summarize strict enforcement");
 assert.match(moduleContract, /0\.33\.5\.18\.10\.6[\s\S]*Tasks strict declarative guardrails/, "Module contract should document the strict Tasks decision");
 assert.match(viewContract, /strict guardrail enforcement shipped in 0\.33\.5\.18\.10\.6/, "View-building contract should record the strict enforcement slice");
-assert.match(regressionSuite, /scripts\/tasks-strict-guardrail-inventory-regression\.mjs/, "Regression suite should include the strict Tasks guardrail regression");
 
 console.log(`Tasks strict declarative guardrail regression passed. Remaining direct DOM calls are documented escape hatches: tasks.js=${countMatches(tasksScript, /document\.createElement/g)}, task-dialog.js=${countMatches(taskDialogScript, /document\.createElement/g)}.`);
 
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
-}
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,8 +11,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-rec
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Recurrence-Reminders-Repository-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const recurrenceRepoSource = readText("src/modules/tasks/task-recurrence.repo.js");
 const remindersRepoSource = readText("src/modules/tasks/task-reminders.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
@@ -21,7 +18,6 @@ const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskRecurrenceRepository } = await import("../src/modules/tasks/task-recurrence.repo.js");
@@ -42,9 +38,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Task recurrence/reminders repository conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Task recurrence/reminders repository conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Task recurrence/reminders repository conversion version");
 
   assert.match(recurrenceRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Task recurrence repository should import only the provider-neutral db facade");
   assert.match(remindersRepoSource, /import \{ db \} from "\.\.\/\.\.\/core\/database\.js";/, "Task reminders repository should import only the provider-neutral db facade");
@@ -64,7 +57,6 @@ function assertStaticContract() {
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.11[\s\S]*task recurrence and reminder repositories use named bound params[\s\S]*[Tt]emplate assignee replacement[\s\S]*reminder offset replacement/, "Tasks docs should describe the converted recurrence/reminder persistence boundary");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.11 - Conversion wave: Task recurrence and reminders[\s\S]*- \[x\] Convert `tasks\/task-recurrence\.repo` and `tasks\/task-reminders\.repo`[\s\S]*- \[x\] Preserve recurrence template reads\/writes[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.11 - [\s\S]*Task recurrence and reminders repository conversion[\s\S]*1,218 helper invocations[\s\S]*197 direct interpolated operation sites[\s\S]*144 bound operation sites/, "changelog should record the Task recurrence/reminders conversion burndown");
-  assert.match(regressionSuite, /scripts\/task-recurrence-reminders-repository-conversion-regression\.mjs/, "regression suite should include the Task recurrence/reminders repository conversion proof");
 }
 
 async function assertRecurrenceTemplateRepository(session) {

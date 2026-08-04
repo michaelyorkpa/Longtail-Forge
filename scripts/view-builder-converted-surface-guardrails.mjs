@@ -1,13 +1,9 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const css = readText("public/css/longtail-forge.css");
@@ -18,19 +14,9 @@ const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-
 assert.match(viewContract, new RegExp(`As of ${escapeRegExp(version)}`), "View contract should report the current guardrail version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.15\.5/, "View contract should document the guardrail slice");
 assert.match(changelog, /## Version 0\.33\.5\.15\.5 - /, "Changelog should include the converted-surface guardrail version");
-assert.match(
-  regressionSuite,
-  /scripts\/view-builder-converted-surface-guardrails\.mjs/,
-  "Regression suite should include the converted-surface guardrails",
-);
-
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage|["'`]\/api\//, "View builder should not own module data loading or storage");
 assert.match(helper, /function createModalFooter/, "View builder should own modal footer creation");
 assert.match(helper, /surface-modal-footer-group/, "View builder should own modal footer groups");

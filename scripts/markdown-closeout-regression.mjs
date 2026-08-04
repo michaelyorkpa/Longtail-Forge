@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -11,12 +10,7 @@ const moduleDevelopment = await read("docs/module-development.md");
 const notesModule = await read("docs/notes-module.md");
 const markdownContract = await read("docs/markdown-platform-contract.md");
 const notesHelp = await read("help/modules/notes/markdown.md");
-const packageJson = JSON.parse(await read("package.json"));
-const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(
   roadmap,

@@ -4,7 +4,7 @@ This document defines the minimum operational-security contract for the current 
 
 ## Production logs and request correlation
 
-When `LONGTAIL_ENV=production`, process output is newline-delimited JSON. Every record has `timestamp`, `level`, and a stable `event`. HTTP completion records also contain a server-generated `requestId`, method, status code, and duration in milliseconds. The same opaque ID is returned in the `X-Request-ID` response header so an operator can correlate one response with its log record. Client-supplied request IDs are not trusted or reused.
+When `LONGTAIL_ENV=production`, process output is newline-delimited JSON. Every record has `timestamp`, `level`, and a stable `event`. HTTP completion records also contain a server-generated `requestId`, method, status code, and duration in milliseconds. The same opaque ID is returned in the `X-Request-ID` response header so an operator can correlate one response with its log record. Client-supplied request IDs are not trusted or reused. As of 0.33.27.3, this correlation value comes from the central opaque UUIDv4 authority; it remains non-secret and carries no ordering semantics.
 
 Production logging uses a strict field allowlist. It deliberately omits request paths and query strings, request/response bodies, headers, cookies, session IDs, bearer tokens, passwords, secret values, database and storage paths, private record contents, and raw error messages or stacks. The production console bridge converts legacy console writes into safe classified records without copying their arguments. Application errors use a safe error type only. Do not weaken this boundary to make debugging easier; reproduce privately with sanitized diagnostics instead.
 

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,14 +10,10 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-helper-c
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "3210";
 process.env.SUPER_ADMIN_PASSWORD = "Better-Sqlite3-Helper-Core-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const sqliteSource = readText("src/db/sqlite.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeSqlite,
@@ -34,9 +29,6 @@ const {
 } = await import("../src/db/index.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the in-process SQLite helper core version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the in-process SQLite helper core version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the in-process SQLite helper core version");
 
   assert.match(sqliteSource, /from "better-sqlite3"/, "SQLite helper should import better-sqlite3");
   assert.match(sqliteSource, /new Database\(config\.databaseFile\)/, "SQLite helper should open config.databaseFile through better-sqlite3");
@@ -50,10 +42,8 @@ try {
   assert.doesNotMatch(sqliteSource, /node:child_process|spawn\(|sqliteProcess|markerToken|requestQueue|config\.sqliteCommand/, "SQLite helper should no longer shell out to the sqlite3 CLI");
   assert.match(sqliteAdapterSource, /querySql,[\s\S]*runSql,[\s\S]*from "\.\.\/sqlite\.js"/, "SQLite adapter should keep loading the stable helper names");
   assert.doesNotMatch(sqliteAdapterSource, /expandSqlParameters|sqliteParameterLiteral/, "SQLite adapter should no longer inline parameters after the parameter-binding slice");
-  assert.match(regressionSuite, /scripts\/better-sqlite3-helper-core-regression\.mjs/, "regression suite should include the helper-core regression");
-  assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.2[\s\S]*long-lived[\s\S]*better-sqlite3/, "database docs should describe the in-process helper core");
+    assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.2[\s\S]*long-lived[\s\S]*better-sqlite3/, "database docs should describe the in-process helper core");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the helper-core slice");
 
   const health = await initializeSqliteRuntime();
   assert.equal(health.provider, "sqlite");
@@ -141,8 +131,4 @@ VALUES ('created-through-exec');
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

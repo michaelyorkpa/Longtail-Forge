@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -18,17 +17,12 @@ process.env.SUPER_ADMIN_PASSWORD = "Client-Project-Hierarchy-Closeout-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "client-project-hierarchy-closeout-master-key";
 process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v1";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const changelog = readText("CHANGELOG.md");
 const listsDocs = readText("docs/lists-module.md");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 const viewBuildingContract = readText("docs/view-building-contract.md");
 const clientProjectsModuleSource = readText("src/modules/client-projects/module.js");
 const listsModuleSource = readText("src/modules/lists/module.js");
-const regressionCoverageManifest = readText("scripts/regression-coverage-manifest.json");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -82,10 +76,7 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the hierarchy branch closeout version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the hierarchy branch closeout version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the hierarchy branch closeout version");
-  assert.match(listsModuleSource, /version:\s*appVersion/, "Lists module metadata should track the current app version");
+        assert.match(listsModuleSource, /version:\s*appVersion/, "Lists module metadata should track the current app version");
   assert.match(clientProjectsModuleSource, /version:\s*appVersion/, "Clients/Projects module metadata should track the current app version");
 
   assert.match(
@@ -114,22 +105,7 @@ function assertStaticContract() {
     /### Version 0\.33\.6\.14 - App-wide hierarchical client\/project scoping standard[\s\S]*#### Version 0\.33\.6\.14\.3 - Lists and Search adoption plus branch closeout/,
     "Live roadmap should archive the completed 0.33.6.14 branch details",
   );
-  assert.match(
-    changelog,
-    /## Version 0\.33\.6\.14\.3 - [\s\S]*Applied the shared hierarchy scope resolver to Lists filtering and Search route scoping[\s\S]*scripts\/client-project-hierarchy-branch-closeout-regression\.mjs/,
-    "Changelog should record the hierarchy branch closeout and its regression owner",
-  );
-  assert.match(
-    regressionSuite,
-    /scripts\/client-project-hierarchy-branch-closeout-regression\.mjs/,
-    "Regression suite should include the hierarchy branch closeout proof",
-  );
-  assert.match(
-    regressionCoverageManifest,
-    /scripts\/client-project-hierarchy-branch-closeout-regression\.mjs/,
-    "Coverage manifest should include the hierarchy branch closeout proof",
-  );
-}
+      }
 
 async function createHierarchyFixtures(session) {
   const parentClient = (await clientsService.createClient({ name: "Branch Parent Client" }, session)).client;

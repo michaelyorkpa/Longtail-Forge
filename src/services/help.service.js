@@ -2,11 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { markdownToPlainText, renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { db } from "../core/database.js";
 import { validateHelpContribution } from "../core/modules/manifest-contract.js";
 import { AppError } from "../utils/app-error.js";
+import { correspondingSourceUrl, trackedSourceUrl } from "../core/corresponding-source.js";
 
 const HELP_SEARCH_INDEXER_ID = "framework.help-articles";
 const HELP_SEARCH_RECORD_TYPE = "help_article";
@@ -14,6 +16,7 @@ const HELP_SEARCH_SOURCE = "Help";
 const FRAMEWORK_HELP_MODULE_ID = "framework";
 const HELP_CONTENT_ROOT = fileURLToPath(new URL("../../help/", import.meta.url));
 const HELP_TOC_PATH = path.join(HELP_CONTENT_ROOT, "toc.md");
+const THIRD_PARTY_NOTICES_PATH = fileURLToPath(new URL("../../THIRD_PARTY_NOTICES.md", import.meta.url));
 
 const FRAMEWORK_HELP_SECTION = {
   id: "framework.help-center",
@@ -50,7 +53,33 @@ const FRAMEWORK_HELP_ARTICLES = [
       sortOrder: 10,
       audience: "all",
       tags: ["framework", "getting-started", "dashboard"],
-      relatedArticleIds: ["framework.workspaces", "framework.search", "framework.settings"],
+      relatedArticleIds: ["framework.dashboard-workbench", "framework.workbench-focus", "framework.search"],
+    },
+    {
+      id: "framework.dashboard-workbench",
+      slug: "dashboard-and-workbench",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Dashboard and Workbench",
+      summary: "Choose between workspace overview and live, resumable work.",
+      contentPath: "framework/dashboard-and-workbench.md",
+      sortOrder: 12,
+      audience: "all",
+      tags: ["framework", "dashboard", "workbench", "overview"],
+      relatedArticleIds: ["framework.workbench-focus", "framework.getting-started", "framework.notifications"],
+    },
+    {
+      id: "framework.workbench-focus",
+      slug: "workbench-focus-and-recovery",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Workbench Focus and Recovery",
+      summary: "Understand each focus choice, recommendation ordering, and resume-safe handoff.",
+      contentPath: "framework/workbench-focus-and-recovery.md",
+      sortOrder: 14,
+      audience: "all",
+      tags: ["framework", "workbench", "focus", "resume work", "recovery"],
+      relatedArticleIds: ["framework.dashboard-workbench", "framework.goals", "framework.action-catalog"],
     },
     {
       id: "framework.workspaces",
@@ -128,7 +157,7 @@ const FRAMEWORK_HELP_ARTICLES = [
       sortOrder: 70,
       audience: "all",
       tags: ["framework", "notifications"],
-      relatedArticleIds: ["framework.settings", "framework.modules"],
+      relatedArticleIds: ["framework.dashboard-workbench", "framework.settings", "framework.modules"],
     },
     {
       id: "framework.tags",
@@ -141,7 +170,20 @@ const FRAMEWORK_HELP_ARTICLES = [
       sortOrder: 80,
       audience: "all",
       tags: ["framework", "tags", "search"],
-      relatedArticleIds: ["framework.search", "framework.clients-projects", "framework.tasks"],
+      relatedArticleIds: ["framework.tags-search", "framework.search", "framework.clients-projects"],
+    },
+    {
+      id: "framework.tags-search",
+      slug: "tags-and-search",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Tags and Search",
+      summary: "Understand classification, recovery, indexing, and permission-shaped results.",
+      contentPath: "framework/tags-and-search.md",
+      sortOrder: 85,
+      audience: "all",
+      tags: ["framework", "tags", "search", "recovery"],
+      relatedArticleIds: ["framework.tags", "framework.search", "framework.workbench-focus"],
     },
     {
       id: "framework.search",
@@ -154,7 +196,7 @@ const FRAMEWORK_HELP_ARTICLES = [
       sortOrder: 90,
       audience: "all",
       tags: ["framework", "search", "help"],
-      relatedArticleIds: ["framework.help-center", "framework.tags"],
+      relatedArticleIds: ["framework.tags-search", "framework.help-center", "framework.tags"],
     },
     {
       id: "framework.files-attachments",
@@ -170,6 +212,32 @@ const FRAMEWORK_HELP_ARTICLES = [
       relatedArticleIds: ["framework.tasks", "framework.search", "framework.modules"],
     },
     {
+      id: "framework.action-catalog",
+      slug: "action-catalog",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Action Catalog",
+      summary: "Find app-wide actions, their purpose, and where they appear.",
+      contentPath: "framework/action-catalog.md",
+      sortOrder: 97,
+      audience: "all",
+      tags: ["framework", "actions", "quick actions", "workbench"],
+      relatedArticleIds: ["framework.goals", "framework.files-attachments", "framework.clients-projects"],
+    },
+    {
+      id: "framework.goals",
+      slug: "what-do-you-want-to-do",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "What Do You Want to Do?",
+      summary: "Start with a goal and follow the shortest route to the right workflow.",
+      contentPath: "framework/what-do-you-want-to-do.md",
+      sortOrder: 98,
+      audience: "all",
+      tags: ["framework", "goals", "next action", "how to"],
+      relatedArticleIds: ["framework.action-catalog", "framework.administration", "framework.getting-started"],
+    },
+    {
       id: "framework.settings",
       slug: "settings-and-user-preferences",
       ownerType: "framework",
@@ -183,6 +251,19 @@ const FRAMEWORK_HELP_ARTICLES = [
       relatedArticleIds: ["framework.users-permissions", "framework.modules", "framework.help-center"],
     },
     {
+      id: "framework.administration",
+      slug: "administration-and-settings",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Administration and Settings",
+      summary: "Route user preferences, users, roles, workspaces, modules, and module settings to the right administration page.",
+      contentPath: "framework/administration-and-settings.md",
+      sortOrder: 105,
+      audience: "all",
+      tags: ["framework", "administration", "settings", "roles", "modules"],
+      relatedArticleIds: ["framework.settings", "framework.users-permissions", "framework.modules"],
+    },
+    {
       id: "framework.modules",
       slug: "modules-and-optional-features",
       ownerType: "framework",
@@ -194,6 +275,32 @@ const FRAMEWORK_HELP_ARTICLES = [
       audience: "all",
       tags: ["framework", "modules", "help"],
       relatedArticleIds: ["framework.workspaces", "framework.help-center", "framework.search"],
+    },
+    {
+      id: "framework.legal-licensing",
+      slug: "legal-and-licensing",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Legal and Licensing",
+      summary: "Review the running version, source rights, warranty, third-party notices, and trademark policy.",
+      contentPath: "framework/legal-and-licensing.md",
+      sortOrder: 120,
+      audience: "all",
+      tags: ["framework", "legal", "licensing", "source", "trademark"],
+      relatedArticleIds: ["framework.third-party-notices", "framework.help-center"],
+    },
+    {
+      id: "framework.third-party-notices",
+      slug: "third-party-notices",
+      ownerType: "framework",
+      sectionId: "framework.help-center",
+      title: "Third-Party Notices",
+      summary: "Review the tracked license notices for production dependencies and bundled assets.",
+      contentPath: "framework/third-party-notices.md",
+      sortOrder: 130,
+      audience: "all",
+      tags: ["framework", "legal", "licensing", "third-party"],
+      relatedArticleIds: ["framework.legal-licensing"],
     },
 ];
 
@@ -594,13 +701,41 @@ async function readHelpArticleBody(article) {
   const absolutePath = resolveHelpContentPath(contentPath, article.id);
 
   try {
-    return await fs.readFile(absolutePath, "utf8");
+    const body = await fs.readFile(absolutePath, "utf8");
+    const hydrated = await hydrateTrackedLegalContent(article, body);
+    return hydrated;
   } catch (error) {
     if (error?.code === "ENOENT") {
       throw new AppError(`Help article content file is missing for '${article.id}'.`, 500);
     }
     throw error;
   }
+}
+
+async function hydrateTrackedLegalContent(article, body) {
+  if (article.id === "framework.third-party-notices") {
+    return fs.readFile(THIRD_PARTY_NOTICES_PATH, "utf8");
+  }
+
+  if (article.id !== "framework.legal-licensing") {
+    return body;
+  }
+
+  const replacements = new Map([
+    ["{{APP_NAME}}", config.appName],
+    ["{{APP_DISPLAY_VERSION}}", config.appDisplayVersion],
+    ["{{APP_CANONICAL_VERSION}}", config.appVersion],
+    ["{{CORRESPONDING_SOURCE_URL}}", correspondingSourceUrl()],
+    ["{{LICENSE_URL}}", trackedSourceUrl("LICENSE")],
+    ["{{TRADEMARK_POLICY_URL}}", trackedSourceUrl("docs/licensing/trademark-policy.md")],
+    ["{{THIRD_PARTY_NOTICES_URL}}", "./help.html?article=framework.third-party-notices"],
+  ]);
+
+  let hydrated = body;
+  for (const [token, value] of replacements) {
+    hydrated = hydrated.replaceAll(token, value);
+  }
+  return hydrated;
 }
 
 function assertUniqueContentPaths(articles) {

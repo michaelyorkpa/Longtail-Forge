@@ -10,7 +10,7 @@ From a reviewed source checkout with aligned package metadata, run:
 npm run artifact:build -- --source-branch nightly
 ```
 
-Use `nightly` for nightly integration artifacts and `main` for main, preview, and tagged-release artifacts. The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`; the canonical filename stays unsuffixed. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion.
+Use `nightly` for nightly integration artifacts and `main` for main, preview, and tagged-release artifacts. The command writes `dist/longtail-forge-<version>.tgz` and the adjacent `dist/longtail-forge-<version>.tgz.sha256`; the canonical filename stays unsuffixed. `dist/` is ignored because release artifacts are generated outputs, not source files. Verify the SHA-256 checksum before extraction or promotion. The artifact, bare-metal, and container smokes accept `--artifact <path>` so CI can build or retrieve one checksummed exact-SHA candidate and pass the identical bytes through every independent recovery proof instead of silently rebuilding a different candidate in each job.
 
 For the full clean-install proof, run:
 
@@ -23,6 +23,14 @@ The smoke command performs a disposable first-install boot with an isolated test
 The smoke builds the tarball, extracts it into a disposable directory, installs from the artifact's pruned shrinkwrap with `npm ci --omit=dev`, confirms development dependencies are absent, starts `node server.js` through the unchanged `npm start` contract, and verifies `/api/app-info` plus `/readyz`. The proof uses disposable test-mode data; it is not the production deployment or backup/restore exercise.
 
 The runtime `src/` payload includes the generated bundled-module catalog and every repository-owned first-party `module.js` entry it names. Startup rechecks that catalog/source inventory before migrations, so a missing, extra, or stale packaged entry fails closed instead of silently changing the shipped module set. Catalog generation remains repository-only tooling; the installed artifact does not discover operator-added executable modules.
+
+The artifact also includes `legal/default-terms.md` and
+`legal/default-privacy.md`. These are neutral operator templates, not hosted
+service terms issued by Raymond Tec. A hosted operator supplies reviewed
+Markdown through the runtime paths documented in
+[Runtime Configuration](runtime-configuration.md); those private governing
+documents and their approval record are deployment state and do not belong in
+the public artifact.
 
 ## Install and start
 
@@ -38,7 +46,7 @@ The tarball contains `npm-shrinkwrap.json`, so `npm ci --omit=dev` is the settle
 
 `npm run start:worker` starts the optional same-host separate worker from the same installed artifact. Docker Compose, the systemd supervisor example, persistence, upgrade/rollback, and the host Caddy boundary are documented in [Docker and Bare-Metal Preview Deployment](preview-deployment.md); this artifact does not expose the Node listener directly to the internet.
 
-The artifact also carries the `backup:create`, `backup:inspect`, `backup:export`, and `backup:restore` whole-instance commands, `workspace-backup:inspect` and `workspace-backup:restore`, the explicit `workspace:purge` queue command, and the guarded `demo:data:host` implementation used only by the separately installed named-demo-host wrapper. Their checksummed formats, Secure Notes key prerequisites, recovery procedures, irreversible deadline/fencing rules, and demo-only boundary are defined in [Baseline Backup and Restore](backup-restore.md), [Workspace Backup Package](workspace-backup.md), [Workspace Deletion Grace Period and Final Purge](workspace-deletion.md), and [Demo Host Data Provisioning and Reset](demo-data-operations.md). The disposable `backup:drill`, `workspace-backup:drill`, demo operation regressions, and purge regressions remain repository-only test tooling.
+The artifact also carries the `backup:create`, `backup:inspect`, `backup:export`, and `backup:restore` whole-instance commands, `workspace-backup:inspect` and `workspace-backup:restore`, the explicit `workspace:purge` queue command, and the guarded `demo:data:host` implementation used only by the separately installed named-demo-host wrapper. The demo tooling includes the reviewed deterministic seven-role identity/scope definition, but never the separately installed role credential document or any credential value. Their checksummed formats, Secure Notes key prerequisites, recovery procedures, irreversible deadline/fencing rules, and demo-only boundary are defined in [Baseline Backup and Restore](backup-restore.md), [Workspace Backup Package](workspace-backup.md), [Workspace Deletion Grace Period and Final Purge](workspace-deletion.md), and [Demo Host Data Provisioning and Reset](demo-data-operations.md). The disposable `backup:drill`, `workspace-backup:drill`, demo operation regressions, and purge regressions remain repository-only test tooling.
 
 ## Inventory
 
@@ -47,6 +55,9 @@ Every tarball includes `RUNTIME-ARTIFACT.json` with the canonical application ve
 - Runtime entrypoints: `server.js` and `worker.js`; backup/workspace recovery commands; and the inert-by-default named-demo-host data command plus its shared deterministic builder. The demo command is never called by app/worker startup or normal deployment and requires the separately installed root-owned wrapper and exact protected host configuration.
 - Runtime JavaScript, schemas, migrations, and database baseline: `src/`.
 - Browser and view assets required by the app: `public/js/`, `public/css/`, the served logo/favicon, `views/`, and the bundled Lucide license notice.
+- Public-release attribution: the reviewed root `THIRD_PARTY_NOTICES.md`, which
+  is checked against the production lockfile closure and bundled-asset
+  inventory before packaging.
 - User Help content loaded by the Help service: `help/`.
 - Runtime/operator contract files: `.env.example`, `.nvmrc`, `README.md`, `SECURITY.md`, `LICENSE`, this document, runtime configuration, operational security, preview deployment/Compose environment/systemd guidance, the reference internet-deployment/Caddy files, and SQLite small-office guidance.
 - Runtime dependency and install metadata: a runtime-only `package.json` and pruned `npm-shrinkwrap.json`.

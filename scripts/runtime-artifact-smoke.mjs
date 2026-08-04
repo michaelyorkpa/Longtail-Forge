@@ -5,7 +5,9 @@ import { get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { buildRuntimeArtifact } from "./build-runtime-artifact.mjs";
+import { inspectRuntimeArtifact } from "./build-container-image.mjs";
 
+const options = parseArgs(process.argv.slice(2));
 const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-smoke-"));
 const artifactDir = path.join(workspace, "artifact");
 const installDir = path.join(workspace, "install");
@@ -15,9 +17,12 @@ const smokeSuperAdminPassword = "Runtime-Artifact-Smoke-Password-123!";
 let server;
 
 try {
-  const artifact = await buildRuntimeArtifact({ outputDir: artifactDir });
+  const artifact = options.artifact
+    ? await inspectRuntimeArtifact(path.resolve(options.artifact))
+    : await buildRuntimeArtifact({ outputDir: artifactDir });
   await fs.mkdir(installDir, { recursive: true });
-  runCommand("tar", ["-xzf", artifact.artifactPath, "--strip-components=1", "-C", installDir], workspace);
+  const artifactPath = artifact.artifactPath || artifact.path;
+  runCommand("tar", ["-xzf", artifactPath, "--strip-components=1", "-C", installDir], workspace);
   runNpm(["ci", "--omit=dev"], installDir);
 
   const installedPackage = JSON.parse(await fs.readFile(path.join(installDir, "package.json"), "utf8"));
@@ -47,8 +52,15 @@ try {
   const output = collectOutput(server);
   const appInfo = await waitForJson(`http://127.0.0.1:${port}/api/app-info`, server, output);
   assert.equal(appInfo.version, artifact.version);
+  assert.match(appInfo.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(artifact.version)}$`));
   const ready = await waitForJson(`http://127.0.0.1:${port}/readyz`, server, output);
   assert.deepEqual(ready, { status: "ready" });
+  const terms = await requestText(`http://127.0.0.1:${port}/terms.html`);
+  const privacy = await requestText(`http://127.0.0.1:${port}/privacy.html`);
+  assert.equal(terms.statusCode, 200);
+  assert.match(terms.body, /Operator Terms Template/);
+  assert.equal(privacy.statusCode, 200);
+  assert.match(privacy.body, /Operator Privacy Notice Template/);
 
   console.log(`Runtime artifact smoke passed for ${artifact.version}.`);
   console.log(`Artifact SHA-256: ${artifact.checksum}`);
@@ -86,6 +98,18 @@ function runCommand(command, args, cwd, env = process.env) {
 function resolveWindowsNpmCli() {
   return process.env.npm_execpath
     || path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+}
+
+function parseArgs(cliArgs) {
+  const parsed = { artifact: undefined };
+  for (let index = 0; index < cliArgs.length; index += 1) {
+    if (cliArgs[index] === "--artifact") {
+      parsed.artifact = cliArgs[++index];
+    } else {
+      throw new Error(`Unknown runtime artifact smoke option: ${cliArgs[index]}`);
+    }
+  }
+  return parsed;
 }
 
 async function assertPathMissing(targetPath) {
@@ -145,6 +169,25 @@ function requestJson(url) {
     });
     request.once("error", reject);
   });
+}
+
+function requestText(url) {
+  return new Promise((resolve, reject) => {
+    const request = httpGet(url, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.once("error", reject);
+      response.once("end", () => resolve({
+        body: Buffer.concat(chunks).toString("utf8"),
+        statusCode: response.statusCode,
+      }));
+    });
+    request.once("error", reject);
+  });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function findAvailablePort() {

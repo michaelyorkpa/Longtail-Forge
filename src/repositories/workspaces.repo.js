@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";
+import { createRecordId } from "../core/identifiers.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { normalizeWorkspaceType } from "../utils/workspaces.js";
 
@@ -115,9 +115,9 @@ WHERE workspace_id = :workspaceId;
 }
 
 async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
-  const workspaceId = randomUUID();
-  const membershipId = randomUUID();
-  const assignmentId = randomUUID();
+  const workspaceId = createRecordId();
+  const membershipId = createRecordId();
+  const assignmentId = createRecordId();
   const now = new Date().toISOString();
   const normalizedSettings = normalizeSettings({
     workspaceName,

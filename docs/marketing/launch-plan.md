@@ -2,15 +2,15 @@
 
 Longtail Forge reaches users in **stages**, each with its own prerequisites, audience, and honest claim set. This plan separates those stages so no stage borrows credibility (or promises) from a later one.
 
-It aligns with the release lanes in [../licensing/commercial-viability-plan.md](../licensing/commercial-viability-plan.md) and the readiness work in [ROADMAP.md](../../ROADMAP.md) (0.33.16 security, 0.33.17 preview/packaging/backup).
+It aligns with the release lanes in [../licensing/commercial-viability-plan.md](../licensing/commercial-viability-plan.md), the completed bounded-preview technical evidence in [Private Preview Readiness](../private-preview-readiness.md), and the forward work in [ROADMAP.md](../../ROADMAP.md).
 
-**No invented launch dates.** The only dated target in the roadmap is the friends-and-family preview target of **July 31, 2026**, and it is explicitly conditional on completing the security and readiness prerequisites. Use roadmap targets only when clearly labeled as targets.
+**No invented launch dates.** The former July 31, 2026 friends-and-family target did not itself authorize invitations. Technical deployment is complete, but the private signed readiness record and explicit invite/no-invite decision still control whether Stage 1 begins.
 
 ## Stage overview
 
 | Stage | Audience | Gated on | Claim posture |
 | --- | --- | --- | --- |
-| 1. Private friends-and-family preview | A few trusted users | 0.33.16 + 0.33.17 readiness | Experimental; no guarantees |
+| 1. Private friends-and-family preview | A few trusted users | Technical proof complete; signed readiness and invite decision open | Experimental; no guarantees |
 | 2. Public self-hosted technical preview | Self-hosters, tinkerers | Stage 1 learnings + docs + disclosure path | "Technical preview," self-host only |
 | 3. Stable community self-hosted release | Self-hosters, small teams | Tested install/upgrade/backup, docs, limitations | Stable self-hosted; still no hosted guarantees |
 | 4. Managed private-instance pilots | Higher-touch orgs | Written terms, ops tooling (private) | Contract-based; only promise what's in the contract |
@@ -20,7 +20,7 @@ It aligns with the release lanes in [../licensing/commercial-viability-plan.md](
 
 ## Stage 1 — Private friends-and-family preview
 
-- **Prerequisites:** 0.33.16 internet-exposure hardening complete; 0.33.17 tested backup/restore and deployment readiness; the protected `nightly` -> `main` promotion, isolated demo/preview environments, and manual immutable preview deployment path proven; the [friends-and-family plan](friends-and-family-preview.md) prepared. Roadmap **target** July 31, 2026, conditional on the above.
+- **Prerequisites/status:** 0.33.16 internet-exposure hardening, 0.33.17 tested backup/restore and deployment readiness, the protected `nightly` -> `main` promotion, isolated demo/preview environments, manual immutable deployment, and 0.33.24 maintenance/rollback rollout are complete. Stage 1 remains unopened until the exact candidate has a completed private signed readiness record, participant-account plus scanner/recovery review, and an explicit invite decision.
 - **Audience:** a handful of trusted individuals in the wedge (freelancers/small service operators).
 - **Message:** "Try an early, private preview of a work hub built for interrupted client work. Experimental — no guarantees."
 - **Assets:** invitation copy, known-limitations + privacy warning, five-minute first-use path, bug-report template (all in the friends-and-family plan); Demo A (recordable now) for orientation.

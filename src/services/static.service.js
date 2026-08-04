@@ -9,6 +9,7 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 import { permissionsService } from "./permissions.service.js";
+import { legalContentService } from "./legal-content.service.js";
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -40,7 +41,12 @@ const frameworkProtectedViews = new Map([
   ["workbench-settings.html", { id: "workbench-settings", file: "workbench-settings.html" }],
   ["workspace-settings.html", { id: "workspace-settings", file: "workspace-settings.html" }],
 ]);
-const publicPages = new Set(["index.html", "login.html"]);
+const publicPages = new Map([
+  ["index.html", null],
+  ["login.html", null],
+  ["terms.html", "terms"],
+  ["privacy.html", "privacy"],
+]);
 
 async function read(requestUrl, session = null) {
   const requestPath = new URL(requestUrl, `http://${config.host}:${config.port}`).pathname;
@@ -93,7 +99,7 @@ async function resolveRequestPath(requestPath, session) {
   const pageName = path.basename(requestPath);
 
   if (publicPages.has(pageName)) {
-    return resolveViewPath("public", pageName);
+    return resolveViewPath("public", pageName, { legalDocumentId: publicPages.get(pageName) });
   }
 
   if (pageName === "account-recovery.html") {
@@ -150,6 +156,7 @@ function resolveViewPath(viewGroup, fileName, options = {}) {
   return {
     filePath: filePath.startsWith(`${viewRoot}${path.sep}`) ? filePath : null,
     headers: options.protectedHtml ? { "Cache-Control": "no-store" } : {},
+    legalDocumentId: options.legalDocumentId || "",
     protectedHtml: options.protectedHtml === true,
   };
 }
@@ -164,7 +171,10 @@ function resolvePublicAssetPath(requestPath) {
 
 async function decorateHtml(contents, resolved, session) {
   const withErrorBoundary = injectErrorBoundaryScripts(contents);
-  const assetDecoratedContents = decorateHtmlAssetUrls(injectAssetVersionBootstrap(withErrorBoundary));
+  const withLegalDocument = resolved.legalDocumentId
+    ? await injectLegalDocument(withErrorBoundary, resolved.legalDocumentId)
+    : withErrorBoundary;
+  const assetDecoratedContents = decorateHtmlAssetUrls(injectAssetVersionBootstrap(withLegalDocument));
 
   if (!resolved.protectedHtml || !session?.user_id) {
     return assetDecoratedContents;
@@ -172,6 +182,14 @@ async function decorateHtml(contents, resolved, session) {
 
   const theme = await readInitialTheme(session);
   return injectCriticalThemeStyle(injectThemeAttributes(assetDecoratedContents, theme));
+}
+
+async function injectLegalDocument(contents, documentId) {
+  const document = await legalContentService.read(documentId);
+  if (!document) {
+    return contents;
+  }
+  return contents.replace('<div data-legal-document-body></div>', document.bodyHtml);
 }
 
 function injectErrorBoundaryScripts(contents) {

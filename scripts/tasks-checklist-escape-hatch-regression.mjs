@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
@@ -11,9 +8,6 @@ const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
 const taskChecklistRegression = readText("scripts/task-checklist-regression.mjs");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 assert.match(

@@ -6,8 +6,6 @@ import { appVersion } from "../src/core/version.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
 const root = process.cwd();
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
 const gitignore = readText(".gitignore");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -24,16 +22,11 @@ const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
 const pureContractTest = readText("tests/unit/runtime-configuration.test.mjs");
 const coveragePolicy = JSON.parse(readText("scripts/regression-coverage-exceptions.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const fixture = await createDisposableDatabaseFixture("runtime-configuration-contract-regression");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase } = await import("../src/db/provider.js");
 
 try {
-assert.equal(packageJson.version, appVersion, "package.json should report the runtime configuration slice version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the runtime configuration slice version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the runtime configuration slice version");
-assert.equal(appVersion, packageJson.version, "the runtime version helper should read package.json metadata");
 for (const moduleDefinition of modulesService.listModules().filter(({ id }) => [
   "client-projects",
   "lists",
@@ -207,7 +200,6 @@ assert.ok(custom.dataDir.endsWith(`${path.sep}custom-data`), "relative data dir 
 
 assertConfigFails({ PORT: "not-a-number" }, /PORT must be an integer/);
 
-assert.match(regressionSuite, /scripts\/runtime-configuration-contract-regression\.mjs/, "regression suite should include the runtime configuration contract regression");
 
 console.log("Runtime configuration contract regression passed.");
 } finally {

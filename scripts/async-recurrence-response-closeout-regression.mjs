@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,8 +12,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-async-re
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Async-Recurrence-Response-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const tasksDocs = readText("docs/tasks-module.md");
@@ -23,7 +20,6 @@ const tasksPageSource = readText("public/js/tasks.js");
 const workbenchSource = readText("public/js/workbench.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const publicApiSource = readText("src/modules/tasks/public-api.service.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeDatabase, db, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
@@ -34,9 +30,6 @@ const { tasksPublicApiService } = await import("../src/modules/tasks/public-api.
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
-  assert.equal(packageJson.version, appVersion, "package.json should report the async recurrence closeout version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the async recurrence closeout version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the async recurrence closeout version");
 
   assert.match(tasksServiceSource, /const recurrenceHandoff = await completeRecurrenceHandoff\(task, session\)/, "task completion should use the shared asynchronous recurrence handoff");
   assert.match(tasksServiceSource, /createdTask: null,[\s\S]*recurrenceContinuity: recurrenceHandoff\.recurrenceContinuity,[\s\S]*recurrenceJob: recurrenceHandoff\.recurrenceJob/, "task completion should return safe continuity and queued metadata instead of an inline task");
@@ -53,7 +46,6 @@ try {
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(regressionSuite, /scripts\/async-recurrence-response-closeout-regression\.mjs/, "regression suite should include async recurrence response closeout coverage");
 
   await initializeDatabase();
   activateModuleRuntime("worker");

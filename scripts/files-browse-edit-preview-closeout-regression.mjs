@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -12,11 +9,7 @@ const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
 const filesCloseout = readText("docs/0.32-module-file-closeout.md");
 const notesModule = readText("src/modules/notes/module.js");
 const tasksModule = readText("src/modules/tasks/module.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the closeout version");
 assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should track the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should track the current app version");
 
@@ -50,7 +43,6 @@ assert.match(declarativeSurfaces, /0\.33\.5\.18\.11\.13/, "Declarative surface g
 assert.match(changelog, /## Version 0\.33\.5\.18\.11\.13 - /, "Changelog should include the closeout version");
 assert.match(changelog, /Files browse\/edit\/preview closeout/, "Changelog should describe the closeout");
 assert.match(changelog, /0\.33\.5\.18\.12 handoff/, "Changelog should describe the next-branch handoff");
-assert.match(regressionSuite, /scripts\/static-contract-closeout-regression\.mjs/, "Regression suite should include the consolidated static closeout regression");
 
 console.log("Files browse/edit/preview closeout regression passed.");
 

@@ -186,6 +186,18 @@ function inferLegacyArea(slug) {
   return rules.find(([, pattern]) => pattern.test(slug))?.[0] || "framework";
 }
 
+const LEGACY_BASELINE_BYPASS_SLUGS = new Set([
+  "baseline-adoption",
+  "database-migration-locking",
+  "fresh-database",
+  "migration-compatibility",
+  "startup-maintenance-compatibility",
+]);
+
+const LEGACY_BASELINE_FIXTURE_SLUGS = new Set([
+  "static-contract-closeout",
+]);
+
 function inferLegacyTags(slug, runMode) {
   const tags = [];
   const add = (tag, condition) => {
@@ -194,7 +206,8 @@ function inferLegacyTags(slug, runMode) {
     }
   };
 
-  add("baseline-bypass", slug === "fresh-database");
+  add("baseline-bypass", LEGACY_BASELINE_BYPASS_SLUGS.has(slug));
+  add("baseline-fixture", LEGACY_BASELINE_FIXTURE_SLUGS.has(slug));
   add("closeout", slug.includes("closeout"));
   add("contract", /contract|guardrail|sanity/.test(slug));
   add("database", runMode !== "static");

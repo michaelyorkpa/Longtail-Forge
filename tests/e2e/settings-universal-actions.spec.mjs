@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { usesManagedServer } from "./support/e2e-env.mjs";
 
-test("password action stays isolated and changes only the disposable managed account", async ({
+const managedServerTest = usesManagedServer ? test : test.skip;
+
+managedServerTest("password action stays isolated and changes only the disposable managed account", { tag: "@desktop" }, async ({
   browser,
   playwright,
   request,
 }, testInfo) => {
-  test.skip(!usesManagedServer || testInfo.project.name !== "desktop", "password mutation is limited to the disposable desktop harness");
-
   const baseURL = String(testInfo.project.use.baseURL || "");
   const username = `password-action-${testInfo.workerIndex}-${Date.now()}@longtailforge.local`;
   const createResponse = await request.post("/api/users", {

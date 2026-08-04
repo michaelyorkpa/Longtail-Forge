@@ -2,7 +2,7 @@
 
 This map ties each capability to the user problem it solves and the outcome it produces — deliberately **not** a feature list. Every row states current-versus-planned status, a proof/documentation source, the marketing claim that is allowed, and the limits on that claim.
 
-Status: **Current** = shipped through 0.33.13.5. **Planned** = committed roadmap module not yet shipped. **Private preview** = active preview-readiness work.
+Status: **Current** = shipped in the 0.33.25.6 repository baseline (product behavior through 0.33.24.9 plus the complete 0.33.25 legal, Help, and marketing branch). **Planned** = committed roadmap module not yet shipped. **Private preview** = technically deployed bounded preview with a separate invitation decision still open.
 
 ## Summary outcome map
 
@@ -18,6 +18,8 @@ Status: **Current** = shipped through 0.33.13.5. **Planned** = committed roadmap
 | I can't find things across my work | Search | Recover information across connected work | Current |
 | I miss relevant changes | Notifications | Surface relevant changes without constant checking | Current |
 | I can't see time/operational results | Reporting | Understand time and operational results | Current |
+| Task dates are isolated from my calendar client | Tasks calendar subscriptions | Follow a permission-scoped, read-only Tasks calendar in a compatible calendar client | Current |
+| An upgrade or outage needs a safe recovery boundary | Preview operations | Use tested backup/restore, immutable deployment, rollback, and maintenance procedures | Current, bounded private-preview topology |
 | Requests get lost between inbox and work | Tickets | Move requests through resolution with internal/client context | Planned (0.34) |
 | Knowledge isn't preserved after the work | Knowledge Base | Turn reviewed knowledge into durable reference material | Planned (0.35) |
 | Content ideas don't reach publication | Creator Studio | Move ideas through drafting, production, publishing, repurposing | Planned (0.39) |
@@ -95,6 +97,20 @@ Each row: **problem → feature → outcome**, then status, proof source, allowe
 - **Proof:** [README](../../README.md); Reporting framework work (roadmap 0.33.12).
 - **Allowed claim:** "Report on billable and non-billable time and see workspace summaries."
 - **Limits:** No advanced BI, forecasting, or benchmark claims.
+
+### Tasks calendar subscriptions — Current
+- **Problem:** Task dates are isolated from the calendar client a user already checks.
+- **Outcome:** Workspace administrators create named, private, read-only Tasks subscriptions scoped to a Workspace, Client, or Project as allowed; compatible clients refresh them on their own schedule.
+- **Proof:** [Tasks module](../tasks-module.md) private calendar feed and administrator lifecycle; [current Help](../../help/modules/tasks/reminders-calendar-and-subscriptions.md).
+- **Allowed claim:** "Follow a permission-scoped, read-only Tasks calendar in Google Calendar, Apple Calendar, Outlook, or Thunderbird."
+- **Limits:** This is not the planned Calendar module, an account connection, OAuth integration, instant synchronization, or two-way editing. Treat each subscription URL like a password.
+
+### Bounded preview operations — Current
+- **Problem:** Early self-hosted upgrades and outages need a repeatable recovery boundary.
+- **Outcome:** The maintained private-preview topology has checksummed artifacts, tested database-and-Files backup/restore, immutable promotion/deployment, rollback/restore-forward, health/readiness identity proof, and an operator/deployment maintenance curtain.
+- **Proof:** [Private Preview Readiness](../private-preview-readiness.md); [Preview Deployment](../preview-deployment.md); [Backup and Restore](../backup-restore.md); [Internet Deployment](../internet-deployment.md).
+- **Allowed claim:** "The bounded private-preview deployment and recovery path has been exercised end to end."
+- **Limits:** This proof is specific to the documented preview topology. It is not an uptime, data-durability, security-certification, compliance, public-production-readiness, or invitation-readiness guarantee.
 
 ### Tickets — Planned (0.34)
 - **Problem:** Requests get lost between the inbox and the work they create.

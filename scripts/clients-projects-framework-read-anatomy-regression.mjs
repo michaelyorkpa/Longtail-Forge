@@ -11,23 +11,21 @@ const css = readText("public/css/longtail-forge.css");
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const fixture = await createDisposableDatabaseFixture("clients-projects-framework-read-anatomy-regression");
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects read anatomy version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects read anatomy version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects read anatomy version");
 assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module should report the read anatomy version");
 
 assertMinimalHost(clientsHtml, "Clients");
 assertMinimalHost(projectsHtml, "Projects");
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Read anatomy should not be recreated inside the Clients/Projects adapter");
-assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*loadPageData\(\{ renderPage: false \}\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor read pages");
+assert.match(
+  clientsProjectsScript,
+  /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,
+  "Adapter should wait for app-shell viewSurfaces and server-shaped capabilities before rendering descriptor read pages",
+);
 assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
 assert.match(clientsProjectsScript, /function openAddClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.add"/, "Add Client query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openEditClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.edit", \{ clientId: client\.id \}/, "Client detail query opener should dispatch the registered module action");
@@ -41,7 +39,6 @@ assert.match(renderer, /Object\.hasOwn\(table, "rowActionsHeaderLabel"\)[\s\S]*t
 assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\{[\s\S]*padding: 6px/, "Clients/Projects filter fields should leave focus-ring clearance inside the scrolling drawer");
 assert.match(css, /tr:has\(\+ \.client-projects-tag-row\)[\s\S]*border-bottom: 0/, "Client/Project tag rows should visually join the record-name row without an extra divider");
 assert.match(css, /\.client-projects-tag-row \.surface-chip\s*\{[\s\S]*max-width: 100%[\s\S]*overflow-wrap: anywhere/, "Client/Project tag chips should contain long labels within their borders");
-assert.match(regressionSuite, /scripts\/clients-projects-framework-read-anatomy-regression\.mjs/, "Regression suite should include the Clients/Projects read anatomy regression");
 
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
 const clientsDescriptor = surfaces.get("client-projects.clients");
@@ -64,7 +61,19 @@ assert.equal(clientsDescriptor.table.columns[0].field, "displayLabel", "Clients 
 assert.equal(projectsDescriptor.table.columns[0].field, "displayLabel", "Projects table should consume the service-shaped hierarchy label with its child hyphen");
 assert.equal(clientsDescriptor.table.secondaryRows[0].label, undefined, "Clients tag chips should not repeat a Tags label");
 assert.equal(projectsDescriptor.table.secondaryRows[0].label, undefined, "Projects tag chips should not repeat a Tags label");
-assert.ok(clientsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Clients repeated row actions should be icon-only");
+assert.deepEqual(
+  clientsDescriptor.table.rowActions.map((action) => ({
+    icon: action.icon,
+    iconOnly: action.iconOnly,
+    label: action.label,
+    title: action.title,
+  })),
+  [
+    { icon: "add", iconOnly: true, label: "Add Child Client", title: "Add Child Client" },
+    { icon: "edit", iconOnly: true, label: "Edit Client", title: "Edit Client" },
+  ],
+  "Clients repeated row actions should remain exact icon-only controls",
+);
 assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
 const clientsContext = createBrowserContext({
@@ -185,6 +194,7 @@ function clientRecord(overrides = {}) {
     billing_period: "calendarMonth",
     billing_rounding: null,
     billing_display: "Billable at $125/hr",
+    can_manage: true,
     tag_summary: "Focus",
     tags: [{ tag_id: "tag-focus", name: "Focus" }],
   };
@@ -209,6 +219,7 @@ function projectRecord(overrides = {}) {
     billing_period: "calendarMonth",
     billing_rounding: null,
     billing_display: "Billable at $100/hr",
+    can_manage: true,
     taskDefaults: {},
     tag_summary: "Focus",
     tags: [{ tag_id: "tag-focus", name: "Focus" }],

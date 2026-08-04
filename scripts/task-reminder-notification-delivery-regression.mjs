@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -12,16 +11,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-rem
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Task-Reminder-Delivery-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
 const tasksModuleEventsSource = readText("src/modules/tasks/module.events.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   resetJobWorkerStatusForTests,
@@ -62,17 +57,12 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the reminder delivery version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the reminder delivery version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the reminder delivery version");
-  assert.match(taskJobsSource, /recipient_user_ids:\s*taskReminderRecipientIds\(task\)/, "reminder jobs should pass explicit responsible recipients");
+        assert.match(taskJobsSource, /recipient_user_ids:\s*taskReminderRecipientIds\(task\)/, "reminder jobs should pass explicit responsible recipients");
   assert.match(taskJobsSource, /function taskReminderRecipientIds/, "reminder jobs should resolve fallback creator recipients");
   assert.match(tasksModuleEventsSource, /taskDueSoonNotificationTitle/, "task due-soon notifications should include useful due-soon titles");
   assert.match(tasksModuleEventsSource, /Task "\$\{title\}" is due in \$\{offsetLabel\}\./, "task due-soon body should include the reminder offset");
-  assert.match(regressionSuite, /scripts\/task-reminder-notification-delivery-regression\.mjs/, "regression suite should include reminder delivery coverage");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the reminder delivery slice");
-  assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+    assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.8[\s\S]*explicit reminder recipients/, "database docs should document reminder delivery recipients");
   assert.match(runtimeDocs, /0\.33\.5\.21\.8[\s\S]*task due reminders reach in-app notifications/, "runtime docs should document reminder delivery");
 }
@@ -501,8 +491,4 @@ function localDateTimeParts(date, timeZone) {
 
 function readText(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

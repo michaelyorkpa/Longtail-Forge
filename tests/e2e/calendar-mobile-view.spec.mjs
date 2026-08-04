@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "responsive Day fallback is a mobile-viewport contract");
-
+test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", { tag: "@mobile" }, async ({ page }) => {
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -21,12 +19,13 @@ test("mobile Dashboard and Actions Calendar default to Day with their deliberate
     await expect(page.locator(surface.activeView)).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".calendar-day-view")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open task: Mobile reminder proof" })).toBeVisible();
-    const plannedOccurrence = page.getByRole("button", {
-      name: "Open planned occurrence: Mobile planned recurrence proof",
+    const scheduledOccurrence = page.getByRole("button", {
+      name: "Open task: Mobile scheduled recurrence proof",
     });
-    await expect(plannedOccurrence).toBeVisible();
-    await expect(plannedOccurrence).toBeEnabled();
-    await expect(plannedOccurrence.locator(".calendar-entry-virtual")).toHaveText("Planned occurrence");
+    await expect(scheduledOccurrence).toBeVisible();
+    await expect(scheduledOccurrence).toBeEnabled();
+    await expect(scheduledOccurrence).toHaveAttribute("data-virtual", "true");
+    await expect(scheduledOccurrence.locator(".calendar-entry-virtual")).toHaveCount(0);
     if (surface.path === "/calendar.html") {
       await expect(page.getByRole("button", { name: "Open task: Mobile completed proof" })).toBeVisible();
     } else {
@@ -41,20 +40,39 @@ test("mobile Dashboard and Actions Calendar default to Day with their deliberate
   expect(requests[1].searchParams.get("statuses")).toBe("open,in_progress,blocked,complete");
 });
 
-test("opening a planned occurrence materializes it once and replaces the ghost", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one viewport is sufficient for materialize-on-touch behavior");
+test("scheduled recurring tasks use ordinary Task presentation in Month, Week, and Day on both Calendar hosts", { tag: "@desktop" }, async ({ page }) => {
+  await stubCalendarPreference(page, "day");
+  await stubCalendarReads(page);
 
+  for (const surface of [
+    { path: "/dashboard.html", selectorPrefix: "data-dashboard-calendar-view" },
+    { path: "/calendar.html?view=day&date=2026-07-23", selectorPrefix: "data-calendar-view-option" },
+  ]) {
+    await page.goto(surface.path);
+    for (const view of ["day", "week", "month"]) {
+      await page.locator(`[${surface.selectorPrefix}="${view}"]`).click();
+      const occurrence = page.getByRole("button", { name: "Open task: Mobile scheduled recurrence proof" });
+      await expect(occurrence).toBeVisible();
+      await expect(occurrence).toHaveAttribute("data-virtual", "true");
+      await expect(occurrence).not.toContainText("Planned occurrence");
+      await expect(occurrence).not.toHaveAttribute("title", /planned|virtual/i);
+    }
+  }
+});
+
+test("opening a scheduled recurring task materializes it once without changing its presentation", { tag: "@desktop" }, async ({ page }) => {
   const state = { materialized: false, materializationRequests: [] };
   await stubCalendarPreference(page, "day");
   await stubCalendarReads(page, [], state);
   await stubOccurrenceMaterialization(page, state);
   await page.goto("/calendar.html?view=day&date=2026-07-23");
 
-  const plannedOccurrence = page.getByRole("button", {
-    name: "Open planned occurrence: Mobile planned recurrence proof",
+  const scheduledOccurrence = page.getByRole("button", {
+    name: "Open task: Mobile scheduled recurrence proof",
   });
-  await expect(plannedOccurrence).toBeVisible();
-  await plannedOccurrence.click();
+  await expect(scheduledOccurrence).toBeVisible();
+  await expect(scheduledOccurrence).toHaveAttribute("data-virtual", "true");
+  await scheduledOccurrence.click();
 
   await expect.poll(() => state.materializationRequests).toEqual([{
     instanceDate: "2026-07-23",
@@ -65,10 +83,9 @@ test("opening a planned occurrence materializes it once and replaces the ghost",
   await expect(dialog.locator("[data-task-dialog-title]")).toHaveText("Edit Task");
   await dialog.getByRole("button", { name: "Cancel" }).click();
 
-  await expect(page.getByRole("button", { name: "Open task: Mobile planned recurrence proof" })).toBeVisible();
-  await expect(page.getByRole("button", {
-    name: "Open planned occurrence: Mobile planned recurrence proof",
-  })).toHaveCount(0);
+  const materializedOccurrence = page.getByRole("button", { name: "Open task: Mobile scheduled recurrence proof" });
+  await expect(materializedOccurrence).toBeVisible();
+  await expect(materializedOccurrence).toHaveAttribute("data-virtual", "false");
 });
 
 test("saved calendar preference wins on Dashboard and Actions Calendar", async ({ page }, testInfo) => {
@@ -91,18 +108,14 @@ test("saved calendar preference wins on Dashboard and Actions Calendar", async (
   }
 });
 
-test("Actions Calendar query view takes precedence over the saved preference", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "one viewport is sufficient for explicit query precedence");
-
+test("Actions Calendar query view takes precedence over the saved preference", { tag: "@mobile" }, async ({ page }) => {
   await stubCalendarPreference(page, "week");
   await stubCalendarReads(page);
   await page.goto("/calendar.html?view=month");
   await expect(page.locator('[data-calendar-view-option="month"]')).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one viewport is sufficient for the full Calendar status and range contract");
-
+test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", { tag: "@desktop" }, async ({ page }) => {
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -135,6 +148,9 @@ test("Actions Calendar keeps completed history bounded in Day, Week, and Month w
   await expect.poll(() => requests.length).toBe(4);
   expect(requests[3].searchParams.get("statuses")).toBe("open,in_progress,blocked,complete,archived");
   expect(calendarWindowDays(requests[3])).toBeLessThanOrEqual(42);
+  await page.locator('[data-calendar-view-option="day"]').click();
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests[4].searchParams.get("statuses")).toBe("open,in_progress,blocked,complete,archived");
   await expect(page.getByRole("button", { name: "Open task: Mobile archived proof" })).toBeVisible();
 });
 
@@ -159,7 +175,6 @@ async function stubCalendarReads(page, requests = [], state = {}) {
   await page.route("**/api/tasks/calendar?*", async (route) => {
     const requestUrl = new URL(route.request().url());
     const date = requestUrl.searchParams.get("start");
-    const endDate = requestUrl.searchParams.get("end");
     const statuses = String(requestUrl.searchParams.get("statuses") || "").split(",");
     requests.push(requestUrl);
     await route.fulfill({
@@ -176,20 +191,20 @@ async function stubCalendarReads(page, requests = [], state = {}) {
             status: "open",
             priority: "normal",
           },
-          ...(date === endDate ? [state.materialized
-            ? materializedCalendarTask(date)
-            : {
+          ...(state.materialized
+            ? [materializedCalendarTask(date)]
+            : [{
                 task_id: "",
                 id: `recurrence:mobile-calendar-template:${date}`,
                 templateId: "mobile-calendar-template",
                 instanceDate: date,
                 virtual: true,
-                title: "Mobile planned recurrence proof",
+                title: "Mobile scheduled recurrence proof",
                 due_date: date,
                 due_time: "",
                 status: "open",
                 priority: "normal",
-              }] : []),
+              }]),
           ...(statuses.includes("complete") ? [{
             task_id: "mobile-calendar-completed-task",
             title: "Mobile completed proof",
@@ -253,7 +268,7 @@ async function stubOccurrenceMaterialization(page, state) {
 function materializedCalendarTask(date) {
   return {
     task_id: "mobile-calendar-materialized-task",
-    title: "Mobile planned recurrence proof",
+    title: "Mobile scheduled recurrence proof",
     due_date: date,
     due_time: "",
     status: "open",

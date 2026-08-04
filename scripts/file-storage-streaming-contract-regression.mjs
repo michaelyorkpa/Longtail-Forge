@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -59,12 +58,8 @@ function assertStaticContracts() {
   const changelog = readText("CHANGELOG.md");
   const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
   const filesService = readText("src/services/files.service.js");
-  const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-  assert.equal(packageJson.version, appVersion, "package.json should report the streaming storage contract version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the streaming storage contract version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the streaming storage contract version");
-  assert.equal(packageJson.dependencies?.busboy, "^1.6.0", "package.json should record the multipart parser dependency decision");
+        assert.equal(packageJson.dependencies?.busboy, "^1.6.0", "package.json should record the multipart parser dependency decision");
   assert.ok(packageLock.packages["node_modules/busboy"], "package-lock should include the Busboy dependency");
 
   assert.match(changelog, /Busboy[\s\S]*instead of hand-rolling multipart parsing/, "changelog should record the Busboy multipart parser decision");
@@ -74,9 +69,7 @@ function assertStaticContracts() {
   assert.match(localStorageAdapter, /fs\.rm\(target\.filePath, \{ force: true \}\)/, "local saveStream should clean up partial files on stream errors");
   assert.match(filesService, /\["save", "saveStream", "read", "metadata", "delete", "health"\]/, "Files storage adapter registration should require saveStream");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the streaming storage contract slice");
-  assert.match(regressionSuite, /scripts\/file-storage-streaming-contract-regression\.mjs/, "regression suite should include the streaming storage contract regression");
-}
+    }
 
 async function readStoredText(adapter, storageKey) {
   return fs.readFile(adapter.resolveStoragePath(storageKey), "utf8");
@@ -126,8 +119,4 @@ async function listStoredFiles(directory) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

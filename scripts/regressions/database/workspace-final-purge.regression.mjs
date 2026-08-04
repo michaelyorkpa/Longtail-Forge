@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.workspace-final-purge",
   area: "database",
   tier: "release-gate",
-  tags: ["database", "files", "jobs", "permissions", "sessions", "workspaces"],
+  tags: ["baseline-bypass", "database", "files", "jobs", "permissions", "sessions", "workspaces"],
   description: "Proves the operator-queued final workspace purge is deadline-exact, fenced, restart-resumable, artifact-complete, idempotent, and isolated from every retained workspace.",
   runMode: "isolated-database",
 });
@@ -106,6 +106,19 @@ VALUES (
     "purge should fence first, then wait for already-running workspace work",
   );
   assert.equal((await db.get("SELECT status FROM workspaces WHERE workspace_id = :workspaceId;", { workspaceId: targetWorkspaceId })).status, "purging");
+  const fenceIdentity = await db.get(`
+SELECT lifecycle.purge_token, tombstone.purge_tombstone_id
+FROM workspace_deletion_lifecycle AS lifecycle
+INNER JOIN workspace_purge_tombstones AS tombstone
+  ON tombstone.workspace_fingerprint = :workspaceFingerprint
+WHERE lifecycle.workspace_id = :workspaceId;
+`, {
+    workspaceFingerprint: fingerprintWorkspaceId(targetWorkspaceId),
+    workspaceId: targetWorkspaceId,
+  });
+  assertUuidVersion(fenceIdentity?.purge_token, 4, "workspace purge fence identity");
+  assertUuidVersion(fenceIdentity?.purge_tombstone_id, 7, "workspace purge tombstone row identity");
+  assert.notEqual(fenceIdentity.purge_token, fenceIdentity.purge_tombstone_id, "purge fencing identity must stay independent from durable tombstone row identity");
   assert.equal(await count("sessions", "home_workspace_id = :workspaceId OR active_workspace_id = :workspaceId"), 0, "the fence should revoke target sessions atomically");
   assert.equal(await apiKeysRepository.readByHash("purge-key-hash"), null, "the fence should make target API keys unusable before deletion");
   assert.equal(await fileExists(targetObject.path), true, "artifacts stay intact until active workspace jobs drain");
@@ -313,4 +326,9 @@ function quoteIdentifier(value) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }

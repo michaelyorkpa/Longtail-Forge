@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { get } from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { compareDottedVersions, readActiveRoadmapCursor } from "./lib/roadmap-cursor.mjs";
 import {
   loadVersionLiteralAllowlist,
+  readWorkspaceTextEntries,
   scanEntriesForCurrentVersion,
   scanWorkspaceForCurrentVersion,
 } from "./test-support/version-literal-guardrail.mjs";
@@ -12,6 +16,7 @@ import { createDisposableDatabaseFixture } from "./test-support/disposable-datab
 const root = process.cwd();
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const allowlist = await loadVersionLiteralAllowlist(root);
 const fixture = await createDisposableDatabaseFixture("version-literal-guardrail-regression");
 const { createApp } = await import("../src/core/app.js");
@@ -21,22 +26,62 @@ try {
 assert.equal(appVersion, packageJson.version, "the runtime helper should match package metadata");
 assert.equal(packageLock.version, packageJson.version, "the lock root should match package metadata");
 assert.equal(packageLock.packages[""].version, packageJson.version, "the lock package entry should match package metadata");
+assert.match(changelog, new RegExp(`^## Version ${escapeRegExp(appVersion)} - `, "m"), "CHANGELOG should carry the current version heading");
+assert.ok(
+  compareDottedVersions(readActiveRoadmapCursor(), appVersion) > 0,
+  "ROADMAP should advance beyond the current package version before closeout",
+);
 
 const violations = await scanWorkspaceForCurrentVersion(root, appVersion, allowlist);
 assert.deepEqual(violations, [], formatViolations(violations));
 
 assert.deepEqual(
   scanEntriesForCurrentVersion([
-    { path: "ROADMAP.md", source: `Completed ${appVersion} planning label` },
     { path: "CHANGELOG.md", source: `## Version ${appVersion} - historical release` },
+    { path: "CHANGELOG.md", source: `## Version ${appVersion} - Windows checkout\r\n` },
     { path: ["DECISIONS", "md"].join("."), source: `As of ${appVersion}, this decision is current.` },
     { path: "TODO.md", source: `Deferred from ${appVersion}` },
     { path: "docs/release-history.md", source: `As of ${appVersion}` },
     { path: "archive/release-history.md", source: `Archived ${appVersion}` },
   ], appVersion, allowlist),
   [],
-  "governing decisions plus historical roadmap, changelog, TODO, docs, and archive labels should be ignored",
+  "governing decisions plus historical changelog, TODO, docs, and archive labels should be ignored",
 );
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "ROADMAP.md", source: `Completed ${appVersion} planning label` },
+  ], appVersion, allowlist).map(({ path }) => path),
+  ["ROADMAP.md"],
+  "the live roadmap should not silently treat a current-version planning label as historical",
+);
+
+const scanFixture = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-version-scan-"));
+try {
+  await fs.mkdir(path.join(scanFixture, "archive"), { recursive: true });
+  await fs.mkdir(path.join(scanFixture, "src"), { recursive: true });
+  await fs.writeFile(path.join(scanFixture, "archive", "large.md"), "x".repeat(64), "utf8");
+  await fs.writeFile(path.join(scanFixture, "src", "large.js"), "x".repeat(64), "utf8");
+  await assert.rejects(
+    () => readWorkspaceTextEntries(scanFixture, {
+      allowlist,
+      candidateFiles: ["archive/large.md", "src/large.js"],
+      maxTextFileBytes: 32,
+    }),
+    /src\/large\.js \(64 bytes\)/,
+    "non-historical files at the scan ceiling should fail explicitly",
+  );
+  assert.deepEqual(
+    await readWorkspaceTextEntries(scanFixture, {
+      allowlist,
+      candidateFiles: ["archive/large.md"],
+      maxTextFileBytes: 32,
+    }),
+    [],
+    "historical paths should be excluded before size checks or reads",
+  );
+} finally {
+  await fs.rm(scanFixture, { recursive: true, force: true });
+}
 
 assert.deepEqual(
   scanEntriesForCurrentVersion([
@@ -122,4 +167,8 @@ function formatViolations(violations) {
   return `Unapproved current-version literals:\n${violations
     .map((violation) => `- ${violation.path}:${violation.line}:${violation.column}`)
     .join("\n")}`;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

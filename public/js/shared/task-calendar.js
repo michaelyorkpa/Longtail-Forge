@@ -284,7 +284,6 @@
       `Priority: ${formatToken(task.priority)}`,
       contextLabel,
       timeLabel ? `Due ${timeLabel}` : "Due all day",
-      isVirtual ? "Planned recurring occurrence; no task has been created for this date yet." : "",
     ].filter(Boolean).join("\n");
     const children = [];
 
@@ -293,13 +292,6 @@
     }
 
     children.push(view.createElement("span", { className: "calendar-entry-title", text: task.title }));
-
-    if (isVirtual) {
-      children.push(view.createElement("span", {
-        className: "calendar-entry-virtual",
-        text: "Planned occurrence",
-      }));
-    }
 
     if (options.showMeta) {
       const metaText = [formatToken(task.status), formatToken(task.priority), contextLabel].filter(Boolean).join(" - ");
@@ -311,9 +303,7 @@
       attrs: {
         type: "button",
         title: tooltip,
-        "aria-label": isVirtual
-          ? `Open planned occurrence: ${task.title}`
-          : `Open task: ${task.title}`,
+        "aria-label": `Open task: ${task.title}`,
       },
       dataset: {
         calendarEntry: isVirtual ? task.id : task.task_id,

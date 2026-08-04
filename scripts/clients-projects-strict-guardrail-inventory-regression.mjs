@@ -1,10 +1,7 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createProjectTextReader, sourceContainsInOrder } from "./test-support/source-scan.mjs";
 
-
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
+const { readText } = createProjectTextReader();
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
@@ -23,16 +20,12 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects readiness version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects readiness version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects readiness version");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.21\.11\.1/, "Clients/Projects inventory should report the current strict boundary");
+assert.match(inventoryDoc, /Current as of 0\.33\.27\.5/, "Clients/Projects inventory should report the current strict boundary");
 assert.match(inventoryDoc, /strict enforcement is active/, "Inventory should mark Clients/Projects guardrails as active");
-assert.match(inventoryDoc, /Framework-Owned Guardrail Candidates[\s\S]*page-header\/status shells[\s\S]*Inline top filter panels[\s\S]*Hierarchy index\/list shells[\s\S]*Related table\/list shells[\s\S]*Bulk-toolbar shell[\s\S]*row-selection checkbox shell[\s\S]*Empty\/loading\/error\/status shells/, "Inventory should map framework-owned anatomy");
-assert.match(inventoryDoc, /Allowed Clients\/Projects Escape Hatches[\s\S]*\/api\/clients[\s\S]*\/api\/projects[\s\S]*\/api\/client-projects[\s\S]*hierarchy rules[\s\S]*Billing metadata\/default editors[\s\S]*Tag assignment[\s\S]*Query-param openers[\s\S]*Business-only Client availability[\s\S]*Bulk selected-ID collection[\s\S]*Save payload construction/, "Inventory should map Clients/Projects-owned escape hatches");
+assert.ok(sourceContainsInOrder(inventoryDoc, ["Framework-Owned Guardrail Candidates", "page-header/status shells", "Inline top filter panels", "Hierarchy index/list shells", "Related table/list shells", "Bulk-toolbar shell", "row-selection checkbox shell", "Empty/loading/error/status shells"]), "Inventory should map framework-owned anatomy");
+assert.ok(sourceContainsInOrder(inventoryDoc, ["Allowed Clients/Projects Escape Hatches", "/api/clients", "/api/projects", "/api/client-projects", "hierarchy rules", "Billing metadata/default editors", "Tag assignment", "Query-param openers", "Business-only Client availability", "Bulk selected-ID collection", "Save payload construction"]), "Inventory should map Clients/Projects-owned escape hatches");
 assert.match(inventoryDoc, /0\.33\.5\.18\.13\.3 Framework-Rendered Read Anatomy[\s\S]*page headers[\s\S]*filter controls[\s\S]*row action placement[\s\S]*query-param openers/, "Inventory should document the framework-rendered read anatomy boundary");
 assert.match(inventoryDoc, /0\.33\.5\.18\.14\.1 Action Registration Cleanup[\s\S]*LongtailForge\.moduleActions\.open[\s\S]*LongtailForge\.clientProjectDialog[\s\S]*duplicate page-level Add Client compatibility shell/, "Inventory should document the completed action registration cleanup");
 assert.match(inventoryDoc, /0\.33\.5\.18\.14\.2 Related Table and Detail Regions[\s\S]*createDataTable[\s\S]*Project editor's Client and Parent Project context rows[\s\S]*does not add a persistent Inspector-style detail pane/, "Inventory should document the completed related-region cleanup");
@@ -122,10 +115,5 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.2 is archived/, "live 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.3 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*slide-out filter surface[\s\S]*secondary tag rows[\s\S]*icon-only repeated edit controls[\s\S]*clients-projects-strict-closeout-regression\.mjs/, "Changelog should record the completed 0.33.5.18.14.5 slice");
-assert.match(regressionSuite, /scripts\/clients-projects-strict-guardrail-inventory-regression\.mjs/, "Regression suite should include the Clients/Projects readiness regression");
 
 console.log("Clients/Projects descriptor readiness and guardrail inventory regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

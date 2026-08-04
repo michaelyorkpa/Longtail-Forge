@@ -11,6 +11,9 @@ backups/
 data/*
 !data/.gitkeep
 
+# Local private development credentials and other machine-only inputs
+.local/
+
 # Local runtime logs (all repository-local logging belongs here)
 logs/*
 !logs/.gitkeep

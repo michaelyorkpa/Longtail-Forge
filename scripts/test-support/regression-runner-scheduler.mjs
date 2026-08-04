@@ -1,7 +1,30 @@
 import os from "node:os";
 
 const AUTO_ISOLATED_PARALLELISM_CAP = 6;
+const AUTO_STATIC_PARALLELISM_CAP = 8;
 const DEFAULT_ISOLATED_PARALLELISM = 4;
+const DEFAULT_STATIC_PARALLELISM = 6;
+
+function resolveStaticRegressionParallelism({
+  availableParallelism = getAvailableParallelism(),
+  env = process.env,
+  fallbackParallelism = DEFAULT_STATIC_PARALLELISM,
+} = {}) {
+  const directOverride = parsePositiveInteger(env.LTF_STATIC_REGRESSION_PARALLELISM);
+  if (directOverride) {
+    return { parallelism: directOverride, source: "LTF_STATIC_REGRESSION_PARALLELISM" };
+  }
+
+  const sharedOverride = parsePositiveInteger(env.LTF_REGRESSION_PARALLELISM);
+  if (sharedOverride) {
+    return { parallelism: sharedOverride, source: "LTF_REGRESSION_PARALLELISM" };
+  }
+
+  return {
+    parallelism: calculateAutoStaticParallelism(availableParallelism, fallbackParallelism),
+    source: "auto:" + normalizeAvailableParallelism(availableParallelism) + "-available",
+  };
+}
 
 function resolveIsolatedRegressionParallelism({
   availableParallelism = getAvailableParallelism(),
@@ -111,6 +134,26 @@ function calculateAutoIsolatedParallelism(availableParallelism, fallbackParallel
   );
 }
 
+function calculateAutoStaticParallelism(availableParallelism, fallbackParallelism = DEFAULT_STATIC_PARALLELISM) {
+  const normalizedAvailable = normalizeAvailableParallelism(availableParallelism);
+
+  if (normalizedAvailable <= 0) {
+    return Math.max(1, fallbackParallelism || DEFAULT_STATIC_PARALLELISM);
+  }
+
+  const hostAware = Math.max(1, Math.ceil((normalizedAvailable * 2) / 3));
+  const lowerBound = Math.min(
+    normalizedAvailable,
+    Math.max(1, fallbackParallelism || DEFAULT_STATIC_PARALLELISM),
+  );
+
+  return Math.min(
+    AUTO_STATIC_PARALLELISM_CAP,
+    normalizedAvailable,
+    Math.max(lowerBound, hostAware),
+  );
+}
+
 function getAvailableParallelism() {
   if (typeof os.availableParallelism === "function") {
     return os.availableParallelism();
@@ -130,9 +173,13 @@ function parsePositiveInteger(value) {
 
 export {
   AUTO_ISOLATED_PARALLELISM_CAP,
+  AUTO_STATIC_PARALLELISM_CAP,
   DEFAULT_ISOLATED_PARALLELISM,
+  DEFAULT_STATIC_PARALLELISM,
   calculateAutoIsolatedParallelism,
+  calculateAutoStaticParallelism,
   resolveIsolatedFilesParallelism,
   resolveIsolatedRegressionParallelism,
+  resolveStaticRegressionParallelism,
   runLimitedItems,
 };

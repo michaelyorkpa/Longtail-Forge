@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { auditLogsRepository } from "../repositories/audit-logs.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
@@ -6,6 +5,7 @@ import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
+import { createRecordId } from "../core/identifiers.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
@@ -61,7 +61,7 @@ async function record(event) {
   }
 
   const entry = {
-    audit_id: event.auditId || randomUUID(),
+    audit_id: event.auditId || createRecordId(),
     workspace_id: workspaceId,
     created_at: normalizeUtcIso(event.createdAt, event.session?.timezone),
     actor_user_id: event.actorUserId ?? event.session?.user_id ?? null,

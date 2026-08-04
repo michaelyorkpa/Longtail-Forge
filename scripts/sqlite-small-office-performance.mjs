@@ -298,7 +298,6 @@ function configureRuntime({ database, options, runtimeDir }) {
   process.env.LONGTAIL_DATA_DIR = runtimeDir;
   process.env.LONGTAIL_ENV = process.env.LONGTAIL_ENV || "test";
   process.env.SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || DEFAULT_PASSWORD;
-  delete process.env.LTF_REGRESSION_BASELINE_DB;
 }
 
 async function readFixtures(db, sessions) {

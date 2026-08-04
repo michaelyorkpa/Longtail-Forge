@@ -1,15 +1,11 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const icons = readText("public/js/shared/icons.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const taskService = readText("src/modules/tasks/tasks.service.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 const stylesheet = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const checklistAddButton = functionBlock(taskDialog, "taskEditorChecklistAddButton");
 const checklistActionButton = functionBlock(taskDialog, "checklistActionButton");
 const checklistActionIcon = functionBlock(taskDialog, "checklistActionIcon");
@@ -19,9 +15,6 @@ const attachTaskDetails = functionBlock(taskService, "attachTaskDetails");
 const taskSummaryRow = functionBlock(taskService, "taskSummaryRow");
 const writeChecklistFields = functionBlock(taskDialog, "writeChecklistFields");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the checklist editor display version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the checklist editor display version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the checklist editor display version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the checklist editor display version");
 
 for (const iconName of ["add", "save", "up", "down", "delete"]) {
@@ -110,11 +103,6 @@ assert.match(
   writeChecklistFields,
   /fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)/,
   "The task editor should render checklist rows from detail checklistItems.",
-);
-assert.match(
-  regressionSuite,
-  /scripts\/task-checklist-editor-display-regression\.mjs/,
-  "The checklist editor display regression should run in the regression suite.",
 );
 
 console.log("Task checklist editor display regression passed.");

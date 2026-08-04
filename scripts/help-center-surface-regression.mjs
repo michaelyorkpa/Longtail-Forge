@@ -6,6 +6,7 @@ import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-center-surface-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-center-test.db");
+process.env.LONGTAIL_RELEASE_COMMIT = "a".repeat(40);
 process.env.SUPER_ADMIN_PASSWORD = "Help-Center-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -95,6 +96,36 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(byId.article.body, /in-app product manual/);
     assert.equal(byId.article.section.id, "framework.help-center");
     assert.equal(bySlug.article.slug, "help-center");
+  });
+
+  await check("legal Help reports live identity and tracked licensing sources", async () => {
+    const list = await helpService.list(session);
+    const legal = await helpService.readArticle(session, "framework.legal-licensing");
+    const notices = await helpService.readArticle(session, "framework.third-party-notices");
+    const trackedNotices = await readProjectFile("THIRD_PARTY_NOTICES.md");
+
+    assert.ok(findNavigationArticle(list.navigation, "framework.legal-licensing"));
+    assert.ok(findNavigationArticle(list.navigation, "framework.third-party-notices"));
+    assert.match(legal.article.body, new RegExp(`Longtail Forge ${escapeRegExp(appVersion)}`));
+    assert.match(legal.article.body, /Michael York d\/b\/a Raymond Tec/);
+    assert.match(legal.article.body, /AGPL-3\.0-only/);
+    assert.match(legal.article.body, /Corresponding Source/);
+    assert.match(legal.article.body, /without warranty/i);
+    assert.match(
+      legal.article.bodyHtml,
+      new RegExp(`href="https://github\\.com/michaelyorkpa/Longtail-Forge/tree/${"a".repeat(40)}"`),
+    );
+    assert.match(
+      legal.article.bodyHtml,
+      new RegExp(`href="https://github\\.com/michaelyorkpa/Longtail-Forge/blob/${"a".repeat(40)}/LICENSE"`),
+    );
+    assert.match(
+      legal.article.bodyHtml,
+      new RegExp(`href="https://github\\.com/michaelyorkpa/Longtail-Forge/blob/${"a".repeat(40)}/docs/licensing/trademark-policy\\.md"`),
+    );
+    assert.match(legal.article.bodyHtml, /href="\.\/help\.html\?article=framework\.third-party-notices"/);
+    assert.equal(notices.article.body.trim(), trackedNotices.trim());
+    assert.match(notices.article.body, /Lucide/);
   });
 
   await check("help page script and styles expose expected UI hooks", async () => {
@@ -194,4 +225,8 @@ LIMIT 1;
 
 function readProjectFile(relativePath) {
   return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

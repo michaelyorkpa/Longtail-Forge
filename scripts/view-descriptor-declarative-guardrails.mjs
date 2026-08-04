@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
@@ -7,15 +6,12 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const listsHtml = readText("views/protected/lists.html");
@@ -90,9 +86,6 @@ const inventory = protectedHtmlFiles.map((fileName) => {
   };
 });
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should track the current app version");
 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
@@ -286,8 +279,8 @@ assert.doesNotMatch(filesJs, /storageKey|storagePath|signedUrl|fileHash|scannerI
 
 const clientsSurface = surfaces.find((surface) => surface.id === "client-projects.clients");
 const projectsSurface = surfaces.find((surface) => surface.id === "client-projects.projects");
-assertClientProjectsStrictDescriptor(clientsSurface, "Clients", "Edit Client");
-assertClientProjectsStrictDescriptor(projectsSurface, "Projects", "Edit Project");
+assertClientProjectsStrictDescriptor(clientsSurface, "Clients", ["Add Child Client", "Edit Client"]);
+assertClientProjectsStrictDescriptor(projectsSurface, "Projects", ["Edit Project"]);
 assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Strict declarative Clients HTML should stay a minimal host");
 assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Strict declarative Projects HTML should stay a minimal host");
 assertNoProtectedAnatomy(clientsHtml, "views/protected/clients.html", /\b(data-client-list|data-client-status-filter|data-client-dialog|data-client-table-select|data-client-project-status)\b/, "Clients");
@@ -337,7 +330,7 @@ assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*cre
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.21\.11\.1[\s\S]*strict enforcement is active/,
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.27\.5[\s\S]*strict enforcement is active/,
   "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
@@ -408,7 +401,6 @@ assert.match(surfaceContract, /As of 0\.33\.5\.16\.12/, "Surface contract should
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.16\.12/, "View-building contract should document declarative guardrail closeout");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.12 - /, "Changelog should include the declarative guardrail closeout version");
-assert.match(regressionSuite, /scripts\/view-descriptor-declarative-guardrails\.mjs/, "Regression suite should include declarative guardrails");
 
 nodeReport(inventory);
 console.log("View descriptor declarative guardrails passed.");
@@ -434,7 +426,7 @@ function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter
   assert.doesNotMatch(body, hooksRegex, `${label} should not ship ${surfaceName} workspace hooks outside the descriptor host`);
 }
 
-function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
+function assertClientProjectsStrictDescriptor(surface, label, actionLabels) {
   assert.ok(surface, `${label} descriptor should exist`);
   assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should render through the slide-out filter surface`);
   assert.ok(
@@ -456,7 +448,13 @@ function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
     `${label} descriptor should render unlabeled tags below the service-shaped record name`,
   );
   assert.ok(
-    surface.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true && action.label === actionLabel),
+    surface.table.rowActions.every((action) => (
+      typeof action.icon === "string" &&
+      action.icon.length > 0 &&
+      action.iconOnly === true &&
+      action.title === action.label
+    )) &&
+      JSON.stringify(surface.table.rowActions.map((action) => action.label)) === JSON.stringify(actionLabels),
     `${label} row actions should be icon-only descriptor actions with accessible labels`,
   );
 }

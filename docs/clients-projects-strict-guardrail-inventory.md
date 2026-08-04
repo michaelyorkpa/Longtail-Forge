@@ -1,10 +1,14 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.21.11.1. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
+Current as of 0.33.27.5. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
 
-This inventory records the active strict boundary for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
+This inventory records the active strict boundary for the Clients and Projects
+page conversion. Later sections identify the deliberately authorized behavior
+changes that extend that boundary.
 
 Calendar-subscription entitlement is a framework credential concern, not a Clients/Projects workflow. As of 0.33.22.9, the canonical Client and Project archive paths notify the framework reconciliation owner after their existing status changes, audits, Search updates, and hierarchy rules. Any active subscription whose required target is now inactive is revoked with a safe reason; no calendar selector, digest, URL, or Tasks content enters this module.
+
+As of 0.33.27.5, new Clients and Projects are server-authoritative: the browser omits persistent identity from create payloads, then applies the canonical returned Client or Project to the existing optimistic object and action state. Nested Client/Project creation, refresh, focus, deep links, navigation, and module-action completion therefore use the saved server ID without introducing a browser UUID implementation. The service continues accepting and preserving caller-supplied UUIDv4/UUIDv7 IDs for existing API and integration contracts; hierarchy reads and writes remain version-agnostic and retain their established service-owned ordering.
 
 ## Inventoried Surfaces
 
@@ -43,6 +47,21 @@ Strict enforcement continues allowing Clients/Projects-owned code for:
 - Bulk selected-ID collection, allowed Client/Project bulk actions, Project Client reassignment options, billing/status payloads, confirmations, granular route calls, partial-failure messaging, refresh behavior, and Business-only Client reassignment gating.
 - Save payload construction, validation, confirmations, refresh/focus callbacks, audit/search/event side effects, and permission implications.
 - Existing Add/Edit Client and Add/Edit Project dialog bodies, provided the already-converted shared modal shell/footer standard stays intact.
+
+## 0.33.26.3 View-Surface Permission Wiring
+
+The shared renderer now filters descriptor actions through the effective
+any-scope permission IDs in workspace context. Clients/Projects keeps the
+record-specific half of the contract:
+
+- Add Client declares `clients.manage` but is removed unless the server reports
+  workspace-level `can_create_top_level_client`.
+- Add Child Client declares the same coarse permission and also requires the
+  selected row's `can_create_child`.
+- Client and Project edit actions require the matching coarse permission plus
+  the row's server-shaped `can_manage`.
+- Browser hints never authorize a request; the canonical create/update
+  services retain their workspace, Client, and Project resource checks.
 
 ## 0.33.5.18.13.3 Framework-Rendered Read Anatomy
 
@@ -150,8 +169,46 @@ This slice makes the existing project-only workspace rule explicit at every Proj
 - Client-scoped Project create routes and nonblank `client_id` or `clientId` create/update payloads fail with 403 outside Business. Blank Client values remain the valid project-only write contract.
 - The shared view renderer remains generic and contains no Clients/Projects workspace-type branch.
 
-## Not In Scope
+## 0.33.26.1 Child-client Creation Scope
 
-- No route, schema, permission, write-payload, workflow, billing, tag-assignment, or hierarchy mutation changes.
+This slice changes the permission meaning of Client creation without moving it
+into the framework:
+
+- Top-level Client creation requires workspace-scoped `clients.manage` create
+  authority. Child creation instead requires `clients.manage` update authority
+  on the requested parent Client.
+- Browser and public API routes continue to delegate to the same
+  Clients/Projects create service, which remains the authoritative
+  authorization boundary.
+- The Clients read models expose a workspace-level
+  `can_create_top_level_client` capability and a per-record `can_create_child`
+  capability. The descriptor declares an icon-only row-owned Add Child Client
+  behavior only when the server-shaped record capability is true.
+- The module-owned child dialog identifies and locks the authorized parent.
+  Top-level page, query, Project-context, and shortcut actions remain hidden
+  when workspace-scoped creation is unavailable.
+- Client tag targets project their own record ID as `client_id` so tag
+  propagation refreshes retain the same Client-scoped permission boundary.
+
+## 0.33.26.2 Scope-aware Administrative Access
+
+- The app shell evaluates Client and Project management hints with any-scope
+  semantics. Client Administrators receive Clients and Projects navigation;
+  Project Administrators receive Projects only.
+- The protected module views independently require any-scope
+  `clients.manage` or `projects.manage`. Roles without those grants receive no
+  navigation link and cannot load the corresponding protected page directly.
+- Users, Audit Log, Workspace Settings, API Keys, and the Admin Modules drawer
+  retain their workspace-administrator gates. Scoped record administrators do
+  not gain those surfaces through unrelated module permissions.
+- Client and Project read models expose per-record manage capabilities plus
+  eligible workspace/Client project-create and move targets. Descriptor row
+  actions and module-owned dialogs omit out-of-scope records and destinations;
+  service authorization remains authoritative.
+
+## Still Not In Scope
+
+- Beyond the 0.33.26.1-.2 authorization and presentation corrections, no new route, schema,
+  write-payload, billing, tag-assignment, or hierarchy mutation contract.
 - No persistent Inspector, dashboard-style detail pane, inline editor redesign, or drag/drop hierarchy editing.
 - No framework ownership of Client records, Project records, tag assignment, billing defaults, task defaults, or permission semantics.

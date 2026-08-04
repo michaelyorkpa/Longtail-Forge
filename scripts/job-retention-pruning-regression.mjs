@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -14,11 +13,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-rete
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Retention-Test-123!";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -26,7 +22,6 @@ const appSource = readText("src/core/app.js");
 const configSource = readText("src/config.js");
 const serviceSource = readText("src/services/jobs.service.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const { closeDatabase, db, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { enqueueJob } = await import("../src/core/jobs/job-queue.js");
@@ -51,10 +46,7 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the job retention version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the job retention version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the job retention version");
-  assert.match(envExample, /^LONGTAIL_JOB_COMPLETED_RETENTION_DAYS=30$/m, ".env.example should document completed job retention");
+        assert.match(envExample, /^LONGTAIL_JOB_COMPLETED_RETENTION_DAYS=30$/m, ".env.example should document completed job retention");
   assert.match(envExample, /^LONGTAIL_JOB_DEAD_RETENTION_DAYS=90$/m, ".env.example should document dead-letter job retention");
   assert.match(configSource, /LONGTAIL_JOB_COMPLETED_RETENTION_DAYS/, "runtime config should read completed job retention");
   assert.match(configSource, /LONGTAIL_JOB_DEAD_RETENTION_DAYS/, "runtime config should read dead-letter job retention");
@@ -62,10 +54,8 @@ function assertStaticContract() {
   assert.match(serviceSource, /transaction\.dialect\.returning\.columns\(\["job_id"\]\)/, "pruning should delete by explicit job status and count rows through the returning seam");
   assert.match(appSource, /queueStartupJobRetentionPrune/, "app startup should queue job retention pruning");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run job retention pruning");
-  assert.match(regressionSuite, /scripts\/job-retention-pruning-regression\.mjs/, "regression suite should include job retention coverage");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job retention slice");
-  assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.4[\s\S]*completed[\s\S]*dead-letter[\s\S]*retention/, "database docs should document job retention");
+    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+    assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.4[\s\S]*completed[\s\S]*dead-letter[\s\S]*retention/, "database docs should document job retention");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_COMPLETED_RETENTION_DAYS`[\s\S]*`LONGTAIL_JOB_DEAD_RETENTION_DAYS`/, "runtime docs should document job retention settings");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*job retention/, "SQLite docs should document job retention safety");
 }
@@ -358,8 +348,4 @@ function cleanEnv(overrides = {}) {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

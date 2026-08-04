@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { Transform } from "node:stream";
 import { modulesService } from "../core/modules/modules.service.js";
@@ -10,6 +10,7 @@ import {
   sanitizeFileLifecyclePayload,
 } from "../core/files/file-lifecycle.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
+import { createRecordId } from "../core/identifiers.js";
 import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
@@ -1678,7 +1679,7 @@ async function reportFile(session, fileId, payload = {}) {
   const reason = normalizeReportReason(payload.reason || payload.reportReason);
   const notes = normalizeOptionalText(payload.notes || payload.reportNotes, { maxLength: 1000 });
   const now = new Date().toISOString();
-  const reportId = randomUUID();
+  const reportId = createRecordId();
   const attachmentId = normalizeOptionalText(payload.attachmentId || payload.fileAttachmentId);
 
   await db.transaction(async (transaction) => {
@@ -1881,7 +1882,7 @@ async function emitFileLifecycleEvent(eventName, payload = {}) {
 
 async function createFileRecord(session, prepared) {
   const now = new Date().toISOString();
-  const fileId = randomUUID();
+  const fileId = createRecordId();
 
   await db.run(`
 INSERT INTO files (
@@ -2230,7 +2231,7 @@ async function attachFile(session, payload = {}, context = {}) {
   const target = payload.targetRecord || await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
   const visibility = normalizeVisibility(payload.visibility, attachableType);
   const now = new Date().toISOString();
-  const attachmentId = randomUUID();
+  const attachmentId = createRecordId();
 
   await db.run(`
 INSERT INTO file_attachments (

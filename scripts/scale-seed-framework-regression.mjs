@@ -9,7 +9,6 @@ const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-scale-seed-regression-"));
 const disposableDb = path.join(tempDir, "longtail-forge-scale-seed-demo.db");
 const seedScript = readText("scripts/seed-scale.mjs");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 try {
   assertStaticContract();
@@ -40,8 +39,7 @@ function assertStaticContract() {
   assert.match(seedScript, /initializeDatabase\(\)/, "seed script should use app startup initialization as sanity coverage");
   assert.match(seedScript, /permissionsService\.can/, "seed script should verify permission sanity through the shipped permission service");
   assert.match(seedScript, /search_index/, "seed script should generate and verify search metadata");
-  assert.match(regressionSuite, /scripts\/scale-seed-framework-regression\.mjs/, "regression suite should include scale seed coverage");
-}
+  }
 
 function assertRefusesImplicitInputs() {
   const missingProvider = runSeed(["--profile", "dev-demo", "--database", disposableDb]);
@@ -101,7 +99,6 @@ async function assertSeededDatabase(seedResult) {
   process.env.LONGTAIL_DATABASE_FILE = disposableDb;
   process.env.LONGTAIL_DATA_DIR = tempDir;
   process.env.SUPER_ADMIN_PASSWORD = "Scale-Seed-Password-123!";
-  delete process.env.LTF_REGRESSION_BASELINE_DB;
 
   const db = await import("../src/db/index.js");
   await db.initializeDatabase();

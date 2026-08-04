@@ -20,6 +20,58 @@ As of version 0.33.22.9.2, that collection is the sole management data model. Th
 
 As of version 0.33.17.7.9, migration 074 changes Project Administrator from client scope to project scope. Each legacy client-scoped Project Administrator assignment is expanded to the existing projects in that same workspace/client with its permission overrides and timestamps preserved, the superseded client row is removed, and the canonical role metadata is updated to require project scope. A legacy client with no projects produces no replacement assignment because there is no project resource to authorize.
 
+As of version 0.33.26.4, the consolidated fresh-start baseline itself seeds
+Project Administrator with the same project scope and single-project
+description used by migration 074 and runtime authorization. Forward-only
+migration 086 idempotently repairs stale role metadata on current databases;
+it does not read, insert, update, or delete role assignments. Migration 074
+remains unchanged and continues to own the one-time expansion of legacy
+client-scoped assignments. The migration runner recognizes the two reviewed
+line-ending checksums of the immediately preceding baseline so an existing
+installation can validate its recorded baseline and reach migration 086;
+unknown baseline checksums still fail closed. Regression coverage executes the
+baseline alone, a fresh install through every migration, an upgrade beginning
+before migration 074, and a current database receiving migration 086, with
+exact seven-role metadata/default-grant convergence, byte-for-byte assignment
+preservation, `PRAGMA integrity_check`, and zero foreign-key violations.
+
+As of version 0.33.27.7.2, the regression runner may materialize its own closed,
+checksum-validated SQLite template before the provider opens a per-script target.
+Authorization arrives only through a one-shot inherited pipe and binds the exact
+template SHA-256, size, applied-migration identity, runner parent, integrity and
+foreign-key results, and a nonce. Only that exact copied target skips redundant
+migration locking, historical repairs, migration-source reads/sorts, baseline
+hashing, and applied-checksum validation. Direct invocation, normal application
+or worker startup, production, restore, caller-set environment alone, existing
+or seeded targets, and explicitly audited compatibility/custom-bootstrap owners
+retain the complete migration chain. Missing authority falls back; malformed,
+stale, forged, moved, or tampered authority fails closed. The runner proof checks
+the copied migration identity, `PRAGMA integrity_check`, foreign-key enforcement,
+zero foreign-key violations, and cleanup without changing the production schema
+or migration format.
+
+## Identifier Authority and Forward UUIDv7 Policy
+
+As of version 0.33.27.6, `src/core/identifiers.js` owns UUID-shaped application identity. `createRecordId()` creates RFC 9562 UUIDv7 values for newly created ordinary persistent rows; `createOpaqueId()` creates random UUIDv4 values for non-secret operational identity that must remain non-time-ordered. The maintained zero-dependency `uuid` 14.0.1 package supplies both algorithms and is the only production dependency entry point. Dedicated bearer credentials and cryptographic material remain outside this authority.
+
+The completed production audit classifies the temporary migration inventory as follows. The machine-readable exact file/count inventory is `scripts/identifier-authority-migration-baseline.json`, enforced by `framework.identifier-authority` so it can shrink but cannot grow or move silently.
+
+| Classification | Audited current owners | Forward rule |
+| --- | --- | --- |
+| Framework persistent records | Startup-created Workspaces, Users, memberships and assignments; permission assignments; Tags and Tag relationships; Notifications and subscriptions; private-feed subscription rows; audit rows; durable jobs; work-resume rows; API-key database rows; Files records, attachments, and reports; purge tombstones; and recovery-created database audit rows | Uses `createRecordId()` as of 0.33.27.2 while preserving every accepted caller-supplied UUIDv4/UUIDv7 identifier. |
+| First-party module persistent records | Clients/Projects; Tasks plus checklist, assignee, relationship, recurrence, reminder, and timer children; Time Tracking entries and active timers; Notes, revisions, links, and collections; Lists, items, catalog items, and links | Uses `createRecordId()` as of 0.33.27.4. Repositories own generation where service/repository duplication previously existed; caller-supplied UUIDv4/UUIDv7 identifiers and every relationship remain compatible. |
+| Browser-created persistent records | The two Client/Project create flows in `public/js/clients-projects.js` | Omit persistent identity from new browser payloads, let the existing server create contract call `createRecordId()`, and apply the returned canonical record to optimistic, focus, deep-link, and action state. Existing callers may still supply accepted UUIDv4/UUIDv7 IDs. |
+| Non-secret operational UUIDs | Request correlation IDs, migration-lock owners, local/S3 storage keys, workspace-backup package/artifact IDs, purge fencing tokens, whole-instance backup and restore-operation IDs, demo-data operation IDs, and deployment operation/temporary-path IDs | Uses `createOpaqueId()` as of 0.33.27.3 while preserving prefixes, paths, manifests, checksums, and non-time-ordered semantics. |
+| Mixed production files | `workspace-purge.service.js` creates both a persistent tombstone ID and opaque fence token; `scripts/lib/backup-archive.mjs` creates opaque archive/operation IDs and persistent database audit IDs | The persistent calls use `createRecordId()` and the operational calls use `createOpaqueId()`; representative regressions prove the identities remain separate. |
+| Dedicated secrets and crypto | Session credentials, CSRF nonces/signatures, API-key secrets, private calendar-feed selector/secret pairs, password/reset/invitation/activation material, Secure Notes keys/nonces, signed-link tokens, authentication challenges, and access-bearing idempotency values | Retain dedicated `randomBytes`, HMAC, hash, or cryptographic helpers. Neither `createRecordId()` nor `createOpaqueId()` is a bearer-token API. |
+| Non-production compatibility data | Unit tests, regression fixtures, development/sanitized-demo seeds, and recovery drills | Direct test-only UUID generation may remain so compatibility proof can deliberately create UUIDv4 fixtures without consuming production identity policy. |
+
+`workspace_backup_exports.backup_id` is a documented semantic exception: the same value names the archive/package and keys its durable receipt. It remains an opaque artifact ID through `createOpaqueId()`; this branch does not add a second receipt-row identifier or any schema migration. The purge tombstone is different: `purge_tombstone_id` is ordinary durable row identity and uses `createRecordId()`, while `purge_token` remains opaque fencing identity.
+
+UUIDv4 and UUIDv7 coexist as canonical opaque identifiers. No existing primary key, foreign key, filename, object key, URL, JSON value, audit row, seed, export, or backup is rewritten. SQLite keeps the existing `TEXT` representation; future PostgreSQL native `uuid` storage remains compatible. Deterministic development/demo fixtures deliberately remain UUIDv4 compatibility data while fresh bootstrap rows use UUIDv7. Whole-instance and workspace restore drills prove mixed identifiers, relationships, storage keys and paths, URLs, audit payloads, and embedded JSON survive byte-for-byte with clean integrity and foreign-key checks. No identifier-rewrite migration exists.
+
+The final call-site audit pins 29 module `createRecordId()` calls across 11 authoritative owners. Lists and Notes repositories own their record/child families, Tasks repositories own task and child/relationship families, Time Tracking services own entry and timer creation, and Clients/Projects preserves its established service-owned creation boundary. The Clients/Projects browser consumes those server-generated records and the production direct-generator baseline is empty. Module queries retain their existing due-date, timestamp, explicit sort-order, title, revision-number, timer-slot, and paging fields; jobs use running state, priority, availability, and creation time; Search uses rank and index time; audit chronology uses `created_at`. ID columns remain only stable tie-breakers where already defined. UUIDv7 ordering is approximate, distributed clocks may skew, and UUID comparison must never drive authorization, security, causal order, or domain behavior.
+
 As of version 0.33.5.19.9, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
 As of version 0.33.17.3, the supported whole-instance recovery path is the stopped-app CLI in [Baseline Backup and Restore](backup-restore.md). It consolidates and integrity-checks SQLite, preserves the full migration identity plus local Files storage in one checksummed archive, requires separate Secure Notes key recovery when encrypted records exist, and restores database/WAL/SHM and Files state as one destructive unit behind a verified pre-restore backup. This is distinct from the narrow online database-only safety copy used by the development workspace-cleanup command below.
@@ -61,6 +113,8 @@ Migration-runner internals retain their own explicit lifecycle within the locked
 Migration 080 adds only the `startup_maintenance_runs` completion ledger. Versioned application repair IDs are stable and record lifecycle, completion time, and the app version that completed the repair. The ledger is not a general job table, operator history, or substitute for `schema_migrations`.
 
 Migration 081 adds nullable `estimate_minutes` columns to `tasks` and `task_recurrence_templates`. Both columns enforce non-negative 15-minute multiples when present, so direct storage writes cannot bypass the Tasks service's quarter-hour validation. Existing Tasks and recurrence templates remain null and require no data rewrite.
+
+Migration 087 adds nullable `task_recurrence_templates.recovery_checkpoint_date`. The Tasks recurrence service advances this canonical `YYYY-MM-DD` boundary monotonically during `Skip to current`; recurrence projection and generation ignore schedule dates before it without rewriting the recurrence anchor, RRULE, end date, or existing Task history. The checkpoint update, earlier active-instance completion, and retained-instance insert share one database transaction, while the existing workspace/template/instance uniqueness constraint remains the exactly-once authority.
 
 The remaining process-level actions are deliberately outside database bootstrap. Runtime data-path, Files provider, and scanner assertions are health/readiness assertions before database startup. Handler registration and HTTP/listener composition are every-boot coordination. Search rebuild, Tasks reminder/recurrence sweep queueing, and deferred job-retention pruning are background work after database readiness. Workspace cleanup, backup/restore, workspace purge queueing, schema snapshot tooling, and development/scale seed commands remain explicit admin/CLI maintenance and never run merely because the app boots. The separate worker initializes only the provider and executes the `jobs` schema-readiness assertion; it does not migrate, bootstrap, synchronize modules, or run application repairs.
 

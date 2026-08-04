@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
@@ -41,7 +41,7 @@ async function createFromActiveTimer(entry, session) {
     operation: "create",
   });
 
-  const entryId = randomUUID();
+  const entryId = createRecordId();
   const data = normalizeTimeEntry({
     entry_id: entryId,
     workspace_id: session.workspace_id,
@@ -309,7 +309,11 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
       targetType,
     });
   } catch (error) {
-    console.error(`[time-tracking] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
+    console.error("[time-tracking] Tag propagation refresh failed.", {
+      targetId,
+      targetType,
+      error,
+    });
   }
 }
 
@@ -337,7 +341,11 @@ async function snapshotTimeEntryEffectiveTags(session, entry, reason) {
       targetType: "time_entry",
     });
   } catch (error) {
-    console.error(`[time-tracking] Effective tag snapshot failed for time_entry:${entry.entry_id}:`, error);
+    console.error("[time-tracking] Effective tag snapshot failed.", {
+      targetId: entry.entry_id,
+      targetType: "time_entry",
+      error,
+    });
     return null;
   }
 }

@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -6,15 +5,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksScript = readText("public/js/tasks.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const tasksView = readText("views/protected/tasks.html");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(tasksScript, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Tasks adapter should send selected views through task_view");
 assert.doesNotMatch(tasksScript, /params\.set\("quick_filter"/, "Tasks adapter should not use quick_filter for the saved task view contract");

@@ -17,7 +17,6 @@ import {
 
 const rawIndex = JSON.parse(readFileSync("docs/docs-ownership.json", "utf8"));
 const index = validateDocsOwnershipIndex(rawIndex);
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const guide = readFileSync("docs/docs-ownership.md", "utf8");
 const readme = readFileSync("README.md", "utf8");
 
@@ -42,6 +41,7 @@ assert.deepEqual(
     "permissions",
     "security-audit",
     "database",
+    "identifiers",
     "module-contracts",
     "view-building",
     "public-api",
@@ -75,6 +75,10 @@ const securityAudit = suggestDocsForPaths(["src/security/security-events.js"], {
 assert.deepEqual(securityAudit.matchedAreas.map((area) => area.id), ["security-audit"]);
 assert.ok(securityAudit.docs.includes("docs/runtime-configuration.md"));
 assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md"));
+
+const identifiers = suggestDocsForPaths(["src/core/identifiers.js"], { index: rawIndex });
+assert.deepEqual(identifiers.matchedAreas.map((area) => area.id), ["identifiers"]);
+assert.deepEqual(identifiers.docs, ["DECISIONS.md", "docs/architecture.md", "docs/database.md"]);
 
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);
@@ -141,8 +145,11 @@ assert.deepEqual(runtimeSecurity.docs, [
   "docs/architecture.md",
   "docs/http-errors.md",
   "docs/internet-deployment.md",
+  "docs/licensing.md",
   "docs/operational-security.md",
+  "docs/private-preview-readiness.md",
   "docs/public-api.md",
+  "docs/runtime-artifact.md",
   "docs/runtime-configuration.md",
 ]);
 
@@ -258,8 +265,6 @@ assert.deepEqual(unmapped.docs, []);
 assert.deepEqual(unmapped.warnings, []);
 
 assert.match(formatDocsSuggestion(tasks, { check: true }), /Warnings \(warning-only\):[\s\S]*Documentation gate mode: warning-only/);
-assert.equal(packageJson.scripts["docs:suggest"], "node scripts/suggest-docs-for-changes.mjs");
-assert.equal(packageJson.scripts["docs:check"], "node scripts/suggest-docs-for-changes.mjs --check");
 assert.match(guide, /No docs change needed: <short reason>/);
 assert.match(readme, /docs\/docs-ownership\.md/);
 

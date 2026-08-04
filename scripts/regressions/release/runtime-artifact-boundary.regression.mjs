@@ -26,7 +26,6 @@ const runtimeSmoke = await fs.readFile("scripts/runtime-artifact-smoke.mjs", "ut
 const runtimePackage = createRuntimePackage(packageJson);
 const runtimeLock = createRuntimeLock(packageLock);
 
-assert.equal(packageJson.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
 assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
@@ -42,6 +41,8 @@ assert.ok(RUNTIME_PATHS.includes("src"));
 assert.ok(RUNTIME_PATHS.includes("public/js"));
 assert.ok(RUNTIME_PATHS.includes("views"));
 assert.ok(RUNTIME_PATHS.includes("help"));
+assert.ok(RUNTIME_PATHS.includes("legal"));
+assert.ok(RUNTIME_PATHS.includes("THIRD_PARTY_NOTICES.md"));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("secrets")));
 assert.ok(EXCLUDED_CATEGORIES.some((entry) => entry.includes("roadmaps")));
 assert.equal(createArtifactManifest(runtimePackage).sourceBranch, null);
@@ -74,6 +75,7 @@ try {
     "scripts/lib/backup-archive.mjs",
     "scripts/lib/demo-data-operation.mjs",
     "scripts/lib/development-data-safety.mjs",
+    "scripts/lib/sanitized-demo-role-fixtures.mjs",
     "docs/backup-restore.md",
     "docs/demo-data-helper.env.example",
     "docs/demo-data-operations.md",
@@ -112,8 +114,7 @@ try {
     );
   }
 
-  assert.match(path.basename(result.artifactPath), new RegExp(`${escapeRegExp(packageJson.version)}\\.tgz$`));
-  const checksumText = await fs.readFile(result.checksumPath, "utf8");
+    const checksumText = await fs.readFile(result.checksumPath, "utf8");
   assert.equal(checksumText, `${result.checksum}  ${path.basename(result.artifactPath)}\n`);
   assert.match(result.checksum, /^[a-f0-9]{64}$/);
 } finally {
@@ -121,7 +122,3 @@ try {
 }
 
 console.log("Runtime artifact boundary regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

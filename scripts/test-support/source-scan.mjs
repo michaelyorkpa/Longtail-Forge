@@ -27,6 +27,52 @@ export function lineNumber(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
+export function createProjectTextReader({ root = process.cwd() } = {}) {
+  const cache = new Map();
+  const readText = (relativePath) => {
+    const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+    if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {
+      throw new Error(`Project source reads require an explicit repository-relative path: ${relativePath}`);
+    }
+    if (!cache.has(normalizedPath)) {
+      cache.set(normalizedPath, readFileSync(path.join(root, normalizedPath), "utf8"));
+    }
+    return cache.get(normalizedPath);
+  };
+  return Object.freeze({
+    readJson: (relativePath) => JSON.parse(readText(relativePath)),
+    readMarkdown: (relativePath) => {
+      if (!/\.md$/i.test(relativePath || "")) {
+        throw new Error(`Markdown source reads require a .md path: ${relativePath}`);
+      }
+      return readText(relativePath);
+    },
+    readText,
+  });
+}
+
+export function extractFunctionBlock(source, functionName) {
+  const declaration = new RegExp(`(?:async\\s+)?function\\s+${escapeRegExp(functionName)}\\s*\\(`).exec(source);
+  if (!declaration) {
+    throw new Error(`${functionName} should exist`);
+  }
+  const signature = extractCallExpression(source, declaration.index);
+  const openBrace = source.indexOf("{", declaration.index + signature.length);
+  return source.slice(declaration.index, findBalancedClose(source, openBrace) + 1);
+}
+
+export function sourceContainsInOrder(source, snippets) {
+  let cursor = 0;
+  for (const snippet of snippets) {
+    const index = source.indexOf(snippet, cursor);
+    if (index === -1) {
+      return false;
+    }
+    cursor = index + snippet.length;
+  }
+  return true;
+}
+
 export function extractCallExpression(source, startIndex) {
   const openIndex = source.indexOf("(", startIndex);
   let depth = 0;
@@ -157,4 +203,41 @@ function walk(currentPath, results) {
   if (/\.(?:js|mjs)$/.test(currentPath)) {
     results.push(currentPath);
   }
+}
+
+function findBalancedClose(source, openIndex) {
+  if (openIndex === -1) {
+    throw new Error("Balanced source block should include an opening brace.");
+  }
+  let depth = 0;
+  let escapeNext = false;
+  let quote = "";
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (escapeNext) {
+        escapeNext = false;
+      } else if (char === "\\") {
+        escapeNext = true;
+      } else if (char === quote) {
+        quote = "";
+      }
+      continue;
+    }
+    if (char === "\"" || char === "'" || char === "`") {
+      quote = char;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+  throw new Error("Balanced source block is missing its closing brace.");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

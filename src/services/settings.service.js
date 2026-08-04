@@ -30,13 +30,15 @@ async function readInternal(session) {
 }
 
 async function readWorkspaceBootstrap(session) {
-  const [settings, workspaceDeletion] = await Promise.all([
+  const [settings, workspaceDeletion, permissionIds] = await Promise.all([
     read(session),
     workspaceDeletionService.readBootstrapState(session.workspace_id),
+    permissionsService.listGrantedPermissionIdsInAnyScope(session),
   ]);
 
   return {
     enabledModules: settings.enabledModules,
+    permissionIds,
     workspaceCapabilities: settings.workspaceCapabilities,
     workspaceId: settings.workspaceId,
     workspaceName: settings.workspaceName,

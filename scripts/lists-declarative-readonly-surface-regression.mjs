@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -8,13 +7,7 @@ const listsJs = readText("public/js/lists.js");
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/lists\.js/, "Lists should load the renderer between the view builder and module script");
@@ -56,7 +49,6 @@ assert.match(builder, /options\.fieldType === "select" \|\| options\.fieldType =
 assert.match(renderer, /data-view-input/, "Renderer should expose stable generic field input hooks");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.9 - /, "Changelog should include Lists declarative proof version");
-assert.match(regressionSuite, /scripts\/lists-declarative-readonly-surface-regression\.mjs/, "Regression suite should include Lists declarative proof regression");
 
 console.log("Lists declarative read-only surface regression passed.");
 

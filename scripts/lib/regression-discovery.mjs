@@ -9,6 +9,7 @@ import {
 const DEFAULT_ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const LEGACY_SNAPSHOT_PATH = "scripts/regression-legacy-snapshot.json";
 const FILES_ISOLATION_AUDIT_PATH = "scripts/regression-files-isolation-audit.json";
+const STATIC_ISOLATION_AUDIT_PATH = "scripts/regression-static-isolation-audit.json";
 const CONVENTION_PREFIX = "scripts/regressions/";
 const RUN_MODE_BUCKETS = Object.freeze([
   Object.freeze({ concurrency: 6, mode: "parallel", name: "static/source regressions", runMode: "static" }),
@@ -21,14 +22,18 @@ const RUN_MODE_BUCKETS = Object.freeze([
 async function discoverRegressionEntries({
   legacySnapshot,
   filesIsolationAudit,
+  staticIsolationAudit,
   rootDir = DEFAULT_ROOT_DIR,
   snapshotPath = LEGACY_SNAPSHOT_PATH,
   filesIsolationAuditPath = FILES_ISOLATION_AUDIT_PATH,
+  staticIsolationAuditPath = STATIC_ISOLATION_AUDIT_PATH,
 } = {}) {
   const snapshot = legacySnapshot || JSON.parse(await fs.readFile(path.join(rootDir, snapshotPath), "utf8"));
   validateSnapshot(snapshot, snapshotPath);
   const isolationAudit = filesIsolationAudit || await readOptionalJson(rootDir, filesIsolationAuditPath);
   const filesRunModeOverrides = validateFilesIsolationAudit(isolationAudit, filesIsolationAuditPath);
+  const staticAudit = staticIsolationAudit || await readOptionalJson(rootDir, staticIsolationAuditPath);
+  const staticRunModeOverrides = validateStaticIsolationAudit(staticAudit, staticIsolationAuditPath);
 
   const snapshotOrder = new Map(snapshot.scripts.map((entry, index) => [normalizeScriptPath(entry.path), index]));
   const snapshotRunModes = new Map(snapshot.scripts.map((entry) => [normalizeScriptPath(entry.path), entry.runMode]));
@@ -90,6 +95,16 @@ async function discoverRegressionEntries({
       }
       metadata = Object.freeze({ ...metadata, runMode: auditedRunMode });
     }
+    const staticOverride = staticRunModeOverrides.get(scriptPath);
+    if (staticOverride) {
+      if (metadata.runMode !== staticOverride.sourceRunMode) {
+        throw new Error(
+          scriptPath + " must originate in " + staticOverride.sourceRunMode
+          + " before the static isolation audit can reclassify it.",
+        );
+      }
+      metadata = Object.freeze({ ...metadata, runMode: staticOverride.targetRunMode });
+    }
     entries.push(Object.freeze({
       ...metadata,
       legacy: snapshotOrder.has(scriptPath),
@@ -132,6 +147,43 @@ function validateFilesIsolationAudit(audit, auditPath) {
       throw new Error(`${auditPath} must not contain duplicate paths.`);
     }
     overrides.set(scriptPath, entry.decision);
+  }
+  return overrides;
+}
+
+function validateStaticIsolationAudit(audit, auditPath) {
+  if (!audit) {
+    return new Map();
+  }
+  if (
+    audit.schemaVersion !== 1
+    || audit.targetRunMode !== "static"
+    || !Array.isArray(audit.resourceDimensions)
+    || !Array.isArray(audit.entries)
+  ) {
+    throw new Error(auditPath + " must use schemaVersion 1, target static, resource dimensions, and entries.");
+  }
+
+  const overrides = new Map();
+  for (const entry of audit.entries) {
+    const scriptPath = normalizeScriptPath(entry?.path);
+    if (
+      !scriptPath
+      || entry?.decision !== audit.targetRunMode
+      || !["isolated-database", "serial-files"].includes(entry?.sourceRunMode)
+      || !entry.resources
+      || Object.keys(entry.resources).join("|") !== audit.resourceDimensions.join("|")
+      || String(entry.rationale || "").length < 80
+    ) {
+      throw new Error(auditPath + " entries must carry an eligible source, static decision, complete resources, and rationale.");
+    }
+    if (overrides.has(scriptPath)) {
+      throw new Error(auditPath + " must not contain duplicate paths.");
+    }
+    overrides.set(scriptPath, Object.freeze({
+      sourceRunMode: entry.sourceRunMode,
+      targetRunMode: audit.targetRunMode,
+    }));
   }
   return overrides;
 }
@@ -245,6 +297,7 @@ export {
   FILES_ISOLATION_AUDIT_PATH,
   LEGACY_SNAPSHOT_PATH,
   RUN_MODE_BUCKETS,
+  STATIC_ISOLATION_AUDIT_PATH,
   createRegressionSuite,
   discoverRegressionEntries,
 };

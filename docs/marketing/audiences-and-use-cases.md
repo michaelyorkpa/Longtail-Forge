@@ -63,13 +63,13 @@ These personas are **illustrative composites** for messaging and demo design, no
 ### Objections (and honest responses)
 
 - *"Is this just another task manager?"* — No; Tasks are one module. The point is connected context and resuming, with Workbench as the resume surface. See [positioning](positioning-and-messaging.md#differentiation).
-- *"Is it production-ready / safe on the internet?"* — Not yet for public internet use. It is in private preview; internet-exposure hardening and preview readiness are active roadmap work (0.33.16, 0.33.17).
+- *"Is it production-ready / safe on the internet?"* — It remains a private/technical preview. The bounded deployment, recovery, and maintenance path is technically proven, but that is not a general production-readiness or security guarantee, and invitations require a separate signed readiness decision.
 - *"Do I have to self-host?"* — Today, yes. A hosted option is planned later (no date, no price).
 - *"Will it replace my ticketing / content tools today?"* — No. Those modules are planned, not shipped.
 
 ### Relevant features (current vs planned)
 
-Current: Workspaces, Clients/Projects, Tasks, Time Tracking, Notes, Lists, Files, Search, Notifications, Reporting, Dashboard, Workbench. Planned: Support Tickets, Knowledge Base, Creator Studio, Calendar.
+Current: Workspaces, Clients/Projects, Tasks, Time Tracking, Notes, Lists, Files, Search, Notifications, Reporting, Dashboard, Workbench, the in-app Tasks calendar, and private read-only Tasks calendar subscriptions. Planned: Support Tickets, Knowledge Base, Creator Studio, and the separate first-party Calendar module.
 
 ---
 
@@ -172,7 +172,7 @@ This is a cross-cutting audience that overlaps with A, B, and C.
 - **Official hosted service planned later** — for people who do not want to run a server (Commercial hypothesis; no date/price).
 - **Managed private instances planned later** — higher-touch hosted deployments (Commercial hypothesis).
 - **Operator responsibility** — with self-hosting, the operator owns the server, TLS, backups, updates, and access.
-- **Current preview limitations** — internet-exposure hardening and tested backup/restore are active roadmap work (0.33.16, 0.33.17); until then internet use is private preview, not production-ready.
+- **Current preview limitations** — the bounded hardening, backup/restore, deployment, rollback, and maintenance path is proven; internet use remains a private/technical preview, and invitations are separately gated.
 
 ### Honest guardrail
 
@@ -182,7 +182,7 @@ This is a cross-cutting audience that overlaps with A, B, and C.
 
 - Keep client/business data on my own infrastructure. **(Current)**
 - Understand exactly what data the app stores and where. **(Current — see [FAQ](faq-draft.md))**
-- Have a supported, tested upgrade and backup path. **(Private preview — 0.33.17 backup/restore and packaging)**
+- Have a supported, tested upgrade and backup path. **(Current for the bounded private-preview topology)**
 
 ### Desired outcomes
 

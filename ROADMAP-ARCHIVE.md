@@ -1,5 +1,1369 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.27.9 - Recurring Task Backlog Recovery and Quiet Calendar Projection
+
+Completed locally on 2026-08-03 through slices 0.33.27.9.1-0.33.27.9.2. A user can recover an overdue recurring series from any occurrence, while Calendar now presents scheduled recurring Tasks without exposing whether a Task row has already been materialized. The active cursor returned to `0.33.28.1`.
+
+**Model: High Effort** - The branch combined one data-integrity-sensitive recurrence lifecycle action with a contained shared Calendar presentation follow-up.
+
+- [x] Added server-authoritative `Skip to current`, using a durable monotonic template checkpoint and one atomic recovery transaction to complete earlier active materialized Tasks, suppress unmaterialized history, and retain exactly one next-not-passed occurrence.
+- [x] Preserved completed/archived history, recurrence cadence, template context, occurrence-specific edits, permission/workspace boundaries, active-timer protection, completion side effects, and ordinary recurrence continuity.
+- [x] Removed the visible label, explanatory tooltip, dashed styling, and separate accessible action that exposed projected Calendar implementation state.
+- [x] Preserved server-side Calendar projection, internal recurrence identity, permission pruning, real-row precedence, exactly-once materialize-on-open, canonical Task-editor ownership, and independent occurrence edits.
+- [x] Passed focused recurrence/database/static proofs, focused rendered Calendar coverage across Dashboard and Actions Calendar Month/Week/Day, and the canonical local closeout gate.
+
+Acceptance criteria:
+
+- One confirmed recovery action clears overdue recurrence backlog and opens the next occurrence whose due boundary has not passed. Scheduled recurring Tasks appear like ordinary Tasks throughout Calendar while retaining permission-checked exactly-once materialization internally.
+
+## Version 0.33.27.9.2 - Calendar occurrence presentation and branch closeout
+
+Completed locally on 2026-08-03. Calendar no longer exposes the materialization state of scheduled recurring Tasks through visible, tooltip, styling, or accessible-name differences.
+
+**Model: Medium Effort** - This was a contained shared Calendar-renderer and Help wording change with no route, schema, recurrence, permission, or workflow redesign.
+
+- [x] Removed the visible `Planned occurrence` badge, implementation tooltip text, dashed projected-entry styling, and separate accessible action from the shared Month/Week/Day renderer.
+- [x] Gave real and projected occurrences the same title, status/priority/context metadata, styling, tooltip content, and `Open task: <title>` accessible name.
+- [x] Preserved internal `virtual`, `templateId`, and `instanceDate` identity, server-side projection/filtering, real-row deduplication, permission checks, exactly-once materialization, the canonical Task editor, and independent occurrence edits.
+- [x] Updated `views.calendar-host` and `tasks.task-recurrence-materialize-on-touch-permissions` to reject the retired user-facing distinction while retaining internal identity/actionability assertions. Updated `calendar-mobile-view.spec.mjs` to prove Dashboard and Actions Calendar presentation across Month, Week, and Day plus unchanged one-request materialization; the focused rendered file passed 8/8 desktop/mobile tests.
+- [x] Ran `npm run docs:suggest`. Docs updated: `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`, `help/modules/tasks/reminders-calendar-and-subscriptions.md`. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.9.2`, refreshed generated regression artifacts as needed, and passed `npm run verify:slice`.
+
+Acceptance criteria:
+
+- Calendar shows scheduled recurring Tasks without a visible, tooltip, styling, or accessible implementation distinction; opening a projected date remains permission-checked and exactly-once; real rows replace projections; and both Calendar hosts retain the same schedule and editor behavior across Month, Week, and Day.
+
+## Version 0.33.27.9.1 - Server-authoritative `Skip to current` recurrence recovery
+
+Completed locally on 2026-08-03. Tasks now recovers an overdue recurring series from any occurrence while retaining the first scheduled occurrence whose due boundary has not passed. The active cursor advanced to `0.33.27.9.2`.
+
+**Model: High Effort** - This was a Task lifecycle and data-integrity change spanning recurrence projection, a forward schema checkpoint, atomic multi-record completion, permissions, timers, side effects, and exactly-once continuity.
+
+- [x] Added migration 087 and the generated schema snapshot for a durable, monotonic per-template recovery checkpoint without rewriting recurrence anchors, rules, end dates, or historical Task rows.
+- [x] Added `POST /api/tasks/:taskId/skip-to-current`, with the server deriving the first not-passed canonical occurrence from due time, due timezone, and session-local date.
+- [x] Added whole-action module, workspace, permission, ownership, and active-timer preflight. The transaction rechecks affected rows and active timers before any status or checkpoint mutation.
+- [x] In one transaction, completed earlier active materialized occurrences, preserved completed/archived history, advanced the checkpoint, and inserted the retained occurrence through the existing unique recurrence identity.
+- [x] Preserved completion metadata, parent recovery, reminder scheduling, search synchronization, audit/events with `skip_to_current` metadata, and avoided per-row recurrence handoff jobs.
+- [x] Added the server-shaped `recurrenceRecovery` Task-detail model and a confirmation-gated `Skip to current` control in the canonical Task editor, which opens the retained current Task after recovery.
+- [x] Added `tasks.task-recurrence-skip-to-current` coverage for date-only and timed boundaries, materialized and projected backlog, mixed history, ended series, permission/workspace denial, active timers, durable suppression, retry convergence, context copying, audit metadata, route/UI ownership, and database integrity.
+- [x] Ran `npm run docs:suggest`. Docs updated: `docs/tasks-module.md`, `docs/database.md`, `docs/regression-suite.md`, `help/framework/tasks-basics.md`. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.9.1`, refreshed schema/regression artifacts, recorded SQLite integrity, and passed `npm run verify:slice`.
+
+Acceptance criteria:
+
+- From an eligible occurrence, one confirmed action clears prior incomplete materialized occurrences, suppresses unmaterialized history, preserves completed/archived history and cadence, and opens exactly one next-not-passed Task. Authorization and timer conflicts fail atomically, retries do not duplicate the retained Task, and ordinary recurrence completion remains unchanged.
+
+## Version 0.33.27.8 - Reviewed Development Dependency Baseline Refresh
+
+Completed on 2026-08-03 through slices 0.33.27.8.1-0.33.27.8.3. The branch
+replaced three overlapping Dependabot changes with two independently revertible
+reviewed baselines: static lint/type tooling first, then the Playwright browser
+runtime, followed by the reviewed Playwright 1.62.1 patch. Runtime dependencies, product behavior, the Node 24 application
+engine, lifecycle-script allowlist, production artifact, and test-gate
+ownership remain unchanged. At completion the active cursor advanced to
+`0.33.28.1`; the 2026-08-03 planning addition reopens 0.33.27 at
+`0.33.27.9.1` before 0.33.28 begins.
+
+**Model: Medium Effort** - This was a bounded development-tooling refresh with no runtime dependency or product-behavior change, but both package graphs and the rendered-browser gate required deliberate review.
+
+- [x] Combined ESLint 10.8.0 and `@types/node` 26.1.2 into one reviewed static-toolchain baseline, isolated Playwright 1.62.0 and its browser runtime, then advanced the exact Playwright package trio to the 1.62.1 patch baseline.
+- [x] Preserved development-only placement, Node `>=24.7 <25`, the sole `better-sqlite3@13.0.1` lifecycle allowance, cached full-source lint, check ordering, startup, runtime dependencies, and pruned artifact contents.
+- [x] Replaced the bot PRs' overlapping lockfile edits with one coherent clean-install graph and release guardrails for the exact direct, root-lock, resolved, engine, and transitive baselines.
+- [x] Passed zero-finding npm audits, local static and canonical verification, the production artifact smoke, and the complete 129-test desktop/mobile/accessibility suite. Protected PR #89 then passed dependency review, Development, maintenance, browser, and CodeQL on the combined clean-Linux branch before closeout.
+- [x] Established the safe post-merge disposition for Dependabot PRs #66-#68: close them as superseded only after this reviewed replacement lands on `nightly`, without independently merging their overlapping lockfile changes.
+
+Acceptance criteria:
+
+- The reviewed static and browser baselines remain development-only; runtime,
+  artifact, startup, lifecycle, and gate-ownership contracts are unchanged;
+  complete local and protected evidence is green; the bot PRs have an explicit
+  post-merge disposition; and the dependency branch remains closed while the
+  live roadmap resumes at 0.33.27.9.1 before the eventual 0.33.28 handoff.
+
+## Version 0.33.27.8.3 - Playwright 1.62.1 patch baseline
+
+Completed locally on 2026-08-03. The exact Playwright package trio advances
+from 1.62.0 to 1.62.1 without changing product behavior, runtime dependencies,
+the browser harness, or its protected-gate ownership.
+
+**Model: Medium Effort** - This was an isolated development-only patch update with a bounded browser-runtime blast radius and no product or harness-design change.
+
+- [x] Advanced `@playwright/test`, `playwright`, and `playwright-core` together to exactly 1.62.1. Development-only placement, Node `>=24.7 <25`, the npm lifecycle allowlist, absence of component-testing packages, and production runtime/artifact boundaries remain intact.
+- [x] Reviewed the upstream TypeScript configuration resolution, accessibility snapshot, and branded primitive fixes against the repository. Playwright configuration, saved authentication, managed-server lifecycle, desktop/mobile projects, two-worker execution, local/CI retry policy, traces, screenshots, and gate ownership are unchanged.
+- [x] Proved a clean Node 24/npm 11 install, zero-finding audit, typecheck, 184 unit tests, ESLint, the exact dev-only guardrail, and pruned artifact smoke. One initial desktop tag-picker suggestion timeout passed three focused repeats, and the complete confirmation suite passed 129/129 rendered tests with zero retries.
+- [x] Ran `npm run docs:suggest`. No docs change needed: the Playwright patch baseline changed without altering the documented harness or operator contract. Updated `CHANGELOG.md`, advanced only through `npm run version:bump -- 0.33.27.8.3`, and returned the live roadmap cursor to `0.33.28.1`.
+
+Acceptance criteria:
+
+- Playwright 1.62.1 and its exact browser packages remain development-only; the existing harness and production/runtime boundaries remain unchanged; clean dependency, static, artifact, rendered-browser, and canonical closeout evidence is green; and protected dependency review remains the publication gate.
+
+## Version 0.33.27.8.2 - Playwright browser-runtime baseline and branch closeout
+
+Completed locally with initial protected pull-request proof on 2026-08-02.
+Playwright and its exact browser packages advance to 1.62.0 without adopting
+new component-testing, WebP, abort-signal, reporter-filtering, retry, trace,
+screenshot, worker, or managed-server behavior.
+
+**Model: Medium Effort** - Playwright remains development-only, but its package, bundled browser runtime, configuration API, and desktop/mobile accessibility gate required one isolated rendered proof.
+
+- [x] Advanced `@playwright/test`, `playwright`, and `playwright-core` from 1.61.1 to exactly 1.62.0 in one clean npm 11 resolution. Their Node `>=20` floor is compatible with the repository's Node 24 line, and no component-testing package entered the graph.
+- [x] Reviewed configuration, fixtures, reporter, process lifecycle, saved authentication, failure artifacts, and both viewport projects against 1.62.0. Test selection, two-worker execution, local/CI retry policy, traces, screenshots, and separate browser-gate ownership are unchanged.
+- [x] Installed the pinned Chromium 151 runtime from a clean install and passed 129/129 rendered smoke/accessibility tests with zero local retries, including mobile navigation focus. The exact dependency tree, zero-finding audit, dev-only guardrail, and production artifact smoke are green.
+- [x] Ran `npm run docs:suggest`. No docs change needed: the development-only Playwright baseline advanced without changing the documented harness contract. Updated `CHANGELOG.md` and advanced only through `npm run version:bump -- 0.33.27.8.2`.
+- [x] Protected PR #89 proved the combined branch on clean Linux before archive/cursor handoff. Dependabot PRs #66-#68 are to be closed as superseded immediately after the reviewed replacement is represented on `nightly`.
+
+Acceptance criteria:
+
+- Playwright 1.62.0 remains development-only, complete local and protected browser evidence is green, production install/artifact/startup contracts remain Playwright-free, no new runner behavior was adopted, and the branch hands off to 0.33.28 with the bot PRs explicitly queued for safe post-merge closure.
+
+## Version 0.33.27.8.1 - ESLint and Node type-definition baseline
+
+Completed locally on 2026-08-02. The static development-toolchain baseline now
+combines the reviewed intent of Dependabot PRs #67 and #68 without changing
+runtime dependencies, application behavior, browser policy, or the Node 24
+engine line. The active cursor advanced to `0.33.27.8.2`.
+
+**Model: Medium Effort** - The change is limited to development-only lint/type tooling and its reviewed lockfile contract, with no runtime or architectural decision.
+
+- [x] Advanced `@types/node` from 26.1.1 to 26.1.2 and ESLint from 10.7.0 to 10.8.0 in one clean npm 11 resolution. The only reviewed transitive metadata changes are `@eslint/config-helpers` 0.7.0 and ESLint's `minimatch` range at 10.2.5; resolved `minimatch` remains 10.2.5, `js-yaml` remains absent, and direct runtime dependencies plus the sole `better-sqlite3@13.0.1` lifecycle allowance are unchanged.
+- [x] Advanced `release.dependency-baseline` to enforce ESLint 10.8, `@types/node` 26.1.2, their root-lock and resolved versions, development-only placement, the reviewed transitive baseline, the Node `>=24.7 <25` engine, and the lifecycle-script allowlist while preserving the existing Markdown-it behavior contract.
+- [x] Proved a clean Node 24/npm 11 install, the resolved dependency tree, zero audit findings, cached full-source lint, typecheck, 184 unit tests, and the focused dependency-baseline regression. The latest #67 browser gate is green; a bounded three-repeat local run passed all 10 selected mobile-navigation tests, so no unrelated product/browser or retry-policy change entered the slice.
+- [x] Ran `npm run docs:suggest`. No docs change needed: development-only package baselines and their existing release regression changed without altering a documented workflow. Updated `CHANGELOG.md` and advanced only through `npm run version:bump -- 0.33.27.8.1`.
+
+Acceptance criteria:
+
+- A clean install resolves exactly the reviewed ESLint 10.8 and `@types/node` 26.1.2 development baselines; lint, typecheck, unit, dependency-baseline, audit, and canonical slice verification are green; Node/runtime/artifact/lifecycle boundaries are unchanged; and the unrelated browser failure is non-reproducing in the bounded named focus run. Protected dependency review remains the pull-request gate.
+
+## Version 0.33.27.7 - Regression and Pre-Rollout Check Pipeline Efficiency
+
+Completed locally on 2026-08-01 through slices 0.33.27.7.1-0.33.27.7.8.
+The branch reduced measured local verification overhead without retiring
+permission, browser, recovery, or regression coverage; exact-SHA CI reuse now
+removes duplicate normal-promotion work without granting hotfix or ambiguous
+evidence a shortcut. The active cursor advances to `0.33.27.8.1`.
+
+**Model: High Effort** - The branch changed release-critical scheduling,
+fixtures, routing, coverage ratchets, validation ownership, archive portability,
+browser execution, and protected GitHub workflows while keeping every speedup
+bound to explicit coverage and safety evidence.
+
+- [x] Added invocation-owned compile caching, safe static/Files concurrency,
+  verified SQLite baseline reuse, complete changed-file routing, generated
+  coverage-floor/inventory upkeep, and single execution ownership for repeated
+  validation and source assertions.
+- [x] Repaired Windows archive operands without changing backup format or
+  restore safety, and made lint, narrow Vitest, permission, Playwright viewport,
+  retry, worker, and managed-server contracts fail closed.
+- [x] Added finite workflow timeouts, cancellation-safe concurrency, verified
+  branch-scoped/digest-bound caches, and shallow checkout only where history is
+  not consumed; live required check names remain unchanged.
+- [x] Added unexpired `nightly-proof-v1` exact-SHA reuse for normal promotion
+  and scheduled Nightly. Repository, workflow/ref/checksum, required job set,
+  run result, SHA, policy, release metadata, artifact names, and checksums must
+  all agree; hotfix, stale, missing, ambiguous, failed, cancelled, expired, or
+  changed-policy evidence executes the full path.
+- [x] Reduced normal-promotion artifact construction from four builds to zero
+  on accepted reuse or one on fallback, passed the same verified artifact to
+  parallel runtime/bare-metal/container recovery consumers, and retained the
+  protected `Packaging and recovery` aggregation result.
+- [x] Retired duplicate CodeQL push scans after live protection proved the PR
+  context on both permanent branches; scheduled CodeQL and every required name
+  remain present, and no workflow uses `paths-ignore`.
+- [x] Evaluated but retained the canonical five-bucket runner and one shared
+  change-classification job because matrix/inlining cost, isolation evidence,
+  fail-fast visibility, and required aggregation did not justify adoption.
+- [x] Closed with 427/427 regressions in 152.08 seconds, the 174-script isolated
+  tail in 101.13 seconds, scoped release in 7.70 seconds, closeout in 5.6
+  seconds, 409 permission checks, and 129/129 Playwright tests in 1.5 minutes.
+  The 90-110 and 50-60-second aspirations remain recorded misses rather than
+  reasons to weaken complete process/data proof.
+- [x] Measured the prior promotion at 5.3 minutes wall / about 11.9 combined
+  promotion-plus-CodeQL runner-minutes; the larger 30-60-minute saving target
+  was not claimable from that real baseline, while exact-SHA reuse removes the
+  material duplicate work that existed.
+- [x] Updated owning docs, durable decisions, changelog, generated coverage
+  records, version metadata, and completed the canonical final verification.
+
+Acceptance criteria:
+
+- Complete regression, permission, browser, recovery, and required-check
+  coverage remains enforced; exact-SHA reuse fails closed; artifact lineage is
+  singular and checksummed; caches have explicit authority; every job is
+  bounded; and measured misses are documented without coverage concessions.
+
+## Version 0.33.27.7.7 - Fast-check, permission-doc, Vitest, and Playwright harness hygiene
+
+Completed locally on 2026-08-01. Fast and browser harnesses now fail closed on
+their claimed coverage, viewport exclusions happen before browser setup, and
+the measured Vitest tuning preserves membership while reducing wall time. The
+active cursor advances to `0.33.27.7.8`.
+
+**Model: High Effort** - These were contained harness defects, but lint globs,
+test selection, retry policy, and worker counts are coverage boundaries rather
+than cosmetic configuration.
+
+- [x] Added `worker.js` to the ESLint source set and required-glob regression,
+  and made `test:files` name its exact 40-test contract suite without
+  `--passWithNoTests`.
+- [x] Corrected permission documentation to keep the one-database/one-server
+  harness separate from `npm run check` and selected once only by relevant
+  slice or named CI/release gates.
+- [x] Replaced 18 in-body viewport skips with nine `@mobile` and nine
+  `@desktop` declarations plus project-level exclusion. Listing proves 64
+  intended tests per viewport plus authentication setup, while shared login
+  and accessibility coverage remains dual-viewport.
+- [x] Pinned local and CI retries, traces, screenshots, and the measured
+  shared-server-safe two-worker bound after all three six-worker probe failures
+  passed together at two workers, while retaining the required
+  `Browser smoke and accessibility` check name.
+- [x] Replaced Playwright's Windows shell-wrapped managed-server lifecycle with
+  a direct-Node owner shared by full, UI, and accessibility commands; all 129
+  tests pass in 1.4 minutes and leave port 8101 clean, while the guardrail pins
+  readiness and bounded teardown ownership.
+- [x] Adopted a host-aware 50% Vitest threads pool after repeat measurement
+  preserved all 13 files and 184 tests and reduced same-workstation median wall
+  time from 6.389 to 3.951 seconds.
+- [x] Updated owning test documentation, changelog, durable decisions, roadmap
+  handoff, version metadata, and completed the canonical local slice
+  verification once on the final tree.
+
+Acceptance criteria:
+
+- Worker lint coverage, fail-closed Files proof, accurate permission ownership,
+  cheaper equivalent desktop/mobile browser selection with actionable failure
+  artifacts, and evidence-backed isolation-safe Vitest tuning are all present.
+
+## Version 0.33.27.7.6 - Windows backup-archive portability repair
+
+Completed locally on 2026-08-01. Whole-instance and workspace tar operations
+now keep Windows drive colons out of the archive operand without changing the
+archive format, validation, or atomic restore contracts. The active cursor
+advances to `0.33.27.7.7`.
+
+**Model: High Effort** - Backup creation and restore are data-integrity
+boundaries; a platform repair must preserve path safety, checksums, rollback,
+and Linux compatibility rather than merely silence one tar implementation.
+
+- [x] Re-ran the three archived deterministic failures before editing. All
+  three passed under the current Windows `bsdtar`, proving the immediate suite
+  was green, while history confirmed neither archive owner had received a code
+  fix for the absolute drive-letter operand reported under GNU tar.
+- [x] Added one shared local-tar command boundary that uses the resolved archive
+  directory as the child working directory and the basename as the archive
+  operand for create, list, verbose-list, and extract operations.
+- [x] Preserved archive entry validation, protected-path rules, link/type
+  rejection, SHA-256 verification, SQLite and Files unity, Secure Notes
+  prerequisite handling, pre-restore backup, rollback, migration identity, and
+  POSIX behavior.
+- [x] Added focused Windows drive-letter/colon and POSIX operand coverage, and
+  retained the whole-instance backup/restore, workspace backup, demo-host,
+  restored-integrity, and rollback release gates.
+- [x] Recorded `PRAGMA integrity_check = ok`, updated the owning regression-suite
+  documentation and changelog, regenerated reviewed coverage artifacts, bumped
+  version metadata, and completed the canonical local slice verification.
+
+Acceptance criteria:
+
+- The three named regressions pass deterministically on Windows, archive
+  operands are local on Windows and POSIX, archive format and security checks
+  are unchanged, and restore remains atomic, migration-aware, and rollback-safe.
+
+## Version 0.33.27.7.5 - Single ownership for validation, source scans, and repeated assertions
+
+Completed locally on 2026-08-01. Repeated validation now has one named ordinary
+execution owner, every moved or retired assertion family has machine-readable
+evidence, and targeted source scanning is cheaper and bounded without hiding
+large files or weakening generated coverage. The active cursor advances to
+`0.33.27.7.6`.
+
+**Model: High Effort** - This was a high-volume coverage consolidation across
+hundreds of assertions and several release gates; each removal has an explicit
+retained owner so faster execution cannot mask lost protection.
+
+- [x] Made closeout the one ordinary owner for `version:guard` while retaining
+  the direct command, exact package/lock/runtime/app-info/changelog/roadmap
+  checks, pre-read ignored/historical exclusion, and explicit failure for
+  included files at or above the scan ceiling.
+- [x] Removed parameter-binding and licensing CLI respawns, retained the
+  fixture-rooted bundled-module generator failures, and kept live catalog,
+  manifest, schema, docs, notices, and licensing checks in closeout.
+- [x] Consolidated package/lock triples, legacy membership, dynamic changelog
+  headings, exact root package commands, TypeScript facts, and pure asset
+  examples through `assertionMovements`, source inventory, retained owners, and
+  the `release.validation-single-ownership` guard.
+- [x] Retired duplicate suite execution of the direct version guard and merged
+  every legacy ratchet valid/invalid fixture into
+  `release.regression-manifest-generation`; three credited retirements plus 425
+  active scripts produce a raised 428-script gross floor.
+- [x] Added shared cached source/Markdown reads, balanced function extraction,
+  and ordered-literal checks. The three measured priority files reduced greedy
+  pattern counts from 170/138/125 to 159/121/119; intentionally untouched cases
+  remain recorded with rationale.
+- [x] Updated the owning regression-suite and performance docs, changelog,
+  generated inventory/manifest, roadmap/archive handoff, version metadata, and
+  completed the canonical final local verification once on the final tree.
+
+Acceptance criteria:
+
+- Each protected fact has one named ordinary owner, direct diagnostics remain
+  available, moved assertions and retired scripts retain machine-readable
+  evidence, included large files cannot silently escape version scanning, and
+  measured child-process/source-pattern work drops without losing required
+  release contracts or gross coverage floors.
+
+## Version 0.33.27.7.4 - Generated coverage inventory and closeout ceremony automation
+
+Completed on 2026-08-01. Coverage floors now stay exactly armed through an
+explicit reviewed ratchet, current numeric inventory has one deterministic
+documentation owner, and closeout can safely repair only enumerated generated
+artifacts or stop early by explicit request. The active cursor advances to
+`0.33.27.7.5`.
+
+**Model: High Effort** - Coverage floors and generated release records are
+enforcement policy, not formatting; automation must re-arm ratchets without
+making coverage loss self-approving.
+
+- [x] Fixed the credited-retirement self-test formula and added an explicit
+  `--ratchet-floors` mode for active, per-area, release-gate, and coverage-family
+  floors; ordinary generation/checking remains non-policy-mutating and every
+  attempted decrease is refused.
+- [x] Removed tautological aggregate and bucket-count upkeep while preserving
+  exact generated membership, uniqueness, populated-area, required-ID,
+  retirement, and monotonic-floor enforcement.
+- [x] Added one clearly delimited manifest/policy-generated numeric block in
+  `docs/regression-suite.md`, independent write/check commands, and the canonical
+  convention-path metadata coverage phrase.
+- [x] Added safe `closeout --fix` regeneration for only the manifest, bounded
+  documentation block, bundled-module catalog, and schema snapshot plus opt-in
+  `--fail-fast`; default closeout still reports every gate.
+- [x] Corrected the version-helper checklist and owning regression/versioning
+  documentation to require roadmap archive/cursor handoff, changelog/docs,
+  reviewed manifest generation, one final `verify:slice`, and runtime identity
+  without duplicate expensive gates.
+- [x] Updated the changelog and owning docs, advanced only through
+  `npm run version:bump -- 0.33.27.7.4`, and completed the canonical final local
+  verification once on the final tree.
+
+Acceptance criteria:
+
+- New regressions require no hand-copied numeric edits; floors cannot lag or
+  decrease silently; generated repair stays bounded; default and opt-in closeout
+  modes preserve their contracts; and the version helper directs one coherent
+  closeout.
+
+## Version 0.33.27.7.3 - Complete and precise changed-file routing
+
+Completed on 2026-08-01. Every populated canonical regression area now has an
+independently runnable focused command and a precise registered or source-path
+route. Deletes and both rename paths retain ownership; unrelated permission-like
+filenames no longer trigger by substring; unknown non-empty work still fails
+toward complete coverage. The active cursor advances to `0.33.27.7.4`.
+
+**Model: High Effort** - Routing determines which evidence may replace the full
+suite, so false precision could silently under-test protected behavior.
+
+- [x] Added commands and positive routes for Time Tracking, Search, Tags, Lists,
+  jobs, Notifications, public API, and licensing; every populated canonical area
+  now resolves to an executable focused command.
+- [x] Replaced bare permission/session/workspace/membership substring matching
+  with explicit authority paths and tightened release/runner-self matching while
+  preserving focused version and roadmap/changelog ceremony.
+- [x] Kept route matches additive and retained full escalation for Files,
+  permissions, public API authority, repositories/database, shared
+  framework/views/jobs, generated contracts, executable package/release tools,
+  and unknown work; permission meaning selects its harness once.
+- [x] Added table-driven proof for positive routes, overlaps, false positives,
+  rename/delete inputs, generated files, bookkeeping, runner changes, unknown
+  fallback, and shared advice/local/verify/CI routing consumption.
+- [x] Updated governing regression/package-command documentation and changelog,
+  advanced through `npm run version:bump -- 0.33.27.7.3`, and completed the
+  canonical local slice verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- All populated areas are routable; contained work selects its complete narrow
+  owner set; shared/security/data/release work still escalates; false-positive
+  names stay out of unrelated routes; and non-empty unknown work cannot return
+  an empty green plan.
+
+## Version 0.33.27.7.2 - Verified-baseline isolated-database and fixture fast path
+
+Completed on 2026-08-01. Eligible regression children now copy the runner's
+closed, checksum-validated SQLite template before provider open through a
+one-shot pipe attestation; only that exact target skips redundant migration
+work. Direct, production, environment-only, existing-target and nested process
+paths retain the complete chain, while malformed, stale, forged and tampered
+authority fails closed. The active cursor advances to `0.33.27.7.3`.
+
+**Model: High Effort** - The optimization crosses the migration runner and
+process-style fixture boundary, where stale or forged authority could otherwise
+conceal checksum, schema or migration defects.
+
+- [x] Bound the fast path to runner parent identity, temporary paths, exact
+  closed-template size/SHA-256, complete applied-migration identity, integrity,
+  foreign keys and a nonce delivered over a consumed inherited descriptor.
+- [x] Kept genuine migration/startup owners and custom-bootstrap identities on
+  the full chain; removed redundant service/repository opt-outs and checked in
+  exact rationales for every retained nested seeded-child environment deletion.
+- [x] Made verified runner-target reuse a supported disposable-fixture path and
+  added an explicit static fixture opt-in without weakening direct-run temp
+  ownership or runner cleanup.
+- [x] Proved copied identity/checksums, `PRAGMA integrity_check`, foreign-key
+  enforcement, zero violations and cleanup, plus direct, absent, existing,
+  environment-only, stale, forged and tampered behavior.
+- [x] Updated the governing database/regression documentation and changelog,
+  advanced only through `npm run version:bump -- 0.33.27.7.2`, and completed the
+  canonical local slice verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- Full-chain coverage remains explicit and green; no production/direct path
+  trusts the shortcut; fixture reuse preserves isolation and migration identity.
+  On the loaded same-turn reference workstation the normal six-worker bucket
+  improved from 121.95 to 109.36 seconds while adding one 15.70-second owner;
+  the ratio normalizes near 81 seconds against the clean 90.41-second reference,
+  moving toward but not claiming to beat the branch's final 50-60-second target.
+
+## Version 0.33.27.7.1 - Regression runner scheduling and process-throughput quick wins
+
+Completed on 2026-07-31. The regression runner now owns and cleans one
+invocation-scoped Node compile cache, overlaps template-baseline prefetch with
+safe static work, uses conservative host-aware static scheduling, and avoids
+Windows cmd/npm hops for simple Node package scripts invoked by closeout and
+changed-regression conductors. All 424 regressions remain discovered in the same
+cheap-first bucket order, and the active cursor advances to `0.33.27.7.2`.
+
+**Model: High Effort** - The edits are concentrated in the runner, but they
+alter process environment, concurrency, bucket assignment, failure scheduling,
+and resource cleanup across the full suite.
+
+- [x] Captured the refreshed 424-script baseline and slow tail, introduced one
+  operating-system-temp `NODE_COMPILE_CACHE` with deterministic cleanup, and
+  overlapped baseline prefetch with static execution without exposing checkout,
+  cross-run, or secret-bearing state.
+- [x] Added explicit static parallelism control with a conservative host-aware
+  default and serial override, while replacing brittle bucket-size equality with
+  exact flattened membership, uniqueness, and safety-floor invariants.
+- [x] Resource-audited and moved seven source/in-memory entries to static; all 28
+  stateful Files regressions moved to no-retry isolated scheduling only after
+  script-specific resource proof and three-pass representative stress. The one
+  remaining original Files entry is now static, so current retained serial Files
+  inventory is empty.
+- [x] Used direct Node execution for simple closeout/changed-regression package
+  scripts while retaining npm fallback and independently runnable public scripts;
+  per-script output buffering, one-bootstrap metadata discovery, fail-fast bucket
+  order, and isolated-database-only visible recovery remain explicit contracts.
+- [x] Updated governing regression and performance documentation, recorded the
+  release in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.7.1`, and completed the canonical local slice
+  verification once on the final unchanged tree.
+
+Acceptance criteria:
+
+- Regression membership and relative bucket order are unchanged; every bucket
+  move has checked-in isolation proof; failures and recovered retries remain
+  visible; runner cache state is temporary and cleaned; the 28-script Files
+  family fell from 47.66 to 16.72 seconds; and repeatable clean full-suite runs
+  improved from 171.76 seconds to 155.66 and 150.93 seconds with no recoveries.
+
+## Version 0.33.27.6 - Mixed-version, ordering, recovery, and branch closeout
+
+Completed on 2026-07-31. The centralized identifier rollout now has system-level
+proof that legacy UUIDv4 and forward UUIDv7 records coexist unchanged across
+CRUD, relationships, current and public APIs, Search, audit export, deterministic
+seeds, and both recovery formats. Explicit timestamps, sequences, priorities,
+rank, and other domain fields remain authoritative ordering contracts. No schema
+or identifier-rewrite migration was created, and the active cursor advances to
+`0.33.27.7.1`.
+
+**Model: High Effort** — Final proof spans compatibility, explicit ordering,
+seeds, export, and destructive recovery, but deliberately changes no identity
+policy or workflow after the preceding isolated conversions.
+
+- [x] Proved legacy UUIDv4 read/update behavior, caller-supplied public API
+  compatibility, UUIDv4/UUIDv7 relationships in both directions, exact Search
+  identity, audit export references, and unchanged deterministic UUIDv4 seed
+  fixtures under a UUIDv7 fresh-bootstrap authority.
+- [x] Expanded whole-instance and workspace recovery drills to preserve mixed
+  identifiers, foreign keys, Files object keys and paths, URLs, audit history,
+  and embedded JSON byte-for-byte while completing SQLite integrity and foreign
+  key checks after restore.
+- [x] Added guardrails showing Tasks, Notes, Lists, Time Tracking, jobs, Search,
+  and audit history use their explicit domain ordering fields before any stable
+  identifier tie-breaker; UUID lexical order is not causal or business order.
+- [x] Finished the governing decision, database, architecture, future-module,
+  seed, recovery, and regression documentation, including dependency rationale,
+  call-site classification, bearer-secret separation, and intentional
+  non-production UUIDv4 fixtures.
+- [x] Recorded the release in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.6`, and completed the canonical local slice
+  verification without an identifier-rewrite migration.
+
+Acceptance criteria:
+
+- New ordinary persistent records use UUIDv7; opaque and security values retain
+  their proper boundaries; UUIDv4 and UUIDv7 coexist unchanged across all
+  exercised boundaries; SQLite remains supported; and no ordering, paging,
+  cursor, security, or authorization behavior depends on UUID order.
+
+## Version 0.33.27.5 - Server-authoritative Clients/Projects browser creation
+
+Completed on 2026-07-31. New Client and Project browser flows now omit
+persistent identity, consume the canonical records returned by the existing
+server create contract, and preserve nested creation, optimistic object
+replacement, audit/action metadata, focus, deep links, navigation, and module
+action completion. Existing callers may still supply accepted UUIDv4/UUIDv7
+IDs. The production direct-generator baseline is empty and the active cursor
+advances to `0.33.27.6`.
+
+**Model: High Effort** — This changed the Clients/Projects browser-to-server
+creation contract while preserving workflow state and compatibility for
+existing UUIDv4 callers.
+
+- [x] Removed the Clients/Projects browser UUID generator and v4 fallback;
+  top-level and nested Client/Project create flows now apply the returned
+  canonical server records to their existing optimistic objects and action
+  state.
+- [x] Preserved refresh, focus, deep-link, navigation, module-action, and audit
+  metadata behavior by carrying the canonical saved identity through the
+  existing mutation completion path.
+- [x] Preserved accepted caller-supplied UUIDv4/UUIDv7 IDs while proving new
+  server-generated top-level and nested Client/Project IDs are UUIDv7.
+- [x] Emptied the production direct-generator migration baseline and expanded
+  the guardrail against unauthorized Node `randomUUID`, UUID-package `v4`/`v7`,
+  and browser `crypto.randomUUID` generation while retaining documented
+  non-production and dedicated-security exceptions.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, architecture,
+  database, Clients/Projects guardrail, and regression documentation; recorded
+  the shipped result in `CHANGELOG.md`; advanced through
+  `npm run version:bump -- 0.33.27.5`; and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- Client/Project creation is server-authoritative without workflow regressions;
+  existing UUIDv4 callers remain valid; the temporary production migration
+  baseline is empty; and one framework authority is the only normal production
+  UUID entry point.
+
+## Version 0.33.27.4 - First-party module persistent-record UUIDv7 rollout
+
+Completed on 2026-07-31. Every audited server-side first-party module record
+generator now uses the central UUIDv7 authority, duplicate service/repository
+generation is removed, and accepted caller-supplied UUIDv4/UUIDv7 identifiers
+remain compatible. The exact direct-generator baseline now contains only the
+Clients/Projects browser path assigned to 0.33.27.5. The active cursor advances
+to `0.33.27.5`.
+
+**Model: High Effort** — This was a high-volume mechanical conversion across
+every first-party workflow module where a missed or duplicated generator could
+fragment identity policy or break relationships.
+
+- [x] Converted all 28 audited server-side persistent-record generators across
+  Clients/Projects, Tasks and its children, Time Tracking entries/timers,
+  Notes/revisions/links/collections, and Lists/items/catalogs/links to
+  `createRecordId()` across 11 authoritative owners.
+- [x] Removed duplicate service/repository generation while preserving accepted
+  caller-supplied UUIDv4/UUIDv7 identifiers used by public APIs, imports,
+  recurrence, retries, restoration, and existing internal contracts.
+- [x] Added representative UUIDv7 and mixed-version integration coverage across
+  Clients/Projects, Tasks/checklists, Notes/revisions/links/collections, and
+  Lists/items, including UUIDv7 children related to UUIDv4 parents.
+- [x] Ratcheted the production direct-generator baseline to the one exact
+  Clients/Projects browser exception assigned to 0.33.27.5 and pinned every
+  authoritative module `createRecordId()` call.
+- [x] Preserved canonical timestamp, due-date, sequence, title, revision,
+  timer-slot, relationship, and paging order rather than relying on UUID
+  lexical order.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, architecture,
+  database, future-module, Tasks, Time Tracking, Notes, Lists, and regression
+  documentation; recorded the shipped result in `CHANGELOG.md`; advanced
+  through `npm run version:bump -- 0.33.27.4`; and completed the canonical
+  local slice verification.
+
+Acceptance criteria:
+
+- Every audited server-side first-party module record generator uses the
+  central ordered-record authority; caller-supplied legacy IDs remain
+  compatible; representative parent/child relationships mix UUIDv4/UUIDv7
+  safely; module ordering is unchanged; and the only remaining production
+  bypass is the exact Clients/Projects browser path assigned to 0.33.27.5.
+
+## Version 0.33.27.3 - Framework opaque UUID rollout and secret-boundary proof
+
+Completed on 2026-07-31. Every audited non-secret framework and operator UUID
+now uses the central opaque UUIDv4 authority without changing its existing
+request, lock, storage, backup, purge, or recovery semantics. Durable row
+identity and dedicated bearer/cryptographic helpers remain separate. The exact
+migration baseline now contains only the first-party module and
+Clients/Projects browser generators assigned to 0.33.27.4 and 0.33.27.5. The
+active cursor advances to `0.33.27.4`.
+
+**Model: High Effort** — Operational UUIDs cross request, lock, storage,
+backup, purge, and deployment tooling boundaries where accidental ordering or
+credential semantics would be a security and recovery regression.
+
+- [x] Routed request correlation IDs, migration-lock owners, local/S3 storage
+  keys, workspace and whole-instance backup package/operation IDs, workspace
+  purge fencing tokens, demo-data operation IDs, and deployment operation and
+  temporary-path IDs through `createOpaqueId()`.
+- [x] Kept purge tombstone rows and recovery audit rows on `createRecordId()`;
+  kept each workspace-backup receipt keyed by its existing opaque package ID;
+  and introduced no schema or existing-data rewrite.
+- [x] Added representative proof that request, lock, storage, backup, purge,
+  and operator identities are canonical UUIDv4 values, independent from
+  accompanying UUIDv7 records, while paths, manifests, checksums, and restore
+  behavior remain unchanged.
+- [x] Pinned the existing dedicated `randomBytes`, HMAC, hash, password, and
+  Secure Notes helpers and retained the central authority's narrow non-token
+  surface.
+- [x] Ratcheted every operational entry out of the exact migration baseline;
+  only the module and Clients/Projects browser entries remain.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`,
+  `docs/architecture.md`, `docs/database.md`, `docs/operational-security.md`,
+  `docs/preview-deployment.md`, and `docs/regression-suite.md`; recorded the
+  shipped result in `CHANGELOG.md`; advanced through
+  `npm run version:bump -- 0.33.27.3`; and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- Every audited production operational UUID uses `createOpaqueId()` without
+  changing its non-time-ordered or non-secret semantics; durable row identity
+  remains separate; dedicated credential/token/crypto helpers remain
+  unchanged; and only the exact module/browser migration entries remain in
+  the production baseline.
+
+## Version 0.33.27.2 - Framework persistent-record UUIDv7 rollout
+
+Completed on 2026-07-31. Every audited framework-owned ordinary persistent
+record generator now uses the central UUIDv7 authority, while caller-supplied
+identifiers and the operational/secret boundaries remain unchanged. The exact
+migration baseline now contains only the operational, module, and browser
+generators assigned to later slices. The active cursor advances to
+`0.33.27.3`.
+
+**Model: High Effort** — This was a framework-wide persistent-record
+conversion where a missed caller-supplied compatibility path or misclassified
+row could break identity, relationships, or restore behavior.
+
+- [x] Converted the 27 audited framework persistent-record call sites across
+  startup Workspaces/Users/memberships/assignments, permission and Tag
+  relationships, Notifications/subscriptions, private-feed rows, audit events,
+  durable jobs, work-resume state, API-key rows, Files rows/attachments/reports,
+  purge tombstones, and production recovery audit rows to `createRecordId()`.
+- [x] Preserved caller-supplied identifiers for job retries/idempotency,
+  notification and Tag imports, work-resume continuity, audit callers, and
+  other existing compatibility paths. No schema or existing-data rewrite was
+  introduced.
+- [x] Kept request correlation, migration locks, Files storage keys,
+  backup/package identity, purge fencing, module/browser records, test
+  fixtures, and bearer credentials on their existing generators for the
+  explicitly assigned later slices or dedicated security helpers.
+- [x] Extended representative integration owners to prove UUIDv7 audit,
+  API-key row, Files row/attachment, durable job, and recovery-audit identity;
+  independent API-key secret and Files storage identity; a UUIDv4 Task related
+  to UUIDv7 Files rows; and byte-for-byte UUIDv4 preservation through restore.
+- [x] Ratcheted every framework persistent-record entry out of the exact
+  migration baseline and made `framework.identifier-authority` pin each
+  audited production call to the central record operation.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`,
+  `docs/architecture.md`, `docs/database.md`, and
+  `docs/regression-suite.md`; recorded the shipped result in `CHANGELOG.md`;
+  advanced through `npm run version:bump -- 0.33.27.2`; and completed the
+  canonical local slice verification.
+
+Acceptance criteria:
+
+- Every audited framework-owned persistent-record generator uses
+  `createRecordId()`; caller-supplied legacy identifiers remain compatible;
+  representative framework relationships and recovery-created rows mix
+  UUIDv4/UUIDv7 safely; and the exact baseline has shrunk without changing
+  operational UUID or secret behavior.
+
+## Version 0.33.27.1 - Identifier authority, classification, and migration baseline
+
+Completed on 2026-07-31. The 0.33.27 branch was re-audited against its live
+code seams and resized from three oversized slices to six independently
+verifiable sessions. The initial implementation establishes the governing
+identifier contract and exact migration inventory without prematurely mixing
+in the framework, module, browser, or recovery conversions. The active cursor
+advances to `0.33.27.2`.
+
+**Model: High Effort** — This slice established a framework-wide
+data-integrity and security classification, selected the UUIDv7 dependency,
+and froze the audited migration inventory before high-volume conversion.
+
+- [x] Re-audited every production UUID generator across runtime framework
+  records, first-party modules, the Clients/Projects browser, operational
+  request/lock/storage/backup/purge identity, and production operator tooling.
+  Dedicated credential/crypto helpers and test, fixture, seed, and drill
+  generation are classified separately.
+- [x] Selected the maintained zero-dependency `uuid` 14.0.1 package and added
+  `src/core/identifiers.js` with `createRecordId()` for UUIDv7 and
+  `createOpaqueId()` for random UUIDv4. No UUID layout, timestamp encoding,
+  sequencing, or randomness is hand-built.
+- [x] Added focused Vitest coverage for canonical versions, 2,000-value batch
+  uniqueness per operation, and deterministic supported dependency options.
+- [x] Added `framework.identifier-authority` plus the exact machine-readable
+  migration baseline. Only the authority may import `uuid`; current production
+  direct generators must match exactly and can only shrink through
+  `0.33.27.2`-`0.33.27.5`.
+- [x] Preserved sessions, CSRF, API-key secrets, private calendar feeds,
+  password/recovery material, Secure Notes cryptography, and other bearer or
+  access-bearing values on their dedicated random/crypto helpers. The
+  identifier authority is not a secrets service.
+- [x] Recorded UUIDv4/UUIDv7 coexistence, SQLite `TEXT` and future PostgreSQL
+  native `uuid` compatibility, explicit timestamp/ordering authority, and the
+  workspace-backup artifact/receipt semantic exception without a schema or
+  data-rewrite migration.
+- [x] Ran `npm run docs:suggest`, updated the governing decisions, architecture,
+  database, docs-ownership, and regression-suite contracts, recorded the
+  shipped result in `CHANGELOG.md`, advanced through
+  `npm run version:bump -- 0.33.27.1`, and completed the canonical local slice
+  verification.
+
+Acceptance criteria:
+
+- The central authority and its record/opaque operations are implemented and
+  tested; the production inventory is completely classified; dedicated token
+  helpers remain outside the authority; SQLite and future PostgreSQL
+  representation remain valid; and a no-growth guardrail contains the exact
+  temporary framework/module/browser/operator migration baseline.
+
+## Version 0.33.26 - Permissions Role-Capability Alignment
+
+Completed on 2026-07-31. Nine independently closeable slices aligned scoped
+administrator reachability with the shipped role model, added private
+one-per-role fixtures to the pretty local/demo data, and completed the exact
+Nightly deployment plus backup-first `rt-ltf-demo` reset. The active cursor
+advances to `0.33.27.1`.
+
+**Model: High Effort** — These corrections change what scoped administrator
+roles can reach; a scope mistake either keeps legitimate admins locked out or
+over-grants beyond the intended client/project boundary.
+
+Purpose:
+
+Close the gaps between what the seeded role model intends each role to do and
+what the code actually exposes. This branch corrected scoped child-client
+creation, Project Settings reachability, scope-aware navigation and
+declarative actions, project-admin seed convergence, and the missing
+delegated-role surface while keeping server authorization authoritative.
+
+Decision:
+
+- Child-client creation authorizes against the **parent client's** scope;
+  top-level client creation remains workspace-scoped.
+- Navigation and permission hints are scope-aware presentation hints while
+  server-side `assertCan` enforcement remains authoritative.
+- Client Administrator and Project Administrator use a dedicated
+  exact-account delegated-assignment workflow that preserves hidden, higher,
+  and out-of-scope assignments without granting `users.manage`.
+- The pretty local development seed and exact named `rt-ltf-demo` installation
+  carry private operator-test logins for every shipped role. They are not the
+  public shared accounts planned by 0.33.31.
+- The final data operation reset only the `rt-ltf-demo` database-and-Files unit
+  through exact-target, backup-first tooling. The Friends-and-Family Preview
+  remained outside every demo provision, seed, credential, backup, and reset
+  path.
+- The user-facing permission-denied modal remains owned by 0.33.23.2 and
+  permission-change notifications remain owned by 0.36.5.
+
+Non-goals preserved:
+
+- No new roles, broad role→permission redesign, client-side authorization,
+  public/shared demo credentials, production seed command, Secure Notes
+  permission changes, Support View interaction, notification work, or in-app
+  403 modal.
+- The delegated-role workflow does not create identities or memberships, edit
+  profiles, deactivate users, manage sessions, expose a workspace directory,
+  reveal non-delegable assignments, or grant `users.manage`.
+- No data or credential change of any kind was made to the Friends-and-Family
+  Preview.
+
+### Version 0.33.26.9 - Live `rt-ltf-demo` reset, role proof, and version closeout
+
+Completed on 2026-07-31. Runtime publication and live data activation used
+separate proof gates; final roadmap/archive bookkeeping is documentation-only
+and does not require another deployment.
+
+**Model: High Effort** — This was an authorized destructive live-demo
+operation with backup/recovery, immutable deployment identity, secret-safe
+role testing, and final release bookkeeping.
+
+- [x] Merged protected PR #79 to `nightly` at commit
+  `f9c1ec84c9bd38cd7be52f981563a641f9ce006b` after all required checks passed.
+  Nightly workflow run 30638818518 deployed canonical version `0.33.26.9` with
+  artifact SHA-256
+  `64c5176bbed33d7a7ab9850e4d8cdcff5fafb333716436110f7c77832f27002f`.
+  Direct and public health, readiness, branch, commit, version, and artifact
+  identity matched before and after the reset.
+- [x] Reviewed and installed exact helper/configuration copies, retained the
+  prior helper configuration, installed the separately protected host-bound
+  seven-role credential document, and passed non-mutating preflight with
+  `nextAction: reset`. The new whole-instance backup was independently
+  inspected as restorable with no warnings; the prior data root and deployment
+  artifact remain retained for recovery.
+- [x] Ran the guarded reset only for exact target `rt-ltf-demo`. It quiesced the
+  live unit, created and inspected the backup, staged and verified the
+  candidate, promoted database plus Files together, retained the prior unit,
+  restarted the service, and returned 5 workspaces, 24 users, 400 tasks, 200
+  notes, 24 lists, 2 Files objects, and 624 Search rows with the exact deployed
+  runtime identity. Candidate verification included SQLite integrity, zero
+  foreign-key violations, Files checksums, Search parity, and session reset.
+- [x] Ran 117 credential-safe live assertions. All seven private roles
+  authenticated; exact role catalogs/scopes, child-client capability,
+  Project Settings and view access, delegated-role visibility, denied paths,
+  disabled-persona rejection, Search, Files listing/preview, database/storage
+  diagnostics, and zero failed/dead jobs passed. A session captured before the
+  reset was rejected with HTTP 401 afterward. No credential value was printed.
+- [x] Contacted no Friends-and-Family host and ran no provision, reset, seed,
+  credential, backup, or data command against it. A wrong-target preflight
+  invoked only on the demo host failed before mutation with `--target must be
+  exactly rt-ltf-demo.`
+- [x] Retained a private ignored operational record with sanitized deployment,
+  backup, reset, role, permission, and recovery evidence; updated release and
+  roadmap bookkeeping; archived the completed branch; and advanced the active
+  cursor to `0.33.27.1`.
+
+Acceptance criteria:
+
+- [x] The exact released Nightly artifact and a recoverable backup-first reset
+  produced a healthy `rt-ltf-demo` database-and-Files unit with one verified
+  private login per shipped role and correct permission behavior. The
+  Friends-and-Family Preview remained completely untouched and cannot match
+  the helper's reset target.
+
+## Version 0.33.26.8 - `rt-ltf-demo` role-fixture and guarded-reset integration
+
+Completed on 2026-07-30. The installed-release operation can now build and
+verify the shared seven-role sanitized-demo fixture only on exact target
+`rt-ltf-demo`, while non-mutating preflight and backup-first rollback remain
+mandatory. No live reset was run; the active cursor advances to `0.33.26.9`.
+
+**Model: High Effort** — Extending the named-host reset helper to activate
+private accounts requires root-owned secret isolation, exact-target
+enforcement, staged-candidate verification, and rollback-safe
+database-and-Files handling.
+
+- [x] Added a separately installed root-owned `0600` role-credential document
+  with exact `rt-ltf-demo` target and `https://demo.longtailforge.com` origin
+  binding. The non-secret helper carries only its protected path, and the
+  candidate child receives only a minimal safe environment plus that path.
+  Credential values never enter Git, artifacts, arguments, markers, backup
+  summaries, logs, output, or public diagnostics.
+- [x] Reused the reviewed deterministic role identity/scope definition in the
+  installed-release candidate build while keeping routine Nightly deployment
+  data-preserving and role creation exclusive to explicit provision/reset.
+- [x] Required exactly seven active fixture identities with Argon2id hashes,
+  exact roles/scopes/memberships, and no overrides. Candidate verification
+  rejects wrong or duplicate assignments, extra active personas, weak or
+  missing credentials, real domains, Secure Notes material, unexpected
+  fingerprints, Search divergence, and database/Files mismatches.
+- [x] Strengthened exact-target refusal so host, target, and origin validation
+  happens before either protected credential source is read. Protected files
+  and paths must be root-owned, non-symlinked, and privately mode-restricted;
+  `rt-ltf`, preview/customer/self-hosted identities, nested/substituted paths,
+  and copied application secrets fail closed before backup or mutation.
+- [x] Expanded the isolated host regression across non-mutating preflight,
+  secret redaction, protected-file contracts, minimal environment propagation,
+  wrong-target refusal, backup-first staging, atomic database-and-Files
+  promotion, retained prior state, candidate corruption, and automatic
+  rollback. Normal startup and deployment paths remain unable to invoke the
+  operation.
+- [x] Updated the demo runbook, runtime/artifact/data/permission/regression
+  ownership docs, and governing decision. The reviewed `0.33.26.9` checklist
+  requires immutable deployment identity, preflight, restorable backup,
+  exact-target reset, seven-login proof, and explicit Friends-and-Family
+  exclusion.
+
+Acceptance criteria:
+
+- [x] The installed-release tooling safely builds and verifies the same private
+  role fixture on exact `rt-ltf-demo`; every other environment, including
+  Friends-and-Family, fails closed before backup, seed, credential read, or
+  data mutation.
+
+## Version 0.33.26.7 - Local sanitized-demo role identities and permission journey
+
+Completed on 2026-07-30. The explicit local sanitized-demo profile now creates
+one deterministic private identity per shipped role and the complete
+authenticated permission journey verifies the 0.33.26.1-.6 behavior. The
+active cursor advances to `0.33.26.8`.
+
+**Model: High Effort** — Login-capable seeded identities cross authentication,
+permission, deterministic-data, and secret-handling boundaries even though
+the target is local.
+
+- [x] Added one private login identity for every shipped role to the explicit
+  local `sanitized-demo` seed. The protected bootstrap identity supplies
+  installation Super Admin; every other fixture has exactly one active
+  Northwind Studio membership and one deterministic assignment at Workspace,
+  Cedar & Bloom Client, or Website Refresh Project scope with no overrides.
+- [x] Kept IDs, usernames, memberships, scopes, and semantic data deterministic
+  while reading seven unique strong passwords from one ignored private JSON
+  source. Missing, duplicate, weak, placeholder, command-line,
+  repository-tracked, unexpected, symlinked, or printed secrets are rejected;
+  generated databases contain normal Argon2id hashes only.
+- [x] Required the exact local role-fixture option, `LONGTAIL_ENV=development`,
+  no release branch, and an empty or loopback public URL. Ordinary development
+  personas remain inactive, while production, deployment, preview, customer,
+  Friends-and-Family, and ordinary self-hosted use fails closed.
+- [x] Expanded database verification across paired independent seeds to prove
+  exactly seven active fixture logins, every other persona disabled, exact
+  roles/scopes/memberships, no overrides, reserved domains, no Secure Notes,
+  deterministic semantic fingerprints, Files/Search projections, SQLite
+  integrity, and zero foreign-key violations.
+- [x] Added a disposable complete role journey that authenticates and logs out
+  all seven identities through normal password verification and throttling,
+  then proves representative allowed/denied Client creation, Project
+  Settings, declarative-action, role-catalog, and delegated-assignment
+  behavior from 0.33.26.1-.6 without exposing credentials.
+- [x] Documented credential creation, sync-aware storage, local seed/reset
+  regeneration, exact usernames/scopes, verification, runtime configuration,
+  and the strict separation from `rt-ltf-demo` host work and the
+  Friends-and-Family Preview.
+
+Acceptance criteria:
+
+- [x] A local sanitized-demo reset reproducibly creates one private test login
+  per shipped role with exact scopes and no extra authority, and the complete
+  role journey proves the branch's permission behavior without exposing
+  secrets.
+
+Docs updated: `DECISIONS.md`, `.env.example`,
+`docs/development-and-demo-data.md`, `docs/docs-ownership.json`,
+`docs/longtail_forge_permissions_matrix.md`, `docs/regression-suite.md`, and
+`docs/runtime-configuration.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.6 - Delegated role-assignment browser surface
+
+Completed on 2026-07-30. Scoped administrators now have a dedicated,
+non-enumerating browser workflow for exactly identified accounts and only their
+currently delegable assignments. The active cursor advances to `0.33.26.7`.
+
+**Model: High Effort** — The browser must expose the new narrow delegation
+workflow without accidentally reopening the full User Admin, membership,
+profile, or session-management surface.
+
+- [x] Added a dedicated Users-owned Role Assignments surface eligible through
+  `roles.assign`; the existing User Admin page retains `users.manage` and its
+  full user table/edit workflow is not reused.
+- [x] Added complete-email lookup with calm found/not-found parity,
+  server-shaped labeled role/scope options, a clear current delegable list, and
+  explicit add/remove confirmation. The page never renders a member directory,
+  hidden assignment count/details, raw IDs, profile editing, membership,
+  password/session, permission-override, or deletion controls.
+- [x] Added the Admin navigation contribution only when the server confirms a
+  currently usable delegable role/scope. Shared modal/recovery anatomy,
+  focus return, error/empty states, accessible labels and status announcements,
+  keyboard behavior, and the branded denial surface remain intact.
+- [x] Added browser-source, app-shell, module-manifest, accessibility, and
+  permission regressions for Client, Project, and Workspace Administrators,
+  roles without `roles.assign`, exact-account non-enumeration, scope-option
+  filtering, stale/denied mutation behavior, hidden-assignment
+  non-disclosure, and unchanged User Admin authorization.
+- [x] Updated Help and the authoritative permissions matrix with the boundary
+  between full User Administration and scoped Role Assignments.
+
+Acceptance criteria:
+
+- [x] Client/Project Administrators have one usable, accessible, scope-bounded
+  role-delegation workflow; they gain no user-directory, membership, profile,
+  session, deletion, or hidden-assignment access.
+
+Docs updated: `help/framework/users-roles-and-permissions.md`,
+`docs/longtail_forge_permissions_matrix.md`, and
+`docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.5 - Delegated role-assignment service and API contract
+
+Completed on 2026-07-30. Scoped administrators now use exact-account discovery
+and transaction-revalidated subset mutation without learning or replacing
+hidden assignments. The active cursor advances to `0.33.26.6`.
+
+**Model: High Effort** — A scoped administrator must be able to delegate lower
+roles without learning or overwriting higher, hidden, or out-of-scope identity
+data.
+
+- [x] Preserved `roles.assign` for Client Administrator and Project
+  Administrator and formalized the existing `ROLE_LIMITS`: Client
+  Administrator delegates only Project Administrator, Client User, Project
+  User, and Client User (External) within administered Client/Project scope;
+  Project Administrator delegates only Project User within administered
+  Projects. Workspace Administrator/Super Admin behavior remains full
+  replacement.
+- [x] Added exact-normalized-account lookup for an active member of the current
+  workspace. Scoped responses contain only matched user ID, username/display
+  label, active-membership result, actor-manageable assignments, and an opaque
+  revision; unknown/inactive parity and the field allowlist exclude directory,
+  unrelated membership, hidden role/scope, profile, session, assignment-ID,
+  and permission-override disclosure.
+- [x] Replaced scoped all-assignment replacement with an atomic manageable-set
+  diff. The revision is process-private and bound to actor, target, and
+  workspace. Omitted manageable rows can be removed and new authorized rows
+  inserted, while unchanged, higher, installation, hidden, and out-of-scope
+  rows remain byte-for-byte intact; attempts to name unauthorized rows fail.
+- [x] Revalidated active actor/target/workspace state, workspace type, fresh
+  authority, role ceiling, concrete active Client/Project ownership,
+  Project-to-Client ancestry, and self/protected-user safety inside the
+  mutation transaction. Successful mutations reconcile private feeds before
+  safe audit and internal-event emission.
+- [x] Expanded the permission harness from 370 to 397 checks for lookup parity,
+  filtered options, allowed delegation, cross-scope denial, hidden and higher
+  preservation, stale/concurrent and actor-bound revisions, protected/self
+  targets, Family/Personal restrictions, revoked authority, audit safety, and
+  unchanged full-administrator behavior.
+
+Acceptance criteria:
+
+- [x] Scoped administrators can safely read and mutate only their delegable
+  assignment subset for an exactly identified active member; all other
+  identity and assignment state remains undisclosed and unchanged.
+
+Docs updated: `docs/longtail_forge_permissions_matrix.md` and
+`docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.4 - Role seed and scope convergence
+
+Completed on 2026-07-30. The consolidated baseline and forward migration 086
+now converge with migration 074 and the runtime authorization maps on a
+project-scoped Project Administrator. The active cursor advances to
+`0.33.26.5`.
+
+**Model: High Effort** — Fresh-install and upgraded-install role metadata is a
+database authorization contract; the slice must correct drift without
+rewriting an applied migration or broadening any role.
+
+- [x] Corrected the consolidated `project_admin` baseline row to project scope
+  and added forward-only migration 086 to repair stale current role metadata;
+  migration 074 remains byte-for-byte unchanged. Added the two reviewed
+  prior-baseline line-ending checksums to the migration runner's compatibility
+  set so existing installations reach the repair and unknown drift still
+  fails closed.
+- [x] Audited all seven shipped role IDs, database/runtime scope requirements,
+  module and framework default permission grants, Business/Family/Personal
+  availability, and the existing `ROLE_LIMITS`. No additional drift or
+  unrelated permission change was found.
+- [x] Added one isolated database regression covering the consolidated
+  baseline, fresh migration path, pre-074 assignment expansion, current
+  metadata repair, generated schema relationships, SQLite integrity, foreign
+  keys, and byte-for-byte survival of valid assignments.
+- [x] Updated established fresh-database, baseline-adoption,
+  migration-compatibility, schema-workflow, and native-driver migration
+  identity expectations through migration 086.
+- [x] Updated the database, permissions, and regression-suite documentation,
+  changelog, package metadata, and roadmap/archive handoff.
+
+Acceptance criteria:
+
+- [x] Fresh and upgraded installations expose the same seven role definitions
+  and scope requirements.
+- [x] Project Administrator is project-scoped in the baseline, migration path,
+  runtime map, permissions matrix, and repaired current database.
+- [x] Existing valid assignments survive unchanged, and applied migration 074
+  was not edited.
+
+Docs updated: `docs/database.md`,
+`docs/longtail_forge_permissions_matrix.md`, and `docs/regression-suite.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.3 - Client-side permission wiring for view surfaces
+
+Completed on 2026-07-30. Declarative view actions now consume the actor's
+effective any-scope permission IDs from every workspace bootstrap, while
+record-specific capabilities and server authorization remain authoritative.
+The active cursor advances to `0.33.26.4`.
+
+**Model: Medium Effort** — Presentation-only filtering with an existing but
+previously unfed contract; the main risk was hiding valid scoped actions or
+surfacing workspace-level actions from a record-scoped grant.
+
+- [x] Added the effective any-scope permission ID set to login, session, and
+  app-shell workspace context.
+- [x] Applied declarative `requiredPermissions` filtering to shared page,
+  surface, row, item, modal, menu, and inline actions, with a second live check
+  before dispatch.
+- [x] Preserved module-shaped record eligibility: roles without
+  `clients.manage` receive no Client action, and Client Administrators receive
+  eligible Add Child Client actions without workspace-level Add Client.
+- [x] Added behavioral and static regressions for absent grants, scoped
+  any-scope grants, child-client visibility, hidden unauthorized actions,
+  session/app-shell parity, and unchanged service denial after bypass.
+
+Acceptance criteria:
+
+- View-surface `requiredPermissions` declarations filter rendered actions with
+  documented any-scope semantics; record-scoped actions remain module-owned;
+  invalid visible buttons are removed; server enforcement remains
+  authoritative.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`, `docs/settings-ownership.md`,
+`docs/view-building-contract.md`, and
+`help/framework/users-roles-and-permissions.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.2 - Scope-aware navigation, permission hints, and Project Settings access
+
+Completed on 2026-07-30. Administrative shell hints now use any-scope
+permission semantics, scoped Client/Project administrators can reach only
+their usable Settings surfaces and records, and the active cursor advances to
+`0.33.26.3`.
+
+**Model: High Effort** — A sweep across every admin navigation gate; hints that are too generous surface dead-end pages and hints that stay workspace-only preserve the lockout this branch exists to fix.
+
+- [x] Made app-shell hints such as `projectsManage` and `clientsManage`
+  any-scope checks within the active workspace.
+- [x] Gave Client Administrators Clients and Project Settings navigation and
+  Project Administrators Project Settings only, with independently protected
+  pages and permission-filtered data.
+- [x] Kept Users, Audit Log, Workspace Settings, API Keys, and Admin Module
+  Settings behind deliberate workspace-administrator gates.
+- [x] Gated the Clients link with `clientsManage` instead of workspace
+  capability alone.
+- [x] Added server-shaped Project create/move and per-record manage
+  capabilities plus regressions for scoped administrators, denied roles, and
+  unchanged Workspace Administrator navigation.
+
+Acceptance criteria:
+
+- Every admin navigation gate reflects a deliberate, scope-aware decision;
+  Client/Project Administrators can reach and use the Project Settings surface
+  within their scope; no link leads to a surface the role cannot use.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`,
+`help/framework/administration-and-settings.md`, and
+`help/framework/clients-and-projects.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.26.1 - Child-client creation scope correction
+
+Completed on 2026-07-30. Client creation now authorizes a child against its
+requested parent while retaining workspace scope for top-level creation. The
+browser exposes only server-shaped top-level or per-parent actions, and the
+active cursor advances to `0.33.26.2`.
+
+**Model: High Effort** — This restructures an authorization gate on a create
+path; the failure modes are continued lockout or letting scoped admins create
+top-level clients.
+
+- [x] Restructured the shared `createClient` service so child creation checks
+  `clients.manage` against the requested parent and top-level creation keeps its
+  workspace-scoped check.
+- [x] Kept browser, public API `POST /api/v1/clients`, and registered actions on
+  the same service-owned authorization path.
+- [x] Added server-shaped top-level and per-record capabilities plus an Add
+  Child Client row action with its authorized parent locked in the
+  module-owned dialog.
+- [x] Added permission and static regressions for allowed scoped creation,
+  top-level and cross-scope denial, Project Administrator denial, unchanged
+  Workspace/Super Administrator behavior, Business gating, public API
+  delegation, and Client tag-target scope shaping.
+
+Acceptance criteria:
+
+- A Client Administrator can create child clients under clients they
+  administer and nothing more; top-level client creation remains
+  workspace-scoped; every create path enforces the same split.
+
+Docs updated: `DECISIONS.md`,
+`docs/clients-projects-strict-guardrail-inventory.md`,
+`docs/longtail_forge_permissions_matrix.md`,
+`docs/regression-suite.md`,
+`help/framework/action-catalog.md`, and
+`help/framework/clients-and-projects.md`.
+
+Verification: `npm run verify:slice`.
+
+## Version 0.33.25.6 - Marketing refresh and branch closeout
+
+Completed on 2026-07-30. The marketing foundation now matches the shipped
+application through the complete `0.33.25` branch, the package is
+`0.33.25.6`, and the active cursor advances to `0.33.26.1`. Professional legal
+review is not claimed or required for this closeout; the decision appropriate
+to a future public analytics/interest-capture launch is deferred explicitly to
+`0.33.32`.
+
+**Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
+
+- [x] Re-baselined `docs/marketing/` from its stale `0.33.13.5` status to the
+  actual shipped application, keeping future Secure Catalogs at `0.33.29` and
+  the separate signed invite/no-invite decision explicit.
+- [x] Updated the claims-and-proof register and re-verified that marketing
+  documents make no invented customer, numeric, guarantee, legal-approval, or
+  absolute-security claims.
+- [x] Reconciled preview, design-partner, and launch planning with the actual
+  bounded preview state.
+- [x] Ran documentation, licensing, Help, and canonical slice verification;
+  updated the changelog, package metadata, archive handoff, and governing
+  deferral decision.
+
+Acceptance criteria:
+
+- Marketing status labels and evidence match the shipped app, the legal/about
+  and third-party-notice gates are active, public legal surfaces remain neutral
+  operator templates without a legal-approval claim, and branch bookkeeping is
+  complete.
+
+## Version 0.33.25.3 - Public terms, privacy, and pre-authentication legal footer
+
+Completed on 2026-07-30. Session-less Terms and Privacy surfaces and the public
+AGPL/source notice are shipped with neutral operator-scoped templates.
+Raymond Tec does not currently retain an attorney, and professional review is
+not represented as having occurred. Choosing the review path appropriate to
+future first-party public analytics, feedback, or interest capture is deferred
+to the `0.33.32` public-demo privacy gate.
+
+**Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
+
+- [x] Added publicly reachable Terms and Privacy pages linked from public and
+  authenticated footers with the same security-header posture as other public
+  responses and no session, workspace, or user data.
+- [x] Kept ownership operator-truthful: the repository ships clearly labeled
+  neutral templates, and each operator may supply installation-specific
+  content through protected runtime configuration.
+- [x] Deferred the professional-review decision to `0.33.32`, before any
+  first-party public analytics, feedback, or interest capture is enabled;
+  `0.33.25` makes no legal-approval claim.
+- [x] Added the version-accurate public `AGPL-3.0-only` and Corresponding Source
+  notice while keeping the full legal and notices articles authenticated.
+- [x] Added regression coverage for session-less access, footer links,
+  operator overrides, neutral fallback content, security headers, and absence
+  of authenticated data.
+
+Acceptance criteria:
+
+- Terms and Privacy are publicly reachable and operator-scoped, neutral
+  defaults do not impersonate first-party legal documents, the public
+  AGPL/source notice is version-accurate, and future launch-specific review is
+  owned explicitly by `0.33.32` rather than blocking this repository slice.
+
+## Version 0.33.25.5 - Help feature and concept coverage, and drift audit
+
+Repository implementation merged into `nightly` through cumulative PR #78 on
+2026-07-30. The Help concept/drift audit is complete and ships in the
+`0.33.25.6` branch closeout.
+
+**Model: Medium Effort** — Explaining why features exist requires verified behavior claims; stale existing articles are as damaging as missing ones.
+
+- [x] Added how-it-works articles for Workbench focus modes, resume behavior,
+  Dashboard versus Workbench, notifications and reminders, tags and search,
+  and the calendar-subscription model that has actually shipped.
+- [x] Audited existing Help against behavior changed by `0.33.20` through
+  `0.33.24`, including the post-conversion Files anatomy and the note-level
+  Secure Notes versus non-inheriting Catalog/Collection boundary; future Secure
+  Catalogs remain explicitly future `0.33.29` work.
+- [x] Verified that the Help table of contents has no dangling entries or
+  orphaned articles and that module-gated articles follow module activation.
+- [x] Extended regression coverage so Help declarations, Markdown sources, and
+  table-of-contents links are compared as exact sets.
+
+Acceptance criteria:
+
+- A user can learn what the focus modes and other conceptual features are for,
+  no Help article describes superseded behavior, and table-of-contents
+  integrity is regression-checked.
+
+## Version 0.33.25.4 - Help action catalog and task-oriented guidance
+
+Repository implementation merged into `nightly` through cumulative PR #78 on
+2026-07-30. The Help action/task-guidance work is complete and ships in the
+`0.33.25.6` branch closeout.
+
+**Model: Medium Effort** — High-volume content authoring against shipped behavior; the risk is coverage gaps and drift, controlled by working from the real contribution registries rather than memory.
+
+- [x] Built the action inventory from the real framework and first-party module
+  registries, including quick capture, page/card actions, and bulk operations.
+- [x] Added task-oriented "What do you want to do?" articles that route user
+  goals to concrete action and feature guidance without duplicating it.
+- [x] Covered user settings, user administration, roles and permissions,
+  workspace settings, and module settings within their existing ownership
+  boundaries.
+- [x] Kept framework Help framework-owned and module Help module-owned, updated
+  `help/toc.md`, and confirmed that the new articles index into Help search.
+
+Acceptance criteria:
+
+- Every framework and first-party action shipped through `0.33.24` has a Help
+  home stating its intent and location, goal-oriented articles lead to concrete
+  steps, and settings/admin/roles guidance stays within existing ownership
+  boundaries.
+
+## Version 0.33.25.2 - In-app legal and licensing surface in Help
+
+Completed locally on 2026-07-30. Authenticated framework Help now exposes
+version-accurate legal/licensing guidance and the reviewed third-party notices,
+the automated public-app legal/about gate reads satisfied, and the active cursor
+advances to `0.33.25.3`.
+
+**Model: Medium Effort** — A small framework-owned surface, but its statements are legally meaningful and its version identity must never go stale.
+
+- [x] Added framework-owned Legal and Licensing and Third-Party Notices articles
+  covering the running identity, copyright, `AGPL-3.0-only` source-access
+  rights, warranty disclaimer, third-party software, and trademark policy.
+- [x] Hydrated the displayed version from the same configuration identity used
+  by `/api/app-info`; Corresponding Source and tracked policy links use the
+  immutable release commit when available and the canonical release tag
+  otherwise, never a mutable `main` reference.
+- [x] Hydrated the complete notices article directly from the reviewed root
+  `THIRD_PARTY_NOTICES.md`, keeping legal prose and notices in tracked Markdown
+  sources rather than duplicated JavaScript strings.
+- [x] Added both articles to the Help table of contents and search index while
+  keeping them framework-owned, authenticated, and workspace-independent.
+- [x] Activated the legal/about gate in `docs/licensing.md` and extended focused
+  Help, source-layout, search-count, and licensing-gate regression coverage.
+
+Acceptance criteria:
+
+- The Help section contains the legal/licensing surface with live version,
+  copyright, AGPL source access, warranty, third-party notices, and trademark
+  content from tracked sources, and the public-app legal gate reads satisfied.
+
+## Version 0.33.25.1 - Reviewed third-party notices
+
+Completed locally on 2026-07-30. The root notices file now covers the complete
+production lockfile closure and bundled Lucide-derived icon subset, ships in
+the immutable runtime artifact, and has deterministic regeneration plus hard
+drift detection; the active cursor advances to `0.33.25.2`.
+
+**Model: Medium Effort** — License identification and attribution must be individually verified; a wrong or missing notice is a compliance defect that ships with every release.
+
+- [x] Enumerated 89 unique production dependency name/version records across
+  90 installed production package locations plus the bundled Lucide-derived
+  icon asset, while explicitly recording that the runtime has no bundled fonts
+  or vendored browser libraries and excluding development-only tooling.
+- [x] Generated `THIRD_PARTY_NOTICES.md` with each component's version, reviewed
+  license identifier, copyright holder(s), and full required license/notice
+  text; the shipped license set is MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
+  Python-2.0, all reviewed as compatible with `AGPL-3.0-only` distribution.
+- [x] Added deterministic `third-party-notices:write` regeneration and a hard
+  `third-party-notices:check` comparison against the lockfile, package license
+  texts, reviewed exceptional metadata, and bundled-asset inventory.
+- [x] Made `licensing:gates` report the active third-party-notices gate as
+  satisfied or loudly warn on drift, shipped the root notice in runtime
+  artifacts, expanded the Lucide notice to its complete ISC and Feather-derived
+  MIT terms, and updated the owning licensing/runtime/regression documentation.
+
+Acceptance criteria:
+
+- `THIRD_PARTY_NOTICES.md` covers every shipped dependency and bundled asset
+  with hand-reviewed license and attribution data, regeneration/drift detection
+  is repeatable, and the licensing gate readout reflects the completed gate.
+
 ## Version 0.33.24.9 - Preview rollout, cross-host proof, and branch closeout
 
 Completed on the live preview, demo, and public-edge path on 2026-07-30. Both bounded hosts now use the qualified least-privilege maintenance boundary, preview proved backup-first rollback and restore-forward, and the complete branch advances through protected `nightly`/`main` plus a manual immutable-main preview deployment; the active cursor advances to `0.33.25.1`.

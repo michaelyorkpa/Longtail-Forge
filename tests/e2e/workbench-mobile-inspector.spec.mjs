@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile Workbench opens the existing Inspector as a focus-contained slide-out", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "the Inspector slide-out is mobile-only");
-
+test("mobile Workbench opens the existing Inspector as a focus-contained slide-out", { tag: "@mobile" }, async ({ page }) => {
   await page.goto("/workbench.html");
   const header = page.locator(".view-page-header");
   const inspectorButton = header.getByRole("button", { name: "Open Inspector" });
@@ -47,9 +45,7 @@ test("mobile Workbench opens the existing Inspector as a focus-contained slide-o
   await expect(inspectorButton).toBeFocused();
 });
 
-test("desktop Workbench keeps the Inspector as its unchanged side column", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "desktop layout is covered once at the named desktop viewport");
-
+test("desktop Workbench keeps the Inspector as its unchanged side column", { tag: "@desktop" }, async ({ page }) => {
   await page.goto("/workbench.html");
   const header = page.locator(".view-page-header");
   const inspector = page.locator("[data-workbench-inspector]");

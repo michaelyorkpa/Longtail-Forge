@@ -1,19 +1,12 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksView = readText("views/protected/tasks.html");
 const tasksScript = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /viewSurfaces:\s*\[/, "Tasks module should declare viewSurfaces");
@@ -61,7 +54,6 @@ assert.match(styles, /\.view-list-shell-status:empty\s*\{[\s\S]*display:\s*none/
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Tasks list region wrapper should not add a visible redesign layer");
 
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should inventory Tasks as a strict descriptor surface");
-assert.match(regressionSuite, /scripts\/tasks-declarative-readonly-surface-regression\.mjs/, "Regression suite should include the Tasks descriptor-host regression");
 
 console.log("Tasks declarative read-only surface regression passed.");
 

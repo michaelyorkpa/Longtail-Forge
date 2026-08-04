@@ -1,5 +1,6 @@
 /* global fetch */
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -65,6 +66,35 @@ async function assertClientWriteFlow(baseUrl, rawKey) {
   assert.equal(created.body.apiVersion, "v1");
   assert.equal(created.body.data.name, "API Client Alpha");
   assert.ok(created.body.data.workspace_id);
+  assertUuidVersion(created.body.data.id, 7, "server-generated public API clients should use UUIDv7");
+
+  const child = await apiRequest(baseUrl, "/api/v1/clients", {
+    body: { name: "API Client Alpha Child", parent_client_id: created.body.data.id },
+    method: "POST",
+    rawKey,
+  });
+  assert.equal(child.status, 201);
+  assert.equal(child.body.data.parent_client_id, created.body.data.id);
+  assertUuidVersion(child.body.data.id, 7, "nested public API clients should use server-generated UUIDv7 IDs");
+
+  const legacyClientId = randomUUID();
+  const legacy = await apiRequest(baseUrl, "/api/v1/clients", {
+    body: { id: legacyClientId, name: "API Legacy UUIDv4 Client" },
+    method: "POST",
+    rawKey,
+  });
+  assert.equal(legacy.status, 201);
+  assert.equal(legacy.body.data.id, legacyClientId, "caller-supplied public API Client UUIDv4 should remain unchanged");
+  assertUuidVersion(legacy.body.data.id, 4, "legacy public API Client compatibility should preserve UUIDv4");
+
+  const updatedLegacy = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(legacyClientId)}`, {
+    body: { name: "API Legacy UUIDv4 Client Updated", status: "Active" },
+    method: "PUT",
+    rawKey,
+  });
+  assert.equal(updatedLegacy.status, 200);
+  assert.equal(updatedLegacy.body.data.id, legacyClientId, "public API updates must preserve an existing UUIDv4 Client ID");
+  assert.equal(updatedLegacy.body.data.name, "API Legacy UUIDv4 Client Updated");
 
   const updated = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(created.body.data.id)}`, {
     body: { name: "API Client Alpha Updated", status: "Active" },
@@ -91,6 +121,7 @@ async function assertProjectWriteFlow(baseUrl, rawKey) {
     rawKey,
   });
   assert.equal(client.status, 201);
+  assertUuidVersion(client.body.data.id, 7, "server-generated project Client scope should use UUIDv7");
 
   const created = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(client.body.data.id)}/projects`, {
     body: { name: "API Project Alpha" },
@@ -101,6 +132,35 @@ async function assertProjectWriteFlow(baseUrl, rawKey) {
   assert.equal(created.status, 201);
   assert.equal(created.body.data.name, "API Project Alpha");
   assert.equal(created.body.data.client_id, client.body.data.id);
+  assertUuidVersion(created.body.data.id, 7, "server-generated public API projects should use UUIDv7");
+
+  const child = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(client.body.data.id)}/projects`, {
+    body: { name: "API Project Alpha Child", parent_project_id: created.body.data.id },
+    method: "POST",
+    rawKey,
+  });
+  assert.equal(child.status, 201);
+  assert.equal(child.body.data.parent_project_id, created.body.data.id);
+  assertUuidVersion(child.body.data.id, 7, "nested public API projects should use server-generated UUIDv7 IDs");
+
+  const legacyProjectId = randomUUID();
+  const legacy = await apiRequest(baseUrl, `/api/v1/clients/${encodeURIComponent(client.body.data.id)}/projects`, {
+    body: { id: legacyProjectId, name: "API Legacy UUIDv4 Project" },
+    method: "POST",
+    rawKey,
+  });
+  assert.equal(legacy.status, 201);
+  assert.equal(legacy.body.data.id, legacyProjectId, "caller-supplied public API Project UUIDv4 should remain unchanged");
+  assertUuidVersion(legacy.body.data.id, 4, "legacy public API Project compatibility should preserve UUIDv4");
+
+  const updatedLegacy = await apiRequest(baseUrl, `/api/v1/projects/${encodeURIComponent(legacyProjectId)}`, {
+    body: { name: "API Legacy UUIDv4 Project Updated", client_id: client.body.data.id, status: "Active" },
+    method: "PUT",
+    rawKey,
+  });
+  assert.equal(updatedLegacy.status, 200);
+  assert.equal(updatedLegacy.body.data.id, legacyProjectId, "public API updates must preserve an existing UUIDv4 Project ID");
+  assert.equal(updatedLegacy.body.data.client_id, client.body.data.id, "public API updates must retain a mixed UUIDv4 Project to UUIDv7 Client relationship");
 
   const updated = await apiRequest(baseUrl, `/api/v1/projects/${encodeURIComponent(created.body.data.id)}`, {
     body: { name: "API Project Alpha Updated", client_id: client.body.data.id, status: "Active" },
@@ -167,4 +227,12 @@ LIMIT 1;
     username: rows[0].username,
     workspace_id: rows[0].workspace_id,
   };
+}
+
+function assertUuidVersion(value, version, message) {
+  assert.match(
+    String(value || ""),
+    new RegExp(`^[0-9a-f]{8}-[0-9a-f]{4}-${version}[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, "i"),
+    message,
+  );
 }

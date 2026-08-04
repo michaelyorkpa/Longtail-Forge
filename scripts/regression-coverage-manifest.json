@@ -3,42 +3,41 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 415,
-    "legacyScripts": 311,
-    "releaseGateScripts": 53,
+    "discoveredScripts": 428,
+    "legacyScripts": 309,
+    "releaseGateScripts": 57,
     "areaCounts": {
       "dashboard": 2,
-      "database": 38,
-      "docs": 9,
+      "database": 41,
+      "docs": 10,
       "files": 44,
-      "framework": 70,
+      "framework": 72,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
       "notes": 37,
       "notifications": 3,
-      "permissions": 6,
+      "permissions": 11,
       "public-api": 3,
-      "release": 28,
+      "release": 29,
       "search": 12,
       "tags": 12,
-      "tasks": 57,
+      "tasks": 58,
       "time-tracking": 9,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 194,
-      "integration": 160,
-      "release-gate": 53,
+      "focused": 201,
+      "integration": 162,
+      "release-gate": 57,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 176,
-      "isolated-files": 9,
+      "isolated-database": 175,
+      "isolated-files": 28,
       "serial-database": 6,
-      "serial-files": 20,
-      "static": 204
+      "static": 219
     }
   },
   "coverageFamilies": [
@@ -47,7 +46,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 10,
+      "minimumActiveScripts": 16,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
         "framework.settings-branch-closeout",
@@ -63,7 +62,8 @@
         "release.closeout-conductor",
         "release.maintainability-closeout",
         "release.playwright-dev-only-boundary",
-        "release.roadmap-cursor-floor"
+        "release.roadmap-cursor-floor",
+        "release.validation-single-ownership"
       ],
       "retiredScripts": [
         "scripts/clients-projects-strict-closeout-regression.mjs",
@@ -85,6 +85,84 @@
   ],
   "assertionMovements": [
     {
+      "sourceRegression": "scripts/admin-job-observability-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 49,
+      "rationale": "Feature regressions repeated a dynamic current-version CHANGELOG heading check unrelated to their behavior contract.",
+      "assertionDisposition": "The direct version guard owns the one current CHANGELOG heading check while historical feature-specific changelog assertions remain with their feature regressions.",
+      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/clients-projects-action-registration-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 187,
+      "rationale": "Legacy regressions repeatedly asserted their own or a consolidated owner's snapshot membership even though discovery and the generated manifest already reconcile every active and credited-retired path.",
+      "assertionDisposition": "release.regression-manifest-generation owns exact discovered membership, legacy snapshot reconciliation, required release gates, credited retirements, and stale-manifest failure proof.",
+      "movedTo": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run regressions:manifest:check",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/parameter-binding-audit-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 57,
+      "rationale": "Exact root package-script strings were distributed across feature and release regressions, making command wiring a many-owner contract.",
+      "assertionDisposition": "scripts/package-script-contracts.json is the reviewed exact command inventory and release.validation-single-ownership is its single execution owner; feature regressions keep behavior and independent-runnability assertions.",
+      "movedTo": "scripts/regressions/release/validation-single-ownership.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/validation-single-ownership.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/regressions/framework/asset-cache-version.regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 5,
+      "rationale": "Pure assetVersion and withAssetVersion return-value examples were duplicated between Vitest and the framework integration regression.",
+      "assertionDisposition": "tests/unit/asset-version.test.mjs owns pure URL transformation and canonical asset-version expectations; framework.asset-cache-version remains active for HTML injection, served assets, runtime loaders, module assets, and raw-key guard integration.",
+      "movedTo": "tests/unit/asset-version.test.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/framework/asset-cache-version.regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/asset-version.test.mjs",
+        "node scripts/regressions/framework/asset-cache-version.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 5,
+      "rationale": "The fast-check regression repeated TypeScript compiler scope facts already enforced by the framework typecheck-seams release gate.",
+      "assertionDisposition": "framework.typecheck-seams remains the single regression owner for noEmit, allowJs, selective checkJs, strict compiler settings, and included type contracts; fast-check still owns command ordering and dependency boundaries.",
+      "movedTo": "scripts/regressions/framework/typecheck-seams.regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/framework/typecheck-seams.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "node scripts/regressions/framework/typecheck-seams.regression.mjs",
+        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
       "movedInVersion": "0.33.19.4",
       "movementType": "pure-contract-to-vitest",
@@ -97,6 +175,22 @@
         "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
         "node scripts/runtime-configuration-contract-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 534,
+      "rationale": "Package, lock-root, and lock-package current-version equality was repeated across legacy regressions even though the direct version guard already owns the canonical runtime and metadata relationship.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; release.closeout-conductor runs that direct gate once.",
+      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
         "npm run verify:slice"
       ]
     }
@@ -221,6 +315,7 @@
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "database"
       ],
       "tier": "integration"
@@ -434,7 +529,7 @@
       "legacy": true,
       "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "contract",
         "database"
@@ -540,6 +635,7 @@
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "database"
       ],
       "tier": "integration"
@@ -628,7 +724,7 @@
       "legacy": true,
       "path": "scripts/file-api-lifecycle-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -642,7 +738,7 @@
       "legacy": true,
       "path": "scripts/file-clamd-adapter-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files",
@@ -657,7 +753,7 @@
       "legacy": true,
       "path": "scripts/file-clamscan-adapter-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files",
@@ -687,7 +783,7 @@
       "legacy": true,
       "path": "scripts/file-multipart-batch-upload-helper-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "docs",
@@ -702,7 +798,7 @@
       "legacy": true,
       "path": "scripts/file-multipart-upload-route-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -716,7 +812,7 @@
       "legacy": true,
       "path": "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -730,7 +826,7 @@
       "legacy": true,
       "path": "scripts/file-s3-object-operation-proof-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -744,7 +840,7 @@
       "legacy": true,
       "path": "scripts/file-s3-provider-registration-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -758,7 +854,7 @@
       "legacy": true,
       "path": "scripts/file-scan-job-handoff-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files",
@@ -773,7 +869,7 @@
       "legacy": true,
       "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files",
@@ -788,7 +884,7 @@
       "legacy": true,
       "path": "scripts/file-scanner-mode-resolver-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files",
@@ -803,7 +899,7 @@
       "legacy": true,
       "path": "scripts/file-scanner-setup-docs-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "static",
       "tags": [
         "database",
         "docs",
@@ -847,7 +943,7 @@
       "legacy": true,
       "path": "scripts/file-storage-diagnostics-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -861,7 +957,7 @@
       "legacy": true,
       "path": "scripts/file-storage-provider-configuration-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -904,7 +1000,7 @@
       "legacy": true,
       "path": "scripts/file-streamed-validation-download-metadata-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -931,7 +1027,7 @@
       "legacy": true,
       "path": "scripts/file-upload-compatibility-error-hardening-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -945,7 +1041,7 @@
       "legacy": true,
       "path": "scripts/files-attachable-target-options-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -959,7 +1055,7 @@
       "legacy": true,
       "path": "scripts/files-attachment-context-route-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1120,7 +1216,7 @@
       "legacy": true,
       "path": "scripts/files-preview-availability-route-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1134,7 +1230,7 @@
       "legacy": true,
       "path": "scripts/files-preview-content-route-regression.mjs",
       "releaseGate": false,
-      "runMode": "serial-files",
+      "runMode": "isolated-files",
       "tags": [
         "database",
         "files"
@@ -1299,7 +1395,7 @@
       "legacy": true,
       "path": "scripts/help-markdown-source-layout-regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "database",
         "docs"
@@ -1742,6 +1838,7 @@
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "database"
       ],
       "tier": "integration"
@@ -2381,19 +2478,6 @@
     },
     {
       "area": "release",
-      "description": "Protects the legacy regression coverage ratchet contract.",
-      "id": "legacy.regression.coverage.ratchet",
-      "legacy": true,
-      "path": "scripts/regression-coverage-ratchet.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "release"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "release",
       "description": "Protects the legacy regression runner contract.",
       "id": "legacy.regression.runner",
       "legacy": true,
@@ -2438,6 +2522,22 @@
     },
     {
       "area": "database",
+      "description": "Proves Windows drive-letter archive paths become local basename operands without changing backup or restore archive semantics.",
+      "id": "database.backup-archive-portability",
+      "legacy": false,
+      "path": "scripts/regressions/database/backup-archive-portability.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "backup",
+        "cross-platform",
+        "restore",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
       "description": "Proves the versioned SQLite plus Files backup format, Secure Notes prerequisite, destructive restore safeguards, and disposable restore drill.",
       "id": "database.backup-restore-foundation",
       "legacy": false,
@@ -2464,6 +2564,7 @@
       "tags": [
         "adapter",
         "backup",
+        "baseline-bypass",
         "bindings",
         "concurrency",
         "migration",
@@ -2474,7 +2575,7 @@
     },
     {
       "area": "database",
-      "description": "Proves the named demo host can be provisioned/reset only through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "description": "Proves exact-target preflight and seven-role demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -2534,6 +2635,7 @@
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "lifecycle",
         "modules",
         "performance",
@@ -2548,13 +2650,29 @@
       "legacy": false,
       "path": "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "calendar",
         "migration",
         "permissions",
         "security",
         "workspace-isolation"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves fresh, pre-074 upgrade, and current databases converge on the seven-role scope and permission contract without changing valid assignments.",
+      "id": "database.role-seed-scope-convergence",
+      "legacy": false,
+      "path": "scripts/regressions/database/role-seed-scope-convergence.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "migration",
+        "permissions",
+        "role-seed",
+        "schema"
       ],
       "tier": "focused"
     },
@@ -2584,12 +2702,33 @@
       "releaseGate": true,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "bootstrap",
         "database",
         "maintenance",
         "migrations",
         "readiness",
         "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves only a runner-attested copied baseline can bypass the full migration chain and that absent, direct, existing-target, forged, stale, and tampered cases fall back or fail closed.",
+      "id": "database.verified-regression-baseline-fast-path",
+      "legacy": false,
+      "path": "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "baseline-bypass",
+        "checksum",
+        "database",
+        "foreign-keys",
+        "integrity",
+        "migration",
+        "regression",
+        "security"
       ],
       "tier": "release-gate"
     },
@@ -2638,6 +2777,7 @@
       "tags": [
         "audit",
         "backup",
+        "baseline-bypass",
         "database",
         "permissions",
         "sessions",
@@ -2654,6 +2794,7 @@
       "releaseGate": true,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "database",
         "files",
         "jobs",
@@ -2680,6 +2821,22 @@
     },
     {
       "area": "docs",
+      "description": "Keeps marketing status, proof, and preview-invitation boundaries aligned with the shipped baseline.",
+      "id": "docs.marketing-claims-baseline",
+      "legacy": false,
+      "path": "scripts/regressions/docs/marketing-claims-baseline.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "claims",
+        "licensing",
+        "marketing",
+        "preview"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "docs",
       "description": "Protects the recovered client change-request plan and the deferred-only TODO Short Term boundary after the 0.33.11 closeout.",
       "id": "docs.short-term-cleanup-closeout",
       "legacy": false,
@@ -2703,6 +2860,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "database",
         "permissions",
         "security",
@@ -2736,6 +2894,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "security",
         "throttling"
       ],
@@ -2913,6 +3072,23 @@
     },
     {
       "area": "framework",
+      "description": "Keeps production UUID generation behind the central authority and freezes the empty direct-generator baseline.",
+      "id": "framework.identifier-authority",
+      "legacy": false,
+      "path": "scripts/regressions/framework/identifier-authority.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "architecture",
+        "database",
+        "identifiers",
+        "security",
+        "static"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
       "id": "framework.module-import-boundaries",
       "legacy": false,
@@ -2953,6 +3129,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "passwords",
         "security"
       ],
@@ -2968,6 +3145,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "passwords",
         "permissions",
         "security"
@@ -2984,6 +3162,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "calendar",
         "security",
         "tasks",
@@ -3006,6 +3185,22 @@
         "production",
         "security",
         "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves session-less Terms and Privacy routes, neutral defaults, shared security headers, footer links, and runtime-bound Corresponding Source.",
+      "id": "framework.public-legal-surfaces",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-legal-surfaces.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "legal",
+        "licensing",
+        "security"
       ],
       "tier": "integration"
     },
@@ -3036,6 +3231,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "cookies",
         "security",
         "sessions"
@@ -3119,6 +3315,7 @@
       "tags": [
         "audit",
         "authentication",
+        "baseline-bypass",
         "permissions",
         "security",
         "workspace-isolation"
@@ -3150,6 +3347,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "permissions",
         "security",
         "sessions"
@@ -3260,6 +3458,7 @@
       "runMode": "isolated-database",
       "tags": [
         "authentication",
+        "baseline-bypass",
         "database",
         "navigation",
         "permissions",
@@ -3335,6 +3534,22 @@
     },
     {
       "area": "permissions",
+      "description": "Pins parent-scoped child-client creation, workspace-scoped top-level creation, and the Clients-owned Add Child Client affordance.",
+      "id": "permissions.client-child-create-scope",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "client-projects",
+        "permissions",
+        "public-api",
+        "views"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
       "description": "Proves Client project context is contributed and accepted only in Business workspaces.",
       "id": "permissions.client-project-business-boundary",
       "legacy": false,
@@ -3352,6 +3567,24 @@
     },
     {
       "area": "permissions",
+      "description": "Pins the dedicated exact-account Role Assignments browser surface without reopening full User Administration.",
+      "id": "permissions.delegated-role-assignment-browser",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "app-shell",
+        "browser",
+        "modules",
+        "permissions",
+        "users"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
       "id": "permissions.permission-resource-catalog",
       "legacy": false,
@@ -3364,6 +3597,56 @@
         "users"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Authenticates every local sanitized-demo role fixture and proves the complete scoped permission journey without exposing credentials.",
+      "id": "permissions.sanitized-demo-role-journey",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "demo",
+        "permissions",
+        "seed"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "permissions",
+      "description": "Pins any-scope Client/Project Settings navigation and server-shaped scoped project affordances.",
+      "id": "permissions.scope-aware-admin-navigation",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/scope-aware-admin-navigation.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "clients",
+        "navigation",
+        "permissions",
+        "projects"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves any-scope workspace permission hints drive declarative action visibility without replacing record capabilities or server authorization.",
+      "id": "permissions.view-surface-permission-wiring",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/view-surface-permission-wiring.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "browser",
+        "permissions",
+        "scope",
+        "views"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "permissions",
@@ -3413,7 +3696,7 @@
     },
     {
       "area": "release",
-      "description": "Pins the reviewed ESLint 10.7 and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
+      "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
       "id": "release.dependency-baseline",
       "legacy": false,
       "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
@@ -3577,7 +3860,24 @@
     },
     {
       "area": "release",
-      "description": "Proves Playwright and axe stay dev/test-only: devDependencies placement, zero runtime imports, unchanged npm start, a browser-free npm run check, and a documented reproducible e2e/a11y harness.",
+      "description": "Proves exact-SHA nightly proof reuse is checksum-bound, policy-versioned, expiring, and fail-closed while hotfixes retain the full path.",
+      "id": "release.nightly-proof-reuse",
+      "legacy": false,
+      "path": "scripts/regressions/release/nightly-proof-reuse.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "artifacts",
+        "ci",
+        "github-actions",
+        "promotion",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
@@ -3623,6 +3923,23 @@
         "version"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Keeps every full-chain baseline bypass and nested runner-baseline opt-out explicit while rejecting accidental new environment deletion sites.",
+      "id": "release.regression-baseline-bypass-audit",
+      "legacy": false,
+      "path": "scripts/regressions/release/regression-baseline-bypass-audit.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contract",
+        "database",
+        "migration",
+        "regression",
+        "static"
+      ],
+      "tier": "focused"
     },
     {
       "area": "release",
@@ -3697,6 +4014,22 @@
         "packaging",
         "release",
         "runtime"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
+      "id": "release.validation-single-ownership",
+      "legacy": false,
+      "path": "scripts/regressions/release/validation-single-ownership.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "coverage",
+        "performance",
+        "release"
       ],
       "tier": "release-gate"
     },
@@ -3860,6 +4193,24 @@
       "tier": "integration"
     },
     {
+      "area": "tasks",
+      "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
+      "id": "tasks.task-recurrence-skip-to-current",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "calendar",
+        "database",
+        "permissions",
+        "recurrence",
+        "tasks",
+        "timers"
+      ],
+      "tier": "integration"
+    },
+    {
       "area": "time-tracking",
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
@@ -3911,7 +4262,7 @@
     },
     {
       "area": "views",
-      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with planned-occurrence affordances, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
+      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with quiet recurring projection, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
       "id": "views.calendar-host",
       "legacy": false,
       "path": "scripts/regressions/views/calendar-host.regression.mjs",
@@ -4423,6 +4774,7 @@
       "releaseGate": false,
       "runMode": "isolated-database",
       "tags": [
+        "baseline-bypass",
         "database"
       ],
       "tier": "integration"
@@ -4436,6 +4788,7 @@
       "releaseGate": false,
       "runMode": "static",
       "tags": [
+        "baseline-fixture",
         "closeout",
         "contract"
       ],
@@ -4719,7 +5072,7 @@
       "legacy": true,
       "path": "scripts/task-modal-compact-layout-regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "database"
       ],
@@ -4743,7 +5096,7 @@
       "legacy": true,
       "path": "scripts/task-modal-followup-regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "database"
       ],
@@ -4756,7 +5109,7 @@
       "legacy": true,
       "path": "scripts/task-modal-reflow-regression.mjs",
       "releaseGate": false,
-      "runMode": "isolated-database",
+      "runMode": "static",
       "tags": [
         "database"
       ],
@@ -5280,20 +5633,6 @@
       "runMode": "static",
       "tags": [],
       "tier": "focused"
-    },
-    {
-      "area": "release",
-      "description": "Protects the legacy version literal guardrail contract.",
-      "id": "legacy.version.literal.guardrail",
-      "legacy": true,
-      "path": "scripts/version-literal-guardrail-regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "contract",
-        "release"
-      ],
-      "tier": "release-gate"
     },
     {
       "area": "views",
@@ -5946,6 +6285,29 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/regression-coverage-ratchet.mjs",
+      "retiredInVersion": "0.33.27.7.5",
+      "retirementType": "assertions-moved",
+      "rationale": "The legacy ratchet and convention-path manifest regression exercised the same manifest policy and synthetic invalid-policy fixtures in separate Node processes.",
+      "assertionDisposition": "release.regression-manifest-generation now retains deterministic generation, floor drift and ratcheting, missing required-gate, malformed retirement, malformed assertion-movement, protected-area retirement, and stale-manifest cases in one owner.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run regressions:manifest:check",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.regression.coverage.ratchet",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "release"
+      ],
+      "legacy": true
+    },
+    {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -5992,6 +6354,30 @@
         "npm run check"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/version-literal-guardrail-regression.mjs",
+      "retiredInVersion": "0.33.27.7.5",
+      "retirementType": "assertions-moved",
+      "rationale": "The version guard remains a direct diagnostic but now has one ordinary execution owner in the closeout conductor instead of running again as a discovered regression.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs remains the direct implementation and synthetic failure owner; release.closeout-conductor invokes version:guard exactly once in ordinary local and CI closeout.",
+      "retainedCoverageOwners": [
+        "scripts/regressions/release/closeout-conductor.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/closeout-conductor.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.version.literal.guardrail",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "contract",
+        "release"
+      ],
+      "legacy": true
     },
     {
       "script": "scripts/view-builder-closeout-regression.mjs",

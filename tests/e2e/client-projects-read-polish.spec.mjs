@@ -47,9 +47,7 @@ async function expectFocusRingClearance(control) {
   expect(clearance.bottom + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
 }
 
-test("Clients and Projects read surfaces preserve hierarchy, workspace filtering, and compact table anatomy", async ({ page, request }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "The polish contract targets the desktop hierarchy tables and filter drawers.");
-
+test("Clients and Projects read surfaces preserve hierarchy, workspace filtering, and compact table anatomy", { tag: "@desktop" }, async ({ page, request }, testInfo) => {
   const suffix = `${testInfo.workerIndex}-${Date.now()}`;
   const tagName = `LongReadSurfaceTag${"X".repeat(72)}${suffix}`;
   const parentClientName = `Read Parent Client ${suffix}`;

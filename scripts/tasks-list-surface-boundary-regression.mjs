@@ -1,9 +1,6 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
@@ -13,11 +10,7 @@ const declarativeGuardrails = readText("scripts/view-descriptor-declarative-guar
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const viewContract = readText("docs/view-building-contract.md");
 const tasksDocs = readText("docs/tasks-module.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 assert.match(viewBuilder, /function createListShell\(options = \{\}\)[\s\S]*className:\s*\["view-list-shell", options\.className\]/, "Framework should own a generic list-shell helper");
@@ -60,7 +53,6 @@ assert.match(viewContract, /list-shell boundary shipped in 0\.33\.5\.18\.8\.4/, 
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell owns the main list wrapper, status mount, and table overflow wrapper/, "Tasks docs should document the list-shell boundary");
 
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the list-shell cache keys");
-assert.match(regressionSuite, /scripts\/tasks-list-surface-boundary-regression\.mjs/, "Regression suite should include the Tasks list-surface boundary regression");
 
 console.log("Tasks list surface boundary regression passed.");
 

@@ -84,6 +84,57 @@ ORDER BY record_id;
     assert.equal(activeRows.some((row) => row.record_id === "developer-example.getting-started"), false);
   });
 
+  await check("first-party module Help appears and disappears with module activation", async () => {
+    const moduleArticles = [
+      ["tasks", "tasks.reminders-calendar"],
+      ["time-tracking", "time-tracking.actions"],
+      ["notes", "notes.actions"],
+      ["lists", "lists.actions"],
+    ];
+
+    for (const [moduleId, articleId] of moduleArticles) {
+      await setModuleStatus(session.workspace_id, moduleId, "enabled");
+      const visible = await api.get("/api/help");
+      assert.ok(
+        visible.body.articles.some((article) => article.id === articleId),
+        `${articleId} should appear while ${moduleId} is enabled`,
+      );
+
+      await setModuleStatus(session.workspace_id, moduleId, "disabled");
+      const hidden = await api.get("/api/help");
+      assert.equal(
+        hidden.body.articles.some((article) => article.id === articleId),
+        false,
+        `${articleId} should disappear while ${moduleId} is disabled`,
+      );
+      assert.equal(
+        JSON.stringify(hidden.body.navigation).includes(articleId),
+        false,
+        `${articleId} should disappear from ToC navigation while ${moduleId} is disabled`,
+      );
+
+      await setModuleStatus(session.workspace_id, moduleId, "enabled");
+    }
+
+    await searchIndexRebuildService.rebuildWorkspace({
+      audit: false,
+      workspaceId: session.workspace_id,
+    });
+    const indexedRows = await querySql(`
+SELECT record_id
+FROM search_index
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND record_type = 'help_article'
+  AND record_id IN ('tasks.reminders-calendar', 'time-tracking.actions', 'notes.actions', 'lists.actions')
+ORDER BY record_id;
+`);
+
+    assert.deepEqual(
+      indexedRows.map((row) => row.record_id),
+      ["lists.actions", "notes.actions", "tasks.reminders-calendar", "time-tracking.actions"],
+    );
+  });
+
   await check("Help article pages are searchable separately from other record types", async () => {
     const response = await api.get("/api/search?text=in-app%20product%20manual&recordType=help_article");
 

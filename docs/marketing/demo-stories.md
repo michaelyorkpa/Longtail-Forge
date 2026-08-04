@@ -25,7 +25,8 @@ Lead the public demo with **A** — it is Workbench-first and recordable today.
 - "Pick up the work without rebuilding the context."
 - "Workbench helps you resume interrupted work and pick a useful next action."
 - "Your task keeps its next action, resume note, files, notes, and time together."
-- Avoid: any security/"production-ready" claim, any Planned-module reference, any performance/benchmark claim.
+- "A private read-only Tasks calendar can be followed from compatible calendar clients." (Only if the administrator setup is shown without exposing a real subscription URL.)
+- Avoid: any security/"production-ready" claim, any Planned-module reference, any unsupported performance/benchmark claim.
 
 ### Starting data (seed before recording)
 
@@ -48,7 +49,7 @@ Lead the public demo with **A** — it is Workbench-first and recordable today.
 2. **Navigate to Workbench (3s)** — click Workbench. Narrator: "Workbench helps me begin."
 3. **Focus Selection (8s)** — show the focus recommendations, including the paused-timer resume row for "Fix mobile checkout layout." Narrator: "It's pointing me back to the thing I dropped this morning."
 4. **Open Task Focus (10s)** — select the hero task. Show the summary chip row (status, priority, due, tags), the resume note, and the next action prominently.
-5. **Show connected context (12s)** — expand the Task Focus related context / Inspector: the linked note, the attached screenshot, the same-project tasks. Narrator: "Everything I need is already here — the note with my findings, the screenshot, the next step."
+5. **Show connected context (12s)** — use the current Task Focus context surfaces to show the linked note and attached screenshot. Narrator: "Everything I need is already here — the note with my findings, the screenshot, the next step."
 6. **Resume the timer (6s)** — resume the paused task timer. Narrator: "And I can pick the timer right back up where I left it."
 7. **Do one small real action (8s)** — check off one checklist item, or open the linked note read view. Narrator: "One next action, not twenty lists."
 8. **Return to Dashboard (5s)** — show the updated pulse/time. Narrator: "Put it down, pick it back up — without rebuilding the context."

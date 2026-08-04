@@ -40,6 +40,7 @@ DROP TABLE IF EXISTS private_feed_tokens;
 
 ALTER TABLE tasks DROP COLUMN estimate_minutes;
 ALTER TABLE task_recurrence_templates DROP COLUMN estimate_minutes;
+ALTER TABLE task_recurrence_templates DROP COLUMN recovery_checkpoint_date;
 
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
@@ -333,6 +334,16 @@ ORDER BY version;
       version: "085",
       module_id: "core",
       name: "named_calendar_subscriptions",
+    },
+    {
+      version: "086",
+      module_id: "core",
+      name: "role_seed_scope_convergence",
+    },
+    {
+      version: "087",
+      module_id: "core",
+      name: "task_recurrence_recovery_checkpoint",
     },
   ]);
 }

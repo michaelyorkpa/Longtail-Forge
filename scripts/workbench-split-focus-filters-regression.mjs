@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
@@ -6,14 +5,9 @@ import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const workbenchScript = readText("public/js/workbench.js");
 const focusModesService = readText("src/services/work-focus-modes.service.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the split Workbench focus-filter version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the split Workbench focus-filter version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the split Workbench focus-filter version");
 
 assert.match(
   workbenchScript,

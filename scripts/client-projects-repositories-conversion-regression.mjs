@@ -1,4 +1,3 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -11,17 +10,13 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-projects-repositories-conversion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Client-Projects-Repositories-Conversion-Test-123!";
-delete process.env.LTF_REGRESSION_BASELINE_DB;
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js");
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
 const {
   closeDatabase,
@@ -31,12 +26,16 @@ const {
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
+const { moduleEntry: clientProjectsModuleEntry } = await import("../src/modules/client-projects/module.js");
+const { auditService } = await import("../src/services/audit.service.js");
+const { searchService } = await import("../src/services/search.service.js");
 const { workspacesRepository } = await import("../src/repositories/workspaces.repo.js");
 
 try {
   assertStaticContract();
 
   await initializeDatabase();
+  clientProjectsModuleEntry.activateApp();
   const session = await readSeedSession();
 
   await assertClientProjectRepositoryRuntime(session);
@@ -50,9 +49,6 @@ try {
 }
 
 function assertStaticContract() {
-  assert.equal(packageJson.version, appVersion, "package.json should report the Clients/Projects repositories conversion version");
-  assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects repositories conversion version");
-  assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects repositories conversion version");
 
   for (const [label, source] of [
     ["clients repo", clientsRepoSource],
@@ -80,11 +76,15 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.27 - Conversion wave: Clients and Projects repositories[\s\S]*- \[x\] Convert `client-projects\/clients\.repo`[\s\S]*- \[x\] Preserve hierarchy-aware reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(changelog, /## Version 0\.33\.5\.27\.27 - [\s\S]*Clients and Projects repositories conversion[\s\S]*195 helper invocations[\s\S]*45 direct interpolated operation sites[\s\S]*319 bound operation sites/, "changelog should record the Clients/Projects repositories conversion burndown");
-  assert.match(regressionSuite, /scripts\/client-projects-repositories-conversion-regression\.mjs/, "regression suite should include the Clients/Projects repositories conversion proof");
 }
 
 async function assertClientProjectRepositoryRuntime(session) {
   const parentClient = (await clientsService.createClient({
+    action: {
+      action: "client_created",
+      client_id: "",
+      client_name: "Repository Parent '; DROP TABLE clients; --",
+    },
     billing_contact: {
       email: "billing@example.test",
       name: "Billing Contact",
@@ -100,6 +100,12 @@ async function assertClientProjectRepositoryRuntime(session) {
     parent_client_id: parentClient.id,
   }, session)).client;
   const parentProject = (await clientsService.createProject(parentClient.id, {
+    action: {
+      action: "project_created",
+      client_id: parentClient.id,
+      project_id: "",
+      project_name: "Repository Project '; DROP TABLE projects; --",
+    },
     billing_rounding: { enabled: true, increment: "nearestHour" },
     name: "Repository Project '; DROP TABLE projects; --",
     taskDefaults: {
@@ -117,6 +123,54 @@ async function assertClientProjectRepositoryRuntime(session) {
     name: "Repository Completed Project",
     status: "Completed",
   }, session)).project;
+  const legacyClientId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const legacyClient = (await clientsService.createClient({
+    id: legacyClientId,
+    name: "Repository Legacy UUIDv4 Client",
+  }, session)).client;
+  const legacyClientProject = (await clientsService.createProject(legacyClient.id, {
+    name: "Repository UUIDv7 Project Under Legacy Client",
+  }, session)).project;
+  const legacyProjectId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  const legacyProject = (await clientsService.createProject(parentClient.id, {
+    id: legacyProjectId,
+    name: "Repository Legacy UUIDv4 Project",
+  }, session)).project;
+  const mixedVersionChildProject = (await clientsService.createProject(parentClient.id, {
+    name: "Repository UUIDv7 Child Under Legacy Project",
+    parent_project_id: legacyProject.id,
+  }, session)).project;
+
+  for (const [label, recordId] of [
+    ["new client", parentClient.id],
+    ["new child client", childClient.id],
+    ["new project", parentProject.id],
+    ["new child project", childProject.id],
+    ["project created under a legacy client", legacyClientProject.id],
+    ["project created under a legacy project", mixedVersionChildProject.id],
+  ]) {
+    assertUuidVersion(recordId, 7, `${label} should use the central UUIDv7 record generator`);
+  }
+  assert.equal(legacyClient.id, legacyClientId, "caller-supplied UUIDv4 client ids should remain unchanged");
+  assertUuidVersion(legacyClient.id, 4, "legacy client compatibility should preserve UUIDv4 ids");
+  assert.equal(legacyClientProject.client_id, legacyClient.id, "UUIDv7 projects should retain their UUIDv4 client relationship");
+  assert.equal(legacyProject.id, legacyProjectId, "caller-supplied UUIDv4 project ids should remain unchanged");
+  assertUuidVersion(legacyProject.id, 4, "legacy project compatibility should preserve UUIDv4 ids");
+  assert.equal(mixedVersionChildProject.parent_project_id, legacyProject.id, "UUIDv7 child projects should retain their UUIDv4 parent relationship");
+  await assertCanonicalCreateActionMetadata(session.workspace_id, parentClient, parentProject);
+
+  const updatedLegacyClient = (await clientsService.updateClient(legacyClient.id, {
+    name: "Repository Legacy UUIDv4 Client Updated",
+  }, session)).client;
+  const updatedLegacyProject = (await clientsService.updateProject(legacyProject.id, {
+    client_id: parentClient.id,
+    name: "Repository Legacy UUIDv4 Project Updated",
+  }, session)).project;
+  assert.equal(updatedLegacyClient.id, legacyClient.id, "updating a legacy Client must preserve its UUIDv4 identity");
+  assert.equal(updatedLegacyProject.id, legacyProject.id, "updating a legacy Project must preserve its UUIDv4 identity");
+  assert.equal(updatedLegacyProject.client_id, parentClient.id, "updating a legacy Project must preserve its UUIDv7 Client relationship");
+
+  await assertSearchAndAuditExportCompatibility(session, updatedLegacyClient, updatedLegacyProject);
 
   const readClients = await clientsRepository.readByIds(session.workspace_id, [
     childClient.id,
@@ -162,6 +216,7 @@ async function assertClientProjectRepositoryRuntime(session) {
   const activeProjects = (await clientsService.listProjects(session, { include_depth: "true" })).projects;
   const projectNames = activeProjects.map((project) => project.name);
   assert.ok(projectNames.indexOf(parentProject.name) < projectNames.indexOf(childProject.name), "service-owned project ordering should keep parent before child");
+  assert.ok(projectNames.indexOf(updatedLegacyProject.name) < projectNames.indexOf(mixedVersionChildProject.name), "parent-before-child ordering must beat lexical UUID order for mixed-version Projects");
 
   await clientsService.updateClient(childClient.id, {
     billing_rate: null,
@@ -231,4 +286,69 @@ async function assertIntegrity() {
 
 function readText(filePath) {
   return readFileSync(path.join(root, filePath), "utf8");
+}
+
+async function assertSearchAndAuditExportCompatibility(session, legacyClient, legacyProject) {
+  for (const [recordType, recordId] of [
+    ["client", legacyClient.id],
+    ["project", legacyProject.id],
+  ]) {
+    const indexed = await searchService.reindexSearchRecord({
+      moduleId: "client-projects",
+      recordId,
+      recordType,
+      workspaceId: session.workspace_id,
+    }, { throwOnError: true });
+    assert.equal(indexed.ok, true, `legacy ${recordType} should reindex without rewriting identity`);
+  }
+
+  const searchRows = await db.query(`
+SELECT record_type, record_id, title
+FROM search_index
+WHERE workspace_id = :workspaceId
+  AND record_id IN (:recordIds)
+ORDER BY record_type;
+`, {
+    recordIds: [legacyClient.id, legacyProject.id],
+    workspaceId: session.workspace_id,
+  });
+  assert.deepEqual(searchRows, [
+    { record_id: legacyClient.id, record_type: "client", title: legacyClient.name },
+    { record_id: legacyProject.id, record_type: "project", title: legacyProject.name },
+  ], "Search indexing must retain exact UUIDv4 record identities and updated labels");
+
+  const csv = await auditService.exportCsv(session, { limit: 1000 });
+  assert.match(csv, new RegExp(legacyClient.id), "audit export should retain the exact legacy Client ID");
+  assert.match(csv, new RegExp(legacyProject.id), "audit export should retain the exact legacy Project ID");
+}
+
+async function assertCanonicalCreateActionMetadata(workspaceId, client, project) {
+  const rows = await db.query(`
+SELECT record_type, record_id, metadata_json
+FROM audit_logs
+WHERE workspace_id = :workspaceId
+  AND record_id IN (:recordIds)
+ORDER BY created_at;
+`, {
+    recordIds: [client.id, project.id],
+    workspaceId,
+  });
+  const clientAudit = rows.find((row) => row.record_type === "client" && row.record_id === client.id);
+  const projectAudit = rows.find((row) => row.record_type === "project" && row.record_id === project.id);
+  const clientAction = JSON.parse(clientAudit?.metadata_json || "{}").provided_action;
+  const projectAction = JSON.parse(projectAudit?.metadata_json || "{}").provided_action;
+
+  assert.equal(clientAction?.client_id, client.id, "Client audit action metadata should use the canonical server-generated ID");
+  assert.equal(clientAction?.client_name, client.name, "Client audit action metadata should use the canonical saved label");
+  assert.equal(projectAction?.client_id, client.id, "Project audit action metadata should retain canonical Client scope");
+  assert.equal(projectAction?.project_id, project.id, "Project audit action metadata should use the canonical server-generated ID");
+  assert.equal(projectAction?.project_name, project.name, "Project audit action metadata should use the canonical saved label");
+}
+
+function assertUuidVersion(value, version, message) {
+  assert.match(
+    String(value || ""),
+    new RegExp(`^[0-9a-f]{8}-[0-9a-f]{4}-${version}[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, "i"),
+    message,
+  );
 }

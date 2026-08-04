@@ -1,11 +1,12 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import Database from "better-sqlite3";
+import { createOpaqueId } from "../core/identifiers.js";
+import { runLocalTarArchiveCommand } from "../core/tar-archive-command.js";
 
 const WORKSPACE_ARCHIVE_ROOT = "longtail-forge-workspace-backup";
 const WORKSPACE_BACKUP_FORMAT = "longtail-forge-workspace-backup";
@@ -27,7 +28,7 @@ async function createWorkspaceBackupPackage(options) {
   const outputPath = requiredPath(options.outputPath, "workspace backup output");
   const workspaceId = requiredText(options.workspaceId, "workspace ID");
   const appVersion = requiredText(options.appVersion, "application version");
-  const backupId = requiredText(options.backupId || randomUUID(), "backup ID");
+  const backupId = requiredText(options.backupId || createOpaqueId(), "backup ID");
   await assertRegularFile(sourceDatabaseFile, "source SQLite database");
   await assertNewOutput(outputPath);
 
@@ -67,7 +68,7 @@ async function createWorkspaceBackupPackage(options) {
     await writeJson(path.join(archiveRoot, "checksums.json"), checksums);
 
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
-    runTar(["-czf", outputPath, "-C", staging, WORKSPACE_ARCHIVE_ROOT]);
+    runTar(outputPath, "-czf", ["-C", staging, WORKSPACE_ARCHIVE_ROOT]);
     const archiveSha256 = await hashFile(outputPath);
     const checksumPath = `${outputPath}.sha256`;
     await fs.writeFile(checksumPath, `${archiveSha256}  ${path.basename(outputPath)}\n`, "utf8");
@@ -132,7 +133,7 @@ async function withInspectedWorkspaceBackup(options, callback) {
   const staging = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-backup-inspect-"));
 
   try {
-    runTar(["-xzf", archivePath, "-C", staging, "--no-same-owner", "--no-same-permissions"]);
+    runTar(archivePath, "-xzf", ["-C", staging, "--no-same-owner", "--no-same-permissions"]);
     const archiveRoot = path.join(staging, WORKSPACE_ARCHIVE_ROOT);
     await assertNoLinks(archiveRoot);
     const manifest = await readJson(path.join(archiveRoot, "manifest.json"));
@@ -531,8 +532,8 @@ ORDER BY version;
 }
 
 function listTarEntries(archivePath) {
-  const names = runTar(["-tzf", archivePath]).split(/\r?\n/).filter(Boolean);
-  const verbose = runTar(["-tvzf", archivePath]).split(/\r?\n/).filter(Boolean);
+  const names = runTar(archivePath, "-tzf").split(/\r?\n/).filter(Boolean);
+  const verbose = runTar(archivePath, "-tvzf").split(/\r?\n/).filter(Boolean);
   if (names.length !== verbose.length) throw new Error("Workspace backup archive listing is inconsistent.");
   return names.map((name, index) => ({ name, type: verbose[index][0] }));
 }
@@ -611,11 +612,14 @@ function assertForeignKeys(database, label) {
   if (rows.length !== 0) throw new Error(`${label} failed SQLite foreign_key_check.`);
 }
 
-function runTar(args) {
-  const result = spawnSync("tar", args, { encoding: "utf8", windowsHide: true });
-  if (result.error?.code === "ENOENT") throw new Error("The system tar command is required for workspace backup operations.");
-  if (result.status !== 0) throw new Error(`Workspace backup archive command failed: ${String(result.stderr || result.stdout || result.error).trim()}`);
-  return String(result.stdout || "").trim();
+function runTar(archivePath, flags, trailingArgs = []) {
+  return runLocalTarArchiveCommand({
+    archivePath,
+    failureMessagePrefix: "Workspace backup archive command failed",
+    flags,
+    missingCommandMessage: "The system tar command is required for workspace backup operations.",
+    trailingArgs,
+  });
 }
 
 async function listRegularFiles(root) {

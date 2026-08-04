@@ -304,6 +304,7 @@
     selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
     writeRecurrenceContinuity(isDuplicate ? null : task?.recurrenceContinuity);
+    writeRecurrenceRecovery(isDuplicate ? null : task?.recurrenceRecovery);
     writeReminderFields(task?.reminderDetails);
     writeTaskTimerFields(isDuplicate ? null : task);
     await mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
@@ -385,6 +386,7 @@
       parentTask: dialog.querySelector("[data-task-parent-task]"),
       recurrenceDetails: dialog.querySelector("[data-task-recurrence-details]"),
       recurrenceContinuity: dialog.querySelector("[data-task-recurrence-continuity]"),
+      recurrenceSkipCurrent: dialog.querySelector("[data-task-recurrence-skip-current]"),
       recurrenceField: dialog.querySelector("[data-task-recurrence-panel]"),
       recurrenceSummary: dialog.querySelector("[data-task-recurrence-summary]"),
       recurring: dialog.querySelector("[data-task-recurring]"),
@@ -470,6 +472,7 @@
     fields.checklistList?.addEventListener("change", handleChecklistChange);
     fields.checklistList?.addEventListener("keydown", handleChecklistListKeydown);
     fields.recurrenceDetails?.addEventListener("click", openRecurrenceDialog);
+    fields.recurrenceSkipCurrent?.addEventListener("click", skipRecurrenceToCurrent);
     fields.timerStart?.addEventListener("click", () => saveTaskTimer("running"));
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
@@ -1914,6 +1917,60 @@
     renderRecurrenceContinuity(fields.recurrenceContinuity, continuity);
   }
 
+  function writeRecurrenceRecovery(recovery) {
+    if (!fields.recurrenceSkipCurrent) {
+      return;
+    }
+    fields.recurrenceSkipCurrent.hidden = !recovery?.available;
+    fields.recurrenceSkipCurrent.disabled = recovery?.blockedByActiveTimer === true;
+    fields.recurrenceSkipCurrent.title = recovery?.blockedByActiveTimer
+      ? "Stop or save active timers on earlier tasks first."
+      : "Complete earlier active instances and keep the next occurrence that has not passed.";
+  }
+
+  async function skipRecurrenceToCurrent(event) {
+    event?.preventDefault();
+    const recovery = currentTask?.recurrenceRecovery;
+    if (!currentTaskId || !recovery?.available || recovery.blockedByActiveTimer) {
+      return;
+    }
+
+    const currentDescription = recovery.seriesEnded
+      ? "The series has ended, so no new task will be kept."
+      : `The ${recovery.targetDate} occurrence will be kept as the current task.`;
+    const confirmed = await modal.confirm({
+      title: "Skip to current task?",
+      message: `${recovery.completedTaskCount} earlier active task${recovery.completedTaskCount === 1 ? "" : "s"} will be completed and ${recovery.skippedOccurrenceCount} unmaterialized occurrence${recovery.skippedOccurrenceCount === 1 ? "" : "s"} will be skipped. ${currentDescription}`,
+      confirmLabel: "Skip to current",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) {
+      return;
+    }
+
+    fields.recurrenceSkipCurrent.disabled = true;
+    setStatus("Recovering recurring task...");
+    try {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/skip-to-current`, {});
+      const targetTaskId = result.targetTask?.task_id || "";
+      context?.hostContext?.complete?.({
+        actionId: "tasks.skip-to-current",
+        recordId: targetTaskId || currentTaskId,
+        taskLifecycleAction: "skip-to-current",
+        title: result.targetTask?.title || currentTask?.title || "",
+      });
+      closeTaskModal(dialog, "complete");
+      if (targetTaskId) {
+        global.setTimeout(() => {
+          void openTaskEditor({ mode: "edit", taskId: targetTaskId }, context?.hostContext || null);
+        }, 0);
+      }
+    } catch (error) {
+      setStatus(error.message || "The recurring task could not be recovered.", { isError: true });
+      writeRecurrenceRecovery(recovery);
+    }
+  }
+
   function recurrenceContinuityMessage(continuity = {}) {
     if (!continuity?.isRecurring) {
       return "";
@@ -2980,6 +3037,10 @@
           children: [
             taskEditorInlineCheckbox(view, "Recurring?", { "data-task-recurring": "" }),
             taskEditorButton(view, "Details", { "data-task-recurrence-details": "", disabled: true }),
+            taskEditorButton(view, "Skip to current", {
+              "data-task-recurrence-skip-current": "",
+              hidden: true,
+            }),
           ],
         }),
         view.createElement("p", {

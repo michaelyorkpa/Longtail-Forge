@@ -2,7 +2,7 @@ export const regressionMeta = Object.freeze({
   id: "database.startup-maintenance-lifecycle",
   area: "database",
   tier: "release-gate",
-  tags: ["bootstrap", "database", "maintenance", "migrations", "readiness", "sqlite"],
+  tags: ["baseline-bypass", "bootstrap", "database", "maintenance", "migrations", "readiness", "sqlite"],
   description: "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
   runMode: "isolated-database",
 });

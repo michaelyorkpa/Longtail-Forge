@@ -1,18 +1,11 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current Tasks release");
 
 assert.match(taskDialogScript, /id: "task_details", label: "Task Details"[\s\S]*id: "checklist", label: "Checklist"[\s\S]*id: "recurrence", label: "Recurrence"[\s\S]*id: "timer", label: "Task Timer"[\s\S]*id: "reminders", label: "Reminders"[\s\S]*id: "notes", label: "Notes"/, "Task editor descriptor should declare one Task Details section before specialized escape hatches");
@@ -47,7 +40,6 @@ assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "
 assert.match(stylesheet, /\.task-due-date-field,[\s\S]*\.task-due-time-field,[\s\S]*\.task-assignee-field,[\s\S]*\.task-description-field \{[\s\S]*grid-column: span 3;/, "Two-column Task Details rows should span three desktop grid tracks");
 assert.doesNotMatch(stylesheet, /task-core-details-field|task-assignment-schedule-field|task-primary-context-field|task-advanced-details-field/, "Stylesheet should not keep obsolete split-section task modal classes");
 assert.doesNotMatch(stylesheet, /\.task-detail-dialog\s*\{[\s\S]*width:/, "Task modal should use the framework wide modal width rather than a narrower Task-only override");
-assert.match(regressionSuite, /scripts\/tasks-modal-context-sections-regression\.mjs/, "Regression suite should include the 9.3 context/section regression");
 
 console.log("Tasks modal context sections regression passed.");
 

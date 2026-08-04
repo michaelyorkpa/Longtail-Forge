@@ -1,19 +1,13 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 const workbenchService = readText("src/services/workbench.service.js");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Workbench no-all-tasks-list version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Workbench no-all-tasks-list version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Workbench no-all-tasks-list version");
 assert.match(workbenchHtml, /longtail-forge\.css/, "Workbench should bump the stylesheet cache key after removing task-list styles");
 assert.match(workbenchHtml, /workbench\.js/, "Workbench should bump the script cache key after removing task-list rendering");
 

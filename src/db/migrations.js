@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { withMigrationLock } from "./migration-lock.js";
+import { consumeMaterializedVerifiedRegressionBaseline } from "./regression-baseline-fast-path.js";
 import { databaseDialect, querySql, runSql } from "./provider.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
@@ -25,6 +26,10 @@ const RECORD_MIGRATION_SQL = databaseDialect.conflict.buildInsertOrIgnore({
 });
 const LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS = new Set([
   "b7d790032a9d8cd5505ba02fb34478798ae0c28e79ad720f8961de49ef10ae73",
+]);
+const LEGACY_ROLE_SEED_BASELINE_CHECKSUMS = new Set([
+  "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c",
+  "67ec76af2c94f84eff8b5c90191e652ec4a449177317547da95eb0c159ca5d2c",
 ]);
 const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
   {
@@ -123,12 +128,19 @@ const LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS = [
 ];
 
 async function runMigrations() {
+  if (consumeMaterializedVerifiedRegressionBaseline(config.databaseFile)) {
+    const foreignKeys = await querySql("PRAGMA foreign_keys;");
+    if (Number(foreignKeys[0]?.foreign_keys) !== 1) {
+      throw new Error("Verified regression baseline requires SQLite foreign-key enforcement.");
+    }
+    return;
+  }
+
   return withMigrationLock(runMigrationsWithAcquiredLock);
 }
 
 async function runMigrationsWithAcquiredLock() {
   await fs.mkdir(config.dataDir, { recursive: true });
-  await maybeCopyRegressionBaseline();
 
   if (!(await tableExists(MIGRATIONS_TABLE)) && !(await hasExistingApplicationSchema())) {
     await applyFreshBaseline();
@@ -383,26 +395,6 @@ LIMIT 1;
 `);
 
   return !/\bREFERENCES\s+organizations\b/i.test(userWorkspaceRows[0]?.sql || "");
-}
-
-async function maybeCopyRegressionBaseline() {
-  const baselinePath = process.env.LTF_REGRESSION_BASELINE_DB;
-
-  if (!baselinePath || path.resolve(baselinePath) === path.resolve(config.databaseFile)) {
-    return;
-  }
-
-  try {
-    await fs.access(config.databaseFile);
-    return;
-  } catch (error) {
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
-
-  await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
-  await fs.copyFile(baselinePath, config.databaseFile);
 }
 
 async function ensureMigrationsTable() {
@@ -667,10 +659,14 @@ async function applyFreshBaseline() {
 
 async function readBaselineSchema() {
   const sql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
+  const compatibleChecksums = createCompatibleMigrationChecksums(sql);
+  for (const checksum of LEGACY_ROLE_SEED_BASELINE_CHECKSUMS) {
+    compatibleChecksums.add(checksum);
+  }
 
   return {
     checksum: createMigrationChecksum(sql),
-    compatibleChecksums: createCompatibleMigrationChecksums(sql),
+    compatibleChecksums,
     fileName: path.basename(CURRENT_SCHEMA_FILE),
     moduleId: BASELINE_MODULE_ID,
     name: BASELINE_NAME,

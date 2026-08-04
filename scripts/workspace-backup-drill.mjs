@@ -6,11 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
-import {
-  createWorkspaceBackupPackage,
-  inspectWorkspaceBackupPackage,
-  restoreWorkspaceBackupPackage,
-} from "../src/services/workspace-backup-package.js";
+import { createOpaqueId, createRecordId } from "../src/core/identifiers.js";
+import { createWorkspaceBackupPackage, inspectWorkspaceBackupPackage, restoreWorkspaceBackupPackage } from "../src/services/workspace-backup-package.js";
 import { resolveStoragePath } from "../src/core/files/local-storage-adapter.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -22,6 +19,16 @@ const targetDatabase = path.join(tempDir, "restored", "workspace.db");
 const targetFiles = path.join(tempDir, "restored", "files");
 const secureKeyBackup = path.join(tempDir, "separate-secure-notes-key.backup");
 const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+const targetWorkspaceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const targetUserId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const targetMembershipId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const targetAssignmentId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const targetClientId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const targetProjectId = createRecordId();
+const targetNoteId = createRecordId();
+const targetFileId = createRecordId();
+const targetAuditId = createRecordId();
+const targetStorageKey = `${targetWorkspaceId}/2026-07-16/${createOpaqueId()}`;
 
 try {
   await createFixture();
@@ -30,8 +37,10 @@ try {
     databaseFile: sourceDatabase,
     outputPath: archivePath,
     readFileObject: ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
-    workspaceId: "target-workspace",
+    workspaceId: targetWorkspaceId,
   });
+  assertUuidVersion(created.backupId, 4, "workspace backup package identity");
+  assert.equal(created.manifest.backupId, created.backupId, "the workspace backup manifest and durable receipt identity must share the same opaque package ID");
   assert.match(created.archiveSha256, /^[a-f0-9]{64}$/);
   assert.equal(created.manifest.workspace.name, "Recovery Workspace");
   assert.equal(created.manifest.storage.objectCount, 1);
@@ -66,7 +75,7 @@ try {
   for (const forbiddenText of ["Other Secret Client", "other@example.test", "source-password-hash", "other workspace search secret"]) {
     assert.equal(restoredBytes.includes(Buffer.from(forbiddenText)), false, `${forbiddenText} must not survive in SQLite free pages`);
   }
-  assert.equal(await fs.readFile(resolveStoragePath(targetFiles, "target-workspace/2026-07-16/target-file"), "utf8"), "target workspace file\n");
+  assert.equal(await fs.readFile(resolveStoragePath(targetFiles, targetStorageKey), "utf8"), "target workspace file\n");
   await assert.rejects(
     () => fs.access(resolveStoragePath(targetFiles, "other-workspace/2026-07-16/other-file")),
     "another workspace Files object must not enter the package",
@@ -87,15 +96,20 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+function assertUuidVersion(value, expectedVersion, label) {
+  assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
+  assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
+}
+
 async function createFixture() {
   await fs.mkdir(sourceFiles, { recursive: true });
-  const target = resolveStoragePath(sourceFiles, "target-workspace/2026-07-16/target-file");
+  const target = resolveStoragePath(sourceFiles, targetStorageKey);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, "target workspace file\n");
   const otherFile = resolveStoragePath(sourceFiles, "other-workspace/2026-07-16/other-file");
   await fs.mkdir(path.dirname(otherFile), { recursive: true });
   await fs.writeFile(otherFile, "other workspace secret file\n");
-  const targetFile = resolveStoragePath(sourceFiles, "target-workspace/2026-07-16/target-file");
+  const targetFile = resolveStoragePath(sourceFiles, targetStorageKey);
   const targetContent = await fs.readFile(targetFile);
   const otherContent = await fs.readFile(otherFile);
 
@@ -119,29 +133,31 @@ async function createFixture() {
     database.prepare("INSERT INTO schema_migrations (version, module_id, name, checksum, applied_at) VALUES ('075', 'core', 'workspace_backup_exports', 'fixture', ?);").run(now);
     database.prepare("INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at) VALUES ('tasks', 'Tasks', '', 'work', 'active', '', ?, ?);").run(now, now);
     database.prepare("INSERT INTO roles (role_id, role_name, description, assignable_scope_type, sort_order) VALUES ('workspace_admin', 'Workspace Administrator', '', 'workspace', 1);").run();
-    insertWorkspace(database, "target-workspace", "Recovery Workspace", "target-user", now);
+    insertWorkspace(database, targetWorkspaceId, "Recovery Workspace", targetUserId, now);
     insertWorkspace(database, "other-workspace", "Other Workspace", "other-user", now);
-    insertUser(database, "target-user", "owner@example.test", "Target Owner", "target-workspace");
+    insertUser(database, targetUserId, "owner@example.test", "Target Owner", targetWorkspaceId);
     insertUser(database, "other-user", "other@example.test", "Other Owner", "other-workspace");
-    insertMembership(database, "target-membership", "target-user", "target-workspace", now);
+    insertMembership(database, targetMembershipId, targetUserId, targetWorkspaceId, now);
     insertMembership(database, "other-membership", "other-user", "other-workspace", now);
     database.prepare(`
 INSERT INTO user_role_assignments (assignment_id, workspace_id, user_id, role_id, scope_type, scope_id, client_id, project_id, permission_overrides_json, created_at, updated_at)
-VALUES ('target-admin', 'target-workspace', 'target-user', 'workspace_admin', 'workspace', 'target-workspace', NULL, NULL, NULL, ?, ?);
-`).run(now, now);
-    database.prepare("INSERT INTO clients (id, workspace_id, parent_client_id, name, status, billable, billing_contact_name, billing_contact_email, billing_contact_alternate_name, billing_contact_alternate_email, billing_contact_phone_number, billing_contact_alternate_phone_number, billing_contact_street_address_1, billing_contact_street_address_2, billing_contact_city, billing_contact_state, billing_contact_zip_code, created_at, updated_at) VALUES ('target-client', 'target-workspace', NULL, 'Recovery Client', 'Active', 'yes', '', '', '', '', '', '', '', '', '', '', '', ?, ?);").run(now, now);
+VALUES (?, ?, ?, 'workspace_admin', 'workspace', ?, NULL, NULL, NULL, ?, ?);
+`).run(targetAssignmentId, targetWorkspaceId, targetUserId, targetWorkspaceId, now, now);
+    database.prepare("INSERT INTO clients (id, workspace_id, parent_client_id, name, status, billable, billing_contact_name, billing_contact_email, billing_contact_alternate_name, billing_contact_alternate_email, billing_contact_phone_number, billing_contact_alternate_phone_number, billing_contact_street_address_1, billing_contact_street_address_2, billing_contact_city, billing_contact_state, billing_contact_zip_code, created_at, updated_at) VALUES (?, ?, NULL, 'Recovery Client', 'Active', 'yes', '', '', '', '', '', '', '', '', '', '', '', ?, ?);").run(targetClientId, targetWorkspaceId, now, now);
+    database.prepare("INSERT INTO projects (id, workspace_id, client_id, parent_project_id, name, status, billable, created_at, updated_at) VALUES (?, ?, ?, NULL, 'Recovery Project', 'Active', 'yes', ?, ?);").run(targetProjectId, targetWorkspaceId, targetClientId, now, now);
     database.prepare("INSERT INTO clients (id, workspace_id, parent_client_id, name, status, billable, billing_contact_name, billing_contact_email, billing_contact_alternate_name, billing_contact_alternate_email, billing_contact_phone_number, billing_contact_alternate_phone_number, billing_contact_street_address_1, billing_contact_street_address_2, billing_contact_city, billing_contact_state, billing_contact_zip_code, created_at, updated_at) VALUES ('other-client', 'other-workspace', NULL, 'Other Secret Client', 'Active', 'yes', '', '', '', '', '', '', '', '', '', '', '', ?, ?);").run(now, now);
-    insertFile(database, "target-file", "target-workspace", "target-user", "target-workspace/2026-07-16/target-file", targetContent, now);
+    insertFile(database, targetFileId, targetWorkspaceId, targetUserId, targetStorageKey, targetContent, now);
     insertFile(database, "other-file", "other-workspace", "other-user", "other-workspace/2026-07-16/other-file", otherContent, now);
     database.prepare(`
 INSERT INTO notes (note_id, workspace_id, title, body_markdown, note_type, library_bucket, library_bucket_source, status, visibility, security_mode, secure_payload, encryption_key_version, owner_user_id, created_by_user_id, updated_by_user_id, created_at, updated_at)
-VALUES ('secure-note', 'target-workspace', 'Encrypted recovery note', '', 'general', 'reference', 'derived', 'active', 'internal', 'secure', 'ciphertext-only', 'v1', 'target-user', 'target-user', 'target-user', ?, ?);
-`).run(now, now);
-    database.prepare("INSERT INTO api_keys (api_key_id, workspace_id, created_by_user_id, name, key_hash, key_prefix, status, created_at) VALUES ('secret-api-key', 'target-workspace', 'target-user', 'Must be stripped', 'secret-hash', 'ltf_secret', 'active', ?);").run(now);
+VALUES (?, ?, 'Encrypted recovery note', '', 'general', 'reference', 'derived', 'active', 'internal', 'secure', 'ciphertext-only', 'v1', ?, ?, ?, ?, ?);
+`).run(targetNoteId, targetWorkspaceId, targetUserId, targetUserId, targetUserId, now, now);
+    database.prepare("INSERT INTO audit_logs (audit_id, workspace_id, created_at, actor_user_id, actor_user_name, action, change_type, record_type, record_id, record_label, record_url, previous_value_json, new_value_json, metadata_json, ip_address) VALUES (?, ?, ?, ?, 'Target Owner', 'workspace_identifier_snapshot', 'create', 'project', ?, 'Recovery Project', ?, NULL, ?, ?, '127.0.0.1');").run(targetAuditId, targetWorkspaceId, now, targetUserId, targetProjectId, `projects.html?project=${targetProjectId}`, JSON.stringify({ id: targetProjectId, client_id: targetClientId }), JSON.stringify({ targetClientId, targetProjectId, targetStorageKey }));
+    database.prepare("INSERT INTO api_keys (api_key_id, workspace_id, created_by_user_id, name, key_hash, key_prefix, status, created_at) VALUES ('secret-api-key', ?, ?, 'Must be stripped', 'secret-hash', 'ltf_secret', 'active', ?);").run(targetWorkspaceId, targetUserId, now);
     database.prepare("INSERT INTO api_key_scopes (api_key_id, scope) VALUES ('secret-api-key', 'tasks:read');").run();
-    database.prepare("INSERT INTO sessions (session_id, user_id, username, home_workspace_id, active_workspace_id, timezone, expires_at, created_at, updated_at) VALUES ('secret-session', 'target-user', 'owner@example.test', 'target-workspace', 'target-workspace', 'America/New_York', '2026-07-17T20:00:00.000Z', ?, ?);").run(now, now);
+    database.prepare("INSERT INTO sessions (session_id, user_id, username, home_workspace_id, active_workspace_id, timezone, expires_at, created_at, updated_at) VALUES ('secret-session', ?, 'owner@example.test', ?, ?, 'America/New_York', '2026-07-17T20:00:00.000Z', ?, ?);").run(targetUserId, targetWorkspaceId, targetWorkspaceId, now, now);
     database.prepare("INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at) VALUES ('workspace_creation_enabled', 'true', ?, ?);").run(now, now);
-    database.prepare("INSERT INTO jobs (job_id, workspace_id, job_type, payload_json, status, priority, available_at, attempt_count, max_attempts, created_at, updated_at) VALUES ('target-job', 'target-workspace', 'test', '{}', 'pending', 0, ?, 0, 3, ?, ?);").run(now, now, now);
+    database.prepare("INSERT INTO jobs (job_id, workspace_id, job_type, payload_json, status, priority, available_at, attempt_count, max_attempts, created_at, updated_at) VALUES ('target-job', ?, 'test', '{}', 'pending', 0, ?, 0, 3, ?, ?);").run(targetWorkspaceId, now, now, now);
     database.prepare("INSERT INTO search_index (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, visibility, record_status, source, indexed_at) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'workspace', 'active', 'fixture', ?);").run(now);
     database.prepare("INSERT INTO search_index_fts (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, source) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'fixture');").run();
     assert.equal(database.pragma("foreign_key_check").length, 0);
@@ -178,7 +194,7 @@ VALUES (?, ?, 'local', ?, 'fixture.txt', 'fixture.txt', 'Fixture', '.txt', 'text
 function verifyRestoredDatabase() {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
-    assert.deepEqual(database.prepare("SELECT workspace_id, name FROM workspaces").all(), [{ workspace_id: "target-workspace", name: "Recovery Workspace" }]);
+    assert.deepEqual(database.prepare("SELECT workspace_id, name FROM workspaces").all(), [{ workspace_id: targetWorkspaceId, name: "Recovery Workspace" }]);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Recovery Client'").get().count, 1);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Other Secret Client'").get().count, 0);
     assert.equal(database.prepare("SELECT COUNT(*) AS count FROM api_keys").get().count, 0);
@@ -191,10 +207,32 @@ function verifyRestoredDatabase() {
     assert.equal(identity.password, "!workspace-backup-retired!");
     assert.equal(identity.user_status, "inactive");
     assert.equal(identity.protected_user, "no");
-    assert.equal(database.prepare("SELECT secure_payload FROM notes WHERE note_id = 'secure-note'").get().secure_payload, "ciphertext-only");
+    assert.equal(database.prepare("SELECT secure_payload FROM notes WHERE note_id = ?").get(targetNoteId).secure_payload, "ciphertext-only");
+    assertIdentifierSnapshot(database);
     assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
   } finally {
     database.close();
   }
+}
+
+function assertIdentifierSnapshot(database) {
+  assert.deepEqual(database.prepare("SELECT workspace_id FROM workspaces WHERE workspace_id = ?").get(targetWorkspaceId), { workspace_id: targetWorkspaceId });
+  assert.deepEqual(database.prepare("SELECT id, workspace_id FROM clients WHERE id = ?").get(targetClientId), { id: targetClientId, workspace_id: targetWorkspaceId });
+  assert.deepEqual(database.prepare("SELECT id, client_id FROM projects WHERE id = ?").get(targetProjectId), { client_id: targetClientId, id: targetProjectId });
+  assert.deepEqual(database.prepare("SELECT note_id FROM notes WHERE note_id = ?").get(targetNoteId), { note_id: targetNoteId });
+  assert.deepEqual(database.prepare("SELECT file_id, storage_key FROM files WHERE file_id = ?").get(targetFileId), { file_id: targetFileId, storage_key: targetStorageKey });
+  assert.deepEqual(database.prepare("SELECT audit_id, record_id, record_url, new_value_json, metadata_json FROM audit_logs WHERE audit_id = ?").get(targetAuditId), {
+    audit_id: targetAuditId,
+    metadata_json: JSON.stringify({ targetClientId, targetProjectId, targetStorageKey }),
+    new_value_json: JSON.stringify({ id: targetProjectId, client_id: targetClientId }),
+    record_id: targetProjectId,
+    record_url: `projects.html?project=${targetProjectId}`,
+  });
+  assertUuidVersion(targetWorkspaceId, 4, "workspace backup legacy workspace identity");
+  assertUuidVersion(targetClientId, 4, "workspace backup legacy Client identity");
+  for (const [value, label] of [[targetProjectId, "Project"], [targetNoteId, "Note"], [targetFileId, "File"], [targetAuditId, "audit"]]) {
+    assertUuidVersion(value, 7, `workspace backup forward ${label} identity`);
+  }
+  assertUuidVersion(targetStorageKey.split("/").at(-1), 4, "workspace backup opaque storage identity");
 }

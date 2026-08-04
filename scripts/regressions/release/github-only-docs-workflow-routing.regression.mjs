@@ -167,11 +167,18 @@ const nightly = readFileSync(".github/workflows/nightly.yml", "utf8");
 assert.match(nightly, /name: Classify nightly changes/);
 assert.match(nightly, /LTF_CHANGE_BASE_SHA: \$\{\{ github\.event\.before \}\}/);
 assert.match(nightly, /LTF_CHANGE_COMPARISON: range/);
-assert.equal(
-  (nightly.match(/ref: \$\{\{ github\.event_name == 'push' && github\.sha \|\| 'nightly' \}\}/g) || []).length,
-  3,
-  "push workflows must classify, validate, and package the exact pushed SHA while scheduled/manual runs select nightly",
+assert.match(nightly, /name: Check out the complete pushed nightly range\s+if: github\.event_name == 'push'[\s\S]*?ref: \$\{\{ github\.sha \}\}\s+fetch-depth: 0/);
+assert.match(nightly, /name: Check out current nightly for scheduled or manual execution\s+if: github\.event_name != 'push'[\s\S]*?ref: nightly\s+fetch-depth: 1/);
+assert.doesNotMatch(
+  nightly,
+  /fetch-depth: \$\{\{ github\.event_name == 'push' && 0 \|\| 1 \}\}/,
+  "push classification must not rely on a falsey numeric expression for complete history",
 );
+assert.ok(
+  (nightly.match(/ref: \$\{\{ needs\.classify_changes\.outputs\.revision \}\}/g) || []).length >= 3,
+  "validation, browser, and proof jobs must reuse the exact checked-out nightly revision",
+);
+assert.match(nightly, /sha=\$\(git rev-parse HEAD\)/);
 assert.match(nightly, /node scripts\/classify-github-changes\.mjs --github-output/);
 assert.match(nightly, /name: GitHub-only docs - no deployment/);
 assert.match(nightly, /GitHub-only documentation is complete; no environment deployment was created\./);

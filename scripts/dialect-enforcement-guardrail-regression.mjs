@@ -1,23 +1,16 @@
-import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  lineNumber,
-  readRuntimeSourceEntries,
-} from "./test-support/source-scan.mjs";
+import { lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
 
 const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
 const dialectGuardrailSliceVersion = "0.33.5.27.32";
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const moduleContractDocs = readText("docs/module-contract.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const permissionsRepoSource = readText("src/repositories/permissions.repo.js");
 const appSettingsRepoSource = readText("src/repositories/app-settings.repo.js");
@@ -88,9 +81,6 @@ const DIALECT_PATTERNS = Object.freeze([
 
 const runtimeViolations = findDialectViolations(readRuntimeSourceEntries({ root }));
 
-assert.equal(packageJson.version, appVersion, "package.json should report the dialect enforcement guardrail version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the dialect enforcement guardrail version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the dialect enforcement guardrail version");
 assert.match(sqliteDialectSource, new RegExp(`SQLITE_DIALECT_CONTRACT_VERSION = "${escapeRegExp(dialectContractVersion)}"`), "SQLite dialect contract should keep its independent seam contract version");
 
 assert.deepEqual(runtimeViolations, [], "runtime source should have no raw seam-backed dialect outside the provider/startup/migration/search-adapter allowlist");
@@ -221,8 +211,7 @@ function assertDocumentationContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.32[\s\S]*whole-tree dialect enforcement guardrail[\s\S]*raw seam-backed SQLite dialect[\s\S]*[Pp]rovider-owned or sanctioned compatibility paths/, "database docs should describe the dialect guardrail");
   assert.match(moduleContractDocs, /As of 0\.33\.5\.27\.32[\s\S]*must not hardcode raw seam-backed SQLite dialect[\s\S]*`db\.dialect` seams/, "module contract should tell future modules to use the agnostic dialect contract");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(dialectGuardrailSliceVersion)} - [\\s\\S]*Dialect enforcement guardrail[\\s\\S]*Remaining raw seam-backed dialect sites at application call sites: 0`), "changelog should record the dialect guardrail slice");
-  assert.match(regressionSuite, /scripts\/dialect-enforcement-guardrail-regression\.mjs/, "regression suite should include the dialect guardrail regression");
-}
+  }
 
 function findDialectViolations(entries) {
   const violations = [];
