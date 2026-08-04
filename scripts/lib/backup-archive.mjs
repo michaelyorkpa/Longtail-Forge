@@ -211,6 +211,7 @@ async function restoreBackup(options) {
     try {
       await fs.copyFile(inspection.databasePath, stagedDatabase);
       await fs.cp(inspection.filesPath, stagedFiles, { recursive: true, force: true });
+      await restrictDirectory(stagedFiles);
       verifyDatabaseAgainstManifest(stagedDatabase, inspection.manifest);
       await fs.mkdir(rollbackDir, { recursive: true });
       databaseMoved = await moveIfExists(databaseFile, rollbackDatabase);
@@ -259,6 +260,8 @@ async function restoreBackup(options) {
       throw error;
     } finally {
       await fs.rm(stagedDatabase, { force: true }).catch(() => {});
+      await fs.rm(`${stagedDatabase}-wal`, { force: true }).catch(() => {});
+      await fs.rm(`${stagedDatabase}-shm`, { force: true }).catch(() => {});
       await fs.rm(stagedFiles, { recursive: true, force: true }).catch(() => {});
       await fs.rm(rollbackDir, { recursive: true, force: true }).catch(() => {});
     }
@@ -815,6 +818,14 @@ async function pathExists(targetPath) {
 
 async function restrictFile(filePath) {
   await fs.chmod(filePath, 0o600).catch((error) => {
+    if (process.platform !== "win32") {
+      throw error;
+    }
+  });
+}
+
+async function restrictDirectory(directoryPath) {
+  await fs.chmod(directoryPath, 0o700).catch((error) => {
     if (process.platform !== "win32") {
       throw error;
     }

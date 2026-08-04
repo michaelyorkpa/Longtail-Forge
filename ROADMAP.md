@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.2`.
+Active cursor: `0.33.28.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -39,22 +39,6 @@ Non-goals:
 - No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
 - No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
 - No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
-
-### Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
-
-**Model: High Effort** — This makes one Compose lifecycle the production contract and must prove data durability and migration-safe recovery rather than only proving that a container starts.
-
-- [ ] Finalize one operator procedure for Compose installation and deployment by immutable image digest: validate configuration, create/protect the data volume and backup destination, start without exposing Node publicly, require container health, and verify direct-loopback plus public `/healthz`, `/readyz`, `/api/app-info`, login/session, workspace, Files, and one representative workflow before opening traffic.
-- [ ] Exercise the supported backup-first Compose upgrade end to end on disposable native Linux/container infrastructure: record version/image digest/volume/schema identity, enter maintenance, create and inspect the complete whole-instance backup plus separate recovery-key prerequisite, stop without deleting data, select the candidate digest, force-recreate, let startup own forward migrations, and verify before restoring traffic.
-- [ ] State and prove the rollback rule explicitly: selecting the prior image does not reverse migrations. Permit image-only rollback only when every applied migration is explicitly backward-compatible; otherwise restore the verified pre-upgrade database and Files together into a clean recovery volume, select the prior image, and re-run full verification. Never reverse migrations by hand or combine an older database with newer Files.
-- [ ] Prove durable persistence across stop/start, image replacement, failed candidate, restore, and restored rollback: SQLite database plus WAL/SHM and local Files remain together on local block-backed storage; backup output remains separate and protected; volumes are never shared by multiple app containers or placed on NFS/SMB/cloud-synced/object-storage mounts.
-- [ ] Prove the 0.33.23 error pages and 0.33.24 maintenance curtain through the Compose/Caddy topology, including truthful health/readiness behavior while Node is stopped or unhealthy and no traffic reopening before identity and workflow verification.
-- [ ] Expand `npm run container:smoke` as the required production-deployment acceptance proof for clean native build, non-root/read-only/capability-restricted boot, health, persistence, replacement, backup-first upgrade, restore, and restored rollback. A missing Docker engine or unavailable supported architecture is a failed prerequisite, not a passing skip.
-- [ ] Run `npm run docs:suggest`, update the supported lifecycle/recovery documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.2`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- One documented Compose lifecycle covers supported installation, deployment, upgrade, backup, restore, rollback, and recovery; durable state survives image operations; migration-incompatible rollback restores the verified backup; maintenance/error surfaces and ClamAV readiness behave correctly; and the native container acceptance gate is required and green.
 
 ### Version 0.33.28.3 - Immutable image publishing and supported deployment transport
 
