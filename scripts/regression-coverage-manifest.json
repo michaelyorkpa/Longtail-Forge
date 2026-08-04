@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 428,
+    "discoveredScripts": 429,
     "legacyScripts": 309,
-    "releaseGateScripts": 57,
+    "releaseGateScripts": 58,
     "areaCounts": {
       "dashboard": 2,
       "database": 41,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 11,
       "public-api": 3,
-      "release": 29,
+      "release": 30,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 201,
       "integration": 162,
-      "release-gate": 57,
+      "release-gate": 58,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 175,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 219
+      "static": 220
     }
   },
   "coverageFamilies": [
@@ -3803,6 +3803,23 @@
         "github-actions",
         "release",
         "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves release publication binds the reviewed main source and runtime artifact to one GHCR digest, linux/amd64 platform manifest, native dependency proof, attestations, and backup-first constrained host handoff.",
+      "id": "release.immutable-image-publication",
+      "legacy": false,
+      "path": "scripts/regressions/release/immutable-image-publication.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "compose",
+        "deployment",
+        "github",
+        "image",
+        "registry"
       ],
       "tier": "release-gate"
     },

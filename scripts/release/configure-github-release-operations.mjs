@@ -27,8 +27,8 @@ function buildPlan(repo) {
       api("PUT", `/repos/${repo}/actions/permissions`, { enabled: true, allowed_actions: "selected", sha_pinning_required: true });
       api("PUT", `/repos/${repo}/actions/permissions/selected-actions`, { github_owned_allowed: true, verified_allowed: false, patterns_allowed: [] });
     }),
-    operation("demo-development environment and nightly-only policy", () => configureEnvironment(repo, "demo-development", "nightly")),
-    operation("friends-and-family-preview environment and main-only policy", () => configureEnvironment(repo, "friends-and-family-preview", "main")),
+    operation("demo-development environment and nightly-only policy", () => configureEnvironment(repo, "demo-development", "nightly", "ssh-root-owned-host-helper")),
+    operation("friends-and-family-preview environment and main-only policy", () => configureEnvironment(repo, "friends-and-family-preview", "main", "ssh-compose-digest-host-helper")),
     operation("nightly branch protection", () => protectBranch(repo, "nightly", [
       "Development gate",
       "Browser smoke and accessibility",
@@ -47,7 +47,7 @@ function buildPlan(repo) {
   ];
 }
 
-function configureEnvironment(repo, environment, branch) {
+function configureEnvironment(repo, environment, branch, transport) {
   const encoded = encodeURIComponent(environment);
   api("PUT", `/repos/${repo}/environments/${encoded}`, {
     wait_timer: 0,
@@ -60,7 +60,11 @@ function configureEnvironment(repo, environment, branch) {
     api("POST", `/repos/${repo}/environments/${encoded}/deployment-branch-policies`, { name: branch, type: "branch" });
   }
   upsertEnvironmentVariable(repo, encoded, "DEPLOY_ENABLED", "false");
-  upsertEnvironmentVariable(repo, encoded, "DEPLOY_TRANSPORT", "ssh-root-owned-host-helper");
+  upsertEnvironmentVariable(repo, encoded, "DEPLOY_TRANSPORT", transport);
+  if (transport === "ssh-compose-digest-host-helper") {
+    upsertEnvironmentVariable(repo, encoded, "COMPOSE_DEPLOY_INBOX", "/var/lib/longtail-forge-compose-deploy/inbox");
+    upsertEnvironmentVariable(repo, encoded, "COMPOSE_DEPLOY_HELPER", "/usr/local/sbin/longtail-forge-compose-deploy");
+  }
 }
 
 function upsertEnvironmentVariable(repo, encodedEnvironment, name, value) {

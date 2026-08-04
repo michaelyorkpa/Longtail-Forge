@@ -35,6 +35,7 @@
     "docs:check": "node scripts/suggest-docs-for-changes.mjs --check",
     "docs:suggest": "node scripts/suggest-docs-for-changes.mjs",
     "github:configure": "node scripts/release/configure-github-release-operations.mjs",
+    "image:publish": "node scripts/release/published-container-image.mjs",
     "licensing:gates": "node scripts/check-licensing-gates.mjs",
     "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",

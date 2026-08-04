@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: manual-github-release
@@ -46,9 +47,14 @@ jobs:
           REVISION: ${{ inputs.revision }}
           TAG: ${{ inputs.tag }}
           CONFIRMATION: ${{ inputs.confirmation }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release/validate-release-revision.mjs --operation deploy --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "RELEASE $TAG $REVISION"
           test "$TAG" = "v$(git show "$REVISION:package.json" | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).version))")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to replace immutable assets." >&2
+            exit 1
+          fi
       - name: Check out and revalidate the immutable revision
         env:
           REVISION: ${{ inputs.revision }}
@@ -62,7 +68,25 @@ jobs:
           REVISION: ${{ inputs.revision }}
         run: |
           node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
-          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata.json
+          node scripts/run-timed-stage.mjs "packaging artifact smoke" -- npm run artifact:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata-base.json
+      - name: Publish and verify the immutable linux/amd64 image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          IMAGE_REPOSITORY="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          npm run image:publish -- publish \
+            --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" \
+            --release-metadata dist/release-metadata-base.json \
+            --repository "$IMAGE_REPOSITORY" \
+            --output-metadata dist/release-metadata.json \
+            --output-platform-manifest dist/platform-manifest.json \
+            --output-build-metadata dist/buildx-metadata.json
+          npm run image:publish -- verify --metadata dist/release-metadata.json --expected-commit "$REVISION"
+          rm -f dist/release-metadata-base.json dist/buildx-metadata.json
+          docker logout ghcr.io
       - name: Create immutable tag and GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,4 +108,8 @@ jobs:
           fi
           DRAFT_FLAG=""
           if test "$DRAFT" = "true"; then DRAFT_FLAG="--draft"; fi
-          gh release create "$TAG" dist/*.tgz dist/*.tgz.sha256 dist/release-metadata.json --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG
+          gh release create "$TAG" \
+            dist/*.tgz dist/*.tgz.sha256 dist/release-metadata.json dist/platform-manifest.json \
+            compose.yaml docs/compose.env.example docs/longtail-forge-compose-deploy-helper.env.example \
+            scripts/release/longtail-forge-compose-deploy-host.example \
+            --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG

@@ -1,5 +1,22 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.28.3 - Immutable image publishing and supported deployment transport
+
+Completed locally on 2026-08-04. Public releases now publish the exact protected `main` artifact as an attested GHCR image index and bind its source, artifact, platform, native-dependency, and image identities in release metadata. Preview deployment selects only that immutable digest through a metadata-only constrained handoff; the active cursor advanced to `0.33.28.4` for live host cutover and replacement proof.
+
+**Model: High Effort** — The public release must deliver the exact reviewed image without creating a standing broad credential, interactive shell, or artifact-based alternate production path.
+
+- [x] Chose and documented a least-privilege immutable GHCR digest pull. The supported result deploys Compose by image digest and does not extract the runtime tarball as a direct production release.
+- [x] Published only the reviewed `linux/amd64` image index from protected `main`, rejected mutable `latest` deployment references, isolated registry write authority to the release workflow, and documented separate pull-only host credential rotation and revocation.
+- [x] Adapted the manual preview workflow and added a root-owned Compose helper while preserving the stop → backup → deploy digest → start → verify → restore boundary, pinned host keys, the non-interactive low-privilege deployment account, and disabled-by-default environments. Live initialization remains gated to 0.33.28.4.
+- [x] Kept the checksummed runtime artifact and `artifact:smoke` as image-build inputs and provenance evidence. Schema-2 GitHub Release metadata binds the source revision, artifact checksum, image-index and platform-manifest digests, native `better-sqlite3` proof, and SPDX/SLSA attestations without advertising the tarball as a production installer.
+- [x] Added release and preview regressions that reject non-`main`, mutable, mismatched, unsupported-platform, missing-native-proof, missing-attestation, and backup-bypassing publication or deployment contracts.
+- [x] Ran `npm run docs:suggest`; updated the owning image publication, transport, release, self-hosting, upgrade, runtime, readiness, workflow, and versioning docs; updated `CHANGELOG.md`; advanced only through `npm run version:bump -- 0.33.28.3`; and ran the canonical `npm run verify:slice` closeout once.
+
+Acceptance criteria:
+
+- The reviewed image reaches the host by a least-privilege immutable-digest transport; release metadata binds source, artifact, platform, and image identities; deployment remains backup-first and non-interactive; and neither the runtime tarball nor a mutable tag becomes a second supported production path.
+
 ## Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
 
 Completed locally on 2026-08-04. The supported Compose lifecycle now covers immutable-digest installation, protected local persistence, backup-first upgrade, failed-candidate containment, whole-instance restore into a clean recovery volume, and migration-aware restored rollback. The active cursor advanced to `0.33.28.3`.

@@ -195,9 +195,9 @@ function createImageProvenance({ artifact, baseImage, commitSha, image, sourceBr
     },
     labels: image.labels,
     sbom: {
-      status: "deferred",
-      targetSlice: "0.33.28.3",
-      reason: "Attach the SBOM to the immutable published image digest rather than retaining an unattached local-build document.",
+      status: "registry-publication-only",
+      publicationCommand: "npm run image:publish",
+      reason: "Release publication attaches SPDX SBOM and SLSA provenance attestations to the immutable registry digest; a local-build document is not release evidence.",
     },
   });
 }

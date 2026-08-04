@@ -91,7 +91,7 @@ for (const requirement of [
   /supported platform decision is `linux\/amd64` only/i,
   /disposable builder stage installs Python 3, `make`, and `g\+\+`/i,
   /final stage copies only the root-owned read-only installed application tree/i,
-  /SBOM generation because an unattached local-build document would not prove the published digest/i,
+  /registry-attached SPDX SBOM and SLSA provenance/i,
   /absence of an engine, an unsupported architecture, or emulation-only execution is a failed prerequisite/i,
   /does not authorize invitations/i,
 ]) {
@@ -151,7 +151,7 @@ assert.match(containerBuild, /"--platform", supportedPlatform/);
 assert.match(containerBuild, /com\.longtailforge\.runtime-artifact\.sha256/);
 assert.match(containerBuild, /org\.opencontainers\.image\.revision/);
 assert.match(containerBuild, /createImageProvenance/);
-assert.match(containerBuild, /targetSlice: "0\.33\.28\.3"/);
+assert.match(containerBuild, /status: "registry-publication-only"/);
 assert.match(workflow, /--release-metadata dist\/release-metadata\.json/);
 assert.match(workflow, /container-provenance-\$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
 assert.match(workflow, /retention-days: 30/);
@@ -212,7 +212,7 @@ try {
   });
   assert.equal(provenance.image.platform, "linux/amd64");
   assert.equal(provenance.runtimeArtifact.sha256, checksum);
-  assert.equal(provenance.sbom.status, "deferred");
+  assert.equal(provenance.sbom.status, "registry-publication-only");
   await fs.writeFile(`${artifactPath}.sha256`, `${"0".repeat(64)}  ${path.basename(artifactPath)}\n`, "utf8");
   await assert.rejects(() => inspectRuntimeArtifact(artifactPath), /checksum verification failed/);
 } finally {

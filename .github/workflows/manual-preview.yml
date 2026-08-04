@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Deploy the selected main revision or roll back to the recorded previous revision
+        description: Deploy or restore the selected immutable Compose release
         required: true
         type: choice
         options: [deploy, rollback]
       revision:
         description: Exact 40-character commit SHA reachable from main
+        required: true
+        type: string
+      image_digest:
+        description: Exact sha256 image-index digest recorded by the GitHub Release
         required: true
         type: string
       confirmation:
@@ -44,7 +48,7 @@ jobs:
           DEPLOY_TRANSPORT: ${{ vars.DEPLOY_TRANSPORT }}
         run: |
           test "$DEPLOY_ENABLED" = "true"
-          test "$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"
+          test "$DEPLOY_TRANSPORT" = "ssh-compose-digest-host-helper"
       - name: Validate the exact main revision and confirmation
         env:
           OPERATION: ${{ inputs.operation }}
@@ -52,7 +56,6 @@ jobs:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: node scripts/release/validate-release-revision.mjs --operation "$OPERATION" --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "$(printf '%s' "$OPERATION" | tr '[:lower:]' '[:upper:]') $REVISION"
       - name: Check out the selected immutable main revision
-        if: inputs.operation == 'deploy'
         env:
           REVISION: ${{ inputs.revision }}
         run: git checkout --detach "$REVISION"
@@ -73,13 +76,17 @@ jobs:
       - name: Re-run dependency audit
         if: inputs.operation == 'deploy'
         run: npm audit --audit-level=high
-      - name: Build selected artifact and release metadata
-        if: inputs.operation == 'deploy'
+      - name: Download and verify the published release identity
         env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
           REVISION: ${{ inputs.revision }}
         run: |
-          node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
-          node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel preview --source-branch main --output dist/release-metadata.json
+          test "$(printf '%s' "$IMAGE_DIGEST" | tr '[:upper:]' '[:lower:]')" = "$IMAGE_DIGEST"
+          test "${#IMAGE_DIGEST}" -eq 71
+          mkdir -p dist
+          gh release download "v$(node -p "require('./package.json').version")" --pattern release-metadata.json --dir dist
+          npm run image:publish -- verify --metadata dist/release-metadata.json --expected-commit "$REVISION" --expected-digest "$IMAGE_DIGEST"
       - name: Deploy or roll back, then verify public identity
         env:
           OPERATION: ${{ inputs.operation }}
@@ -89,12 +96,12 @@ jobs:
           LTF_DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           LTF_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           LTF_DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          LTF_DEPLOY_INBOX: ${{ vars.DEPLOY_INBOX }}
-          LTF_DEPLOY_HELPER: ${{ vars.DEPLOY_HELPER }}
+          LTF_COMPOSE_DEPLOY_INBOX: ${{ vars.COMPOSE_DEPLOY_INBOX }}
+          LTF_COMPOSE_DEPLOY_HELPER: ${{ vars.COMPOSE_DEPLOY_HELPER }}
           LTF_DEPLOY_PUBLIC_URL: ${{ vars.DEPLOY_URL }}
         run: |
           if test "$OPERATION" = "deploy"; then
-            node scripts/release/deploy-via-ssh.mjs --mode deploy --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --metadata dist/release-metadata.json
+            node scripts/release/deploy-via-ssh.mjs --mode compose-deploy --metadata dist/release-metadata.json
           else
-            node scripts/release/deploy-via-ssh.mjs --mode rollback --revision "$REVISION"
+            node scripts/release/deploy-via-ssh.mjs --mode compose-rollback --metadata dist/release-metadata.json
           fi

@@ -54,8 +54,11 @@ assert.match(artifactBuilder, /sourceBranch: normalizeReleaseBranch\(sourceBranc
 assert.match(deploy, /expected-source-branch/);
 assert.match(hostHelper, /LONGTAIL_RELEASE_BRANCH/);
 assert.match(nightly, /artifact:build -- --source-branch nightly/);
-for (const source of [main, manualPreview, manualRelease]) {
+for (const source of [main, manualRelease]) {
   assert.match(source, /artifact:build -- --source-branch main/);
 }
+assert.match(manualPreview, /gh release download/);
+assert.match(manualPreview, /image:publish -- verify --metadata dist\/release-metadata\.json --expected-commit "\$REVISION"/);
+assert.doesNotMatch(manualPreview, /artifact:build|--source-branch nightly/);
 
 console.log("Qualified runtime version regression passed.");
