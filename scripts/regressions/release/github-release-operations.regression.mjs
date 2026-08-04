@@ -23,6 +23,7 @@ const workflowPaths = [
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 const REVIEWED_CODEQL_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
+const REVIEWED_SETUP_BUILDX_SHA = "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c";
 const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
@@ -109,6 +110,11 @@ for (const requirement of [
   /platform-manifest\.json/,
   /refusing to replace immutable assets/,
 ]) assert.match(manualRelease, requirement);
+assert.match(
+  manualRelease,
+  new RegExp(`docker/setup-buildx-action@${REVIEWED_SETUP_BUILDX_SHA}[\\s\\S]*driver: docker-container[\\s\\S]*name: Publish and verify the immutable linux/amd64 image`),
+  "the immutable image release must select an attestation-capable Buildx driver before publication",
+);
 assert.doesNotMatch(manualRelease, /^\s*push:/m);
 
 for (const requirement of [
