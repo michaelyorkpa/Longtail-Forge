@@ -27,7 +27,7 @@ function buildPlan(repo) {
       api("PUT", `/repos/${repo}/actions/permissions`, { enabled: true, allowed_actions: "selected", sha_pinning_required: true });
       api("PUT", `/repos/${repo}/actions/permissions/selected-actions`, { github_owned_allowed: true, verified_allowed: false, patterns_allowed: [] });
     }),
-    operation("demo-development environment and nightly-only policy", () => configureEnvironment(repo, "demo-development", "nightly", "ssh-root-owned-host-helper")),
+    operation("demo-development environment and nightly-only Compose transition policy", () => configureEnvironment(repo, "demo-development", "nightly", "ssh-compose-digest-host-helper")),
     operation("friends-and-family-preview environment and main-only policy", () => configureEnvironment(repo, "friends-and-family-preview", "main", "ssh-compose-digest-host-helper")),
     operation("nightly branch protection", () => protectBranch(repo, "nightly", [
       "Development gate",

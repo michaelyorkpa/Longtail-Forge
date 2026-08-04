@@ -1,4 +1,4 @@
-name: Manual GitHub release
+name: Manual protected-main image candidate
 
 on:
   workflow_dispatch:
@@ -7,31 +7,22 @@ on:
         description: Exact 40-character commit SHA reachable from main
         required: true
         type: string
-      tag:
-        description: Exact version tag, for example v1.2.3
-        required: true
-        type: string
       confirmation:
-        description: Enter RELEASE plus the tag and full SHA
+        description: Enter PUBLISH CANDIDATE plus the full SHA
         required: true
         type: string
-      draft:
-        description: Create a draft release for final operator review
-        required: true
-        default: true
-        type: boolean
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 concurrency:
-  group: manual-github-release
+  group: manual-protected-main-image-candidate
   cancel-in-progress: false
 
 jobs:
-  publish-immutable-release:
-    name: Publish immutable tag and release assets
+  publish-candidate:
+    name: Publish immutable protected-main image candidate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -44,21 +35,14 @@ jobs:
           cache: npm
       - name: Set up attestation-capable Docker Buildx builder
         run: |
-          docker buildx create --name longtail-forge-release --driver docker-container --use
+          docker buildx create --name longtail-forge-candidate --driver docker-container --use
           docker buildx inspect --bootstrap
-      - name: Validate the selected main revision and release confirmation
+      - name: Validate the selected protected-main revision
         env:
           REVISION: ${{ inputs.revision }}
-          TAG: ${{ inputs.tag }}
           CONFIRMATION: ${{ inputs.confirmation }}
-          GH_TOKEN: ${{ github.token }}
         run: |
-          node scripts/release/validate-release-revision.mjs --operation deploy --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "RELEASE $TAG $REVISION"
-          test "$TAG" = "v$(git show "$REVISION:package.json" | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).version))")"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing to replace immutable assets." >&2
-            exit 1
-          fi
+          node scripts/release/validate-release-revision.mjs --operation deploy --revision "$REVISION" --confirmation "$CONFIRMATION" --required-confirmation "PUBLISH CANDIDATE $REVISION"
       - name: Check out and revalidate the immutable revision
         env:
           REVISION: ${{ inputs.revision }}
@@ -67,14 +51,14 @@ jobs:
       - run: node scripts/run-timed-stage.mjs "closeout gates" -- npm run closeout
       - run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
       - run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - name: Build checksummed release assets
+      - name: Build checksummed candidate assets
         env:
           REVISION: ${{ inputs.revision }}
         run: |
           node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch main
           node scripts/run-timed-stage.mjs "packaging artifact smoke" -- npm run artifact:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "$REVISION" --channel main --source-branch main --output dist/release-metadata-base.json
-      - name: Publish and verify the immutable linux/amd64 image
+      - name: Publish and verify the immutable linux/amd64 candidate
         env:
           GHCR_TOKEN: ${{ github.token }}
           REVISION: ${{ inputs.revision }}
@@ -91,31 +75,14 @@ jobs:
           npm run image:publish -- verify --metadata dist/release-metadata.json --expected-commit "$REVISION"
           rm -f dist/release-metadata-base.json dist/buildx-metadata.json
           docker logout ghcr.io
-      - name: Create immutable tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REVISION: ${{ inputs.revision }}
-          TAG: ${{ inputs.tag }}
-          DRAFT: ${{ inputs.draft }}
-        run: |
-          if git rev-parse "$TAG^{commit}" >/dev/null 2>&1; then
-            test "$(git rev-parse "$TAG^{commit}")" = "$REVISION"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG" "$REVISION" -m "Longtail Forge $TAG"
-            git push origin "$TAG"
-          fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing to replace immutable assets." >&2
-            exit 1
-          fi
-          DRAFT_FLAG=""
-          if test "$DRAFT" = "true"; then DRAFT_FLAG="--draft"; fi
-          gh release create "$TAG" \
-            dist/*.tgz dist/*.tgz.sha256 dist/release-metadata.json dist/platform-manifest.json \
-            compose.yaml docs/compose.env.example docs/longtail-forge-compose-deploy-helper.env.example \
-            docs/longtail-forge-compose-cutover-helper.env.example \
-            scripts/release/longtail-forge-compose-deploy-host.example \
-            scripts/release/longtail-forge-compose-cutover-host.example \
-            --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG
+      - name: Retain exact candidate metadata and controlled payload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: main-image-candidate-${{ inputs.revision }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            dist/*.tgz
+            dist/*.tgz.sha256
+            dist/release-metadata.json
+            dist/platform-manifest.json

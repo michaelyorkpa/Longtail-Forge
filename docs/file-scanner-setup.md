@@ -34,6 +34,22 @@ LONGTAIL_CLAMD_PORT=3310
 
 If the app and worker run on different hosts, make sure both processes can reach the configured daemon. Keep the daemon on a trusted private network; Longtail Forge does not expose scanner host or port values in diagnostics.
 
+## Docker Compose Host Handoff
+
+The supported one-host Compose topology reaches the host daemon through `host.docker.internal`, which `compose.yaml` maps to Docker's host gateway. Create and inspect the reviewed bridge before changing ClamAV, and confirm its subnet does not overlap the host, LAN, VPN, or another Docker route. Bind `clamd` only to `127.0.0.1:3310` and that bridge's exact gateway address; never use `0.0.0.0`, a public interface, or an unrestricted firewall rule.
+
+On distributions where `clamav-daemon.socket` owns TCP activation, use a reviewed systemd socket drop-in that resets the inherited `ListenStream` entries and adds the two exact addresses. On distributions where `clamd.conf` owns the listener, make the equivalent `TCPSocket`/`TCPAddr` change there. Do not configure both paths blindly: inspect the active unit and distribution package contract first. After restart, use `ss` or the platform equivalent to prove port 3310 listens only on loopback and the selected Docker gateway, verify host/public firewall policy still denies it, and send a protocol `PING` from a disposable container attached to the reviewed network.
+
+Keep these application values in the protected Compose environment:
+
+```env
+LONGTAIL_FILE_SCANNER=clamd
+LONGTAIL_CLAMD_HOST=host.docker.internal
+LONGTAIL_CLAMD_PORT=3310
+```
+
+The root-only initial-cutover preflight performs that container `PING` before stopping the existing app. Production startup and readiness still fail closed if the daemon is later unavailable; the preflight is evidence of the handoff, not a permanent availability guarantee.
+
 ## Windows Executable Path Setup
 
 Use `clamscan` when the Windows install provides a local ClamAV executable.

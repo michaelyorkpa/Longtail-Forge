@@ -16,6 +16,7 @@ const workflowPaths = [
   ".github/workflows/promotion.yml",
   ".github/workflows/nightly.yml",
   ".github/workflows/main-release.yml",
+  ".github/workflows/manual-image-candidate.yml",
   ".github/workflows/manual-release.yml",
   ".github/workflows/manual-preview.yml",
   ".github/workflows/codeql.yml",
@@ -23,7 +24,7 @@ const workflowPaths = [
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 const REVIEWED_CODEQL_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
-const [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
+const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
@@ -35,7 +36,7 @@ const [development, promotion, nightly, mainRelease, manualRelease, manualPrevie
   read("src/config.js"),
   read("package.json"),
 ]);
-const workflows = [development, promotion, nightly, mainRelease, manualRelease, manualPreview, codeql];
+const workflows = [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql];
 const { createConfig } = await import("../../../src/config.js");
 
 for (const [index, source] of workflows.entries()) {
@@ -89,6 +90,8 @@ assert.match(
 );
 assert.match(nightly, /name: GitHub-only docs - no deployment/);
 assert.match(nightly, /DEPLOY_ENABLED/);
+assert.match(nightly, /DEPLOY_TRANSPORT/);
+assert.match(nightly, /test "\$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"/);
 assert.match(nightly, /release-metadata\.json/);
 assert.match(nightly, /deploy-via-ssh/);
 assert.doesNotMatch(nightly, /friends-and-family-preview/);
@@ -97,6 +100,18 @@ assert.match(mainRelease, /push:[\s\S]*branches: \[main\]/);
 assert.match(mainRelease, /name: Revalidate immutable main artifact/);
 assert.match(mainRelease, /retention-days: 90/);
 assert.doesNotMatch(mainRelease, /environment: friends-and-family-preview|deploy-via-ssh/);
+
+for (const requirement of [
+  /workflow_dispatch:/,
+  /contents: read/,
+  /packages: write/,
+  /PUBLISH CANDIDATE \$REVISION/,
+  /docker buildx create --name longtail-forge-candidate --driver docker-container --use/,
+  /npm run image:publish -- publish/,
+  /name: main-image-candidate-\$\{\{ inputs\.revision \}\}/,
+  /retention-days: 30/,
+]) assert.match(manualImageCandidate, requirement);
+assert.doesNotMatch(manualImageCandidate, /contents: write|git tag|gh release create|^\s*push:/m);
 
 for (const requirement of [
   /workflow_dispatch:/,
@@ -156,6 +171,7 @@ for (const requirement of [
   /GitHub-owned SHA-pinned Actions policy/,
   /sha_pinning_required: true/,
   /demo-development/,
+  /demo-development environment and nightly-only Compose transition policy/,
   /friends-and-family-preview/,
   /required_approving_review_count: 0/,
   /required_conversation_resolution: true/,

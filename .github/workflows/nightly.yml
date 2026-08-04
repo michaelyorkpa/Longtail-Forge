@@ -252,7 +252,12 @@ jobs:
         id: enabled
         env:
           DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
-        run: echo "value=$DEPLOY_ENABLED" >> "$GITHUB_OUTPUT"
+          DEPLOY_TRANSPORT: ${{ vars.DEPLOY_TRANSPORT }}
+        run: |
+          echo "value=$DEPLOY_ENABLED" >> "$GITHUB_OUTPUT"
+          if test "$DEPLOY_ENABLED" = "true"; then
+            test "$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"
+          fi
       - if: steps.enabled.outputs.value == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: steps.enabled.outputs.value == 'true'
@@ -274,4 +279,4 @@ jobs:
         run: node scripts/release/deploy-via-ssh.mjs --mode deploy --artifact "dist/$(node -p "require('./package.json').name + '-' + require('./package.json').version + '.tgz'")" --metadata dist/release-metadata.json
       - name: Report an intentionally disabled transport
         if: steps.enabled.outputs.value != 'true'
-        run: echo "Demo deployment is disabled until its isolated host, credentials, and URL are configured."
+        run: echo "Demo deployment is disabled during the verified Compose cutover and transport transition."
