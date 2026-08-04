@@ -8,7 +8,7 @@ Do not invite participants until this page, the linked operator docs, and the cu
 
 ## Required Reading
 
-- [Docker and Bare-Metal Preview Deployment](preview-deployment.md) owns the supported application installation, deployment, upgrade, and rollback procedures.
+- [Compose Production Support and Bare-Metal Transition](preview-deployment.md) owns the sole supported Compose production boundary and the temporary protection of the existing bare-metal hosts during cutover.
 - [Reference Internet Deployment](internet-deployment.md) owns DNS, the selected direct-Caddy or bounded Nginx/WireGuard/Caddy path, TLS, firewalling, loopback binding, public health/readiness checks, proxy review, emergency containment, and known limitations.
 - [Backup and Restore Operator Guide](backup-and-restore.md) and [Baseline Backup and Restore](backup-restore.md) own the complete backup archive, restore, inspection, and drill contract.
 - [Operational Security](operational-security.md) owns production logs, repository scanning, incident response, manual security review, and access/session/API-key revocation expectations.

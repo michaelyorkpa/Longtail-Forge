@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.1`.
+Active cursor: `0.33.28.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -39,23 +39,6 @@ Non-goals:
 - No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
 - No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
 - No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
-
-### Version 0.33.28.1 - Supported Compose contract, controlled payload, and architecture baseline
-
-**Model: High Effort** — The first slice fixes the support boundary and validates the image payload on the real native platform before later deployment and recovery work can be trusted.
-
-- [ ] Inventory the current 0.33.17 deployment surface and classify each item as retained, adapted, or retired after cutover: runtime artifact and `artifact:smoke`; Dockerfile/Compose/container build and smoke; bare-metal smoke; systemd example; root-owned host helper and SSH handoff; release workflows/regressions; and installation, upgrade, rollback, self-hosting, and recovery documentation. Record dependencies so no transition-safety asset is removed early.
-- [ ] Establish the support matrix in operator/developer wording: Docker Compose is the sole supported production/self-hosted deployment for the public preview; direct Node/systemd operation is technically possible but unsupported; npm install/start remains documented only for development, testing, and advanced experimentation.
-- [ ] Preserve the checksummed runtime artifact as the only reviewed application payload accepted by the Docker build. Keep `artifact:smoke` proving a disposable `npm ci --omit=dev` install and successful boot, without presenting the extracted tarball as a supported production installation.
-- [ ] Re-review `Dockerfile`, `compose.yaml`, and `.dockerignore`: pinned Node base digest, root-owned read-only application tree, UID/GID 10001, read-only root filesystem, dropped capabilities, `no-new-privileges`, bounded private `/tmp`, health check, loopback-only port, durable data volume, protected backup mount, and absence of build-time secrets, `.env`, `.git`, dev tooling, live data, or backup material.
-- [ ] Decide and record the published platform set (`linux/amd64` only or `linux/amd64` plus `linux/arm64`) from the actual preview hosts and intended self-hosted support. On every supported architecture, perform a native clean image build/install and boot that exercises `better-sqlite3`; a manifest-only build, QEMU-only build, or successful JavaScript test on another architecture is not release proof.
-- [ ] Confirm Compose retains operator-owned integration points: root `0600` secrets/environment, non-overlapping bridge/gateway/`TRUST_PROXY`, loopback-only Node, Caddy/TLS edge, reachable protected `clamd` with fail-closed production readiness, durable local-block storage, off-container backups, and separate Secure Notes recovery material.
-- [ ] Produce retained provenance for each candidate image (source revision, runtime-artifact checksum, resolved base digest, application/branch identity, platform, and image digest), accurate OCI license/version labels, and an SBOM or an explicit reviewed deferral.
-- [ ] Run `npm run docs:suggest`, update the owning contract docs for decisions made in this slice, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.1`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- The support matrix, asset transition inventory, image security baseline, controlled runtime-artifact payload, provenance, and exact supported Linux architectures are recorded; `artifact:smoke` passes; and `better-sqlite3` installs and boots natively on every architecture that will receive a published image.
 
 ### Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
 

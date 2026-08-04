@@ -1,6 +1,6 @@
 # Releasing Longtail Forge
 
-A releasable Longtail Forge revision is an exact protected `main` commit with passing promotion gates and an immutable artifact identity. A version label alone is not enough.
+A releasable Longtail Forge revision is an exact protected `main` commit with passing promotion gates, an immutable controlled-artifact identity, and—once image publishing is enabled—an immutable supported Compose image digest. A version label alone is not enough. The current bare-metal release handoff remains transition safety for the two existing preview hosts; it is not a second supported production deployment.
 
 Before promotion, run `npm run maintenance:rehearse` on native Linux (or require the exact clean-Ubuntu job for the candidate). It composes host-asset installation/toggles, direct and bounded proxy ownership, deploy failure recovery, rollback, and stale-marker recovery. Record the exact revision, Caddy/Nginx/OpenSSL versions, timestamps, result, and any failure references in the private operational record. `--plan` output is not execution evidence.
 

@@ -2,12 +2,14 @@
 
 Upgrades are manual, immutable replacements. Longtail Forge has no in-app updater and does not overwrite the running application tree.
 
+Docker Compose is the sole supported production/self-hosted upgrade and recovery path. Version 0.33.28.2 finalizes and proves the complete supported Compose procedure. The bare-metal helper behavior below remains documented only to protect the two existing preview hosts during cutover; it is not a supported path for a new production installation.
+
 Qualify the maintained host path with `npm run maintenance:rehearse` on native Linux before using it for a release. Retain the exact revision, tool versions, timestamps, result, and protected failure references in the private operational record. The rehearsal proves the disposable install/toggle, response-owner, deploy/recovery, rollback, and stale-state transitions without a proxy reload; it does not replace the real backup, certificate, firewall, WireGuard, or release-identity evidence below.
 
 1. Select an exact protected `main` commit or immutable release tag and verify its runtime artifact SHA-256.
 2. Read the release notes, migration implications, backup compatibility, and security limitations.
-3. Stage the new image or root-owned release directory without changing the prior one. Verify its metadata and install production dependencies from the locked runtime metadata before the outage window.
-4. At the reviewed edge, assert the operator hold or let the maintained bare-metal helper assert its independent deployment marker. Keep Caddy running, stop the app and any separate worker required by the selected procedure, then create and inspect the whole-instance backup described in [Backup and Restore](backup-and-restore.md).
+3. Stage the new immutable image digest without changing the prior one and verify its retained release/image provenance. On an existing transition-only bare-metal host, stage the root-owned release directory and install production dependencies from the locked runtime metadata before the outage window.
+4. At the reviewed edge, assert the operator hold; the existing transition-only bare-metal helper may instead assert its independent deployment marker. Keep Caddy running, stop the app and any separate worker required by the selected procedure, then create and inspect the whole-instance backup described in [Backup and Restore](backup-and-restore.md).
 5. Switch to the candidate and let only its normal startup migration path run. Do not edit applied migrations or reverse them manually.
 6. Verify direct readiness plus public `/healthz`, `/readyz`, schema/migration identity, and `/api/app-info`. The version, exact commit SHA, and artifact checksum must match the selected release metadata. The bare-metal helper clears only its deployment marker after those checks; a pre-existing operator hold remains active. Run representative login, Files, and Secure Notes checks before independently restoring any remaining operator-held traffic.
 7. Retain the prior runtime, backup and sidecar, release metadata, and separate Secure Notes recovery material through the observation period.

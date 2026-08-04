@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { get as httpGet, request as httpRequest } from "node:http";
 import path from "node:path";
-import { buildContainerImage, runDocker } from "./build-container-image.mjs";
+import {
+  buildContainerImage,
+  runDocker,
+  supportedPlatform,
+} from "./build-container-image.mjs";
 
 const token = `${process.pid}-${Date.now()}`;
 const dataVolume = `ltf-smoke-data-${token}`;
@@ -19,6 +23,7 @@ const smokePassword = "Container-Smoke-Password-123!";
 const args = parseArgs(process.argv.slice(2));
 
 assertDockerAvailable();
+assertNativePlatform();
 
 try {
   const previous = await buildContainerImage({
@@ -31,6 +36,7 @@ try {
     artifactPath: args.artifact,
     noCache: true,
     pull: args.pull,
+    releaseMetadataPath: args.releaseMetadata,
     tag: candidateImage,
   });
 
@@ -60,7 +66,9 @@ try {
   await verifyContainer(rollbackContainer, rollbackPort, previous.version);
   assert.equal(readMarker(rollbackContainer, markerPath), markerValue, "restored rollback should retain pre-upgrade data");
 
-  console.log(`Container deployment smoke passed: ${previous.version} -> ${candidate.version} -> restored ${previous.version}.`);
+  console.log(`Container deployment smoke passed natively on ${candidate.platform}: ${previous.version} -> ${candidate.version} -> restored ${previous.version}.`);
+  console.log(`Candidate image digest: ${candidate.imageDigest}`);
+  console.log(`Candidate provenance: ${candidate.provenancePath}`);
 } finally {
   cleanupDockerObjects();
 }
@@ -68,6 +76,15 @@ try {
 function assertDockerAvailable() {
   runDocker(["version", "--format", "{{.Server.Version}}"]);
   runDocker(["compose", "version"]);
+}
+
+function assertNativePlatform() {
+  const serverPlatform = runDocker(["version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"]);
+  assert.equal(
+    serverPlatform,
+    supportedPlatform,
+    `Container release proof must run natively on ${supportedPlatform}; manifest-only or emulated builds are not accepted.`,
+  );
 }
 
 function startContainer(name, image, volume) {
@@ -363,12 +380,22 @@ function requestApi(port, pathname, options = {}) {
 }
 
 function parseArgs(cliArgs) {
-  const parsed = { artifact: undefined, previousArtifact: undefined, pull: false };
+  const parsed = { artifact: undefined, previousArtifact: undefined, pull: false, releaseMetadata: undefined };
   for (let index = 0; index < cliArgs.length; index += 1) {
-    if (cliArgs[index] === "--artifact") {
-      parsed.artifact = cliArgs[++index];
-    } else if (cliArgs[index] === "--previous-artifact") {
-      parsed.previousArtifact = cliArgs[++index];
+    if (["--artifact", "--previous-artifact", "--release-metadata"].includes(cliArgs[index])) {
+      const argument = cliArgs[index];
+      const value = cliArgs[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error(`${argument} requires a value.`);
+      }
+      if (argument === "--artifact") {
+        parsed.artifact = value;
+      } else if (argument === "--previous-artifact") {
+        parsed.previousArtifact = value;
+      } else {
+        parsed.releaseMetadata = value;
+      }
+      index += 1;
     } else if (cliArgs[index] === "--pull") {
       parsed.pull = true;
     } else {

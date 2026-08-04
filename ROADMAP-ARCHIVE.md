@@ -1,5 +1,24 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.28.1 - Supported Compose contract, controlled payload, and architecture baseline
+
+Completed locally on 2026-08-04. Docker Compose on Debian Bookworm/glibc `linux/amd64` is now the sole supported production/self-hosted deployment contract; direct Node/systemd is unsupported outside development, testing, advanced experimentation, and the bounded protection of the two existing hosts during cutover. The active cursor advanced to `0.33.28.2`.
+
+**Model: High Effort** - This slice fixed the support boundary and validated the image payload on the real native platform before later deployment and recovery work can be trusted.
+
+- [x] Inventoried every 0.33.17 deployment asset as retained, adapted, or retired only after cutover, with explicit dependencies for the runtime artifact, Docker/Compose assets, bare-metal/systemd safety, root-owned helper/SSH handoff, release proof, and lifecycle documentation.
+- [x] Established the operator/developer support matrix: Docker Compose is sole production/self-hosted support; direct Node/systemd and npm install/start are development, test, advanced-experimentation, or transition-only paths.
+- [x] Kept the checksum-verified runtime artifact as the only reviewed image payload and passed its disposable `npm ci --omit=dev` installation and boot without advertising the tarball as a production installer.
+- [x] Re-reviewed and regression-pinned the pinned Node base digest, root-owned read-only application tree, UID/GID 10001, read-only root filesystem, dropped capabilities, `no-new-privileges`, bounded private `/tmp`, readiness health check, loopback-only port, durable data volume, protected backup mount, and excluded secret/source/dev/live-state material.
+- [x] Selected `linux/amd64` only after both current preview hosts reported native x86_64. The container gate now refuses a non-native Docker server and exercises the final `better-sqlite3` binding plus application boot.
+- [x] Retained operator-owned root `0600` environment, exact bridge/gateway proxy trust, Caddy/TLS, fail-closed protected `clamd`, local-block data, off-container backup, and separate Secure Notes recovery-material boundaries.
+- [x] Bound candidate images to release metadata, source branch/full revision, artifact checksum, pinned base digest, application version, platform, content digest, and accurate OCI version/license labels; the promotion job retains provenance for 30 days. SBOM attachment is explicitly deferred to the immutable published digest in 0.33.28.3.
+- [x] Ran `npm run docs:suggest`; updated the owning deployment, release, recovery, runtime, security, readiness, and versioning docs plus `README.md` and `DECISIONS.md`; updated `CHANGELOG.md`; advanced only through `npm run version:bump -- 0.33.28.1`; and ran the canonical `npm run verify:slice` closeout once.
+
+Acceptance criteria:
+
+- The support matrix, asset transition inventory, image security baseline, controlled runtime-artifact payload, provenance, and exact supported Linux architecture are recorded. The 486-file artifact passed `artifact:smoke`, and an isolated native `linux/amd64` run on `rt-ltf-demo` passed two clean image builds, final-image `better-sqlite3` load, boot, persistence, restart, representative workflow, and restored rollback with candidate digest `sha256:994d2f70e0eb1b06b05beae3a93f6e0e6409dd0c008fbc8d1646b7401202baca` while leaving the live service unchanged.
+
 ## Version 0.33.27.9 - Recurring Task Backlog Recovery and Quiet Calendar Projection
 
 Completed locally on 2026-08-03 through slices 0.33.27.9.1-0.33.27.9.2. A user can recover an overdue recurring series from any occurrence, while Calendar now presents scheduled recurring Tasks without exposing whether a Task row has already been materialized. The active cursor returned to `0.33.28.1`.

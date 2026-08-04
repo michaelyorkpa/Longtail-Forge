@@ -280,9 +280,16 @@ jobs:
         with:
           name: promotion-${{ github.event.pull_request.head.sha }}
           path: dist
-      - run: node scripts/run-timed-stage.mjs "packaging container smoke" -- npm run container:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+      - run: node scripts/run-timed-stage.mjs "packaging container smoke" -- npm run container:smoke -- --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --release-metadata dist/release-metadata.json
         env:
           LTF_NPM_CACHE_DIR: ${{ runner.temp }}/ltf-npm-cache
+      - name: Retain candidate image provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-provenance-${{ github.event.pull_request.head.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: dist/*-image-provenance.json
 
   packaging-recovery:
     name: Packaging and recovery
