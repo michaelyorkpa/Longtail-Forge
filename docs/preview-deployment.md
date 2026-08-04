@@ -1,12 +1,36 @@
-# Docker and Bare-Metal Preview Deployment
+# Compose Production Support and Bare-Metal Transition
 
-This is the supported application deployment contract for the limited one-server private preview. Docker Compose is the primary reproducible path. A staged bare-metal installation from the same checksummed runtime artifact remains supported. Both paths keep the Node listener behind the host's Caddy 2 edge from [Reference Internet Deployment](internet-deployment.md); neither path exposes Node directly to the internet.
+Docker Compose is the sole supported production and self-hosted deployment for the Longtail Forge public preview. Direct Node/systemd operation remains technically possible but is unsupported. Normal npm installation and `npm start` remain available for development, testing, and advanced experimentation; the extracted runtime tarball is not a second supported production installation, upgrade, rollback, or recovery path.
 
-This document does not authorize invitations. The tested baseline backup/restore is defined in [Baseline Backup and Restore](backup-restore.md); the Docker-engine acceptance proof, remaining release gates, and manual security review are still required.
+The existing bare-metal `rt-ltf` and `rt-ltf-demo` installations remain active transition safety until the Compose replacement passes deployment, upgrade, durable database/Files persistence, backup, restore, and restored-rollback proof. Do not remove their helper, service definitions, retained releases, backups, smoke coverage, or recovery evidence before that gate and the verified live cutover. Both the current transition path and the supported Compose path keep Node behind the reviewed Caddy edge from [Reference Internet Deployment](internet-deployment.md); neither exposes Node directly to the internet.
 
-Repository promotion, immutable GitHub artifacts, and the maintained manual preview handoff are defined in [GitHub Workflow](development/github-workflow.md). That handoff uses a low-privilege SSH account with pinned host keys and passwordless sudo access to one reviewed root-owned helper, rather than a root SSH login or a general-purpose self-hosted runner. Where a GitHub-hosted runner requires an Internet-reachable SSH endpoint, that dedicated key-only port is restricted management-plane access, never Longtail Forge application ingress, and must not expose an interactive deployment shell, Node, Caddy administration, data, or runtime secrets. The helper preserves this document's stop, backup, stage, start, verify, and restore boundary. Its GitHub Environments start disabled until isolated hosts, credentials, URLs, data, and recovery materials exist and a real deployment/rollback exercise passes.
+This document does not authorize invitations. The tested baseline backup/restore is defined in [Baseline Backup and Restore](backup-restore.md); native Docker-engine acceptance, remaining release gates, the private readiness record, and the explicit invite/no-invite decision are still required.
 
-The root-owned deployment state directory uses mode `0711` so the deployment account can traverse only the known path to its own `0700` inbox; it cannot list the parent or read/write sibling state such as deployment history. The backup directory remains root-only `0700`. Do not make the deployment-state parent `0700`, because that prevents the pinned account from delivering an artifact to the nested inbox, and do not broaden it to a listable or group-writable directory.
+## Support matrix
+
+| Use | Status | Contract |
+| --- | --- | --- |
+| Docker Compose on `linux/amd64` Debian Bookworm/glibc | Sole supported production/self-hosted path | Immutable digest-selected image, one local SQLite/Files volume, separate protected backup destination, loopback-only Node behind the reviewed Caddy edge. |
+| Direct Node, npm, or systemd | Unsupported for production | Available only for development, testing, advanced experimentation, and the bounded transition safety described below. No parallel supported production lifecycle is promised. |
+| `linux/arm64`, musl/Alpine, or another container platform | Unsupported | Requires a future explicit platform decision plus native clean build/install, `better-sqlite3` load, boot, and complete container acceptance proof. A manifest or emulated build is insufficient. |
+| Kubernetes, Swarm, Helm, horizontal app replicas, PostgreSQL service | Out of scope | Compose remains one application container on the supported one-server SQLite topology. |
+
+The supported platform decision is `linux/amd64` only. Both current preview hosts reported native `x86_64` on 2026-08-04, and the protected Ubuntu packaging job runs on native amd64. The container smoke refuses any Docker server that does not report `linux/amd64`, then loads `better-sqlite3` and boots the exact candidate in the final image. QEMU-only, manifest-only, cross-build-only, or JavaScript-only evidence does not qualify another platform.
+
+## Transition asset inventory
+
+| Asset | Classification | Dependency and retirement gate |
+| --- | --- | --- |
+| Checksummed runtime artifact and `artifact:smoke` | Retained | The artifact is the only reviewed application payload accepted by the image build. The clean disposable production-dependency install and boot remain required, but the tarball is no longer advertised as a production installer. |
+| `Dockerfile`, `compose.yaml`, `.dockerignore`, `container:build`, `container:smoke` | Adapted | These are the sole supported production packaging/lifecycle surface. The native gate covers the controlled payload, security posture, authenticated workflow, backup-first replacement, failed candidate, restore, and restored rollback. |
+| Bare-metal smoke and systemd example | Retained as transition safety | Keep while either live host is bare-metal and while comparison/recovery proof depends on it. Retire as a separate final slice only after Compose replacement and restored rollback pass on the live hosts. |
+| Root-owned host deploy helper and constrained SSH handoff | Compose replacement implemented; live gate pending | The new metadata-only helper preserves the fail-closed backup/deploy/recovery boundary while selecting an exact GHCR digest. Keep the prior helper intact for current-host transition safety until 0.33.28.4 proves cutover. |
+| Release workflows and release regressions | Adapted | Exact-SHA artifact, backup, bare-metal transition, and native container proof remain. Public release now binds the published image digest/platform/native/attestation evidence; the final retirement slice removes obsolete bare-metal jobs only after cutover. |
+| Installation, self-hosting, upgrade, rollback, and recovery docs | Adapted in sequence | The complete supported Compose lifecycle is below. The final slice removes duplicated bare-metal promises only after live replacement proof. |
+
+Repository promotion, immutable GitHub artifacts, and both constrained handoffs are defined in [GitHub Workflow](development/github-workflow.md). Each handoff uses a low-privilege SSH account with pinned host keys and passwordless sudo access to one reviewed root-owned helper, rather than a root SSH login or a general-purpose self-hosted runner. Where a GitHub-hosted runner requires an Internet-reachable SSH endpoint, that dedicated key-only port is restricted management-plane access, never Longtail Forge application ingress, and must not expose an interactive deployment shell, Docker, registry credentials, Node, Caddy administration, data, or runtime secrets. The previous artifact helper remains transition safety; the Compose helper is implemented but its GitHub Environment stays disabled until the exact host, credentials, URLs, data, and recovery materials exist and the 0.33.28.4 deployment/rollback proof passes.
+
+The root-owned deployment state directory uses mode `0711` so the deployment account can traverse only the known path to its own `0700` inbox; it cannot list the parent or read/write sibling state such as deployment history. Do not make the deployment-state parent `0700`, because that prevents the pinned account from delivering metadata to the nested inbox, and do not broaden it to a listable or group-writable directory. The Compose backup directory is separately owner-only `0700` for container UID/GID 10001, and the helper rejects a resolved Compose configuration that does not bind that protected host directory to `/var/backups/longtail-forge`.
 
 Install the host helper from the LF-only tracked file. The repository pins `scripts/release/longtail-forge-deploy-host.example` to `eol=lf` because a CRLF shebang is not executable by Linux (`/usr/bin/env` would look for `bash\r`). Verify the staged file with `file` or an equivalent byte-level check before installing it as the root-owned helper; do not copy a differently normalized editor buffer.
 
@@ -48,11 +72,11 @@ The installed page is self-contained and uses passive system Light/Dark styling 
 
 The tracked `scripts/release/longtail-forge-edge-unavailable.html` is not an application maintenance marker or a replacement for that page. In the bounded Nginx topology it is installed root-owned on the public edge and is selected only when Nginx cannot reach private Caddy across the transport boundary. Valid inner `503` responses pass through unchanged. A stopped public Nginx edge produces no HTTP response at all; it must not be described as application maintenance. Installation, exact response ownership, diagnostics, and the disposable real-Nginx proof are governed by [Reference Internet Deployment](internet-deployment.md#proxy-configuration). No repository change in this slice modifies a live edge host.
 
-For a successful bare-metal deployment, the root-owned deploy helper validates the disjoint deployment and maintenance trees plus the exact owner, group, mode, directory, regular-file, and no-symbolic-link contract before touching the marker. It verifies the artifact checksum and release metadata, extracts the candidate, and installs locked production dependencies before the outage window. It then requires Caddy to be active, idempotently asserts the deployment marker, stops only the application service, creates and inspects the stopped-app backup when upgrading, switches the immutable release, and starts the application. Caddy stays active throughout.
+For a transition-only bare-metal deployment, the root-owned deploy helper validates the disjoint deployment and maintenance trees plus the exact owner, group, mode, directory, regular-file, and no-symbolic-link contract before touching the marker. It verifies the artifact checksum and release metadata, extracts the candidate, and installs locked production dependencies before the outage window. It then requires Caddy to be active, idempotently asserts the deployment marker, stops only the application service, creates and inspects the stopped-app backup when upgrading, switches the immutable release, and starts the application. Caddy stays active throughout.
 
 The helper first requires direct loopback readiness, then verifies the intended release identity through public `/api/app-info` and checks public `/healthz` and `/readyz` through their marker exemptions. It records deployment state and rechecks Caddy before removing only the deployment marker. A pre-existing operator marker remains untouched, so successful deployment does not override an operator hold. Interruption or failure does not run a broad cleanup trap: the deployment marker remains fail-closed for the reviewed recovery path. Do not manually clear that root-owned hold merely because the helper exited.
 
-### Failed bare-metal deployment recovery
+### Failed transition bare-metal deployment recovery
 
 After a candidate is fully staged, each deploy attempt writes one protected history record beneath `/var/lib/longtail-forge-deploy/operations/` and atomically refreshes `/var/lib/longtail-forge-deploy/deployment-operation.json`. The history directory is `root:root` mode `0700`; history and latest records are regular `root:root` files mode `0600`. The deployment account can traverse only to its separate inbox and the operator-maintenance group has no access to either location. Records are secret-free and contain the deployment marker owner, initiating/final reason class, start/end timestamps, phase, candidate identity, recovery identity when one was attempted, retained backup path, and outcome. As of 0.33.27.3, operation-record names and atomic temporary-write suffixes use random UUIDv4 values from the staged candidate's central opaque identifier authority; these values are not timestamps, secrets, or ordering keys.
 
@@ -77,28 +101,53 @@ A retry is accepted only for the same candidate named by the protected active op
 
 ## Docker image build
 
-The checked-in Dockerfile does not copy the repository. It receives one exact versioned runtime tarball produced with an explicit source branch (`npm run artifact:build -- --source-branch main` for preview candidates). A disposable builder stage installs Python 3, `make`, and `g++`, then installs the artifact's pruned shrinkwrap with `npm ci --omit=dev`; the final stage copies only the installed application tree, makes it read-only, and runs as UID/GID 10001 without the native build toolchain or repository development dependencies. Deployment supplies the same branch through `LONGTAIL_RELEASE_BRANCH`; the installed runtime does not need `.git`. Its default base is the immutable digest for the official `node:24.18.0-bookworm-slim` image. The supported and release-qualified image target is `linux/amd64` on Debian Bookworm/glibc; the upstream image manifest and npm package containing other platforms do not make arm64 or musl/Alpine supported. Changing `NODE_IMAGE` or the platform is a reviewed runtime-base qualification change, not an ordinary deployment toggle. Build through the helper so the current artifact path, checksum, image label, and tag stay aligned:
+The checked-in Dockerfile does not copy the repository. `.dockerignore` denies everything except the Dockerfile and generated `dist/*.tgz` payload, and the build helper verifies the adjacent artifact checksum before placing that exact tarball in the builder. A disposable builder stage installs Python 3, `make`, and `g++`, then installs the artifact's pruned shrinkwrap with `npm ci --omit=dev`; the final stage copies only the root-owned read-only installed application tree and runs as UID/GID 10001 without the native build toolchain or repository development dependencies. The installed runtime does not need `.git`.
+
+The default base is the immutable digest for the official `node:24.18.0-bookworm-slim` image. The helper fixes the build to `linux/amd64`, verifies the built image reports that platform, and adds the exact version, AGPL license, source branch, full revision, runtime-artifact checksum, and platform labels. For a release candidate, bind the already-created release metadata to the same artifact:
 
 ```sh
-npm run container:build -- --tag longtail-forge:0.33.17.3
+npm run container:build -- --artifact dist/longtail-forge-<version>.tgz --release-metadata dist/release-metadata.json --tag longtail-forge:<version> --no-cache --pull
 ```
 
-Use `--no-cache --pull` for the clean release-candidate build. The image starts `node server.js` directly as the container process, which is the same entrypoint beneath the unchanged `npm start` contract. It has no compiler, test runner, browser harness, regression tooling, source checkout, `.env`, live data, backup, or Caddy process.
+The build writes adjacent retained JSON provenance containing the source revision, source branch, application version, runtime-artifact checksum, resolved base reference/digest, `linux/amd64` platform, local content-addressed image digest, and reviewed labels. The protected promotion workflow retains that record for 30 days. Local provenance is build evidence only. The manual release workflow is the publication authority: it builds the exact protected `main` revision, pushes one `linux/amd64` GHCR image index, attaches registry-attached SPDX SBOM and SLSA provenance attestations, pulls the published digest, and executes `better-sqlite3` from that digest on native `linux/amd64`. A release candidate without matching release metadata or either native proof is not qualified.
+
+The image starts `node server.js` directly as the container process, which is the same entrypoint beneath the unchanged development/test `npm start` contract. It has no compiler, test runner, browser harness, regression tooling, source checkout, `.env`, live data, backup, or Caddy process. Changing `NODE_IMAGE` or the platform is a reviewed qualification change, not an ordinary deployment toggle.
+
+## Immutable image publication and constrained transport
+
+The maintained public release transport is GHCR. `.github/workflows/manual-release.yml` receives the repository-scoped ephemeral `GITHUB_TOKEN` with only `contents: write` and `packages: write`, authenticates with `--password-stdin`, and publishes `ghcr.io/<owner>/<repository>:sha-<full-main-commit>`. That commit tag is a discovery label, not a deployment reference. The workflow and host always select `ghcr.io/<owner>/<repository>@sha256:<image-index-digest>`; `latest`, a version tag without its digest, an unverified local image ID, a Nightly image, and a non-`main` source are rejected.
+
+`npm run image:publish -- publish ...` consumes the checksummed runtime artifact and schema-1 source metadata, builds with BuildKit provenance and SBOM attestations, publishes exactly `linux/amd64`, and emits two release records:
+
+- `release-metadata.json` schema 2 binds the protected `main` commit, runtime-artifact filename and SHA-256, GHCR repository/index digest/reference, exact `linux/amd64` platform-manifest digest, image config digest, native `better-sqlite3`/SQLite execution result, and attached SPDX/SLSA attestation manifests.
+- `platform-manifest.json` is the standalone machine-readable platform/image proof. The GitHub Release retains it beside the schema-2 metadata, checksummed runtime payload evidence, Compose file, protected environment examples, and reviewed host helper. The tarball remains the controlled Docker build input and provenance asset; it is not advertised or accepted as a production installer.
+
+The release workflow never receives host access or application secrets. The manual preview workflow never receives registry write authority and does not rebuild or transfer the runtime tarball. It checks out the exact selected `main` commit, downloads that version's immutable GitHub Release metadata, requires the operator-supplied image digest to match, and sends only the verified metadata through pinned-host, batch-mode SSH to the non-interactive deployment account. The account may write only its private inbox and may invoke only the reviewed root-owned Compose helper through the exact `sudo -n` rule. It has no root login, interactive shell, Docker socket access, registry credential, Caddy administration, data/backup read access, runtime-secret access, or general-purpose runner.
+
+Install `scripts/release/longtail-forge-compose-deploy-host.example` as `/usr/local/sbin/longtail-forge-compose-deploy`, root-owned and non-writable. Install [longtail-forge-compose-deploy-helper.env.example](longtail-forge-compose-deploy-helper.env.example) as `/etc/longtail-forge/compose-deploy-helper.env` with `root:root` ownership and mode `0600`, and configure the workflow's `COMPOSE_DEPLOY_HELPER` variable to that exact path. Keep the GitHub Environment at `DEPLOY_ENABLED=false` until 0.33.28.4 proves the actual host cutover, backup, restore, rollback, firewall, scanner, and representative workflows. The current bare-metal helper and installations remain protected transition safety during that gate.
+
+The host's root Docker client authenticates to GHCR separately with one pull-only credential scoped to the Longtail Forge package. Store it only in root's Docker credential store or a reviewed credential helper—never in GitHub Actions, the helper environment, Compose application environment, image layers, metadata, the deployment inbox, or the deployment account. Rotation is additive: install the replacement, prove an exact digest pull, then revoke the old credential. Revoke immediately on suspected disclosure and keep `DEPLOY_ENABLED=false` until a replacement digest pull and helper preflight pass. Package deletion, administration, repository write, and owner-wide scopes are not required for the host.
+
+The root helper validates schema-2 metadata and the pulled labels, then requires the recorded known-good Compose baseline established by the live cutover in 0.33.28.4; it refuses to treat an unrecorded first install or data volume as an automated upgrade. For a recorded baseline it asserts the deployment-owned maintenance marker, stops only the Compose app, creates and inspects the whole-instance backup, selects the new digest, starts and verifies direct/public identity, and clears only its marker. Failed candidate verification restores the prior database and Files together with the prior digest; explicit rollback first protects the current state and restores the recorded previous backup. A failed restore or recovered-current check stays curtained with the images, backups, metadata, and operation evidence retained. The operator marker remains independent.
 
 ## Docker Compose installation
 
-1. Install a supported Docker Engine with Compose v2. Copy [compose.env.example](compose.env.example) to the protected root `.env`, replace the hostname and both required secrets, and keep mode `0600` on POSIX. Create the configured backup directory before startup; on Linux make it writable only by the recovery operator and container UID 10001.
-2. Confirm the chosen `172.30.17.0/24` bridge does not overlap the host, VPN, LAN, or another Docker network. If it does, change the subnet, gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` together. Trust only the exact bridge gateway `/32`.
-3. Run the production scanner on the same host or another protected reachable address. `host.docker.internal:3310` is the default Compose handoff to host `clamd`; do not expose that port publicly. Production startup fails when the scanner is absent or unhealthy.
-4. Build or obtain the exact reviewed image, set `LONGTAIL_IMAGE` to its immutable release tag or digest, then validate and start:
+1. Install a supported `linux/amd64` Docker Engine with Compose v2. Copy [compose.env.example](compose.env.example) to the protected root `.env`, set `LONGTAIL_IMAGE` to the exact `repository@sha256:<image-index-digest>` bound by schema-2 release metadata, replace the hostname and required secrets, and keep `.env` mode `0600` on POSIX. Confirm the same metadata names one `linux/amd64` platform manifest plus native `better-sqlite3`, SPDX SBOM, and SLSA provenance evidence. A mutable `latest` tag is never a deployment identity.
+2. Create the named local data volume on local block-backed storage and the separate backup directory before startup. The data volume must be private to this one app container; do not place it on NFS, SMB, cloud-synced folders, or object-storage mounts. On Linux, make the backup directory owner-only and writable by container UID/GID 10001 plus the authorized recovery operator. Keep backup exports and the Secure Notes key backup outside the data volume and protect them separately.
+3. Confirm the chosen `172.30.17.0/24` bridge does not overlap the host, VPN, LAN, or another Docker network. If it does, change the subnet, gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` together. Trust only the exact bridge gateway `/32`.
+4. Run a real production `clamd` on the same host or another protected reachable address. `host.docker.internal:3310` is the default Compose handoff; do not expose that port publicly. Prove a scanner `PING` before startup. Production startup fails closed when the scanner is absent or unhealthy.
+5. Inspect the reviewed image identity, validate the resolved Compose configuration, create the stopped container, and inspect its mounts before starting it:
 
    ```sh
+   docker image inspect "$(sed -n 's/^LONGTAIL_IMAGE=//p' .env)"
    docker compose config --quiet
+   docker compose create longtail-forge
+   docker compose ps --all
    docker compose up -d
    docker compose ps
    ```
 
-5. Require the container to become healthy, then verify the direct loopback boundary and the public Caddy boundary:
+6. Keep the operator maintenance marker active until acceptance finishes. Require the container to become healthy, then verify the direct loopback boundary and the public Caddy boundary:
 
    ```sh
    curl --fail --silent --show-error http://127.0.0.1:8001/healthz
@@ -108,26 +157,84 @@ Use `--no-cache --pull` for the clean release-candidate build. The image starts 
    curl --fail --silent --show-error https://forge.example.com/api/app-info
    ```
 
+7. Confirm `/api/app-info` matches the selected application/image identity and recorded schema/migration identity. Through the public boundary, log in, confirm the session survives navigation, open the intended workspace, upload and retrieve a representative File through a real scanner result, and complete one representative workflow. Open ordinary traffic only after all checks pass; record the digest, volume, backup location, commands, results, operator, and timestamps.
+
 Compose publishes only `127.0.0.1:${LONGTAIL_HOST_PORT}:8001`. Caddy keeps using `reverse_proxy 127.0.0.1:8001`; public firewall rules must still deny port 8001. The application filesystem is read-only, Linux capabilities are dropped, privilege escalation is disabled, `/tmp` is a bounded private tmpfs, and shutdown has 30 seconds for the app and inline worker to stop cleanly.
 
 The named `longtail-data` volume contains the SQLite database, WAL/SHM sidecars, and local Files storage. The configured backup bind mount appears at `/var/backups/longtail-forge`; it is the protected destination for the [baseline backup CLI](backup-restore.md), the app-created `workspaces/` packages described in [Workspace Backup Package](workspace-backup.md), and operator recovery, not ordinary application downloads. Do not delete either location during image replacement.
 
-## Docker backup-first upgrade
+## Docker backup-first upgrade and rollback
 
-Use the tested complete backup and restore command from [Baseline Backup and Restore](backup-restore.md). The earlier deployment smoke's stopped raw-volume copy remains only a disposable packaging rehearsal and is not a supported backup format.
+Use the versioned whole-instance archive from [Baseline Backup and Restore](backup-restore.md). A raw volume copy is not the supported backup format. Keep Caddy active so diagnostics remain truthful, assert the reviewed operator maintenance marker for ordinary traffic, and never run backup or restore while an app or worker can write the selected volume.
 
-For the first supported upgrade after that prerequisite exists:
+For every supported upgrade:
 
-1. Record the current `/api/app-info` version, exact image tag/digest, Compose configuration, volume identity, and last-known-good release. Pause changes and remove public traffic at the selected TLS edge.
-2. Run the tested complete backup. Verify its manifest/checksums and required separately protected Secure Notes key recovery material before proceeding.
-3. Build or obtain the reviewed candidate image and verify its artifact checksum/image identity. Do not reuse a mutable `latest` tag.
-4. Stop the app with `docker compose stop longtail-forge`. Do not delete the data volume. Update only `LONGTAIL_IMAGE`, then run `docker compose up -d --no-deps --force-recreate longtail-forge`. Normal startup owns forward migrations.
-5. Require container health, direct and proxied `/readyz`, the expected `/api/app-info` version, current schema, login/session, workspace access, Files access, and one representative workflow before restoring public traffic.
-6. Record the old/new image identities, artifact checksum, backup identity, migrations, commands, checks, operator, timestamps, and decision.
+1. Record direct and public `/api/app-info`, the current immutable image digest, Compose configuration, data-volume identity, schema/migration identity, scanner readiness, and last-known-good release. Pause writes and assert maintenance; `/healthz`, `/readyz`, and `/api/app-info` remain proxied, while ordinary traffic receives the hardened `503` page.
+2. Stop the app without deleting its volume. Create the complete backup with the current image, then inspect the archive and its sidecar. When encrypted Secure Notes exist, mount the separately protected key-backup proof read-only; never copy the key into the data volume, backup archive, image, or repository:
 
-If verification fails, remove public traffic and stop the candidate. Re-pointing Compose at the previous image is allowed only when rollback compatibility with every applied migration is explicitly proven. Otherwise leave both images intact, restore the verified pre-upgrade database and Files backup together into a clean recovery volume, select the previous image, start, and re-run health/readiness/version/schema/workflow verification. Never reverse migrations by hand or combine an old database with newer Files data.
+   ```sh
+   docker compose stop longtail-forge
+   docker compose run --rm \
+     --volume /protected/secure-notes-key.backup:/run/secrets/secure-notes-key.backup:ro \
+     longtail-forge node scripts/backup.mjs create \
+     --confirm-stopped \
+     --database /var/lib/longtail-forge/longtail-forge.db \
+     --files-root /var/lib/longtail-forge/files \
+     --output /var/backups/longtail-forge/pre-upgrade-<utc>.ltfbackup.tgz \
+     --secure-notes-key-backup /run/secrets/secure-notes-key.backup
 
-## Bare-metal installation
+   docker compose run --rm \
+     --volume /protected/secure-notes-key.backup:/run/secrets/secure-notes-key.backup:ro \
+     longtail-forge node scripts/backup.mjs inspect \
+     --archive /var/backups/longtail-forge/pre-upgrade-<utc>.ltfbackup.tgz \
+     --secure-notes-key-backup /run/secrets/secure-notes-key.backup
+   ```
+
+3. Obtain and inspect the reviewed candidate digest without overwriting or deleting the prior image. Change only `LONGTAIL_IMAGE`, validate the resolved configuration, and force-recreate the app against the same data volume. Normal startup alone owns forward migrations:
+
+   ```sh
+   docker compose config --quiet
+   docker compose up -d --no-deps --force-recreate longtail-forge
+   docker compose ps
+   ```
+
+4. While maintenance remains active, require container health, direct and public health/readiness, exact candidate `/api/app-info`, database integrity and migration identity, login/session, workspace access, scanned File upload/read/download, and the representative workflow. Clear only the operator marker after all proof passes. Record old/new digests, artifact checksum, volume, backup ID/checksum, applied migrations, commands, checks, operator, timestamps, and decision.
+
+If verification fails, keep maintenance active and stop the candidate. Selecting the prior image is an image-only rollback and is permitted only when the release record explicitly proves every migration applied by the candidate is backward-compatible. Absence of that complete record means restore is mandatory. Never reverse migrations by hand, edit migration history, or combine an older database with newer Files.
+
+For the default migration-incompatible or unproven case, retain the failed upgraded volume and both images. Select the prior digest and a new, empty recovery-volume name in `.env`; do not attach two app containers to either volume. Start the prior image once to initialize the clean recovery volume, stop it, then restore the verified pre-upgrade database and Files together:
+
+```sh
+docker compose config --quiet
+docker compose up -d --no-deps --force-recreate longtail-forge
+docker compose stop longtail-forge
+
+docker compose run --rm \
+  --volume /protected/secure-notes-key.backup:/run/secrets/secure-notes-key.backup:ro \
+  longtail-forge node scripts/backup.mjs restore \
+  --confirm-stopped \
+  --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" \
+  --archive /var/backups/longtail-forge/pre-upgrade-<utc>.ltfbackup.tgz \
+  --database /var/lib/longtail-forge/longtail-forge.db \
+  --files-root /var/lib/longtail-forge/files \
+  --pre-restore-backup /var/backups/longtail-forge/pre-rollback-restore-<utc>.ltfbackup.tgz \
+  --secure-notes-key-backup /run/secrets/secure-notes-key.backup
+
+# Required compatibility normalization when the selected prior image is 0.33.28.1.
+# It is harmless but redundant with the 0.33.28.2 and later restore utility.
+docker compose run --rm longtail-forge node -e \
+  "require('node:fs').chmodSync('/var/lib/longtail-forge/files', 0o700)"
+
+docker compose up -d --no-deps --force-recreate longtail-forge
+```
+
+Inspect the automatically created pre-restore archive, then repeat the full health/readiness/identity/schema/login/workspace/Files/workflow acceptance against the prior version before clearing maintenance. Confirm candidate-only mutations are absent and the baseline database plus Files are present together. Retain the failed upgraded volume, original/pre-restore archives and sidecars, both image digests, provenance, and recovery-key material through the observation period. A failed restore, startup, identity, or workflow check stays curtained; do not improvise a mixed-state recovery.
+
+`npm run container:smoke` is the required native `linux/amd64` acceptance for this lifecycle. It performs two clean controlled-artifact image builds, validates Compose and hardening, uses a real Caddy process and protocol-level scanner fixture, creates authenticated workspace/workflow/File state, proves stop/start persistence, creates and inspects a real backup, observes a scanner-unready candidate restart, upgrades by force-recreation, restores into a clean recovery volume, and proves restored rollback plus SQLite integrity and migration identity. Missing Docker/native architecture is a failed prerequisite, never a passing skip.
+
+## Transition-only bare-metal installation
+
+The following procedure documents and protects the two existing installations during cutover. It is not a supported production/self-hosting option for a new installation.
 
 Use a dedicated non-interactive `longtail-forge` account. Keep immutable releases under `/opt/longtail-forge/releases/<version>`, a `current` symlink to the selected release, protected configuration under `/etc/longtail-forge`, durable data under `/var/lib/longtail-forge`, and backups outside that tree. The service account owns only its data root; release files stay root-owned and read-only.
 
@@ -143,6 +250,6 @@ The isolated `rt-ltf-demo` development environment may additionally install the 
 
 ## Proof commands and limits
 
-Run `npm run artifact:smoke` for the clean runtime artifact install/boot proof, `npm run bare-metal:smoke -- --previous-artifact dist/longtail-forge-<previous-version>.tgz` for the staged bare-metal upgrade/restored-rollback rehearsal, and `npm run container:smoke -- --previous-artifact dist/longtail-forge-<previous-version>.tgz --pull` for the clean image build, non-root/read-only boot, persistence, replacement, health/readiness, backup-first upgrade rehearsal, and restored rollback rehearsal. The Docker proof requires a working local Docker Engine; absence of an engine is a failed prerequisite, not a passing skip.
+Run `npm run artifact:smoke` for the clean controlled-payload install/boot proof. Keep `npm run bare-metal:smoke -- --previous-artifact dist/longtail-forge-<previous-version>.tgz` only as transition recovery evidence. Run `npm run container:smoke -- --artifact dist/longtail-forge-<version>.tgz --release-metadata dist/release-metadata.json --previous-artifact dist/longtail-forge-<previous-version>.tgz --pull` for the native clean image build, `better-sqlite3` load, non-root/read-only boot, persistence, replacement, health/readiness, backup-first upgrade rehearsal, and restored rollback rehearsal. The Docker server must itself report `linux/amd64`; absence of an engine, an unsupported architecture, or emulation-only execution is a failed prerequisite, not a passing skip.
 
 These rehearsals use disposable data and may compare two images built from supplied previous/current artifacts. They prove packaging and operational mechanics, not external penetration testing, public DNS/certificate issuance, production ClamAV deployment, backup completeness, cross-version downgrade safety, or invitation readiness.

@@ -31,6 +31,7 @@ assert.match(backupSource, /instance_backup_created/);
 assert.match(backupSource, /instance_backup_restored/);
 assert.match(backupSource, /backup_exported/);
 assert.match(backupSource, /preRestoreBackupPath/);
+assert.match(backupSource, /restrictDirectory\(stagedFiles\)/);
 assert.match(backupSource, /--confirm-stopped/);
 assert.match(backupSource, /--confirm-destructive/);
 assert.match(cliSource, /Start the app, then verify \/readyz, \/api\/app-info, schema identity, login, Files, and Secure Notes/);

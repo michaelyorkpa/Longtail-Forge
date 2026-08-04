@@ -1,5 +1,60 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.28.3 - Immutable image publishing and supported deployment transport
+
+Completed locally on 2026-08-04. Public releases now publish the exact protected `main` artifact as an attested GHCR image index and bind its source, artifact, platform, native-dependency, and image identities in release metadata. Preview deployment selects only that immutable digest through a metadata-only constrained handoff; the active cursor advanced to `0.33.28.4` for live host cutover and replacement proof.
+
+**Model: High Effort** — The public release must deliver the exact reviewed image without creating a standing broad credential, interactive shell, or artifact-based alternate production path.
+
+- [x] Chose and documented a least-privilege immutable GHCR digest pull. The supported result deploys Compose by image digest and does not extract the runtime tarball as a direct production release.
+- [x] Published only the reviewed `linux/amd64` image index from protected `main`, rejected mutable `latest` deployment references, isolated registry write authority to the release workflow, and documented separate pull-only host credential rotation and revocation.
+- [x] Adapted the manual preview workflow and added a root-owned Compose helper while preserving the stop → backup → deploy digest → start → verify → restore boundary, pinned host keys, the non-interactive low-privilege deployment account, and disabled-by-default environments. Live initialization remains gated to 0.33.28.4.
+- [x] Kept the checksummed runtime artifact and `artifact:smoke` as image-build inputs and provenance evidence. Schema-2 GitHub Release metadata binds the source revision, artifact checksum, image-index and platform-manifest digests, native `better-sqlite3` proof, and SPDX/SLSA attestations without advertising the tarball as a production installer.
+- [x] Added release and preview regressions that reject non-`main`, mutable, mismatched, unsupported-platform, missing-native-proof, missing-attestation, and backup-bypassing publication or deployment contracts.
+- [x] Ran `npm run docs:suggest`; updated the owning image publication, transport, release, self-hosting, upgrade, runtime, readiness, workflow, and versioning docs; updated `CHANGELOG.md`; advanced only through `npm run version:bump -- 0.33.28.3`; and ran the canonical `npm run verify:slice` closeout once.
+
+Acceptance criteria:
+
+- The reviewed image reaches the host by a least-privilege immutable-digest transport; release metadata binds source, artifact, platform, and image identities; deployment remains backup-first and non-interactive; and neither the runtime tarball nor a mutable tag becomes a second supported production path.
+
+## Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
+
+Completed locally on 2026-08-04. The supported Compose lifecycle now covers immutable-digest installation, protected local persistence, backup-first upgrade, failed-candidate containment, whole-instance restore into a clean recovery volume, and migration-aware restored rollback. The active cursor advanced to `0.33.28.3`.
+
+**Model: High Effort** - This made one Compose lifecycle the production contract and proved data durability and migration-safe recovery rather than only proving that a container starts.
+
+- [x] Finalized one operator procedure for Compose installation and deployment by immutable image digest, including configuration validation, private local data/backup boundaries, loopback-only Node, container health, direct/public diagnostics, identity, session, workspace, Files, scanner, and representative workflow verification before traffic opens.
+- [x] Exercised the backup-first Compose upgrade on disposable native `linux/amd64`: recorded identity, entered maintenance, stopped writers, created and inspected the complete backup, retained the separate Secure Notes recovery-key prerequisite, selected the candidate, force-recreated, let startup own migrations, and verified before reopening.
+- [x] Made rollback explicit: selecting an old image never reverses migrations. Image-only rollback requires an explicit compatibility record for every applied migration; otherwise the prior image restores the verified pre-upgrade database and Files together into a clean recovery volume, with no manual reverse migration or mixed state.
+- [x] Proved database/WAL/SHM and local Files persistence across stop/start, image replacement, failed candidate, upgrade, restore, and restored rollback while backups stayed on a separate protected mount and app containers never shared a live volume.
+- [x] Proved the hardened maintenance page and generic diagnostic `503` through a real Caddy process while Node was healthy, stopped, and restart-looping, with traffic reopening only after exact identity and workflow proof.
+- [x] Expanded `npm run container:smoke` into the required native production acceptance: two clean controlled-artifact image builds; non-root, read-only, capability-restricted Compose boot; real Caddy; protocol-level ClamAV readiness and scanned File workflow; real backup/inspect; failed candidate; upgrade; clean-volume restore; restored rollback; and SQLite/migration integrity.
+- [x] Fixed whole-instance restore to normalize the recovered Files root to POSIX mode `0700`, cleaned staged SQLite sidecars, extended the disposable restore drill, and proved the idempotent mode-normalization compatibility step needed when the selected prior image still carries the older `0.33.28.1` restore utility.
+- [x] Ran `npm run docs:suggest`; updated the owning Compose, upgrade, and backup/recovery docs; updated `CHANGELOG.md`; advanced only through `npm run version:bump -- 0.33.28.2`; and ran the canonical `npm run verify:slice` closeout once.
+
+Acceptance criteria:
+
+- One documented Compose lifecycle covers supported installation, deployment, upgrade, backup, restore, rollback, and recovery. Durable state survives image operations; migration-incompatible rollback restores the verified backup into clean state; maintenance/error surfaces and scanner readiness behave correctly; and the native container acceptance gate is required and green.
+
+## Version 0.33.28.1 - Supported Compose contract, controlled payload, and architecture baseline
+
+Completed locally on 2026-08-04. Docker Compose on Debian Bookworm/glibc `linux/amd64` is now the sole supported production/self-hosted deployment contract; direct Node/systemd is unsupported outside development, testing, advanced experimentation, and the bounded protection of the two existing hosts during cutover. The active cursor advanced to `0.33.28.2`.
+
+**Model: High Effort** - This slice fixed the support boundary and validated the image payload on the real native platform before later deployment and recovery work can be trusted.
+
+- [x] Inventoried every 0.33.17 deployment asset as retained, adapted, or retired only after cutover, with explicit dependencies for the runtime artifact, Docker/Compose assets, bare-metal/systemd safety, root-owned helper/SSH handoff, release proof, and lifecycle documentation.
+- [x] Established the operator/developer support matrix: Docker Compose is sole production/self-hosted support; direct Node/systemd and npm install/start are development, test, advanced-experimentation, or transition-only paths.
+- [x] Kept the checksum-verified runtime artifact as the only reviewed image payload and passed its disposable `npm ci --omit=dev` installation and boot without advertising the tarball as a production installer.
+- [x] Re-reviewed and regression-pinned the pinned Node base digest, root-owned read-only application tree, UID/GID 10001, read-only root filesystem, dropped capabilities, `no-new-privileges`, bounded private `/tmp`, readiness health check, loopback-only port, durable data volume, protected backup mount, and excluded secret/source/dev/live-state material.
+- [x] Selected `linux/amd64` only after both current preview hosts reported native x86_64. The container gate now refuses a non-native Docker server and exercises the final `better-sqlite3` binding plus application boot.
+- [x] Retained operator-owned root `0600` environment, exact bridge/gateway proxy trust, Caddy/TLS, fail-closed protected `clamd`, local-block data, off-container backup, and separate Secure Notes recovery-material boundaries.
+- [x] Bound candidate images to release metadata, source branch/full revision, artifact checksum, pinned base digest, application version, platform, content digest, and accurate OCI version/license labels; the promotion job retains provenance for 30 days. SBOM attachment is explicitly deferred to the immutable published digest in 0.33.28.3.
+- [x] Ran `npm run docs:suggest`; updated the owning deployment, release, recovery, runtime, security, readiness, and versioning docs plus `README.md` and `DECISIONS.md`; updated `CHANGELOG.md`; advanced only through `npm run version:bump -- 0.33.28.1`; and ran the canonical `npm run verify:slice` closeout once.
+
+Acceptance criteria:
+
+- The support matrix, asset transition inventory, image security baseline, controlled runtime-artifact payload, provenance, and exact supported Linux architecture are recorded. The 486-file artifact passed `artifact:smoke`, and an isolated native `linux/amd64` run on `rt-ltf-demo` passed two clean image builds, final-image `better-sqlite3` load, boot, persistence, restart, representative workflow, and restored rollback with candidate digest `sha256:994d2f70e0eb1b06b05beae3a93f6e0e6409dd0c008fbc8d1646b7401202baca` while leaving the live service unchanged.
+
 ## Version 0.33.27.9 - Recurring Task Backlog Recovery and Quiet Calendar Projection
 
 Completed locally on 2026-08-03 through slices 0.33.27.9.1-0.33.27.9.2. A user can recover an overdue recurring series from any occurrence, while Calendar now presents scheduled recurring Tasks without exposing whether a Task row has already been materialized. The active cursor returned to `0.33.28.1`.

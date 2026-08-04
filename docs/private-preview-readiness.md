@@ -8,7 +8,7 @@ Do not invite participants until this page, the linked operator docs, and the cu
 
 ## Required Reading
 
-- [Docker and Bare-Metal Preview Deployment](preview-deployment.md) owns the supported application installation, deployment, upgrade, and rollback procedures.
+- [Compose Production Support and Bare-Metal Transition](preview-deployment.md) owns the sole supported Compose production boundary and the temporary protection of the existing bare-metal hosts during cutover.
 - [Reference Internet Deployment](internet-deployment.md) owns DNS, the selected direct-Caddy or bounded Nginx/WireGuard/Caddy path, TLS, firewalling, loopback binding, public health/readiness checks, proxy review, emergency containment, and known limitations.
 - [Backup and Restore Operator Guide](backup-and-restore.md) and [Baseline Backup and Restore](backup-restore.md) own the complete backup archive, restore, inspection, and drill contract.
 - [Operational Security](operational-security.md) owns production logs, repository scanning, incident response, manual security review, and access/session/API-key revocation expectations.
@@ -18,13 +18,13 @@ Do not invite participants until this page, the linked operator docs, and the cu
 
 ## Before Invitations
 
-Complete and record all of these against the exact candidate version, commit, artifact checksum or image digest, hostname, and data location.
+Complete and record all of these against the exact candidate version, commit, runtime-artifact checksum, image-index and platform-manifest digests, hostname, and data location.
 
 - Confirm the program is labeled "private preview" in invitation, onboarding, known-limitation, and feedback material.
 - Confirm the supported scale is stated as one server with SQLite, roughly 50 total users, and typical active use around 5-15 concurrent users.
 - Remove or rewrite any unsupported promise of uptime, perfect security, guaranteed backups, compliance, enterprise readiness, hosted SaaS readiness, automatic rollback, or high availability.
 - Promote only through the protected `nightly` -> `main` flow and select an immutable release identity from the exact verified `main` revision.
-- Verify the runtime artifact checksum, container image digest or staged bare-metal artifact, `/api/app-info` version, commit SHA, and artifact SHA-256 all match the selected release metadata.
+- Verify schema-2 release metadata binds the protected `main` commit, runtime-artifact checksum, GHCR image-index digest, one `linux/amd64` platform manifest, native `better-sqlite3` proof, and attached SPDX/SLSA evidence. Confirm the running container uses those exact image/platform digests and `/api/app-info` version, commit SHA, and artifact SHA-256 match.
 - Decide deliberately whether the bounded private preview uses the clearly labeled neutral operator templates or installation-specific Terms and Privacy Markdown supplied through protected runtime configuration. Record the selected document checksums and operator review in the private readiness record, and verify the public pages match those bytes. Professional legal review is not a current private-preview prerequisite and is not claimed; the review path appropriate to public analytics, feedback, or interest capture is deferred to 0.33.32.
 - Verify every public and authenticated footer links to Terms, Privacy, and Corresponding Source for the exact running commit. Keep hostnames, review correspondence, approval records, and deployment paths out of this repository.
 - Complete the selected reference-proxy deployment review from [Reference Internet Deployment](internet-deployment.md), including HTTPS redirect, TCP 80/443 as the only public Longtail Forge application ingress, separately recorded restricted SSH management/deployment endpoints where required, loopback-only Node, secure cookies, headers, forged-forwarding rejection, and public `/healthz`, `/readyz`, and `/api/app-info` checks. For the multi-proxy path, also record `nginx -t`, the exact WireGuard edge peer and firewall rule, private Caddy's non-edge rejection, forwarding-chain collapse, and real client-IP attribution.
@@ -35,7 +35,7 @@ Complete and record all of these against the exact candidate version, commit, ar
 - Create one unique account per invited participant. Do not share one account across users, and do not copy demo credentials, local development users, data, `.env` files, or Secure Notes keys into the preview.
 - Send the known-limitations and low-stakes-data guidance before credentials or first-login instructions.
 - Provide the bug-report and feedback path before access is granted, including how to report a blocking issue privately.
-- Confirm the operator can pause public traffic, revoke sessions, revoke API keys, deactivate an account, rotate runtime secrets, restore the last known good backup, and roll back the selected release without inventing steps during an incident.
+- Confirm the operator can pause public traffic, revoke sessions, revoke API keys, deactivate an account, rotate runtime secrets, rotate or revoke the host's pull-only registry credential without exposing it to the deployment account, restore the last known good backup, and roll back the selected release digest without inventing steps during an incident.
 - Require the exact candidate's clean-Ubuntu `npm run maintenance:rehearse` result. Retain its commit, Caddy/Nginx/OpenSSL versions, timestamps, outcome, and any protected failure references in the private operational record. This proves the disposable marker, response-owner, deploy-recovery, rollback, and stale-state transitions; it does not replace live certificate, firewall, WireGuard, backup, scanner, or identity evidence.
 
 If any item cannot be completed, invitations stay blocked. Record the blocker and either fix it or move the preview target.
@@ -110,7 +110,7 @@ Do not edit raw session rows, database credentials, Secure Notes payloads, or ba
 
 Keep the signed readiness record private. It should include:
 
-- candidate version, full commit SHA, artifact checksum or image digest, and release metadata path;
+- candidate version, full commit SHA, artifact checksum, image-index/platform-manifest digests, attestation/native-proof status, and release metadata path;
 - hostname, deployment path, backup path classification, and operator;
 - date/time of the reference-proxy review, backup inspection, restore drill, security review, and release verification;
 - Terms/Privacy source, operator review date, deployed document checksums, and the private record location; if professional review is later selected, record that reviewer and approval separately;

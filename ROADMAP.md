@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.1`.
+Active cursor: `0.33.28.4`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -39,54 +39,6 @@ Non-goals:
 - No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
 - No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
 - No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
-
-### Version 0.33.28.1 - Supported Compose contract, controlled payload, and architecture baseline
-
-**Model: High Effort** — The first slice fixes the support boundary and validates the image payload on the real native platform before later deployment and recovery work can be trusted.
-
-- [ ] Inventory the current 0.33.17 deployment surface and classify each item as retained, adapted, or retired after cutover: runtime artifact and `artifact:smoke`; Dockerfile/Compose/container build and smoke; bare-metal smoke; systemd example; root-owned host helper and SSH handoff; release workflows/regressions; and installation, upgrade, rollback, self-hosting, and recovery documentation. Record dependencies so no transition-safety asset is removed early.
-- [ ] Establish the support matrix in operator/developer wording: Docker Compose is the sole supported production/self-hosted deployment for the public preview; direct Node/systemd operation is technically possible but unsupported; npm install/start remains documented only for development, testing, and advanced experimentation.
-- [ ] Preserve the checksummed runtime artifact as the only reviewed application payload accepted by the Docker build. Keep `artifact:smoke` proving a disposable `npm ci --omit=dev` install and successful boot, without presenting the extracted tarball as a supported production installation.
-- [ ] Re-review `Dockerfile`, `compose.yaml`, and `.dockerignore`: pinned Node base digest, root-owned read-only application tree, UID/GID 10001, read-only root filesystem, dropped capabilities, `no-new-privileges`, bounded private `/tmp`, health check, loopback-only port, durable data volume, protected backup mount, and absence of build-time secrets, `.env`, `.git`, dev tooling, live data, or backup material.
-- [ ] Decide and record the published platform set (`linux/amd64` only or `linux/amd64` plus `linux/arm64`) from the actual preview hosts and intended self-hosted support. On every supported architecture, perform a native clean image build/install and boot that exercises `better-sqlite3`; a manifest-only build, QEMU-only build, or successful JavaScript test on another architecture is not release proof.
-- [ ] Confirm Compose retains operator-owned integration points: root `0600` secrets/environment, non-overlapping bridge/gateway/`TRUST_PROXY`, loopback-only Node, Caddy/TLS edge, reachable protected `clamd` with fail-closed production readiness, durable local-block storage, off-container backups, and separate Secure Notes recovery material.
-- [ ] Produce retained provenance for each candidate image (source revision, runtime-artifact checksum, resolved base digest, application/branch identity, platform, and image digest), accurate OCI license/version labels, and an SBOM or an explicit reviewed deferral.
-- [ ] Run `npm run docs:suggest`, update the owning contract docs for decisions made in this slice, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.1`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- The support matrix, asset transition inventory, image security baseline, controlled runtime-artifact payload, provenance, and exact supported Linux architectures are recorded; `artifact:smoke` passes; and `better-sqlite3` installs and boots natively on every architecture that will receive a published image.
-
-### Version 0.33.28.2 - Supported Compose install, upgrade, backup, restore, and recovery proof
-
-**Model: High Effort** — This makes one Compose lifecycle the production contract and must prove data durability and migration-safe recovery rather than only proving that a container starts.
-
-- [ ] Finalize one operator procedure for Compose installation and deployment by immutable image digest: validate configuration, create/protect the data volume and backup destination, start without exposing Node publicly, require container health, and verify direct-loopback plus public `/healthz`, `/readyz`, `/api/app-info`, login/session, workspace, Files, and one representative workflow before opening traffic.
-- [ ] Exercise the supported backup-first Compose upgrade end to end on disposable native Linux/container infrastructure: record version/image digest/volume/schema identity, enter maintenance, create and inspect the complete whole-instance backup plus separate recovery-key prerequisite, stop without deleting data, select the candidate digest, force-recreate, let startup own forward migrations, and verify before restoring traffic.
-- [ ] State and prove the rollback rule explicitly: selecting the prior image does not reverse migrations. Permit image-only rollback only when every applied migration is explicitly backward-compatible; otherwise restore the verified pre-upgrade database and Files together into a clean recovery volume, select the prior image, and re-run full verification. Never reverse migrations by hand or combine an older database with newer Files.
-- [ ] Prove durable persistence across stop/start, image replacement, failed candidate, restore, and restored rollback: SQLite database plus WAL/SHM and local Files remain together on local block-backed storage; backup output remains separate and protected; volumes are never shared by multiple app containers or placed on NFS/SMB/cloud-synced/object-storage mounts.
-- [ ] Prove the 0.33.23 error pages and 0.33.24 maintenance curtain through the Compose/Caddy topology, including truthful health/readiness behavior while Node is stopped or unhealthy and no traffic reopening before identity and workflow verification.
-- [ ] Expand `npm run container:smoke` as the required production-deployment acceptance proof for clean native build, non-root/read-only/capability-restricted boot, health, persistence, replacement, backup-first upgrade, restore, and restored rollback. A missing Docker engine or unavailable supported architecture is a failed prerequisite, not a passing skip.
-- [ ] Run `npm run docs:suggest`, update the supported lifecycle/recovery documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.2`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- One documented Compose lifecycle covers supported installation, deployment, upgrade, backup, restore, rollback, and recovery; durable state survives image operations; migration-incompatible rollback restores the verified backup; maintenance/error surfaces and ClamAV readiness behave correctly; and the native container acceptance gate is required and green.
-
-### Version 0.33.28.3 - Immutable image publishing and supported deployment transport
-
-**Model: High Effort** — The public release must deliver the exact reviewed image without creating a standing broad credential, interactive shell, or artifact-based alternate production path.
-
-- [ ] Choose and document the least-privilege image transport: an immutable digest-addressed registry pull (for example GHCR) or a checksummed image transfer through the existing constrained host handoff. The supported result deploys Compose by image digest; it does not extract the runtime tarball as a direct production release.
-- [ ] Publish only reviewed platform manifests and immutable release images, with no mutable `latest` deployment reference. Scope registry or transport credentials to the minimum host/repository action, keep secrets/live data out of image layers, and document credential rotation and revocation.
-- [ ] Adapt the root-owned preview helper and manual workflow only as needed to preserve the reviewed stop → backup → deploy Compose digest → start → verify → restore boundary. Retain pinned host keys, the non-interactive low-privilege deployment account, isolated disabled-by-default GitHub Environments, and no root SSH login, general-purpose runner, Caddy administration, data access, or runtime-secret exposure.
-- [ ] Keep the checksummed runtime artifact and `artifact:smoke` in release production as image-build inputs/provenance evidence. Update GitHub Release metadata to bind source revision, artifact checksum, platform manifest, and image digest without advertising the tarball as a supported production installer.
-- [ ] Update release and preview regressions to reject an unverified/non-`main`/mutable image, identity mismatch, unsupported platform, missing native `better-sqlite3` proof, or a deployment transport that bypasses backup-first verification.
-- [ ] Run `npm run docs:suggest`, update the image publication/transport/release documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.3`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- The reviewed image reaches the host by a least-privilege immutable-digest transport; release metadata binds source, artifact, platform, and image identities; deployment remains backup-first and non-interactive; and neither the runtime tarball nor a mutable tag becomes a second supported production path.
 
 ### Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
 

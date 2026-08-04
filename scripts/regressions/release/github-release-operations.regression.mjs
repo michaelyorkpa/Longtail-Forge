@@ -74,6 +74,11 @@ for (const requirement of [
   /name: Packaging and recovery/,
   /npm run container:smoke/,
 ]) assert.match(promotion, requirement);
+assert.match(
+  promotion,
+  /name: Container recovery proof[\s\S]*name: Install pinned Caddy container-smoke binary[\s\S]*CADDY_VERSION: 2\.11\.4[\s\S]*sha512sum --check --strict[\s\S]*npm run container:smoke/,
+  "the native container promotion proof must install the reviewed Caddy binary before exercising the real proxy boundary",
+);
 
 assert.match(nightly, /push:[\s\S]*branches: \[nightly\]/);
 assert.match(nightly, /schedule:[\s\S]*cron:/);
@@ -96,10 +101,12 @@ assert.doesNotMatch(mainRelease, /environment: friends-and-family-preview|deploy
 for (const requirement of [
   /workflow_dispatch:/,
   /contents: write/,
+  /packages: write/,
   /RELEASE \$TAG \$REVISION/,
   /git tag -a/,
   /gh release create/,
   /release-metadata\.json/,
+  /platform-manifest\.json/,
   /refusing to replace immutable assets/,
 ]) assert.match(manualRelease, requirement);
 assert.doesNotMatch(manualRelease, /^\s*push:/m);
@@ -112,7 +119,7 @@ for (const requirement of [
   /validate-release-revision\.mjs/,
   /git checkout --detach "\$REVISION"/,
   /deploy-via-ssh\.mjs/,
-  /--mode rollback/,
+  /--mode compose-rollback/,
 ]) assert.match(manualPreview, requirement);
 assert.doesNotMatch(manualPreview, /^\s*push:/m);
 

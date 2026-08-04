@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { validatePublishedReleaseMetadata } from "./published-container-image.mjs";
 
 const options = parseArgs(process.argv.slice(2));
 const config = readConfig(process.env);
@@ -24,7 +25,7 @@ try {
     for (const filePath of [artifact, `${artifact}.sha256`, metadata]) await fs.access(filePath);
     run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), artifact, `${artifact}.sha256`, metadata, `${destination}:${config.inbox}/`]);
     const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
-    run("ssh", [...sshArgs, destination, remoteCommand(config, [
+    run("ssh", [...sshArgs, destination, remoteCommand(config.helper, [
       "deploy",
       "--artifact", path.basename(artifact),
       "--metadata", path.basename(metadata),
@@ -38,7 +39,33 @@ try {
     process.exit(0);
   }
 
-  run("ssh", [...sshArgs, destination, remoteCommand(config, ["rollback", "--expected-commit", options.revision])]);
+  if (options.mode === "compose-deploy" || options.mode === "compose-rollback") {
+    const metadata = path.resolve(options.metadata);
+    await fs.access(metadata);
+    const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
+    const identity = validatePublishedReleaseMetadata(metadataJson);
+    run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), metadata, `${destination}:${config.composeInbox}/`]);
+    const helperMode = options.mode === "compose-deploy" ? "deploy" : "rollback";
+    const helperOutput = run("ssh", [...sshArgs, destination, remoteCommand(config.composeHelper, [
+      helperMode,
+      "--metadata", path.basename(metadata),
+      "--expected-version", identity.version,
+      "--expected-source-branch", "main",
+      "--expected-commit", identity.commitSha,
+      "--expected-artifact-sha256", identity.artifactSha256,
+      "--expected-image-digest", identity.digest,
+      "--expected-platform-manifest-digest", identity.platformManifestDigest,
+    ])]);
+    const helperResult = parseHelperResult(helperOutput);
+    if (helperResult.imageDigest !== identity.digest || helperResult.commitSha !== identity.commitSha) {
+      throw new Error("Compose host helper result does not match the selected immutable image identity.");
+    }
+    await verifyPublic(config.publicUrl, metadataJson);
+    console.log(JSON.stringify({ ok: true, mode: options.mode, ...identity }));
+    process.exit(0);
+  }
+
+  run("ssh", [...sshArgs, destination, remoteCommand(config.helper, ["rollback", "--expected-commit", options.revision])]);
   const appInfo = await readJson(`${config.publicUrl}/api/app-info`);
   if (appInfo.commitSha !== options.revision) throw new Error("Rollback target commit does not match /api/app-info.");
   await requireOk(`${config.publicUrl}/healthz`, "ok");
@@ -61,9 +88,12 @@ function parseArgs(args) {
     }
     throw new Error(`Unknown SSH deployment argument: ${arg}`);
   }
-  if (!/^(deploy|rollback)$/.test(options.mode || "")) throw new Error("--mode must be deploy or rollback.");
+  if (!/^(deploy|rollback|compose-deploy|compose-rollback)$/.test(options.mode || "")) throw new Error("--mode must be deploy, rollback, compose-deploy, or compose-rollback.");
   if (options.mode === "deploy" && (!options.artifact || !options.metadata)) throw new Error("Deploy mode requires --artifact and --metadata.");
   if (options.mode === "rollback" && !/^[a-f0-9]{40}$/i.test(options.revision || "")) throw new Error("Rollback mode requires --revision as a full commit SHA.");
+  if ((options.mode === "compose-deploy" || options.mode === "compose-rollback") && !options.metadata) {
+    throw new Error("Compose deploy and rollback modes require --metadata.");
+  }
   return options;
 }
 
@@ -75,7 +105,9 @@ function readConfig(env) {
     privateKey: env.LTF_DEPLOY_SSH_PRIVATE_KEY,
     knownHosts: env.LTF_DEPLOY_KNOWN_HOSTS,
     inbox: env.LTF_DEPLOY_INBOX || "/var/lib/longtail-forge-deploy/inbox",
+    composeInbox: env.LTF_COMPOSE_DEPLOY_INBOX || "/var/lib/longtail-forge-compose-deploy/inbox",
     helper: env.LTF_DEPLOY_HELPER || "/usr/local/sbin/longtail-forge-deploy",
+    composeHelper: env.LTF_COMPOSE_DEPLOY_HELPER || "/usr/local/sbin/longtail-forge-compose-deploy",
     publicUrl: String(env.LTF_DEPLOY_PUBLIC_URL || "").replace(/\/$/, ""),
   };
   for (const key of ["host", "user", "privateKey", "knownHosts", "publicUrl"]) {
@@ -85,14 +117,16 @@ function readConfig(env) {
   if (!/^[a-z_][a-z0-9_-]*$/i.test(values.user)) throw new Error("Deployment user contains unsupported characters.");
   if (!Number.isInteger(values.port) || values.port < 1 || values.port > 65535) throw new Error("Deployment port is invalid.");
   if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.inbox) || values.inbox.includes("..")) throw new Error("Deployment inbox must be a safe absolute path.");
+  if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.composeInbox) || values.composeInbox.includes("..")) throw new Error("Compose deployment inbox must be a safe absolute path.");
   if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.helper) || values.helper.includes("..")) throw new Error("Deployment helper must be a safe absolute path.");
+  if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.composeHelper) || values.composeHelper.includes("..")) throw new Error("Compose deployment helper must be a safe absolute path.");
   const url = new URL(values.publicUrl);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw new Error("Deployment public URL must be a clean HTTPS origin.");
   return values;
 }
 
-function remoteCommand(config, args) {
-  return ["sudo", "-n", config.helper, ...args].map(shellQuote).join(" ");
+function remoteCommand(helper, args) {
+  return ["sudo", "-n", helper, ...args].map(shellQuote).join(" ");
 }
 
 function shellQuote(value) {
@@ -103,6 +137,20 @@ function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (result.status !== 0) throw new Error(`${command} failed: ${String(result.stderr || result.stdout).trim()}`);
   if (result.stdout) process.stdout.write(result.stdout);
+  return String(result.stdout || "");
+}
+
+function parseHelperResult(output) {
+  const lines = String(output || "").trim().split(/\r?\n/).filter(Boolean);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    try {
+      const result = JSON.parse(lines[index]);
+      if (result?.ok === true && typeof result.imageDigest === "string" && typeof result.commitSha === "string") return result;
+    } catch {
+      // Retain earlier helper diagnostics and continue to the final structured line.
+    }
+  }
+  throw new Error("Compose host helper did not return its structured immutable-image result.");
 }
 
 async function verifyPublic(publicUrl, metadata) {
@@ -125,4 +173,4 @@ async function readJson(url) {
   return response.json();
 }
 
-export const __test = { parseArgs, readConfig, shellQuote };
+export const __test = { parseArgs, parseHelperResult, readConfig, shellQuote };

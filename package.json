@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.27.9.2",
+  "version": "0.33.28.3",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -27,6 +27,7 @@
     "workspace-backup:drill": "node scripts/workspace-backup-drill.mjs",
     "workspace:purge": "node scripts/workspace-purge.mjs",
     "container:build": "node scripts/build-container-image.mjs",
+    "image:publish": "node scripts/release/published-container-image.mjs",
     "container:smoke": "node scripts/container-deployment-smoke.mjs",
     "proxy:smoke:multi": "node scripts/reference-caddy-security-smoke.mjs --topology multi-proxy",
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",

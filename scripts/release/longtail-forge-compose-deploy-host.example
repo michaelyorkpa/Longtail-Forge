@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+
+fail() {
+  printf 'longtail-forge-compose-deploy: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
+}
+
+require_root_owned_private_file() {
+  local target="$1" label="$2" owner mode parent parent_owner parent_mode
+  test -f "$target" && test ! -L "$target" || fail "$label must be a regular non-symbolic-link file"
+  owner="$(stat -c '%u' "$target")"
+  mode="$(stat -c '%a' "$target")"
+  test "$owner" = "0" || fail "$label must be root-owned"
+  test "$mode" = "600" || fail "$label must use mode 0600"
+  parent="$(dirname "$target")"
+  parent_owner="$(stat -c '%u' "$parent")"
+  parent_mode="$(stat -c '%a' "$parent")"
+  test "$parent_owner" = "0" || fail "$label parent must be root-owned"
+  test $((8#$parent_mode & 8#022)) -eq 0 || fail "$label parent must not be group- or other-writable"
+}
+
+load_helper_environment() {
+  require_root_owned_private_file "$HELPER_ENV" "compose helper environment"
+  local line key
+  declare -A seen=()
+  while IFS= read -r line || test -n "$line"; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    key="${line%%=*}"
+    [[ "$key" =~ $ALLOWED_ENV_KEYS ]] || fail "compose helper environment contains unsupported key: $key"
+    test -z "${seen[$key]:-}" || fail "compose helper environment contains duplicate key: $key"
+    seen[$key]=1
+    export "$line"
+  done < "$HELPER_ENV"
+}
+
+require_safe_absolute_path() {
+  local target="$1" label="$2"
+  [[ "$target" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
+  [[ "$target" != *'/../'* && "$target" != */.. && "$target" != *'//'* ]] || fail "$label contains unsafe traversal"
+}
+
+load_helper_environment
+
+COMPOSE_DIR="${LTF_COMPOSE_DIR:-/opt/longtail-forge-compose}"
+COMPOSE_FILE="${LTF_COMPOSE_FILE:-$COMPOSE_DIR/compose.yaml}"
+COMPOSE_HOST_ENV="${LTF_COMPOSE_HOST_ENV:-/etc/longtail-forge/compose-host.env}"
+DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
+INBOX="$DEPLOY_ROOT/inbox"
+STATE_ROOT="$DEPLOY_ROOT/state"
+RELEASE_ROOT="$DEPLOY_ROOT/releases"
+OPERATION_ROOT="$DEPLOY_ROOT/operations"
+BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge}"
+DEPLOY_ACCOUNT="${LTF_DEPLOY_ACCOUNT:-longtail-forge-deploy}"
+MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
+DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/active"
+PUBLIC_URL="${LTF_PUBLIC_URL:-}"
+IMAGE_REPOSITORY="${LTF_IMAGE_REPOSITORY:-}"
+SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+CURRENT_STATE="$STATE_ROOT/current.json"
+PREVIOUS_STATE="$STATE_ROOT/previous.json"
+
+for pair in \
+  "$COMPOSE_DIR:compose directory" \
+  "$COMPOSE_FILE:compose file" \
+  "$COMPOSE_HOST_ENV:compose host environment" \
+  "$DEPLOY_ROOT:deployment root" \
+  "$BACKUP_ROOT:backup root" \
+  "$MAINTENANCE_STATE_ROOT:maintenance state root"; do
+  require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
+done
+[[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
+[[ "$IMAGE_REPOSITORY" =~ ^ghcr\.io/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$ ]] || fail "LTF_IMAGE_REPOSITORY must be a lowercase GHCR repository"
+[[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "deployment account is invalid"
+test "$BACKUP_ROOT" = "/var/backups/longtail-forge" || fail "backup root must match the fixed Compose backup mount target"
+if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
+
+for command in curl docker grep install jq stat; do require_command "$command"; done
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
+test "$(id -u)" = "0" || fail "helper must run as root through the constrained sudo rule"
+id "$DEPLOY_ACCOUNT" >/dev/null 2>&1 || fail "deployment account does not exist"
+test -d "$COMPOSE_DIR" && test ! -L "$COMPOSE_DIR" || fail "compose directory must be a real directory"
+test -f "$COMPOSE_FILE" && test ! -L "$COMPOSE_FILE" || fail "compose file must be a real file"
+require_root_owned_private_file "$COMPOSE_HOST_ENV" "compose host environment"
+
+install -d -o root -g root -m 0711 "$DEPLOY_ROOT"
+install -d -o "$DEPLOY_ACCOUNT" -g "$DEPLOY_ACCOUNT" -m 0700 "$INBOX"
+install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROOT"
+install -d -o 10001 -g 10001 -m 0700 "$BACKUP_ROOT"
+test "$(stat -c '%u:%g:%a' "$BACKUP_ROOT")" = "10001:10001:700" || fail "backup root must be owner-only for container UID/GID 10001"
+test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail "deployment marker directory is not installed"
+
+MODE="${1:-}"
+shift || true
+METADATA_NAME=''
+EXPECTED_VERSION=''
+EXPECTED_SOURCE_BRANCH=''
+EXPECTED_COMMIT=''
+EXPECTED_ARTIFACT_SHA256=''
+EXPECTED_IMAGE_DIGEST=''
+EXPECTED_PLATFORM_MANIFEST_DIGEST=''
+
+while test "$#" -gt 0; do
+  case "$1" in
+    --metadata) METADATA_NAME="${2:-}"; shift 2 ;;
+    --expected-version) EXPECTED_VERSION="${2:-}"; shift 2 ;;
+    --expected-source-branch) EXPECTED_SOURCE_BRANCH="${2:-}"; shift 2 ;;
+    --expected-commit) EXPECTED_COMMIT="${2:-}"; shift 2 ;;
+    --expected-artifact-sha256) EXPECTED_ARTIFACT_SHA256="${2:-}"; shift 2 ;;
+    --expected-image-digest) EXPECTED_IMAGE_DIGEST="${2:-}"; shift 2 ;;
+    --expected-platform-manifest-digest) EXPECTED_PLATFORM_MANIFEST_DIGEST="${2:-}"; shift 2 ;;
+    *) fail "unknown argument: $1" ;;
+  esac
+done
+
+case "$MODE" in deploy|rollback) ;; *) fail "command must be deploy or rollback" ;; esac
+[[ "$METADATA_NAME" =~ ^release-metadata(-[A-Za-z0-9._-]+)?\.json$ ]] || fail "metadata filename is invalid"
+[[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || fail "expected version is invalid"
+test "$EXPECTED_SOURCE_BRANCH" = "main" || fail "only protected main release metadata is accepted"
+[[ "$EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]] || fail "expected commit must be a full lowercase SHA"
+[[ "$EXPECTED_ARTIFACT_SHA256" =~ ^[a-f0-9]{64}$ ]] || fail "expected artifact checksum is invalid"
+[[ "$EXPECTED_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || fail "expected image digest is invalid"
+[[ "$EXPECTED_PLATFORM_MANIFEST_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || fail "expected platform manifest digest is invalid"
+
+OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-${EXPECTED_COMMIT:0:12}-$MODE"
+OPERATION_DIR="$OPERATION_ROOT/$OPERATION_ID"
+test ! -e "$OPERATION_DIR" || fail "operation already exists; inspect the protected record before retrying"
+install -d -o root -g root -m 0700 "$OPERATION_DIR"
+SOURCE_METADATA="$INBOX/$METADATA_NAME"
+test -f "$SOURCE_METADATA" && test ! -L "$SOURCE_METADATA" || fail "metadata is missing from the private inbox"
+test "$(stat -c '%U' "$SOURCE_METADATA")" = "$DEPLOY_ACCOUNT" || fail "metadata must be owned by the deployment account"
+METADATA="$OPERATION_DIR/release-metadata.json"
+install -o root -g root -m 0600 "$SOURCE_METADATA" "$METADATA"
+rm -f -- "$SOURCE_METADATA"
+
+metadata_value() { jq -er "$1" "$METADATA"; }
+test "$(metadata_value '.schemaVersion')" = "2" || fail "release metadata schema must be 2"
+test "$(metadata_value '.application')" = "longtail-forge" || fail "release metadata application mismatch"
+test "$(metadata_value '.channel')" = "main" || fail "release metadata channel must be main"
+test "$(metadata_value '.sourceBranch')" = "$EXPECTED_SOURCE_BRANCH" || fail "release metadata source mismatch"
+test "$(metadata_value '.version')" = "$EXPECTED_VERSION" || fail "release metadata version mismatch"
+test "$(metadata_value '.commitSha')" = "$EXPECTED_COMMIT" || fail "release metadata commit mismatch"
+test "$(metadata_value '.artifact.sha256')" = "$EXPECTED_ARTIFACT_SHA256" || fail "release metadata artifact mismatch"
+test "$(metadata_value '.image.repository')" = "$IMAGE_REPOSITORY" || fail "release metadata registry repository mismatch"
+test "$(metadata_value '.image.digest')" = "$EXPECTED_IMAGE_DIGEST" || fail "release metadata image digest mismatch"
+test "$(metadata_value '.image.reference')" = "$IMAGE_REPOSITORY@$EXPECTED_IMAGE_DIGEST" || fail "release metadata image reference must be digest-addressed"
+test "$(metadata_value '.image.platform')" = "linux/amd64" || fail "release metadata platform is unsupported"
+test "$(metadata_value '.image.platformManifest.digest')" = "$EXPECTED_PLATFORM_MANIFEST_DIGEST" || fail "release metadata platform manifest mismatch"
+test "$(metadata_value '.image.platformManifest.os')" = "linux" || fail "release metadata platform OS is unsupported"
+test "$(metadata_value '.image.platformManifest.architecture')" = "amd64" || fail "release metadata platform architecture is unsupported"
+test "$(metadata_value '.image.nativeDependency.execution')" = "published-digest" || fail "native dependency proof is missing"
+test "$(metadata_value '.image.nativeDependency.betterSqlite3Version')" = "13.0.1" || fail "native better-sqlite3 proof is missing"
+test "$(metadata_value '.image.attestations.sbom.predicateType')" = "https://spdx.dev/Document" || fail "registry SBOM attestation is missing"
+metadata_value '.image.attestations.provenance.predicateType | startswith("https://slsa.dev/provenance/")' | grep -qx true || fail "registry provenance attestation is missing"
+
+IMAGE_REFERENCE="$IMAGE_REPOSITORY@$EXPECTED_IMAGE_DIGEST"
+RELEASE_KEY="${EXPECTED_IMAGE_DIGEST#sha256:}"
+RELEASE_ENV="$RELEASE_ROOT/$RELEASE_KEY.env"
+RELEASE_METADATA="$RELEASE_ROOT/$RELEASE_KEY.json"
+printf 'LONGTAIL_IMAGE=%s\n' "$IMAGE_REFERENCE" > "$OPERATION_DIR/release.env"
+install -o root -g root -m 0600 "$OPERATION_DIR/release.env" "$RELEASE_ENV"
+install -o root -g root -m 0600 "$METADATA" "$RELEASE_METADATA"
+
+compose() {
+  local release_env="$1"
+  shift
+  docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
+    --env-file "$COMPOSE_HOST_ENV" --env-file "$release_env" "$@"
+}
+
+state_value() {
+  local state="$1" expression="$2"
+  jq -er "$expression" "$state"
+}
+
+verify_image() {
+  local reference="$1"
+  docker pull --platform linux/amd64 "$reference"
+  docker image inspect "$reference" --format '{{json .RepoDigests}}' | jq -e --arg reference "$reference" 'index($reference) != null' >/dev/null
+  test "$(docker image inspect "$reference" --format '{{.Os}}/{{.Architecture}}')" = "linux/amd64" || fail "pulled image platform mismatch"
+  test "$(docker image inspect "$reference" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_COMMIT" || fail "pulled image revision label mismatch"
+  test "$(docker image inspect "$reference" --format '{{index .Config.Labels "com.longtailforge.runtime-artifact.sha256"}}')" = "$EXPECTED_ARTIFACT_SHA256" || fail "pulled image artifact label mismatch"
+  test "$(docker image inspect "$reference" --format '{{index .Config.Labels "com.longtailforge.source-branch"}}')" = "main" || fail "pulled image source label mismatch"
+}
+
+assert_marker() {
+  test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail "deployment marker parent is unsafe"
+  if test -e "$DEPLOYMENT_MARKER"; then
+    test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail "deployment marker substitution is unsafe"
+  else
+    install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
+  fi
+}
+
+clear_marker() {
+  test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail "deployment marker is not a safe regular file"
+  rm -f -- "$DEPLOYMENT_MARKER"
+}
+
+backup_with_state() {
+  local state="$1" output="$2" release_env reference
+  release_env="$(state_value "$state" '.deployment.releaseEnv')"
+  reference="$(state_value "$state" '.image.reference')"
+  test -f "$release_env" && test ! -L "$release_env" || fail "recorded release environment is missing"
+  compose "$release_env" stop longtail-forge
+  local key_args=()
+  if test -n "$SECURE_KEY_BACKUP"; then
+    test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
+    key_args=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro")
+  fi
+  compose "$release_env" run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs create \
+    --confirm-stopped \
+    --database /var/lib/longtail-forge/longtail-forge.db \
+    --files-root /var/lib/longtail-forge/files \
+    --output "$output" \
+    ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
+  compose "$release_env" run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs inspect \
+    --archive "$output" \
+    ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
+  printf '%s\n' "$reference" >/dev/null
+}
+
+restore_with_state() {
+  local state="$1" archive="$2" pre_restore="$3" release_env
+  release_env="$(state_value "$state" '.deployment.releaseEnv')"
+  local key_args=()
+  if test -n "$SECURE_KEY_BACKUP"; then key_args=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro"); fi
+  compose "$release_env" stop longtail-forge || true
+  compose "$release_env" run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs restore \
+    --confirm-stopped \
+    --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" \
+    --archive "$archive" \
+    --database /var/lib/longtail-forge/longtail-forge.db \
+    --files-root /var/lib/longtail-forge/files \
+    --pre-restore-backup "$pre_restore" \
+    ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
+}
+
+wait_for_health() {
+  local release_env="$1" container deadline status
+  container="$(compose "$release_env" ps -q longtail-forge)"
+  test -n "$container" || fail "Compose did not create the application container"
+  deadline=$((SECONDS + 90))
+  while test "$SECONDS" -lt "$deadline"; do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container")"
+    test "$status" != "unhealthy" || return 1
+    test "$status" = "healthy" && return 0
+    sleep 2
+  done
+  return 1
+}
+
+verify_runtime() {
+  local metadata_file="$1" release_env="$2" version commit artifact
+  version="$(jq -er '.version' "$metadata_file")"
+  commit="$(jq -er '.commitSha' "$metadata_file")"
+  artifact="$(jq -er '.artifact.sha256' "$metadata_file")"
+  wait_for_health "$release_env" || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
+    --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
+    '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/api/app-info" | jq -e \
+    --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
+    '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null
+}
+
+write_state() {
+  local metadata_file="$1" release_env="$2" rollback_backup="$3" output="$4"
+  jq --arg releaseEnv "$release_env" --arg rollbackBackup "$rollback_backup" \
+    '. + {deployment:{releaseEnv:$releaseEnv,rollbackBackup:$rollbackBackup}}' "$metadata_file" > "$OPERATION_DIR/state.json"
+  install -o root -g root -m 0600 "$OPERATION_DIR/state.json" "$output"
+}
+
+verify_image "$IMAGE_REFERENCE"
+compose "$RELEASE_ENV" config --quiet
+compose "$RELEASE_ENV" config --format json | jq -e --arg backup "$BACKUP_ROOT" '
+  .services["longtail-forge"].volumes
+  | any(.type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge")
+' >/dev/null || fail "resolved Compose backup mount must bind the protected host backup root to the fixed container target"
+assert_marker
+
+CURRENT_BACKUP=''
+RECOVERY_SUCCEEDED=false
+
+if test "$MODE" = "deploy"; then
+  test -f "$CURRENT_STATE" || fail "automated deployment requires the recorded known-good Compose baseline established by the 0.33.28.4 cutover"
+  CURRENT_BACKUP="$BACKUP_ROOT/pre-upgrade-$OPERATION_ID.ltfbackup.tgz"
+  backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
+  install -o root -g root -m 0600 "$CURRENT_STATE" "$OPERATION_DIR/prior-state.json"
+
+  if compose "$RELEASE_ENV" up -d --no-deps --force-recreate longtail-forge \
+      && verify_runtime "$METADATA" "$RELEASE_ENV"; then
+    if test -f "$OPERATION_DIR/prior-state.json"; then
+      jq --arg rollbackBackup "$CURRENT_BACKUP" '.deployment.rollbackBackup=$rollbackBackup' "$OPERATION_DIR/prior-state.json" > "$OPERATION_DIR/previous-state.json"
+      install -o root -g root -m 0600 "$OPERATION_DIR/previous-state.json" "$PREVIOUS_STATE"
+    fi
+    write_state "$METADATA" "$RELEASE_ENV" "" "$CURRENT_STATE"
+    clear_marker
+    printf '{"ok":true,"mode":"deploy","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"}\n' \
+      "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST"
+    exit 0
+  fi
+
+  if test -f "$OPERATION_DIR/prior-state.json" && test -n "$CURRENT_BACKUP"; then
+    prior_digest="$(state_value "$OPERATION_DIR/prior-state.json" '.image.digest')"
+    prior_metadata="$RELEASE_ROOT/${prior_digest#sha256:}.json"
+    prior_env="$(state_value "$OPERATION_DIR/prior-state.json" '.deployment.releaseEnv')"
+    pre_restore="$BACKUP_ROOT/pre-restore-$OPERATION_ID-failed-deploy.ltfbackup.tgz"
+    if restore_with_state "$OPERATION_DIR/prior-state.json" "$CURRENT_BACKUP" "$pre_restore" \
+        && compose "$prior_env" up -d --no-deps --force-recreate longtail-forge \
+        && verify_runtime "$prior_metadata" "$prior_env"; then
+      RECOVERY_SUCCEEDED=true
+      clear_marker
+    fi
+  fi
+  test "$RECOVERY_SUCCEEDED" = true && fail "candidate failed; prior release and data were restored and verified"
+  fail "candidate and verified recovery did not complete; deployment marker and protected evidence remain"
+fi
+
+test -f "$CURRENT_STATE" || fail "rollback requires a recorded current release"
+test -f "$PREVIOUS_STATE" || fail "rollback requires a recorded previous release and backup"
+test "$(state_value "$PREVIOUS_STATE" '.commitSha')" = "$EXPECTED_COMMIT" || fail "rollback target does not match the recorded previous release"
+test "$(state_value "$PREVIOUS_STATE" '.image.digest')" = "$EXPECTED_IMAGE_DIGEST" || fail "rollback digest does not match the recorded previous release"
+TARGET_BACKUP="$(state_value "$PREVIOUS_STATE" '.deployment.rollbackBackup')"
+test -f "$TARGET_BACKUP" && test ! -L "$TARGET_BACKUP" || fail "recorded rollback backup is missing"
+CURRENT_BACKUP="$BACKUP_ROOT/pre-rollback-$OPERATION_ID.ltfbackup.tgz"
+backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
+current_digest="$(state_value "$CURRENT_STATE" '.image.digest')"
+current_metadata="$RELEASE_ROOT/${current_digest#sha256:}.json"
+target_env="$(state_value "$PREVIOUS_STATE" '.deployment.releaseEnv')"
+pre_restore="$BACKUP_ROOT/pre-restore-$OPERATION_ID-target.ltfbackup.tgz"
+
+if restore_with_state "$PREVIOUS_STATE" "$TARGET_BACKUP" "$pre_restore" \
+    && compose "$target_env" up -d --no-deps --force-recreate longtail-forge \
+    && verify_runtime "$METADATA" "$target_env"; then
+  jq --arg rollbackBackup "$CURRENT_BACKUP" '.deployment.rollbackBackup=$rollbackBackup' "$CURRENT_STATE" > "$OPERATION_DIR/previous-state.json"
+  install -o root -g root -m 0600 "$OPERATION_DIR/previous-state.json" "$PREVIOUS_STATE"
+  write_state "$METADATA" "$target_env" "" "$CURRENT_STATE"
+  clear_marker
+  printf '{"ok":true,"mode":"rollback","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"}\n' \
+    "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST"
+  exit 0
+fi
+
+current_env="$(state_value "$CURRENT_STATE" '.deployment.releaseEnv')"
+current_pre_restore="$BACKUP_ROOT/pre-restore-$OPERATION_ID-current.ltfbackup.tgz"
+if restore_with_state "$CURRENT_STATE" "$CURRENT_BACKUP" "$current_pre_restore" \
+    && compose "$current_env" up -d --no-deps --force-recreate longtail-forge \
+    && verify_runtime "$current_metadata" "$current_env"; then
+  clear_marker
+  fail "rollback target failed; pre-rollback current release and data were restored and verified"
+fi
+fail "rollback and current-state recovery failed; deployment marker and all protected evidence remain"

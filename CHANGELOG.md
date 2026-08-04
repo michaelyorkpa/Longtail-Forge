@@ -1,3 +1,33 @@
+## Version 0.33.28.3 - 2026-08-04
+
+- Added protected-`main` GHCR publication for the exact checksummed runtime artifact, producing an immutable `linux/amd64` image-index digest with registry-attached SPDX SBOM and SLSA provenance attestations and native `better-sqlite3`/SQLite execution proof.
+- Advanced release metadata to schema 2 so GitHub Releases bind the source revision, artifact checksum, image-index and platform-manifest digests, image configuration, native-dependency result, and attestation manifests. The tarball remains controlled build input and provenance evidence, not a supported production installer.
+- Reworked manual preview deployment around an operator-selected immutable image digest and metadata-only constrained SSH handoff. The new root-owned Compose helper validates every identity before its backup-first deploy/restore boundary and refuses automated first installation until 0.33.28.4 records the live known-good baseline.
+- Kept registry write authority isolated to the release workflow, documented a separate host pull-only credential and rotation/revocation procedure, prohibited mutable `latest`, and preserved disabled-by-default GitHub Environments and the existing bare-metal recovery path through live cutover.
+- Added focused image-publication, workflow, helper, release-metadata, platform/native-proof, and backup-boundary regressions, and refreshed the regression coverage manifest and inventory.
+- Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, `docs/longtail-forge-compose-deploy-helper.env.example`, `docs/preview-deployment.md`, `docs/private-preview-readiness.md`, `docs/regression-suite.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/self-hosting.md`, `docs/upgrading.md`, and `docs/versioning.md`.
+
+## Version 0.33.28.2 - 2026-08-04
+
+- Completed the sole supported Compose operator lifecycle for immutable-digest installation, protected local data and backup storage, loopback/public acceptance, backup-first upgrade, migration-aware rollback, clean-volume whole-instance restore, and failed-recovery containment beneath the maintenance curtain.
+- Expanded `container:smoke` into a native `linux/amd64` lifecycle proof with two clean controlled-artifact builds, exact local image identity, hardened Compose inspection, the host's exact Caddy `v2.11.4` against Compose's fixed loopback port, protocol-level ClamAV readiness, authenticated workspace/workflow/File state, stop/start and replacement persistence, real backup/inspection, a scanner-unready failed candidate, healthy force-recreated upgrade, and restored rollback with SQLite/migration integrity.
+- Made the rollback rule explicit and executable: image-only rollback requires a complete backward-compatibility record for every candidate migration; otherwise the prior image restores the verified pre-upgrade database and Files together into a new recovery volume. Manual reverse migrations and mixed database/Files state remain unsupported.
+- Fixed whole-instance restore to normalize the recovered Files root to owner-only POSIX mode `0700`, preventing production readiness from rejecting a correctly restored installation, extended the disposable restore drill to guard that startup contract, and documented/proved the idempotent mode-normalization compatibility step required when rolling back through the older `0.33.28.1` restore utility.
+- Kept backup output and the separately protected Secure Notes recovery-key prerequisite outside the live volume, retained both images and failed/upgraded state through observation, and kept ordinary traffic closed until exact identity plus representative workflow verification passed.
+- Docs updated: `docs/backup-restore.md`, `docs/compose.env.example`, `docs/preview-deployment.md`, and `docs/upgrading.md`.
+- No docs change needed: `DECISIONS.md` already governs Compose-only production support and migration-aware restored rollback; application module Help and user workflows are unchanged.
+- No docs change needed: the other database/release suggestions already defer the supported lifecycle to the updated owning runbooks or cover unchanged publication, runtime, and module contracts.
+
+## Version 0.33.28.1 - 2026-08-04
+
+- Established Docker Compose on Debian Bookworm/glibc `linux/amd64` as the sole supported production/self-hosted deployment. Direct Node/systemd remains available only for development, testing, advanced experimentation, and protection of the two existing bare-metal hosts during the bounded cutover.
+- Recorded the retained/adapted/retired-after-cutover inventory for the runtime artifact, Docker/Compose assets, bare-metal smoke and systemd example, root-owned deployment helper/SSH handoff, release workflows/regressions, and operator lifecycle documentation.
+- Fixed image builds to `linux/amd64`, kept the checksum-verified runtime artifact as the only accepted application payload, verified the pinned Node base digest, and made the final image prove its version, AGPL license, platform, and artifact-checksum labels.
+- Added release-metadata binding for candidate image source branch and full revision, content-addressed image inspection, adjacent JSON provenance, and 30-day protected-promotion retention. SBOM attachment was explicitly deferred to the later immutable-publication slice so it would bind the published image digest.
+- Made the container smoke reject non-native/emulated Docker servers and continue through `better-sqlite3` load, non-root/read-only boot, persistence, restart, representative authenticated workflow, backup-first replacement, and restored rollback.
+- Verified both current preview hosts are native x86_64. The exact 486-file artifact passed disposable install/boot with SHA-256 `d5a343bceddf14541c18c1bc8f7ff00601da2221cabf2a461ae93c3ad4ec0fe7`; isolated `rt-ltf-demo` native proof passed on `linux/amd64` with candidate digest `sha256:994d2f70e0eb1b06b05beae3a93f6e0e6409dd0c008fbc8d1646b7401202baca`, and left the live `0.33.27.9.2-nightly` service healthy, ready, and unchanged.
+- Docs updated: `README.md`, `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/backup-restore.md`, `docs/development/github-workflow.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/private-preview-readiness.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/self-hosting.md`, `docs/upgrading.md`, and `docs/versioning.md`.
+
 ## Version 0.33.27.9.2 - 2026-08-03
 
 - Removed the user-visible `Planned occurrence` badge, explanatory tooltip text, dashed projection styling, and separate accessible action from recurring Tasks on Calendar.
