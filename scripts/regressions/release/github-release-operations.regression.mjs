@@ -74,6 +74,11 @@ for (const requirement of [
   /name: Packaging and recovery/,
   /npm run container:smoke/,
 ]) assert.match(promotion, requirement);
+assert.match(
+  promotion,
+  /name: Container recovery proof[\s\S]*name: Install pinned Caddy container-smoke binary[\s\S]*CADDY_VERSION: 2\.11\.4[\s\S]*sha512sum --check --strict[\s\S]*npm run container:smoke/,
+  "the native container promotion proof must install the reviewed Caddy binary before exercising the real proxy boundary",
+);
 
 assert.match(nightly, /push:[\s\S]*branches: \[nightly\]/);
 assert.match(nightly, /schedule:[\s\S]*cron:/);
@@ -106,6 +111,11 @@ for (const requirement of [
   /platform-manifest\.json/,
   /refusing to replace immutable assets/,
 ]) assert.match(manualRelease, requirement);
+assert.match(
+  manualRelease,
+  /name: Set up attestation-capable Docker Buildx builder[\s\S]*docker buildx create --name longtail-forge-release --driver docker-container --use[\s\S]*docker buildx inspect --bootstrap[\s\S]*name: Publish and verify the immutable linux\/amd64 image/,
+  "the immutable image release must select an attestation-capable Buildx driver before publication",
+);
 assert.doesNotMatch(manualRelease, /^\s*push:/m);
 
 for (const requirement of [

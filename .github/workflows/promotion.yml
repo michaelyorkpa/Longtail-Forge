@@ -276,6 +276,26 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Restore the checksum-bound Caddy download cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/longtail-forge/caddy
+          key: caddy-${{ runner.os }}-${{ runner.arch }}-2.11.4-8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+      - name: Install pinned Caddy container-smoke binary
+        env:
+          CADDY_ARCHIVE_SHA512: 8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+          CADDY_VERSION: 2.11.4
+        run: |
+          mkdir -p "$RUNNER_TEMP/caddy"
+          mkdir -p "$HOME/.cache/longtail-forge/caddy"
+          CADDY_ARCHIVE="$HOME/.cache/longtail-forge/caddy/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          if [ ! -f "$CADDY_ARCHIVE" ]; then
+            curl --fail --location --proto '=https' --tlsv1.2 --output "$CADDY_ARCHIVE" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          fi
+          echo "${CADDY_ARCHIVE_SHA512}  $CADDY_ARCHIVE" | sha512sum --check --strict
+          tar --extract --gzip --file "$CADDY_ARCHIVE" --directory "$RUNNER_TEMP/caddy" caddy
+          chmod 0755 "$RUNNER_TEMP/caddy/caddy"
+          echo "$RUNNER_TEMP/caddy" >> "$GITHUB_PATH"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: promotion-${{ github.event.pull_request.head.sha }}

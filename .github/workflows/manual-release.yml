@@ -42,6 +42,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Set up attestation-capable Docker Buildx builder
+        run: |
+          docker buildx create --name longtail-forge-release --driver docker-container --use
+          docker buildx inspect --bootstrap
       - name: Validate the selected main revision and release confirmation
         env:
           REVISION: ${{ inputs.revision }}
