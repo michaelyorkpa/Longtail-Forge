@@ -1,6 +1,6 @@
 # Runtime Artifact
 
-Longtail Forge publishes a versioned runtime-only npm tarball for staged bare-metal installation and as the only application payload accepted by the checked-in Docker image build. The artifact is not a source checkout, development kit, backup, or automatic updater.
+Longtail Forge publishes a versioned runtime-only npm tarball as the only application payload accepted by the checked-in Docker image build. The artifact is not a supported production installer, source checkout, development kit, backup, or automatic updater. Extracted installation and `npm start` remain available for development, testing, advanced experimentation, and bounded transition proof only; Docker Compose is the sole supported production/self-hosted deployment.
 
 ## Build and verify
 
@@ -32,9 +32,9 @@ Markdown through the runtime paths documented in
 documents and their approval record are deployment state and do not belong in
 the public artifact.
 
-## Install and start
+## Development and transition install/start
 
-Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified Linux target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are not supported by this release proof. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. The root `package.json` explicitly allows only the exact pinned `better-sqlite3@13.0.1` install script for clean npm 11+ installs; do not broaden `allowScripts` or approve a new lifecycle dependency without reviewing and regression-locking that exact package/version. In a new non-public staging directory:
+This procedure is not a production deployment contract. Use Node 24.7 or newer within the Node 24 line and a matching npm release. The currently qualified container target is Debian 12 Bookworm/glibc on `linux/amd64`; arm64 and musl/Alpine are unsupported. Install Python 3, `make`, and a C/C++ compiler before `npm ci`: `better-sqlite3` loads its bundled `linux-x64` N-API prebuild at runtime, but its package install lifecycle still invokes `node-gyp`. The root `package.json` explicitly allows only the exact pinned `better-sqlite3@13.0.1` install script for clean npm 11+ installs; do not broaden `allowScripts` or approve a new lifecycle dependency without reviewing and regression-locking that exact package/version. For development, testing, advanced experimentation, or an existing-host transition rehearsal, use a new non-public staging directory:
 
 ```sh
 tar -xzf longtail-forge-<version>.tgz --strip-components=1
@@ -44,7 +44,7 @@ npm start
 
 The tarball contains `npm-shrinkwrap.json`, so `npm ci --omit=dev` is the settled runtime install command. Do not replace it with an unconstrained `npm install`, and do not run the application from the public web root. The compiler, Python, and `make` are installation prerequisites, not application runtime dependencies; they may be absent from an immutable final runtime after the dependency tree has been installed successfully. Supply the real `.env` or service-manager environment separately; never add secrets to the artifact.
 
-`npm run start:worker` starts the optional same-host separate worker from the same installed artifact. Docker Compose, the systemd supervisor example, persistence, upgrade/rollback, and the host Caddy boundary are documented in [Docker and Bare-Metal Preview Deployment](preview-deployment.md); this artifact does not expose the Node listener directly to the internet.
+`npm run start:worker` starts the optional same-host separate worker from the same installed artifact. The supported Compose contract, native platform/provenance proof, transition-only systemd material, persistence, upgrade/rollback direction, and host Caddy boundary are documented in [Compose Production Support and Bare-Metal Transition](preview-deployment.md); this artifact does not expose the Node listener directly to the internet.
 
 The artifact also carries the `backup:create`, `backup:inspect`, `backup:export`, and `backup:restore` whole-instance commands, `workspace-backup:inspect` and `workspace-backup:restore`, the explicit `workspace:purge` queue command, and the guarded `demo:data:host` implementation used only by the separately installed named-demo-host wrapper. The demo tooling includes the reviewed deterministic seven-role identity/scope definition, but never the separately installed role credential document or any credential value. Their checksummed formats, Secure Notes key prerequisites, recovery procedures, irreversible deadline/fencing rules, and demo-only boundary are defined in [Baseline Backup and Restore](backup-restore.md), [Workspace Backup Package](workspace-backup.md), [Workspace Deletion Grace Period and Final Purge](workspace-deletion.md), and [Demo Host Data Provisioning and Reset](demo-data-operations.md). The disposable `backup:drill`, `workspace-backup:drill`, demo operation regressions, and purge regressions remain repository-only test tooling.
 

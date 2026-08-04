@@ -1,3 +1,13 @@
+## Version 0.33.28.1 - 2026-08-04
+
+- Established Docker Compose on Debian Bookworm/glibc `linux/amd64` as the sole supported production/self-hosted deployment. Direct Node/systemd remains available only for development, testing, advanced experimentation, and protection of the two existing bare-metal hosts during the bounded cutover.
+- Recorded the retained/adapted/retired-after-cutover inventory for the runtime artifact, Docker/Compose assets, bare-metal smoke and systemd example, root-owned deployment helper/SSH handoff, release workflows/regressions, and operator lifecycle documentation.
+- Fixed image builds to `linux/amd64`, kept the checksum-verified runtime artifact as the only accepted application payload, verified the pinned Node base digest, and made the final image prove its version, AGPL license, platform, and artifact-checksum labels.
+- Added release-metadata binding for candidate image source branch and full revision, content-addressed image inspection, adjacent JSON provenance, and 30-day protected-promotion retention. SBOM attachment is explicitly deferred to 0.33.28.3 so it binds the immutable published image digest.
+- Made the container smoke reject non-native/emulated Docker servers and continue through `better-sqlite3` load, non-root/read-only boot, persistence, restart, representative authenticated workflow, backup-first replacement, and restored rollback.
+- Verified both current preview hosts are native x86_64. The exact 486-file artifact passed disposable install/boot with SHA-256 `d5a343bceddf14541c18c1bc8f7ff00601da2221cabf2a461ae93c3ad4ec0fe7`; isolated `rt-ltf-demo` native proof passed on `linux/amd64` with candidate digest `sha256:994d2f70e0eb1b06b05beae3a93f6e0e6409dd0c008fbc8d1646b7401202baca`, and left the live `0.33.27.9.2-nightly` service healthy, ready, and unchanged.
+- Docs updated: `README.md`, `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/backup-restore.md`, `docs/development/github-workflow.md`, `docs/internet-deployment.md`, `docs/preview-deployment.md`, `docs/private-preview-readiness.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/self-hosting.md`, `docs/upgrading.md`, and `docs/versioning.md`.
+
 ## Version 0.33.27.9.2 - 2026-08-03
 
 - Removed the user-visible `Planned occurrence` badge, explanatory tooltip text, dashed projection styling, and separate accessible action from recurring Tasks on Calendar.

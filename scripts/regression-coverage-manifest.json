@@ -3893,7 +3893,7 @@
     },
     {
       "area": "release",
-      "description": "Proves Docker and bare-metal preview deployment stay artifact-based, persistent, non-root, health-checked, and rollback-ready.",
+      "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready while bare-metal remains transition-only.",
       "id": "release.preview-deployment-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
