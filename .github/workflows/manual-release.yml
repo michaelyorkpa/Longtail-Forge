@@ -111,5 +111,7 @@ jobs:
           gh release create "$TAG" \
             dist/*.tgz dist/*.tgz.sha256 dist/release-metadata.json dist/platform-manifest.json \
             compose.yaml docs/compose.env.example docs/longtail-forge-compose-deploy-helper.env.example \
+            docs/longtail-forge-compose-cutover-helper.env.example \
             scripts/release/longtail-forge-compose-deploy-host.example \
+            scripts/release/longtail-forge-compose-cutover-host.example \
             --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG

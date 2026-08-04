@@ -84,6 +84,8 @@ assert.match(
 );
 assert.match(nightly, /name: GitHub-only docs - no deployment/);
 assert.match(nightly, /DEPLOY_ENABLED/);
+assert.match(nightly, /DEPLOY_TRANSPORT/);
+assert.match(nightly, /test "\$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"/);
 assert.match(nightly, /release-metadata\.json/);
 assert.match(nightly, /deploy-via-ssh/);
 assert.doesNotMatch(nightly, /friends-and-family-preview/);
@@ -146,6 +148,7 @@ for (const requirement of [
   /GitHub-owned SHA-pinned Actions policy/,
   /sha_pinning_required: true/,
   /demo-development/,
+  /demo-development environment and nightly-only Compose transition policy/,
   /friends-and-family-preview/,
   /required_approving_review_count: 0/,
   /required_conversation_resolution: true/,
