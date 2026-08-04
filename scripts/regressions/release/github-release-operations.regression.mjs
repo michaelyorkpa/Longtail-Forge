@@ -74,6 +74,11 @@ for (const requirement of [
   /name: Packaging and recovery/,
   /npm run container:smoke/,
 ]) assert.match(promotion, requirement);
+assert.match(
+  promotion,
+  /name: Container recovery proof[\s\S]*name: Install pinned Caddy container-smoke binary[\s\S]*CADDY_VERSION: 2\.11\.4[\s\S]*sha512sum --check --strict[\s\S]*npm run container:smoke/,
+  "the native container promotion proof must install the reviewed Caddy binary before exercising the real proxy boundary",
+);
 
 assert.match(nightly, /push:[\s\S]*branches: \[nightly\]/);
 assert.match(nightly, /schedule:[\s\S]*cron:/);
