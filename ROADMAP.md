@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.3`.
+Active cursor: `0.33.28.4`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -39,21 +39,6 @@ Non-goals:
 - No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
 - No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
 - No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
-
-### Version 0.33.28.3 - Immutable image publishing and supported deployment transport
-
-**Model: High Effort** — The public release must deliver the exact reviewed image without creating a standing broad credential, interactive shell, or artifact-based alternate production path.
-
-- [ ] Choose and document the least-privilege image transport: an immutable digest-addressed registry pull (for example GHCR) or a checksummed image transfer through the existing constrained host handoff. The supported result deploys Compose by image digest; it does not extract the runtime tarball as a direct production release.
-- [ ] Publish only reviewed platform manifests and immutable release images, with no mutable `latest` deployment reference. Scope registry or transport credentials to the minimum host/repository action, keep secrets/live data out of image layers, and document credential rotation and revocation.
-- [ ] Adapt the root-owned preview helper and manual workflow only as needed to preserve the reviewed stop → backup → deploy Compose digest → start → verify → restore boundary. Retain pinned host keys, the non-interactive low-privilege deployment account, isolated disabled-by-default GitHub Environments, and no root SSH login, general-purpose runner, Caddy administration, data access, or runtime-secret exposure.
-- [ ] Keep the checksummed runtime artifact and `artifact:smoke` in release production as image-build inputs/provenance evidence. Update GitHub Release metadata to bind source revision, artifact checksum, platform manifest, and image digest without advertising the tarball as a supported production installer.
-- [ ] Update release and preview regressions to reject an unverified/non-`main`/mutable image, identity mismatch, unsupported platform, missing native `better-sqlite3` proof, or a deployment transport that bypasses backup-first verification.
-- [ ] Run `npm run docs:suggest`, update the image publication/transport/release documentation, update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.3`, and run `npm run verify:slice` exactly once at final local closeout.
-
-Acceptance criteria:
-
-- The reviewed image reaches the host by a least-privilege immutable-digest transport; release metadata binds source, artifact, platform, and image identities; deployment remains backup-first and non-interactive; and neither the runtime tarball nor a mutable tag becomes a second supported production path.
 
 ### Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
 

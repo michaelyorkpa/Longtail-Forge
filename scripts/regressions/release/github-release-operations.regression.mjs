@@ -96,10 +96,12 @@ assert.doesNotMatch(mainRelease, /environment: friends-and-family-preview|deploy
 for (const requirement of [
   /workflow_dispatch:/,
   /contents: write/,
+  /packages: write/,
   /RELEASE \$TAG \$REVISION/,
   /git tag -a/,
   /gh release create/,
   /release-metadata\.json/,
+  /platform-manifest\.json/,
   /refusing to replace immutable assets/,
 ]) assert.match(manualRelease, requirement);
 assert.doesNotMatch(manualRelease, /^\s*push:/m);
@@ -112,7 +114,7 @@ for (const requirement of [
   /validate-release-revision\.mjs/,
   /git checkout --detach "\$REVISION"/,
   /deploy-via-ssh\.mjs/,
-  /--mode rollback/,
+  /--mode compose-rollback/,
 ]) assert.match(manualPreview, requirement);
 assert.doesNotMatch(manualPreview, /^\s*push:/m);
 
