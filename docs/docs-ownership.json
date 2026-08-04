@@ -448,7 +448,7 @@
         "^docs/docs-ownership\\.(?:json|md)$",
         "^docs/(?:backup-and-restore|private-preview-readiness|releasing|self-hosting|upgrading)\\.md$",
         "^docs/development/github-workflow\\.md$",
-        "^docs/(?:compose\\.env\\.example|demo-data-helper\\.env\\.example|demo-data-operations\\.md|longtail-forge-(?:compose-deploy|maintenance)-helper\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
+        "^docs/(?:compose\\.env\\.example|demo-data-helper\\.env\\.example|demo-data-operations\\.md|longtail-forge-(?:compose-(?:deploy|cutover)|maintenance)-helper\\.env\\.example|longtail-forge\\.service\\.example|preview-deployment\\.md)$",
         "^archive/(?:2026-07-18-preview-real-ip-and-maintenance-mode\\.md|maintenance-mode/)",
         "^scripts/release/",
         "^scripts/(?:agent-brief|backup|backup-restore-drill|workspace-backup(?:-drill)?|bare-metal-deployment-smoke|build-container-image|build-runtime-artifact|bump-version|classify-github-changes|container-deployment-smoke|generate-regression-(?:doc-inventory|manifest)|regression-(?:clean-clone|coverage|files-isolation-audit|runner|suite)|run-(?:changed-regressions|closeout|regressions|slice-verification|timed-stage)|runtime-artifact-smoke|suggest-regressions|version-literal)",

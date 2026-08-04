@@ -60,10 +60,11 @@ INBOX="$DEPLOY_ROOT/inbox"
 STATE_ROOT="$DEPLOY_ROOT/state"
 RELEASE_ROOT="$DEPLOY_ROOT/releases"
 OPERATION_ROOT="$DEPLOY_ROOT/operations"
-BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge}"
+BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge/compose}"
+BACKUP_CONTAINER_ROOT="/var/backups/longtail-forge"
 DEPLOY_ACCOUNT="${LTF_DEPLOY_ACCOUNT:-longtail-forge-deploy}"
 MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
-DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/active"
+DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"
 PUBLIC_URL="${LTF_PUBLIC_URL:-}"
 IMAGE_REPOSITORY="${LTF_IMAGE_REPOSITORY:-}"
 SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
@@ -82,7 +83,7 @@ done
 [[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
 [[ "$IMAGE_REPOSITORY" =~ ^ghcr\.io/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$ ]] || fail "LTF_IMAGE_REPOSITORY must be a lowercase GHCR repository"
 [[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "deployment account is invalid"
-test "$BACKUP_ROOT" = "/var/backups/longtail-forge" || fail "backup root must match the fixed Compose backup mount target"
+test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must preserve the transition-only bare-metal backup directory"
 if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
 
 for command in curl docker grep install jq stat; do require_command "$command"; done
@@ -208,10 +209,13 @@ clear_marker() {
 }
 
 backup_with_state() {
-  local state="$1" output="$2" release_env reference
+  local state="$1" output="$2" release_env reference output_name container_output
   release_env="$(state_value "$state" '.deployment.releaseEnv')"
   reference="$(state_value "$state" '.image.reference')"
   test -f "$release_env" && test ! -L "$release_env" || fail "recorded release environment is missing"
+  output_name="$(basename "$output")"
+  container_output="$BACKUP_CONTAINER_ROOT/$output_name"
+  test "$output" = "$BACKUP_ROOT/$output_name" || fail "backup output escaped the protected Compose backup root"
   compose "$release_env" stop longtail-forge
   local key_args=()
   if test -n "$SECURE_KEY_BACKUP"; then
@@ -222,27 +226,34 @@ backup_with_state() {
     --confirm-stopped \
     --database /var/lib/longtail-forge/longtail-forge.db \
     --files-root /var/lib/longtail-forge/files \
-    --output "$output" \
+    --output "$container_output" \
     ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
   compose "$release_env" run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs inspect \
-    --archive "$output" \
+    --archive "$container_output" \
     ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
+  test -f "$output" && test ! -L "$output" || fail "Compose backup was not created at the protected host destination"
   printf '%s\n' "$reference" >/dev/null
 }
 
 restore_with_state() {
-  local state="$1" archive="$2" pre_restore="$3" release_env
+  local state="$1" archive="$2" pre_restore="$3" release_env archive_name pre_restore_name container_archive container_pre_restore
   release_env="$(state_value "$state" '.deployment.releaseEnv')"
+  archive_name="$(basename "$archive")"
+  pre_restore_name="$(basename "$pre_restore")"
+  test "$archive" = "$BACKUP_ROOT/$archive_name" || fail "restore archive escaped the protected Compose backup root"
+  test "$pre_restore" = "$BACKUP_ROOT/$pre_restore_name" || fail "pre-restore output escaped the protected Compose backup root"
+  container_archive="$BACKUP_CONTAINER_ROOT/$archive_name"
+  container_pre_restore="$BACKUP_CONTAINER_ROOT/$pre_restore_name"
   local key_args=()
   if test -n "$SECURE_KEY_BACKUP"; then key_args=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro"); fi
   compose "$release_env" stop longtail-forge || true
   compose "$release_env" run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs restore \
     --confirm-stopped \
     --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" \
-    --archive "$archive" \
+    --archive "$container_archive" \
     --database /var/lib/longtail-forge/longtail-forge.db \
     --files-root /var/lib/longtail-forge/files \
-    --pre-restore-backup "$pre_restore" \
+    --pre-restore-backup "$container_pre_restore" \
     ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup}
 }
 
@@ -260,12 +271,55 @@ wait_for_health() {
   return 1
 }
 
+verify_container_posture() {
+  local metadata_file="$1" release_env="$2" container reference
+  container="$(compose "$release_env" ps -q longtail-forge)"
+  reference="$(jq -er '.image.reference' "$metadata_file")"
+  test -n "$container" || return 1
+  docker inspect "$container" | jq -e --arg image "$reference" --arg backup "$BACKUP_ROOT" '
+    .[0] |
+      .Config.Image == $image and
+      .Config.User == "10001:10001" and
+      .HostConfig.ReadonlyRootfs == true and
+      (.HostConfig.Privileged | not) and
+      (.HostConfig.CapDrop == ["ALL"]) and
+      (.HostConfig.SecurityOpt | index("no-new-privileges:true") != null) and
+      (.NetworkSettings.Ports["8001/tcp"] | length == 1 and .[0].HostIp == "127.0.0.1" and .[0].HostPort == "8001") and
+      (.Mounts | any(.Type == "volume" and .Destination == "/var/lib/longtail-forge")) and
+      (.Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge"))
+  ' >/dev/null
+}
+
+verify_candidate_scanner() {
+  local release_env="$1" scanner_host scanner_port network
+  scanner_host="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_HOST')"
+  scanner_port="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_PORT')"
+  network="$(compose "$release_env" config --format json | jq -er '. as $root | (.services["longtail-forge"].networks | keys[0]) as $key | $root.networks[$key].name')"
+  test -n "$scanner_host" && test -n "$network" || fail "resolved Compose scanner or network identity is empty"
+  [[ "$scanner_port" =~ ^[0-9]+$ ]] && test "$scanner_port" -ge 1 && test "$scanner_port" -le 65535 || fail "resolved Compose scanner port is invalid"
+  docker network inspect "$network" >/dev/null 2>&1 || fail "resolved Compose scanner network does not exist"
+  docker run --rm --platform linux/amd64 --network "$network" \
+    --add-host host.docker.internal:host-gateway \
+    --entrypoint node \
+    --env "LONGTAIL_CLAMD_HOST=$scanner_host" \
+    --env "LONGTAIL_CLAMD_PORT=$scanner_port" \
+    "$IMAGE_REFERENCE" -e '
+      const net = require("node:net");
+      const socket = net.createConnection({ host: process.env.LONGTAIL_CLAMD_HOST, port: Number(process.env.LONGTAIL_CLAMD_PORT) });
+      const timer = setTimeout(() => { socket.destroy(); process.exit(1); }, 5000);
+      socket.on("connect", () => socket.write("zPING\0"));
+      socket.on("data", (chunk) => { if (chunk.toString().includes("PONG")) { clearTimeout(timer); socket.end(); process.exit(0); } });
+      socket.on("error", () => process.exit(1));
+    ' || fail "candidate container could not reach the reviewed host ClamAV handoff"
+}
+
 verify_runtime() {
   local metadata_file="$1" release_env="$2" version commit artifact
   version="$(jq -er '.version' "$metadata_file")"
   commit="$(jq -er '.commitSha' "$metadata_file")"
   artifact="$(jq -er '.artifact.sha256' "$metadata_file")"
   wait_for_health "$release_env" || return 1
+  verify_container_posture "$metadata_file" "$release_env" || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
@@ -291,6 +345,16 @@ compose "$RELEASE_ENV" config --format json | jq -e --arg backup "$BACKUP_ROOT" 
   .services["longtail-forge"].volumes
   | any(.type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge")
 ' >/dev/null || fail "resolved Compose backup mount must bind the protected host backup root to the fixed container target"
+compose "$RELEASE_ENV" config --format json | jq -e '
+  .services["longtail-forge"] |
+    .user == "10001:10001" and
+    .read_only == true and
+    (.privileged // false | not) and
+    (.cap_drop == ["ALL"]) and
+    (.security_opt | index("no-new-privileges:true") != null) and
+    (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].target == 8001 and .[0].published == "8001")
+' >/dev/null || fail "resolved Compose application posture is not the reviewed non-root read-only loopback contract"
+verify_candidate_scanner "$RELEASE_ENV"
 assert_marker
 
 CURRENT_BACKUP=''

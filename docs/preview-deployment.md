@@ -130,6 +130,33 @@ The host's root Docker client authenticates to GHCR separately with one pull-onl
 
 The root helper validates schema-2 metadata and the pulled labels, then requires the recorded known-good Compose baseline established by the live cutover in 0.33.28.4; it refuses to treat an unrecorded first install or data volume as an automated upgrade. For a recorded baseline it asserts the deployment-owned maintenance marker, stops only the Compose app, creates and inspects the whole-instance backup, selects the new digest, starts and verifies direct/public identity, and clears only its marker. Failed candidate verification restores the prior database and Files together with the prior digest; explicit rollback first protects the current state and restores the recorded previous backup. A failed restore or recovered-current check stays curtained with the images, backups, metadata, and operation evidence retained. The operator marker remains independent.
 
+### Existing-host initial cutover
+
+The constrained deployment helper deliberately refuses first-install state. For an existing bare-metal host, install `scripts/release/longtail-forge-compose-cutover-host.example` as a root-owned, non-writable `/usr/local/sbin/longtail-forge-compose-cutover`; do not add it to the deployment account's sudo rule. Install [longtail-forge-compose-cutover-helper.env.example](longtail-forge-compose-cutover-helper.env.example) separately as root-owned mode `0600`. The application environment remains the existing protected file; the Compose host environment contains interpolation/path settings and no duplicate application secrets. Keep the original release tree, `current` link, service unit, application environment, data root, deployment helper, backups, and recovery material unchanged.
+
+Before preflight, create the reviewed bridge network only after proving that its subnet does not overlap a host, VPN, LAN, or Docker route. Make the production `clamd` socket listen on loopback and the exact bridge gateway, never `0.0.0.0`; keep TCP 3310 blocked at every public interface and prove a container on that network receives `PONG`. Configure the Compose host environment to use the same network/subnet/gateway, the exact `/32` trusted proxy, the dedicated `/var/backups/longtail-forge/compose` bind source, and a new named data volume. The existing root-owned `/var/backups/longtail-forge` parent and all transition backups remain untouched.
+
+Copy the selected GitHub Release's schema-2 `release-metadata.json` to a temporary root-owned mode-`0600` host path. Run preflight first:
+
+```sh
+sudo /usr/local/sbin/longtail-forge-compose-cutover \
+  preflight --metadata /root/release-metadata.json
+```
+
+Preflight validates and pulls the exact protected-`main` digest, image labels, native dependency and attestation evidence, Compose paths, empty-volume boundary, bridge identity, scanner prerequisites, Caddy, current bare-metal release, and direct service state. It does not stop or disable the service, create the named data volume, create a Compose application container, assert maintenance, or write a known-good deployment baseline.
+
+After reviewing that output and separately recording a verified whole-instance recovery plan, invoke the explicit cutover:
+
+```sh
+sudo /usr/local/sbin/longtail-forge-compose-cutover \
+  cutover --metadata /root/release-metadata.json \
+  --confirm "CUT OVER LONGTAIL FORGE TO COMPOSE"
+```
+
+The cutover leaves Caddy active, asserts only the deployment marker, stops the bare-metal app, creates and inspects a new whole-instance backup in the retained root-owned parent, copies that recovery unit into the private UID/GID 10001 Compose backup subtree, initializes a new volume, proves scanner reachability, restores database and Files together, and verifies exact direct/public identity. Only then does it disable automatic activation of the stopped bare-metal unit so it cannot race Compose after a reboot; the unit, releases, helper, environment, data, and backups remain present and can be re-enabled deliberately. Any non-success exit stops the candidate and re-enables/restarts and verifies the original runtime before reopening; if that recovery fails, the deployment curtain and protected evidence remain.
+
+The first successful cutover writes the exact known-good Compose baseline consumed by the constrained deploy/rollback helper. Do not hand-edit that state, reuse a pre-existing volume, run both applications, clear a retained deployment marker, or enable the GitHub Environment yet. First complete the live upgrade, clean-volume restore, restored rollback, hardening/firewall/scanner, persistence, and representative-workflow evidence required by the active roadmap slice.
+
 ## Docker Compose installation
 
 1. Install a supported `linux/amd64` Docker Engine with Compose v2. Copy [compose.env.example](compose.env.example) to the protected root `.env`, set `LONGTAIL_IMAGE` to the exact `repository@sha256:<image-index-digest>` bound by schema-2 release metadata, replace the hostname and required secrets, and keep `.env` mode `0600` on POSIX. Confirm the same metadata names one `linux/amd64` platform manifest plus native `better-sqlite3`, SPDX SBOM, and SLSA provenance evidence. A mutable `latest` tag is never a deployment identity.

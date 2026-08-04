@@ -126,6 +126,7 @@ assert.match(helperEnvironment, /pull-only credential scoped to this package/i);
 assert.match(helperEnvironment, /rotate it by[\s\S]*proving a digest pull[\s\S]*revoking[\s\S]*the old value/i);
 assert.doesNotMatch(helperEnvironment, /PASSWORD=|TOKEN=/i);
 assert.match(configScript, /"friends-and-family-preview", "main", "ssh-compose-digest-host-helper"/);
+assert.match(configScript, /"demo-development", "nightly", "ssh-compose-digest-host-helper"/);
 assert.match(configScript, /COMPOSE_DEPLOY_HELPER/);
 assert.match(configScript, /COMPOSE_DEPLOY_INBOX/);
 assert.match(compose, /image: \$\{LONGTAIL_IMAGE:-longtail-forge:local\}/);
