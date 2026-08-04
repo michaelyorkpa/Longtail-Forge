@@ -56,7 +56,7 @@ for (const field of ["id", "area", "tier", "tags", "description", "runMode"]) {
 }
 
 for (const runMode of ["static", "serial-database", "serial-files", "isolated-files", "isolated-database"]) {
-  assert.match(docs, new RegExp(`\| \`${runMode}\` \|`), `${runMode} should be a canonical run mode`);
+  assert.match(docs, new RegExp(`\\| \`${runMode}\` \\|`), `${runMode} should be a canonical run mode`);
 }
 
 assert.match(docs, /scripts\/regressions\/<area>\/<name>\.regression\.mjs/);
