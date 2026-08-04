@@ -4,7 +4,10 @@
 - Scheduled recurring Tasks now use the same title, status/priority/context metadata, styling, tooltip content, and `Open task: <title>` accessible action as materialized Tasks across Dashboard and Actions Calendar Month, Week, and Day views.
 - Preserved server-owned projection, permission filtering, internal `virtual`/`templateId`/`instanceDate` identity, exactly-once materialize-on-open, real-row precedence, the canonical Task editor, and independent occurrence edits.
 - Updated focused static, integration, and rendered desktop/mobile Calendar coverage. The focused Playwright file passed 8/8 across both Calendar hosts and all three views.
+- Updated the transitive development-only `brace-expansion` lockfile resolution from 5.0.8 to 5.0.9 to clear the high-severity dependency audit gate.
+- Corrected the regression-suite run-mode assertion, made the recurring-task recovery regression independent of the wall-clock date, and changed Time Tracking failure logs to use static format strings with structured context, resolving the promotion gates without changing application behavior.
 - Docs updated: `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `help/framework/tasks-basics.md`, `help/modules/tasks/reminders-calendar-and-subscriptions.md`.
+- No docs change needed: the promotion security-gate repairs do not change a user or operator contract.
 
 ## Version 0.33.27.9.1 - 2026-08-03
 

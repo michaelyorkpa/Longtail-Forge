@@ -11,6 +11,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { mock } from "node:test";
+
+mock.timers.enable({
+  apis: ["Date"],
+  now: new Date("2026-08-03T12:00:00.000Z"),
+});
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-skip-current-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-skip-current.db");
@@ -37,6 +43,7 @@ try {
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+  mock.timers.reset();
 }
 
 async function assertBoundarySemantics(session) {
