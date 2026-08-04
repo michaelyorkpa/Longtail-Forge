@@ -1,3 +1,14 @@
+## Version 0.33.28.2 - 2026-08-04
+
+- Completed the sole supported Compose operator lifecycle for immutable-digest installation, protected local data and backup storage, loopback/public acceptance, backup-first upgrade, migration-aware rollback, clean-volume whole-instance restore, and failed-recovery containment beneath the maintenance curtain.
+- Expanded `container:smoke` into a native `linux/amd64` lifecycle proof with two clean controlled-artifact builds, exact local image identity, hardened Compose inspection, the host's exact Caddy `v2.11.4` against Compose's fixed loopback port, protocol-level ClamAV readiness, authenticated workspace/workflow/File state, stop/start and replacement persistence, real backup/inspection, a scanner-unready failed candidate, healthy force-recreated upgrade, and restored rollback with SQLite/migration integrity.
+- Made the rollback rule explicit and executable: image-only rollback requires a complete backward-compatibility record for every candidate migration; otherwise the prior image restores the verified pre-upgrade database and Files together into a new recovery volume. Manual reverse migrations and mixed database/Files state remain unsupported.
+- Fixed whole-instance restore to normalize the recovered Files root to owner-only POSIX mode `0700`, preventing production readiness from rejecting a correctly restored installation, extended the disposable restore drill to guard that startup contract, and documented/proved the idempotent mode-normalization compatibility step required when rolling back through the older `0.33.28.1` restore utility.
+- Kept backup output and the separately protected Secure Notes recovery-key prerequisite outside the live volume, retained both images and failed/upgraded state through observation, and kept ordinary traffic closed until exact identity plus representative workflow verification passed.
+- Docs updated: `docs/backup-restore.md`, `docs/compose.env.example`, `docs/preview-deployment.md`, and `docs/upgrading.md`.
+- No docs change needed: `DECISIONS.md` already governs Compose-only production support and migration-aware restored rollback; application module Help and user workflows are unchanged.
+- No docs change needed: the other database/release suggestions already defer the supported lifecycle to the updated owning runbooks or cover unchanged publication, runtime, and module contracts.
+
 ## Version 0.33.28.1 - 2026-08-04
 
 - Established Docker Compose on Debian Bookworm/glibc `linux/amd64` as the sole supported production/self-hosted deployment. Direct Node/systemd remains available only for development, testing, advanced experimentation, and protection of the two existing bare-metal hosts during the bounded cutover.

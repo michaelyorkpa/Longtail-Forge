@@ -2,7 +2,7 @@
 
 Upgrades are manual, immutable replacements. Longtail Forge has no in-app updater and does not overwrite the running application tree.
 
-Docker Compose is the sole supported production/self-hosted upgrade and recovery path. Version 0.33.28.2 finalizes and proves the complete supported Compose procedure. The bare-metal helper behavior below remains documented only to protect the two existing preview hosts during cutover; it is not a supported path for a new production installation.
+Docker Compose is the sole supported production/self-hosted upgrade and recovery path. Follow the complete [Docker backup-first upgrade and rollback procedure](preview-deployment.md#docker-backup-first-upgrade-and-rollback). The bare-metal helper behavior below remains documented only to protect the two existing preview hosts during cutover; it is not a supported path for a new production installation.
 
 Qualify the maintained host path with `npm run maintenance:rehearse` on native Linux before using it for a release. Retain the exact revision, tool versions, timestamps, result, and protected failure references in the private operational record. The rehearsal proves the disposable install/toggle, response-owner, deploy/recovery, rollback, and stale-state transitions without a proxy reload; it does not replace the real backup, certificate, firewall, WireGuard, or release-identity evidence below.
 

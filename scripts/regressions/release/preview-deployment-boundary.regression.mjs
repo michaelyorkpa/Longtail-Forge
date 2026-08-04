@@ -84,8 +84,8 @@ for (const requirement of [
   /Caddy owns public TCP 80\/443/i,
   /Do not place the database or WAL\/SHM sidecars on NFS, SMB/i,
   /backup-first upgrade/i,
-  /previous image is allowed only when rollback compatibility/i,
-  /restore the verified pre-upgrade database and Files backup together/i,
+  /image-only rollback and is permitted only when the release record explicitly proves every migration/i,
+  /restore the verified pre-upgrade database and Files together/i,
   /Transition-only bare-metal installation/i,
   /npm ci --omit=dev/,
   /supported platform decision is `linux\/amd64` only/i,
@@ -112,21 +112,38 @@ assert.match(containerSmoke, /releaseMetadataPath: args\.releaseMetadata/);
 assert.match(containerSmoke, /10001:10001/);
 assert.match(containerSmoke, /nativeBinding[\s\S]*linux-x64/);
 assert.match(containerSmoke, /the final runtime image should contain neither the native build toolchain nor repository development dependencies/);
-assert.match(containerSmoke, /snapshotVolume/);
-assert.match(containerSmoke, /restoreVolume/);
-assert.match(containerSmoke, /exerciseCandidateWorkflow/);
-assert.match(containerSmoke, /verifyCandidateWorkflowAfterRestart/);
-assert.match(containerSmoke, /const restartedCandidatePort = resolveContainerPort\(candidateContainer\)/);
+assert.match(containerSmoke, /compose\(\["config", "--quiet"\]\)/);
+assert.match(containerSmoke, /compose\(\["up", "-d", "--no-deps", "--force-recreate", "longtail-forge"\]\)/);
+assert.match(containerSmoke, /candidate\.image, dataVolume, `missing-\$\{scannerContainer\}`/);
+assert.match(containerSmoke, /LONGTAIL_CLAMD_HOST=missing-/);
+assert.match(containerSmoke, /state\.Restarting === true && state\.ExitCode !== 0/);
+assert.match(containerSmoke, /createBackup\(previous\.image, dataVolume\)/);
+assert.match(containerSmoke, /inspectBackup\(previous\.image, dataVolume\)/);
+assert.match(containerSmoke, /restoreBackup\(previous\.image, recoveryVolume\)/);
+assert.match(containerSmoke, /normalizeRestoredVolumePermissions\(previous\.image, recoveryVolume\)/);
+assert.match(containerSmoke, /the generated local tag must resolve to the reviewed image ID/);
+assert.match(containerSmoke, /RESTORE LONGTAIL FORGE BACKUP/);
+assert.match(containerSmoke, /pre-restore-clean\.ltfbackup\.tgz/);
+assert.match(containerSmoke, /verifyMaintenanceCurtain/);
+assert.match(containerSmoke, /longtail_maintenance_curtain/);
+assert.match(containerSmoke, /longtail_unavailable_diagnostic/);
+assert.match(containerSmoke, /spawnSync\("caddy", \["validate"/);
+assert.match(containerSmoke, /spawn\("caddy", \["run"/);
+assert.match(containerSmoke, /exerciseWorkflow/);
+assert.match(containerSmoke, /uploadRepresentativeFile/);
+assert.match(containerSmoke, /verifyWorkflow/);
+assert.match(containerSmoke, /\/api\/files\/upload/);
+assert.match(containerSmoke, /\/download/);
+assert.match(containerSmoke, /verifyDatabaseIntegrity/);
+assert.match(containerSmoke, /integrity_check/);
+assert.match(containerSmoke, /foreign_key_check/);
 assert.match(containerSmoke, /waitForJson\(port, "\/healthz"\)/);
 assert.match(containerSmoke, /\/api\/login/);
-assert.match(containerSmoke, /\/api\/search/);
-assert.match(containerSmoke, /method: "DELETE"/);
 assert.match(containerSmoke, /const backupVolume = `ltf-smoke-backup-\$\{token\}`/);
-assert.match(containerSmoke, /runDocker\(\["volume", "create", destination\]\)/);
-assert.match(containerSmoke, /for \(const volume of \[dataVolume, backupVolume, restoredVolume\]\)/);
+assert.match(containerSmoke, /const recoveryVolume = `ltf-smoke-recovery-\$\{token\}`/);
+assert.match(containerSmoke, /for \(const volume of \[dataVolume, backupVolume, recoveryVolume\]\)/);
 assert.match(containerSmoke, /finally \{[\s\S]*cleanupDockerObjects\(\);[\s\S]*\}/);
-assert.doesNotMatch(containerSmoke, /cleanupBindMountedBackup|fs\.mkdtemp|os\.tmpdir/);
-assert.match(containerSmoke, /deployment-smoke-marker/);
+assert.doesNotMatch(containerSmoke, /snapshotVolume|restoreVolume|cp -a \/source/);
 assert.match(bareMetalSmoke, /previousArtifact/);
 assert.match(bareMetalSmoke, /backupData/);
 assert.match(bareMetalSmoke, /restoredData/);

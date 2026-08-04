@@ -100,6 +100,14 @@ try {
     secureNotesKeyBackupPath: keyBackupPath,
   });
   assert.equal(restored.backupId, created.backupId);
+  if (process.platform !== "win32") {
+    assert.equal((await fs.stat(filesRoot)).mode & 0o777, 0o700, "restored Files root must remain private enough for production startup");
+  }
+  assert.equal(
+    (await fs.readdir(dataDir)).some((entry) => entry.startsWith(".ltf-restore-")),
+    false,
+    "successful restore must remove every staged database, sidecar, Files, and rollback path",
+  );
   const preRestoreInspection = await inspectBackup({
     archivePath: preRestoreBackupPath,
     expectedAppVersion: packageJson.version,
