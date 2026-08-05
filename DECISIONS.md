@@ -879,6 +879,8 @@ Secure Notes:
 - Secure note titles are plaintext metadata.
 - Secure note bodies, secure revisions, encryption metadata, raw crypto errors, and secure payload internals must not leak through search, audit summaries, notifications, Help, files, or normal UI.
 
+As of 0.33.29.1, Notes owns one workspace-scoped effective-security projection: explicit secure notes, notes in direct secure catalogs, and notes below any secure ancestor all require the existing secure-note authorization and encrypted-at-rest body/revision contract. Catalog policy is stored separately from the note's explicit `security_mode`; inheritance does not copy that flag onto child notes. Archived ancestors continue to protect descendants, while missing/cross-workspace ancestors and corrupt cycles resolve fail-closed. Catalog `securing` and `failed` transitions are authorization-secure. Creating inside an effectively secure catalog and moving into one persist encrypted note and revision state transactionally before membership is observable; leaving that boundary remains blocked until the deliberate preservation/downgrade service owns it.
+
 Files:
 
 - No direct protected file URLs.

@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.29.1 - Catalog policy, effective-security projection, and migration
+
+Completed on 2026-08-05. Notes now has a first-class catalog security policy, a fail-closed transition state, one workspace-scoped effective-security resolver, projected collection/note authorization state, and transactional encrypted persistence for notes created or moved into a protected catalog. The active cursor advanced to `0.33.29.2` for policy transitions and deliberate downgrade.
+
+**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
+
+- [x] Added forward migration 088 for catalog security policy and fail-closed transition state, refreshed/checked the generated schema, and kept hierarchy resolution behind provider-neutral repository reads and transactions.
+- [x] Defined one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, secure ancestors, archived ancestors, and fail-closed malformed hierarchy states.
+- [x] Extended collection and note repository projections so authorization, encryption, list shaping, search suppression, notification suppression, resume filtering, and audit shaping consume the effective result without browser reconstruction.
+- [x] Made note creation inside an effectively secure catalog persist an encrypted body and encrypted initial revision atomically. Moving a note into one transactionally encrypts its body, every existing revision, and the before-move snapshot before membership is observable; leaving the boundary is blocked pending the deliberate 0.33.29.2 flow.
+- [x] Added focused unit and isolated-database coverage for nested and archived catalogs, transition states, permissions, missing/cross-workspace hierarchy links, cycles and existing cycle rejection, explicit secure notes in normal catalogs, normal notes under secure ancestors, encrypted creation, encrypted moves, and SQLite integrity.
+
+Acceptance criteria:
+
+- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
+
 ## Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
 
 Completed on 2026-08-05 after both supported hosts completed their Compose observation period. `rt-ltf` and `rt-ltf-demo` continue to run the immutable `0.33.28.3-main` Compose release while the former systemd services are inactive and disabled; required backups, Secure Notes recovery material, historical releases, and operation records remain retained as private evidence. Repository production support is now Compose-only, and the active cursor advanced to `0.33.29.1`.

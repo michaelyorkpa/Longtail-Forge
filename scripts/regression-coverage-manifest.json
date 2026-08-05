@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 430,
+    "discoveredScripts": 431,
     "legacyScripts": 309,
     "releaseGateScripts": 59,
     "areaCounts": {
@@ -15,7 +15,7 @@
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
-      "notes": 37,
+      "notes": 38,
       "notifications": 3,
       "permissions": 11,
       "public-api": 3,
@@ -28,13 +28,13 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 201,
+      "focused": 202,
       "integration": 162,
       "release-gate": 59,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 175,
+      "isolated-database": 176,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3529,6 +3529,24 @@
         "notes",
         "permissions",
         "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Proves secure-catalog inheritance, fail-closed hierarchy projection, and encrypted note/revision persistence for secure creation and moves.",
+      "id": "notes.secure-catalog-effective-security",
+      "legacy": false,
+      "path": "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "catalogs",
+        "encryption",
+        "hierarchy",
+        "migration",
+        "notes",
+        "security"
       ],
       "tier": "focused"
     },
