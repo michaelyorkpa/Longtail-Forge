@@ -244,15 +244,16 @@
         "^src/core/jobs/worker-process-lock\\.js$",
         "^src/middleware/require-auth\\.js$",
         "^src/routes/(?:auth|operational-health|private-feeds|users)\\.routes\\.js$",
-        "^src/security/(?:auth-throttle|cookies|password-events|passwords|sessions)\\.js$",
-        "^src/repositories/(?:authentication-throttle|private-feed-tokens)\\.repo\\.js$",
-        "^src/services/(?:auth|legal-content|private-feeds)\\.service\\.js$",
+        "^src/security/(?:auth-throttle|cookies|current-password-verification|password-events|passwords|session-records|sessions)\\.js$",
+        "^src/repositories/(?:authentication-throttle|private-feed-tokens|support-sessions)\\.repo\\.js$",
+        "^src/services/(?:auth|legal-content|private-feeds|support-view)\\.service\\.js$",
         "^src/(?:repositories|services)/sessions(?:[./-]|$)",
         "^src/services/operational-readiness\\.service\\.js$",
         "^scripts/reference-caddy-security-smoke\\.mjs$",
         "^scripts/release/rehearse-maintenance-boundary\\.mjs$",
         "^scripts/release/longtail-forge-edge-unavailable\\.html$",
         "^scripts/regressions/framework/private-calendar-feed-authentication\\.regression\\.mjs$",
+        "^scripts/regressions/framework/support-view-session-contract\\.regression\\.mjs$",
         "^docs/(?:Caddyfile\\.private-preview(?:\\.multi-proxy)?\\.example|nginx-wireguard\\.private-preview\\.example\\.conf|internet-deployment\\.md)$",
         "^SECURITY\\.md$"
       ],
@@ -271,7 +272,7 @@
       "label": "Permissions",
       "sourcePatterns": [
         "^src/(?:repositories|routes|services)/permissions?(?:[./-]|$)",
-        "^src/(?:repositories|routes|services)/(?:account-export-recovery|sessions?|users?|workspaces?|user-workspaces)(?:[./-]|$)",
+        "^src/(?:repositories|routes|services)/(?:account-export-recovery|sessions?|support-(?:sessions|view)|users?|workspaces?|user-workspaces)(?:[./-]|$)",
         "^(?:public/js/account-recovery\\.js|views/protected/account-recovery\\.html)$",
         "^src/middleware/(?:auth|require-auth|permissions?)(?:[./-]|$)"
       ],

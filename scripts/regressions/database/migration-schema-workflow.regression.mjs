@@ -29,8 +29,8 @@ const tempRoots = [];
 try {
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "090_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "091_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -78,6 +78,9 @@ try {
   assert.match(liveSchema.sql, /security_transition_version INTEGER NOT NULL DEFAULT 0/);
   assert.match(liveSchema.sql, /security_transition_job_id TEXT/);
   assert.match(liveSchema.sql, /security_transition_error_code TEXT/);
+  assert.match(liveSchema.sql, /CREATE TABLE support_sessions/);
+  assert.match(liveSchema.sql, /CREATE TABLE support_view_events/);
+  assert.match(liveSchema.sql, /support_session_id TEXT/);
 
   for (const requiredPath of [
     "scripts/fresh-database-regression.mjs",

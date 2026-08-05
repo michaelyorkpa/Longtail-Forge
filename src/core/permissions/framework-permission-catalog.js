@@ -7,20 +7,32 @@ const frameworkPermissionEntries = Object.freeze([
     resource: "reporting",
     operation: "read",
   }),
+  Object.freeze({
+    id: "support_view.enter",
+    moduleId: "framework",
+    label: "Enter Support View",
+    description: "Enter a short-lived read-only support session as an installation administrator.",
+    resource: "support_view",
+    operation: "create",
+  }),
 ]);
 
 const frameworkRolePermissionDefaults = Object.freeze([
-  "super_admin",
-  "workspace_admin",
-  "client_admin",
-  "project_admin",
-  "client_user",
-  "project_user",
-].map((roleId) => Object.freeze({
-  moduleId: "framework",
-  roleId,
-  permissions: Object.freeze(["reporting.view"]),
-})));
+  ...[
+    "super_admin",
+    "workspace_admin",
+    "client_admin",
+    "project_admin",
+    "client_user",
+    "project_user",
+  ].map((roleId) => Object.freeze({
+    moduleId: "framework",
+    roleId,
+    permissions: Object.freeze(roleId === "super_admin"
+      ? ["reporting.view", "support_view.enter"]
+      : ["reporting.view"]),
+  })),
+]);
 
 const frameworkResourceDefinitions = Object.freeze([
   Object.freeze({

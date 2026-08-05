@@ -117,6 +117,7 @@ ORDER BY version;
     "087",
     "088",
     "089",
+    "090",
   ], "fresh database should record the consolidated baseline and active core migrations");
 
   const projectAdminRole = await db.get(`

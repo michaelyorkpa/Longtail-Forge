@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-07-30 for version 0.33.26.6
+Updated: 2026-08-05 for version 0.33.30.1
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -15,6 +15,14 @@ This matrix describes the active workspace-native permission model after the com
 | Client User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
 | Project User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
 | Client User (External) | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | no | no |
+
+### Install-Level Support View Permission
+
+| Permission | Super Admin | Workspace Administrator | Client Administrator | Project Administrator | Client User | Project User | Client User (External) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| support_view.enter | yes | no | no | no | no | no | no |
+
+`support_view.enter` is a framework permission seeded only for the installation-wide `super_admin` role. The runtime gate must also be enabled, current-password verification must succeed through the shared throttle, and the target must be an active user with an active membership in an active workspace. Protected installation administrators retain the same install-level authority. Version 0.33.30.1 deliberately exposes no browser route or UI; later slices own server read-only enforcement and administrator-facing entry/exit controls. The support session never changes either identity's stored grants, rejects actor=target and nesting, fixes one effective workspace, and ends on expiry or live authority/target revocation.
 
 ## Framework Notification And Tag Defaults
 
@@ -293,3 +301,4 @@ User Admin builds its matrix from `GET /api/users/permission-resources`, not a b
 - workspace-deletion non-admin denial, current-backup and typed-acknowledgement paths, safe response shaping, unchanged sessions/memberships/navigation/modules, grace cancellation, restart durability, exact-boundary refusal, and database integrity
 - final-purge too-early refusal, exact-time queueing, worker/session/API-key fencing, interrupted restart retry, exactly-once tombstone, Files/backup cleanup, retained identities, complete target-scope removal, cross-workspace byte preservation, and database integrity
 - fresh database tag permission seeding and module sanity checks for taggable target type declarations
+- Support View default-off configuration, Super-Admin-only permission seeding, current-password throttle behavior, actor/effective attribution, rotation, exact expiry, concurrent sessions, fixed workspace, role changes, revocation/deactivation, safe cookies/events, and database integrity

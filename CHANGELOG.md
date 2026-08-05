@@ -1,3 +1,13 @@
+## Version 0.33.30.1 - 2026-08-05
+
+- Added a default-off `LONGTAIL_SUPPORT_VIEW_ENABLED` install gate with a bounded 15-minute default lifetime, safe enabled/disabled runtime diagnostics, and a dedicated `support_view.enter` framework permission seeded only for the installation Super Admin role.
+- Added forward migration 090 with durable `support_sessions`, append-only `support_view_events`, and the nullable browser-session link. Persistence is limited to bounded reason/reference, separate actor/effective/workspace attribution, request IDs, timestamps, outcomes, and safe metadata; credentials, cookies, browser session IDs, bodies, and secure content are excluded.
+- Added the internal Support View lifecycle with shared-throttle current-password reauthentication, active target membership/workspace checks, immutable actor plus separate effective identity request context, one fixed effective workspace, and atomic session rotation on entry, exit, expiry, runtime disablement, or live revocation.
+- Added fail-closed handling for actor permission loss, actor/target/workspace deactivation, target membership revocation, unsupported session modes, nested sessions, self-targeting, and unsafe restoration. No browser entry route or UI ships before the later read-only enforcement slice.
+- Added `framework.support-view-session-contract` release-gate coverage for reauthentication failure and lockout, exact expiry, independent concurrent sessions, workspace-switch rejection, target role changes, authority revocation, cookie posture, safe diagnostics/events, schema exclusions, and SQLite integrity. Expanded the pure runtime-configuration matrix from 116 to 123 current cases and raised generated regression floors without lowering coverage.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/longtail_forge_permissions_matrix.md`, `docs/operational-security.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser workflow documentation remain unchanged because this slice intentionally exposes no Support View route or user interface; those surfaces belong to the later enforcement and UX slices.
+
 ## Version 0.33.29.3 - 2026-08-05
 
 - Added one declared Notes protected-content consumer policy for workspace/revision/relationship authorization and fail-closed exclusion from Files, activity/notifications, Search, resume/Workbench, public API, exports, generic provider catalogs, and future Support View reads. Becoming effectively secure also removes stale normal notification/subscription, resume-state, and Search artifacts.

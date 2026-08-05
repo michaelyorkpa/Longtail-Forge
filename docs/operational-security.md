@@ -14,6 +14,14 @@ For support, ask only for the displayed Request ID, approximate time, and attemp
 
 Collect stdout and stderr through the service manager or container runtime, restrict log access to operators, set an explicit retention period, and protect exported logs as potentially sensitive operational data even though the application redacts its structured fields.
 
+## Support View identity and event boundary
+
+Support View is an install-level security capability and remains disabled unless `LONGTAIL_SUPPORT_VIEW_ENABLED=true`. The dedicated `support_view.enter` permission is granted only to the installation Super Admin role; ordinary Workspace Administrators do not receive it. Version 0.33.30.1 exposes no browser entry workflow, so later server enforcement and UX slices must land before operators treat the feature as usable.
+
+The authenticated administrator remains the actor. Durable state and request context carry a separate effective user and exactly one effective workspace. Current-password verification uses the shared trusted-client-IP/account throttle, and entry plus exit rotate the opaque browser session ID. Expiry, runtime disablement, authority loss, user or membership deactivation, and workspace deactivation terminate the support state immediately; restoration creates a new normal session only for a still-active actor with a valid active workspace.
+
+`support_sessions` and `support_view_events` retain bounded reason/reference text, actor/effective/workspace attribution, start/expiry/end timestamps, safe outcome classifications, and request IDs. They exclude credentials, password hashes, cookies, browser session IDs, request/response bodies, secure content, and arbitrary payload metadata. Runtime diagnostics disclose only whether the install gate is enabled. Support View action-attempt logging, retention/export review, and the administrator audit surface remain owned by the later 0.33.30 enforcement and closeout slices.
+
 ## Secure Notes catalog boundaries
 
 Catalog policy uses the same effective-security result for explicit secure notes, direct secure catalogs, inherited ancestors, and fail-closed transition or malformed-hierarchy states. Effectively secure bodies and revisions stay encrypted at rest. Normal Files, activity, notifications, Search, resume/Workbench, public API, exports, generic provider catalogs, and Support View omit the record rather than returning a partial title or count. Enabling effective security removes existing normal Search documents, notification/subscription rows, and resume-state rows for the affected notes; read-time policy checks still fail closed if cleanup is interrupted. Internal events and audit records omit titles, bodies, excerpts, encryption fields, and secret metadata. Do not add a Notes consumer that reads `security_mode` directly; declare it in `protectedContentConsumers` and call the Notes policy assertion.

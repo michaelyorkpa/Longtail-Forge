@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30.1 - Durable support-session and actor/effective identity contract
+
+Completed on 2026-08-05. Support View now has a default-off install gate, Super-Admin-only permission, durable actor/effective/workspace lifecycle, shared-throttle current-password verification, atomic browser-session rotation, exact expiry, live revocation handling, safe diagnostics/events, and focused integrity coverage. No browser entry workflow is exposed before the server read-only gate. The active cursor advanced to `0.33.30.2` for route enforcement and protected-data exclusions.
+
+**Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
+
+- [x] Added an explicit runtime configuration gate (disabled by default for self-hosted installs), a dedicated support permission granted only to the intended install-level administrator role, and diagnostics that reveal enabled/disabled state without exposing session details.
+- [x] Added forward migration 090 for durable support-session state and append-only support-view events. It stores actor, effective user, effective workspace, bounded reason/reference, start/expiry/end timestamps, request IDs, and safe outcome metadata; credentials, browser session IDs, response bodies, secure content, and request bodies are excluded.
+- [x] Enter Support View only after current-password reauthentication through the existing trusted-IP/account throttle, active target membership validation, and a fresh session-ID rotation. Actor identity remains immutable, effective identity is separate in request/session context, and actor=target, nesting, disabled users/workspaces, or unsupported session modes are rejected.
+- [x] Exit and exact expiry rotate the session identifier again, restore the actor's normal active-workspace context deliberately, and append an attributable exit/expiry event. Revoked/deactivated actors or targets and disabled workspaces end Support View immediately and fail closed.
+- [x] Added service/session coverage for reauthentication failure, throttle behavior, expiry boundaries, concurrent sessions, target workspace switching, role changes, revocation/deactivation, cookie security, no nesting, unsupported modes, safe persistence, actor/effective attribution, and SQLite integrity.
+
+Acceptance criteria:
+
+- Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
+
 ## Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
 
 Completed on 2026-08-05. Secure catalog policy now governs every current Notes consumer through one declared fail-closed contract, the Notes Settings catalog manager owns safe enable/retry/downgrade controls, interrupted work has an operator recovery path, and the `0.33.29` branch is closed. The active cursor advanced to `0.33.30.1` for the durable Support View identity contract.

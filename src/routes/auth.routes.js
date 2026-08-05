@@ -41,7 +41,10 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
 
 authRoutes.post("/logout", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
-  const result = await authService.logout(getSessionIdFromRequest(request), session);
+  const result = await authService.logout(
+    request.sessionRotation?.sessionId || getSessionIdFromRequest(request),
+    session,
+  );
 
   response.setHeader("Set-Cookie", [
     buildExpiredCsrfCookie(request),
@@ -54,6 +57,7 @@ authRoutes.post("/logout", asyncRoute(async (request, response) => {
 
 authRoutes.get("/session", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
+  applyRequestSessionRotation(request, response);
   const result = await authService.readSession(session);
 
   response.status(200).json(result);
@@ -61,10 +65,29 @@ authRoutes.get("/session", asyncRoute(async (request, response) => {
 
 authRoutes.post("/session/workspace", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
+  applyRequestSessionRotation(request, response);
   const payload = await readJsonBody(request);
-  const result = await authService.switchWorkspace(getSessionIdFromRequest(request), session, payload);
+  const result = await authService.switchWorkspace(
+    request.sessionRotation?.sessionId || getSessionIdFromRequest(request),
+    session,
+    payload,
+  );
 
   response.status(200).json(result);
 }));
+
+function applyRequestSessionRotation(request, response) {
+  if (request.sessionRotation) {
+    response.append("Set-Cookie", buildSessionCookie(
+      request.sessionRotation.sessionId,
+      request.sessionRotation.maxAgeSeconds,
+      request,
+    ));
+    return;
+  }
+  if (request.sessionInvalidated) {
+    response.append("Set-Cookie", buildExpiredSessionCookie(request));
+  }
+}
 
 export { authRoutes };

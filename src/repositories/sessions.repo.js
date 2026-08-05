@@ -1,9 +1,9 @@
 import { db } from "../core/database.js";
 
-async function create(session) {
+async function create(session, database = db) {
   const now = new Date().toISOString();
 
-  await db.run(`
+  await database.run(`
 INSERT INTO sessions (
   session_id,
   home_workspace_id,
@@ -13,6 +13,7 @@ INSERT INTO sessions (
   timezone,
   ip_address,
   session_mode,
+  support_session_id,
   expires_at,
   created_at,
   updated_at
@@ -26,6 +27,7 @@ VALUES (
   :timezone,
   :ipAddress,
   :sessionMode,
+  :supportSessionId,
   :expiresAt,
   :createdAt,
   :updatedAt
@@ -37,6 +39,7 @@ VALUES (
     homeWorkspaceId: session.home_workspace_id ?? session.workspace_id ?? null,
     ipAddress: session.ip_address || null,
     sessionMode: session.session_mode || "normal",
+    supportSessionId: session.support_session_id || null,
     sessionId: session.session_id,
     timezone: session.timezone,
     updatedAt: now,
@@ -45,8 +48,8 @@ VALUES (
   });
 }
 
-async function readById(sessionId) {
-  return db.get(`
+async function readById(sessionId, database = db) {
+  return database.get(`
 SELECT
   sessions.session_id,
   sessions.home_workspace_id,
@@ -56,6 +59,7 @@ SELECT
   sessions.timezone,
   sessions.ip_address,
   sessions.session_mode,
+  sessions.support_session_id,
   sessions.expires_at,
   users.password_change_required
 FROM sessions
@@ -104,9 +108,9 @@ ORDER BY created_at DESC, session_id;
 `, { userId, workspaceId });
 }
 
-async function remove(sessionId) {
-  const existing = await readById(sessionId);
-  await db.run(`
+async function remove(sessionId, database = db) {
+  const existing = database === db ? await readById(sessionId) : true;
+  await database.run(`
 DELETE FROM sessions
 WHERE session_id = :sessionId;
 `, { sessionId });
@@ -165,7 +169,8 @@ WHERE user_id = :userId
 async function removeExpired(now = new Date()) {
   await db.run(`
 DELETE FROM sessions
-WHERE expires_at <= :now;
+WHERE expires_at <= :now
+  AND support_session_id IS NULL;
 `, { now: now.toISOString() });
 }
 
