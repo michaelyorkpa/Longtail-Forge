@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.4`.
+Active cursor: `0.33.28.5`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -25,7 +25,7 @@ The container keeps the established security posture (non-root UID/GID 10001, re
 
 Dependencies and baseline:
 
-- Builds directly on the 0.33.17 runtime artifact, Compose assets, backup/restore format, root-owned preview handoff, container and bare-metal smokes, and the live bare-metal preview hosts. Existing bare-metal machinery is transition safety until 0.33.28.4 proves the replacement, not the future supported format.
+- Builds directly on the 0.33.17 runtime artifact, Compose assets, backup/restore format, root-owned preview handoff, container and bare-metal smokes, and the live bare-metal preview hosts. Existing bare-metal machinery is transition safety until the live replacement gate proves Compose, not the future supported format.
 - Keeps `npm run artifact:smoke` (or its current equivalent) as the clean extract/install/boot proof that the packaged application payload is complete before the Docker build consumes it.
 - Consumes the branded error/503 surfaces from 0.33.23 and the operator maintenance curtain from 0.33.24; ships the reviewed `THIRD_PARTY_NOTICES.md` and root `LICENSE` from 0.33.25; and keeps the preview's product-feature cut through 0.33.27 while 0.33.28 adds the deployment/release contract.
 - Preserves the one-server SQLite/local-Files boundary and requires native `better-sqlite3` installation and runtime proof on every published Linux/container architecture rather than treating a cross-build or emulated build as sufficient.
@@ -40,27 +40,11 @@ Non-goals:
 - No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
 - No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
 
-### Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
-
-**Model: High Effort** — This changes the actual preview/demo runtime while deliberately retaining the known recovery path until the replacement proves every destructive lifecycle operation.
-
-- [ ] Keep the current bare-metal `rt-ltf` and `rt-ltf-demo` installations, service definitions, retained releases, backups, deployment helper behavior, and recovery material intact until the Compose replacement gate below passes. Do not remove or disable bare-metal support assets in this slice.
-- [ ] Prove the complete Compose lifecycle first on `rt-ltf-demo` using its actual supported Linux/container architecture: deployment, upgrade, container/data-volume replacement, durable database/Files persistence, complete backup and inspection, restore into a clean recovery volume, migration-aware image rollback, restored rollback, ClamAV handoff, and maintenance/error behavior.
-- [ ] After the demo proof succeeds, cut `rt-ltf` over behind its reviewed Caddy (or Nginx → WireGuard → Caddy) edge using a verified whole-instance backup and separately protected recovery material. Keep the prior bare-metal release stopped but recoverable through the observation period; never run both app instances against the same SQLite/Files state.
-- [ ] Capture live evidence on both hosts: exact image digest/platform and `/api/app-info` identity, direct-loopback and public health/readiness, non-root/read-only/capability inspection, persistent-volume identity, protected backup destination, scanner readiness, maintenance curtain, firewall proof that port 8001 is loopback-only, and successful representative workflows.
-- [ ] Perform and record a live backup-first upgrade and a restored-rollback exercise against retained pre-upgrade state. Selecting an older image alone is insufficient evidence when forward migrations ran.
-- [ ] Confirm the August 31, 2026 private-preview host cut carries product features through 0.33.27 plus the 0.33.28 deployment/release work, while Secure Catalogs (0.33.29) and Support View (0.33.30) remain excluded, or update the target/status wording to match what actually shipped. Treat this live-host proof as a prerequisite for the broader public self-hosted preview, not as automatic authorization to announce or invite.
-- [ ] Update `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.4`, run the named live/container proofs plus `npm run verify:slice` exactly once for the final unchanged repository state, and do not close on repo-local evidence alone.
-
-Acceptance criteria:
-
-- The Compose path has passed deployment, upgrade, persistence, backup, restore, migration-aware rollback, and restored-rollback gates on the actual supported host architecture; both preview/demo hosts run the verified immutable image; the prior bare-metal runtime remains stopped but recoverable through the observation window; and no retirement work has started early.
-
 ### Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
 
 **Model: High Effort** — This removes a security- and recovery-sensitive production contract only after its replacement is live, while preserving development access and the artifact payload the image still requires.
 
-- [ ] Start only after 0.33.28.4 records a successful observation period and confirms the retained bare-metal runtime is no longer needed for recovery. Preserve required historical deployment evidence, backups, Secure Notes recovery material, and operator records according to their retention rules.
+- [ ] Start only after the completed replacement gate records a successful observation period and confirms the retained bare-metal runtime is no longer needed for recovery. Preserve required historical deployment evidence, backups, Secure Notes recovery material, and operator records according to their retention rules.
 - [ ] Retire bare-metal-specific production implementation and release ceremony: `bare-metal:smoke` and its package/workflow/release-gate wiring, bare-metal-only regression assertions, the systemd service example, root-owned immutable Node-release installation path, direct-artifact production deploy/upgrade/rollback behavior, and duplicated support promises. Adapt rather than remove any constrained SSH/host-helper capability still required to deploy Compose by digest safely.
 - [ ] Keep `npm install`/`npm start`, local Node execution, and any needed Linux packaging validation for development, testing, and advanced experimentation, but label them unsupported for production/self-hosting. Do not remove the checksummed runtime artifact, `artifact:smoke`, native Linux dependency proof, image build, container smoke, or Compose release gates.
 - [ ] Rewrite the governing operator set around the sole supported Compose contract: `docs/preview-deployment.md`, `docs/self-hosting.md`, `docs/runtime-artifact.md`, `docs/versioning.md`, `docs/releasing.md`, `docs/development/github-workflow.md`, `docs/upgrading.md`, `docs/internet-deployment.md`, `docs/private-preview-readiness.md`, README release links/status, and directly related marketing/commercial packaging promises. Remove bare-metal installation, systemd, upgrade, rollback, and duplicated support language only after the replacement proof.

@@ -65,16 +65,24 @@ for (const requirement of [
   /read_only: true/,
   /cap_drop:[\s\S]*- ALL/,
   /no-new-privileges:true/,
+  /\/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001/,
   /longtail-data:\/var\/lib\/longtail-forge/,
   /LONGTAIL_BACKUP_DIR:-\.\/backups/,
   /LONGTAIL_WORKSPACE_BACKUP_ROOT: \/var\/backups\/longtail-forge\/workspaces/,
   /restart: unless-stopped/,
   /\/readyz/,
   /172\.30\.17\.1\/32/,
+  /LONGTAIL_CLAMD_HOST: \$\{LONGTAIL_CLAMD_HOST:-172\.30\.17\.1\}/,
+  /LONGTAIL_RELEASE_BRANCH: \$\{LONGTAIL_RELEASE_BRANCH:-\}/,
+  /LONGTAIL_RELEASE_COMMIT: \$\{LONGTAIL_RELEASE_COMMIT:-\}/,
+  /LONGTAIL_RELEASE_ARTIFACT_SHA256: \$\{LONGTAIL_RELEASE_ARTIFACT_SHA256:-\}/,
+  /preview-internal:[\s\S]*external: true/,
 ]) {
   assert.match(compose, requirement);
 }
 assert.doesNotMatch(compose, /postgres/i, "Compose must remain SQLite-only");
+assert.doesNotMatch(compose, /host\.docker\.internal|host-gateway/, "the scanner handoff must use the reviewed application-network gateway");
+assert.doesNotMatch(compose, /format:\s*raw/, "raw env parsing would preserve quotes from a compatible systemd environment file");
 
 for (const requirement of [
   /Docker Compose is the sole supported production and self-hosted deployment/i,
@@ -86,6 +94,7 @@ for (const requirement of [
   /backup-first upgrade/i,
   /image-only rollback and is permitted only when the release record explicitly proves every migration/i,
   /restore the verified pre-upgrade database and Files together/i,
+  /512 MB private tmpfs/i,
   /Transition-only bare-metal installation/i,
   /npm ci --omit=dev/,
   /supported platform decision is `linux\/amd64` only/i,
@@ -101,18 +110,22 @@ assert.match(selfHosting, /Docker Compose on `linux\/amd64` is the sole supporte
 assert.match(runtimeArtifact, /artifact is not a supported production installer/);
 assert.match(envExample, /LONGTAIL_DOCKER_TRUST_PROXY=172\.30\.17\.1\/32/);
 assert.match(envExample, /LONGTAIL_FILE_SCANNER=clamd/);
+assert.match(envExample, /LONGTAIL_CLAMD_HOST=172\.30\.17\.1/);
 assert.match(service, /User=longtail-forge/);
 assert.match(service, /WorkingDirectory=\/opt\/longtail-forge\/current/);
 assert.match(service, /ExecStart=\/usr\/bin\/node server\.js/);
 assert.match(service, /ProtectSystem=strict/);
 
 assert.match(containerSmoke, /--read-only/);
+assert.match(containerSmoke, /\/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001/);
 assert.match(containerSmoke, /assertNativePlatform\(\)/);
 assert.match(containerSmoke, /releaseMetadataPath: args\.releaseMetadata/);
 assert.match(containerSmoke, /10001:10001/);
 assert.match(containerSmoke, /nativeBinding[\s\S]*linux-x64/);
 assert.match(containerSmoke, /the final runtime image should contain neither the native build toolchain nor repository development dependencies/);
 assert.match(containerSmoke, /compose\(\["config", "--quiet"\]\)/);
+assert.match(containerSmoke, /createSmokeNetwork\(\)/);
+assert.match(containerSmoke, /"network", "create"/);
 assert.match(containerSmoke, /compose\(\["up", "-d", "--no-deps", "--force-recreate", "longtail-forge"\]\)/);
 assert.match(containerSmoke, /candidate\.image, dataVolume, `missing-\$\{scannerContainer\}`/);
 assert.match(containerSmoke, /LONGTAIL_CLAMD_HOST=missing-/);

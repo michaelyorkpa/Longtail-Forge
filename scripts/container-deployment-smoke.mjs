@@ -55,6 +55,7 @@ try {
 
   assert.equal(inspectImageUser(previous.image), "10001:10001");
   assert.equal(inspectImageUser(candidate.image), "10001:10001");
+  createSmokeNetwork();
   writeComposeEnvironment(previous.image, dataVolume, scannerContainer);
   assertComposeConfiguration(previous.image, previous.imageDigest, dataVolume);
   compose(["create", "longtail-forge"]);
@@ -328,6 +329,17 @@ function writeComposeEnvironment(image, volume, scannerHost) {
     "LONGTAIL_CLAMD_PORT=3310",
     "",
   ].join("\n"), "utf8");
+}
+
+function createSmokeNetwork() {
+  const subnetOctet = 32 + (process.pid % 180);
+  runDocker([
+    "network", "create",
+    "--driver", "bridge",
+    "--subnet", `172.29.${subnetOctet}.0/24`,
+    "--gateway", `172.29.${subnetOctet}.1`,
+    networkName,
+  ]);
 }
 
 function compose(composeArgs, options = {}) {
@@ -648,7 +660,7 @@ function runBackupCommand(image, volume, commandArgs) {
     "run", "--rm",
     "--network", networkName,
     "--read-only",
-    "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,mode=0700,uid=10001,gid=10001",
+    "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001",
     "--cap-drop", "ALL",
     "--security-opt", "no-new-privileges:true",
     "--user", "10001:10001",
