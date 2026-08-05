@@ -1,3 +1,13 @@
+## Version 0.33.29.1 - 2026-08-05
+
+- Added catalog-level `normal`/`secure` policy and fail-closed `stable`/`securing`/`failed` transition storage through forward migration 088, with refreshed generated schema and a workspace/security index.
+- Added one Notes-owned, workspace-scoped effective-security resolver and repository projection for explicit secure notes, direct secure catalogs, arbitrary-depth secure ancestors, archived ancestors, and fail-closed missing, cross-workspace, or cyclic hierarchy states.
+- Routed Notes authorization, secure shaping, decryption, Search/notification suppression, resume eligibility, and safe audit behavior through effective security while preserving the note's separate explicit `security_mode`.
+- Made secure-catalog note creation store the encrypted note plus encrypted initial revision atomically, and made moves into secure catalogs transactionally encrypt the note, all existing revisions, and the before-move snapshot before membership becomes observable. Moves out remain blocked pending the deliberate `0.33.29.2` downgrade/preservation flow.
+- Added focused unit and isolated-database regressions for hierarchy inheritance, transition states, authorization, malformed hierarchy fail-closed behavior, cycle rejection, encrypted creation/moves, and SQLite integrity.
+- Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: catalog policy has no user-facing management action yet, and the existing backup/recovery, import, workflow-context, SQLite operating-mode, and Help contracts remain unchanged.
+
 ## Version 0.33.28.5 - 2026-08-05
 
 - Made Docker Compose the sole maintained production/self-hosted lifecycle after the successful live replacement observation period. Direct Node/systemd operation remains available for development, testing, and advanced experimentation but is explicitly unsupported for production installation, upgrade, rollback, or recovery.

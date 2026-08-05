@@ -1,5 +1,9 @@
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
+import {
+  resolveCollectionEffectiveSecurity,
+  resolveNoteEffectiveSecurity,
+} from "./effective-security.js";
 
 const NOTE_COLUMNS = [
   "note_id",
@@ -94,6 +98,8 @@ const COLLECTION_COLUMNS = [
   "sort_order",
   "collection_source",
   "status",
+  "security_policy",
+  "security_transition_state",
   "created_by_user_id",
   "updated_by_user_id",
   "created_at",
@@ -143,7 +149,7 @@ WHERE ${clauses.join("\n  AND ")}
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
 `, params);
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function queryList(workspaceId, options = {}) {
@@ -176,7 +182,7 @@ ${orderSql}${limitSql};
   return {
     hasMore,
     nextOffset: normalizedOffset + noteRows.length,
-    notes: noteRows.map(noteRowToAppValue),
+    notes: await projectNoteSecurity(workspaceId, noteRows.map(noteRowToAppValue)),
   };
 }
 
@@ -189,7 +195,11 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, { noteId, workspaceId });
 
-  return row ? noteRowToAppValue(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return (await projectNoteSecurity(workspaceId, [noteRowToAppValue(row)]))[0];
 }
 
 async function readByIds(workspaceId, noteIds = []) {
@@ -209,7 +219,7 @@ WHERE workspace_id = :workspaceId
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}, note_id ASC;
 `, { noteIds: ids, workspaceId });
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function create(workspaceId, note) {
@@ -220,7 +230,7 @@ async function create(workspaceId, note) {
   return readById(workspaceId, noteId);
 }
 
-async function createWithLinks(workspaceId, note, links = []) {
+async function createWithLinks(workspaceId, note, links = [], options = null) {
   const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
 
@@ -232,6 +242,15 @@ async function createWithLinks(workspaceId, note, links = []) {
         ...link,
         note_id: noteId,
       }, link.note_link_id || createRecordId(), link.created_at || now);
+    }
+
+    if (options?.initialRevision) {
+      await insertRevision(
+        transaction,
+        workspaceId,
+        { ...options.initialRevision, note_id: noteId },
+        options.initialRevision.note_revision_id,
+      );
     }
   });
 
@@ -348,7 +367,35 @@ VALUES (
 async function update(workspaceId, note) {
   const updatedAt = note.updated_at || new Date().toISOString();
 
-  await db.run(`
+  await updateNote(db, workspaceId, note, updatedAt);
+  return readById(workspaceId, note.note_id);
+}
+
+async function secureNoteAndRevisions(workspaceId, note, revisions = [], transitionRevision = null) {
+  const updatedAt = note.updated_at || new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await updateNote(transaction, workspaceId, note, updatedAt);
+
+    for (const revision of revisions) {
+      await updateRevisionSecurity(transaction, workspaceId, revision);
+    }
+
+    if (transitionRevision) {
+      await insertRevision(
+        transaction,
+        workspaceId,
+        transitionRevision,
+        transitionRevision.note_revision_id,
+      );
+    }
+  });
+
+  return readById(workspaceId, note.note_id);
+}
+
+async function updateNote(databaseClient, workspaceId, note, updatedAt) {
+  await databaseClient.run(`
 UPDATE notes
 SET
   title = :title,
@@ -401,14 +448,17 @@ WHERE workspace_id = :workspaceId
     noteId: note.note_id,
     updatedAt,
   }));
-
-  return readById(workspaceId, note.note_id);
 }
 
 async function createRevision(workspaceId, revision) {
   const revisionId = revision.note_revision_id || createRecordId();
 
-  await db.run(`
+  await insertRevision(db, workspaceId, revision, revisionId);
+  return readRevisionById(workspaceId, revision.note_id, revisionId);
+}
+
+async function insertRevision(databaseClient, workspaceId, revision, revisionId) {
+  await databaseClient.run(`
 INSERT INTO note_revisions (
   note_revision_id,
   workspace_id,
@@ -526,8 +576,48 @@ VALUES (
     visibility: text(revision.visibility || "internal"),
     workspaceId: text(workspaceId),
   });
+}
 
-  return readRevisionById(workspaceId, revision.note_id, revisionId);
+async function updateRevisionSecurity(databaseClient, workspaceId, revision) {
+  await databaseClient.run(`
+UPDATE note_revisions
+SET
+  body_markdown = :bodyMarkdown,
+  body_excerpt = :bodyExcerpt,
+  security_mode = :securityMode,
+  secure_payload = :securePayload,
+  secure_payload_version = :securePayloadVersion,
+  encrypted_data_key = :encryptedDataKey,
+  encryption_key_version = :encryptionKeyVersion,
+  encryption_algorithm = :encryptionAlgorithm,
+  key_wrapping_algorithm = :keyWrappingAlgorithm,
+  encryption_nonce = :encryptionNonce,
+  encryption_auth_tag = :encryptionAuthTag,
+  key_wrapping_nonce = :keyWrappingNonce,
+  key_wrapping_auth_tag = :keyWrappingAuthTag,
+  encrypted_at = :encryptedAt
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_revision_id = :revisionId;
+`, {
+    bodyExcerpt: nullableText(revision.body_excerpt),
+    bodyMarkdown: text(revision.body_markdown),
+    encryptedAt: nullableText(revision.encrypted_at),
+    encryptedDataKey: nullableText(revision.encrypted_data_key),
+    encryptionAlgorithm: nullableText(revision.encryption_algorithm),
+    encryptionAuthTag: nullableText(revision.encryption_auth_tag),
+    encryptionKeyVersion: nullableText(revision.encryption_key_version),
+    encryptionNonce: nullableText(revision.encryption_nonce),
+    keyWrappingAlgorithm: nullableText(revision.key_wrapping_algorithm),
+    keyWrappingAuthTag: nullableText(revision.key_wrapping_auth_tag),
+    keyWrappingNonce: nullableText(revision.key_wrapping_nonce),
+    noteId: text(revision.note_id),
+    revisionId: text(revision.note_revision_id),
+    securePayload: nullableText(revision.secure_payload),
+    securePayloadVersion: nullableText(revision.secure_payload_version),
+    securityMode: text(revision.security_mode || "secure"),
+    workspaceId: text(workspaceId),
+  });
 }
 
 async function nextRevisionNumber(workspaceId, noteId) {
@@ -853,7 +943,7 @@ WHERE ${clauses.join("\n  AND ")}
 ORDER BY library_bucket ASC, ${db.dialect.comparison.orderByNoCase("path_cache", "ASC")}, sort_order ASC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
 `, params);
 
-  return rows.map(collectionRowToAppValue);
+  return projectCollectionSecurity(workspaceId, rows.map(collectionRowToAppValue));
 }
 
 async function readCollectionById(workspaceId, collectionId) {
@@ -865,7 +955,11 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, { collectionId, workspaceId });
 
-  return row ? collectionRowToAppValue(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(row)]))[0];
 }
 
 async function createCollection(workspaceId, collection) {
@@ -886,6 +980,8 @@ INSERT INTO note_library_collections (
   sort_order,
   collection_source,
   status,
+  security_policy,
+  security_transition_state,
   created_by_user_id,
   updated_by_user_id,
   created_at,
@@ -907,6 +1003,8 @@ VALUES (
   :sortOrder,
   :collectionSource,
   :status,
+  :securityPolicy,
+  :securityTransitionState,
   :createdByUserId,
   :updatedByUserId,
   :createdAt,
@@ -940,6 +1038,8 @@ SET
   sort_order = :sortOrder,
   collection_source = :collectionSource,
   status = :status,
+  security_policy = :securityPolicy,
+  security_transition_state = :securityTransitionState,
   updated_by_user_id = :updatedByUserId,
   updated_at = :updatedAt,
   archived_at = :archivedAt,
@@ -1034,7 +1134,7 @@ ORDER BY notes.updated_at DESC, ${db.dialect.comparison.orderByNoCase("notes.tit
     workspaceId,
   });
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function countPlaintextSecurePlaceholders(workspaceId) {
@@ -1132,6 +1232,8 @@ function collectionPersistenceParams(workspaceId, collection, { collectionId, up
     metadataJson: nullableText(collection.metadata_json),
     parentCollectionId: nullableText(collection.parent_collection_id),
     pathCache: nullableText(collection.path_cache),
+    securityPolicy: text(collection.security_policy || "normal"),
+    securityTransitionState: text(collection.security_transition_state || "stable"),
     slug: text(collection.slug),
     sortOrder: integer(collection.sort_order),
     status: text(collection.status || "active"),
@@ -1185,6 +1287,72 @@ function collectionRowToAppValue(row) {
     sort_order: Number(row.sort_order || 0),
     metadata: parseJson(row.metadata_json, {}),
   };
+}
+
+async function projectNoteSecurity(workspaceId, notes = []) {
+  if (notes.length === 0) {
+    return [];
+  }
+
+  const collections = await readCollectionSecurityRows(workspaceId);
+  const collectionsById = new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
+  return notes.map((note) => ({
+    ...note,
+    ...resolveNoteEffectiveSecurity(note, collectionsById, workspaceId),
+  }));
+}
+
+async function projectEffectiveSecurity(workspaceId, note = {}) {
+  return (await projectNoteSecurity(workspaceId, [{ ...note, workspace_id: workspaceId }]))[0];
+}
+
+async function projectCollectionSecurity(workspaceId, collections = []) {
+  if (collections.length === 0) {
+    return [];
+  }
+
+  const securityRows = await readCollectionSecurityRows(workspaceId);
+  const collectionsById = new Map(securityRows.map((collection) => [collection.note_library_collection_id, collection]));
+  return collections.map((collection) => {
+    const security = resolveCollectionEffectiveSecurity(collection, collectionsById, workspaceId);
+    return {
+      ...collection,
+      effective_security_mode: security.effectiveSecurityMode,
+      security_inherited: security.effectiveSecurityMode === "secure" && security.securityCatalogId !== collection.note_library_collection_id,
+      security_resolution_state: security.resolutionState,
+      security_source_catalog_id: security.securityCatalogId,
+    };
+  });
+}
+
+async function readCollectionSecurityRows(workspaceId) {
+  const rows = await db.query(`
+SELECT
+  note_library_collection_id,
+  workspace_id,
+  title,
+  slug,
+  description,
+  library_bucket,
+  parent_collection_id,
+  path_cache,
+  depth,
+  sort_order,
+  collection_source,
+  status,
+  security_policy,
+  security_transition_state,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at,
+  archived_at,
+  deleted_at,
+  metadata_json
+FROM note_library_collections
+WHERE workspace_id = :workspaceId;
+`, { workspaceId });
+  return rows.map(collectionRowToAppValue);
 }
 
 function parseJson(value, fallback) {
@@ -1495,6 +1663,7 @@ export const notesRepository = {
   listLinksForNotes,
   listRevisions,
   nextRevisionNumber,
+  projectEffectiveSecurity,
   queryList,
   readById,
   readByIds,
@@ -1503,6 +1672,7 @@ export const notesRepository = {
   readRevisionById,
   removeLink,
   replacePropagatedLinksForTarget,
+  secureNoteAndRevisions,
   updateCollection,
   update,
 };

@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.29.1`.
+Active cursor: `0.33.29.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -29,20 +29,6 @@ Non-goals:
 - Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
 - Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
 - Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
-
-### Version 0.33.29.1 - Catalog policy, effective-security projection, and migration
-
-**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
-
-- [ ] Add a forward migration for a first-class catalog security policy and any transition state required for fail-closed conversion; refresh/check the schema and preserve SQLite/provider-neutral repository seams.
-- [ ] Define one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, and secure ancestors. Secure inheritance must be cycle-safe, workspace-scoped, deterministic, and returned as authorization state rather than as a decorative tag.
-- [ ] Extend collection and note read projections so services can enforce effective security without browser-side tree reconstruction or per-consumer ad hoc joins.
-- [ ] Make note creation inside an effectively secure catalog encrypt the body and initial revision immediately. Make a move into a secure catalog encrypt the note and affected revision content before the new membership becomes readable.
-- [ ] Add repository/service tests for nested catalogs, archived catalogs, cross-workspace IDs, missing ancestors, cycles rejected by the existing hierarchy boundary, explicit-secure notes in normal catalogs, and normal notes under secure ancestors.
-
-Acceptance criteria:
-
-- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
 
 ### Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
 

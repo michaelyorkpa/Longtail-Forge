@@ -29,8 +29,8 @@ const tempRoots = [];
 try {
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "088_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "089_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -72,6 +72,8 @@ try {
   assert.match(liveSchema.sql, /CREATE UNIQUE INDEX idx_tasks_recurrence_instance_unique/);
   assert.match(liveSchema.sql, /recovery_checkpoint_date TEXT/);
   assert.match(liveSchema.sql, /CREATE TABLE "?private_feed_tokens"?/);
+  assert.match(liveSchema.sql, /security_policy TEXT NOT NULL DEFAULT 'normal'/);
+  assert.match(liveSchema.sql, /security_transition_state TEXT NOT NULL DEFAULT 'stable'/);
 
   for (const requiredPath of [
     "scripts/fresh-database-regression.mjs",

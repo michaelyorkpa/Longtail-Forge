@@ -37,10 +37,13 @@ DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
 DROP TABLE IF EXISTS startup_maintenance_runs;
 DROP TABLE IF EXISTS private_feed_tokens;
+DROP INDEX IF EXISTS idx_note_library_collections_workspace_security;
 
 ALTER TABLE tasks DROP COLUMN estimate_minutes;
 ALTER TABLE task_recurrence_templates DROP COLUMN estimate_minutes;
 ALTER TABLE task_recurrence_templates DROP COLUMN recovery_checkpoint_date;
+ALTER TABLE note_library_collections DROP COLUMN security_transition_state;
+ALTER TABLE note_library_collections DROP COLUMN security_policy;
 
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
@@ -344,6 +347,11 @@ ORDER BY version;
       version: "087",
       module_id: "core",
       name: "task_recurrence_recovery_checkpoint",
+    },
+    {
+      version: "088",
+      module_id: "core",
+      name: "secure_catalog_policy",
     },
   ]);
 }

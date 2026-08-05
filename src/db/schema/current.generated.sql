@@ -380,7 +380,9 @@ CREATE TABLE note_library_collections (
   updated_at TEXT NOT NULL,
   archived_at TEXT,
   deleted_at TEXT,
-  metadata_json TEXT, path_cache TEXT, depth INTEGER NOT NULL DEFAULT 0, collection_source TEXT NOT NULL DEFAULT 'manual' CHECK (collection_source IN ('manual', 'imported')), updated_by_user_id TEXT,
+  metadata_json TEXT, path_cache TEXT, depth INTEGER NOT NULL DEFAULT 0, collection_source TEXT NOT NULL DEFAULT 'manual' CHECK (collection_source IN ('manual', 'imported')), updated_by_user_id TEXT, security_policy TEXT NOT NULL DEFAULT 'normal'
+CHECK (security_policy IN ('normal', 'secure')), security_transition_state TEXT NOT NULL DEFAULT 'stable'
+CHECK (security_transition_state IN ('stable', 'securing', 'failed')),
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (parent_collection_id) REFERENCES note_library_collections(note_library_collection_id),
   FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
@@ -1371,6 +1373,9 @@ ON note_library_collections (workspace_id, parent_collection_id, status);
 
 CREATE INDEX idx_note_library_collections_workspace_path
 ON note_library_collections (workspace_id, library_bucket, path_cache);
+
+CREATE INDEX idx_note_library_collections_workspace_security
+ON note_library_collections (workspace_id, security_policy, security_transition_state);
 
 CREATE UNIQUE INDEX idx_note_library_collections_workspace_sibling_slug
 ON note_library_collections (

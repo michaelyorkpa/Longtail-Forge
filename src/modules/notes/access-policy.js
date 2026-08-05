@@ -1,9 +1,9 @@
 import {
   NOTE_LIBRARY_BUCKETS,
-  NOTE_SECURITY_MODES,
   NOTE_STATUSES,
   NOTE_VISIBILITIES,
 } from "./library.js";
+import { isEffectivelySecureNote } from "./effective-security.js";
 
 const NOTE_PERMISSIONS = Object.freeze({
   VIEW: "notes.view",
@@ -197,7 +197,7 @@ function canAccessNote({
     return deny("client_visible_requires_permission");
   }
 
-  if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
+  if (isEffectivelySecureNote(note)) {
     const secureAccess = canAccessSecureNote(note, session, permissionSet, normalizedOperation);
     if (!secureAccess.allowed) {
       return secureAccess;
@@ -252,7 +252,7 @@ function canExposeNoteInAggregate({
     return false;
   }
 
-  if (note.security_mode === NOTE_SECURITY_MODES.SECURE && !includeSecureMetadata) {
+  if (isEffectivelySecureNote(note) && !includeSecureMetadata) {
     return false;
   }
 
