@@ -373,6 +373,11 @@ ORDER BY version;
       module_id: "core",
       name: "support_view_sessions",
     },
+    {
+      version: "091",
+      module_id: "core",
+      name: "support_view_action_events",
+    },
   ]);
 }
 

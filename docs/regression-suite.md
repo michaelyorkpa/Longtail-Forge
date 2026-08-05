@@ -72,6 +72,8 @@ The 0.33.19.4 runtime-configuration split is the reference partial-movement cont
 
 As of 0.33.30.1, `framework.support-view-session-contract` is the release-gate owner for default-off Support View configuration, Super-Admin-only permission seeding, current-password throttle behavior, atomic entry/exit rotation, exact expiry, independent concurrent sessions, immutable actor and separate effective identity/workspace request context, no nesting or recovery-mode entry, fixed-workspace behavior, live role/permission/membership/user/workspace revocation, safe cookie posture, safe diagnostic/event storage, and SQLite integrity.
 
+As of 0.33.30.2, `framework.support-view-request-enforcement` is the release-gate owner for complete protected GET/HEAD route declarations, immutable central mutation denial with valid CSRF proof, target-shaped response identity, sensitive and undeclared read non-enumeration, secure Notes/detail/catalog omission, append-only action attribution, secret-free event persistence, and SQLite integrity. `framework.operational-security-basics` additionally pins the structured logger's Support View allowlist while continuing to reject queries, bodies, and unknown fields.
+
 ## Current Entry Points
 
 | Entry point | Current responsibility |
@@ -177,18 +179,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 434 |
+| Active discovered regressions | 435 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 125 |
+| Convention-path metadata regressions | 126 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 60 |
+| Active release-gate regressions | 61 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 437 |
-| Release-gate ratchet floor | 62 |
+| Global ratchet floor | 438 |
+| Release-gate ratchet floor | 63 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 73 | 0 | 73 |
+| `framework` | 74 | 0 | 74 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -213,7 +215,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 204 |
 | `integration` | 162 |
-| `release-gate` | 60 |
+| `release-gate` | 61 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -222,7 +224,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 179 |
+| `isolated-database` | 180 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

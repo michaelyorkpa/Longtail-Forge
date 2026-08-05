@@ -12,6 +12,9 @@ SELECT
   effective.user_id AS effective_user_id,
   effective.username AS effective_username,
   effective.user_status AS effective_status,
+  effective.home_workspace_id AS effective_home_workspace_id,
+  effective.timezone AS effective_timezone,
+  effective.password_change_required AS effective_password_change_required,
   user_workspaces.status AS effective_membership_status,
   workspaces.status AS workspace_status,
   CASE WHEN actor.protected_user = 'yes' OR EXISTS (
@@ -44,6 +47,9 @@ SELECT
   actor.user_status AS actor_status,
   actor.protected_user AS actor_protected,
   effective.user_status AS effective_status,
+  effective.home_workspace_id AS effective_home_workspace_id,
+  effective.timezone AS effective_timezone,
+  effective.password_change_required AS effective_password_change_required,
   user_workspaces.status AS effective_membership_status,
   workspaces.status AS workspace_status,
   CASE WHEN actor.protected_user = 'yes' OR EXISTS (
@@ -145,6 +151,9 @@ INSERT INTO support_view_events (
   event_type,
   outcome,
   request_id,
+  route_id,
+  action_id,
+  reason_class,
   metadata_json,
   occurred_at
 )
@@ -157,6 +166,9 @@ VALUES (
   :eventType,
   :outcome,
   :requestId,
+  :routeId,
+  :actionId,
+  :reasonClass,
   :metadataJson,
   :occurredAt
 );
@@ -173,6 +185,7 @@ ORDER BY occurred_at, event_id;
 }
 
 export const supportSessionsRepository = {
+  appendEvent,
   create,
   end,
   listEvents,

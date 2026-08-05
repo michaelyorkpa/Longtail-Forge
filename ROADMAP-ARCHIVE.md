@@ -1,5 +1,22 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30.2 - Server read-only enforcement and protected-data exclusions
+
+Completed on 2026-08-05. Support View now has one fail-closed server boundary that authorizes ordinary reads as the effective target, denies every mutation before protected route dispatch, omits sensitive and secure Notes/catalog data, and records each allowed or denied attempt with separate actor/target attribution. The protected GET/HEAD inventory has no undeclared routes, and the active cursor advanced to `0.33.30.3` for the unmistakable browser UX, audit review surface, and final branch closeout.
+
+**Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
+
+- [x] Added one framework request gate after authentication and before protected framework/module routes. Only explicitly cataloged GET/HEAD routes proceed; every other method returns stable `support_view_read_only` before route dispatch, while undeclared reads fail closed as not-found.
+- [x] Changed the authorization-facing request identity to the target's live user, fixed workspace, memberships, roles, permissions, module enablement, record scope, timezone, and home context while retaining immutable actor fields only for lifecycle validation and attribution.
+- [x] Added a central sensitive-read catalog for API keys/tokens/private feeds, recovery/export/backup, audit/security/session administration, runtime/settings/integration configuration, file content, and secure Notes/catalog surfaces. Secure Notes lists, detail, revisions, relationships, and catalog trees use the existing declared exclusion and preserve generic non-enumeration.
+- [x] Extended append-only Support View events through migration 091 and the structured operational logger with actor, target, workspace, support-session, request, route/action, outcome, and reason-class fields. Query strings, bodies, content, credentials, arbitrary metadata, and raw browser session IDs remain excluded.
+- [x] Added a release-gate source inventory that requires every protected GET/HEAD route to declare read-safe or sensitive semantics and unique stable IDs. The central mutation deny has no module override.
+- [x] Added valid-CSRF direct HTTP proof for mutation denial/no row creation, target-shaped read responses, secure Notes/catalog omission, sensitive/unknown read 404 behavior, safe durable/operational attribution, migration integrity, and the existing lifecycle contract.
+
+Acceptance criteria:
+
+- Direct HTTP calls cannot mutate state in Support View, rendered data uses the target user's normal readable scope, protected secrets and secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
+
 ## Version 0.33.30.1 - Durable support-session and actor/effective identity contract
 
 Completed on 2026-08-05. Support View now has a default-off install gate, Super-Admin-only permission, durable actor/effective/workspace lifecycle, shared-throttle current-password verification, atomic browser-session rotation, exact expiry, live revocation handling, safe diagnostics/events, and focused integrity coverage. No browser entry workflow is exposed before the server read-only gate. The active cursor advanced to `0.33.30.2` for route enforcement and protected-data exclusions.

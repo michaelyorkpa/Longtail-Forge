@@ -5,6 +5,7 @@ import { config, logRuntimeConfigWarnings } from "../config.js";
 import { closeDatabase, formatDatabaseHealth, formatStartupPhase, initializeDatabase } from "../db/index.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
+import { supportViewRequestGate } from "../middleware/support-view-request-gate.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
 import { accountExportRecoveryRoutes } from "../routes/account-export-recovery.routes.js";
 import { appShellRoutes } from "../routes/app-shell.routes.js";
@@ -86,6 +87,7 @@ function createApp() {
   }
   app.use("/api/v1", apiRouteBoundary);
   app.use(requireAuth);
+  app.use(supportViewRequestGate);
   app.use("/api", accountExportRecoveryRoutes);
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);

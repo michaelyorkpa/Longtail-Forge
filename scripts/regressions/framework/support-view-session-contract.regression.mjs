@@ -102,7 +102,7 @@ ORDER BY role_id;
   assert.notEqual(firstStart.session.sessionId, firstLogin.sessionId, "entry must rotate the session ID");
   assert.equal(await sessionsRepository.readById(firstLogin.sessionId), null);
   const firstSupportSession = await readRequestSession(firstStart.session.sessionId);
-  assert.equal(firstSupportSession.user_id, actorSession.user_id, "the administrator remains the immutable session actor");
+  assert.equal(firstSupportSession.user_id, target.user_id, "request authorization must use the effective target");
   assert.equal(firstSupportSession.actor_user_id, actorSession.user_id);
   assert.equal(firstSupportSession.effective_user_id, target.user_id);
   assert.equal(firstSupportSession.workspace_id, workspaceId);

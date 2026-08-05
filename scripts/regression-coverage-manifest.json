@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 434,
+    "discoveredScripts": 435,
     "legacyScripts": 309,
-    "releaseGateScripts": 60,
+    "releaseGateScripts": 61,
     "areaCounts": {
       "dashboard": 2,
       "database": 41,
       "docs": 10,
       "files": 44,
-      "framework": 73,
+      "framework": 74,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 204,
       "integration": 162,
-      "release-gate": 60,
+      "release-gate": 61,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 179,
+      "isolated-database": 180,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3397,6 +3397,27 @@
         "navigation-guard",
         "settings",
         "ui"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, and attributable action attempts.",
+      "id": "framework.support-view-request-enforcement",
+      "legacy": false,
+      "path": "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "api",
+        "authentication",
+        "baseline-bypass",
+        "database",
+        "notes",
+        "permissions",
+        "security",
+        "sessions",
+        "workspace-isolation"
       ],
       "tier": "release-gate"
     },

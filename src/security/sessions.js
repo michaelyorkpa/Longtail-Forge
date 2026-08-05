@@ -92,6 +92,13 @@ async function getRequestSession(request) {
       startedAt: session.support_view.started_at,
       expiresAt: session.support_view.expires_at,
     };
+    requestSession.user_id = session.support_view.effective_user_id;
+    requestSession.username = session.support_view.effective_username;
+    requestSession.workspace_id = session.support_view.workspace_id;
+    requestSession.active_workspace_id = session.support_view.workspace_id;
+    requestSession.home_workspace_id = session.support_view.effective_home_workspace_id;
+    requestSession.timezone = normalizeTimezone(session.support_view.effective_timezone);
+    requestSession.password_change_required = false;
   }
 
   return requestSession;

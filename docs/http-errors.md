@@ -41,6 +41,8 @@ The versioned public API keeps the same error object inside its versioned envelo
 
 API paths always return JSON, including authentication failures, unknown routes, unsupported methods, and requests advertising `text/html`. Browser document failures always return HTML. Operational probes retain their documented probe payloads.
 
+Support View uses `support_view_read_only` with HTTP 403 for every centrally denied mutation. Sensitive or undeclared reads deliberately use the ordinary 404 `not_found` response so the boundary does not enumerate protected routes or records. These responses are server policy; hiding or disabling browser controls is not authorization.
+
 ## Registered Error Codes
 
 `src/core/http-error-contract.js` owns the default status registry:

@@ -105,6 +105,8 @@ Notifications are framework-owned. Modules declare notification events, template
 
 Protected-content consumer descriptors require `id`, `moduleId`, `recordType`, `surface`, `behavior`, and `assertion`. `behavior` is either `authorize` or `exclude`; IDs must be unique within the module. The manifest is data-only: the assertion names a module-owned policy implementation, and each actual consumer must call that implementation rather than reconstructing protection from a storage flag. As of 0.33.29.3, Notes uses `notes.effective-security`; unknown consumer IDs fail closed, and Support View, Files, notifications, Search, resume/Workbench, public API, exports, and generic provider catalogs declare exclusion. A future consumer cannot gain secure-content access merely by registering a descriptor.
 
+Protected browser GET/HEAD routes also participate in the framework-owned Support View route catalog. Each route has one stable ID and is classified read-safe or sensitive; the release-gate source audit fails when a protected read is added without a declaration. All other methods are centrally mutation-denied before module dispatch, and module manifests or handlers cannot weaken that rule. Route declarations never authorize content by themselves: normal module permissions and protected-content assertions still run under the effective target identity.
+
 ## Contribution Shapes
 
 Navigation items require `label` and `href`; they may include `parent`, `requiredPermissions`, and display-only `terminology`.

@@ -770,10 +770,13 @@ CREATE TABLE support_view_events (
   effective_user_id TEXT NOT NULL,
   workspace_id TEXT NOT NULL,
   event_type TEXT NOT NULL
-    CHECK (event_type IN ('entered', 'exited', 'expired', 'terminated')),
+    CHECK (event_type IN ('entered', 'exited', 'expired', 'terminated', 'action_attempt')),
   outcome TEXT NOT NULL
-    CHECK (outcome IN ('success', 'expired', 'revoked', 'disabled')),
+    CHECK (outcome IN ('success', 'expired', 'revoked', 'disabled', 'allowed', 'denied')),
   request_id TEXT NOT NULL,
+  route_id TEXT,
+  action_id TEXT,
+  reason_class TEXT,
   metadata_json TEXT NOT NULL DEFAULT '{}',
   occurred_at TEXT NOT NULL,
   FOREIGN KEY (support_session_id) REFERENCES support_sessions(support_session_id),
@@ -1869,6 +1872,9 @@ ON support_sessions (actor_user_id, ended_at, expires_at);
 
 CREATE INDEX support_sessions_effective_active_idx
 ON support_sessions (effective_user_id, workspace_id, ended_at, expires_at);
+
+CREATE INDEX support_view_events_action_time_idx
+ON support_view_events (workspace_id, event_type, occurred_at, event_id);
 
 CREATE INDEX support_view_events_session_time_idx
 ON support_view_events (support_session_id, occurred_at, event_id);

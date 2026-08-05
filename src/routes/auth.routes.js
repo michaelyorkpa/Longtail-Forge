@@ -14,6 +14,7 @@ import { getRequestSession, getSessionIdFromRequest } from "../security/sessions
 import { authService } from "../services/auth.service.js";
 import { asyncRoute, readJsonBody } from "../utils/http.js";
 import { getRequestContext } from "../core/request-context.js";
+import { enforceSupportViewRequest } from "../middleware/support-view-request-gate.js";
 
 const authRoutes = Router();
 
@@ -41,6 +42,10 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
 
 authRoutes.post("/logout", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
+  request.session = session;
+  if (session?.support_view && !(await enforceSupportViewRequest(request, response))) {
+    return;
+  }
   const result = await authService.logout(
     request.sessionRotation?.sessionId || getSessionIdFromRequest(request),
     session,
@@ -58,6 +63,10 @@ authRoutes.post("/logout", asyncRoute(async (request, response) => {
 authRoutes.get("/session", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
   applyRequestSessionRotation(request, response);
+  request.session = session;
+  if (session?.support_view && !(await enforceSupportViewRequest(request, response))) {
+    return;
+  }
   const result = await authService.readSession(session);
 
   response.status(200).json(result);
@@ -66,6 +75,10 @@ authRoutes.get("/session", asyncRoute(async (request, response) => {
 authRoutes.post("/session/workspace", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
   applyRequestSessionRotation(request, response);
+  request.session = session;
+  if (session?.support_view && !(await enforceSupportViewRequest(request, response))) {
+    return;
+  }
   const payload = await readJsonBody(request);
   const result = await authService.switchWorkspace(
     request.sessionRotation?.sessionId || getSessionIdFromRequest(request),

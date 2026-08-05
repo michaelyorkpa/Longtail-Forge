@@ -1,3 +1,13 @@
+## Version 0.33.30.2 - 2026-08-05
+
+- Added one authenticated Support View request gate before all protected framework and module routes. Declared read-safe GET/HEAD actions proceed; every mutation is rejected before dispatch with stable `support_view_read_only`, and undeclared reads fail closed as generic not-found.
+- Switched authorization-facing request identity to the effective target's live user/workspace context while preserving immutable actor fields separately. Module enablement, roles, permission overrides, record scope, workspace isolation, timezone, and current-user response shaping now follow the target rather than inheriting installation-admin authority.
+- Added a central sensitive-read exclusion catalog covering credential/token/private-feed, recovery/export/backup, audit/security/session administration, runtime/settings/integration configuration, raw file content, and secure Notes/catalog surfaces. Secure Notes and catalog hierarchy are omitted through the declared effective-security consumer policy with non-enumerating detail errors.
+- Added migration 091 for attributable append-only Support View action attempts and expanded the structured operational logger's strict safe-field allowlist. Records include actor, target, workspace, support session, request, route/action, outcome, and reason class while excluding query strings, bodies, content, credentials, arbitrary metadata, and raw browser session IDs.
+- Added `framework.support-view-request-enforcement` release-gate coverage for complete protected-read declarations, target-shaped HTTP responses, valid-CSRF mutation denial/no state change, sensitive and unknown read 404 behavior, secure Notes/catalog absence, safe action attribution, and SQLite integrity. Updated the existing lifecycle and operational-security regressions for the effective authorization identity and safe log fields.
+- Docs updated: `docs/architecture.md`, `docs/database.md`, `docs/docs-ownership.json`, `docs/http-errors.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-contract.md`, `docs/notes-module.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser workflow documentation remain unchanged because administrator entry/exit controls, the persistent Support View banner, disabled-control presentation, and audit review UI belong to 0.33.30.3.
+
 ## Version 0.33.30.1 - 2026-08-05
 
 - Added a default-off `LONGTAIL_SUPPORT_VIEW_ENABLED` install gate with a bounded 15-minute default lifetime, safe enabled/disabled runtime diagnostics, and a dedicated `support_view.enter` framework permission seeded only for the installation Super Admin role.

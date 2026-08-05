@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-08-05 for version 0.33.30.1
+Updated: 2026-08-05 for version 0.33.30.2
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -22,7 +22,7 @@ This matrix describes the active workspace-native permission model after the com
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | support_view.enter | yes | no | no | no | no | no | no |
 
-`support_view.enter` is a framework permission seeded only for the installation-wide `super_admin` role. The runtime gate must also be enabled, current-password verification must succeed through the shared throttle, and the target must be an active user with an active membership in an active workspace. Protected installation administrators retain the same install-level authority. Version 0.33.30.1 deliberately exposes no browser route or UI; later slices own server read-only enforcement and administrator-facing entry/exit controls. The support session never changes either identity's stored grants, rejects actor=target and nesting, fixes one effective workspace, and ends on expiry or live authority/target revocation.
+`support_view.enter` is a framework permission seeded only for the installation-wide `super_admin` role. The runtime gate must also be enabled, current-password verification must succeed through the shared throttle, and the target must be an active user with an active membership in an active workspace. Protected installation administrators retain the same install-level authority. Once active, every ordinary read is evaluated from the target's live role assignments and fixed effective workspace; the actor's Super Admin authority is retained only for attribution and lifecycle validation. A central gate denies mutations independently of both identities and excludes sensitive reads. Version 0.33.30.2 still exposes no browser entry UI; 0.33.30.3 owns entry/exit controls and the unmistakable support-state presentation.
 
 ## Framework Notification And Tag Defaults
 

@@ -176,6 +176,30 @@ async function resolveForRequest(storedSession, context = {}) {
   return { storedSession, supportSession };
 }
 
+async function recordAction(session, action = {}, context = {}) {
+  if (!session?.support_view?.supportSessionId) {
+    return null;
+  }
+
+  const timestamp = normalizeNow(context.now).toISOString();
+  const event = createEvent({
+    supportSessionId: session.support_view.supportSessionId,
+    actorUserId: session.actor_user_id,
+    effectiveUserId: session.effective_user_id,
+    workspaceId: session.effective_workspace_id,
+    eventType: "action_attempt",
+    outcome: action.outcome === "allowed" ? "allowed" : "denied",
+    requestId: normalizeRequestId(context.requestId),
+    occurredAt: timestamp,
+    routeId: normalizeAuditIdentifier(action.routeId),
+    actionId: normalizeAuditIdentifier(action.actionId),
+    reasonClass: normalizeAuditIdentifier(action.reasonClass),
+    metadata: {},
+  });
+  await supportSessionsRepository.appendEvent(event);
+  return event;
+}
+
 async function endAndRotate(storedSession, supportSession, options) {
   const actor = await usersRepository.readFirstByUserId(supportSession.actor_user_id);
   const activeMemberships = actor?.user_status === "active"
@@ -298,9 +322,17 @@ function createEvent(value) {
     eventType: value.eventType,
     outcome: value.outcome,
     requestId: value.requestId,
+    routeId: value.routeId || null,
+    actionId: value.actionId || null,
+    reasonClass: value.reasonClass || null,
     metadataJson: JSON.stringify(value.metadata || {}),
     occurredAt: value.occurredAt,
   };
+}
+
+function normalizeAuditIdentifier(value) {
+  const normalized = String(value || "").trim();
+  return /^[a-z0-9._:-]{1,160}$/i.test(normalized) ? normalized : "unspecified";
 }
 
 function toPublicSupportView(row) {
@@ -343,6 +375,7 @@ function normalizeNow(value) {
 
 export const supportViewService = {
   exit,
+  recordAction,
   resolveForRequest,
   start,
 };
