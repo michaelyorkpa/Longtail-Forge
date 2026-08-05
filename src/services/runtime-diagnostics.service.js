@@ -30,6 +30,11 @@ async function read(session) {
       environment: config.environment,
       configurationWarnings: [...config.runtimeWarnings],
     },
+    features: {
+      supportView: {
+        enabled: config.supportView.enabled,
+      },
+    },
     database: {
       provider: config.databaseProvider,
       health: {

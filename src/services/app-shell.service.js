@@ -140,6 +140,7 @@ async function bootstrap(session) {
     permissionHints,
     quickActions,
     searchTargets,
+    supportView: session.support_view ? { ...session.support_view } : null,
     viewSurfaces,
     themeMode: normalizeThemeMode(user?.theme_mode),
     themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
@@ -165,6 +166,9 @@ async function readQuickActions(session, workspaceContext, options = {}) {
   const visibleActions = [];
 
   for (const action of QUICK_ACTION_DEFINITIONS) {
+    if (session.support_view && action.actionType === "module-action") {
+      continue;
+    }
     if (action.requiredSearchTargets && normalizeSearchTargetsForQuickActions(options.searchTargets).length === 0) {
       continue;
     }
@@ -320,6 +324,7 @@ async function readPermissionHints(session) {
     canManageUsers,
     canDelegateRoleAssignments,
     canViewAuditLogs,
+    canEnterSupportView,
   ] = await Promise.all([
     permissionsService.canInAnyScope(session, "workspace_settings.manage", {
       workspace_id: session.workspace_id,
@@ -350,6 +355,16 @@ async function readPermissionHints(session) {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
+    config.supportView.enabled && !session.support_view
+      ? permissionsService.isSuperAdmin(session).then((isSuperAdmin) => (
+          isSuperAdmin
+            ? permissionsService.canInAnyScope(session, "support_view.enter", {
+                workspace_id: session.workspace_id,
+                operation: "read",
+              })
+            : false
+        ))
+      : Promise.resolve(false),
   ]);
 
   return {
@@ -359,6 +374,7 @@ async function readPermissionHints(session) {
     filesSettingsManage: canManageFileSettings,
     projectsManage: canManageProjects,
     roleAssignmentsDelegate: canDelegateRoleAssignments,
+    supportViewEnter: canEnterSupportView,
     usersManage: canManageUsers,
     workspaceSettingsManage: canManageWorkspaceSettings,
   };
@@ -484,6 +500,21 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
       label: "Audit Log",
       href: "audit-log.html",
     });
+  }
+
+  if (permissionHints.supportViewEnter) {
+    adminSettingsMenu.items.push(
+      {
+        id: "support-view",
+        label: "Support View",
+        href: "support-view.html",
+      },
+      {
+        id: "support-view-audit",
+        label: "Support View Audit",
+        href: "support-view-audit.html",
+      },
+    );
   }
 
   const settingsMenu = {

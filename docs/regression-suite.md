@@ -14,7 +14,7 @@ As of 0.33.27.7.5, ordinary closeout is the sole automatic owner for the direct 
 
 As of 0.33.27.7.6, `database.backup-archive-portability` proves Windows drive-letter archive paths are reduced to basename-only tar archive operands under the archive directory while POSIX paths retain the same local boundary. Whole-instance and workspace backup creation, listing, and extraction share that command owner; their existing release-gate regressions retain the compressed archive layout, checksum and entry validation, database-and-Files scope, pre-restore backup, rollback, migration, and restored-integrity proof. `database.demo-data-host-operation` retains its backup-first recovery coverage through the same whole-instance owner.
 
-As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and ten desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired 0.33.27.7.7 suite passed 129/129 in 1.4 minutes and left port 8101 clean. The required check remains `Browser smoke and accessibility`.
+As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and eleven desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired 0.33.27.7.7 suite passed 129/129 in 1.4 minutes and left port 8101 clean. The required check remains `Browser smoke and accessibility`.
 
 As of 0.33.28.5, every release-workflow job has a finite timeout; main-release and CodeQL runs have cancellation-safe concurrency; and only history-owning classifiers plus deliberate main-revision reachability checks retain full checkout history. Live branch-protection inspection confirmed the exact required names before CodeQL push scans were retired: PR analysis still supplies `CodeQL JavaScript analysis` on both `nightly` and `main`. `release.nightly-proof-reuse` proves a normal promotion reuses Nightly evidence only for one successful unexpired exact-SHA push run whose repository, workflow/ref and workflow checksum, `nightly-proof-v1` policy, required job set, release metadata, artifact and metadata checksums, and retained artifact names match. Every mismatch, ambiguity, expiry, failure, cancellation, policy change, and every `hotfix/*` source selects the full path. Runtime-artifact, backup/recovery, and container proofs consume the same controlled artifact; promotion builds at most once on fallback, downloads on accepted reuse, fans isolated recovery consumers out in parallel, and retains `Packaging and recovery` as the required aggregation result. The retired bare-metal smoke is not part of promotion. Scheduled Nightly uses the same verifier before any expensive skip, while the preflight stays visible. No workflow uses `paths-ignore`.
 
@@ -68,7 +68,13 @@ As of 0.33.21.19.4, `views.dashboard-client-bootstrap` pins the warm-first Dashb
 
 As of 0.33.21.19.5, `dashboard.hot-endpoint-budgets` boots the app over HTTP and pins 500 ms timing ceilings, response-size ceilings, and per-request `readSqliteStatementCount()` ceilings for Tasks summary, the bounded active Tasks calendar, and Time Tracking effort summary. Its growth pass adds 400 terminal Tasks and 500 out-of-window time entries, then requires near-constant statements and unchanged payloads apart from bounded summary count digits. The rendered Dashboard sequencing spec also caps the load-event-to-first-fetch gap at one second. `npm run bench:dashboard` is the repeatable fat-seed evidence harness; it measures seven warm HTTP samples and the real browser gap while preserving the `Today()` seed anchor.
 
-The 0.33.19.4 runtime-configuration split is the reference partial-movement contract. The policy's generated `assertionMovements` evidence records the exact pure assertion inventory, existing Vitest target, and still-discovered integration owner without granting retirement or floor credit. The 116-case defaults/normalization/accepted-value/warning/error matrix calls `createConfig` directly in Vitest. The legacy-snapshot regression keeps child-process environment/import behavior and its database, module-registry, version, docs/source, and runtime/app-info consumer integration. Pure and integration fixtures remain local to their one responsibility rather than sharing a second maintained source of truth.
+The 0.33.19.4 runtime-configuration split is the reference partial-movement contract. The policy's generated `assertionMovements` evidence records the exact pure assertion inventory, existing Vitest target, and still-discovered integration owner without granting retirement or floor credit. The current 123-case defaults/normalization/accepted-value/warning/error matrix calls `createConfig` directly in Vitest, including the default-off and bounded Support View settings added in 0.33.30.1. The legacy-snapshot regression keeps child-process environment/import behavior and its database, module-registry, version, docs/source, and runtime/app-info consumer integration. Pure and integration fixtures remain local to their one responsibility rather than sharing a second maintained source of truth.
+
+As of 0.33.30.1, `framework.support-view-session-contract` is the release-gate owner for default-off Support View configuration, Super-Admin-only permission seeding, current-password throttle behavior, atomic entry/exit rotation, exact expiry, independent concurrent sessions, immutable actor and separate effective identity/workspace request context, no nesting or recovery-mode entry, fixed-workspace behavior, live role/permission/membership/user/workspace revocation, safe cookie posture, safe diagnostic/event storage, and SQLite integrity.
+
+As of 0.33.30.2, `framework.support-view-request-enforcement` is the release-gate owner for complete protected GET/HEAD route declarations, immutable central mutation denial with valid CSRF proof, target-shaped response identity, sensitive and undeclared read non-enumeration, secure Notes/detail/catalog omission, append-only action attribution, secret-free event persistence, and SQLite integrity. `framework.operational-security-basics` additionally pins the structured logger's Support View allowlist while continuing to reject queries, bodies, and unknown fields.
+
+As of 0.33.30.3, the same release-gate owner also pins readable target selection, the normal-session-only audit/filter/export contract, 1,000-row export ceiling, 365-day transactional retention, pre-gate CSRF-protected exit rotation, persistent shared-shell banner, dynamic write-control suppression, and safe focus/landing restoration source boundaries. `support-view.spec.mjs` supplies the managed desktop journey and axe scans for entry, active state, authoritative write/sensitive-read denial, exit, focus restoration, and audit review.
 
 ## Current Entry Points
 
@@ -175,18 +181,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 433 |
+| Active discovered regressions | 435 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 124 |
+| Convention-path metadata regressions | 126 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 59 |
+| Active release-gate regressions | 61 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 436 |
-| Release-gate ratchet floor | 61 |
+| Global ratchet floor | 438 |
+| Release-gate ratchet floor | 63 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 72 | 0 | 72 |
+| `framework` | 74 | 0 | 74 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -211,7 +217,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 204 |
 | `integration` | 162 |
-| `release-gate` | 59 |
+| `release-gate` | 61 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -220,7 +226,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 178 |
+| `isolated-database` | 180 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

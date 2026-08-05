@@ -9,19 +9,27 @@ const LEVEL_PRIORITY = Object.freeze({
   error: 50,
 });
 const SAFE_FIELDS = new Set([
+  "actionId",
+  "actorUserId",
   "actorState",
   "component",
   "durationMs",
   "errorStack",
   "errorType",
+  "effectiveUserId",
   "method",
   "mode",
+  "outcome",
+  "reasonClass",
   "requestId",
   "routeClass",
+  "routeId",
   "signal",
   "source",
+  "supportSessionId",
   "state",
   "statusCode",
+  "workspaceId",
   "workspaceState",
 ]);
 const SAFE_METHODS = new Set(["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]);

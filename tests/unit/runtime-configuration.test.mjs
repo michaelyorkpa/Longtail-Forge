@@ -23,6 +23,8 @@ const DEFAULT_EXPECTATIONS = Object.freeze({
   authThrottleLockoutSeconds: 900,
   authVerificationConcurrencyLimit: 4,
   authVerificationConcurrencyPerIpLimit: 2,
+  supportViewEnabled: false,
+  supportViewTtlSeconds: 900,
   publicUrl: "",
   trustedProxies: [],
   initialWorkspaceName: "Longtail Forge Workspace",
@@ -59,6 +61,8 @@ const CUSTOM_ENV = Object.freeze({
   LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS: "300",
   LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT: "6",
   LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT: "3",
+  LONGTAIL_SUPPORT_VIEW_ENABLED: "true",
+  LONGTAIL_SUPPORT_VIEW_TTL_SECONDS: "600",
   LONGTAIL_PUBLIC_URL: "http://localhost:8015",
   TRUST_PROXY: "127.0.0.1/32,::1/128",
   WORKSPACE_INSTALL_MODE: "saas",
@@ -94,6 +98,8 @@ const CUSTOM_EXPECTATIONS = Object.freeze({
   authThrottleLockoutSeconds: 300,
   authVerificationConcurrencyLimit: 6,
   authVerificationConcurrencyPerIpLimit: 3,
+  supportViewEnabled: true,
+  supportViewTtlSeconds: 600,
   publicUrl: "http://localhost:8015",
   trustedProxies: ["127.0.0.1/32", "::1/128"],
   initialWorkspaceName: "Custom Workspace",
@@ -141,6 +147,9 @@ const INVALID_CASES = Object.freeze([
   [{ LONGTAIL_HSTS_MAX_AGE_SECONDS: "-1" }, /must be at least 0/],
   [{ LONGTAIL_HSTS_MAX_AGE_SECONDS: "63072001" }, /must be at most 63072000/],
   [{ LONGTAIL_AUTH_THROTTLE_ENABLED: "maybe" }, /must be true or false/],
+  [{ LONGTAIL_SUPPORT_VIEW_ENABLED: "maybe" }, /must be true or false/],
+  [{ LONGTAIL_SUPPORT_VIEW_TTL_SECONDS: "59" }, /must be at least 60/],
+  [{ LONGTAIL_SUPPORT_VIEW_TTL_SECONDS: "3601" }, /must be at most 3600/],
   [{ LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS: "0" }, /must be at least 1/],
   [{ LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS: "86401" }, /must be at most 86400/],
   [{ LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT: "0" }, /must be at least 1/],
@@ -189,8 +198,8 @@ const PURE_ASSERTION_INVENTORY = Object.keys(DEFAULT_EXPECTATIONS).length
   + INVALID_CASES.length;
 
 describe("runtime configuration pure contract", () => {
-  it("preserves the 116-case assertion inventory moved from the integration regression", () => {
-    assert.equal(PURE_ASSERTION_INVENTORY, 116);
+  it("preserves the 123-case assertion inventory moved from the integration regression", () => {
+    assert.equal(PURE_ASSERTION_INVENTORY, 123);
   });
 
   it("applies deterministic defaults", () => {
@@ -314,6 +323,8 @@ function readPureConfig(env = {}) {
     authThrottleLockoutSeconds: config.security.authenticationThrottle.lockoutSeconds,
     authVerificationConcurrencyLimit: config.security.authenticationThrottle.verificationConcurrencyLimit,
     authVerificationConcurrencyPerIpLimit: config.security.authenticationThrottle.verificationConcurrencyPerIpLimit,
+    supportViewEnabled: config.supportView.enabled,
+    supportViewTtlSeconds: config.supportView.ttlSeconds,
     trustedProxies: config.security.trustedProxies,
     workerMode: config.worker.mode,
     workerId: config.worker.id,

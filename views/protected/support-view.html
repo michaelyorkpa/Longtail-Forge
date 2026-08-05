@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support View | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css">
+  </head>
+  <body data-page-title="Support View">
+    <main class="support-view-entry-page">
+      <h1>Support View</h1>
+      <p>Temporarily inspect Longtail Forge through an existing user&apos;s live permissions and workspace access.</p>
+
+      <section class="support-view-warning" aria-labelledby="support-view-warning-title">
+        <h2 id="support-view-warning-title">Read-only support access</h2>
+        <p>Support View cannot change records or open protected secrets. Every allowed and denied request is attributed to you. Exit as soon as the review is complete.</p>
+      </section>
+
+      <form class="settings-form support-view-entry-form" data-support-view-entry-form>
+        <p data-support-view-actor></p>
+
+        <label>
+          User to view
+          <select data-support-view-target required></select>
+        </label>
+
+        <label>
+          Workspace
+          <select data-support-view-workspace required></select>
+        </label>
+
+        <label>
+          Current administrator password
+          <input type="password" data-support-view-password required autocomplete="current-password">
+        </label>
+
+        <label>
+          Support reason or reference
+          <textarea data-support-view-reason required maxlength="500" rows="4" aria-describedby="support-view-reason-help"></textarea>
+        </label>
+        <p id="support-view-reason-help" class="muted-text">Enter a ticket, request, or concise reason. Do not paste credentials or protected content.</p>
+
+        <p class="support-view-expiry" data-support-view-expiry></p>
+
+        <label class="inline-option support-view-confirmation">
+          <input type="checkbox" data-support-view-confirm required>
+          I understand this is a time-limited, fully attributed, read-only view.
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" data-support-view-start>Start Support View</button>
+        </div>
+      </form>
+
+      <p data-support-view-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/icons.js"></script>
+    <script src="js/support-view.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

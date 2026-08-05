@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support View Audit | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css">
+  </head>
+  <body data-page-title="Support View Audit">
+    <main class="support-view-audit-page">
+      <h1>Support View Audit</h1>
+      <p>Review attributed Support View sessions and allowed or denied action attempts across the installation.</p>
+      <p class="muted-text" data-support-view-audit-policy></p>
+
+      <form class="audit-log-filters" data-support-view-audit-filters>
+        <label>
+          From
+          <input type="date" data-support-view-audit-from>
+        </label>
+        <label>
+          To
+          <input type="date" data-support-view-audit-to>
+        </label>
+        <label>
+          Administrator
+          <select data-support-view-audit-actor><option value="">All administrators</option></select>
+        </label>
+        <label>
+          Viewed user
+          <select data-support-view-audit-target><option value="">All viewed users</option></select>
+        </label>
+        <label>
+          Workspace
+          <select data-support-view-audit-workspace><option value="">All workspaces</option></select>
+        </label>
+        <label>
+          Event
+          <select data-support-view-audit-event><option value="">All events</option></select>
+        </label>
+        <label>
+          Outcome
+          <select data-support-view-audit-outcome><option value="">All outcomes</option></select>
+        </label>
+        <div class="audit-log-actions">
+          <button type="submit">Apply</button>
+          <button type="button" data-support-view-audit-reset>Reset</button>
+          <button type="button" data-support-view-audit-export>Export Filtered</button>
+          <label class="audit-page-size-control">
+            Rows
+            <select data-support-view-audit-page-size>
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </label>
+        </div>
+      </form>
+
+      <p data-support-view-audit-status role="status" aria-live="polite"></p>
+
+      <div class="report-table-wrap" role="region" aria-label="Support View audit results" tabindex="0">
+        <table class="report-table support-view-audit-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Administrator</th>
+              <th scope="col">Viewed user</th>
+              <th scope="col">Workspace</th>
+              <th scope="col">Event or action</th>
+              <th scope="col">Outcome</th>
+              <th scope="col">Reason</th>
+            </tr>
+          </thead>
+          <tbody data-support-view-audit-body></tbody>
+        </table>
+      </div>
+
+      <nav class="audit-pagination" aria-label="Support View audit pages">
+        <button type="button" data-support-view-audit-previous>Previous</button>
+        <span data-support-view-audit-page-summary>Page 1 of 1</span>
+        <button type="button" data-support-view-audit-next>Next</button>
+      </nav>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/timezones.js"></script>
+    <script src="js/shared/icons.js"></script>
+    <script src="js/support-view-audit.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

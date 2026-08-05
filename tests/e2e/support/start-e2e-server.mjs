@@ -31,6 +31,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(E2E_DATA_DIR, "longtail-forge.db"
 process.env.LONGTAIL_LOCAL_STORAGE_ROOT = path.join(E2E_DATA_DIR, "files");
 process.env.LONGTAIL_SESSION_COOKIE_SECURE = "false";
 process.env.LONGTAIL_SESSION_COOKIE_SAMESITE = "Lax";
+process.env.LONGTAIL_SUPPORT_VIEW_ENABLED = "true";
+process.env.LONGTAIL_SUPPORT_VIEW_TTL_SECONDS = "300";
 process.env.SUPER_ADMIN_USERNAME = E2E_USERNAME;
 process.env.SUPER_ADMIN_PASSWORD = E2E_PASSWORD;
 

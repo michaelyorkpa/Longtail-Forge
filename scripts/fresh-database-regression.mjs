@@ -162,6 +162,16 @@ ORDER BY version;
       module_id: "core",
       name: "secure_catalog_transitions",
     },
+    {
+      version: "090",
+      module_id: "core",
+      name: "support_view_sessions",
+    },
+    {
+      version: "091",
+      module_id: "core",
+      name: "support_view_action_events",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -239,6 +249,8 @@ ORDER BY name;
     "secure_note_placeholder_warnings",
     "sessions",
     "startup_maintenance_runs",
+    "support_sessions",
+    "support_view_events",
     "tag_assignment_suppressions",
     "tag_assignments",
     "tags",

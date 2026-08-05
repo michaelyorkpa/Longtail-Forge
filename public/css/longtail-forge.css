@@ -150,6 +150,102 @@ canvas {
     }
 }
 
+.support-view-banner {
+    box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 12px max(16px, calc((100% - 1240px) / 2));
+    border-bottom: 3px solid var(--color-danger-border);
+    background: var(--color-danger-bg);
+    color: var(--color-text);
+    box-shadow: var(--shadow-control);
+}
+
+.support-view-banner-identity {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.support-view-banner-identity span {
+    overflow-wrap: anywhere;
+}
+
+.support-view-banner-explanation,
+.support-view-banner-remaining {
+    color: var(--color-text-secondary);
+    font-size: 0.88rem;
+}
+
+.support-view-exit-button {
+    flex: 0 0 auto;
+    border-color: var(--color-danger-border);
+    background: var(--color-surface);
+    color: var(--color-danger);
+    font-weight: 700;
+}
+
+[data-support-view="active"] [data-support-view-disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.support-view-entry-page,
+.support-view-audit-page {
+    width: min(var(--page-standard-width), calc(100% - 32px));
+    margin: 32px auto;
+}
+
+.support-view-entry-form {
+    max-width: 720px;
+}
+
+.support-view-warning {
+    max-width: 720px;
+    margin: 20px 0;
+    padding: 16px;
+    border: 2px solid var(--color-danger-border);
+    border-radius: var(--surface-radius-md);
+    background: var(--color-danger-bg);
+}
+
+.support-view-warning h2,
+.support-view-warning p {
+    margin: 0;
+}
+
+.support-view-warning p {
+    margin-top: 8px;
+}
+
+.support-view-expiry,
+.support-view-confirmation {
+    font-weight: 600;
+}
+
+.support-view-audit-table td {
+    max-width: 280px;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+    .support-view-banner {
+        position: relative;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .support-view-exit-button {
+        width: 100%;
+    }
+}
+
 @media (min-width: 701px) {
     .u-mobile-only {
         display: none !important;

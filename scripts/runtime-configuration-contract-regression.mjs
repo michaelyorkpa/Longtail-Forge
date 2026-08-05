@@ -12,7 +12,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
 const configSource = readText("src/config.js");
 const appInfoRoutesSource = readText("src/routes/app-info.routes.js");
-const sessionsSource = readText("src/security/sessions.js");
+const sessionRecordsSource = readText("src/security/session-records.js");
 const cookiesSource = readText("src/security/cookies.js");
 const transportSecuritySource = readText("src/core/transport-security.js");
 const authenticationThrottleSource = readText("src/security/auth-throttle.js");
@@ -46,6 +46,7 @@ for (const heading of [
   "# Initial bootstrap",
   "# Sessions / cookies",
   "# Authentication throttling",
+  "# Support View",
   "# Secure notes",
   "# File storage",
   "# File scanning",
@@ -86,6 +87,8 @@ for (const key of [
   "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS=900",
   "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT=4",
   "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT=2",
+  "LONGTAIL_SUPPORT_VIEW_ENABLED=false",
+  "LONGTAIL_SUPPORT_VIEW_TTL_SECONDS=900",
   "# LONGTAIL_SECURE_NOTES_MASTER_KEY=",
   "# SECURE_NOTES_MASTER_KEY=",
   "LONGTAIL_SECURE_NOTES_KEY_VERSION=v1",
@@ -148,7 +151,9 @@ assert.doesNotMatch(configSource, /DEFAULT_SQLITE_COMMAND|sqliteCommand|SQLITE_C
 assert.match(configSource, /assertProductionSecret\(bootstrapPassword, "SUPER_ADMIN_PASSWORD", 16\)/, "config should fail clearly when the production bootstrap password is missing or weak");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
 assert.match(configSource, /SUPER_ADMIN_DISPLAY_NAME/, "config should read the initial super-admin display name from runtime config");
-assert.match(sessionsSource, /config\.cookies\.maxAgeSeconds/, "session TTL should read from runtime config");
+assert.match(sessionRecordsSource, /config\.cookies\.maxAgeSeconds/, "session TTL should read from runtime config");
+assert.match(configSource, /LONGTAIL_SUPPORT_VIEW_ENABLED/, "config should expose the default-off Support View gate");
+assert.match(configSource, /LONGTAIL_SUPPORT_VIEW_TTL_SECONDS/, "config should bound Support View expiry");
 assert.match(cookiesSource, /config\.cookies\.secure/, "session cookies should read secure mode from runtime config");
 assert.match(cookiesSource, /config\.cookies\.domain[\s\S]*config\.cookies\.path/, "cookies should read explicit host-only/root-path policy from config");
 assert.match(transportSecuritySource, /requestContext\.isSecure[\s\S]*Strict-Transport-Security/, "HSTS should require the trusted effective HTTPS context");
@@ -171,7 +176,7 @@ assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY
 assert.match(secureCrypto, /readRuntimeSecret\("SECURE_NOTES_MASTER_KEY"\)/, "secure notes should preserve the legacy runtime secret name");
 assert.match(localStorageAdapter, /const LOCAL_FILE_STORAGE_ROOT = config\.storage\.localRoot/, "local file storage root should come from runtime config");
 
-assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*116/, "Vitest should retain the complete 116-case pure configuration inventory");
+assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*123/, "Vitest should retain the complete 123-case pure configuration inventory");
 assert.match(pureContractTest, /createConfig\(overrides\)/, "Vitest should own direct expected-error validation without child processes");
 
 const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
@@ -180,7 +185,7 @@ const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
 assert.ok(assertionMovement, "coverage policy should record the runtime-configuration assertion movement");
 assert.equal(assertionMovement.movedTo, "tests/unit/runtime-configuration.test.mjs");
 assert.equal(assertionMovement.retainedIntegrationOwner, "scripts/runtime-configuration-contract-regression.mjs");
-assert.equal(assertionMovement.assertionCount, 116);
+assert.equal(assertionMovement.assertionCount, 123);
 
 // Keep a deliberately small child-process seam here. Vitest owns the complete
 // deterministic matrix; this regression owns process.env materialization and

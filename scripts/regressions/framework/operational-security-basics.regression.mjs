@@ -66,6 +66,27 @@ async function assertStructuredLogContract() {
   assert.equal(Object.hasOwn(first, "password"), false);
   assert.equal(Object.hasOwn(first, "token"), false);
 
+  logger.info("support_view.action_attempt", {
+    actionId: "post:tasks.create",
+    actorUserId: "actor-safe-id",
+    effectiveUserId: "target-safe-id",
+    outcome: "denied",
+    reasonClass: "mutation_denied",
+    routeId: "tasks.create",
+    supportSessionId: "support-safe-id",
+    workspaceId: "workspace-safe-id",
+    query: "secret=value",
+    requestBody: secretMarker,
+  });
+  const supportAttempt = JSON.parse(lines.at(-1));
+  assert.equal(supportAttempt.actorUserId, "actor-safe-id");
+  assert.equal(supportAttempt.effectiveUserId, "target-safe-id");
+  assert.equal(supportAttempt.supportSessionId, "support-safe-id");
+  assert.equal(supportAttempt.reasonClass, "mutation_denied");
+  assert.equal(Object.hasOwn(supportAttempt, "query"), false);
+  assert.equal(Object.hasOwn(supportAttempt, "requestBody"), false);
+  assert.doesNotMatch(lines.at(-1), new RegExp(secretMarker));
+
   const restoreConsole = installProductionConsoleBridge({ environment: "production", logger });
   try {
     console.error(`[authentication] ${secretMarker}`, new Error(secretMarker));

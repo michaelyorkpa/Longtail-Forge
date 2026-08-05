@@ -204,7 +204,7 @@ async function secureHealth(session) {
 async function read(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
-  assertNoteConsumerAccess(note, "notes.workspace", { authorized: true });
+  assertNoteReadConsumerAccess(note, session);
 
   return { note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
@@ -391,7 +391,7 @@ async function softDelete(noteId, session) {
 async function listRevisions(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
-  assertNoteConsumerAccess(note, "notes.revisions", { authorized: true });
+  assertNoteReadConsumerAccess(note, session, "notes.revisions");
 
   const revisions = await notesRepository.listRevisions(session.workspace_id, noteId);
   return { revisions: visibleRevisionSnapshots(revisions, note).map((revision) => shapeRevisionForBrowser(revision, { includeBody: false })) };
@@ -400,7 +400,7 @@ async function listRevisions(noteId, session) {
 async function readRevision(noteId, revisionId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
-  assertNoteConsumerAccess(note, "notes.revisions", { authorized: true });
+  assertNoteReadConsumerAccess(note, session, "notes.revisions");
   const revision = await notesRepository.readRevisionById(session.workspace_id, noteId, revisionId);
 
   if (!revision) {
@@ -457,7 +457,7 @@ async function restoreRevision(noteId, revisionId, session) {
 async function listLinks(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
-  assertNoteConsumerAccess(note, "notes.relationships", { authorized: true });
+  assertNoteReadConsumerAccess(note, session, "notes.relationships");
 
   return { links: await notesRepository.listLinks(session.workspace_id, noteId) };
 }
@@ -465,7 +465,10 @@ async function listLinks(noteId, session) {
 async function listCollections(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
   const filters = normalizeCollectionListFilters(query);
-  const collections = await notesRepository.listCollections(session.workspace_id, filters);
+  const collections = filterSupportViewCollections(
+    session,
+    await notesRepository.listCollections(session.workspace_id, filters),
+  );
   const noteFilters = {
     includeDeleted: false,
     libraryBucket: filters.libraryBucket,
@@ -1395,7 +1398,7 @@ async function filterAccessibleNotes(session, notes) {
       workspaceType: moduleState.workspaceType,
     });
 
-    if (access.allowed) {
+    if (access.allowed && canExposeNoteToConsumer(note, noteReadConsumerId(session), { authorized: true })) {
       readable.push(normalizeNoteVisibilityForWorkspace({
         ...note,
         links: linksByNoteId.get(note.note_id) || [],
@@ -1404,6 +1407,28 @@ async function filterAccessibleNotes(session, notes) {
   }
 
   return readable;
+}
+
+function noteReadConsumerId(session, ordinaryConsumerId = "notes.workspace") {
+  return session?.support_view ? "notes.support-view" : ordinaryConsumerId;
+}
+
+function assertNoteReadConsumerAccess(note, session, ordinaryConsumerId = "notes.workspace") {
+  const consumerId = noteReadConsumerId(session, ordinaryConsumerId);
+  if (session?.support_view && !canExposeNoteToConsumer(note, consumerId, { authorized: true })) {
+    throw new AppError("Note not found.", 404);
+  }
+  return assertNoteConsumerAccess(note, consumerId, { authorized: true });
+}
+
+function filterSupportViewCollections(session, collections = []) {
+  if (!session?.support_view) {
+    return collections;
+  }
+  return collections.filter((collection) => (
+    collection.effective_security_mode !== NOTE_SECURITY_MODES.SECURE
+    && collection.security_policy !== NOTE_SECURITY_MODES.SECURE
+  ));
 }
 
 async function assertCanAccess(session, note, operation) {

@@ -41,6 +41,10 @@ The versioned public API keeps the same error object inside its versioned envelo
 
 API paths always return JSON, including authentication failures, unknown routes, unsupported methods, and requests advertising `text/html`. Browser document failures always return HTML. Operational probes retain their documented probe payloads.
 
+Support View uses `support_view_read_only` with HTTP 403 for every centrally denied mutation. Sensitive or undeclared reads deliberately use the ordinary 404 `not_found` response so the boundary does not enumerate protected routes or records. These responses are server policy; hiding or disabling browser controls is not authorization.
+
+The explicit **End Support View** and **Log Out** POSTs are the only lifecycle exceptions mounted before that central mutation deny. Both still require the authenticated support session and the normal browser CSRF boundary; End atomically rotates back to the actor, while Log Out atomically ends support state and expires authentication without restoring an actor session. Modules cannot register another exception. The target catalog, audit review, and audit export are classified sensitive so requests made from Support View receive the same ordinary 404 shape.
+
 ## Registered Error Codes
 
 `src/core/http-error-contract.js` owns the default status registry:
