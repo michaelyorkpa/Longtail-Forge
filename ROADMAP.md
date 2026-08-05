@@ -2,62 +2,12 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.28.5`.
+Active cursor: `0.33.29.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.28 - Docker Compose-Only Public Preview Production Support
-
-**Model: High Effort** — This replaces a live bare-metal production-support contract with one published Compose contract, including native-dependency architecture proof, migration-safe recovery, host cutover, and sequenced retirement of the old path.
-
-Purpose:
-
-Take the checked-in `Dockerfile`, `compose.yaml`, `.dockerignore`, `npm run container:build`, and `npm run container:smoke` delivered in 0.33.17 from packaging mechanics to the sole supported production/self-hosted deployment for the Longtail Forge public preview. Keep the checksummed runtime artifact as the controlled application payload used to build the image, then publish and prove one operator contract for Compose installation, deployment, upgrade, backup, restore, rollback, and recovery.
-
-Decision:
-
-**Docker Compose is the sole supported production deployment. Running Longtail Forge directly through Node/systemd remains technically possible but is unsupported.** Normal npm installation and `npm start` remain available for development, testing, and advanced experimentation; they are not a second supported production installation, upgrade, rollback, or recovery path.
-
-The current bare-metal `rt-ltf` preview and `rt-ltf-demo` demo hosts remain in place while the replacement is built. Do not retire their service definitions, deployment helper behavior, smoke/release gates, instructions, retained releases, backups, or recovery material until the 0.33.28 Compose path has successfully proven deployment, upgrade, durable data persistence, backup, restore, and restored rollback on the actual supported Linux/container architecture. After that replacement gate passes and the live cutover is verified, retire bare-metal-specific production support and duplicated promises as a separate final slice.
-
-The container keeps the established security posture (non-root UID/GID 10001, read-only root/application filesystem, dropped Linux capabilities, `no-new-privileges`, bounded private `/tmp`, one durable data volume, and a separate protected backup mount) and topology (Node published on host loopback only behind the reviewed Caddy edge; the fixed bridge gateway is the sole trusted proxy peer). Release identity remains immutable through the checksummed runtime artifact, pinned base digest, exact source revision, and published image digest; no supported deployment uses a mutable `latest` reference.
-
-Dependencies and baseline:
-
-- Builds directly on the 0.33.17 runtime artifact, Compose assets, backup/restore format, root-owned preview handoff, container and bare-metal smokes, and the live bare-metal preview hosts. Existing bare-metal machinery is transition safety until the live replacement gate proves Compose, not the future supported format.
-- Keeps `npm run artifact:smoke` (or its current equivalent) as the clean extract/install/boot proof that the packaged application payload is complete before the Docker build consumes it.
-- Consumes the branded error/503 surfaces from 0.33.23 and the operator maintenance curtain from 0.33.24; ships the reviewed `THIRD_PARTY_NOTICES.md` and root `LICENSE` from 0.33.25; and keeps the preview's product-feature cut through 0.33.27 while 0.33.28 adds the deployment/release contract.
-- Preserves the one-server SQLite/local-Files boundary and requires native `better-sqlite3` installation and runtime proof on every published Linux/container architecture rather than treating a cross-build or emulated build as sufficient.
-- Keeps the GitHub `nightly` → `main` promotion and manual immutable preview-release boundary. The deployment transport may be adapted to deliver a Compose image by digest, but it must remain disabled until the isolated environment, host, credentials, data, and recovery material are ready.
-
-Non-goals:
-
-- No second supported production packaging contract, application-embedded updater, Kubernetes/Swarm/Helm, horizontal scaling, multi-container app tier, or PostgreSQL service in this version.
-- No removal of npm development/test workflows or the runtime artifact. The artifact is the controlled image payload and provenance input, not a supported direct-production promise after 0.33.28.
-- No image-only rollback claim across incompatible database migrations. Forward migrations are not reversed by selecting an older image; recovery must restore the verified pre-upgrade database and Files together when compatibility is not explicitly proven.
-- No implication that Docker owns public DNS, TLS certificates, durable storage selection, backups/off-host export, malware scanning, secrets, Secure Notes recovery keys, monitoring, firewalling, or recovery decisions. Those remain operator responsibilities.
-- No mutable `latest` deploy reference, in-image compiler/test/browser/source checkout, embedded `.env`, live data, backup, Caddy process, or weakened non-root/read-only/capability-restricted posture.
-- No premature shutdown or deletion of the current bare-metal preview/demo installations or their recovery material before the Compose replacement and restored-rollback gates pass.
-
-### Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
-
-**Model: High Effort** — This removes a security- and recovery-sensitive production contract only after its replacement is live, while preserving development access and the artifact payload the image still requires.
-
-- [ ] Start only after the completed replacement gate records a successful observation period and confirms the retained bare-metal runtime is no longer needed for recovery. Preserve required historical deployment evidence, backups, Secure Notes recovery material, and operator records according to their retention rules.
-- [ ] Retire bare-metal-specific production implementation and release ceremony: `bare-metal:smoke` and its package/workflow/release-gate wiring, bare-metal-only regression assertions, the systemd service example, root-owned immutable Node-release installation path, direct-artifact production deploy/upgrade/rollback behavior, and duplicated support promises. Adapt rather than remove any constrained SSH/host-helper capability still required to deploy Compose by digest safely.
-- [ ] Keep `npm install`/`npm start`, local Node execution, and any needed Linux packaging validation for development, testing, and advanced experimentation, but label them unsupported for production/self-hosting. Do not remove the checksummed runtime artifact, `artifact:smoke`, native Linux dependency proof, image build, container smoke, or Compose release gates.
-- [ ] Rewrite the governing operator set around the sole supported Compose contract: `docs/preview-deployment.md`, `docs/self-hosting.md`, `docs/runtime-artifact.md`, `docs/versioning.md`, `docs/releasing.md`, `docs/development/github-workflow.md`, `docs/upgrading.md`, `docs/internet-deployment.md`, `docs/private-preview-readiness.md`, README release links/status, and directly related marketing/commercial packaging promises. Remove bare-metal installation, systemd, upgrade, rollback, and duplicated support language only after the replacement proof.
-- [ ] Ensure the final docs state that Docker does not assume operator ownership of DNS, TLS, firewalling, durable local storage, backup/export/restore, malware scanning, secrets, monitoring, Secure Notes recovery keys, or disaster-recovery decisions.
-- [ ] Reconcile the runtime-artifact allowlist and release metadata so the artifact remains the controlled image payload and `artifact:smoke` owner without carrying systemd/bare-metal production instructions solely to sustain a retired contract.
-- [ ] Run `npm run docs:suggest`, update `DECISIONS.md` and `CHANGELOG.md`, advance only through `npm run version:bump -- 0.33.28.5`, run the container/release/documentation regressions selected by the retirement, and run `npm run verify:slice` exactly once at final local closeout. Require live `/api/app-info` and supported Compose identity evidence before archiving 0.33.28.
-
-Acceptance criteria:
-
-- Docker Compose is the sole documented and release-gated production/self-hosted deployment for the public preview; direct Node/systemd operation is explicitly unsupported; the runtime artifact and `artifact:smoke` remain as controlled image-payload proof; bare-metal-specific support code, gates, examples, procedures, and promises are retired only after successful live replacement; operator responsibilities and migration-aware restored rollback remain explicit; and 0.33.28 closes only with both repository and live-host evidence. Public announcement or invitations remain a separate readiness decision.
-
 ## Version 0.33.29 - Secure Notes Catalog Policy and Inherited Protection
-
 **Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
 
 Purpose:

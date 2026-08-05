@@ -13,7 +13,6 @@
     "backup:export": "node scripts/backup.mjs export",
     "backup:inspect": "node scripts/backup.mjs inspect",
     "backup:restore": "node scripts/backup.mjs restore",
-    "bare-metal:smoke": "node scripts/bare-metal-deployment-smoke.mjs",
     "bench:adapter": "node scripts/adapter-microbenchmark.mjs",
     "bench:dashboard": "node scripts/measure-dashboard-performance.mjs",
     "check": "npm run check:fast && npm run test:regressions",

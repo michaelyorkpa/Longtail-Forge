@@ -42,7 +42,6 @@ const RUNTIME_PATHS = Object.freeze([
   "docs/demo-data-helper.env.example",
   "docs/demo-data-operations.md",
   "docs/internet-deployment.md",
-  "docs/longtail-forge.service.example",
   "docs/operational-security.md",
   "docs/preview-deployment.md",
   "docs/runtime-artifact.md",

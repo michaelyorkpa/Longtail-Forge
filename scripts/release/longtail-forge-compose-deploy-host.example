@@ -83,7 +83,7 @@ done
 [[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
 [[ "$IMAGE_REPOSITORY" =~ ^ghcr\.io/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$ ]] || fail "LTF_IMAGE_REPOSITORY must be a lowercase GHCR repository"
 [[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "deployment account is invalid"
-test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must preserve the transition-only bare-metal backup directory"
+test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must remain the dedicated protected Compose backup directory"
 if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
 
 for command in curl docker grep install jq stat; do require_command "$command"; done

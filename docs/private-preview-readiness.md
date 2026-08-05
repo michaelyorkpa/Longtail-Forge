@@ -8,7 +8,7 @@ Do not invite participants until this page, the linked operator docs, and the cu
 
 ## Required Reading
 
-- [Compose Production Support and Bare-Metal Transition](preview-deployment.md) owns the sole supported Compose production boundary and the temporary protection of the existing bare-metal hosts during cutover.
+- [Compose Production Support](preview-deployment.md) owns the sole supported production/self-hosted deployment, upgrade, rollback, and recovery boundary.
 - [Reference Internet Deployment](internet-deployment.md) owns DNS, the selected direct-Caddy or bounded Nginx/WireGuard/Caddy path, TLS, firewalling, loopback binding, public health/readiness checks, proxy review, emergency containment, and known limitations.
 - [Backup and Restore Operator Guide](backup-and-restore.md) and [Baseline Backup and Restore](backup-restore.md) own the complete backup archive, restore, inspection, and drill contract.
 - [Operational Security](operational-security.md) owns production logs, repository scanning, incident response, manual security review, and access/session/API-key revocation expectations.
@@ -71,10 +71,12 @@ The non-sensitive technical closeout record for the Compose replacement gate is:
 - The final pre-closeout candidate on both hosts is protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827`, image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`, `linux/amd64` platform manifest `sha256:afc36e2c9a264bba4c67a212ef4459d5d6f63acf8f90bf95bccb9e8265176300`, and runtime-artifact SHA-256 `e7183f7ddb118a4122ef09445c329b4c6657a02f65fa6dac6b5f934bd7b4a7ce`. Direct and public `/healthz`, `/readyz`, and `/api/app-info` matched that identity.
 - Container inspection proved UID/GID 10001, read-only root, dropped capabilities, `no-new-privileges`, loopback-only port 8001, the external reviewed bridge, and a private 512 MB `/tmp` tmpfs. The exact bridge gateway is the sole proxy/scanner handoff; public access to the scanner and Node port remains denied.
 - Demo retained its expected users/workspaces/tasks/notes/Files counts and two stored Files objects. Preview retained SQLite integrity, zero foreign-key violations, its exact users/workspaces/tasks/notes/Files counts, and all 3,071 stored Files objects across cutover, upgrade, restored rollback, and final deployment.
-- The prior bare-metal services are stopped and disabled, not removed. Their releases, environments, data, backups, helpers, and protected operation records remain recoverable through the observation period. No retirement work has started.
+- The prior bare-metal services were stopped and disabled during cutover. After the successful observation period, their repository-supported service, helper, cutover, smoke, workflow, and documentation contracts were retired in 0.33.28.5. Required host backups, Secure Notes recovery material, historical releases, and protected operation records remain private retention evidence rather than a supported fallback runtime.
 - The host cut includes product features through 0.33.27 plus the 0.33.28 deployment/release work. Secure Catalogs (`0.33.29`) and Support View (`0.33.30`) are not included.
 
-Exact host paths, private addresses, backup and operation identifiers, recovery material, credentials, and detailed security output remain in the root-only operational records. This replacement proof is necessary but does not authorize invitations or an announcement. The private signed readiness record, participant/account checks, explicit invite decision, and the `0.33.28.5` observation-period gate remain separate; no invitation was issued as part of this cutover.
+On 2026-08-05, both hosts still reported the `longtail-forge` Compose project running from the reviewed Compose file while the former `longtail-forge` systemd units remained inactive and disabled. Both public origins remained healthy and ready with the exact protected-main 0.33.28.3 identity recorded above. Exact host paths, private addresses, backup and operation identifiers, recovery material, credentials, and detailed security output remain in the root-only operational records.
+
+This replacement and retirement proof does not authorize invitations or an announcement. The private signed readiness record, participant/account checks, and explicit invite decision remain separate; no invitation was issued as part of this closeout.
 
 ## First Login And Accounts
 

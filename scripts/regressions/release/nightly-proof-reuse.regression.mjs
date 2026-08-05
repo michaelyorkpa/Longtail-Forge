@@ -66,14 +66,13 @@ try {
     /hotfix\/\*/,
     /needs\.promotion-source\.outputs\.reuse_nightly_proof != 'true'[\s\S]*npm run test:regressions/,
     /name: Packaging and recovery/,
-    /needs: \[artifact-smoke, backup-recovery, bare-metal-recovery, container-recovery\]/,
+    /needs: \[artifact-smoke, backup-recovery, container-recovery\]/,
     /artifact:smoke -- --artifact/,
-    /bare-metal:smoke -- --artifact/,
     /container:smoke -- --artifact/,
   ]) assert.match(promotion, requirement);
   assert.equal(
     (promotion.match(/^\s{10}LTF_NPM_CACHE_DIR: \$\{\{ runner\.temp \}\}\/ltf-npm-cache$/gm) || []).length,
-    3,
+    2,
     "artifact recovery jobs must scope runner.temp cache paths to their run steps",
   );
   assert.doesNotMatch(

@@ -49,7 +49,6 @@ for (const path of [
   "docs/backup-restore.md",
   "docs/compose.env.example",
   "docs/internet-deployment.md",
-  "docs/longtail-forge.service.example",
   "docs/nginx-wireguard.private-preview.example.conf",
   "docs/operational-security.md",
   "docs/preview-deployment.md",
@@ -180,11 +179,11 @@ assert.ok(
 );
 assert.match(nightly, /sha=\$\(git rev-parse HEAD\)/);
 assert.match(nightly, /node scripts\/classify-github-changes\.mjs --github-output/);
-assert.match(nightly, /name: GitHub-only docs - no deployment/);
-assert.match(nightly, /GitHub-only documentation is complete; no environment deployment was created\./);
+assert.match(nightly, /name: GitHub-only docs - no runtime artifact/);
+assert.match(nightly, /GitHub-only documentation is complete; no runtime artifact was created\./);
 assert.match(nightly, /needs\.classify_changes\.outputs\.github_only_docs != 'true'/);
-assert.match(nightly, /Runtime Help changed; full validation, artifact creation, browser proof, and demo deployment remain required\./);
-assert.match(nightly, /environment: demo-development/);
+assert.match(nightly, /Runtime Help changed; full validation, artifact creation, and browser proof remain required\./);
+assert.doesNotMatch(nightly, /environment: demo-development|deploy-via-ssh|DEPLOY_TRANSPORT/);
 assert.doesNotMatch(nightly, /paths-ignore:/);
 
 const codeql = readFileSync(".github/workflows/codeql.yml", "utf8");

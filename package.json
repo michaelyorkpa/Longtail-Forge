@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.28.4",
+  "version": "0.33.28.5",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -15,7 +15,6 @@
     "release:validate": "node scripts/release/validate-release-revision.mjs",
     "deploy:ssh": "node scripts/release/deploy-via-ssh.mjs",
     "github:configure": "node scripts/release/configure-github-release-operations.mjs",
-    "bare-metal:smoke": "node scripts/bare-metal-deployment-smoke.mjs",
     "backup:create": "node scripts/backup.mjs create",
     "backup:export": "node scripts/backup.mjs export",
     "backup:inspect": "node scripts/backup.mjs inspect",
