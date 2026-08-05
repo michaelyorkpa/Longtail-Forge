@@ -60,7 +60,7 @@ const DEDICATED_SECURITY_PATTERNS = Object.freeze({
   "src/core/csrf-protection.js": [/randomBytes\(32\)/, /randomBytes\(24\)/, /createHmac\("sha256"/],
   "src/modules/notes/secure-crypto.js": [/randomBytes\(32\)/, /randomBytes\(12\)/, /createCipheriv/],
   "src/security/passwords.js": [/randomBytes\(18\)/, /randomBytes\(policy\.saltLength\)/, /argon2id/],
-  "src/security/sessions.js": [/randomBytes\(32\)/],
+  "src/security/session-records.js": [/randomBytes\(32\)/],
   "src/services/api-keys.service.js": [/randomBytes\(24\)/],
   "src/services/permissions.service.js": [/randomBytes\(32\)/, /createHmac\("sha256"/],
   "src/services/private-feeds.service.js": [/randomBytes\(12\)/, /randomBytes\(32\)/, /createHash\("sha256"/],

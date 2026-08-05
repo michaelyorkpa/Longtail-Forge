@@ -1,5 +1,78 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30 - Read-Only Support View
+
+Completed on 2026-08-05. The default-off Support View capability is now complete across durable actor/effective identity, central read-only and sensitive-data enforcement, administrator entry and exit, persistent browser state, bounded append-only audit review/export/retention, documentation, and focused plus canonical verification. The active cursor advanced to `0.33.31.1` for public-demo hardening.
+
+**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
+
+Purpose:
+
+Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
+
+Decision:
+
+The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
+
+Dependencies and baseline:
+
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.29 effective Notes security.
+- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
+- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
+
+Non-goals:
+
+- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
+- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
+- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
+
+### Version 0.33.30.3 - Support View UX, audit review, documentation, and closeout
+
+**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
+
+- [x] Added an administrator-only entry flow with active readable target user/workspace selection, current password, required bounded reason/reference, explicit read-only warning and confirmation, and visible expiry without raw-ID labels.
+- [x] Added a persistent accessible non-dismissible Support View banner on every protected page naming the viewed user/workspace and actor, showing remaining time, and providing immediate **End Support View** with safe landing and dynamically rendered heading-focus restoration. Settings **Log Out** ends the support state and authentication without restoring the administrator session or surfacing permission denial.
+- [x] Added shared presentation-only suppression for write-looking controls, including dynamically inserted controls, with a stable explanation while retaining the server gate and pre-render secret exclusion as authoritative.
+- [x] Added a normal-session-only Super Admin audit view with actor/target/workspace/event/outcome/date filters, bounded pagination, 1,000-row safe CSV export, and 365-day transactional retention. Support View receives generic not-found for the target catalog and audit surfaces.
+- [x] Updated authentication/session, permission, audit, operational-security, module-development, browser-test, Help, decision, and ownership documentation. Focused request/session regressions and the managed browser journey cover permission, workspace, session rotation, CSRF, route declaration, secure-catalog/secret exclusion, accessibility, and safe entry/end/logout/audit behavior; canonical slice verification completed.
+
+Acceptance criteria:
+
+- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
+
+## Version 0.33.30.2 - Server read-only enforcement and protected-data exclusions
+
+Completed on 2026-08-05. Support View now has one fail-closed server boundary that authorizes ordinary reads as the effective target, denies every mutation before protected route dispatch, omits sensitive and secure Notes/catalog data, and records each allowed or denied attempt with separate actor/target attribution. The protected GET/HEAD inventory has no undeclared routes, and the active cursor advanced to `0.33.30.3` for the unmistakable browser UX, audit review surface, and final branch closeout.
+
+**Model: High Effort** — Read-only enforcement must cover framework and module routes without trusting UI state or accidentally creating a universal hook.
+
+- [x] Added one framework request gate after authentication and before protected framework/module routes. Only explicitly cataloged GET/HEAD routes proceed; every other method returns stable `support_view_read_only` before route dispatch, while undeclared reads fail closed as not-found.
+- [x] Changed the authorization-facing request identity to the target's live user, fixed workspace, memberships, roles, permissions, module enablement, record scope, timezone, and home context while retaining immutable actor fields only for lifecycle validation and attribution.
+- [x] Added a central sensitive-read catalog for API keys/tokens/private feeds, recovery/export/backup, audit/security/session administration, runtime/settings/integration configuration, file content, and secure Notes/catalog surfaces. Secure Notes lists, detail, revisions, relationships, and catalog trees use the existing declared exclusion and preserve generic non-enumeration.
+- [x] Extended append-only Support View events through migration 091 and the structured operational logger with actor, target, workspace, support-session, request, route/action, outcome, and reason-class fields. Query strings, bodies, content, credentials, arbitrary metadata, and raw browser session IDs remain excluded.
+- [x] Added a release-gate source inventory that requires every protected GET/HEAD route to declare read-safe or sensitive semantics and unique stable IDs. The central mutation deny has no module override.
+- [x] Added valid-CSRF direct HTTP proof for mutation denial/no row creation, target-shaped read responses, secure Notes/catalog omission, sensitive/unknown read 404 behavior, safe durable/operational attribution, migration integrity, and the existing lifecycle contract.
+
+Acceptance criteria:
+
+- Direct HTTP calls cannot mutate state in Support View, rendered data uses the target user's normal readable scope, protected secrets and secure Notes remain absent, and every allowed or denied action remains attributable to the administrator.
+
+## Version 0.33.30.1 - Durable support-session and actor/effective identity contract
+
+Completed on 2026-08-05. Support View now has a default-off install gate, Super-Admin-only permission, durable actor/effective/workspace lifecycle, shared-throttle current-password verification, atomic browser-session rotation, exact expiry, live revocation handling, safe diagnostics/events, and focused integrity coverage. No browser entry workflow is exposed before the server read-only gate. The active cursor advanced to `0.33.30.2` for route enforcement and protected-data exclusions.
+
+**Model: High Effort** — Session identity, workspace scope, expiration, and rotation mistakes can become privilege escalation or attribution failures.
+
+- [x] Added an explicit runtime configuration gate (disabled by default for self-hosted installs), a dedicated support permission granted only to the intended install-level administrator role, and diagnostics that reveal enabled/disabled state without exposing session details.
+- [x] Added forward migration 090 for durable support-session state and append-only support-view events. It stores actor, effective user, effective workspace, bounded reason/reference, start/expiry/end timestamps, request IDs, and safe outcome metadata; credentials, browser session IDs, response bodies, secure content, and request bodies are excluded.
+- [x] Enter Support View only after current-password reauthentication through the existing trusted-IP/account throttle, active target membership validation, and a fresh session-ID rotation. Actor identity remains immutable, effective identity is separate in request/session context, and actor=target, nesting, disabled users/workspaces, or unsupported session modes are rejected.
+- [x] Exit and exact expiry rotate the session identifier again, restore the actor's normal active-workspace context deliberately, and append an attributable exit/expiry event. Revoked/deactivated actors or targets and disabled workspaces end Support View immediately and fail closed.
+- [x] Added service/session coverage for reauthentication failure, throttle behavior, expiry boundaries, concurrent sessions, target workspace switching, role changes, revocation/deactivation, cookie security, no nesting, unsupported modes, safe persistence, actor/effective attribution, and SQLite integrity.
+
+Acceptance criteria:
+
+- Every support request carries separate immutable actor and effective-user identities, a short expiry, and one effective workspace; entering/leaving rotates the session and cannot grant either identity new permissions.
+
 ## Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
 
 Completed on 2026-08-05. Secure catalog policy now governs every current Notes consumer through one declared fail-closed contract, the Notes Settings catalog manager owns safe enable/retry/downgrade controls, interrupted work has an operator recovery path, and the `0.33.29` branch is closed. The active cursor advanced to `0.33.30.1` for the durable Support View identity contract.

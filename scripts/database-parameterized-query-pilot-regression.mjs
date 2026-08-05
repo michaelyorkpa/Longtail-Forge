@@ -100,8 +100,8 @@ LIMIT 1;
 
 function assertPilotSourceShape() {
   assert.doesNotMatch(sessionsSource, /\bsqlText\b|\bsqlNullableText\b|\bquerySql\b|\brunSql\b/, "sessions repository should use the adapter parameter style");
-  assert.match(sessionsSource, /db\.run\(`[\s\S]*:sessionId[\s\S]*`, \{/, "sessions writes should use named params");
-  assert.match(sessionsSource, /db\.get\(`[\s\S]*WHERE session_id = :sessionId[\s\S]*`, \{ sessionId \}\)/, "sessions reads should use named params");
+  assert.match(sessionsSource, /database\.run\(`[\s\S]*:sessionId[\s\S]*`, \{/, "sessions writes should use named params through the injectable database handle");
+  assert.match(sessionsSource, /database\.get\(`[\s\S]*WHERE sessions\.session_id = :sessionId[\s\S]*`, \{ sessionId \}\)/, "sessions reads should use named params through the injectable database handle");
 
   assert.match(workspacesSource, /db\.query\(`[\s\S]*user_workspaces\.user_id = :userId/, "workspace list reads should use named params");
   assert.match(workspacesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId/, "workspace single reads should use named params");

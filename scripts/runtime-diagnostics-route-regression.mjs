@@ -81,6 +81,7 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.app.version, appVersion);
   assert.equal(diagnostics.runtime.environment, "development");
   assert.deepEqual(diagnostics.runtime.configurationWarnings, []);
+  assert.deepEqual(diagnostics.features.supportView, { enabled: false });
   assert.equal(diagnostics.database.provider, "sqlite");
   assert.equal(diagnostics.database.health.status, "ok");
   assert.equal(diagnostics.database.health.fileWritable, true);

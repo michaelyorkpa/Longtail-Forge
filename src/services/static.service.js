@@ -36,6 +36,18 @@ const frameworkProtectedViews = new Map([
   ["notifications.html", { id: "notifications", file: "notifications.html" }],
   ["reporting.html", { id: "reporting", file: "reporting.html" }],
   ["search.html", { id: "search", file: "search.html" }],
+  ["support-view.html", {
+    id: "support-view",
+    file: "support-view.html",
+    requiredPermission: "support_view.enter",
+    supportViewOperatorOnly: true,
+  }],
+  ["support-view-audit.html", {
+    id: "support-view-audit",
+    file: "support-view-audit.html",
+    requiredPermission: "support_view.enter",
+    supportViewOperatorOnly: true,
+  }],
   ["user-settings.html", { id: "user-settings", file: "user-settings.html" }],
   ["workbench.html", { id: "workbench", file: "workbench.html" }],
   ["workbench-settings.html", { id: "workbench-settings", file: "workbench-settings.html" }],
@@ -119,9 +131,15 @@ async function resolveRequestPath(requestPath, session) {
   if (frameworkProtectedViews.has(pageName)) {
     const view = frameworkProtectedViews.get(pageName);
     if (
+      view.supportViewOperatorOnly
+      && (!config.supportView.enabled || session.support_view || !(await permissionsService.isSuperAdmin(session)))
+    ) {
+      return { statusCode: 404, message: "Not found" };
+    }
+    if (
       view.requiredPermission
       && !(await permissionsService.can(session, view.requiredPermission, {
-        operation: "update",
+        operation: view.supportViewOperatorOnly ? "read" : "update",
         workspace_id: session.workspace_id,
       }))
     ) {

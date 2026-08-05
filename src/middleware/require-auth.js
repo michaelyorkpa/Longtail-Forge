@@ -1,4 +1,5 @@
 import { getRequestSession } from "../security/sessions.js";
+import { buildExpiredSessionCookie, buildSessionCookie } from "../security/cookies.js";
 import { staticService } from "../services/static.service.js";
 import {
   isBrowserDocumentRequest,
@@ -14,6 +15,16 @@ async function requireAuth(request, response, next) {
   } catch (error) {
     next(error);
     return;
+  }
+
+  if (request.sessionRotation) {
+    response.append("Set-Cookie", buildSessionCookie(
+      request.sessionRotation.sessionId,
+      request.sessionRotation.maxAgeSeconds,
+      request,
+    ));
+  } else if (request.sessionInvalidated) {
+    response.append("Set-Cookie", buildExpiredSessionCookie(request));
   }
 
   if (!session) {

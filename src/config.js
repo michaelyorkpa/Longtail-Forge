@@ -23,6 +23,7 @@ const DEFAULT_SQLITE_TEMP_STORE = "memory";
 const DEFAULT_SQLITE_MMAP_SIZE_BYTES = 0;
 const DEFAULT_WORKSPACE_INSTALL_MODE = "self_hosted";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 12;
+const DEFAULT_SUPPORT_VIEW_TTL_SECONDS = 15 * 60;
 const DEFAULT_SESSION_COOKIE_SAMESITE = "Lax";
 const DEFAULT_PRODUCTION_HSTS_MAX_AGE_SECONDS = 300;
 const DEFAULT_AUTH_THROTTLE_WINDOW_SECONDS = 15 * 60;
@@ -119,6 +120,13 @@ function createConfig(env = process.env) {
     { min: 0, max: 60 * 60 * 24 * 365 * 2 },
   );
   const authenticationThrottleEnabled = readBoolean(env, "LONGTAIL_AUTH_THROTTLE_ENABLED", true);
+  const supportViewEnabled = readBoolean(env, "LONGTAIL_SUPPORT_VIEW_ENABLED", false);
+  const supportViewTtlSeconds = readInteger(
+    env,
+    "LONGTAIL_SUPPORT_VIEW_TTL_SECONDS",
+    DEFAULT_SUPPORT_VIEW_TTL_SECONDS,
+    { min: 60, max: 60 * 60 },
+  );
   const authenticationThrottleWindowSeconds = readInteger(
     env,
     "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS",
@@ -285,6 +293,10 @@ function createConfig(env = process.env) {
       DEFAULT_WORKSPACE_INSTALL_MODE,
       WORKSPACE_INSTALL_MODES,
     ),
+    supportView: {
+      enabled: supportViewEnabled,
+      ttlSeconds: supportViewTtlSeconds,
+    },
     workspaceTypeLimit: readEnum(env, "WORKSPACE_TYPE_LIMIT", "", WORKSPACE_TYPE_LIMITS),
     bootstrap: {
       initialWorkspaceName: readText(env, "LONGTAIL_INITIAL_WORKSPACE_NAME", DEFAULT_INITIAL_WORKSPACE_NAME),

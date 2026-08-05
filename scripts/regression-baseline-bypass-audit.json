@@ -22,6 +22,8 @@
     "scripts/regressions/framework/remembered-sessions.regression.mjs",
     "scripts/regressions/framework/security-event-logging.regression.mjs",
     "scripts/regressions/framework/session-revocation.regression.mjs",
+    "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
+    "scripts/regressions/framework/support-view-session-contract.regression.mjs",
     "scripts/regressions/framework/user-landing-preferences.regression.mjs"
   ],
   "retainedEnvironmentOptOuts": [

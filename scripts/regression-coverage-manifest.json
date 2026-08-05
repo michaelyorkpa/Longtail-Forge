@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 433,
+    "discoveredScripts": 435,
     "legacyScripts": 309,
-    "releaseGateScripts": 59,
+    "releaseGateScripts": 61,
     "areaCounts": {
       "dashboard": 2,
       "database": 41,
       "docs": 10,
       "files": 44,
-      "framework": 72,
+      "framework": 74,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 204,
       "integration": 162,
-      "release-gate": 59,
+      "release-gate": 61,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 178,
+      "isolated-database": 180,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -166,9 +166,9 @@
       "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
       "movedInVersion": "0.33.19.4",
       "movementType": "pure-contract-to-vitest",
-      "assertionCount": 116,
+      "assertionCount": 123,
       "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
-      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 116-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 123-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
       "movedTo": "tests/unit/runtime-configuration.test.mjs",
       "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
       "verificationPerformed": [
@@ -3397,6 +3397,49 @@
         "navigation-guard",
         "settings",
         "ui"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
+      "id": "framework.support-view-request-enforcement",
+      "legacy": false,
+      "path": "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "accessibility",
+        "api",
+        "authentication",
+        "baseline-bypass",
+        "browser",
+        "database",
+        "notes",
+        "permissions",
+        "security",
+        "sessions",
+        "workspace-isolation"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the gated durable Support View session contract, actor/effective identity separation, rotation, expiry, reauthentication throttling, revocation, and safe event persistence.",
+      "id": "framework.support-view-session-contract",
+      "legacy": false,
+      "path": "scripts/regressions/framework/support-view-session-contract.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "baseline-bypass",
+        "database",
+        "permissions",
+        "security",
+        "sessions",
+        "throttling",
+        "workspace-isolation"
       ],
       "tier": "release-gate"
     },

@@ -1,35 +1,16 @@
-import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
+import { supportViewService } from "../services/support-view.service.js";
+import { getRequestContext } from "../core/request-context.js";
 import { normalizeBooleanPreference, normalizeTimezone } from "../utils/normalizers.js";
-
-const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-records.js";
 
 async function createSession(user, options = {}) {
-  const sessionId = randomBytes(32).toString("base64url");
-  const maxAgeSeconds = options.rememberMe
-    ? REMEMBERED_SESSION_TTL_SECONDS
-    : config.cookies.maxAgeSeconds;
-  const expiresAt = new Date(Date.now() + maxAgeSeconds * 1000);
+  const prepared = prepareSessionRecord(user, options);
 
   await sessionsRepository.removeExpired();
-  await sessionsRepository.create({
-    session_id: sessionId,
-    home_workspace_id: user.home_workspace_id,
-    workspace_id: user.active_workspace_id ?? user.home_workspace_id ?? null,
-    user_id: user.user_id,
-    username: user.username,
-    timezone: normalizeTimezone(user.timezone),
-    ip_address: user.ip_address || "",
-    active_workspace_id: user.active_workspace_id ?? user.home_workspace_id ?? null,
-    session_mode: user.session_mode || "normal",
-    expires_at: expiresAt.toISOString(),
-  });
-
-  return {
-    sessionId,
-    maxAgeSeconds,
-  };
+  await sessionsRepository.create(prepared.record);
+  return prepared.cookie;
 }
 
 async function deleteRequestSession(request) {
@@ -53,10 +34,27 @@ async function getRequestSession(request) {
     return null;
   }
 
-  const session = await sessionsRepository.readById(sessionId);
+  let session = await sessionsRepository.readById(sessionId);
 
   if (!session) {
     return null;
+  }
+
+  if (session.support_session_id) {
+    const resolution = await supportViewService.resolveForRequest(session, {
+      requestId: getRequestContext(request).requestId,
+    });
+    session = resolution.storedSession;
+    if (resolution.session) {
+      request.sessionRotation = resolution.session;
+    }
+    if (!session) {
+      request.sessionInvalidated = true;
+      return null;
+    }
+    if (resolution.supportSession) {
+      session.support_view = resolution.supportSession;
+    }
   }
 
   if (new Date(session.expires_at).getTime() <= Date.now()) {
@@ -66,7 +64,7 @@ async function getRequestSession(request) {
 
   const activeWorkspaceId = session.active_workspace_id ?? session.home_workspace_id ?? null;
 
-  return {
+  const requestSession = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
     home_workspace_id: session.home_workspace_id,
@@ -77,6 +75,36 @@ async function getRequestSession(request) {
     password_change_required: normalizeBooleanPreference(session.password_change_required),
     session_mode: session.session_mode || "normal",
   };
+
+  if (session.support_view) {
+    requestSession.actor_user_id = session.support_view.actor_user_id;
+    requestSession.actor_username = session.support_view.actor_username;
+    requestSession.effective_user_id = session.support_view.effective_user_id;
+    requestSession.effective_username = session.support_view.effective_username;
+    requestSession.effective_workspace_id = session.support_view.workspace_id;
+    requestSession.support_view = {
+      supportSessionId: session.support_view.support_session_id,
+      actorUserId: session.support_view.actor_user_id,
+      actorUsername: session.support_view.actor_username,
+      actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
+      effectiveUserId: session.support_view.effective_user_id,
+      effectiveUsername: session.support_view.effective_username,
+      effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
+      effectiveWorkspaceId: session.support_view.workspace_id,
+      effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
+      startedAt: session.support_view.started_at,
+      expiresAt: session.support_view.expires_at,
+    };
+    requestSession.user_id = session.support_view.effective_user_id;
+    requestSession.username = session.support_view.effective_username;
+    requestSession.workspace_id = session.support_view.workspace_id;
+    requestSession.active_workspace_id = session.support_view.workspace_id;
+    requestSession.home_workspace_id = session.support_view.effective_home_workspace_id;
+    requestSession.timezone = normalizeTimezone(session.support_view.effective_timezone);
+    requestSession.password_change_required = false;
+  }
+
+  return requestSession;
 }
 
 function getSessionIdFromRequest(request) {

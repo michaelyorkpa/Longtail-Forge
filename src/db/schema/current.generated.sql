@@ -724,7 +724,7 @@ CREATE TABLE "sessions" (
   session_mode TEXT NOT NULL DEFAULT 'normal' CHECK (session_mode IN ('normal', 'account_export_recovery')),
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL, support_session_id TEXT REFERENCES support_sessions(support_session_id),
   FOREIGN KEY (home_workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (active_workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -736,6 +736,53 @@ CREATE TABLE startup_maintenance_runs (
   completed_at TEXT NOT NULL,
   app_version TEXT NOT NULL,
   CHECK (lifecycle = 'one-time-migration-versioned-repair')
+);
+
+CREATE TABLE support_sessions (
+  support_session_id TEXT PRIMARY KEY,
+  actor_user_id TEXT NOT NULL,
+  actor_username TEXT NOT NULL,
+  actor_home_workspace_id TEXT,
+  actor_workspace_id TEXT,
+  effective_user_id TEXT NOT NULL,
+  effective_username TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  reason_reference TEXT NOT NULL CHECK (length(reason_reference) BETWEEN 1 AND 500),
+  start_request_id TEXT NOT NULL,
+  end_request_id TEXT,
+  started_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  ended_at TEXT,
+  outcome TEXT NOT NULL DEFAULT 'active'
+    CHECK (outcome IN ('active', 'exited', 'expired', 'revoked', 'disabled')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (actor_user_id != effective_user_id),
+  FOREIGN KEY (actor_user_id) REFERENCES users(user_id),
+  FOREIGN KEY (effective_user_id) REFERENCES users(user_id),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
+);
+
+CREATE TABLE support_view_events (
+  event_id TEXT PRIMARY KEY,
+  support_session_id TEXT NOT NULL,
+  actor_user_id TEXT NOT NULL,
+  effective_user_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  event_type TEXT NOT NULL
+    CHECK (event_type IN ('entered', 'exited', 'expired', 'terminated', 'action_attempt')),
+  outcome TEXT NOT NULL
+    CHECK (outcome IN ('success', 'expired', 'revoked', 'disabled', 'allowed', 'denied')),
+  request_id TEXT NOT NULL,
+  route_id TEXT,
+  action_id TEXT,
+  reason_class TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  occurred_at TEXT NOT NULL,
+  FOREIGN KEY (support_session_id) REFERENCES support_sessions(support_session_id),
+  FOREIGN KEY (actor_user_id) REFERENCES users(user_id),
+  FOREIGN KEY (effective_user_id) REFERENCES users(user_id),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
 );
 
 CREATE TABLE tag_assignment_suppressions (
@@ -1816,3 +1863,21 @@ ON workspaces (owner_user_id);
 
 CREATE INDEX idx_workspaces_type
 ON workspaces (workspace_type);
+
+CREATE INDEX sessions_support_session_idx
+ON sessions (support_session_id);
+
+CREATE INDEX support_sessions_actor_active_idx
+ON support_sessions (actor_user_id, ended_at, expires_at);
+
+CREATE INDEX support_sessions_effective_active_idx
+ON support_sessions (effective_user_id, workspace_id, ended_at, expires_at);
+
+CREATE INDEX support_view_events_action_time_idx
+ON support_view_events (workspace_id, event_type, occurred_at, event_id);
+
+CREATE INDEX support_view_events_session_time_idx
+ON support_view_events (support_session_id, occurred_at, event_id);
+
+CREATE INDEX support_view_events_workspace_time_idx
+ON support_view_events (workspace_id, occurred_at, event_id);

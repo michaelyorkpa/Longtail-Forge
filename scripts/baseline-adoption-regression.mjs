@@ -37,6 +37,9 @@ DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
 DROP TABLE IF EXISTS startup_maintenance_runs;
 DROP TABLE IF EXISTS private_feed_tokens;
+DROP TABLE IF EXISTS support_view_events;
+DROP TABLE IF EXISTS support_sessions;
+DROP INDEX IF EXISTS sessions_support_session_idx;
 DROP INDEX IF EXISTS idx_note_library_collections_workspace_security;
 
 ALTER TABLE note_library_collections DROP COLUMN security_transition_error_code;
@@ -50,6 +53,7 @@ ALTER TABLE task_recurrence_templates DROP COLUMN estimate_minutes;
 ALTER TABLE task_recurrence_templates DROP COLUMN recovery_checkpoint_date;
 ALTER TABLE note_library_collections DROP COLUMN security_transition_state;
 ALTER TABLE note_library_collections DROP COLUMN security_policy;
+ALTER TABLE sessions DROP COLUMN support_session_id;
 
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_month INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE workspace_settings ADD COLUMN fiscal_year_start_day INTEGER NOT NULL DEFAULT 1;
@@ -363,6 +367,16 @@ ORDER BY version;
       version: "089",
       module_id: "core",
       name: "secure_catalog_transitions",
+    },
+    {
+      version: "090",
+      module_id: "core",
+      name: "support_view_sessions",
+    },
+    {
+      version: "091",
+      module_id: "core",
+      name: "support_view_action_events",
     },
   ]);
 }

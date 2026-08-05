@@ -331,6 +331,18 @@ async function readSession(session) {
     };
   }
 
+  if (session.support_view) {
+    return {
+      user: {
+        user_id: session.actor_user_id,
+        username: session.actor_username,
+        workspace_id: session.effective_workspace_id,
+        active_workspace_id: session.effective_workspace_id,
+        supportView: { ...session.support_view },
+      },
+    };
+  }
+
   const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
   const workspaceContext = await settingsService.readWorkspaceBootstrap(session);
   const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
@@ -363,6 +375,10 @@ async function switchWorkspace(sessionId, session, payload) {
 
   if (session.session_mode === "account_export_recovery") {
     throw new AppError("Only account export and logout are available in recovery mode.", 403);
+  }
+
+  if (session.support_view) {
+    throw new AppError("End Support View before switching workspaces.", 409);
   }
 
   if (session.password_change_required) {

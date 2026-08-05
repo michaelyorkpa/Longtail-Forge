@@ -281,11 +281,19 @@ ORDER BY role_id, permission_id;
     ...listFrameworkRolePermissionDefaults(),
     ...listModuleRolePermissionDefaults(),
   ];
+  assert.deepEqual(
+    declaredDefaults
+      .filter((mapping) => mapping.permissions.includes("support_view.enter"))
+      .map((mapping) => mapping.roleId),
+    ["super_admin"],
+    "Support View must remain a runtime-catalog default only for the installation Super Admin role",
+  );
   const expected = new Map(ROLE_IDS.map((roleId) => [roleId, new Set(FRAMEWORK_SEEDED_DEFAULTS[roleId])]));
 
   for (const mapping of declaredDefaults) {
     assert.ok(expected.has(mapping.roleId), `default permission contribution names unknown role ${mapping.roleId}`);
     for (const permissionId of mapping.permissions) {
+      if (permissionId === "support_view.enter") continue;
       expected.get(mapping.roleId).add(permissionId);
     }
   }

@@ -5,6 +5,8 @@ const THEME_STORAGE_KEY = "lf_theme";
 const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
 const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
 const SESSION_LOGIN_PATH = "/login.html";
+const SUPPORT_VIEW_RETURN_PATH_KEY = "lf_support_view_return_path";
+const SUPPORT_VIEW_RESTORE_FOCUS_KEY = "lf_support_view_restore_focus";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   { label: "Workbench", href: "workbench.html" },
@@ -49,6 +51,9 @@ const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
 let sessionAuthWarningPromise = null;
+let supportViewCountdownId = null;
+let supportViewMutationObserver = null;
+let supportViewExitPending = false;
 
 const navigationIntent = createNavigationIntentController();
 window.LongtailForge = window.LongtailForge || {};
@@ -688,6 +693,7 @@ async function loadAppShellBootstrap() {
     }
 
     const shell = await response.json();
+    applySupportViewState(shell.supportView || null);
     window.LongtailForge.userPreferences = Object.freeze({
       preferredCalendarView: shell.user?.preferredCalendarView || null,
     });
@@ -720,12 +726,190 @@ async function loadAppShellBootstrap() {
     window.dispatchEvent(new window.CustomEvent("longtailforge:workspace-context-updated", {
       detail: workspaceContext,
     }));
+    restoreFocusAfterSupportView();
     return workspaceContext;
   } catch {
     await loadWorkspaceSettings();
     await loadSessionWorkspaces();
     return null;
   }
+}
+
+function applySupportViewState(supportView) {
+  window.clearInterval(supportViewCountdownId);
+  supportViewCountdownId = null;
+  document.querySelector("[data-support-view-banner]")?.remove();
+  supportViewMutationObserver?.disconnect();
+  supportViewMutationObserver = null;
+  delete document.body.dataset.supportView;
+  window.LongtailForge.supportView = supportView ? Object.freeze({ ...supportView }) : null;
+
+  if (!supportView) {
+    return;
+  }
+
+  document.body.dataset.supportView = "active";
+  const banner = document.createElement("section");
+  const identity = document.createElement("div");
+  const title = document.createElement("strong");
+  const detail = document.createElement("span");
+  const explanation = document.createElement("span");
+  const remaining = document.createElement("span");
+  const exitButton = document.createElement("button");
+
+  banner.className = "support-view-banner";
+  banner.dataset.supportViewBanner = "";
+  banner.setAttribute("role", "region");
+  banner.setAttribute("aria-label", "Support View is active");
+  identity.className = "support-view-banner-identity";
+  title.textContent = "Support View — read only";
+  detail.textContent = `Viewing ${supportView.effectiveUserLabel || supportView.effectiveUsername} in ${supportView.effectiveWorkspaceName || "Workspace unavailable"} as ${supportView.actorLabel || supportView.actorUsername}.`;
+  explanation.id = "support-view-read-only-explanation";
+  explanation.className = "support-view-banner-explanation";
+  explanation.textContent = "Changes and protected administrative or secret surfaces are unavailable.";
+  remaining.className = "support-view-banner-remaining";
+  remaining.dataset.supportViewRemaining = "";
+  remaining.setAttribute("aria-live", "off");
+  exitButton.type = "button";
+  exitButton.className = "support-view-exit-button";
+  exitButton.dataset.supportViewExit = "";
+  exitButton.textContent = "End Support View";
+  exitButton.addEventListener("click", () => exitSupportView(exitButton));
+
+  identity.append(title, detail, explanation, remaining);
+  banner.append(identity, exitButton);
+  siteHeader.insertAdjacentElement("beforebegin", banner);
+  updateSupportViewRemaining(supportView.expiresAt, remaining, exitButton);
+  supportViewCountdownId = window.setInterval(() => {
+    updateSupportViewRemaining(supportView.expiresAt, remaining, exitButton);
+  }, 1000);
+  installSupportViewBrowserPolicy();
+}
+
+function updateSupportViewRemaining(expiresAt, element, exitButton) {
+  const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  element.textContent = remainingSeconds > 0
+    ? `Remaining: ${minutes}:${String(seconds).padStart(2, "0")}`
+    : "Support View has expired.";
+  if (remainingSeconds === 0 && !supportViewExitPending) {
+    void exitSupportView(exitButton);
+  }
+}
+
+async function exitSupportView(exitButton) {
+  if (supportViewExitPending) {
+    return;
+  }
+  supportViewExitPending = true;
+  exitButton.disabled = true;
+  exitButton.textContent = "Ending...";
+
+  try {
+    await window.LongtailForge.api.postJson("/api/support-view/exit", {});
+    const returnPath = normalizeSupportViewReturnPath(
+      window.sessionStorage.getItem(SUPPORT_VIEW_RETURN_PATH_KEY),
+    );
+    window.sessionStorage.removeItem(SUPPORT_VIEW_RETURN_PATH_KEY);
+    window.sessionStorage.setItem(SUPPORT_VIEW_RESTORE_FOCUS_KEY, "true");
+    window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
+    window.location.replace(returnPath);
+  } catch (error) {
+    supportViewExitPending = false;
+    exitButton.disabled = false;
+    exitButton.textContent = "End Support View";
+    await showSessionAuthWarning();
+    console.error(error);
+  }
+}
+
+function normalizeSupportViewReturnPath(value) {
+  try {
+    const url = new URL(String(value || "/dashboard.html"), window.location.origin);
+    const blocked = new Set(["/login.html", "/support-view.html", "/support-view-audit.html"]);
+    if (url.origin === window.location.origin && url.pathname.endsWith(".html") && !blocked.has(url.pathname)) {
+      return `${url.pathname}${url.search}`;
+    }
+  } catch {
+    // Invalid stored paths fall back to the safe dashboard landing.
+  }
+  return "/dashboard.html";
+}
+
+function restoreFocusAfterSupportView() {
+  if (window.LongtailForge.supportView || window.sessionStorage.getItem(SUPPORT_VIEW_RESTORE_FOCUS_KEY) !== "true") {
+    return;
+  }
+  const focusHeading = () => {
+    const heading = document.querySelector("main h1");
+    if (!heading) {
+      return false;
+    }
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+    window.sessionStorage.removeItem(SUPPORT_VIEW_RESTORE_FOCUS_KEY);
+    return true;
+  };
+
+  if (focusHeading()) {
+    return;
+  }
+
+  const observer = new window.MutationObserver(() => {
+    if (focusHeading()) {
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.querySelector("main") || document.body, { childList: true, subtree: true });
+  window.setTimeout(() => observer.disconnect(), 5000);
+}
+
+function installSupportViewBrowserPolicy() {
+  applySupportViewBrowserPolicy(document.body);
+  supportViewMutationObserver = new window.MutationObserver((records) => {
+    records.forEach((record) => {
+      record.addedNodes.forEach((node) => {
+        if (node.nodeType === window.Node.ELEMENT_NODE) {
+          applySupportViewBrowserPolicy(node);
+        }
+      });
+    });
+  });
+  supportViewMutationObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function applySupportViewBrowserPolicy(root) {
+  const controls = [];
+  if (root.matches?.("button, input[type='button'], input[type='submit'], input[type='file']")) {
+    controls.push(root);
+  }
+  controls.push(...(root.querySelectorAll?.("button, input[type='button'], input[type='submit'], input[type='file']") || []));
+  controls.forEach((control) => {
+    if (control.disabled || isSupportViewReadControl(control)) {
+      return;
+    }
+    control.disabled = true;
+    control.dataset.supportViewDisabled = "";
+    control.title = "Unavailable while using Support View. End Support View to make changes.";
+    control.setAttribute("aria-describedby", "support-view-read-only-explanation");
+  });
+}
+
+function isSupportViewReadControl(control) {
+  if (control.closest("[data-support-view-banner], .site-header") || control.hasAttribute("data-support-view-read-control")) {
+    return true;
+  }
+  if (control.matches("input[type='file']")) {
+    return false;
+  }
+  const text = String(control.textContent || control.value || "").trim().toLowerCase();
+  const dataNames = Object.keys(control.dataset || {}).join(" ").toLowerCase();
+  const safeWords = [
+    "apply", "back", "cancel", "close", "collapse", "details", "expand", "filter", "hide",
+    "load", "next", "open", "preview", "previous", "refresh", "reset", "search", "show", "today", "view",
+  ];
+  return safeWords.some((word) => text === word || text.startsWith(`${word} `) || dataNames.includes(word));
 }
 
 function applyWorkspaceDeletionNotice(workspaceContext) {
