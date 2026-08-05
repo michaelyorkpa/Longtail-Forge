@@ -1,9 +1,19 @@
+## Version 0.33.29.2 - 2026-08-05
+
+- Added a dedicated catalog-security preflight/enable/retry/remove service with `notes.secure.manage` and Library-management checks, current-password reauthentication for downgrade, exact affected-content confirmation, safe audit metadata, and synchronous-versus-job routing from measured note/revision counts.
+- Added durable, versioned transition ownership through migration 089. `securing` and `failed` remain effective-secure, stale jobs cannot finalize newer work, bounded batches resume idempotently, and operator-facing catalog metadata reports the current action, job, start time, version, and safe failure code.
+- Made note and catalog moves preserve protection when leaving inherited security: notes become explicitly secure in the same move update, while moved subtree roots receive secure policy. Ordinary catalog mutations are blocked across an active/failed transition boundary.
+- Added deliberate downgrade handling that decrypts only content that will become effectively normal while preserving explicit notes and independently protected subtrees. Partial failure remains fail-closed, retry does not duplicate revisions, and normal Search reindexing starts only after policy is safely removed.
+- Added focused coverage for permission denial, preflight counts, current-password and confirmation failures, synchronous conversion, 102-record job routing, stale/concurrent work, fail-closed reads and indexing, injected partial failures, retries, preservation moves, audit non-exposure, and SQLite integrity.
+- Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: `docs/module-contract.md` already governs module runtime job registration; management UI and Help remain assigned to 0.33.29.3, and the backup, import, workflow-context, and runtime-configuration contracts are unchanged.
+
 ## Version 0.33.29.1 - 2026-08-05
 
 - Added catalog-level `normal`/`secure` policy and fail-closed `stable`/`securing`/`failed` transition storage through forward migration 088, with refreshed generated schema and a workspace/security index.
 - Added one Notes-owned, workspace-scoped effective-security resolver and repository projection for explicit secure notes, direct secure catalogs, arbitrary-depth secure ancestors, archived ancestors, and fail-closed missing, cross-workspace, or cyclic hierarchy states.
 - Routed Notes authorization, secure shaping, decryption, Search/notification suppression, resume eligibility, and safe audit behavior through effective security while preserving the note's separate explicit `security_mode`.
-- Made secure-catalog note creation store the encrypted note plus encrypted initial revision atomically, and made moves into secure catalogs transactionally encrypt the note, all existing revisions, and the before-move snapshot before membership becomes observable. Moves out remain blocked pending the deliberate `0.33.29.2` downgrade/preservation flow.
+- Made secure-catalog note creation store the encrypted note plus encrypted initial revision atomically, and made moves into secure catalogs transactionally encrypt the note, all existing revisions, and the before-move snapshot before membership becomes observable. At that release, moves out remained blocked pending the deliberate downgrade/preservation follow-up.
 - Added focused unit and isolated-database regressions for hierarchy inheritance, transition states, authorization, malformed hierarchy fail-closed behavior, cycle rejection, encrypted creation/moves, and SQLite integrity.
 - Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
 - No docs change needed: catalog policy has no user-facing management action yet, and the existing backup/recovery, import, workflow-context, SQLite operating-mode, and Help contracts remain unchanged.

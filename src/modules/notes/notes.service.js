@@ -36,7 +36,10 @@ import {
   hasEncryptedSecurePayload,
   safeSecurePlaceholders,
 } from "./secure-crypto.js";
-import { isEffectivelySecureNote } from "./effective-security.js";
+import {
+  isEffectivelySecureNote,
+  resolveCollectionEffectiveSecurity,
+} from "./effective-security.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { clientsService } from "../client-projects/clients.service.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
@@ -500,7 +503,21 @@ async function createCollection(payload, session) {
 async function updateCollection(collectionId, payload, session) {
   await assertCollectionsWriteEnabled(session);
   const previous = await readCollectionOrThrow(session, collectionId);
+  await assertCollectionMutationStable(session, previous);
   const next = await normalizeCollectionPayload(payload, session, previous);
+  const allCollections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: true,
+  });
+  await assertCollectionMutationStable(session, next, allCollections);
+  const prospectiveCollections = new Map(allCollections.map((collection) => [
+    collection.note_library_collection_id,
+    collection.note_library_collection_id === next.note_library_collection_id ? next : collection,
+  ]));
+  const prospectiveSecurity = resolveCollectionEffectiveSecurity(next, prospectiveCollections, session.workspace_id);
+  if (previous.effective_security_mode === NOTE_SECURITY_MODES.SECURE && prospectiveSecurity.effectiveSecurityMode === NOTE_SECURITY_MODES.NORMAL) {
+    next.security_policy = NOTE_SECURITY_MODES.SECURE;
+  }
   await assertCollectionSiblingAvailable(session.workspace_id, next, previous.note_library_collection_id);
   const updated = await notesRepository.updateCollection(session.workspace_id, next);
   await updateCollectionDescendantPaths(session, updated);
@@ -523,6 +540,7 @@ async function moveCollection(collectionId, payload, session) {
 async function archiveCollection(collectionId, session) {
   await assertCollectionsWriteEnabled(session);
   const collection = await readCollectionOrThrow(session, collectionId);
+  await assertCollectionMutationStable(session, collection);
   const descendants = collectionDescendants(collection, await notesRepository.listCollections(session.workspace_id, {
     includeArchived: true,
     includeDeleted: true,
@@ -550,6 +568,7 @@ async function archiveCollection(collectionId, session) {
 async function restoreCollection(collectionId, session) {
   await assertCollectionsWriteEnabled(session);
   const collection = await readCollectionOrThrow(session, collectionId, { includeArchived: true, includeDeleted: true });
+  await assertCollectionMutationStable(session, collection);
   if (collection.status === "deleted") {
     throw new AppError("Deleted collections cannot be restored in this release.", 400);
   }
@@ -579,6 +598,7 @@ async function restoreCollection(collectionId, session) {
 async function deleteEmptyCollection(collectionId, session) {
   await assertCollectionsWriteEnabled(session);
   const collection = await readCollectionOrThrow(session, collectionId, { includeArchived: true, includeDeleted: true });
+  await assertCollectionMutationStable(session, collection);
   const noteCount = await notesRepository.countNotesInCollection(session.workspace_id, collectionId, { includeDeleted: false });
   if (noteCount > 0) {
     throw new AppError("Collection cannot be deleted while it still contains notes.", 400);
@@ -610,7 +630,6 @@ async function assignNoteCollection(noteId, payload, session) {
   const noteCollectionId = normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id ?? payload.collectionId ?? payload.collection_id);
 
   return update(noteId, {
-    ...previousNote,
     note_collection_id: noteCollectionId || null,
   }, session);
 }
@@ -1063,7 +1082,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
   const now = new Date().toISOString();
   const metadata = normalizeMetadata(payload.metadata || payload.metadata_json || previousNote?.metadata || {});
 
-  const securityMode = normalizeEnum(payload.securityMode || payload.security_mode || previousNote?.security_mode || NOTE_SECURITY_MODES.NORMAL, NOTE_SECURITY_MODE_VALUES, "Note security mode");
+  let securityMode = normalizeEnum(payload.securityMode || payload.security_mode || previousNote?.security_mode || NOTE_SECURITY_MODES.NORMAL, NOTE_SECURITY_MODE_VALUES, "Note security mode");
   if (previousNote?.security_mode === NOTE_SECURITY_MODES.SECURE && securityMode !== NOTE_SECURITY_MODES.SECURE) {
     throw new AppError("Secure notes cannot be converted back to normal notes in this release.", 400);
   }
@@ -1105,14 +1124,19 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     throw new AppError("Note collection must be in the same Library bucket as the note.", 400);
   }
 
-  const securityProjection = await notesRepository.projectEffectiveSecurity(session.workspace_id, {
+  let securityProjection = await notesRepository.projectEffectiveSecurity(session.workspace_id, {
     note_collection_id: normalizedCollectionId || null,
     security_mode: securityMode,
   });
   const wasEffectivelySecure = Boolean(previousNote) && isEffectivelySecureNote(previousNote);
-  const willBeEffectivelySecure = securityProjection.effective_security_mode === NOTE_SECURITY_MODES.SECURE;
+  let willBeEffectivelySecure = securityProjection.effective_security_mode === NOTE_SECURITY_MODES.SECURE;
   if (wasEffectivelySecure && !willBeEffectivelySecure) {
-    throw new AppError("Moving content out of an effectively secure catalog requires the deliberate security-preservation flow.", 409);
+    securityMode = NOTE_SECURITY_MODES.SECURE;
+    securityProjection = await notesRepository.projectEffectiveSecurity(session.workspace_id, {
+      note_collection_id: normalizedCollectionId || null,
+      security_mode: securityMode,
+    });
+    willBeEffectivelySecure = true;
   }
 
   const secureFields = willBeEffectivelySecure
@@ -3436,6 +3460,29 @@ async function readCollectionOrThrow(session, collectionId, options = {}) {
   return collection;
 }
 
+async function assertCollectionMutationStable(session, collection, providedCollections = null) {
+  const collections = providedCollections || await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: true,
+  });
+  const byId = new Map(collections.map((item) => [item.note_library_collection_id, item]));
+  const relatedIds = new Set([
+    collection.note_library_collection_id,
+    ...collectionDescendants(collection, collections).map((item) => item.note_library_collection_id),
+  ]);
+  let parentId = collection.parent_collection_id || "";
+  while (parentId && !relatedIds.has(parentId)) {
+    relatedIds.add(parentId);
+    parentId = byId.get(parentId)?.parent_collection_id || "";
+  }
+  const activeTransition = [...relatedIds]
+    .map((collectionId) => byId.get(collectionId))
+    .find((item) => item && item.security_transition_state !== "stable");
+  if (activeTransition) {
+    throw new AppError("Catalog changes are blocked until the active security transition is completed or retried.", 409);
+  }
+}
+
 async function normalizeCollectionPayload(payload = {}, session, previous = null) {
   const now = new Date().toISOString();
   const title = normalizeRequiredText(payload.title ?? payload.name ?? previous?.title, "Collection name");
@@ -3700,6 +3747,15 @@ function shapeCatalogSettingsRow(collection = {}) {
     sortOrder: Number(collection.sort_order || 0),
     source: collection.collection_source || "manual",
     status: collection.status || "active",
+    securityPolicy: collection.security_policy || "normal",
+    effectiveSecurityMode: collection.effective_security_mode || "normal",
+    securityInherited: Boolean(collection.security_inherited),
+    securityTransitionState: collection.security_transition_state || "stable",
+    securityTransitionAction: collection.security_transition_action || "none",
+    securityTransitionVersion: Number(collection.security_transition_version || 0),
+    securityTransitionJobId: collection.security_transition_job_id || null,
+    securityTransitionStartedAt: collection.security_transition_started_at || null,
+    securityTransitionErrorCode: collection.security_transition_error_code || null,
     updatedAt: collection.updated_at || null,
   };
 }

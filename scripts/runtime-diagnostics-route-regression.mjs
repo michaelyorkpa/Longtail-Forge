@@ -115,6 +115,7 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.deepEqual(diagnostics.worker.status.registeredJobTypes, [
     "file.scan",
     "import.future",
+    "notes.catalog-security",
     "notification.event",
     "search.index",
     "task.recurrence",

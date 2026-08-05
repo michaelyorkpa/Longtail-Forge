@@ -108,12 +108,15 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     forbiddenText: "Move body plaintext needle",
   });
 
-  await assert.rejects(
-    notesService.assignNoteCollection(moved.note_id, {
-      noteCollectionId: ordinaryCatalog.note_library_collection_id,
-    }, session),
-    (error) => error?.statusCode === 409 && /deliberate security-preservation flow/.test(error.message),
-  );
+  const preservedMove = (await notesService.assignNoteCollection(moved.note_id, {
+    noteCollectionId: ordinaryCatalog.note_library_collection_id,
+  }, session)).note;
+  assert.equal(preservedMove.security_mode, "secure", "leaving a secure catalog must preserve explicit note security");
+  assert.equal(preservedMove.effective_security_mode, "secure");
+  await assertEncryptedNoteAndRevisions(preservedMove.note_id, {
+    expectedRevisionCount: 3,
+    forbiddenText: "Move body plaintext needle",
+  });
 
   const explicit = (await notesService.create({
     body_markdown: "Explicit secure body",

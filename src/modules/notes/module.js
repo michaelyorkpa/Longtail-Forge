@@ -2,6 +2,7 @@ import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
 import { registerNotesSearchIndexers } from "./search-indexers.js";
+import { catalogSecurityService } from "./catalog-security.service.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 import { appVersion } from "../../core/version.js";
 import { notesPermissions } from "./module.permissions.js";
@@ -11,6 +12,7 @@ import { notesHelp } from "./module.help.js";
 
 function activateNotesRuntime() {
   registerNotesSearchIndexers();
+  catalogSecurityService.registerCatalogSecurityJobHandler();
 }
 
 const notesModule = {

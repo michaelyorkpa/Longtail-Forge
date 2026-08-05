@@ -157,6 +157,11 @@ ORDER BY version;
       module_id: "core",
       name: "secure_catalog_policy",
     },
+    {
+      version: "089",
+      module_id: "core",
+      name: "secure_catalog_transitions",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 

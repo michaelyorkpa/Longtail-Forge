@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 431,
+    "discoveredScripts": 432,
     "legacyScripts": 309,
     "releaseGateScripts": 59,
     "areaCounts": {
@@ -15,7 +15,7 @@
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
-      "notes": 38,
+      "notes": 39,
       "notifications": 3,
       "permissions": 11,
       "public-api": 3,
@@ -28,13 +28,13 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 202,
+      "focused": 203,
       "integration": 162,
       "release-gate": 59,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 176,
+      "isolated-database": 177,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3546,6 +3546,24 @@
         "hierarchy",
         "migration",
         "notes",
+        "security"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Proves fail-closed secure-catalog enable/retry/downgrade transitions, preservation moves, job routing, and current-password confirmation.",
+      "id": "notes.secure-catalog-transitions",
+      "legacy": false,
+      "path": "scripts/regressions/notes/secure-catalog-transitions.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "catalogs",
+        "encryption",
+        "jobs",
+        "notes",
+        "reauthentication",
         "security"
       ],
       "tier": "focused"
