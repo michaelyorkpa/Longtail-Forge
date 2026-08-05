@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
+
+Completed on 2026-08-05. Secure catalog policy now governs every current Notes consumer through one declared fail-closed contract, the Notes Settings catalog manager owns safe enable/retry/downgrade controls, interrupted work has an operator recovery path, and the `0.33.29` branch is closed. The active cursor advanced to `0.33.30.1` for the durable Support View identity contract.
+
+**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
+
+- [x] Routed Notes workspace/detail/revision/relationship reads through authorized effective security and excluded effectively secure notes from normal Files, activity/notifications, Search/indexing, resume/Workbench, public API, exports, generic provider catalogs, and the declared Support View boundary. Secure titles, counts, existence, excerpts, and relationship labels remain unavailable through those secondary consumers.
+- [x] Added the validated `protectedContentConsumers` manifest contract and Notes-owned fail-closed policy assertion. Unknown consumer IDs fail closed, every current surface has an explicit authorize-or-exclude declaration, and the focused source guardrail pins enforcement call sites for future consumers.
+- [x] Added Notes Settings security status and controls that distinguish inherited from explicit protection, prevent inherited weakening, show safe transition/recovery state, preflight bounded counts, auto-refresh background work, and keep password-confirmed downgrade separate from ordinary edit/move actions.
+- [x] Kept transition requested/completed/failure audits content-free and added safe note/subtree preservation audit actions. Effectively secure note events and audit shapes omit titles, bodies, excerpts, encryption fields, and secret metadata.
+- [x] Added permission, workspace-isolation, Search, Files, notification, public API, export declaration, hierarchy, encryption, audit, management-UI, and SQLite-integrity coverage. Documented Notes behavior, operational security, module contributions, Help, and interrupted-transition recovery.
+
+Acceptance criteria:
+
+- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
+
 ## Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
 
 Completed on 2026-08-05. Catalog policy changes now use a permission-checked, versioned transition claim with preflight counts, bounded synchronous work for small catalogs, durable job ownership for larger catalogs, fail-closed retry state, deliberate password-confirmed downgrade, and preservation semantics for notes or subtrees leaving inherited protection. The active cursor advanced to `0.33.29.3` for complete consumer enforcement, management UI, operator recovery documentation, and branch closeout.

@@ -254,11 +254,11 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
 
 async function readEligibleNoteCheck(recordId, session) {
   try {
-    const result = await notesService.read(recordId, session);
+    const note = await notesService.readConsumerSummary(recordId, session, "notes.resume");
     return {
-      archived: result.note?.status === NOTE_STATUSES.ARCHIVED,
+      archived: note?.status === NOTE_STATUSES.ARCHIVED,
       readable: true,
-      status: result.note?.status || NOTE_STATUSES.ACTIVE,
+      status: note?.status || NOTE_STATUSES.ACTIVE,
     };
   } catch {
     return { readable: false };
@@ -465,7 +465,8 @@ function isResumeEligibleNote(note = null) {
     note.library_bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK &&
     note.status === NOTE_STATUSES.ACTIVE &&
     note.visibility !== NOTE_VISIBILITIES.PRIVATE &&
-    note.security_mode !== NOTE_SECURITY_MODES.SECURE;
+    note.security_mode !== NOTE_SECURITY_MODES.SECURE &&
+    note.effective_security_mode !== NOTE_SECURITY_MODES.SECURE;
 }
 
 function safeNoteLinkedContext(metadata = {}) {

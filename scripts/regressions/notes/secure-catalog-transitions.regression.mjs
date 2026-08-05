@@ -26,7 +26,9 @@ const { registerNotesSearchIndexers } = await import("../../../src/modules/notes
 const { catalogSecurityService } = await import("../../../src/modules/notes/catalog-security.service.js");
 const { notesRepository } = await import("../../../src/modules/notes/notes.repo.js");
 const { notesService } = await import("../../../src/modules/notes/notes.service.js");
+const { notificationsService } = await import("../../../src/services/notifications.service.js");
 const { searchService } = await import("../../../src/services/search.service.js");
+const { workResumeStateService } = await import("../../../src/services/work-resume-state.service.js");
 const { hashPassword } = await import("../../../src/security/passwords.js");
 
 try {
@@ -70,6 +72,32 @@ async function assertSynchronousEnablePreservationAndDowngrade(session) {
   const childNote = await createNoteWithRevision(session, child.note_library_collection_id, "Child transition body");
   const movableNote = await createNoteWithRevision(session, root.note_library_collection_id, "Move preservation body");
 
+  await notificationsService.create({
+    body: "Root transition body notification",
+    eventType: "note.updated",
+    moduleId: "notes",
+    recipientUserId: session.user_id,
+    recordId: rootNote.note_id,
+    recordType: "note",
+    title: rootNote.title,
+    url: `notes.html?note=${encodeURIComponent(rootNote.note_id)}`,
+    workspaceId: session.workspace_id,
+  }, session);
+  await notificationsService.followTarget(session, {
+    moduleId: "notes",
+    targetId: rootNote.note_id,
+    targetType: "note",
+  });
+  await workResumeStateService.upsertResumeState(session, {
+    lastActionLabel: "Updated note",
+    lastActionType: "note.updated",
+    moduleId: "notes",
+    recordId: rootNote.note_id,
+    recordType: "note",
+    statusSnapshot: "active",
+    title: rootNote.title,
+  });
+
   const indexed = await searchService.reindexSearchRecord({
     workspaceId: session.workspace_id,
     moduleId: "notes",
@@ -94,6 +122,13 @@ async function assertSynchronousEnablePreservationAndDowngrade(session) {
   await assertEncrypted(rootNote.note_id, "Root transition body");
   await assertEncrypted(childNote.note_id, "Child transition body");
   assert.equal(await countSearchDocuments(rootNote.note_id), 0);
+  const excludedArtifactCounts = await querySql(`
+SELECT
+  (SELECT COUNT(*) FROM notifications WHERE workspace_id = ${sqlText(session.workspace_id)} AND record_type = 'note' AND record_id = ${sqlText(rootNote.note_id)}) AS notification_count,
+  (SELECT COUNT(*) FROM notification_subscriptions WHERE workspace_id = ${sqlText(session.workspace_id)} AND target_type = 'note' AND target_id = ${sqlText(rootNote.note_id)}) AS subscription_count,
+  (SELECT COUNT(*) FROM work_resume_state WHERE workspace_id = ${sqlText(session.workspace_id)} AND record_type = 'note' AND record_id = ${sqlText(rootNote.note_id)}) AS resume_count;
+`);
+  assert.deepEqual(excludedArtifactCounts, [{ notification_count: 0, subscription_count: 0, resume_count: 0 }]);
 
   const movedNote = (await notesService.assignNoteCollection(movableNote.note_id, {
     noteCollectionId: ordinary.note_library_collection_id,
@@ -146,6 +181,18 @@ ORDER BY created_at ASC;
     "note_catalog_security_completed",
   ]);
   assert.doesNotMatch(JSON.stringify(auditRows), /Root transition body|secure_payload|encrypted_data_key/);
+  const preservationAuditRows = await querySql(`
+SELECT action, record_id, previous_value_json, new_value_json, metadata_json
+FROM audit_logs
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND action IN ('note_security_preserved_on_move', 'note_catalog_security_preserved_on_move')
+ORDER BY created_at ASC;
+`);
+  assert.deepEqual(preservationAuditRows.map((row) => [row.action, row.record_id]), [
+    ["note_security_preserved_on_move", movableNote.note_id],
+    ["note_catalog_security_preserved_on_move", child.note_library_collection_id],
+  ]);
+  assert.doesNotMatch(JSON.stringify(preservationAuditRows), /Move preservation body|secure_payload|encrypted_data_key/);
 }
 
 async function assertLargeCatalogFailureRetryAndDowngrade(session) {

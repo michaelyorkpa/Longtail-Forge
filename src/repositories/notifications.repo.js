@@ -406,6 +406,40 @@ WHERE created_at < :cutoffIso
   });
 }
 
+async function removeForTargets(workspaceId, moduleId, recordType, recordIds = []) {
+  const ids = [...new Set((Array.isArray(recordIds) ? recordIds : [recordIds])
+    .map((recordId) => textParam(recordId).trim())
+    .filter(Boolean))];
+  if (ids.length === 0) {
+    return { removed: true, targetCount: 0 };
+  }
+
+  const params = {
+    moduleId: textParam(moduleId),
+    recordIds: ids,
+    recordType: textParam(recordType),
+    workspaceId: textParam(workspaceId),
+  };
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+DELETE FROM notifications
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND record_type = :recordType
+  AND record_id IN (:recordIds);
+`, params);
+    await transaction.run(`
+DELETE FROM notification_subscriptions
+WHERE workspace_id = :workspaceId
+  AND module_id = :moduleId
+  AND target_type = :recordType
+  AND target_id IN (:recordIds);
+`, params);
+  });
+
+  return { removed: true, targetCount: ids.length };
+}
+
 async function readWorkspaceAdminUserIds(workspaceId) {
   const rows = await db.query(`
 SELECT DISTINCT user_id
@@ -845,6 +879,7 @@ export const notificationsRepository = {
   readSubscriptionsForTarget,
   readWorkspaceAdminUserIds,
   readWorkspaceDefaults,
+  removeForTargets,
   removeSubscription,
   saveSubscription,
   saveUserDisplayPreferences,

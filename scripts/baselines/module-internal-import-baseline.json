@@ -20,10 +20,6 @@
     },
     {
       "file": "src/modules/lists/lists.service.js",
-      "specifier": "../notes/notes.repo.js"
-    },
-    {
-      "file": "src/modules/lists/lists.service.js",
       "specifier": "../tasks/tasks.repo.js"
     },
     {

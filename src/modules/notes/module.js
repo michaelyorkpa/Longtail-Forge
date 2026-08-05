@@ -349,6 +349,7 @@ const notesModule = {
   tagPropagation: notesIntegrations.tagPropagation,
   searchableTypes: notesIntegrations.searchableTypes,
   attachableTypes: notesIntegrations.attachableTypes,
+  protectedContentConsumers: notesIntegrations.protectedContentConsumers,
   linkedContextProviders: notesIntegrations.linkedContextProviders,
   notificationEvents: notesEvents.notificationEvents,
   notificationFollowTargets: notesEvents.notificationFollowTargets,

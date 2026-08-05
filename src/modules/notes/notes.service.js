@@ -40,6 +40,11 @@ import {
   isEffectivelySecureNote,
   resolveCollectionEffectiveSecurity,
 } from "./effective-security.js";
+import {
+  assertNoteConsumerAccess,
+  canExposeNoteToConsumer,
+} from "./consumer-policy.js";
+import { noteConsumerArtifactsService } from "./consumer-artifacts.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { clientsService } from "../client-projects/clients.service.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
@@ -199,6 +204,7 @@ async function secureHealth(session) {
 async function read(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
+  assertNoteConsumerAccess(note, "notes.workspace", { authorized: true });
 
   return { note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
@@ -283,12 +289,18 @@ async function update(noteId, payload, session) {
     note = await notesRepository.update(session.workspace_id, nextNote);
     await maybeCreateRevision(session, previousNote, note, "Note updated.");
   }
+  if (isEffectivelySecureNote(note)) {
+    await noteConsumerArtifactsService.removeExcludedConsumerArtifacts(session.workspace_id, [noteId]);
+  }
   await saveTargetTags(session, note.note_id, payload);
   if (noteContextChanged(previousNote, note)) {
     await requestTagPropagationRefresh(session, "note", note.note_id, "note.context_changed");
   }
   const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
   await recordNoteAudit(session, "note_updated", "update", previousNote, noteWithLinks);
+  if (noteSecurityWasPreservedOnMove(previousNote, noteWithLinks)) {
+    await recordNoteAudit(session, "note_security_preserved_on_move", "update", previousNote, noteWithLinks);
+  }
   await emitNoteEvent("note.updated", session, previousNote, noteWithLinks);
   if (transitionRevision) {
     await emitNoteEvent("note.revision_created", session, previousNote, noteWithLinks, {
@@ -379,6 +391,7 @@ async function softDelete(noteId, session) {
 async function listRevisions(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
+  assertNoteConsumerAccess(note, "notes.revisions", { authorized: true });
 
   const revisions = await notesRepository.listRevisions(session.workspace_id, noteId);
   return { revisions: visibleRevisionSnapshots(revisions, note).map((revision) => shapeRevisionForBrowser(revision, { includeBody: false })) };
@@ -387,6 +400,7 @@ async function listRevisions(noteId, session) {
 async function readRevision(noteId, revisionId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
+  assertNoteConsumerAccess(note, "notes.revisions", { authorized: true });
   const revision = await notesRepository.readRevisionById(session.workspace_id, noteId, revisionId);
 
   if (!revision) {
@@ -443,6 +457,7 @@ async function restoreRevision(noteId, revisionId, session) {
 async function listLinks(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
+  assertNoteConsumerAccess(note, "notes.relationships", { authorized: true });
 
   return { links: await notesRepository.listLinks(session.workspace_id, noteId) };
 }
@@ -524,6 +539,9 @@ async function updateCollection(collectionId, payload, session) {
   await syncCollectionNotesSearchIndex(session, [updated.note_library_collection_id], "note.collection.updated");
 
   await recordNoteAudit(session, "note_collection_updated", "update", previous, updated, "note_library");
+  if (collectionSecurityWasPreservedOnMove(previous, next, prospectiveSecurity)) {
+    await recordNoteAudit(session, "note_catalog_security_preserved_on_move", "update", previous, updated, "note_library");
+  }
   return { collection: await notesRepository.readCollectionById(session.workspace_id, updated.note_library_collection_id) };
 }
 
@@ -687,7 +705,30 @@ async function ensureCollectionsForImportPath(session, payload = {}) {
 async function readForAttachmentAccess(session, noteId, operation = "read") {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, operation);
+  if (!canExposeNoteToConsumer(note, "notes.attachments")) {
+    throw new AppError("Secure notes do not allow framework file attachments yet.", 403);
+  }
   return note;
+}
+
+async function listConsumerSummaries(session, options = {}) {
+  const consumerId = normalizeRequiredText(options.consumerId || options.consumer_id, "Notes consumer ID");
+  const noteIds = [...new Set(normalizeIdList(options.noteIds || options.note_ids))];
+  const notes = noteIds.length > 0
+    ? await notesRepository.readByIds(session.workspace_id, noteIds)
+    : await notesRepository.list(session.workspace_id, {});
+  const accessible = await filterAccessibleNotes(session, notes);
+
+  return accessible
+    .filter((note) => canExposeNoteToConsumer(note, consumerId, { authorized: true }))
+    .map(shapeConsumerNoteSummary);
+}
+
+async function readConsumerSummary(noteId, session, consumerId) {
+  const note = await readNoteOrThrow(session, noteId);
+  await assertCanAccess(session, note, "read");
+  assertNoteConsumerAccess(note, consumerId, { authorized: true });
+  return shapeConsumerNoteSummary(note);
 }
 
 async function createLink(noteId, payload, session) {
@@ -757,13 +798,19 @@ async function readTaskLinkedNotePropagationStructure(session, taskId) {
 
 async function listCatalogSettings(session) {
   await assertCatalogSettingsAccess(session);
-  const collections = await notesRepository.listCollections(session.workspace_id, {
-    includeArchived: true,
-    includeDeleted: false,
-  });
+  const [collections, canManageSecurity] = await Promise.all([
+    notesRepository.listCollections(session.workspace_id, {
+      includeArchived: true,
+      includeDeleted: false,
+    }),
+    permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.SECURE_MANAGE),
+  ]);
 
   return {
     catalogs: sortCollectionsForReadModel(collections).map(shapeCatalogSettingsRow),
+    capabilities: {
+      manageSecurity: canManageSecurity,
+    },
     limits: {
       bulkSelection: 100,
     },
@@ -1326,10 +1373,17 @@ async function filterAccessibleNotes(session, notes) {
   const batch = createVisibleRecordBatch(notes, { idField: "note_id" });
   const links = await notesRepository.listLinksForNotes(session.workspace_id, batch.ids);
   const linksByNoteId = groupRowsByRecordId(links, { idField: "note_id" });
+  const linkedContextCache = await createLinkedContextAccessCache(session, notes, linksByNoteId);
   const readable = [];
 
   for (const note of notes) {
-    const linkedRecordAccess = await canAccessLinkedContext(session, note, linksByNoteId.get(note.note_id) || []);
+    const linkedRecordAccess = await canAccessLinkedContext(
+      session,
+      note,
+      linksByNoteId.get(note.note_id) || [],
+      new Set(),
+      linkedContextCache,
+    );
     const access = canAccessNote({
       note,
       operation: "read",
@@ -1426,7 +1480,7 @@ function decryptSecureRevisionForRead(revision = {}) {
   };
 }
 
-async function canAccessLinkedContext(session, note, links = [], seenTargets = new Set()) {
+async function canAccessLinkedContext(session, note, links = [], seenTargets = new Set(), accessCache = null) {
   const targets = [
     ...noteContextTargets(note),
     ...links.map((link) => ({
@@ -1437,7 +1491,7 @@ async function canAccessLinkedContext(session, note, links = [], seenTargets = n
   ].filter((target) => target.target_id || target.target_type === "workspace");
 
   for (const target of targets) {
-    if (!(await canAccessSavedContextTarget(session, target, seenTargets))) {
+    if (!(await canAccessSavedContextTarget(session, target, seenTargets, accessCache))) {
       return false;
     }
   }
@@ -1524,7 +1578,7 @@ async function canTargetAccess(session, target, seenTargets = new Set()) {
   return false;
 }
 
-async function canAccessSavedContextTarget(session, target, seenTargets = new Set()) {
+async function canAccessSavedContextTarget(session, target, seenTargets = new Set(), accessCache = null) {
   const normalizedTarget = normalizeSavedTarget(target);
   const targetKey = linkedContextTargetKey(normalizedTarget);
   if (seenTargets.has(targetKey)) {
@@ -1550,7 +1604,9 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       return true;
     }
 
-    const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    const client = accessCache
+      ? accessCache.clients.get(normalizedTarget.target_id) || null
+      : await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
     if (!client) {
       return true;
     }
@@ -1567,7 +1623,9 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       return true;
     }
 
-    const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    const project = accessCache
+      ? accessCache.projects.get(normalizedTarget.target_id) || null
+      : await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
     if (!project) {
       return true;
     }
@@ -1585,7 +1643,9 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       return true;
     }
 
-    const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    const task = accessCache
+      ? accessCache.tasks.get(normalizedTarget.target_id) || null
+      : await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
     if (!task) {
       return true;
     }
@@ -1600,13 +1660,15 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
   }
 
   if (normalizedTarget.target_type === "note") {
-    const note = await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    const note = accessCache
+      ? accessCache.notes.get(normalizedTarget.target_id) || null
+      : await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
     if (!note || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
       return true;
     }
 
     const links = await notesRepository.listLinks(session.workspace_id, note.note_id);
-    const linkedRecordAccess = await canAccessLinkedContext(session, note, links, nextSeenTargets);
+    const linkedRecordAccess = await canAccessLinkedContext(session, note, links, nextSeenTargets, accessCache);
     const access = canAccessNote({
       note,
       operation: "read",
@@ -1623,7 +1685,9 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       return true;
     }
 
-    const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    const listRecord = accessCache
+      ? accessCache.lists.get(normalizedTarget.target_id) || null
+      : await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
     if (!listRecord || listRecord.status === "deleted" || listRecord.deleted_at) {
       return true;
     }
@@ -2636,6 +2700,60 @@ function shapeResumeContextNote(note = {}) {
   };
 }
 
+async function createLinkedContextAccessCache(session, notes = [], linksByNoteId = new Map()) {
+  const idsByType = new Map();
+  for (const note of notes) {
+    const targets = [
+      ...noteContextTargets(note),
+      ...(linksByNoteId.get(note.note_id) || []).map((link) => ({
+        target_type: link.target_type,
+        target_id: link.target_id,
+      })),
+    ];
+    for (const target of targets) {
+      const targetType = normalizeOptionalText(target.target_type);
+      const targetId = normalizeOptionalText(target.target_id);
+      if (!targetType || !targetId || !["client", "project", "task", "note", "list"].includes(targetType)) continue;
+      if (!idsByType.has(targetType)) idsByType.set(targetType, new Set());
+      idsByType.get(targetType).add(targetId);
+    }
+  }
+
+  const read = async (targetType, repository, idField) => {
+    const ids = [...(idsByType.get(targetType) || [])];
+    if (ids.length === 0) return new Map();
+    const records = await repository.readByIds(session.workspace_id, ids);
+    return new Map(records.map((record) => [record[idField], record]));
+  };
+
+  const [clients, projects, tasks, linkedNotes, lists] = await Promise.all([
+    read("client", clientsRepository, "id"),
+    read("project", projectsRepository, "id"),
+    read("task", tasksRepository, "task_id"),
+    read("note", notesRepository, "note_id"),
+    read("list", listsRepository, "list_id"),
+  ]);
+  return { clients, projects, tasks, notes: linkedNotes, lists };
+}
+
+function shapeConsumerNoteSummary(note = {}) {
+  return {
+    note_id: note.note_id,
+    workspace_id: note.workspace_id,
+    title: note.title || "Untitled note",
+    status: note.status || "active",
+    archived_at: note.archived_at || null,
+    deleted_at: note.deleted_at || null,
+    visibility: note.visibility || "internal",
+    security_mode: note.security_mode || "normal",
+    effective_security_mode: note.effective_security_mode || note.security_mode || "normal",
+    security_resolution_state: note.security_resolution_state || "resolved",
+    client_id: note.client_id || "",
+    project_id: note.project_id || "",
+    source_url: noteSourceUrl(note.note_id),
+  };
+}
+
 function shapeSafeNoteLink(link = {}) {
   return {
     noteLinkId: link.note_link_id || "",
@@ -2962,7 +3080,9 @@ async function accessibleNoteIdSetForLinks(session, links = []) {
 
   const notes = await notesRepository.readByIds(session.workspace_id, noteIds);
   const accessible = await filterAccessibleNotes(session, notes);
-  return new Set(accessible.map((note) => note.note_id));
+  return new Set(accessible
+    .filter((note) => canExposeNoteToConsumer(note, "notes.relationships", { authorized: true }))
+    .map((note) => note.note_id));
 }
 
 async function finalizePropagatedNoteLinkChanges(session, result = {}) {
@@ -3265,7 +3385,7 @@ function isResumeContextEligibleNote(note = {}) {
   return note.library_bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK &&
     note.status === NOTE_STATUSES.ACTIVE &&
     note.visibility !== NOTE_VISIBILITIES.PRIVATE &&
-    !isEffectivelySecureNote(note) &&
+    canExposeNoteToConsumer(note, "notes.resume") &&
     !note.deleted_at;
 }
 
@@ -3852,7 +3972,7 @@ function normalizeImportCollectionPathParts(payload = {}) {
 
 function createSearchIndexPayload(note = {}) {
   if (
-    isEffectivelySecureNote(note) ||
+    !canExposeNoteToConsumer(note, "notes.search") ||
     note.visibility === NOTE_VISIBILITIES.PRIVATE ||
     note.status === NOTE_STATUSES.DELETED ||
     note.deleted_at
@@ -3917,25 +4037,32 @@ async function syncCollectionNotesSearchIndex(session, collectionIds, reason) {
 }
 
 async function recordNoteAudit(session, action, changeType, previousValue, newValue, recordType = "note") {
+  const noteValue = newValue?.note_id ? newValue : previousValue?.note_id ? previousValue : null;
+  const protectedContent = noteValue ? isEffectivelySecureNote(noteValue) : false;
+  const recordId = newValue?.note_link_id || newValue?.note_revision_id || newValue?.note_id || previousValue?.note_id ||
+    newValue?.note_library_collection_id || previousValue?.note_library_collection_id;
   await auditService.record({
     session,
     action,
     changeType,
     recordType,
-    recordId: newValue?.note_link_id || newValue?.note_revision_id || newValue?.note_id || previousValue?.note_id,
-    recordLabel: newValue?.title || previousValue?.title || newValue?.target_id || "Note",
-    recordUrl: `notes.html?note=${encodeURIComponent(newValue?.note_id || previousValue?.note_id || "")}`,
+    recordId,
+    recordLabel: protectedContent ? "Secure note" : newValue?.title || previousValue?.title || newValue?.target_id || "Note",
+    recordUrl: recordType === "note_library"
+      ? "notes-settings.html"
+      : `notes.html?note=${encodeURIComponent(newValue?.note_id || previousValue?.note_id || "")}`,
     previousValue: safeAuditValue(previousValue),
     newValue: safeAuditValue(newValue),
     metadata: sanitizeNoteLifecyclePayload({
       workspace_id: session.workspace_id,
       actor_user_id: session.user_id,
       note_id: newValue?.note_id || previousValue?.note_id,
-      title: newValue?.title || previousValue?.title,
-      body_excerpt: newValue?.body_excerpt || previousValue?.body_excerpt,
+      title: protectedContent ? undefined : newValue?.title || previousValue?.title,
+      body_excerpt: protectedContent ? undefined : newValue?.body_excerpt || previousValue?.body_excerpt,
       library_bucket: newValue?.library_bucket || previousValue?.library_bucket,
       visibility: newValue?.visibility || previousValue?.visibility,
       security_mode: newValue?.security_mode || previousValue?.security_mode,
+      effective_security_mode: newValue?.effective_security_mode || previousValue?.effective_security_mode,
       client_id: newValue?.client_id || previousValue?.client_id,
       project_id: newValue?.project_id || previousValue?.project_id,
       task_id: newValue?.task_id || previousValue?.task_id,
@@ -3972,6 +4099,7 @@ async function recordSecureDecryptFailure(session, note, error) {
 
 async function emitNoteEvent(eventName, session, previousValue, newValue, metadata = {}) {
   const note = newValue || previousValue || {};
+  const protectedContent = !canExposeNoteToConsumer(note, "notes.notifications");
   const recipientUserIds = noteOwnerNotificationRecipients(eventName, session, note);
   await modulesService.emitInternalEvent(eventName, {
     session,
@@ -3986,11 +4114,12 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
         workspace_id: session.workspace_id,
         actor_user_id: session.user_id,
         note_id: note.note_id,
-        title: note.title,
-        body_excerpt: note.body_excerpt,
+        title: protectedContent ? undefined : note.title,
+        body_excerpt: protectedContent ? undefined : note.body_excerpt,
         library_bucket: note.library_bucket,
         visibility: note.visibility,
         security_mode: note.security_mode,
+        effective_security_mode: note.effective_security_mode,
         client_id: note.client_id,
         project_id: note.project_id,
         task_id: note.task_id,
@@ -3998,8 +4127,12 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
       }),
       ...(recipientUserIds.length > 0 ? { recipient_user_ids: recipientUserIds } : {}),
       ...metadata,
-      ...(isEffectivelySecureNote(note)
-        ? { suppress_notifications: true, notification_suppression_reason: "secure_note" }
+      ...(protectedContent
+        ? {
+            suppress_activity: true,
+            suppress_notifications: true,
+            notification_suppression_reason: "secure_note",
+          }
         : {}),
     },
   });
@@ -4012,7 +4145,7 @@ function noteOwnerNotificationRecipients(eventName, session, note = {}) {
 
   const ownerUserId = normalizeOptionalText(note.owner_user_id);
   const actorUserId = normalizeOptionalText(session?.user_id);
-  if (!ownerUserId || ownerUserId === actorUserId || isEffectivelySecureNote(note)) {
+  if (!ownerUserId || ownerUserId === actorUserId || !canExposeNoteToConsumer(note, "notes.notifications")) {
     return [];
   }
 
@@ -4041,22 +4174,48 @@ function safeAuditValue(value) {
     return value;
   }
 
-  const safeValue = { ...value };
-  if (isEffectivelySecureNote(safeValue)) {
-    delete safeValue.body_markdown;
-    delete safeValue.body_html;
-    delete safeValue.body_excerpt;
-    delete safeValue.body_plaintext_index;
-    delete safeValue.secure_payload;
-    delete safeValue.encrypted_data_key;
-    delete safeValue.encryption_nonce;
-    delete safeValue.encryption_auth_tag;
-    delete safeValue.key_wrapping_nonce;
-    delete safeValue.key_wrapping_auth_tag;
-    delete safeValue.secure_body_decrypted;
+  if (isEffectivelySecureNote(value)) {
+    return Object.fromEntries(Object.entries({
+      note_id: value.note_id,
+      workspace_id: value.workspace_id,
+      note_type: value.note_type,
+      library_bucket: value.library_bucket,
+      status: value.status,
+      visibility: value.visibility,
+      security_mode: value.security_mode,
+      effective_security_mode: value.effective_security_mode,
+      security_inherited: value.security_inherited,
+      security_resolution_state: value.security_resolution_state,
+      security_source: value.security_source,
+      note_collection_id: value.note_collection_id,
+      client_id: value.client_id,
+      project_id: value.project_id,
+      task_id: value.task_id,
+      ticket_id: value.ticket_id,
+      linked_user_id: value.linked_user_id,
+      archived_at: value.archived_at,
+      deleted_at: value.deleted_at,
+    }).filter(([, fieldValue]) => fieldValue !== undefined));
   }
+
+  const safeValue = { ...value };
   delete safeValue.metadata_json;
   return safeValue;
+}
+
+function noteSecurityWasPreservedOnMove(previousNote = {}, nextNote = {}) {
+  return previousNote.note_collection_id !== nextNote.note_collection_id &&
+    previousNote.security_mode !== NOTE_SECURITY_MODES.SECURE &&
+    isEffectivelySecureNote(previousNote) &&
+    nextNote.security_mode === NOTE_SECURITY_MODES.SECURE;
+}
+
+function collectionSecurityWasPreservedOnMove(previous = {}, next = {}, prospectiveSecurity = {}) {
+  return previous.parent_collection_id !== next.parent_collection_id &&
+    previous.security_policy !== NOTE_SECURITY_MODES.SECURE &&
+    previous.effective_security_mode === NOTE_SECURITY_MODES.SECURE &&
+    prospectiveSecurity.effectiveSecurityMode === NOTE_SECURITY_MODES.NORMAL &&
+    next.security_policy === NOTE_SECURITY_MODES.SECURE;
 }
 
 function normalizeNullablePayloadText(payload = {}, camelField, snakeField, fallback = "") {
@@ -4148,6 +4307,7 @@ export const notesService = {
   listArchived,
   listByLibraryBucket,
   listCatalogSettings,
+  listConsumerSummaries,
   listCollections,
   listForTarget,
   listLinkTargets,
@@ -4159,6 +4319,7 @@ export const notesService = {
   previewMarkdown,
   read,
   readForAttachmentAccess,
+  readConsumerSummary,
   readTaskLinkedNotePropagationStructure,
   readRevision,
   removeLink,

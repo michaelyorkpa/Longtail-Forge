@@ -74,6 +74,7 @@ export interface ModuleManifest {
   tagPropagation?: unknown;
   searchableTypes?: SearchableTypeContribution[];
   attachableTypes?: AttachableTypeContribution[];
+  protectedContentConsumers?: ProtectedContentConsumerContribution[];
   help?: {
     sections?: readonly Record<string, unknown>[];
     articles?: readonly Record<string, unknown>[];
@@ -88,6 +89,15 @@ export interface ModuleManifest {
   seedHooks?: unknown[];
   repairHooks?: unknown[];
   workspaceCapabilityRequirements?: string[];
+}
+
+export interface ProtectedContentConsumerContribution {
+  id: string;
+  moduleId: string;
+  recordType: string;
+  surface: string;
+  behavior: "authorize" | "exclude";
+  assertion: string;
 }
 
 export interface ModuleStartupTask {

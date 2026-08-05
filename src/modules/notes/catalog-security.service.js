@@ -21,6 +21,7 @@ import {
 } from "./effective-security.js";
 import { createMarkdownExcerpt, extractPlainTextFromMarkdown } from "./markdown.js";
 import { notesRepository } from "./notes.repo.js";
+import { noteConsumerArtifactsService } from "./consumer-artifacts.service.js";
 import {
   decryptSecureNoteBody,
   encryptSecureNoteBody,
@@ -210,6 +211,10 @@ async function processTransition(claim, options = {}) {
 
     if (claim.action === TRANSITION_ACTIONS.ENABLE) {
       await removeSearchDocuments(claim.workspaceId, context.affectedNotes);
+      await noteConsumerArtifactsService.removeExcludedConsumerArtifacts(
+        claim.workspaceId,
+        context.affectedNotes.map((note) => note.note_id),
+      );
     }
 
     const verification = await buildTransitionContext(claim.workspaceId, claim.collectionId, claim.action);

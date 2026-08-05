@@ -1,7 +1,7 @@
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { notesRepository } from "./notes.repo.js";
-import { isEffectivelySecureNote } from "./effective-security.js";
+import { canExposeNoteToConsumer } from "./consumer-policy.js";
 import { NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
 import { extractPlainTextFromMarkdown } from "./markdown.js";
 
@@ -92,7 +92,7 @@ function isSearchableNote(note = {}) {
     return false;
   }
 
-  if (isEffectivelySecureNote(note)) {
+  if (!canExposeNoteToConsumer(note, "notes.search")) {
     return false;
   }
 

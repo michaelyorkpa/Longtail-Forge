@@ -92,6 +92,7 @@ These fields are currently accepted by the manifest validator:
 - `taggableTypes`: optional module-declared taggable record type descriptors.
 - `searchableTypes`: optional module-declared searchable record type descriptors.
 - `attachableTypes`: optional module-declared file attachment target descriptors.
+- `protectedContentConsumers`: optional module-declared protected-record consumer policies.
 - `help`: optional module-declared Help Center contribution block with `sections` and `articles`.
 - `seedHooks`: optional reserved startup hook array.
 - `repairHooks`: optional reserved startup repair hook array.
@@ -101,6 +102,8 @@ These fields are currently accepted by the manifest validator:
 There are no search-reserved manifest fields as of 0.32.9.1. `searchableTypes` is an active validated contract. Help uses the active validated `help` contribution block. Future extension data should be promoted deliberately with validator coverage instead of being accepted as arbitrary metadata.
 
 Notifications are framework-owned. Modules declare notification events, templates, and followable target types through the manifest, but individual modules should not create duplicate notification UI.
+
+Protected-content consumer descriptors require `id`, `moduleId`, `recordType`, `surface`, `behavior`, and `assertion`. `behavior` is either `authorize` or `exclude`; IDs must be unique within the module. The manifest is data-only: the assertion names a module-owned policy implementation, and each actual consumer must call that implementation rather than reconstructing protection from a storage flag. As of 0.33.29.3, Notes uses `notes.effective-security`; unknown consumer IDs fail closed, and Support View, Files, notifications, Search, resume/Workbench, public API, exports, and generic provider catalogs declare exclusion. A future consumer cannot gain secure-content access merely by registering a descriptor.
 
 ## Contribution Shapes
 

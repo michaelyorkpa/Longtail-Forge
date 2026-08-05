@@ -92,7 +92,9 @@ async function addLinkedNotes(collection, session, task) {
     targetId: task.task_id,
     targetType: "task",
   }));
-  const notes = result?.linkedNotes || [];
+  const candidates = result?.linkedNotes || [];
+  const allowedNoteIds = await readAllowedWorkbenchNoteIds(session, candidates);
+  const notes = candidates.filter((note) => allowedNoteIds.has(note.note_id || note.id));
 
   notes.forEach((note, index) => addRelatedItem(collection, {
     moduleId: "notes",
@@ -203,7 +205,10 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
       sourceOrder: index,
     })));
 
-  (notes?.notes || [])
+  const noteCandidates = notes?.notes || [];
+  const allowedNoteIds = await readAllowedWorkbenchNoteIds(session, noteCandidates);
+  noteCandidates
+    .filter((note) => allowedNoteIds.has(note.note_id || note.id))
     .filter((note) => sharesDirectTag(note, selectedTagSet))
     .forEach((note, index) => addRelatedItem(collection, {
       moduleId: "notes",
@@ -236,6 +241,18 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
       sortValue: list.updated_at || list.updatedAt || list.created_at || list.createdAt || "",
       sourceOrder: index,
     }));
+}
+
+async function readAllowedWorkbenchNoteIds(session, notes = []) {
+  const noteIds = notes.map((note) => note.note_id || note.id).filter(Boolean);
+  if (noteIds.length === 0) {
+    return new Set();
+  }
+  const allowed = await notesService.listConsumerSummaries(session, {
+    consumerId: "notes.workbench",
+    noteIds,
+  });
+  return new Set(allowed.map((note) => note.note_id));
 }
 
 function taskRelatedItem(task, options = {}) {
