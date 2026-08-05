@@ -63,6 +63,19 @@ The non-sensitive technical closeout record for the maintenance-boundary rollout
 
 This technical completion does not authorize invitations. The private signed readiness record, participant-account review, scanner/recovery evidence, and explicit invite/no-invite decision remain separate and unchanged; no invitation was issued as part of the `0.33.24` rollout.
 
+## 0.33.28.4 Compose Replacement Evidence
+
+The non-sensitive technical closeout record for the Compose replacement gate is:
+
+- Demo passed first, then preview. Both native `linux/amd64` hosts completed immutable-digest Compose cutover, protected whole-instance backup and inspection, durable SQLite/Files persistence, backup-first upgrade, restore-based rollback, and final candidate deployment behind their existing reviewed edges.
+- The final pre-closeout candidate on both hosts is protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827`, image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`, `linux/amd64` platform manifest `sha256:afc36e2c9a264bba4c67a212ef4459d5d6f63acf8f90bf95bccb9e8265176300`, and runtime-artifact SHA-256 `e7183f7ddb118a4122ef09445c329b4c6657a02f65fa6dac6b5f934bd7b4a7ce`. Direct and public `/healthz`, `/readyz`, and `/api/app-info` matched that identity.
+- Container inspection proved UID/GID 10001, read-only root, dropped capabilities, `no-new-privileges`, loopback-only port 8001, the external reviewed bridge, and a private 512 MB `/tmp` tmpfs. The exact bridge gateway is the sole proxy/scanner handoff; public access to the scanner and Node port remains denied.
+- Demo retained its expected users/workspaces/tasks/notes/Files counts and two stored Files objects. Preview retained SQLite integrity, zero foreign-key violations, its exact users/workspaces/tasks/notes/Files counts, and all 3,071 stored Files objects across cutover, upgrade, restored rollback, and final deployment.
+- The prior bare-metal services are stopped and disabled, not removed. Their releases, environments, data, backups, helpers, and protected operation records remain recoverable through the observation period. No retirement work has started.
+- The host cut includes product features through 0.33.27 plus the 0.33.28 deployment/release work. Secure Catalogs (`0.33.29`) and Support View (`0.33.30`) are not included.
+
+Exact host paths, private addresses, backup and operation identifiers, recovery material, credentials, and detailed security output remain in the root-only operational records. This replacement proof is necessary but does not authorize invitations or an announcement. The private signed readiness record, participant/account checks, explicit invite decision, and the `0.33.28.5` observation-period gate remain separate; no invitation was issued as part of this cutover.
+
 ## First Login And Accounts
 
 The preview uses ordinary Longtail Forge accounts. Operators create a unique user for each invited participant and assign only the workspace access they should have. A participant should never receive a shared account, bootstrap account, owner account, API key, server credential, database file, backup archive, Secure Notes recovery key, or deployment secret.

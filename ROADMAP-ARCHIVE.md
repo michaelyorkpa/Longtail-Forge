@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
+
+Completed live on 2026-08-04. Both supported native `linux/amd64` hosts now run the verified immutable Compose candidate behind their reviewed public edges, while every prior bare-metal release, service definition, environment, data tree, backup, helper, and recovery record remains retained. The active cursor advanced to `0.33.28.5`, whose retirement work remains gated on a successful observation period.
+
+**Model: High Effort** — This changed the actual preview/demo runtime while deliberately retaining the known recovery path until the replacement proved every destructive lifecycle operation.
+
+- [x] Kept both complete bare-metal installations and recovery units intact. Their services are stopped and disabled only after exact Compose identity passed; they remain recoverable and were never allowed to share live SQLite/Files state with a container.
+- [x] Proved the complete lifecycle on demo first: cutover, protected backup/inspection, upgrade, unchanged durable database/Files state, restore-based rollback, final candidate redeploy, maintenance behavior, exact bridge-gateway ClamAV handoff, all seven role logins, Search, Files preview/download, and representative workflow execution.
+- [x] Cut preview over from its retained `0.33.27.9.2` release through an exact-version whole-instance restore, then let the selected image own forward migrations. The cutover helper now constrains that restore to the reviewed local Docker-volume mountpoint, rejects symbolic links, returns ownership to UID/GID 10001, and preserves automatic verified bare-metal recovery on failure.
+- [x] Captured direct and public health/readiness and `/api/app-info`, immutable image/platform/artifact identity, non-root/read-only/capability/no-new-privileges posture, loopback-only port 8001, persistent-volume data, protected backup/operation records, maintenance curtain, scanner handoff, and public authentication boundaries on both hosts. The final pre-closeout candidate is protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827`, image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`, `linux/amd64` platform manifest `sha256:afc36e2c9a264bba4c67a212ef4459d5d6f63acf8f90bf95bccb9e8265176300`, and artifact SHA-256 `e7183f7ddb118a4122ef09445c329b4c6657a02f65fa6dac6b5f934bd7b4a7ce`.
+- [x] Proved preview backup-first upgrade, restore-based rollback to the retained baseline, and final candidate deployment with unchanged SQLite integrity, zero foreign-key violations, record counts, and all 3,071 Files objects. Live proof found that restore's concurrent inspection and pre-restore snapshot exceeded the former 64 MB private tmpfs for the roughly 40 MB database; the now-enforced bounded 512 MB tmpfs passed the same real rollback.
+- [x] Confirmed this host cut carries product work through 0.33.27 plus the 0.33.28 deployment/release contract. Secure Catalogs (`0.33.29`) and Support View (`0.33.30`) remain excluded. No invitation, announcement, or public-launch decision was made.
+- [x] Ran `npm run docs:suggest`; updated the owning Compose, scanner, deployment, readiness, changelog, and roadmap records; advanced only through `npm run version:bump -- 0.33.28.4`; and ran the canonical `npm run verify:slice` closeout once after the live gates.
+
+Acceptance criteria:
+
+- The Compose path passed deployment, upgrade, persistence, backup, restore, migration-aware rollback, and restored-rollback gates on the actual supported host architecture; both preview/demo hosts run the verified immutable image; the prior bare-metal runtimes remain stopped but recoverable through the observation window; and no retirement work started early.
+
 ## Version 0.33.28.3 - Immutable image publishing and supported deployment transport
 
 Completed locally on 2026-08-04. Public releases now publish the exact protected `main` artifact as an attested GHCR image index and bind its source, artifact, platform, native-dependency, and image identities in release metadata. Preview deployment selects only that immutable digest through a metadata-only constrained handoff; the active cursor advanced to `0.33.28.4` for live host cutover and replacement proof.

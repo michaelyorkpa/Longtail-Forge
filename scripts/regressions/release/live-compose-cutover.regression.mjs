@@ -29,6 +29,9 @@ for (const requirement of [
   /native better-sqlite3 proof is missing/,
   /registry SBOM attestation is missing/,
   /registry provenance attestation is missing/,
+  /LONGTAIL_RELEASE_BRANCH=main/,
+  /LONGTAIL_RELEASE_COMMIT=%s/,
+  /LONGTAIL_RELEASE_ARTIFACT_SHA256=%s/,
   /CUT OVER LONGTAIL FORGE TO COMPOSE/,
   /initial cutover requires no existing Compose application containers/,
   /initial cutover requires a new empty named data volume/,
@@ -38,11 +41,18 @@ for (const requirement of [
   /pre-compose-cutover-\$OPERATION_ID\.ltfbackup\.tgz/,
   /scripts\/backup\.mjs "\$\{backup_args\[@\]\}"/,
   /scripts\/backup\.mjs "\$\{inspect_args\[@\]\}"/,
+  /resolve_compose_volume_mountpoint/,
+  /Compose data volume is not a reviewed local Docker volume/,
+  /\(cd "\$BARE_METAL_CURRENT" && node scripts\/backup\.mjs "\$\{restore_args\[@\]\}"\)/,
+  /--database "\$COMPOSE_VOLUME_MOUNTPOINT\/longtail-forge\.db"/,
+  /restored Compose data volume contains an unsupported symbolic link/,
+  /chown -R 10001:10001 -- "\$COMPOSE_VOLUME_MOUNTPOINT"/,
   /--confirm-destructive "RESTORE LONGTAIL FORGE BACKUP"/,
   /container could not reach the reviewed host ClamAV handoff/,
   /require\("node:net"\)/,
   /docker run --rm --platform linux\/amd64 --network "\$COMPOSE_NETWORK"/,
   /resolved Compose application posture is not the reviewed non-root read-only loopback contract/,
+  /size=512m,mode=0700,uid=10001,gid=10001/,
   /verify_container_posture/,
   /\.HostConfig\.ReadonlyRootfs == true/,
   /\.NetworkSettings\.Ports\["8001\/tcp"\]/,
@@ -64,7 +74,16 @@ for (const requirement of [
 
 assert.match(cutover, /if test "\$MODE" = "preflight"; then[\s\S]*nextAction/);
 assert.match(cutover, /RELEASE_ENV="\$\(mktemp \/run\/longtail-forge-compose-cutover/);
+assert.ok(
+  cutover.includes("grep -Eiq '^Retry-After:[[:space:]]*60[[:space:]]*$'"),
+  "the maintenance header proof must accept curl's CRLF line ending portably",
+);
 assert.doesNotMatch(cutover, /deployment\/active|docker login|PASSWORD=|TOKEN=|:latest/i);
+assert.doesNotMatch(
+  cutover,
+  /compose run --rm --no-deps[^\n]*longtail-forge node scripts\/backup\.mjs restore/,
+  "the newer candidate must not reject the existing release's exact-version backup before startup migration",
+);
 assert.match(cutoverEnvironment, /root:root[\s\S]*mode 0600/);
 assert.match(cutoverEnvironment, /LTF_COMPOSE_BACKUP_ROOT=\/var\/backups\/longtail-forge\/compose/);
 assert.match(cutoverEnvironment, /separately protected Secure Notes recovery-key evidence/i);
@@ -79,7 +98,11 @@ for (const requirement of [
   /container_output="\$BACKUP_CONTAINER_ROOT\/\$output_name"/,
   /container_archive="\$BACKUP_CONTAINER_ROOT\/\$archive_name"/,
   /candidate container could not reach the reviewed host ClamAV handoff/,
+  /LONGTAIL_RELEASE_BRANCH=main/,
+  /LONGTAIL_RELEASE_COMMIT=%s/,
+  /LONGTAIL_RELEASE_ARTIFACT_SHA256=%s/,
   /resolved Compose application posture is not the reviewed non-root read-only loopback contract/,
+  /size=512m,mode=0700,uid=10001,gid=10001/,
   /verify_container_posture/,
 ]) assert.match(deploy, requirement);
 assert.doesNotMatch(deploy, /deployment\/active/);

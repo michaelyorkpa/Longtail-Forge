@@ -111,7 +111,7 @@ for (const requirement of [
   /scripts\/backup\.mjs create/,
   /scripts\/backup\.mjs inspect/,
   /scripts\/backup\.mjs restore/,
-  /requires the recorded known-good Compose baseline established by the 0\.33\.28\.4 cutover/,
+  /requires the recorded known-good Compose baseline established by the initial cutover/,
   /--confirm-destructive "RESTORE LONGTAIL FORGE BACKUP"/,
   /assert_marker/,
   /clear_marker/,

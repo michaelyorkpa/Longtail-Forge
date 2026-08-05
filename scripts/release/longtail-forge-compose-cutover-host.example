@@ -49,7 +49,7 @@ load_cutover_environment() {
 }
 
 test "$(id -u)" = "0" || fail "cutover must run directly as root and must not be exposed through the deployment-account sudo rule"
-for command in basename curl docker grep install jq mktemp node stat systemctl; do require_command "$command"; done
+for command in basename chmod chown curl docker find grep install jq mktemp node stat systemctl; do require_command "$command"; done
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
 load_cutover_environment
 
@@ -163,7 +163,8 @@ else
   trap 'rm -f -- "$RELEASE_ENV"' EXIT
 fi
 RELEASE_METADATA="$RELEASE_ROOT/$RELEASE_KEY.json"
-printf 'LONGTAIL_IMAGE=%s\n' "$IMAGE_REFERENCE" > "$RELEASE_ENV.tmp"
+printf 'LONGTAIL_IMAGE=%s\nLONGTAIL_RELEASE_BRANCH=main\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' \
+  "$IMAGE_REFERENCE" "$COMMIT" "$ARTIFACT_SHA256" > "$RELEASE_ENV.tmp"
 install -o root -g root -m 0600 "$RELEASE_ENV.tmp" "$RELEASE_ENV"
 rm -f -- "$RELEASE_ENV.tmp"
 if test "$MODE" = "cutover"; then install -o root -g root -m 0600 "$METADATA_PATH" "$RELEASE_METADATA"; fi
@@ -171,6 +172,18 @@ if test "$MODE" = "cutover"; then install -o root -g root -m 0600 "$METADATA_PAT
 compose() {
   docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
     --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"
+}
+
+resolve_compose_volume_mountpoint() {
+  local docker_root mountpoint expected
+  docker_root="$(docker info --format '{{.DockerRootDir}}')"
+  mountpoint="$(docker volume inspect "$COMPOSE_DATA_VOLUME" --format '{{.Mountpoint}}')"
+  require_safe_absolute_path "$docker_root" "Docker data root"
+  require_safe_absolute_path "$mountpoint" "Compose data-volume mountpoint"
+  expected="$docker_root/volumes/$COMPOSE_DATA_VOLUME/_data"
+  test "$mountpoint" = "$expected" || fail "Compose data volume is not a reviewed local Docker volume"
+  test -d "$mountpoint" && test ! -L "$mountpoint" || fail "Compose data-volume mountpoint must be a real directory"
+  printf '%s\n' "$mountpoint"
 }
 
 verify_image() {
@@ -230,6 +243,7 @@ verify_container_posture() {
       (.HostConfig.Privileged | not) and
       (.HostConfig.CapDrop == ["ALL"]) and
       (.HostConfig.SecurityOpt | index("no-new-privileges:true") != null) and
+      .HostConfig.Tmpfs["/tmp"] == "rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001" and
       (.NetworkSettings.Ports["8001/tcp"] | length == 1 and .[0].HostIp == "127.0.0.1" and .[0].HostPort == "8001") and
       (.Mounts | any(.Type == "volume" and .Name == $volume and .Destination == "/var/lib/longtail-forge")) and
       (.Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge"))' >/dev/null
@@ -282,7 +296,7 @@ verify_curtain() {
   body="$OPERATION_DIR/maintenance-body.html"
   status="$(curl --silent --show-error --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$PUBLIC_URL/")"
   test "$status" = "503" || fail "deployment marker did not produce the reviewed public maintenance status"
-  grep -Eiq '^Retry-After:[[:space:]]*60\r?$' "$headers" || fail "maintenance response is missing the reviewed retry boundary"
+  grep -Eiq '^Retry-After:[[:space:]]*60[[:space:]]*$' "$headers" || fail "maintenance response is missing the reviewed retry boundary"
   grep -Eiq '^Cache-Control:.*no-store' "$headers" || fail "maintenance response is missing the reviewed no-store boundary"
   grep -Fq 'Longtail Forge' "$body" || fail "maintenance response did not use the reviewed Longtail Forge surface"
 }
@@ -302,6 +316,7 @@ compose config --format json | jq -e \
     (.privileged // false | not) and
     (.cap_drop == ["ALL"]) and
     (.security_opt | index("no-new-privileges:true") != null) and
+    (.tmpfs | index("/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001") != null) and
     (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].target == 8001 and .[0].published == "8001")' >/dev/null \
   || fail "resolved Compose application posture is not the reviewed non-root read-only loopback contract"
 test -z "$(compose ps -aq)" || fail "initial cutover requires no existing Compose application containers"
@@ -387,20 +402,30 @@ compose create longtail-forge
 compose up -d --no-deps --force-recreate longtail-forge
 wait_for_compose_health || fail "candidate could not initialize the clean Compose volume"
 compose stop longtail-forge
-key_mount=()
-key_arg=()
+COMPOSE_VOLUME_MOUNTPOINT="$(resolve_compose_volume_mountpoint)"
+PRE_RESTORE_BACKUP="$COMPOSE_BACKUP_ROOT/pre-restore-$OPERATION_ID.ltfbackup.tgz"
+restore_args=(
+  restore
+  --confirm-stopped
+  --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP"
+  --archive "$LEGACY_BACKUP"
+  --database "$COMPOSE_VOLUME_MOUNTPOINT/longtail-forge.db"
+  --files-root "$COMPOSE_VOLUME_MOUNTPOINT/files"
+  --pre-restore-backup "$PRE_RESTORE_BACKUP"
+)
 if test -n "$SECURE_KEY_BACKUP"; then
-  key_mount=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro")
-  key_arg=(--secure-notes-key-backup /run/secrets/secure-notes-key.backup)
+  restore_args+=(--secure-notes-key-backup "$SECURE_KEY_BACKUP")
 fi
-compose run --rm --no-deps "${key_mount[@]}" longtail-forge node scripts/backup.mjs restore \
-  --confirm-stopped \
-  --confirm-destructive "RESTORE LONGTAIL FORGE BACKUP" \
-  --archive "/var/backups/longtail-forge/$BACKUP_NAME" \
-  --database /var/lib/longtail-forge/longtail-forge.db \
-  --files-root /var/lib/longtail-forge/files \
-  --pre-restore-backup "/var/backups/longtail-forge/pre-restore-$OPERATION_ID.ltfbackup.tgz" \
-  "${key_arg[@]}"
+(cd "$BARE_METAL_CURRENT" && node scripts/backup.mjs "${restore_args[@]}")
+if find "$COMPOSE_VOLUME_MOUNTPOINT" -type l -print -quit | grep -q .; then
+  fail "restored Compose data volume contains an unsupported symbolic link"
+fi
+chown -R 10001:10001 -- "$COMPOSE_VOLUME_MOUNTPOINT"
+for restored_evidence in "$PRE_RESTORE_BACKUP" "$PRE_RESTORE_BACKUP.sha256" "$COMPOSE_BACKUP_ROOT/backup-operations.jsonl"; do
+  test -f "$restored_evidence" && test ! -L "$restored_evidence" || fail "restore evidence is missing or unsafe: $restored_evidence"
+  chown 10001:10001 -- "$restored_evidence"
+  chmod 0600 -- "$restored_evidence"
+done
 compose run --rm --no-deps --entrypoint node longtail-forge -e "require('node:fs').chmodSync('/var/lib/longtail-forge/files', 0o700)"
 compose up -d --no-deps --force-recreate longtail-forge
 verify_runtime || fail "Compose runtime identity or readiness did not match the selected immutable release"
