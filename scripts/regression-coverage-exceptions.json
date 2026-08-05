@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 434,
+  "minimumActiveScripts": 435,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 41,
@@ -10,7 +10,7 @@
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
-    "notes": 38,
+    "notes": 39,
     "notifications": 3,
     "permissions": 11,
     "public-api": 3,

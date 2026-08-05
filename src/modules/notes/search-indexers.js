@@ -1,7 +1,8 @@
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { notesRepository } from "./notes.repo.js";
-import { NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
+import { isEffectivelySecureNote } from "./effective-security.js";
+import { NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
 import { extractPlainTextFromMarkdown } from "./markdown.js";
 
 const NOTES_SEARCH_INDEXER_ID = "notes.records";
@@ -91,7 +92,7 @@ function isSearchableNote(note = {}) {
     return false;
   }
 
-  if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
+  if (isEffectivelySecureNote(note)) {
     return false;
   }
 

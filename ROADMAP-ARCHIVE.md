@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
+
+Completed on 2026-08-05. Catalog policy changes now use a permission-checked, versioned transition claim with preflight counts, bounded synchronous work for small catalogs, durable job ownership for larger catalogs, fail-closed retry state, deliberate password-confirmed downgrade, and preservation semantics for notes or subtrees leaving inherited protection. The active cursor advanced to `0.33.29.3` for complete consumer enforcement, management UI, operator recovery documentation, and branch closeout.
+
+**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
+
+- [x] Added an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; browser requests never run an unbounded conversion loop.
+- [x] Added a durable, versioned `securing` claim that applies secure authorization immediately, blocks unsafe content reads and indexing, resumes idempotently through the framework jobs boundary, and becomes stable `secure` only after affected note/revision storage is encrypted and stale search documents are removed. Failed transitions remain fail-closed and operator-visible.
+- [x] Preserved protection when content leaves a secure boundary: moving a note out gives it explicit note-level security in the same update, while moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
+- [x] Added a separate remove-security action requiring `notes.secure.manage`, Library management, current-password reauthentication, exact catalog/action/count confirmation, safe decryption/revision handling, and audit events. Explicit notes and independently protected subtrees are excluded from the downgrade.
+- [x] Proved retry and stale-job behavior, concurrent move/policy-edit rejection, transition-state reads, partial enable/downgrade failure, fail-closed search and body reads, and a representative 102-record catalog without exposing plaintext or duplicating revisions.
+
+Acceptance criteria:
+
+- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
+
 ## Version 0.33.29.1 - Catalog policy, effective-security projection, and migration
 
 Completed on 2026-08-05. Notes now has a first-class catalog security policy, a fail-closed transition state, one workspace-scoped effective-security resolver, projected collection/note authorization state, and transactional encrypted persistence for notes created or moved into a protected catalog. The active cursor advanced to `0.33.29.2` for policy transitions and deliberate downgrade.

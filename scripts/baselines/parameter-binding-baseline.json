@@ -368,13 +368,6 @@
       "signature": "84f1b92af20e07fb6c87a9a7d1e8b6993205834c11c25b13077cef67174cb813"
     },
     {
-      "id": "dynamic-sql-template.8a004a2a44c43619",
-      "file": "src/modules/notes/notes.repo.js",
-      "kind": "dynamic-sql-template",
-      "operation": "db.get",
-      "signature": "8a004a2a44c4361917d4ae369507da275cc146843250c03bcdc8e16e37e86e8b"
-    },
-    {
       "id": "dynamic-sql-template.9a701391340c3139",
       "file": "src/modules/notes/notes.repo.js",
       "kind": "dynamic-sql-template",

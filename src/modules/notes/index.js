@@ -8,6 +8,7 @@
 export { notesModule } from "./module.js";
 export { notesService } from "./notes.service.js";
 export { notesRepository } from "./notes.repo.js";
+export { catalogSecurityService } from "./catalog-security.service.js";
 export {
   NOTE_LIBRARY_BUCKETS,
   NOTE_SECURITY_MODES,

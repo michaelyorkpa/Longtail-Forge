@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.29.2`.
+Active cursor: `0.33.29.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -29,20 +29,6 @@ Non-goals:
 - Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
 - Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
 - Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
-
-### Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
-
-**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
-
-- [ ] Add an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; do not perform an unbounded browser-request loop.
-- [ ] If conversion cannot finish atomically, use a durable `securing` state that applies secure authorization immediately, blocks unsafe content reads/exports/indexing, resumes idempotently through the framework jobs boundary, and becomes `secure` only after every affected note/revision is encrypted and stale search documents are removed. A failed transition remains fail-closed and operator-visible.
-- [ ] Preserve protection when content leaves a secure boundary: moving a note out gives it explicit note-level security before the move commits; moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
-- [ ] Add a separate, explicit remove-security action. It must require `notes.secure.manage`, current-password reauthentication, a clear affected-content preview/confirmation, safe decryption/revision handling, and an audit event. Clearing a catalog policy must preserve explicit security for any note/subtree not deliberately included in the downgrade.
-- [ ] Prove rollback/retry behavior, concurrent moves/policy edits, transition-state reads, partial job failure, and a representative large catalog without exposing plaintext or duplicating revisions.
-
-Acceptance criteria:
-
-- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
 
 ### Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
 

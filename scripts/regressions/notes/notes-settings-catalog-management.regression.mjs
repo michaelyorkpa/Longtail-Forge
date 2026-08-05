@@ -86,6 +86,15 @@ async function assertCatalogManagement(session) {
     sortOrder: 10,
     source: "manual",
     status: "active",
+    securityPolicy: "normal",
+    effectiveSecurityMode: "normal",
+    securityInherited: false,
+    securityTransitionState: "stable",
+    securityTransitionAction: "none",
+    securityTransitionVersion: 0,
+    securityTransitionJobId: null,
+    securityTransitionStartedAt: null,
+    securityTransitionErrorCode: null,
     updatedAt: childCatalog.updated_at,
   });
   assert.equal(Object.hasOwn(safeChild, "metadata_json"), false);
