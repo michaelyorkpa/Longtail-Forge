@@ -1,10 +1,10 @@
-import { AppError } from "../../core/errors.js";
 import { notesService } from "./notes.service.js";
+import { assertNoteConsumerAccess, canExposeNoteToConsumer } from "./consumer-policy.js";
 
 async function listNotes(context, query = {}) {
   const result = await notesService.listAll(context, query);
   const notes = result.notes
-    .filter((note) => note.security_mode !== "secure")
+    .filter((note) => canExposeNoteToConsumer(note, "notes.public-api"))
     .map((note) => withWorkspaceAlias(shapePublicNote(note), context));
 
   return paged(notes, query);
@@ -14,9 +14,7 @@ async function readNote(context, noteId) {
   const result = await notesService.read(noteId, context);
   const note = result.note;
 
-  if (note.security_mode === "secure") {
-    throw new AppError("Secure notes are not available through the public API.", 403);
-  }
+  assertNoteConsumerAccess(note, "notes.public-api");
 
   return withWorkspaceAlias(shapePublicNote(note), context);
 }

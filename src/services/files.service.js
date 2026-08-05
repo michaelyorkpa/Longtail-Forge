@@ -37,7 +37,6 @@ import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
-import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
 import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { registerFrameworkSettingDefinition } from "../core/settings/framework-settings-registry.js";
@@ -3144,11 +3143,7 @@ async function assertModuleTargetAccess(session, attachableType, operation, targ
   }
 
   const accessOperation = operation === "read" || operation === "download" ? "read" : "update";
-  const note = await notesService.readForAttachmentAccess(session, target?.target_id || "", accessOperation);
-
-  if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
-    throw new AppError("Secure notes do not allow framework file attachments yet.", 403);
-  }
+  await notesService.readForAttachmentAccess(session, target?.target_id || "", accessOperation);
 }
 
 async function canReadModuleTargetAttachment(session, attachableType, attachment) {
@@ -3157,8 +3152,8 @@ async function canReadModuleTargetAttachment(session, attachableType, attachment
   }
 
   try {
-    const note = await notesService.readForAttachmentAccess(session, attachment.target_id || "", "read");
-    return note.security_mode !== NOTE_SECURITY_MODES.SECURE;
+    await notesService.readForAttachmentAccess(session, attachment.target_id || "", "read");
+    return true;
   } catch {
     return false;
   }

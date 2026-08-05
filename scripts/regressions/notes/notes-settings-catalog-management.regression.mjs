@@ -2,8 +2,8 @@ export const regressionMeta = Object.freeze({
   id: "notes.notes-settings-catalog-management",
   area: "notes",
   tier: "focused",
-  tags: ["bulk-edit", "catalogs", "navigation", "notes", "permissions", "settings"],
-  description: "Proves the Notes Settings catalog surface, permission-gated safe read model, canonical row editing, and bounded bulk archive/restore behavior.",
+  tags: ["bulk-edit", "catalogs", "navigation", "notes", "permissions", "security", "settings"],
+  description: "Proves the Notes Settings catalog surface, permission-gated safe read model, explicit/inherited security controls, and bounded bulk archive/restore behavior.",
   runMode: "isolated-database",
 });
 
@@ -53,6 +53,11 @@ function assertStaticContract() {
   assert.match(routesSource, /post\("\/notes\/settings\/catalogs\/bulk"[\s\S]*bulkManageCatalogs/);
   assert.match(viewSource, /data-settings-host="module"[\s\S]*data-settings-module-id="notes"[\s\S]*js\/notes-settings\.js/);
   assert.match(settingsSource, /createDataTable\(\{[\s\S]*Notes catalogs[\s\S]*Catalog[\s\S]*Library[\s\S]*Status[\s\S]*Actions/);
+  assert.match(settingsSource, /Security[\s\S]*Secure \(inherited\)[\s\S]*Secure \(explicit\)[\s\S]*Child catalogs cannot weaken inherited security/);
+  assert.match(settingsSource, /Enable Security[\s\S]*Retry Security[\s\S]*Remove Security/);
+  assert.match(settingsSource, /security\/preflight\?action=[\s\S]*confirmAffectedNoteCount[\s\S]*confirmAction: "remove_security"[\s\S]*currentPassword/);
+  assert.match(settingsSource, /notes-catalog-action-groups[\s\S]*Catalog security actions/);
+  assert.match(settingsSource, /scheduleCatalogRefresh[\s\S]*securityTransitionState === "securing"[\s\S]*3000/);
   assert.match(settingsSource, /catalogBulkButton\("Archive selected", "archive"[\s\S]*catalogBulkButton\("Restore selected", "restore"/);
   assert.match(settingsSource, /createBulkActionToolbar\(\{[\s\S]*label: "Bulk Catalog Actions"[\s\S]*selectedCount/);
   assert.match(settingsSource, /createModalForm\(\{[\s\S]*Edit Catalog[\s\S]*Create Catalog/);
@@ -74,6 +79,7 @@ async function assertCatalogManagement(session) {
 
   let settings = await notesService.listCatalogSettings(session);
   assert.equal(settings.limits.bulkSelection, 100);
+  assert.equal(settings.capabilities.manageSecurity, true);
   const safeChild = settings.catalogs.find((catalog) => catalog.catalogId === childCatalog.note_library_collection_id);
   assert.deepEqual(safeChild, {
     catalogId: childCatalog.note_library_collection_id,
@@ -86,6 +92,15 @@ async function assertCatalogManagement(session) {
     sortOrder: 10,
     source: "manual",
     status: "active",
+    securityPolicy: "normal",
+    effectiveSecurityMode: "normal",
+    securityInherited: false,
+    securityTransitionState: "stable",
+    securityTransitionAction: "none",
+    securityTransitionVersion: 0,
+    securityTransitionJobId: null,
+    securityTransitionStartedAt: null,
+    securityTransitionErrorCode: null,
     updatedAt: childCatalog.updated_at,
   });
   assert.equal(Object.hasOwn(safeChild, "metadata_json"), false);

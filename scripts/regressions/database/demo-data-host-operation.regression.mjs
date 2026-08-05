@@ -434,7 +434,7 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
     fs.readFile("scripts/lib/demo-data-operation.mjs", "utf8"),
     fs.readFile("scripts/demo-data-host.mjs", "utf8"),
     fs.readFile("scripts/release/longtail-forge-demo-data-host.example", "utf8"),
-    fs.readFile("scripts/release/longtail-forge-deploy-host.example", "utf8"),
+    fs.readFile("scripts/release/longtail-forge-compose-deploy-host.example", "utf8"),
     fs.readFile("server.js", "utf8"),
     fs.readFile("worker.js", "utf8"),
     readWorkflowSources(),

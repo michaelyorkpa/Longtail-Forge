@@ -40,7 +40,7 @@ for (const requirement of [
   /SQLite database and sidecars, local Files root, worker lock files, and production log stream/i,
   /bounded retention, rotation, disk monitoring/i,
   /Backups must be written to a location separate from the live data tree/i,
-  /checksummed versioned runtime artifact/i,
+  /sole supported Compose production path and controlled runtime-artifact payload/i,
   /`\/healthz`.*`\/readyz`/is,
   /Emergency containment and access revocation/i,
   /Active Sessions.*revoke/is,

@@ -2,8 +2,8 @@ export const regressionMeta = Object.freeze({
   id: "release.preview-deployment-boundary",
   area: "release",
   tier: "release-gate",
-  tags: ["bare-metal", "container", "deployment", "docker", "release"],
-  description: "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready while bare-metal remains transition-only.",
+  tags: ["container", "deployment", "docker", "release"],
+  description: "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
   runMode: "static",
 });
 
@@ -23,17 +23,15 @@ import {
 } from "../../build-container-image.mjs";
 
 const read = (filePath) => fs.readFile(filePath, "utf8");
-const [dockerfile, dockerignore, compose, docs, envExample, service, _packageJsonSource, containerBuild, containerSmoke, bareMetalSmoke, workflow, selfHosting, runtimeArtifact] = await Promise.all([
+const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, containerBuild, containerSmoke, workflow, selfHosting, runtimeArtifact] = await Promise.all([
   read("Dockerfile"),
   read(".dockerignore"),
   read("compose.yaml"),
   read("docs/preview-deployment.md"),
   read("docs/compose.env.example"),
-  read("docs/longtail-forge.service.example"),
   read("package.json"),
   read("scripts/build-container-image.mjs"),
   read("scripts/container-deployment-smoke.mjs"),
-  read("scripts/bare-metal-deployment-smoke.mjs"),
   read(".github/workflows/promotion.yml"),
   read("docs/self-hosting.md"),
   read("docs/runtime-artifact.md"),
@@ -65,29 +63,37 @@ for (const requirement of [
   /read_only: true/,
   /cap_drop:[\s\S]*- ALL/,
   /no-new-privileges:true/,
+  /\/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001/,
   /longtail-data:\/var\/lib\/longtail-forge/,
   /LONGTAIL_BACKUP_DIR:-\.\/backups/,
   /LONGTAIL_WORKSPACE_BACKUP_ROOT: \/var\/backups\/longtail-forge\/workspaces/,
   /restart: unless-stopped/,
   /\/readyz/,
   /172\.30\.17\.1\/32/,
+  /LONGTAIL_CLAMD_HOST: \$\{LONGTAIL_CLAMD_HOST:-172\.30\.17\.1\}/,
+  /LONGTAIL_RELEASE_BRANCH: \$\{LONGTAIL_RELEASE_BRANCH:-\}/,
+  /LONGTAIL_RELEASE_COMMIT: \$\{LONGTAIL_RELEASE_COMMIT:-\}/,
+  /LONGTAIL_RELEASE_ARTIFACT_SHA256: \$\{LONGTAIL_RELEASE_ARTIFACT_SHA256:-\}/,
+  /preview-internal:[\s\S]*external: true/,
 ]) {
   assert.match(compose, requirement);
 }
 assert.doesNotMatch(compose, /postgres/i, "Compose must remain SQLite-only");
+assert.doesNotMatch(compose, /host\.docker\.internal|host-gateway/, "the scanner handoff must use the reviewed application-network gateway");
+assert.doesNotMatch(compose, /format:\s*raw/, "raw env parsing would preserve quotes from a compatible systemd environment file");
 
 for (const requirement of [
   /Docker Compose is the sole supported production and self-hosted deployment/i,
   /Direct Node\/systemd operation remains technically possible but is unsupported/i,
-  /Transition asset inventory/i,
+  /Retired production paths/i,
   /Both current preview hosts reported native `x86_64`/i,
   /Caddy owns public TCP 80\/443/i,
   /Do not place the database or WAL\/SHM sidecars on NFS, SMB/i,
   /backup-first upgrade/i,
   /image-only rollback and is permitted only when the release record explicitly proves every migration/i,
   /restore the verified pre-upgrade database and Files together/i,
-  /Transition-only bare-metal installation/i,
-  /npm ci --omit=dev/,
+  /512 MB private tmpfs/i,
+  /Direct Node\/systemd production operation has no release gate/i,
   /supported platform decision is `linux\/amd64` only/i,
   /disposable builder stage installs Python 3, `make`, and `g\+\+`/i,
   /final stage copies only the root-owned read-only installed application tree/i,
@@ -101,18 +107,19 @@ assert.match(selfHosting, /Docker Compose on `linux\/amd64` is the sole supporte
 assert.match(runtimeArtifact, /artifact is not a supported production installer/);
 assert.match(envExample, /LONGTAIL_DOCKER_TRUST_PROXY=172\.30\.17\.1\/32/);
 assert.match(envExample, /LONGTAIL_FILE_SCANNER=clamd/);
-assert.match(service, /User=longtail-forge/);
-assert.match(service, /WorkingDirectory=\/opt\/longtail-forge\/current/);
-assert.match(service, /ExecStart=\/usr\/bin\/node server\.js/);
-assert.match(service, /ProtectSystem=strict/);
+assert.match(envExample, /LONGTAIL_CLAMD_HOST=172\.30\.17\.1/);
+assert.equal(JSON.parse(packageJsonSource).scripts["bare-metal:smoke"], undefined);
 
 assert.match(containerSmoke, /--read-only/);
+assert.match(containerSmoke, /\/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001/);
 assert.match(containerSmoke, /assertNativePlatform\(\)/);
 assert.match(containerSmoke, /releaseMetadataPath: args\.releaseMetadata/);
 assert.match(containerSmoke, /10001:10001/);
 assert.match(containerSmoke, /nativeBinding[\s\S]*linux-x64/);
 assert.match(containerSmoke, /the final runtime image should contain neither the native build toolchain nor repository development dependencies/);
 assert.match(containerSmoke, /compose\(\["config", "--quiet"\]\)/);
+assert.match(containerSmoke, /createSmokeNetwork\(\)/);
+assert.match(containerSmoke, /"network", "create"/);
 assert.match(containerSmoke, /compose\(\["up", "-d", "--no-deps", "--force-recreate", "longtail-forge"\]\)/);
 assert.match(containerSmoke, /candidate\.image, dataVolume, `missing-\$\{scannerContainer\}`/);
 assert.match(containerSmoke, /LONGTAIL_CLAMD_HOST=missing-/);
@@ -144,9 +151,6 @@ assert.match(containerSmoke, /const recoveryVolume = `ltf-smoke-recovery-\$\{tok
 assert.match(containerSmoke, /for \(const volume of \[dataVolume, backupVolume, recoveryVolume\]\)/);
 assert.match(containerSmoke, /finally \{[\s\S]*cleanupDockerObjects\(\);[\s\S]*\}/);
 assert.doesNotMatch(containerSmoke, /snapshotVolume|restoreVolume|cp -a \/source/);
-assert.match(bareMetalSmoke, /previousArtifact/);
-assert.match(bareMetalSmoke, /backupData/);
-assert.match(bareMetalSmoke, /restoredData/);
 assert.match(containerBuild, /"--platform", supportedPlatform/);
 assert.match(containerBuild, /com\.longtailforge\.runtime-artifact\.sha256/);
 assert.match(containerBuild, /org\.opencontainers\.image\.revision/);

@@ -3636,6 +3636,25 @@ a.search-result-title:hover {
     justify-content: flex-end;
 }
 
+.notes-catalog-action-groups {
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+}
+
+.notes-catalog-security-preview {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-muted);
+}
+
+.notes-catalog-security-preview p {
+    margin: 0;
+}
+
 .settings-page-footer-actions {
     display: flex;
     justify-content: flex-end;

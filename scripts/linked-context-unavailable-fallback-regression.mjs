@@ -40,7 +40,7 @@ async function assertStaticFallbackContract() {
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
 
   assert.match(notesServiceSource, /function normalizeSavedTarget\(payload = \{\}\)/, "Saved linked context rows should use a soft read normalizer");
-  assert.match(notesServiceSource, /async function canAccessSavedContextTarget\(session, target, seenTargets = new Set\(\)\)/, "Saved context access should distinguish stale rows from strict create validation");
+  assert.match(notesServiceSource, /async function canAccessSavedContextTarget\(session, target, seenTargets = new Set\(\), accessCache = null\)/, "Saved context access should distinguish stale rows from strict create validation while accepting batched context records");
   assert.match(notesServiceSource, /return safeUnavailableTarget\(normalizedTarget\);/, "Failed target summaries should return safe fallback payloads");
   assert.match(notesJs, /function unavailableTargetLabel\(targetType = ""\)[\s\S]*client: "Unavailable client"[\s\S]*project: "Unavailable project"[\s\S]*task: "Unavailable task"[\s\S]*note: "Unavailable note"[\s\S]*list: "Unavailable list"[\s\S]*"Unavailable linked context"/, "Browser fallback labels should stay type-specific where supported and generic otherwise");
 }

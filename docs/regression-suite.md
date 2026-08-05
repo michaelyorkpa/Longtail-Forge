@@ -1,6 +1,6 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.27.7.8. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.28.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.27.7.1, one runner invocation owns one `NODE_COMPILE_CACHE` below the operating-system temp directory, passes it to every regression child, and removes it with the baseline fixture during final cleanup. Baseline construction starts before static execution and may overlap that safe work, but fixture consumers still await the same validated promise. Static scheduling resolves `LTF_STATIC_REGRESSION_PARALLELISM`, then the shared concurrency override, then a conservative two-thirds host-aware default capped at eight; `1` remains the diagnostic serial override. Successful output remains buffered per script to avoid interleaving, while failures, retries, recovered-flake labels, bucket summaries, and timing JSON stay visible. Metadata discovery remains one bootstrap read, the retry queue remains exclusive to isolated-database failures, and bucket fail-fast ordering is unchanged.
 
@@ -16,7 +16,7 @@ As of 0.33.27.7.6, `database.backup-archive-portability` proves Windows drive-le
 
 As of 0.33.27.7.7, ESLint covers `worker.js` alongside the application server, source, scripts, tests, and tool configuration. `test:files` names `tests/contracts/files-contracts.test.mjs` directly and fails if that Files-owned suite disappears; it never uses `--passWithNoTests`. Vitest uses the host-aware 50% threads pool only after three repeats preserved all 13 files and 184 tests with a materially lower median wall time. Playwright selects nine mobile-only and ten desktop-only tests through declaration tags and project-level exclusion before browser setup, while untagged login, accessibility, and shared-flow coverage remains dual-viewport. Browser runs retain failure screenshots and use the measured shared-server-safe two-worker bound; local runs retain failure traces with zero retries, while CI uses one retry and a first-retry trace. A six-worker probe produced three shared-harness failures that all passed together at two workers. The canonical Node runner launches the managed server and Playwright as direct children, waits for readiness, and always performs bounded cleanup, replacing the Windows shell-wrapped teardown that timed out after all 129 tests had passed; the repaired 0.33.27.7.7 suite passed 129/129 in 1.4 minutes and left port 8101 clean. The required check remains `Browser smoke and accessibility`.
 
-As of 0.33.27.7.8, every release-workflow job has a finite timeout; main-release and CodeQL runs have cancellation-safe concurrency; and only history-owning classifiers plus deliberate main-revision reachability checks retain full checkout history. Live branch-protection inspection confirmed the exact required names before CodeQL push scans were retired: PR analysis still supplies `CodeQL JavaScript analysis` on both `nightly` and `main`. `release.nightly-proof-reuse` proves a normal promotion reuses Nightly evidence only for one successful unexpired exact-SHA push run whose repository, workflow/ref and workflow checksum, `nightly-proof-v1` policy, required job set, release metadata, artifact and metadata checksums, and retained artifact names match. Every mismatch, ambiguity, expiry, failure, cancellation, policy change, and every `hotfix/*` source selects the full path. Runtime-artifact, bare-metal, and container smokes accept the same `--artifact` candidate; promotion builds at most once on fallback, downloads on accepted reuse, fans isolated recovery consumers out in parallel, and retains `Packaging and recovery` as the required aggregation result. Scheduled Nightly uses the same verifier before any expensive skip, while the preflight stays visible. No workflow uses `paths-ignore`.
+As of 0.33.28.5, every release-workflow job has a finite timeout; main-release and CodeQL runs have cancellation-safe concurrency; and only history-owning classifiers plus deliberate main-revision reachability checks retain full checkout history. Live branch-protection inspection confirmed the exact required names before CodeQL push scans were retired: PR analysis still supplies `CodeQL JavaScript analysis` on both `nightly` and `main`. `release.nightly-proof-reuse` proves a normal promotion reuses Nightly evidence only for one successful unexpired exact-SHA push run whose repository, workflow/ref and workflow checksum, `nightly-proof-v1` policy, required job set, release metadata, artifact and metadata checksums, and retained artifact names match. Every mismatch, ambiguity, expiry, failure, cancellation, policy change, and every `hotfix/*` source selects the full path. Runtime-artifact, backup/recovery, and container proofs consume the same controlled artifact; promotion builds at most once on fallback, downloads on accepted reuse, fans isolated recovery consumers out in parallel, and retains `Packaging and recovery` as the required aggregation result. The retired bare-metal smoke is not part of promotion. Scheduled Nightly uses the same verifier before any expensive skip, while the preflight stays visible. No workflow uses `paths-ignore`.
 
 The exact new static inventory is `clients-projects-strict-guardrail-inventory`, `help-markdown-source-layout`, `task-modal-compact-layout`, `task-modal-reflow`, `task-modal-followup`, `database.private-calendar-subscriptions-migration`, and `file-scanner-setup-docs`. The first five are read-only repository assertions, the calendar migration uses only process-local in-memory SQLite plus one read-only migration file, and the Files setup owner asserts documentation/source membership without starting a scanner or mutating storage. `scripts/regression-static-isolation-audit.json` records every resource dimension and the three-pass, 651-run stress proof.
 
@@ -165,9 +165,7 @@ As of 0.33.24.8, the live demo canary exposed and closed the distinct-service-ac
 
 As of 0.33.24.9, the final maintenance closeout pins the checked-in public-Nginx login-limit `429` to no-store, one-minute retry, HSTS, and `nosniff`, matching the live preview/demo blocks. `release.maintenance-release-rehearsal` also owns the branch archive/changelog handoff, the safe technical preview-readiness record, and the monotonic cursor floor at `0.33.25.1`; exact live host evidence remains private.
 
-As of 0.33.24.4, `release.deploy-maintenance-curtain` owns the complete bare-metal deploy state machine: host layout and marker validation, pre-outage artifact preparation, successful first-deploy/upgrade sequencing, root-only operation evidence, exact stop/backup/start/identity/restore/recovered-current failure classes, same-candidate retry, operator-hold preservation, Caddy continuity, and fail-closed signal behavior. Its disposable Linux fixture executes success, every named failure, verified and unresolved recovery, retained artifacts/state, already-active holds, repeated recovery, and signals at application stop, candidate start, recovery stop, and recovery start.
-
-As of 0.33.24.5, that same release regression also owns explicit rollback: marker-before-stop and continuous-Caddy ordering, current-state backup plus recorded-target restore, direct/public identity before the state swap and reopening, target restore/start/identity failures, current-backup restore/start/identity failures, protected dual-recovery evidence, same-target retry, interrupted phases, operator-hold preservation, and identity-reviewed stale-marker recovery. The Linux fixture performs rollback and restore-forward, injects each rollback failure/signal, retries unresolved operations from retained state, and proves a mismatched or unresolved state never reopens traffic.
+As of 0.33.28.5, `release.deploy-maintenance-curtain` owns the retained Compose marker and recovery-order contract: the root-owned Compose helper must assert its independent deployment marker before stopping the service, create and inspect the protected whole-instance backup before selecting the immutable digest, verify the candidate before clearing the marker, and restore and verify the recorded prior whole state before reopening after failure. `release.live-compose-cutover` owns retirement of the former service, direct-artifact helper, cutover helper, bare-metal smoke, and workflow wiring while preserving the metadata-only Compose transport. `release.preview-deployment-boundary`, `artifact:smoke`, and `container:smoke` retain the supported payload, runtime, and container proof.
 
 <!-- GENERATED REGRESSION INVENTORY START -->
 <!-- Generated by `node scripts/generate-regression-doc-inventory.mjs --write`; edit only through discovery metadata or the reviewed floor policy. -->
@@ -177,13 +175,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 430 |
+| Active discovered regressions | 433 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 121 |
+| Convention-path metadata regressions | 124 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 59 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 433 |
+| Global ratchet floor | 436 |
 | Release-gate ratchet floor | 61 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -193,7 +191,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
 | `tasks` | 58 | 0 | 58 |
-| `notes` | 37 | 0 | 37 |
+| `notes` | 40 | 0 | 40 |
 | `lists` | 12 | 0 | 12 |
 | `files` | 44 | 0 | 44 |
 | `search` | 12 | 0 | 12 |
@@ -211,7 +209,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 201 |
+| `focused` | 204 |
 | `integration` | 162 |
 | `release-gate` | 59 |
 | `slow` | 8 |
@@ -222,7 +220,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 175 |
+| `isolated-database` | 178 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

@@ -152,6 +152,16 @@ ORDER BY version;
       module_id: "core",
       name: "task_recurrence_recovery_checkpoint",
     },
+    {
+      version: "088",
+      module_id: "core",
+      name: "secure_catalog_policy",
+    },
+    {
+      version: "089",
+      module_id: "core",
+      name: "secure_catalog_transitions",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -315,6 +325,7 @@ WHERE type = 'index'
     'idx_note_library_collections_workspace_bucket',
     'idx_note_library_collections_workspace_parent',
     'idx_note_library_collections_workspace_path',
+    'idx_note_library_collections_workspace_security',
     'idx_note_library_collections_workspace_sibling_slug',
     'idx_note_library_collections_workspace_status',
     'idx_note_links_unique_active_target',
@@ -469,6 +480,7 @@ ORDER BY name;
     "idx_note_library_collections_workspace_bucket",
     "idx_note_library_collections_workspace_parent",
     "idx_note_library_collections_workspace_path",
+    "idx_note_library_collections_workspace_security",
     "idx_note_library_collections_workspace_sibling_slug",
     "idx_note_library_collections_workspace_status",
     "idx_note_links_unique_active_target",

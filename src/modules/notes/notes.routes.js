@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { notesService } from "./notes.service.js";
+import { catalogSecurityService } from "./catalog-security.service.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
 
 const notesRoutes = Router();
@@ -99,6 +100,29 @@ notesRoutes.post("/notes/collections/:collectionId/move", asyncRoute(async (requ
   const payload = await readJsonBody(request);
   const result = await notesService.moveCollection(request.params.collectionId, payload, request.session);
   response.status(200).json(result);
+}));
+
+notesRoutes.get("/notes/collections/:collectionId/security/preflight", asyncRoute(async (request, response) => {
+  const result = await catalogSecurityService.preflight(request.params.collectionId, request.query, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/security/enable", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await catalogSecurityService.enable(request.params.collectionId, payload, request.session);
+  response.status(result.execution === "job" ? 202 : 200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/security/remove", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await catalogSecurityService.remove(request.params.collectionId, payload, request.session);
+  response.status(result.execution === "job" ? 202 : 200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/security/retry", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await catalogSecurityService.retry(request.params.collectionId, payload, request.session);
+  response.status(result.execution === "job" ? 202 : 200).json(result);
 }));
 
 notesRoutes.post("/notes/collections/:collectionId/archive", asyncRoute(async (request, response) => {

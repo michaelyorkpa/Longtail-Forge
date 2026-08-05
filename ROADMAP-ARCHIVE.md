@@ -1,5 +1,89 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
+
+Completed on 2026-08-05. Secure catalog policy now governs every current Notes consumer through one declared fail-closed contract, the Notes Settings catalog manager owns safe enable/retry/downgrade controls, interrupted work has an operator recovery path, and the `0.33.29` branch is closed. The active cursor advanced to `0.33.30.1` for the durable Support View identity contract.
+
+**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
+
+- [x] Routed Notes workspace/detail/revision/relationship reads through authorized effective security and excluded effectively secure notes from normal Files, activity/notifications, Search/indexing, resume/Workbench, public API, exports, generic provider catalogs, and the declared Support View boundary. Secure titles, counts, existence, excerpts, and relationship labels remain unavailable through those secondary consumers.
+- [x] Added the validated `protectedContentConsumers` manifest contract and Notes-owned fail-closed policy assertion. Unknown consumer IDs fail closed, every current surface has an explicit authorize-or-exclude declaration, and the focused source guardrail pins enforcement call sites for future consumers.
+- [x] Added Notes Settings security status and controls that distinguish inherited from explicit protection, prevent inherited weakening, show safe transition/recovery state, preflight bounded counts, auto-refresh background work, and keep password-confirmed downgrade separate from ordinary edit/move actions.
+- [x] Kept transition requested/completed/failure audits content-free and added safe note/subtree preservation audit actions. Effectively secure note events and audit shapes omit titles, bodies, excerpts, encryption fields, and secret metadata.
+- [x] Added permission, workspace-isolation, Search, Files, notification, public API, export declaration, hierarchy, encryption, audit, management-UI, and SQLite-integrity coverage. Documented Notes behavior, operational security, module contributions, Help, and interrupted-transition recovery.
+
+Acceptance criteria:
+
+- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
+
+## Version 0.33.29.2 - Fail-closed catalog transitions and deliberate downgrade
+
+Completed on 2026-08-05. Catalog policy changes now use a permission-checked, versioned transition claim with preflight counts, bounded synchronous work for small catalogs, durable job ownership for larger catalogs, fail-closed retry state, deliberate password-confirmed downgrade, and preservation semantics for notes or subtrees leaving inherited protection. The active cursor advanced to `0.33.29.3` for complete consumer enforcement, management UI, operator recovery documentation, and branch closeout.
+
+**Model: High Effort** — Bulk encryption, interrupted transitions, subtree moves, and security downgrades must never create a temporary exposure window.
+
+- [x] Added an explicit catalog-security change service with preflight counts, permission checks, reauthentication for downgrade, audit metadata, and transaction/job ownership appropriate to the measured catalog size; browser requests never run an unbounded conversion loop.
+- [x] Added a durable, versioned `securing` claim that applies secure authorization immediately, blocks unsafe content reads and indexing, resumes idempotently through the framework jobs boundary, and becomes stable `secure` only after affected note/revision storage is encrypted and stale search documents are removed. Failed transitions remain fail-closed and operator-visible.
+- [x] Preserved protection when content leaves a secure boundary: moving a note out gives it explicit note-level security in the same update, while moving a catalog subtree out preserves secure policy at the moved subtree root. Neither action is an implicit downgrade.
+- [x] Added a separate remove-security action requiring `notes.secure.manage`, Library management, current-password reauthentication, exact catalog/action/count confirmation, safe decryption/revision handling, and audit events. Explicit notes and independently protected subtrees are excluded from the downgrade.
+- [x] Proved retry and stale-job behavior, concurrent move/policy-edit rejection, transition-state reads, partial enable/downgrade failure, fail-closed search and body reads, and a representative 102-record catalog without exposing plaintext or duplicating revisions.
+
+Acceptance criteria:
+
+- Enabling security is immediate and fail-closed, interrupted conversion is resumable, and no move or policy edit can weaken protection without a separately authorized and audited downgrade.
+
+## Version 0.33.29.1 - Catalog policy, effective-security projection, and migration
+
+Completed on 2026-08-05. Notes now has a first-class catalog security policy, a fail-closed transition state, one workspace-scoped effective-security resolver, projected collection/note authorization state, and transactional encrypted persistence for notes created or moved into a protected catalog. The active cursor advanced to `0.33.29.2` for policy transitions and deliberate downgrade.
+
+**Model: High Effort** — A faulty hierarchy or projection can expose an entire catalog or leave secure content stored as plaintext.
+
+- [x] Added forward migration 088 for catalog security policy and fail-closed transition state, refreshed/checked the generated schema, and kept hierarchy resolution behind provider-neutral repository reads and transactions.
+- [x] Defined one Notes-owned effective-security resolver covering explicit secure notes, direct secure catalogs, secure ancestors, archived ancestors, and fail-closed malformed hierarchy states.
+- [x] Extended collection and note repository projections so authorization, encryption, list shaping, search suppression, notification suppression, resume filtering, and audit shaping consume the effective result without browser reconstruction.
+- [x] Made note creation inside an effectively secure catalog persist an encrypted body and encrypted initial revision atomically. Moving a note into one transactionally encrypts its body, every existing revision, and the before-move snapshot before membership is observable; leaving the boundary is blocked pending the deliberate 0.33.29.2 flow.
+- [x] Added focused unit and isolated-database coverage for nested and archived catalogs, transition states, permissions, missing/cross-workspace hierarchy links, cycles and existing cycle rejection, explicit secure notes in normal catalogs, normal notes under secure ancestors, encrypted creation, encrypted moves, and SQLite integrity.
+
+Acceptance criteria:
+
+- One server-owned effective-security result governs each note; secure inheritance works through arbitrary valid catalog depth, and no newly created or newly moved effectively secure note is left with plaintext body/revision storage.
+
+## Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
+
+Completed on 2026-08-05 after both supported hosts completed their Compose observation period. `rt-ltf` and `rt-ltf-demo` continue to run the immutable `0.33.28.3-main` Compose release while the former systemd services are inactive and disabled; required backups, Secure Notes recovery material, historical releases, and operation records remain retained as private evidence. Repository production support is now Compose-only, and the active cursor advanced to `0.33.29.1`.
+
+**Model: High Effort** — This removed a security- and recovery-sensitive production contract only after its replacement was live, while preserving development access and the controlled artifact payload the image still requires.
+
+- [x] Confirmed the successful replacement observation on both live hosts: the `longtail-forge` Compose project is running, the former `longtail-forge` systemd unit is inactive and disabled, and public health, readiness, and `/api/app-info` remain bound to protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827` and immutable image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`.
+- [x] Retired `bare-metal:smoke`, its promotion aggregation, the systemd example, root-owned direct-artifact deploy/upgrade/rollback helper, first-cutover helper, Nightly host deployment, helper environments, runtime-artifact allowlist entry, and production-only assertions. Preserved the constrained metadata-only SSH transport for Compose deploy and rollback by immutable published digest.
+- [x] Kept `npm install`, `npm start`, and direct Node execution for development, testing, and advanced unsupported experimentation. Retained the controlled runtime artifact, `artifact:smoke`, native Linux dependency proof, image build, `container:smoke`, Compose lifecycle helper, and release gates.
+- [x] Rewrote the governing self-hosting, production, release, workflow, upgrade, backup/recovery, runtime-artifact, versioning, public-edge, readiness, README, database-native-dependency, and commercial packaging documentation around the sole supported Compose lifecycle.
+- [x] Kept operator responsibility explicit for DNS, TLS, firewalling, durable storage, backup retention/export/restore, malware scanning, secrets, monitoring, Secure Notes recovery keys, and disaster-recovery decisions.
+- [x] Replaced the retired bare-metal state-machine fixture with focused static retirement and Compose marker/recovery-order guardrails while retaining the complete container lifecycle owner. Refreshed release workflow assertions and the generated regression inventory.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, `CHANGELOG.md`, and the owning docs; advanced only through `npm run version:bump -- 0.33.28.5`; proved local runtime identity; and ran `npm run verify:slice` exactly once at final local closeout.
+
+Acceptance criteria:
+
+- Docker Compose is the sole documented and release-gated production/self-hosted deployment; direct Node/systemd is explicitly unsupported; controlled artifact and container proof remain; bare-metal-specific production code, gates, examples, procedures, and promises are retired after successful live replacement; retained host evidence remains protected; and invitations or announcement remain a separate readiness decision.
+
+## Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
+
+Completed live on 2026-08-04. Both supported native `linux/amd64` hosts now run the verified immutable Compose candidate behind their reviewed public edges, while every prior bare-metal release, service definition, environment, data tree, backup, helper, and recovery record remains retained. The active cursor advanced to `0.33.28.5`, whose retirement work remains gated on a successful observation period.
+
+**Model: High Effort** — This changed the actual preview/demo runtime while deliberately retaining the known recovery path until the replacement proved every destructive lifecycle operation.
+
+- [x] Kept both complete bare-metal installations and recovery units intact. Their services are stopped and disabled only after exact Compose identity passed; they remain recoverable and were never allowed to share live SQLite/Files state with a container.
+- [x] Proved the complete lifecycle on demo first: cutover, protected backup/inspection, upgrade, unchanged durable database/Files state, restore-based rollback, final candidate redeploy, maintenance behavior, exact bridge-gateway ClamAV handoff, all seven role logins, Search, Files preview/download, and representative workflow execution.
+- [x] Cut preview over from its retained `0.33.27.9.2` release through an exact-version whole-instance restore, then let the selected image own forward migrations. The cutover helper now constrains that restore to the reviewed local Docker-volume mountpoint, rejects symbolic links, returns ownership to UID/GID 10001, and preserves automatic verified bare-metal recovery on failure.
+- [x] Captured direct and public health/readiness and `/api/app-info`, immutable image/platform/artifact identity, non-root/read-only/capability/no-new-privileges posture, loopback-only port 8001, persistent-volume data, protected backup/operation records, maintenance curtain, scanner handoff, and public authentication boundaries on both hosts. The final pre-closeout candidate is protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827`, image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`, `linux/amd64` platform manifest `sha256:afc36e2c9a264bba4c67a212ef4459d5d6f63acf8f90bf95bccb9e8265176300`, and artifact SHA-256 `e7183f7ddb118a4122ef09445c329b4c6657a02f65fa6dac6b5f934bd7b4a7ce`.
+- [x] Proved preview backup-first upgrade, restore-based rollback to the retained baseline, and final candidate deployment with unchanged SQLite integrity, zero foreign-key violations, record counts, and all 3,071 Files objects. Live proof found that restore's concurrent inspection and pre-restore snapshot exceeded the former 64 MB private tmpfs for the roughly 40 MB database; the now-enforced bounded 512 MB tmpfs passed the same real rollback.
+- [x] Confirmed this host cut carries product work through 0.33.27 plus the 0.33.28 deployment/release contract. Secure Catalogs (`0.33.29`) and Support View (`0.33.30`) remain excluded. No invitation, announcement, or public-launch decision was made.
+- [x] Ran `npm run docs:suggest`; updated the owning Compose, scanner, deployment, readiness, changelog, and roadmap records; advanced only through `npm run version:bump -- 0.33.28.4`; and ran the canonical `npm run verify:slice` closeout once after the live gates.
+
+Acceptance criteria:
+
+- The Compose path passed deployment, upgrade, persistence, backup, restore, migration-aware rollback, and restored-rollback gates on the actual supported host architecture; both preview/demo hosts run the verified immutable image; the prior bare-metal runtimes remain stopped but recoverable through the observation window; and no retirement work started early.
+
 ## Version 0.33.28.3 - Immutable image publishing and supported deployment transport
 
 Completed locally on 2026-08-04. Public releases now publish the exact protected `main` artifact as an attested GHCR image index and bind its source, artifact, platform, native-dependency, and image identities in release metadata. Preview deployment selects only that immutable digest through a metadata-only constrained handoff; the active cursor advanced to `0.33.28.4` for live host cutover and replacement proof.

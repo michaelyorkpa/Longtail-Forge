@@ -33,7 +33,7 @@ import { settingsRepository } from "../../repositories/settings.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { tasksRepository } from "../tasks/tasks.repo.js";
-import { notesRepository } from "../notes/notes.repo.js";
+import { notesService } from "../notes/index.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { tagsService } from "../../services/tags.service.js";
 import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
@@ -925,28 +925,12 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   }
 
   if (targetType === "note") {
-    const notes = await notesRepository.readByIds(session.workspace_id, ids);
+    const notes = await notesService.listConsumerSummaries(session, {
+      consumerId: "notes.provider-catalogs",
+      noteIds: ids,
+    });
     for (const note of notes) {
       if (!note || note.status === "deleted" || note.deleted_at) {
-        continue;
-      }
-      if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
-        continue;
-      }
-      if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
-        note_id: note.note_id,
-        operation: "read",
-        workspace_id: session.workspace_id,
-      }))) {
-        continue;
-      }
-      if (!(await permissionsService.can(session, "notes.view", {
-        client_id: note.client_id,
-        note_id: note.note_id,
-        operation: "read",
-        project_id: note.project_id,
-        workspace_id: session.workspace_id,
-      }))) {
         continue;
       }
 
@@ -1047,32 +1031,9 @@ async function listLinkTargetsByType(session, targetType, provider) {
     }));
   }
 
-  const notes = await notesRepository.list(session.workspace_id, {});
-  const readableNotes = [];
-  for (const note of notes) {
-    if (note.status === "deleted" || note.deleted_at) {
-      continue;
-    }
-    if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
-      continue;
-    }
-    if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
-      note_id: note.note_id,
-      operation: "read",
-      workspace_id: session.workspace_id,
-    }))) {
-      continue;
-    }
-    if (await permissionsService.can(session, "notes.view", {
-      client_id: note.client_id,
-      note_id: note.note_id,
-      operation: "read",
-      project_id: note.project_id,
-      workspace_id: session.workspace_id,
-    })) {
-      readableNotes.push(note);
-    }
-  }
+  const readableNotes = (await notesService.listConsumerSummaries(session, {
+    consumerId: "notes.provider-catalogs",
+  })).filter((note) => note.status !== "deleted" && !note.deleted_at);
   return readableNotes.map((note) => shapeContextualListLinkTarget({
     record: note,
     recordId: note.note_id,

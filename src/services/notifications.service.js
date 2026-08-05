@@ -278,6 +278,10 @@ async function archiveOldNotifications(cutoffIso) {
   await notificationsRepository.archiveOlderThan(cutoffIso);
 }
 
+async function removeTargetArtifacts(workspaceId, moduleId, recordType, recordIds) {
+  return notificationsRepository.removeForTargets(workspaceId, moduleId, recordType, recordIds);
+}
+
 async function readTargetMetadata(notification, session) {
   const moduleId = notification.module_id || "";
   const recordType = notification.record_type || "";
@@ -743,11 +747,13 @@ async function decorateForSession(notification, session) {
   }
 
   const target = await readTargetMetadata(notification, session);
-  const displayTitle = target.label || notification.title;
+  const protectedOrUnavailableNote = notification.record_type === "note" && !target.targetExists;
+  const displayTitle = protectedOrUnavailableNote ? "Protected or unavailable note" : target.label || notification.title;
   const updateTypeLabel = notificationUpdateTypeLabel(notification);
 
   return {
     ...notification,
+    ...(protectedOrUnavailableNote ? { body: "", metadata: {}, title: "Protected or unavailable note" } : {}),
     displayType: updateTypeLabel,
     displayTitle,
     updateTypeLabel,
@@ -782,8 +788,11 @@ async function readNoteTargetMetadata(notification, session, baseMetadata) {
   const { notesService } = await import("../modules/notes/notes.service.js");
 
   try {
-    const result = await notesService.read(notification.record_id, session);
-    const note = /** @type {Record<string, any>} */ (result.note || {});
+    const note = /** @type {Record<string, any>} */ (await notesService.readConsumerSummary(
+      notification.record_id,
+      session,
+      "notes.notifications",
+    ));
     return {
       ...baseMetadata,
       canOpen: Boolean(notification.url),
@@ -1139,6 +1148,7 @@ export const notificationsService = {
   readTargetMetadata,
   registerEventHandlers,
   registerNotificationJobHandlers,
+  removeTargetArtifacts,
   resetEventHandlersForTests,
   savePreferences,
   saveWorkspaceDefaults,

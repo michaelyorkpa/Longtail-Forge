@@ -59,7 +59,9 @@ Collections live in `note_library_collections`. Notes use single-primary members
 
 Collections are scoped to one Library bucket. Parent/child collection trees use `parent_collection_id`, `path_cache`, and `depth`. Moving or renaming a collection recalculates descendant paths and reindexes affected notes through the framework search sync service.
 
-Collections are classification metadata only. They do not grant access, override visibility, bypass secure-note rules, or replace clients/projects/tasks/tickets/users/tags. Collection counts are calculated from permission-filtered note lists, so inaccessible private, secure, or Linked Context-hidden notes do not leak through counts. Moving a note to a different Library bucket clears `note_collection_id` when the prior collection belongs to the old bucket.
+Collections remain classification metadata for ordinary workflow meaning and never grant access, override visibility, or replace clients/projects/tasks/tickets/users/tags. As of 0.33.29.1, they may additionally carry a Notes-owned `normal` or `secure` security policy plus a fail-closed transition state. A note is effectively secure when it is explicitly secure or its collection or any ancestor has secure policy; archived ancestors still protect their descendants. Collection counts are calculated from permission-filtered note lists, so inaccessible private, effectively secure, or Linked Context-hidden notes do not leak through counts. Moving a note to a different Library bucket clears `note_collection_id` when the prior collection belongs to the old bucket.
+
+The repository projects one cycle-safe, workspace-scoped effective-security result onto collection and note reads. Missing or cross-workspace hierarchy links and corrupt cycles resolve secure and unresolved rather than falling back to normal. Browser code and downstream consumers must use that server result instead of reconstructing ancestry or treating catalog security as a tag.
 
 Archived collections remain attached to notes but are hidden from normal collection tree data unless archived collections are explicitly requested. Deleting a collection is soft-delete only and is allowed only when it has no non-deleted notes and no active child collections.
 
@@ -69,7 +71,11 @@ As of 0.33.21.5, Settings -> Admin -> Modules -> Notes is a Notes-owned protecte
 
 `GET /api/notes/settings/catalogs` returns active and archived catalog metadata only: safe ID values for form selection, title, description, Library bucket, parent, path, depth, sort order, source, status, and update time. It does not return note bodies, titles, counts, secure envelopes, metadata JSON, runtime configuration, or Secure Notes key material. Access requires both `notes.manage_settings` and `notes.manage_library` and an enabled Notes module.
 
-Create and per-catalog edit continue through the canonical collection routes and validation. `POST /api/notes/settings/catalogs/bulk` accepts a unique list of at most 100 catalog IDs and only `archive` or `restore`. Archive removes redundant selected descendants when an ancestor is selected because the canonical archive operation already handles that subtree; restore processes selected parents before children. Every operation retains canonical permission checks, Notes-disabled rejection, audit recording, descendant behavior, and search synchronization. The response reports safe per-catalog failures so the browser can retain failed selections for recovery. Security policy for catalogs is explicitly deferred to 0.33.23 and is not inferred from this management surface.
+Create and per-catalog edit continue through the canonical collection routes and validation. `POST /api/notes/settings/catalogs/bulk` accepts a unique list of at most 100 catalog IDs and only `archive` or `restore`. Archive removes redundant selected descendants when an ancestor is selected because the canonical archive operation already handles that subtree; restore processes selected parents before children. Every operation retains canonical permission checks, Notes-disabled rejection, audit recording, descendant behavior, and search synchronization. The response reports safe per-catalog failures so the browser can retain failed selections for recovery.
+
+As of 0.33.29.3, users with `notes.secure.manage` see explicit versus inherited protection and safe `stable`, `securing`, or recovery-needed state in this manager. Enable and Retry use the dedicated transition preflight and show bounded catalog/note/revision counts without content. Removing security is a separate destructive dialog requiring the exact catalog ID, preflight count, and current password; ordinary edit/move controls never perform downgrade. A secure ancestor cannot be overridden. Active work refreshes automatically, while failed work remains effective-secure until the operator corrects the reported safe blocker and retries.
+
+`src/modules/notes/consumer-policy.js` is the downstream non-exposure authority. Protected Notes workspace, revision, and relationship reads still require canonical secure-note authorization. Normal Files attachments, activity/notifications, Search, resume/Workbench, public API, export, generic provider catalogs, and future Support View exclude effectively secure notes entirely. When an existing note becomes effectively secure, Notes also removes its normal notification/subscription and resume-state artifacts while Search cleanup removes indexed documents; read-time checks remain authoritative. The Notes manifest declares each consumer and its `notes.effective-security` assertion; an undeclared consumer fails closed. This prevents titles, counts, existence, excerpts, relationship labels, bodies, and encryption metadata from escaping through a secondary surface.
 
 ## Notes List Read Model
 
@@ -216,7 +222,7 @@ Wiki-style links are stored in `note_wiki_links` as detected metadata. Broken or
 
 ## Revisions And Changelog
 
-Note revisions live in `note_revisions`. Notes do not create an initial revision at creation time. Meaningful edits create a before-edit snapshot; revision lists are newest-first and use user-facing change summaries from `describeRevisionChanges()`.
+Note revisions live in `note_revisions`. Ordinary and explicitly secure notes retain the existing behavior of creating before-edit snapshots only after meaningful edits. A note created inside an effectively secure catalog also creates an encrypted initial revision in the same transaction so neither its current body nor its first revision can land as plaintext. Revision lists are newest-first and use user-facing change summaries from `describeRevisionChanges()`.
 
 Restoring a revision creates a new note update and a new revision snapshot rather than mutating history. Archived notes are read-only until restored. Secure revision lists are metadata-only; dedicated revision reads decrypt secure revision bodies only after secure-history checks.
 
@@ -224,7 +230,7 @@ Audit logs and revisions are separate. Revisions preserve note state for user wo
 
 ## Secure Notes
 
-Secure notes are a specialized `security_mode = secure` note type with stricter access and encryption-at-rest behavior.
+Secure Notes protection applies to explicit `security_mode = secure` notes and, as of 0.33.29.1, normal notes whose current catalog or any ancestor has secure policy. The explicit note flag remains unchanged for inherited protection; `effective_security_mode` is the authorization and storage decision.
 
 The first implementation uses application-managed envelope encryption:
 
@@ -236,7 +242,15 @@ The first implementation uses application-managed envelope encryption:
 
 Secure note titles remain plaintext metadata. The UI warns users not to put secrets in titles. This is database-at-rest protection, not zero-knowledge: a configured app server can decrypt after session and permission checks.
 
-Secure-note access is owner-only plus explicit secure-note permissions such as `notes.secure.view` and `notes.secure.manage`. Normal `notes.view`, workspace membership, Library bucket, collection, Linked Context, tag, and file permissions do not grant secure body access. External/client users receive no default secure-note access.
+Effective secure-note access is owner-only plus explicit secure-note permissions such as `notes.secure.view` and `notes.secure.manage`. Normal `notes.view`, workspace membership, Library bucket, collection membership, Linked Context, tag, and file permissions do not grant secure body access. External/client users receive no default secure-note access.
+
+Creating a note inside an effectively secure catalog encrypts its body and initial revision atomically. Moving an ordinary note into one encrypts the note, every existing revision, and the before-move snapshot in one repository transaction before the new membership can be observed. Moving a note out preserves protection by setting explicit note security in the same database update; moving an inherited-secure catalog subtree out sets secure policy at the moved root. Catalog membership changes are never implicit decryption actions.
+
+Catalog policy changes use the dedicated preflight, enable, retry, and remove-security routes under `/api/notes/collections/:collectionId/security`. They require `notes.manage_library` and `notes.secure.manage`; ordinary collection create/edit/move routes cannot change policy. Preflight reports safe catalog/note/revision/search counts, blockers, and whether the measured work will run synchronously or through the framework job queue. At most 100 note/revision storage transformations run on the request path; larger work uses the `notes.catalog-security` job in batches of 50.
+
+Every transition has a monotonically increasing claim version. Enabling security claims `securing` while policy is still `normal`, which makes the whole subtree authorization-secure immediately. The transition encrypts missing note/revision payloads idempotently, removes canonical and FTS search documents, verifies no protected plaintext or stale search record remains, and only then publishes stable `secure` policy. A failure records only a safe error code and leaves the catalog in effective-secure `failed` state. Retry creates a newer claim; an older request or worker becomes a no-op. Ordinary edits or moves involving the transitioning subtree or its relevant ancestry are rejected until completion or retry.
+
+Removing security is a distinct deliberate downgrade. The caller must provide the current password and confirm the exact catalog ID, `remove_security` action, and current affected-note count. Only inherited notes that will become effectively normal are decrypted; explicitly secure notes and notes under another secure ancestor or descendant policy remain encrypted. Partial downgrade work retains secure policy plus a fail-closed transition state, so plaintext batches cannot be read as ordinary content before the final policy update. Search reindexing begins only after the stable normal policy is published. Passwords, bodies, keys, payloads, and raw crypto failures never enter job or audit metadata.
 
 Secure note bodies are excluded from normal search, audit metadata, lifecycle metadata, notifications, Help content, file attachments, public/client controls, and list/collection previews. Existing plaintext secure placeholders block activation until recreated or explicitly migrated through reviewed tooling.
 

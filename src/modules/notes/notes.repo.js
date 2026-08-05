@@ -1,5 +1,9 @@
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
+import {
+  resolveCollectionEffectiveSecurity,
+  resolveNoteEffectiveSecurity,
+} from "./effective-security.js";
 
 const NOTE_COLUMNS = [
   "note_id",
@@ -94,6 +98,14 @@ const COLLECTION_COLUMNS = [
   "sort_order",
   "collection_source",
   "status",
+  "security_policy",
+  "security_transition_state",
+  "security_transition_action",
+  "security_transition_version",
+  "security_transition_job_id",
+  "security_transition_actor_user_id",
+  "security_transition_started_at",
+  "security_transition_error_code",
   "created_by_user_id",
   "updated_by_user_id",
   "created_at",
@@ -143,7 +155,7 @@ WHERE ${clauses.join("\n  AND ")}
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
 `, params);
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function queryList(workspaceId, options = {}) {
@@ -176,7 +188,7 @@ ${orderSql}${limitSql};
   return {
     hasMore,
     nextOffset: normalizedOffset + noteRows.length,
-    notes: noteRows.map(noteRowToAppValue),
+    notes: await projectNoteSecurity(workspaceId, noteRows.map(noteRowToAppValue)),
   };
 }
 
@@ -189,7 +201,11 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, { noteId, workspaceId });
 
-  return row ? noteRowToAppValue(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return (await projectNoteSecurity(workspaceId, [noteRowToAppValue(row)]))[0];
 }
 
 async function readByIds(workspaceId, noteIds = []) {
@@ -209,7 +225,7 @@ WHERE workspace_id = :workspaceId
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}, note_id ASC;
 `, { noteIds: ids, workspaceId });
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function create(workspaceId, note) {
@@ -220,7 +236,7 @@ async function create(workspaceId, note) {
   return readById(workspaceId, noteId);
 }
 
-async function createWithLinks(workspaceId, note, links = []) {
+async function createWithLinks(workspaceId, note, links = [], options = null) {
   const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
 
@@ -232,6 +248,15 @@ async function createWithLinks(workspaceId, note, links = []) {
         ...link,
         note_id: noteId,
       }, link.note_link_id || createRecordId(), link.created_at || now);
+    }
+
+    if (options?.initialRevision) {
+      await insertRevision(
+        transaction,
+        workspaceId,
+        { ...options.initialRevision, note_id: noteId },
+        options.initialRevision.note_revision_id,
+      );
     }
   });
 
@@ -348,7 +373,35 @@ VALUES (
 async function update(workspaceId, note) {
   const updatedAt = note.updated_at || new Date().toISOString();
 
-  await db.run(`
+  await updateNote(db, workspaceId, note, updatedAt);
+  return readById(workspaceId, note.note_id);
+}
+
+async function secureNoteAndRevisions(workspaceId, note, revisions = [], transitionRevision = null) {
+  const updatedAt = note.updated_at || new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await updateNote(transaction, workspaceId, note, updatedAt);
+
+    for (const revision of revisions) {
+      await updateRevisionSecurity(transaction, workspaceId, revision);
+    }
+
+    if (transitionRevision) {
+      await insertRevision(
+        transaction,
+        workspaceId,
+        transitionRevision,
+        transitionRevision.note_revision_id,
+      );
+    }
+  });
+
+  return readById(workspaceId, note.note_id);
+}
+
+async function updateNote(databaseClient, workspaceId, note, updatedAt) {
+  await databaseClient.run(`
 UPDATE notes
 SET
   title = :title,
@@ -401,14 +454,17 @@ WHERE workspace_id = :workspaceId
     noteId: note.note_id,
     updatedAt,
   }));
-
-  return readById(workspaceId, note.note_id);
 }
 
 async function createRevision(workspaceId, revision) {
   const revisionId = revision.note_revision_id || createRecordId();
 
-  await db.run(`
+  await insertRevision(db, workspaceId, revision, revisionId);
+  return readRevisionById(workspaceId, revision.note_id, revisionId);
+}
+
+async function insertRevision(databaseClient, workspaceId, revision, revisionId) {
+  await databaseClient.run(`
 INSERT INTO note_revisions (
   note_revision_id,
   workspace_id,
@@ -526,8 +582,48 @@ VALUES (
     visibility: text(revision.visibility || "internal"),
     workspaceId: text(workspaceId),
   });
+}
 
-  return readRevisionById(workspaceId, revision.note_id, revisionId);
+async function updateRevisionSecurity(databaseClient, workspaceId, revision) {
+  await databaseClient.run(`
+UPDATE note_revisions
+SET
+  body_markdown = :bodyMarkdown,
+  body_excerpt = :bodyExcerpt,
+  security_mode = :securityMode,
+  secure_payload = :securePayload,
+  secure_payload_version = :securePayloadVersion,
+  encrypted_data_key = :encryptedDataKey,
+  encryption_key_version = :encryptionKeyVersion,
+  encryption_algorithm = :encryptionAlgorithm,
+  key_wrapping_algorithm = :keyWrappingAlgorithm,
+  encryption_nonce = :encryptionNonce,
+  encryption_auth_tag = :encryptionAuthTag,
+  key_wrapping_nonce = :keyWrappingNonce,
+  key_wrapping_auth_tag = :keyWrappingAuthTag,
+  encrypted_at = :encryptedAt
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
+  AND note_revision_id = :revisionId;
+`, {
+    bodyExcerpt: nullableText(revision.body_excerpt),
+    bodyMarkdown: text(revision.body_markdown),
+    encryptedAt: nullableText(revision.encrypted_at),
+    encryptedDataKey: nullableText(revision.encrypted_data_key),
+    encryptionAlgorithm: nullableText(revision.encryption_algorithm),
+    encryptionAuthTag: nullableText(revision.encryption_auth_tag),
+    encryptionKeyVersion: nullableText(revision.encryption_key_version),
+    encryptionNonce: nullableText(revision.encryption_nonce),
+    keyWrappingAlgorithm: nullableText(revision.key_wrapping_algorithm),
+    keyWrappingAuthTag: nullableText(revision.key_wrapping_auth_tag),
+    keyWrappingNonce: nullableText(revision.key_wrapping_nonce),
+    noteId: text(revision.note_id),
+    revisionId: text(revision.note_revision_id),
+    securePayload: nullableText(revision.secure_payload),
+    securePayloadVersion: nullableText(revision.secure_payload_version),
+    securityMode: text(revision.security_mode || "secure"),
+    workspaceId: text(workspaceId),
+  });
 }
 
 async function nextRevisionNumber(workspaceId, noteId) {
@@ -853,19 +949,27 @@ WHERE ${clauses.join("\n  AND ")}
 ORDER BY library_bucket ASC, ${db.dialect.comparison.orderByNoCase("path_cache", "ASC")}, sort_order ASC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
 `, params);
 
-  return rows.map(collectionRowToAppValue);
+  return projectCollectionSecurity(workspaceId, rows.map(collectionRowToAppValue));
 }
 
 async function readCollectionById(workspaceId, collectionId) {
-  const row = await db.get(`
-SELECT ${COLLECTION_COLUMNS.join(", ")}
+  const row = await readCollectionRowById(db, workspaceId, collectionId);
+
+  if (!row) {
+    return null;
+  }
+
+  return (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(row)]))[0];
+}
+
+async function readCollectionRowById(databaseClient, workspaceId, collectionId) {
+  return databaseClient.get(`
+SELECT *
 FROM note_library_collections
 WHERE workspace_id = :workspaceId
   AND note_library_collection_id = :collectionId
 LIMIT 1;
 `, { collectionId, workspaceId });
-
-  return row ? collectionRowToAppValue(row) : null;
 }
 
 async function createCollection(workspaceId, collection) {
@@ -886,6 +990,14 @@ INSERT INTO note_library_collections (
   sort_order,
   collection_source,
   status,
+  security_policy,
+  security_transition_state,
+  security_transition_action,
+  security_transition_version,
+  security_transition_job_id,
+  security_transition_actor_user_id,
+  security_transition_started_at,
+  security_transition_error_code,
   created_by_user_id,
   updated_by_user_id,
   created_at,
@@ -907,6 +1019,14 @@ VALUES (
   :sortOrder,
   :collectionSource,
   :status,
+  :securityPolicy,
+  :securityTransitionState,
+  :securityTransitionAction,
+  :securityTransitionVersion,
+  :securityTransitionJobId,
+  :securityTransitionActorUserId,
+  :securityTransitionStartedAt,
+  :securityTransitionErrorCode,
   :createdByUserId,
   :updatedByUserId,
   :createdAt,
@@ -926,8 +1046,19 @@ VALUES (
 
 async function updateCollection(workspaceId, collection) {
   const updatedAt = collection.updated_at || new Date().toISOString();
+  const expectedTransitionState = text(collection.security_transition_state || "stable");
+  const expectedTransitionVersion = integer(collection.security_transition_version);
+  const updatedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collection.note_library_collection_id);
+    if (
+      !current
+      || text(current.security_transition_state) !== expectedTransitionState
+      || integer(current.security_transition_version) !== expectedTransitionVersion
+    ) {
+      return null;
+    }
 
-  await db.run(`
+    await transaction.run(`
 UPDATE note_library_collections
 SET
   title = :title,
@@ -940,20 +1071,346 @@ SET
   sort_order = :sortOrder,
   collection_source = :collectionSource,
   status = :status,
+  security_policy = :securityPolicy,
+  security_transition_state = :securityTransitionState,
+  security_transition_action = :securityTransitionAction,
+  security_transition_version = :securityTransitionVersion,
+  security_transition_job_id = :securityTransitionJobId,
+  security_transition_actor_user_id = :securityTransitionActorUserId,
+  security_transition_started_at = :securityTransitionStartedAt,
+  security_transition_error_code = :securityTransitionErrorCode,
   updated_by_user_id = :updatedByUserId,
   updated_at = :updatedAt,
   archived_at = :archivedAt,
   deleted_at = :deletedAt,
   metadata_json = :metadataJson
 WHERE workspace_id = :workspaceId
-  AND note_library_collection_id = :collectionId;
-`, collectionPersistenceParams(workspaceId, collection, {
-    collectionId: collection.note_library_collection_id,
-    createdAt: collection.created_at || updatedAt,
-    updatedAt,
-  }));
+  AND note_library_collection_id = :collectionId
+  AND security_transition_state = :expectedTransitionState
+  AND security_transition_version = :expectedTransitionVersion;
+`, {
+      ...collectionPersistenceParams(workspaceId, collection, {
+        collectionId: collection.note_library_collection_id,
+        createdAt: collection.created_at || updatedAt,
+        updatedAt,
+      }),
+      expectedTransitionState,
+      expectedTransitionVersion,
+    });
 
-  return readCollectionById(workspaceId, collection.note_library_collection_id);
+    return readCollectionRowById(transaction, workspaceId, collection.note_library_collection_id);
+  });
+
+  if (!updatedRow) {
+    throw new Error("Note collection changed during update; reload it before retrying.");
+  }
+
+  return (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(updatedRow)]))[0];
+}
+
+async function readCatalogSecuritySnapshot(workspaceId, collectionIds = []) {
+  const normalizedCollectionIds = normalizedIdArray(collectionIds);
+  if (normalizedCollectionIds.length === 0) {
+    return { notes: [], revisions: [], searchDocumentCount: 0 };
+  }
+
+  const noteRows = await db.query(`
+SELECT *
+FROM notes
+WHERE workspace_id = :workspaceId
+  AND note_collection_id IN (:collectionIds)
+ORDER BY created_at ASC, note_id ASC;
+`, {
+    collectionIds: normalizedCollectionIds,
+    workspaceId,
+  });
+  const notes = await projectNoteSecurity(workspaceId, noteRows.map(noteRowToAppValue));
+  const noteIds = notes.map((note) => note.note_id);
+  if (noteIds.length === 0) {
+    return { notes, revisions: [], searchDocumentCount: 0 };
+  }
+
+  const revisionRows = await db.query(`
+SELECT *
+FROM note_revisions
+WHERE workspace_id = :workspaceId
+  AND note_id IN (:noteIds)
+ORDER BY note_id ASC, revision_number ASC;
+`, { noteIds, workspaceId });
+  const searchRow = await db.get(`
+SELECT COUNT(*) AS count
+FROM search_index
+WHERE workspace_id = :workspaceId
+  AND module_id = 'notes'
+  AND record_type = 'note'
+  AND record_id IN (:noteIds);
+`, { noteIds, workspaceId });
+
+  return {
+    notes,
+    revisions: revisionRows.map(revisionRowToAppValue),
+    searchDocumentCount: Number(searchRow?.count || 0),
+  };
+}
+
+async function claimCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
+  const action = text(options.action);
+  const expectedPolicy = text(options.expectedPolicy);
+  const now = options.startedAt || new Date().toISOString();
+  const claimedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collectionId);
+    const canClaimStable = current?.security_transition_state === "stable" && current?.security_transition_action === "none";
+    const canResumeFailed = options.allowFailed
+      && current?.security_transition_state === "failed"
+      && current?.security_transition_action === action;
+    if (!current || current.security_policy !== expectedPolicy || (!canClaimStable && !canResumeFailed)) {
+      return null;
+    }
+
+    await transaction.run(`
+UPDATE note_library_collections
+SET
+  security_transition_state = 'securing',
+  security_transition_action = :action,
+  security_transition_version = security_transition_version + 1,
+  security_transition_job_id = NULL,
+  security_transition_actor_user_id = :actorUserId,
+  security_transition_started_at = :startedAt,
+  security_transition_error_code = NULL,
+  updated_by_user_id = :actorUserId,
+  updated_at = :startedAt
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_policy = :expectedPolicy
+  AND (
+    (security_transition_state = 'stable' AND security_transition_action = 'none')
+    OR (
+      :allowFailed = 1
+      AND security_transition_state = 'failed'
+      AND security_transition_action = :action
+    )
+  );
+`, {
+      action,
+      actorUserId: nullableText(options.actorUserId),
+      allowFailed: options.allowFailed ? 1 : 0,
+      collectionId,
+      expectedPolicy,
+      startedAt: now,
+      workspaceId,
+    });
+
+    return readCollectionRowById(transaction, workspaceId, collectionId);
+  });
+
+  return claimedRow ? (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(claimedRow)]))[0] : null;
+}
+
+async function setCatalogSecurityTransitionJob(workspaceId, collectionId, options = {}) {
+  const action = text(options.action);
+  const transitionVersion = integer(options.transitionVersion);
+  const updatedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collectionId);
+    if (
+      !current
+      || current.security_transition_state !== "securing"
+      || current.security_transition_action !== action
+      || integer(current.security_transition_version) !== transitionVersion
+    ) {
+      return null;
+    }
+
+    await transaction.run(`
+UPDATE note_library_collections
+SET
+  security_transition_job_id = :jobId,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_transition_state = 'securing'
+  AND security_transition_action = :action
+  AND security_transition_version = :transitionVersion;
+`, {
+      action,
+      collectionId,
+      jobId: nullableText(options.jobId),
+      transitionVersion,
+      updatedAt: options.updatedAt || new Date().toISOString(),
+      workspaceId,
+    });
+
+    return readCollectionRowById(transaction, workspaceId, collectionId);
+  });
+
+  return updatedRow ? collectionRowToAppValue(updatedRow) : null;
+}
+
+async function resumeCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
+  const action = text(options.action);
+  const transitionVersion = integer(options.transitionVersion);
+  const updatedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collectionId);
+    if (
+      !current
+      || !["securing", "failed"].includes(current.security_transition_state)
+      || current.security_transition_action !== action
+      || integer(current.security_transition_version) !== transitionVersion
+    ) {
+      return null;
+    }
+
+    await transaction.run(`
+UPDATE note_library_collections
+SET
+  security_transition_state = 'securing',
+  security_transition_error_code = NULL,
+  updated_at = :updatedAt
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_transition_state IN ('securing', 'failed')
+  AND security_transition_action = :action
+  AND security_transition_version = :transitionVersion;
+`, {
+      action,
+      collectionId,
+      transitionVersion,
+      updatedAt: options.updatedAt || new Date().toISOString(),
+      workspaceId,
+    });
+
+    return readCollectionRowById(transaction, workspaceId, collectionId);
+  });
+
+  return updatedRow ? collectionRowToAppValue(updatedRow) : null;
+}
+
+async function applyCatalogSecurityBatch(workspaceId, claim = {}, batch = {}) {
+  return db.transaction(async (transaction) => {
+    const active = await transitionClaimMatches(transaction, workspaceId, claim);
+    if (!active) {
+      return { applied: false, noteCount: 0, revisionCount: 0 };
+    }
+
+    for (const note of batch.notes || []) {
+      await updateNote(transaction, workspaceId, note, note.updated_at || new Date().toISOString());
+    }
+    for (const revision of batch.revisions || []) {
+      await updateRevisionSecurity(transaction, workspaceId, revision);
+    }
+
+    return {
+      applied: true,
+      noteCount: (batch.notes || []).length,
+      revisionCount: (batch.revisions || []).length,
+    };
+  });
+}
+
+async function finalizeCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
+  const now = options.completedAt || new Date().toISOString();
+  const action = text(options.action);
+  const transitionVersion = integer(options.transitionVersion);
+  const finalizedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collectionId);
+    if (
+      !current
+      || current.security_transition_state !== "securing"
+      || current.security_transition_action !== action
+      || integer(current.security_transition_version) !== transitionVersion
+    ) {
+      return null;
+    }
+
+    await transaction.run(`
+UPDATE note_library_collections
+SET
+  security_policy = :securityPolicy,
+  security_transition_state = 'stable',
+  security_transition_action = 'none',
+  security_transition_job_id = NULL,
+  security_transition_actor_user_id = NULL,
+  security_transition_started_at = NULL,
+  security_transition_error_code = NULL,
+  updated_by_user_id = :actorUserId,
+  updated_at = :completedAt
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_transition_state = 'securing'
+  AND security_transition_action = :action
+  AND security_transition_version = :transitionVersion;
+`, {
+      action,
+      actorUserId: nullableText(options.actorUserId),
+      collectionId,
+      completedAt: now,
+      securityPolicy: text(options.securityPolicy),
+      transitionVersion,
+      workspaceId,
+    });
+
+    return readCollectionRowById(transaction, workspaceId, collectionId);
+  });
+
+  return finalizedRow ? (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(finalizedRow)]))[0] : null;
+}
+
+async function failCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
+  const action = text(options.action);
+  const transitionVersion = integer(options.transitionVersion);
+  const failedRow = await db.transaction(async (transaction) => {
+    const current = await readCollectionRowById(transaction, workspaceId, collectionId);
+    if (
+      !current
+      || current.security_transition_state !== "securing"
+      || current.security_transition_action !== action
+      || integer(current.security_transition_version) !== transitionVersion
+    ) {
+      return null;
+    }
+
+    await transaction.run(`
+UPDATE note_library_collections
+SET
+  security_transition_state = 'failed',
+  security_transition_error_code = :errorCode,
+  updated_at = :failedAt
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_transition_action = :action
+  AND security_transition_version = :transitionVersion
+  AND security_transition_state = 'securing';
+`, {
+      action,
+      collectionId,
+      errorCode: text(options.errorCode || "catalog_security_transition_failed").slice(0, 120),
+      failedAt: options.failedAt || new Date().toISOString(),
+      transitionVersion,
+      workspaceId,
+    });
+
+    return readCollectionRowById(transaction, workspaceId, collectionId);
+  });
+
+  return failedRow ? collectionRowToAppValue(failedRow) : null;
+}
+
+async function transitionClaimMatches(databaseClient, workspaceId, claim = {}) {
+  const row = await databaseClient.get(`
+SELECT note_library_collection_id
+FROM note_library_collections
+WHERE workspace_id = :workspaceId
+  AND note_library_collection_id = :collectionId
+  AND security_transition_state = 'securing'
+  AND security_transition_action = :action
+  AND security_transition_version = :transitionVersion
+LIMIT 1;
+`, {
+    action: text(claim.action),
+    collectionId: text(claim.collectionId),
+    transitionVersion: integer(claim.transitionVersion),
+    workspaceId,
+  });
+  return Boolean(row);
 }
 
 async function countNotesInCollection(workspaceId, collectionId, filters = {}) {
@@ -1034,7 +1491,7 @@ ORDER BY notes.updated_at DESC, ${db.dialect.comparison.orderByNoCase("notes.tit
     workspaceId,
   });
 
-  return rows.map(noteRowToAppValue);
+  return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
 async function countPlaintextSecurePlaceholders(workspaceId) {
@@ -1132,6 +1589,14 @@ function collectionPersistenceParams(workspaceId, collection, { collectionId, up
     metadataJson: nullableText(collection.metadata_json),
     parentCollectionId: nullableText(collection.parent_collection_id),
     pathCache: nullableText(collection.path_cache),
+    securityPolicy: text(collection.security_policy || "normal"),
+    securityTransitionState: text(collection.security_transition_state || "stable"),
+    securityTransitionAction: text(collection.security_transition_action || "none"),
+    securityTransitionVersion: integer(collection.security_transition_version),
+    securityTransitionJobId: nullableText(collection.security_transition_job_id),
+    securityTransitionActorUserId: nullableText(collection.security_transition_actor_user_id),
+    securityTransitionStartedAt: nullableText(collection.security_transition_started_at),
+    securityTransitionErrorCode: nullableText(collection.security_transition_error_code),
     slug: text(collection.slug),
     sortOrder: integer(collection.sort_order),
     status: text(collection.status || "active"),
@@ -1182,9 +1647,82 @@ function collectionRowToAppValue(row) {
   return {
     ...row,
     depth: Number(row.depth || 0),
+    security_transition_version: Number(row.security_transition_version || 0),
     sort_order: Number(row.sort_order || 0),
     metadata: parseJson(row.metadata_json, {}),
   };
+}
+
+async function projectNoteSecurity(workspaceId, notes = []) {
+  if (notes.length === 0) {
+    return [];
+  }
+
+  const collections = await readCollectionSecurityRows(workspaceId);
+  const collectionsById = new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
+  return notes.map((note) => ({
+    ...note,
+    ...resolveNoteEffectiveSecurity(note, collectionsById, workspaceId),
+  }));
+}
+
+async function projectEffectiveSecurity(workspaceId, note = {}) {
+  return (await projectNoteSecurity(workspaceId, [{ ...note, workspace_id: workspaceId }]))[0];
+}
+
+async function projectCollectionSecurity(workspaceId, collections = []) {
+  if (collections.length === 0) {
+    return [];
+  }
+
+  const securityRows = await readCollectionSecurityRows(workspaceId);
+  const collectionsById = new Map(securityRows.map((collection) => [collection.note_library_collection_id, collection]));
+  return collections.map((collection) => {
+    const security = resolveCollectionEffectiveSecurity(collection, collectionsById, workspaceId);
+    return {
+      ...collection,
+      effective_security_mode: security.effectiveSecurityMode,
+      security_inherited: security.effectiveSecurityMode === "secure" && security.securityCatalogId !== collection.note_library_collection_id,
+      security_resolution_state: security.resolutionState,
+      security_source_catalog_id: security.securityCatalogId,
+    };
+  });
+}
+
+async function readCollectionSecurityRows(workspaceId) {
+  const rows = await db.query(`
+SELECT
+  note_library_collection_id,
+  workspace_id,
+  title,
+  slug,
+  description,
+  library_bucket,
+  parent_collection_id,
+  path_cache,
+  depth,
+  sort_order,
+  collection_source,
+  status,
+  security_policy,
+  security_transition_state,
+  security_transition_action,
+  security_transition_version,
+  security_transition_job_id,
+  security_transition_actor_user_id,
+  security_transition_started_at,
+  security_transition_error_code,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at,
+  archived_at,
+  deleted_at,
+  metadata_json
+FROM note_library_collections
+WHERE workspace_id = :workspaceId;
+`, { workspaceId });
+  return rows.map(collectionRowToAppValue);
 }
 
 function parseJson(value, fallback) {
@@ -1479,6 +2017,8 @@ function normalizePositiveInteger(value, fallback) {
 }
 
 export const notesRepository = {
+  applyCatalogSecurityBatch,
+  claimCatalogSecurityTransition,
   create,
   createCollection,
   createLink,
@@ -1487,6 +2027,8 @@ export const notesRepository = {
   countPlaintextSecurePlaceholders,
   countChildCollections,
   countNotesInCollection,
+  failCatalogSecurityTransition,
+  finalizeCatalogSecurityTransition,
   list,
   listCollections,
   listForTarget,
@@ -1495,14 +2037,19 @@ export const notesRepository = {
   listLinksForNotes,
   listRevisions,
   nextRevisionNumber,
+  projectEffectiveSecurity,
   queryList,
   readById,
   readByIds,
+  readCatalogSecuritySnapshot,
   readCollectionById,
   readLinkById,
   readRevisionById,
   removeLink,
   replacePropagatedLinksForTarget,
+  resumeCatalogSecurityTransition,
+  secureNoteAndRevisions,
+  setCatalogSecurityTransitionJob,
   updateCollection,
   update,
 };

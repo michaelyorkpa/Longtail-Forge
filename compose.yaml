@@ -24,10 +24,11 @@ services:
       LONGTAIL_WORKSPACE_BACKUP_ROOT: /var/backups/longtail-forge/workspaces
       TRUST_PROXY: ${LONGTAIL_DOCKER_TRUST_PROXY:-172.30.17.1/32}
       LONGTAIL_FILE_SCANNER: ${LONGTAIL_FILE_SCANNER:-clamd}
-      LONGTAIL_CLAMD_HOST: ${LONGTAIL_CLAMD_HOST:-host.docker.internal}
+      LONGTAIL_CLAMD_HOST: ${LONGTAIL_CLAMD_HOST:-172.30.17.1}
       LONGTAIL_CLAMD_PORT: ${LONGTAIL_CLAMD_PORT:-3310}
-    extra_hosts:
-      - host.docker.internal:host-gateway
+      LONGTAIL_RELEASE_BRANCH: ${LONGTAIL_RELEASE_BRANCH:-}
+      LONGTAIL_RELEASE_COMMIT: ${LONGTAIL_RELEASE_COMMIT:-}
+      LONGTAIL_RELEASE_ARTIFACT_SHA256: ${LONGTAIL_RELEASE_ARTIFACT_SHA256:-}
     ports:
       - 127.0.0.1:${LONGTAIL_HOST_PORT:-8001}:8001
     volumes:
@@ -36,7 +37,7 @@ services:
         source: ${LONGTAIL_BACKUP_DIR:-./backups}
         target: /var/backups/longtail-forge
     tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=0700,uid=10001,gid=10001
+      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001
     healthcheck:
       test:
         - CMD
@@ -58,8 +59,4 @@ volumes:
 networks:
   preview-internal:
     name: ${LONGTAIL_DOCKER_NETWORK:-longtail-forge-preview}
-    driver: bridge
-    ipam:
-      config:
-        - subnet: ${LONGTAIL_DOCKER_SUBNET:-172.30.17.0/24}
-          gateway: ${LONGTAIL_DOCKER_GATEWAY:-172.30.17.1}
+    external: true

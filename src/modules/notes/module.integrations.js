@@ -1,7 +1,9 @@
 import { NOTE_PERMISSIONS } from "./access-policy.js";
+import { NOTES_PROTECTED_CONTENT_CONSUMERS } from "./consumer-policy.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 const notesIntegrations = {
+  protectedContentConsumers: NOTES_PROTECTED_CONTENT_CONSUMERS,
   publicApiEndpoints: [
       { method: "GET", path: "/api/v1/notes", scope: "notes:read" },
       { method: "GET", path: "/api/v1/notes/:noteId", scope: "notes:read" },

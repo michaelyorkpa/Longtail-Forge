@@ -74,13 +74,13 @@ SELECT version, module_id, name, checksum
 FROM schema_migrations
 ORDER BY applied_at, version;
 `);
-  assert.equal(migrations.length, 24, "fresh startup should preserve the complete migration identity");
+  assert.equal(migrations.length, 26, "fresh startup should preserve the complete migration identity");
   assert.deepEqual(migrations.at(-1), {
-    checksum: "ac13567c407a5686d22e56b05054a7c4486112151b4e5a9687235eb34c8f2ea6",
+    checksum: "408211f3e378183c602ef55b28352eceb43a5ceed2db18a7d7b7cf62d67ba13d",
     module_id: "core",
-    name: "task_recurrence_recovery_checkpoint",
-    version: "087",
-  }, "migration 087 should be the latest checksum-tracked migration");
+    name: "secure_catalog_transitions",
+    version: "089",
+  }, "migration 089 should be the latest checksum-tracked migration");
 
   const pragmaRows = {
     busyTimeout: await querySql("PRAGMA busy_timeout;"),

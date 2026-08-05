@@ -91,7 +91,7 @@ Product positioning, audience, demo, preview, and launch planning live in the [m
 - [docs/runtime-artifact.md](docs/runtime-artifact.md): versioned runtime-only artifact inventory, checksum, clean-install proof, and settled runtime install/start commands
 - [docs/backup-restore.md](docs/backup-restore.md): checksummed SQLite and Files backups, separate Secure Notes recovery prerequisite, controlled export, destructive restore, and restore drill
 - [docs/private-preview-readiness.md](docs/private-preview-readiness.md): invitation gate for private-preview setup, limits, account flow, recovery, revocation, bug reporting, and feedback readiness
-- [docs/preview-deployment.md](docs/preview-deployment.md): sole supported Docker Compose production contract, native platform/provenance requirements, and the bounded bare-metal cutover safety path
+- [docs/preview-deployment.md](docs/preview-deployment.md): sole supported Docker Compose production contract, native platform/provenance requirements, backup-first upgrade, and restored rollback
 - [docs/docs-ownership.md](docs/docs-ownership.md): changed-area documentation suggestions and closeout note convention
 - [docs/internet-deployment.md](docs/internet-deployment.md): supported Caddy private-internet topology, operator procedure, live proxy proof, and known limitations
 - [docs/operational-security.md](docs/operational-security.md): production logs, health/readiness, scanning plan, incident response, and pre-invitation review

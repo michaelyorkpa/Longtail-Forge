@@ -83,7 +83,7 @@ done
 [[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
 [[ "$IMAGE_REPOSITORY" =~ ^ghcr\.io/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$ ]] || fail "LTF_IMAGE_REPOSITORY must be a lowercase GHCR repository"
 [[ "$DEPLOY_ACCOUNT" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "deployment account is invalid"
-test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must preserve the transition-only bare-metal backup directory"
+test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must remain the dedicated protected Compose backup directory"
 if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
 
 for command in curl docker grep install jq stat; do require_command "$command"; done
@@ -168,7 +168,8 @@ IMAGE_REFERENCE="$IMAGE_REPOSITORY@$EXPECTED_IMAGE_DIGEST"
 RELEASE_KEY="${EXPECTED_IMAGE_DIGEST#sha256:}"
 RELEASE_ENV="$RELEASE_ROOT/$RELEASE_KEY.env"
 RELEASE_METADATA="$RELEASE_ROOT/$RELEASE_KEY.json"
-printf 'LONGTAIL_IMAGE=%s\n' "$IMAGE_REFERENCE" > "$OPERATION_DIR/release.env"
+printf 'LONGTAIL_IMAGE=%s\nLONGTAIL_RELEASE_BRANCH=main\nLONGTAIL_RELEASE_COMMIT=%s\nLONGTAIL_RELEASE_ARTIFACT_SHA256=%s\n' \
+  "$IMAGE_REFERENCE" "$EXPECTED_COMMIT" "$EXPECTED_ARTIFACT_SHA256" > "$OPERATION_DIR/release.env"
 install -o root -g root -m 0600 "$OPERATION_DIR/release.env" "$RELEASE_ENV"
 install -o root -g root -m 0600 "$METADATA" "$RELEASE_METADATA"
 
@@ -284,6 +285,7 @@ verify_container_posture() {
       (.HostConfig.Privileged | not) and
       (.HostConfig.CapDrop == ["ALL"]) and
       (.HostConfig.SecurityOpt | index("no-new-privileges:true") != null) and
+      .HostConfig.Tmpfs["/tmp"] == "rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001" and
       (.NetworkSettings.Ports["8001/tcp"] | length == 1 and .[0].HostIp == "127.0.0.1" and .[0].HostPort == "8001") and
       (.Mounts | any(.Type == "volume" and .Destination == "/var/lib/longtail-forge")) and
       (.Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge"))
@@ -352,6 +354,7 @@ compose "$RELEASE_ENV" config --format json | jq -e '
     (.privileged // false | not) and
     (.cap_drop == ["ALL"]) and
     (.security_opt | index("no-new-privileges:true") != null) and
+    (.tmpfs | index("/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001") != null) and
     (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].target == 8001 and .[0].published == "8001")
 ' >/dev/null || fail "resolved Compose application posture is not the reviewed non-root read-only loopback contract"
 verify_candidate_scanner "$RELEASE_ENV"
@@ -361,7 +364,7 @@ CURRENT_BACKUP=''
 RECOVERY_SUCCEEDED=false
 
 if test "$MODE" = "deploy"; then
-  test -f "$CURRENT_STATE" || fail "automated deployment requires the recorded known-good Compose baseline established by the 0.33.28.4 cutover"
+  test -f "$CURRENT_STATE" || fail "automated deployment requires the recorded known-good Compose baseline established by the initial cutover"
   CURRENT_BACKUP="$BACKUP_ROOT/pre-upgrade-$OPERATION_ID.ltfbackup.tgz"
   backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
   install -o root -g root -m 0600 "$CURRENT_STATE" "$OPERATION_DIR/prior-state.json"

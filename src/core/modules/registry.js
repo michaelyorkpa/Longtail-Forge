@@ -43,6 +43,7 @@ function cloneModuleDefinition(definition) {
     tagPropagation: [...(definition.tagPropagation || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
     attachableTypes: [...(definition.attachableTypes || [])],
+    protectedContentConsumers: [...(definition.protectedContentConsumers || [])],
     help: cloneHelpContribution(definition.help),
     notificationEvents: [...(definition.notificationEvents || [])],
     notificationFollowTargets: [...(definition.notificationFollowTargets || [])],

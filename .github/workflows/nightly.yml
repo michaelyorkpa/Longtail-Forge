@@ -92,7 +92,7 @@ jobs:
       - name: GitHub-only documentation integration fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
         run: |
-          echo "GitHub-only documentation changed; no runtime artifact, browser gate, or deployment is required."
+          echo "GitHub-only documentation changed; no runtime artifact or browser gate is required."
       - name: Scheduled exact-SHA integration proof reuse
         if: needs.classify_changes.outputs.reuse_exact_proof == 'true'
         run: echo "The scheduled run verified an unexpired exact-SHA full-gate proof and retained artifact; application work is not repeated."
@@ -106,10 +106,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Runtime Help deployment route
+      - name: Runtime Help artifact route
         if: needs.classify_changes.outputs.runtime_help_changed == 'true'
         run: |
-          echo "Runtime Help changed; full validation, artifact creation, browser proof, and demo deployment remain required."
+          echo "Runtime Help changed; full validation, artifact creation, and browser proof remain required."
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
@@ -215,7 +215,7 @@ jobs:
           path: dist/nightly-proof.json
 
   github-docs-no-deploy:
-    name: GitHub-only docs - no deployment
+    name: GitHub-only docs - no runtime artifact
     if: >-
       ${{
         always()
@@ -229,54 +229,4 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - run: echo "GitHub-only documentation is complete; no environment deployment was created."
-
-  deploy-demo:
-    name: Deploy demo development
-    if: >-
-      ${{
-        always()
-        && github.event_name == 'push'
-        && needs.classify_changes.result == 'success'
-        && needs.classify_changes.outputs.github_only_docs != 'true'
-        && needs.integration-gate.result == 'success'
-        && needs.browser-gate.result == 'success'
-        && needs.publish-proof.result == 'success'
-      }}
-    needs: [classify_changes, integration-gate, browser-gate, publish-proof]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment: demo-development
-    steps:
-      - name: Check whether persistent demo deployment is configured
-        id: enabled
-        env:
-          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
-          DEPLOY_TRANSPORT: ${{ vars.DEPLOY_TRANSPORT }}
-        run: |
-          echo "value=$DEPLOY_ENABLED" >> "$GITHUB_OUTPUT"
-          if test "$DEPLOY_ENABLED" = "true"; then
-            test "$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"
-          fi
-      - if: steps.enabled.outputs.value == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - if: steps.enabled.outputs.value == 'true'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: nightly-${{ needs.integration-gate.outputs.revision }}
-          path: dist
-      - name: Deploy and verify the exact nightly artifact
-        if: steps.enabled.outputs.value == 'true'
-        env:
-          LTF_DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          LTF_DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
-          LTF_DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          LTF_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          LTF_DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          LTF_DEPLOY_INBOX: ${{ vars.DEPLOY_INBOX }}
-          LTF_DEPLOY_HELPER: ${{ vars.DEPLOY_HELPER }}
-          LTF_DEPLOY_PUBLIC_URL: ${{ vars.DEPLOY_URL }}
-        run: node scripts/release/deploy-via-ssh.mjs --mode deploy --artifact "dist/$(node -p "require('./package.json').name + '-' + require('./package.json').version + '.tgz'")" --metadata dist/release-metadata.json
-      - name: Report an intentionally disabled transport
-        if: steps.enabled.outputs.value != 'true'
-        run: echo "Demo deployment is disabled during the verified Compose cutover and transport transition."
+      - run: echo "GitHub-only documentation is complete; no runtime artifact was created."
