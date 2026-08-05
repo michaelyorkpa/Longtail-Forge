@@ -29,6 +29,7 @@ import { runtimeDiagnosticsRoutes } from "../routes/runtime-diagnostics.routes.j
 import { searchIndexRoutes } from "../routes/search-index.routes.js";
 import { searchRoutes } from "../routes/search.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
+import { supportViewRoutes } from "../routes/support-view.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workResumeRoutes } from "../routes/work-resume.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
@@ -104,6 +105,7 @@ function createApp() {
   app.use("/api", searchIndexRoutes);
   app.use("/api", searchRoutes);
   app.use("/api", settingsRoutes);
+  app.use("/api", supportViewRoutes);
   app.use("/api", workResumeRoutes);
   app.use("/api", workbenchRoutes);
   for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {

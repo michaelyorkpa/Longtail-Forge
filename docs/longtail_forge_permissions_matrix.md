@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-08-05 for version 0.33.30.2
+Updated: 2026-08-05 for version 0.33.30.3
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -22,7 +22,9 @@ This matrix describes the active workspace-native permission model after the com
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | support_view.enter | yes | no | no | no | no | no | no |
 
-`support_view.enter` is a framework permission seeded only for the installation-wide `super_admin` role. The runtime gate must also be enabled, current-password verification must succeed through the shared throttle, and the target must be an active user with an active membership in an active workspace. Protected installation administrators retain the same install-level authority. Once active, every ordinary read is evaluated from the target's live role assignments and fixed effective workspace; the actor's Super Admin authority is retained only for attribution and lifecycle validation. A central gate denies mutations independently of both identities and excludes sensitive reads. Version 0.33.30.2 still exposes no browser entry UI; 0.33.30.3 owns entry/exit controls and the unmistakable support-state presentation.
+`support_view.enter` is a framework permission seeded only for the installation-wide `super_admin` role. The runtime gate must also be enabled, current-password verification must succeed through the shared throttle, and the target must be an active user with an active membership in an active workspace. Protected installation administrators retain the same install-level authority. Once active, every ordinary read is evaluated from the target's live role assignments and fixed effective workspace; the actor's Super Admin authority is retained only for attribution and lifecycle validation. A central gate denies mutations independently of both identities and excludes sensitive reads.
+
+The permission also gates the administrator entry target catalog and the append-only audit review/export while the actor is in a normal session. Neither is reachable from Support View, even when the target is a Super Admin. Entry presents only readable active user/workspace labels; audit filters and CSV rows retain safe actor/target/workspace labels and stable event classifications without granting access to hidden records, credentials, content, or raw browser-session data.
 
 ## Framework Notification And Tag Defaults
 

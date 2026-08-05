@@ -12,9 +12,11 @@ import {
 import { createCsrfToken } from "../core/csrf-protection.js";
 import { getRequestSession, getSessionIdFromRequest } from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
+import { supportViewService } from "../services/support-view.service.js";
 import { asyncRoute, readJsonBody } from "../utils/http.js";
 import { getRequestContext } from "../core/request-context.js";
 import { enforceSupportViewRequest } from "../middleware/support-view-request-gate.js";
+import { AppError } from "../utils/app-error.js";
 
 const authRoutes = Router();
 
@@ -40,16 +42,44 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
   response.status(200).json({ user: result.user });
 }));
 
+authRoutes.post("/support-view/exit", asyncRoute(async (request, response) => {
+  const session = await getRequestSession(request);
+  applyRequestSessionRotation(request, response);
+  request.session = session;
+  if (!session) {
+    throw new AppError("Not logged in.", 401);
+  }
+  if (!session.support_view) {
+    response.status(200).json({ ok: true, supportViewActive: false });
+    return;
+  }
+
+  const result = await supportViewService.exit(
+    session,
+    getSessionIdFromRequest(request),
+    { requestId: getRequestContext(request).requestId },
+  );
+  response.setHeader("Cache-Control", "no-store");
+  response.setHeader("Set-Cookie", buildSessionCookie(
+    result.session.sessionId,
+    result.session.maxAgeSeconds,
+    request,
+  ));
+  response.status(200).json({ ok: true, supportViewActive: false });
+}));
+
 authRoutes.post("/logout", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
   request.session = session;
-  if (session?.support_view && !(await enforceSupportViewRequest(request, response))) {
-    return;
+  const currentSessionId = request.sessionRotation?.sessionId || getSessionIdFromRequest(request);
+  let logoutSession = session;
+  if (session?.support_view) {
+    const ended = await supportViewService.endForLogout(session, currentSessionId, {
+      requestId: getRequestContext(request).requestId,
+    });
+    logoutSession = ended.actorSession;
   }
-  const result = await authService.logout(
-    request.sessionRotation?.sessionId || getSessionIdFromRequest(request),
-    session,
-  );
+  const result = await authService.logout(currentSessionId, logoutSession);
 
   response.setHeader("Set-Cookie", [
     buildExpiredCsrfCookie(request),

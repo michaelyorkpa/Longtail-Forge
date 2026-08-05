@@ -378,7 +378,7 @@ async function switchWorkspace(sessionId, session, payload) {
   }
 
   if (session.support_view) {
-    throw new AppError("Exit Support View before switching workspaces.", 409);
+    throw new AppError("End Support View before switching workspaces.", 409);
   }
 
   if (session.password_change_required) {

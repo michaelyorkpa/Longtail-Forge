@@ -2,8 +2,8 @@ export const regressionMeta = Object.freeze({
   id: "framework.support-view-request-enforcement",
   area: "framework",
   tier: "release-gate",
-  tags: ["api", "authentication", "baseline-bypass", "database", "notes", "permissions", "security", "sessions", "workspace-isolation"],
-  description: "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, and attributable action attempts.",
+  tags: ["accessibility", "api", "authentication", "baseline-bypass", "browser", "database", "notes", "permissions", "security", "sessions", "workspace-isolation"],
+  description: "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
   runMode: "isolated-database",
 });
 
@@ -17,6 +17,7 @@ const fixture = await createDisposableDatabaseFixture("support-view-request-enfo
 const ADMIN_USERNAME = "support-view-gate-admin@example.test";
 const ADMIN_PASSWORD = "Support-View-Gate-Admin-123!";
 const TARGET_USERNAME = "support-view-gate-target@example.test";
+const REASON_REFERENCE = "=Support View request enforcement regression";
 
 process.env.SUPER_ADMIN_USERNAME = ADMIN_USERNAME;
 process.env.SUPER_ADMIN_PASSWORD = ADMIN_PASSWORD;
@@ -64,7 +65,7 @@ try {
   const started = await supportViewService.start(actorSession, actorLogin.session.sessionId, {
     currentPassword: ADMIN_PASSWORD,
     effectiveUserId: target.user_id,
-    reasonReference: "Support View request enforcement regression",
+    reasonReference: REASON_REFERENCE,
     workspaceId: actorSession.workspace_id,
   }, requestContext());
   const supportSession = await readRequestSession(started.session.sessionId);
@@ -124,6 +125,12 @@ try {
   assert.equal(sensitiveResponse.status, 404);
   assert.equal((await sensitiveResponse.json()).error.code, "not_found");
 
+  const supportAuditFromTarget = await globalThis.fetch(origin + "/api/support-view/audit", {
+    headers: { Cookie: sessionCookie },
+  });
+  assert.equal(supportAuditFromTarget.status, 404, "Support View must not open its administrator audit surface");
+  assert.equal((await supportAuditFromTarget.json()).error.code, "not_found");
+
   const unknownReadResponse = await globalThis.fetch(origin + "/api/future-undeclared-read", {
     headers: { Cookie: sessionCookie },
   });
@@ -168,6 +175,119 @@ try {
   assert.doesNotMatch(persistedAttempts, /Must never be created/);
   assert.doesNotMatch(persistedAttempts, new RegExp(escapeRegExp(secureNote.title)));
   assert.doesNotMatch(persistedAttempts, new RegExp(escapeRegExp(started.session.sessionId)));
+
+  const reviewerLogin = await authService.login({
+    password: ADMIN_PASSWORD,
+    username: ADMIN_USERNAME,
+  }, { ipAddress: "127.0.0.1" });
+  const reviewerSession = await readRequestSession(reviewerLogin.session.sessionId);
+  const targets = await supportViewService.listTargets(reviewerSession);
+  const targetOption = targets.targets.find((item) => item.userId === target.user_id);
+  assert.equal(targetOption.label, `Support View Gate Target (${TARGET_USERNAME})`);
+  assert.ok(targetOption.workspaces[0].label);
+  assert.notEqual(targetOption.workspaces[0].label, actorSession.workspace_id, "workspace choices must use readable labels");
+
+  const audit = await supportViewService.listAudit(reviewerSession, {});
+  assert.equal(audit.retentionDays, 365);
+  assert.equal(audit.exportLimit, 1000);
+  const attributedAuditEvent = audit.events.find((event) => event.reasonReference === REASON_REFERENCE);
+  assert.ok(attributedAuditEvent);
+  assert.ok(attributedAuditEvent.actorLabel);
+  assert.notEqual(attributedAuditEvent.actorLabel, actorSession.user_id, "actor attribution must use a readable label");
+  assert.equal(attributedAuditEvent.effectiveUserLabel, "Support View Gate Target");
+  const deniedAudit = await supportViewService.listAudit(reviewerSession, { outcome: "denied" });
+  assert.ok(deniedAudit.events.length > 0);
+  assert.ok(deniedAudit.events.every((event) => event.outcome === "denied"));
+  const auditCsv = await supportViewService.exportAuditCsv(reviewerSession, { outcome: "denied" });
+  assert.match(auditCsv, /reason_reference/);
+  assert.ok(auditCsv.includes("'=Support View request enforcement regression"), "formula-leading audit text must be neutralized for spreadsheets");
+  assert.doesNotMatch(auditCsv, new RegExp(escapeRegExp(started.session.sessionId)));
+
+  const targetListResponse = await globalThis.fetch(origin + "/api/support-view/targets", {
+    headers: { Cookie: "longtail_forge_session=" + reviewerLogin.session.sessionId },
+  });
+  await assertResponseStatus(targetListResponse, 200);
+  assert.ok((await targetListResponse.json()).targets.some((item) => item.userId === target.user_id));
+
+  const exitResponse = await globalThis.fetch(origin + "/api/support-view/exit", {
+    method: "POST",
+    headers: {
+      Cookie: sessionCookie + "; " + csrfCookie,
+      "Content-Type": "application/json",
+      "Sec-Fetch-Site": "same-origin",
+      "User-Agent": "Mozilla/5.0 Support View Regression",
+      "X-CSRF-Token": csrfPayload.csrfToken,
+    },
+    body: "{}",
+  });
+  await assertResponseStatus(exitResponse, 200);
+  const restoredSessionId = (exitResponse.headers.get("set-cookie") || "").match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
+  assert.ok(restoredSessionId && restoredSessionId !== started.session.sessionId, "exit must rotate to a new actor session");
+  const restoredSession = await readRequestSession(restoredSessionId);
+  assert.equal(restoredSession.user_id, actorSession.user_id);
+  assert.equal(restoredSession.support_view, undefined);
+
+  const logoutStarted = await supportViewService.start(restoredSession, restoredSessionId, {
+    currentPassword: ADMIN_PASSWORD,
+    effectiveUserId: target.user_id,
+    reasonReference: REASON_REFERENCE + " logout",
+    workspaceId: actorSession.workspace_id,
+  }, requestContext());
+  const logoutSessionCookie = "longtail_forge_session=" + logoutStarted.session.sessionId;
+  const logoutResponse = await globalThis.fetch(origin + "/api/logout", {
+    method: "POST",
+    headers: {
+      Cookie: logoutSessionCookie + "; " + csrfCookie,
+      "Content-Type": "application/json",
+      "Sec-Fetch-Site": "same-origin",
+      "User-Agent": "Mozilla/5.0 Support View Regression",
+      "X-CSRF-Token": csrfPayload.csrfToken,
+    },
+    body: "{}",
+  });
+  await assertResponseStatus(logoutResponse, 200);
+  assert.match(logoutResponse.headers.get("set-cookie") || "", /longtail_forge_session=;/);
+  assert.equal(await readRequestSession(logoutStarted.session.sessionId), null, "logout must remove the Support View browser session");
+  const loggedOutSupportSession = await supportSessionsRepository.readById(logoutStarted.supportView.supportSessionId);
+  assert.equal(loggedOutSupportSession.outcome, "exited");
+  const logoutEvents = await supportSessionsRepository.listEvents(logoutStarted.supportView.supportSessionId);
+  assert.ok(logoutEvents.some((event) => (
+    event.event_type === "exited"
+    && event.outcome === "success"
+    && JSON.parse(event.metadata_json).reason_class === "administrator_logout"
+  )), "logout must record an attributed Support View end event");
+  const remainingActorSessions = await db.query(`
+SELECT session_id
+FROM sessions
+WHERE user_id = :actorUserId
+ORDER BY session_id;
+`, { actorUserId: actorSession.user_id });
+  assert.deepEqual(
+    remainingActorSessions.map((row) => row.session_id),
+    [reviewerLogin.session.sessionId],
+    "Support View logout must not restore a new normal administrator session",
+  );
+
+  const oldTimestamp = new Date(Date.now() - 366 * 24 * 60 * 60 * 1000).toISOString();
+  await db.run(`
+UPDATE support_view_events
+SET occurred_at = :oldTimestamp
+WHERE support_session_id = :supportSessionId;
+`, { oldTimestamp, supportSessionId: started.supportView.supportSessionId });
+  await db.run(`
+UPDATE support_sessions
+SET started_at = :oldTimestamp,
+    expires_at = :oldTimestamp,
+    ended_at = :oldTimestamp,
+    updated_at = :oldTimestamp
+WHERE support_session_id = :supportSessionId;
+`, { oldTimestamp, supportSessionId: started.supportView.supportSessionId });
+  await supportViewService.listAudit(reviewerSession, {});
+  assert.equal(
+    await supportSessionsRepository.readById(started.supportView.supportSessionId),
+    null,
+    "completed Support View records beyond the fixed retention window must be pruned",
+  );
 
   const integrity = await db.get("PRAGMA integrity_check;");
   assert.equal(integrity.integrity_check, "ok");
@@ -221,6 +341,49 @@ async function assertReadRouteDeclarations() {
     SUPPORT_VIEW_READ_ROUTES.length + SUPPORT_VIEW_SENSITIVE_READ_ROUTES.length,
     "Support View route IDs must be unique",
   );
+
+  const [navigationSource, entryScriptSource, entryHtml, auditHtml, staticSource, authRoutesSource, supportRoutesSource, appShellSource, appSource, browserJourneySource] = await Promise.all([
+    fs.readFile(path.join(root, "public", "js", "navigation.js"), "utf8"),
+    fs.readFile(path.join(root, "public", "js", "support-view.js"), "utf8"),
+    fs.readFile(path.join(root, "views", "protected", "support-view.html"), "utf8"),
+    fs.readFile(path.join(root, "views", "protected", "support-view-audit.html"), "utf8"),
+    fs.readFile(path.join(root, "src", "services", "static.service.js"), "utf8"),
+    fs.readFile(path.join(root, "src", "routes", "auth.routes.js"), "utf8"),
+    fs.readFile(path.join(root, "src", "routes", "support-view.routes.js"), "utf8"),
+    fs.readFile(path.join(root, "src", "services", "app-shell.service.js"), "utf8"),
+    fs.readFile(path.join(root, "src", "core", "app.js"), "utf8"),
+    fs.readFile(path.join(root, "tests", "e2e", "support-view.spec.mjs"), "utf8"),
+  ]);
+  assert.match(navigationSource, /dataset\.supportViewBanner/);
+  assert.match(navigationSource, /effectiveUserLabel/);
+  assert.match(navigationSource, /effectiveWorkspaceName/);
+  assert.match(navigationSource, /actorLabel/);
+  assert.match(navigationSource, /MutationObserver/);
+  assert.match(navigationSource, /support-view-read-only-explanation/);
+  assert.match(navigationSource, /End Support View/);
+  assert.doesNotMatch(navigationSource, /dismissSupportView|support-view-dismiss/i, "the Support View banner must not be dismissible");
+  assert.match(entryHtml, /autocomplete="current-password"/);
+  assert.match(entryHtml, /maxlength="500"/);
+  assert.match(entryHtml, /fully attributed, read-only view/);
+  assert.match(entryScriptSource, /confirmedReadOnly: confirmationInput\.checked/);
+  assert.match(supportRoutesSource, /payload\.confirmedReadOnly !== true/);
+  assert.match(auditHtml, /data-support-view-audit-actor/);
+  assert.match(auditHtml, /data-support-view-audit-target/);
+  assert.match(auditHtml, /data-support-view-audit-workspace/);
+  assert.match(staticSource, /supportViewOperatorOnly/);
+  assert.match(staticSource, /permissionsService\.isSuperAdmin\(session\)/);
+  assert.match(appShellSource, /permissionsService\.isSuperAdmin\(session\)/);
+  assert.match(authRoutesSource, /authRoutes\.post\("\/support-view\/exit"/);
+  assert.match(authRoutesSource, /authRoutes\.post\("\/logout"[\s\S]*supportViewService\.endForLogout/);
+  assert.ok(
+    appSource.indexOf("app.use(supportViewRequestGate)") < appSource.indexOf('app.use("/api", supportViewRoutes)'),
+    "Support View targets/start/audit routes must remain behind the central request gate",
+  );
+  assert.match(browserJourneySource, /support_view_read_only/);
+  assert.match(browserJourneySource, /End Support View/);
+  assert.match(browserJourneySource, /Log Out/);
+  assert.match(browserJourneySource, /data-framework-permission-denied/);
+  assert.match(browserJourneySource, /toBeFocused/);
 }
 
 async function createSecureNote(session) {

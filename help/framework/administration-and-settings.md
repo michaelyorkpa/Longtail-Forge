@@ -99,6 +99,10 @@ Module settings do not grant module permissions. A module can be enabled while a
 - **Settings → Admin → Tags**: create, edit, archive, and manage workspace classifications.
 - **Settings → Admin → API Keys**: create, review, rotate, or revoke keys and scopes when Public API administration is available.
 - **Settings → Admin → Audit Log**: review permitted workspace activity and Security events.
+- **Settings → Admin → Support View**: when the installation capability is enabled, start a short read-only view of an active user's workspace after current-password verification, reason/reference entry, and explicit confirmation.
+- **Settings → Admin → Support View Audit**: outside Support View, review or export the retained safe actor/target/action history. Support View itself cannot open this page.
 - **Settings → Help**: search framework Help plus contributions from active modules.
+
+During Support View, a persistent banner names the viewed user/workspace, the Super Admin actor, and the remaining time. Use its **End Support View** button to return immediately, or use Settings **Log Out** to end Support View and sign out completely. Disabled write controls are a visual reminder; the server also rejects writes and protected-secret reads.
 
 For a control-by-control workflow inventory, see **Action Catalog** and the active module’s action reference.

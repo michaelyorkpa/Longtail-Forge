@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { db } from "../core/database.js";
 import { createOpaqueId } from "../core/identifiers.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
@@ -9,6 +10,117 @@ import { prepareSessionRecord } from "../security/session-records.js";
 import { verifyCurrentPasswordForSensitiveAction } from "../security/current-password-verification.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
+import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
+
+const SUPPORT_VIEW_AUDIT_RETENTION_DAYS = 365;
+const SUPPORT_VIEW_AUDIT_DEFAULT_PAGE_SIZE = 50;
+const SUPPORT_VIEW_AUDIT_MAX_PAGE_SIZE = 200;
+const SUPPORT_VIEW_AUDIT_EXPORT_LIMIT = 1000;
+
+async function listTargets(session) {
+  await assertOperator(session);
+  const rows = await supportSessionsRepository.listEligibleTargets(session.user_id);
+  const targets = [];
+  const byUserId = new Map();
+
+  rows.forEach((row) => {
+    let target = byUserId.get(row.user_id);
+    if (!target) {
+      const displayName = displayLabel(row.display_name, row.username);
+      target = {
+        userId: row.user_id,
+        username: row.username,
+        displayName,
+        label: displayName === row.username ? row.username : `${displayName} (${row.username})`,
+        workspaces: [],
+      };
+      byUserId.set(row.user_id, target);
+      targets.push(target);
+    }
+    target.workspaces.push({
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspace_name,
+      label: row.workspace_name,
+    });
+  });
+
+  return {
+    actor: {
+      userId: session.user_id,
+      username: session.username,
+      label: session.username,
+    },
+    expiresInSeconds: config.supportView.ttlSeconds,
+    targets,
+  };
+}
+
+async function listAudit(session, filters = {}, options = {}) {
+  await assertOperator(session);
+  const cutoffIso = retentionCutoff(options.now);
+  await supportSessionsRepository.pruneBefore(cutoffIso);
+  const normalizedFilters = normalizeAuditFilters(filters, session.timezone, cutoffIso);
+  const pagination = normalizeBoundedPagination(filters, {
+    defaultLimit: SUPPORT_VIEW_AUDIT_DEFAULT_PAGE_SIZE,
+    maxLimit: options.maxPageSize || SUPPORT_VIEW_AUDIT_MAX_PAGE_SIZE,
+  });
+  const repositoryFilters = {
+    ...normalizedFilters,
+    limit: pagination.limit,
+    offset: pagination.offset,
+  };
+  const [events, total, filterOptions] = await Promise.all([
+    supportSessionsRepository.searchAudit(repositoryFilters),
+    supportSessionsRepository.countAudit(repositoryFilters),
+    supportSessionsRepository.readAuditFilterOptions(cutoffIso),
+  ]);
+
+  return {
+    events: events.map(toAuditEvent),
+    exportLimit: SUPPORT_VIEW_AUDIT_EXPORT_LIMIT,
+    filterOptions,
+    pagination: boundedPaginationEnvelope({
+      ...pagination,
+      hasMore: pagination.offset + events.length < total,
+      returned: events.length,
+      total,
+    }),
+    retentionDays: SUPPORT_VIEW_AUDIT_RETENTION_DAYS,
+  };
+}
+
+async function exportAuditCsv(session, filters = {}) {
+  const result = await listAudit(session, {
+    ...filters,
+    limit: SUPPORT_VIEW_AUDIT_EXPORT_LIMIT,
+    offset: 0,
+  }, { maxPageSize: SUPPORT_VIEW_AUDIT_EXPORT_LIMIT });
+  const headers = [
+    "occurred_at",
+    "actor",
+    "viewed_user",
+    "workspace",
+    "event_type",
+    "action_id",
+    "route_id",
+    "outcome",
+    "reason_class",
+    "reason_reference",
+  ];
+  const rows = result.events.map((event) => [
+    event.occurredAt,
+    event.actorLabel,
+    event.effectiveUserLabel,
+    event.workspaceName,
+    event.eventType,
+    event.actionId,
+    event.routeId,
+    event.outcome,
+    event.reasonClass,
+    event.reasonReference,
+  ].map(csvValue).join(","));
+  return `${headers.join(",")}\n${rows.join("\n")}${rows.length ? "\n" : ""}`;
+}
 
 async function start(session, currentSessionId, payload = {}, context = {}) {
   if (!config.supportView.enabled) {
@@ -120,9 +232,12 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
       support_session_id: supportSessionId,
       actor_user_id: eligibility.actor_user_id,
       actor_username: eligibility.actor_username,
+      actor_display_name: eligibility.actor_display_name,
       effective_user_id: eligibility.effective_user_id,
       effective_username: eligibility.effective_username,
+      effective_display_name: eligibility.effective_display_name,
       workspace_id: workspaceId,
+      workspace_name: eligibility.workspace_name,
       started_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
     }),
@@ -130,17 +245,7 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
 }
 
 async function exit(session, currentSessionId, context = {}) {
-  if (!session?.support_view?.supportSessionId) {
-    throw new AppError("Support View is not active.", 409);
-  }
-  const storedSession = await sessionsRepository.readById(currentSessionId);
-  if (!storedSession || storedSession.support_session_id !== session.support_view.supportSessionId) {
-    throw new AppError("The current support session changed. Sign in and try again.", 409);
-  }
-  const supportSession = await supportSessionsRepository.readById(storedSession.support_session_id);
-  if (!supportSession || supportSession.ended_at) {
-    throw new AppError("Support View is no longer active.", 409);
-  }
+  const { storedSession, supportSession } = await readActiveSupportSession(session, currentSessionId);
 
   const result = await endAndRotate(storedSession, supportSession, {
     eventType: "exited",
@@ -153,6 +258,34 @@ async function exit(session, currentSessionId, context = {}) {
     throw new AppError("The administrator session is no longer available.", 401);
   }
   return { ok: true, session: result.session };
+}
+
+async function endForLogout(session, currentSessionId, context = {}) {
+  const { storedSession, supportSession } = await readActiveSupportSession(session, currentSessionId);
+  const result = await endAndRotate(storedSession, supportSession, {
+    eventType: "exited",
+    outcome: "exited",
+    requestId: normalizeRequestId(context.requestId),
+    now: normalizeNow(context.now),
+    reasonClass: "administrator_logout",
+    restoreSession: false,
+  });
+  return { ok: true, actorSession: result.actorSession };
+}
+
+async function readActiveSupportSession(session, currentSessionId) {
+  if (!session?.support_view?.supportSessionId) {
+    throw new AppError("Support View is not active.", 409);
+  }
+  const storedSession = await sessionsRepository.readById(currentSessionId);
+  if (!storedSession || storedSession.support_session_id !== session.support_view.supportSessionId) {
+    throw new AppError("The current support session changed. Sign in and try again.", 409);
+  }
+  const supportSession = await supportSessionsRepository.readById(storedSession.support_session_id);
+  if (!supportSession || supportSession.ended_at) {
+    throw new AppError("Support View is no longer active.", 409);
+  }
+  return { storedSession, supportSession };
 }
 
 async function resolveForRequest(storedSession, context = {}) {
@@ -206,23 +339,30 @@ async function endAndRotate(storedSession, supportSession, options) {
     ? await userWorkspacesRepository.readActiveForUser(actor.user_id)
     : [];
   const restoreWorkspaceId = chooseRestoreWorkspace(supportSession, activeMemberships);
-  const canRestore = Boolean(
+  const canRepresentActor = Boolean(
     actor
     && actor.user_status === "active"
     && restoreWorkspaceId
     && new Date(storedSession.expires_at).getTime() > options.now.getTime()
   );
-  let prepared = canRestore
-    ? prepareSessionRecord({
-      ...actor,
+  let actorSession = canRepresentActor
+    ? {
+      user_id: actor.user_id,
+      username: actor.username,
+      timezone: actor.timezone,
       home_workspace_id: actor.home_workspace_id || restoreWorkspaceId,
       active_workspace_id: restoreWorkspaceId,
+      workspace_id: restoreWorkspaceId,
       ip_address: storedSession.ip_address,
       session_mode: "normal",
-    }, { expiresAt: storedSession.expires_at })
+    }
+    : null;
+  let prepared = actorSession && options.restoreSession !== false
+    ? prepareSessionRecord(actorSession, { expiresAt: storedSession.expires_at })
     : null;
   if (supportSession.ended_at) {
     prepared = null;
+    actorSession = null;
   }
   const timestamp = options.now.toISOString();
 
@@ -247,6 +387,7 @@ async function endAndRotate(storedSession, supportSession, options) {
       }), transaction);
       if (!ended) {
         prepared = null;
+        actorSession = null;
       }
     }
     if (prepared) {
@@ -256,6 +397,7 @@ async function endAndRotate(storedSession, supportSession, options) {
   });
 
   return {
+    actorSession,
     session: prepared?.cookie || null,
     storedSession: prepared?.record || null,
   };
@@ -340,12 +482,93 @@ function toPublicSupportView(row) {
     supportSessionId: row.support_session_id,
     actorUserId: row.actor_user_id,
     actorUsername: row.actor_username,
+    actorLabel: displayLabel(row.actor_display_name, row.actor_username),
     effectiveUserId: row.effective_user_id,
     effectiveUsername: row.effective_username,
+    effectiveUserLabel: displayLabel(row.effective_display_name, row.effective_username),
     effectiveWorkspaceId: row.workspace_id,
+    effectiveWorkspaceName: row.workspace_name || "Workspace unavailable",
     startedAt: row.started_at,
     expiresAt: row.expires_at,
   };
+}
+
+async function assertOperator(session) {
+  if (!config.supportView.enabled) {
+    throw new AppError("Support View is disabled for this installation.", 403);
+  }
+  if (!session || session.session_mode !== "normal" || session.support_view) {
+    throw new AppError("Not found.", 404);
+  }
+  if (!(await permissionsService.isSuperAdmin(session))) {
+    throw new AppError("Support View is not available for this administrator.", 403);
+  }
+  await permissionsService.assertCan(session, "support_view.enter", {
+    operation: "read",
+    workspace_id: session.workspace_id,
+  });
+}
+
+function normalizeAuditFilters(filters, timezone, cutoffIso) {
+  return {
+    actorUserId: normalizeId(filters.actorUserId),
+    cutoffIso,
+    dateFrom: normalizeAuditDate(filters.dateFrom, timezone, "start"),
+    dateTo: normalizeAuditDate(filters.dateTo, timezone, "end"),
+    effectiveUserId: normalizeId(filters.effectiveUserId),
+    eventType: normalizeAuditChoice(filters.eventType, ["entered", "exited", "expired", "terminated", "action_attempt"]),
+    outcome: normalizeAuditChoice(filters.outcome, ["success", "expired", "revoked", "disabled", "allowed", "denied"]),
+    workspaceId: normalizeId(filters.workspaceId),
+  };
+}
+
+function normalizeAuditDate(value, timezone, edge) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized)
+    ? localDateBoundToUtcIso(normalized, timezone, edge)
+    : normalizeUtcIso(normalized, timezone);
+}
+
+function normalizeAuditChoice(value, allowed) {
+  const normalized = String(value || "").trim();
+  return allowed.includes(normalized) ? normalized : "";
+}
+
+function retentionCutoff(now = Date.now()) {
+  const timestamp = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  return new Date(timestamp - SUPPORT_VIEW_AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function toAuditEvent(row) {
+  return {
+    actionId: row.action_id || "",
+    actorLabel: displayLabel(row.actor_display_name, row.actor_username),
+    effectiveUserLabel: displayLabel(row.effective_display_name, row.effective_username),
+    eventType: row.event_type,
+    occurredAt: row.occurred_at,
+    outcome: row.outcome,
+    reasonClass: row.reason_class || "",
+    reasonReference: row.reason_reference,
+    routeId: row.route_id || "",
+    sessionOutcome: row.session_outcome,
+    workspaceName: row.workspace_name || "Workspace unavailable",
+  };
+}
+
+function displayLabel(displayName, username) {
+  return String(displayName || username || "User unavailable").trim();
+}
+
+function csvValue(value) {
+  const text = String(value ?? "");
+  const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
+  const quote = String.fromCharCode(34);
+  const needsQuotes = safeText.includes(",") || safeText.includes(quote)
+    || safeText.includes(String.fromCharCode(10)) || safeText.includes(String.fromCharCode(13));
+  return needsQuotes ? quote + safeText.split(quote).join(quote + quote) + quote : safeText;
 }
 
 function normalizeReasonReference(value) {
@@ -374,7 +597,11 @@ function normalizeNow(value) {
 }
 
 export const supportViewService = {
+  endForLogout,
   exit,
+  exportAuditCsv,
+  listAudit,
+  listTargets,
   recordAction,
   resolveForRequest,
   start,

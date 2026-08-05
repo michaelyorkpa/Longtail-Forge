@@ -2,48 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.30.3`.
+Active cursor: `0.33.31.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.30 - Read-Only Support View
-
-**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
-
-Purpose:
-
-Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
-
-Decision:
-
-The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
-
-Dependencies and baseline:
-
-- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.29 effective Notes security.
-- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
-- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
-
-Non-goals:
-
-- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
-- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
-- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
-
-### Version 0.33.30.3 - Support View UX, audit review, documentation, and closeout
-
-**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
-
-- [ ] Add an administrator-only entry flow with target user/workspace selection, current password, required reason/reference, explicit read-only warning, and visible expiry. Do not expose unavailable targets or use raw IDs as labels.
-- [ ] Display a persistent, accessible, non-dismissible Support View banner on every protected page naming the viewed user/workspace, identifying the administrator as the actor, showing remaining time, and providing one immediate Exit action. Restore focus and the actor's prior safe landing page after exit.
-- [ ] Hide/disable write controls for clarity while retaining server denial as authoritative. Present a stable explanation when a protected surface or action is unavailable, and never render a secret before hiding its control.
-- [ ] Add an append-only administrator audit view/filter for support sessions and attempted actions with bounded retention/export policy; Support View itself cannot open that administrative audit surface through the target identity.
-- [ ] Update authentication/session, permission, audit, operational-security, module-development, and Help documentation. Run permission, workspace-isolation, session, CSRF, route-declaration, secure-catalog, secret-exclusion, accessibility, and browser journey regressions plus canonical slice verification.
-
-Acceptance criteria:
-
-- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
 
 ## Version 0.33.31 - Public Demo Hardening and Hourly Reset
 

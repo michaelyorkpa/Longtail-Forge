@@ -86,9 +86,12 @@ async function getRequestSession(request) {
       supportSessionId: session.support_view.support_session_id,
       actorUserId: session.support_view.actor_user_id,
       actorUsername: session.support_view.actor_username,
+      actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
       effectiveUserId: session.support_view.effective_user_id,
       effectiveUsername: session.support_view.effective_username,
+      effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
       effectiveWorkspaceId: session.support_view.workspace_id,
+      effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
       startedAt: session.support_view.started_at,
       expiresAt: session.support_view.expires_at,
     };

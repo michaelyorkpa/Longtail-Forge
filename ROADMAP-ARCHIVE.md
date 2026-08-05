@@ -1,5 +1,45 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30 - Read-Only Support View
+
+Completed on 2026-08-05. The default-off Support View capability is now complete across durable actor/effective identity, central read-only and sensitive-data enforcement, administrator entry and exit, persistent browser state, bounded append-only audit review/export/retention, documentation, and focused plus canonical verification. The active cursor advanced to `0.33.31.1` for public-demo hardening.
+
+**Model: High Effort** — Acting as one identity while rendering another user's authorized perspective is a framework-wide security boundary spanning sessions, permissions, auditing, and every request path.
+
+Purpose:
+
+Give specifically authorized installation/platform support administrators a short-lived, read-only way to reproduce what an existing user can see without replacing the administrator's identity, granting the target new permissions, or enabling general impersonation.
+
+Decision:
+
+The authenticated administrator remains the actor for the entire session. A separate effective user and effective workspace shape permission-checked reads only. Support View is denied unless an install-level runtime gate is enabled and the actor has a dedicated support permission that ordinary workspace administrators never receive. The server rejects mutation; disabled buttons and hidden controls are only presentation.
+
+Dependencies and baseline:
+
+- Build on session rotation/expiry, current-password verification and throttling, the framework permission catalog, request context, structured audit/security events, and 0.33.29 effective Notes security.
+- Support Tickets (0.34) may later provide a selectable ticket ID, but this branch accepts a required bounded support reason/reference string and does not depend on Tickets.
+- Keep future SaaS staff authorization outside ordinary tenant/workspace roles; self-hosted operators can leave the feature disabled completely.
+
+Non-goals:
+
+- No write-capable impersonation, nested support sessions, automatic rollback-on-exit, generalized before/after JSON restoration, hidden support bypass, or workspace clone implementation.
+- No support access to secure catalogs/notes, credentials, API/OAuth tokens, authentication factors, recovery codes, payment secrets, raw exports/backups, or other protected secret material.
+- No narrowly scoped support command ships until a later demonstrated need receives its own permission, audit, and security review.
+
+### Version 0.33.30.3 - Support View UX, audit review, documentation, and closeout
+
+**Model: High Effort** — The UI must make the unusual identity state impossible to miss while preserving the server-enforced boundary and safe exit behavior.
+
+- [x] Added an administrator-only entry flow with active readable target user/workspace selection, current password, required bounded reason/reference, explicit read-only warning and confirmation, and visible expiry without raw-ID labels.
+- [x] Added a persistent accessible non-dismissible Support View banner on every protected page naming the viewed user/workspace and actor, showing remaining time, and providing immediate **End Support View** with safe landing and dynamically rendered heading-focus restoration. Settings **Log Out** ends the support state and authentication without restoring the administrator session or surfacing permission denial.
+- [x] Added shared presentation-only suppression for write-looking controls, including dynamically inserted controls, with a stable explanation while retaining the server gate and pre-render secret exclusion as authoritative.
+- [x] Added a normal-session-only Super Admin audit view with actor/target/workspace/event/outcome/date filters, bounded pagination, 1,000-row safe CSV export, and 365-day transactional retention. Support View receives generic not-found for the target catalog and audit surfaces.
+- [x] Updated authentication/session, permission, audit, operational-security, module-development, browser-test, Help, decision, and ownership documentation. Focused request/session regressions and the managed browser journey cover permission, workspace, session rotation, CSRF, route declaration, secure-catalog/secret exclusion, accessibility, and safe entry/end/logout/audit behavior; canonical slice verification completed.
+
+Acceptance criteria:
+
+- An authorized administrator can safely enter, inspect, and exit a time-bounded user perspective; the state is unmistakable, every action is attributable, no mutation or protected-secret read succeeds, and self-hosted operators can keep the feature entirely off.
+
 ## Version 0.33.30.2 - Server read-only enforcement and protected-data exclusions
 
 Completed on 2026-08-05. Support View now has one fail-closed server boundary that authorizes ordinary reads as the effective target, denies every mutation before protected route dispatch, omits sensitive and secure Notes/catalog data, and records each allowed or denied attempt with separate actor/target attribution. The protected GET/HEAD inventory has no undeclared routes, and the active cursor advanced to `0.33.30.3` for the unmistakable browser UX, audit review surface, and final branch closeout.

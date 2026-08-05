@@ -243,7 +243,7 @@
         "^src/core/private-feeds/",
         "^src/core/jobs/worker-process-lock\\.js$",
         "^src/middleware/(?:require-auth|support-view-request-gate)\\.js$",
-        "^src/routes/(?:auth|operational-health|private-feeds|users)\\.routes\\.js$",
+        "^src/routes/(?:auth|operational-health|private-feeds|support-view|users)\\.routes\\.js$",
         "^src/security/(?:auth-throttle|cookies|current-password-verification|password-events|passwords|session-records|sessions)\\.js$",
         "^src/repositories/(?:authentication-throttle|private-feed-tokens|support-sessions)\\.repo\\.js$",
         "^src/services/(?:auth|legal-content|private-feeds|support-view)\\.service\\.js$",
@@ -255,6 +255,7 @@
         "^scripts/regressions/framework/private-calendar-feed-authentication\\.regression\\.mjs$",
         "^scripts/regressions/framework/support-view-session-contract\\.regression\\.mjs$",
         "^scripts/regressions/framework/support-view-request-enforcement\\.regression\\.mjs$",
+        "^(?:public/js/(?:navigation|support-view|support-view-audit)\\.js|views/protected/support-view(?:-audit)?\\.html)$",
         "^docs/(?:Caddyfile\\.private-preview(?:\\.multi-proxy)?\\.example|nginx-wireguard\\.private-preview\\.example\\.conf|internet-deployment\\.md)$",
         "^SECURITY\\.md$"
       ],
