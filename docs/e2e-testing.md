@@ -35,6 +35,7 @@ By default the harness boots its own **managed, isolated server**:
 - `tests/e2e/support/start-e2e-server.mjs` wipes the harness-owned, git-ignored `data/e2e` directory, pins every runtime environment value the harness depends on (so a local `.env` can never redirect the managed server at real data), and boots the unchanged `server.js` entry point on dedicated local port **8101** — deliberately not the canonical dev port 8001, so the throwaway e2e database can never collide with the real dev server or its data.
 - The bootstrap seeds the super admin with a test-only password against that throwaway database. No real credential is committed or reused.
 - `tests/e2e/auth.setup.mjs` (a Playwright setup project) logs in once via `POST /api/login` and saves the authenticated `storageState` cookies to git-ignored `tests/e2e/.auth/`; the viewport projects consume it so protected surfaces are reachable.
+- The saved state carries one server-side session shared by every browser context that consumes it. A spec that logs out, changes credentials, or otherwise invalidates that session must create and dispose its own authenticated API/browser context from the harness credentials exported by `support/e2e-env.mjs`; cleanup that still needs administrator authority stays on the shared request fixture.
 
 ### Environment Variables
 
@@ -105,7 +106,7 @@ Shared surface paths and framework anatomy hooks live in `tests/e2e/support/surf
 2. Import shared surfaces/anatomy from `tests/e2e/support/surfaces.mjs` rather than redefining selectors.
 3. Keep selectors resilient: prefer stable framework anatomy hooks (module host `data-*` attributes, `.site-header`, `.nav-toggle`, `#primary-menu`) over text or positional selectors.
 4. Remember every untagged spec runs at both viewports. Use `{ tag: "@mobile" }` or `{ tag: "@desktop" }` when only one named project owns the test; use `isMobile` only when one deliberately shared test needs viewport-specific assertions.
-5. Specs run against the seeded authenticated session by default. Do not hard-code credentials in specs; the auth setup project owns login.
+5. Specs run against the seeded authenticated session by default. Do not hard-code credentials in specs; the auth setup project owns ordinary login. Session-invalidating coverage must use a separately authenticated context so it cannot log out the shared fixture.
 6. Do not let parallel viewport tests race over durable shared state. Isolate a required mutation to one project and restore it before the test finishes.
 7. Keep the suite small and high-signal. This is a smoke harness, not an E2E conversion of the regression suite.
 

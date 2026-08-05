@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { expectNoWcagViolations } from "./support/axe.mjs";
-import { E2E_PASSWORD, usesManagedServer } from "./support/e2e-env.mjs";
+import { E2E_PASSWORD, E2E_USERNAME, usesManagedServer } from "./support/e2e-env.mjs";
 
 const managedServerTest = usesManagedServer ? test : test.skip;
 
-managedServerTest("administrator can enter, inspect, end, and log out of an unmistakable read-only Support View", { tag: "@desktop" }, async ({ page, request }, testInfo) => {
+managedServerTest("administrator can enter, inspect, end, and log out of an unmistakable read-only Support View", { tag: "@desktop" }, async ({ browser, playwright, request }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL || "");
   const username = `support-view-target-${Date.now()}@longtailforge.local`;
   const reasonReference = `E2E support review ${Date.now()}`;
   const createResponse = await request.post("/api/users", {
@@ -16,8 +17,25 @@ managedServerTest("administrator can enter, inspect, end, and log out of an unmi
   });
   expect(createResponse.status()).toBe(201);
   const created = await createResponse.json();
+  let isolatedContext = null;
+  let loginRequest = null;
+  let page = null;
 
   try {
+    loginRequest = await playwright.request.newContext({ baseURL });
+    const loginResponse = await loginRequest.post("/api/login", {
+      data: {
+        username: E2E_USERNAME,
+        password: E2E_PASSWORD,
+      },
+    });
+    expect(loginResponse.status()).toBe(200);
+    isolatedContext = await browser.newContext({
+      baseURL,
+      storageState: await loginRequest.storageState(),
+      viewport: { width: 1920, height: 1080 },
+    });
+    page = await isolatedContext.newPage();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/dashboard.html");
     await page.goto("/support-view.html");
@@ -112,11 +130,15 @@ managedServerTest("administrator can enter, inspect, end, and log out of an unmi
     await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login.html");
     await expect(page.locator("[data-support-view-banner]")).toHaveCount(0);
   } finally {
-    const exitButton = page.getByRole("button", { name: "End Support View" });
-    if (await exitButton.count()) {
-      await exitButton.click();
-      await expect(page.locator("[data-support-view-banner]")).toHaveCount(0);
+    if (page) {
+      const exitButton = page.getByRole("button", { name: "End Support View" });
+      if (await exitButton.count()) {
+        await exitButton.click();
+        await expect(page.locator("[data-support-view-banner]")).toHaveCount(0);
+      }
     }
-    await page.request.delete(`/api/users/${created.user.user_id}`);
+    await request.delete(`/api/users/${created.user.user_id}`);
+    await isolatedContext?.close();
+    await loginRequest?.dispose();
   }
 });
