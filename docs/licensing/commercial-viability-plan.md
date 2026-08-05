@@ -57,7 +57,7 @@ Purpose: build credibility, adoption, trust, feedback, and proof that the app is
 
 Must have before public release:
 
-- tested Docker Compose install/deploy/upgrade/backup/restore and migration-aware restored rollback flow on every supported native container architecture; direct Node/systemd production support and an in-app updater are not required for the initial release lane;
+- tested Docker Compose install/deploy/upgrade/backup/restore and migration-aware restored rollback flow on every supported native container architecture; direct Node/systemd operation is unsupported for production and has no parallel release gate, while an in-app updater is not required for the initial release lane;
 - clear SQLite/Postgres support statement;
 - backup/restore documentation;
 - admin/bootstrap documentation;

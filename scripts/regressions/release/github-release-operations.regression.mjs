@@ -29,8 +29,8 @@ const [development, promotion, nightly, mainRelease, manualImageCandidate, manua
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
   read("scripts/release/deploy-via-ssh.mjs"),
-  read("scripts/release/longtail-forge-deploy-host.example"),
-  read("docs/longtail-forge-deploy-helper.env.example"),
+  read("scripts/release/longtail-forge-compose-deploy-host.example"),
+  read("docs/longtail-forge-compose-deploy-helper.env.example"),
   read(".gitattributes"),
   read("src/routes/app-info.routes.js"),
   read("src/config.js"),
@@ -83,17 +83,10 @@ assert.match(
 
 assert.match(nightly, /push:[\s\S]*branches: \[nightly\]/);
 assert.match(nightly, /schedule:[\s\S]*cron:/);
-assert.match(nightly, /environment: demo-development/);
-assert.match(
-  nightly,
-  /name: Deploy demo development[\s\S]*github\.event_name == 'push'[\s\S]*needs\.classify_changes\.outputs\.github_only_docs != 'true'/,
-);
-assert.match(nightly, /name: GitHub-only docs - no deployment/);
-assert.match(nightly, /DEPLOY_ENABLED/);
-assert.match(nightly, /DEPLOY_TRANSPORT/);
-assert.match(nightly, /test "\$DEPLOY_TRANSPORT" = "ssh-root-owned-host-helper"/);
+assert.match(nightly, /name: GitHub-only docs - no runtime artifact/);
 assert.match(nightly, /release-metadata\.json/);
-assert.match(nightly, /deploy-via-ssh/);
+assert.match(nightly, /name: Publish exact-SHA nightly proof/);
+assert.doesNotMatch(nightly, /environment: demo-development|DEPLOY_ENABLED|DEPLOY_TRANSPORT|deploy-via-ssh/);
 assert.doesNotMatch(nightly, /friends-and-family-preview/);
 
 assert.match(mainRelease, /push:[\s\S]*branches: \[main\]/);
@@ -170,8 +163,6 @@ assert.equal((dependabot.match(/target-branch: nightly/g) || []).length, 3);
 for (const requirement of [
   /GitHub-owned SHA-pinned Actions policy/,
   /sha_pinning_required: true/,
-  /demo-development/,
-  /demo-development environment and nightly-only Compose transition policy/,
   /friends-and-family-preview/,
   /required_approving_review_count: 0/,
   /required_conversation_resolution: true/,
@@ -187,44 +178,33 @@ for (const requirement of [
   /BatchMode=yes/,
   /UserKnownHostsFile=/,
   /sudo/,
+  /compose-deploy/,
+  /compose-rollback/,
   /healthz/,
   /readyz/,
   /commitSha/,
   /artifactSha256/,
 ]) assert.match(deployScript, requirement);
 for (const requirement of [
-  /backup_current/,
-  /restore_backup/,
-  /chmod 0711 "\$DEPLOY_ROOT"/,
-  /chmod 0700 "\$BACKUP_ROOT"/,
+  /backup_with_state/,
+  /restore_with_state/,
+  /install -d -o root -g root -m 0711 "\$DEPLOY_ROOT"/,
+  /install -d -o 10001 -g 10001 -m 0700 "\$BACKUP_ROOT"/,
   /install -d -o "\$DEPLOY_ACCOUNT" -g "\$DEPLOY_ACCOUNT" -m 0700 "\$INBOX"/,
-  /chmod -R a-w/,
-  /APP_ACCOUNT="\$\{LTF_APP_ACCOUNT:-longtail-forge\}"/,
-  /chown -R -h "\$APP_ACCOUNT:\$APP_GROUP" "\$DATA_ROOT"/,
-  /runtime data root must be a real directory/,
-  /runtime Files root must not be a symbolic link/,
-  /runtime database paths must not be symbolic links/,
-  /chmod 0700 "\$DATA_ROOT"/,
-  /chmod 0700 "\$DATA_ROOT\/files"/,
-  /chmod 0600 "\$database_path"/,
-  /operation_recovery_backup="\$BACKUP_ROOT\/pre-rollback-\$operation_id\.ltfbackup\.tgz"/,
-  /recover_current_from_rollback_backup/,
-  /restore_backup "\$current_dir" "\$operation_recovery_backup"/,
-  /inspect_identity "\$current_identity"/,
+  /resolved Compose application posture is not the reviewed non-root read-only loopback contract/,
+  /automated deployment requires the recorded known-good Compose baseline/,
   /pre-rollback current release and data were restored and verified/,
   /LONGTAIL_RELEASE_COMMIT/,
   /LONGTAIL_RELEASE_ARTIFACT_SHA256/,
   /LONGTAIL_RELEASE_BRANCH/,
-  /recorded previous known-good release/,
-  /HELPER_ENV="\$\{LTF_HELPER_ENV:-\/etc\/longtail-forge\/deploy-helper\.env\}"/,
-  /stat -c '%u %a'/,
-  /helper environment must not be group- or other-writable/,
-  /helper environment parent must not be group- or other-writable/,
-  /helper environment contains unsupported key/,
-  /helper environment contains duplicate key/,
+  /HELPER_ENV="\$\{LTF_COMPOSE_HELPER_ENV:-\/etc\/longtail-forge\/compose-deploy-helper\.env\}"/,
+  /compose helper environment contains unsupported key/,
+  /compose helper environment contains duplicate key/,
+  /only protected main release metadata is accepted/,
+  /image reference must be digest-addressed/,
 ]) assert.match(hostHelper, requirement);
 assert.doesNotMatch(hostHelper, /chmod 0700 "\$DEPLOY_ROOT"/, "the deployment account must be able to traverse the root-owned parent to its private inbox");
-assert.match(attributes, /^scripts\/release\/longtail-forge-deploy-host\.example text eol=lf$/m);
+assert.match(attributes, /^scripts\/release\/longtail-forge-compose-deploy-host\.example text eol=lf$/m);
 assert.match(helperEnvironment, /LTF_PUBLIC_URL=https:\/\/preview\.example\.com/);
 assert.match(helperEnvironment, /root:root ownership and mode 0600/);
 assert.doesNotMatch(helperEnvironment, /LONGTAIL_SECURE_NOTES_MASTER_KEY|PASSWORD=|TOKEN=/);

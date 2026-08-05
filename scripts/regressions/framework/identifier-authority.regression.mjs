@@ -35,7 +35,6 @@ const FRAMEWORK_RECORD_CALLS = Object.freeze({
 const FRAMEWORK_OPAQUE_CALLS = Object.freeze({
   "scripts/lib/backup-archive.mjs": 2,
   "scripts/lib/demo-data-operation.mjs": 1,
-  "scripts/release/longtail-forge-deploy-host.example": 2,
   "src/core/files/local-storage-adapter.js": 1,
   "src/core/files/s3-storage-adapter.js": 1,
   "src/core/request-context.js": 1,

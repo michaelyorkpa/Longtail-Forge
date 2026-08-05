@@ -19,58 +19,28 @@ try {
   const sshArgs = ["-i", keyPath, "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`, "-p", String(config.port)];
   const destination = `${config.user}@${config.host}`;
 
-  if (options.mode === "deploy") {
-    const artifact = path.resolve(options.artifact);
-    const metadata = path.resolve(options.metadata);
-    for (const filePath of [artifact, `${artifact}.sha256`, metadata]) await fs.access(filePath);
-    run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), artifact, `${artifact}.sha256`, metadata, `${destination}:${config.inbox}/`]);
-    const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
-    run("ssh", [...sshArgs, destination, remoteCommand(config.helper, [
-      "deploy",
-      "--artifact", path.basename(artifact),
-      "--metadata", path.basename(metadata),
-      "--expected-version", metadataJson.version,
-      "--expected-source-branch", metadataJson.sourceBranch,
-      "--expected-commit", metadataJson.commitSha,
-      "--expected-sha256", metadataJson.artifact.sha256,
-    ])]);
-    await verifyPublic(config.publicUrl, metadataJson);
-    console.log(JSON.stringify({ ok: true, mode: "deploy", version: metadataJson.version, commitSha: metadataJson.commitSha, artifactSha256: metadataJson.artifact.sha256 }));
-    process.exit(0);
+  const metadata = path.resolve(options.metadata);
+  await fs.access(metadata);
+  const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
+  const identity = validatePublishedReleaseMetadata(metadataJson);
+  run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), metadata, `${destination}:${config.composeInbox}/`]);
+  const helperMode = options.mode === "compose-deploy" ? "deploy" : "rollback";
+  const helperOutput = run("ssh", [...sshArgs, destination, remoteCommand(config.composeHelper, [
+    helperMode,
+    "--metadata", path.basename(metadata),
+    "--expected-version", identity.version,
+    "--expected-source-branch", "main",
+    "--expected-commit", identity.commitSha,
+    "--expected-artifact-sha256", identity.artifactSha256,
+    "--expected-image-digest", identity.digest,
+    "--expected-platform-manifest-digest", identity.platformManifestDigest,
+  ])]);
+  const helperResult = parseHelperResult(helperOutput);
+  if (helperResult.imageDigest !== identity.digest || helperResult.commitSha !== identity.commitSha) {
+    throw new Error("Compose host helper result does not match the selected immutable image identity.");
   }
-
-  if (options.mode === "compose-deploy" || options.mode === "compose-rollback") {
-    const metadata = path.resolve(options.metadata);
-    await fs.access(metadata);
-    const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
-    const identity = validatePublishedReleaseMetadata(metadataJson);
-    run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), metadata, `${destination}:${config.composeInbox}/`]);
-    const helperMode = options.mode === "compose-deploy" ? "deploy" : "rollback";
-    const helperOutput = run("ssh", [...sshArgs, destination, remoteCommand(config.composeHelper, [
-      helperMode,
-      "--metadata", path.basename(metadata),
-      "--expected-version", identity.version,
-      "--expected-source-branch", "main",
-      "--expected-commit", identity.commitSha,
-      "--expected-artifact-sha256", identity.artifactSha256,
-      "--expected-image-digest", identity.digest,
-      "--expected-platform-manifest-digest", identity.platformManifestDigest,
-    ])]);
-    const helperResult = parseHelperResult(helperOutput);
-    if (helperResult.imageDigest !== identity.digest || helperResult.commitSha !== identity.commitSha) {
-      throw new Error("Compose host helper result does not match the selected immutable image identity.");
-    }
-    await verifyPublic(config.publicUrl, metadataJson);
-    console.log(JSON.stringify({ ok: true, mode: options.mode, ...identity }));
-    process.exit(0);
-  }
-
-  run("ssh", [...sshArgs, destination, remoteCommand(config.helper, ["rollback", "--expected-commit", options.revision])]);
-  const appInfo = await readJson(`${config.publicUrl}/api/app-info`);
-  if (appInfo.commitSha !== options.revision) throw new Error("Rollback target commit does not match /api/app-info.");
-  await requireOk(`${config.publicUrl}/healthz`, "ok");
-  await requireOk(`${config.publicUrl}/readyz`, "ready");
-  console.log(JSON.stringify({ ok: true, mode: "rollback", commitSha: appInfo.commitSha, version: appInfo.version, sourceBranch: appInfo.sourceBranch, artifactSha256: appInfo.artifactSha256 }));
+  await verifyPublic(config.publicUrl, metadataJson);
+  console.log(JSON.stringify({ ok: true, mode: options.mode, ...identity }));
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
@@ -79,7 +49,7 @@ function parseArgs(args) {
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (["--mode", "--artifact", "--metadata", "--revision"].includes(arg)) {
+    if (["--mode", "--metadata"].includes(arg)) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
       options[arg.slice(2)] = value;
@@ -88,12 +58,8 @@ function parseArgs(args) {
     }
     throw new Error(`Unknown SSH deployment argument: ${arg}`);
   }
-  if (!/^(deploy|rollback|compose-deploy|compose-rollback)$/.test(options.mode || "")) throw new Error("--mode must be deploy, rollback, compose-deploy, or compose-rollback.");
-  if (options.mode === "deploy" && (!options.artifact || !options.metadata)) throw new Error("Deploy mode requires --artifact and --metadata.");
-  if (options.mode === "rollback" && !/^[a-f0-9]{40}$/i.test(options.revision || "")) throw new Error("Rollback mode requires --revision as a full commit SHA.");
-  if ((options.mode === "compose-deploy" || options.mode === "compose-rollback") && !options.metadata) {
-    throw new Error("Compose deploy and rollback modes require --metadata.");
-  }
+  if (!/^(compose-deploy|compose-rollback)$/.test(options.mode || "")) throw new Error("--mode must be compose-deploy or compose-rollback.");
+  if (!options.metadata) throw new Error("Compose deploy and rollback modes require --metadata.");
   return options;
 }
 
@@ -104,9 +70,7 @@ function readConfig(env) {
     user: env.LTF_DEPLOY_USER,
     privateKey: env.LTF_DEPLOY_SSH_PRIVATE_KEY,
     knownHosts: env.LTF_DEPLOY_KNOWN_HOSTS,
-    inbox: env.LTF_DEPLOY_INBOX || "/var/lib/longtail-forge-deploy/inbox",
     composeInbox: env.LTF_COMPOSE_DEPLOY_INBOX || "/var/lib/longtail-forge-compose-deploy/inbox",
-    helper: env.LTF_DEPLOY_HELPER || "/usr/local/sbin/longtail-forge-deploy",
     composeHelper: env.LTF_COMPOSE_DEPLOY_HELPER || "/usr/local/sbin/longtail-forge-compose-deploy",
     publicUrl: String(env.LTF_DEPLOY_PUBLIC_URL || "").replace(/\/$/, ""),
   };
@@ -116,9 +80,7 @@ function readConfig(env) {
   if (!/^[a-zA-Z0-9.-]+$/.test(values.host)) throw new Error("Deployment host contains unsupported characters.");
   if (!/^[a-z_][a-z0-9_-]*$/i.test(values.user)) throw new Error("Deployment user contains unsupported characters.");
   if (!Number.isInteger(values.port) || values.port < 1 || values.port > 65535) throw new Error("Deployment port is invalid.");
-  if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.inbox) || values.inbox.includes("..")) throw new Error("Deployment inbox must be a safe absolute path.");
   if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.composeInbox) || values.composeInbox.includes("..")) throw new Error("Compose deployment inbox must be a safe absolute path.");
-  if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.helper) || values.helper.includes("..")) throw new Error("Deployment helper must be a safe absolute path.");
   if (!/^\/[a-zA-Z0-9._/-]+$/.test(values.composeHelper) || values.composeHelper.includes("..")) throw new Error("Compose deployment helper must be a safe absolute path.");
   const url = new URL(values.publicUrl);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw new Error("Deployment public URL must be a clean HTTPS origin.");

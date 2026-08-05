@@ -1,3 +1,13 @@
+## Version 0.33.28.5 - 2026-08-05
+
+- Made Docker Compose the sole maintained production/self-hosted lifecycle after the successful live replacement observation period. Direct Node/systemd operation remains available for development, testing, and advanced experimentation but is explicitly unsupported for production installation, upgrade, rollback, or recovery.
+- Retired `bare-metal:smoke` and its promotion aggregation, the systemd service example, the root-owned direct-artifact deploy/upgrade/rollback helper, the initial cutover helper, Nightly host deployment, retired helper environments, and their production-only regression assertions.
+- Kept the checksummed runtime artifact and `artifact:smoke` as controlled image-payload proof, preserved native Linux dependency and container lifecycle gates, and constrained the SSH handoff to metadata-only Compose deploy/rollback by exact published digest.
+- Replaced the retired privileged bare-metal state-machine fixture with focused Compose marker/recovery-order and retirement guardrails. Nightly artifacts are now integration and promotion evidence only and no longer claim a supported host-deployment lane.
+- Confirmed both `rt-ltf` and `rt-ltf-demo` still run the immutable protected-main Compose candidate (`c1ce4538b17cfcfffdab372bdfe31ae990d65827`, image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`) while the former systemd unit is inactive and disabled. Retained backups, Secure Notes recovery material, historical releases, and operation records remain private evidence rather than a supported fallback runtime.
+- Docs updated: `README.md`, `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/backup-restore.md`, `docs/database.md`, `docs/development/github-workflow.md`, `docs/docs-ownership.json`, `docs/internet-deployment.md`, `docs/licensing/commercial-viability-plan.md`, `docs/longtail-forge-compose-deploy-helper.env.example`, `docs/preview-deployment.md`, `docs/private-preview-readiness.md`, `docs/regression-suite.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/self-hosting.md`, `docs/upgrading.md`, `docs/versioning.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: development/demo-data behavior, security posture, database binding, identifier authority, workspace recovery, and module/user workflows are unchanged; their existing owning documents remain accurate.
+
 ## Version 0.33.28.4 - 2026-08-04
 
 - Replaced both retained bare-metal preview/demo runtimes with the supported native `linux/amd64` Compose path while keeping every prior service definition, release, environment, data tree, backup, helper, and recovery record stopped but recoverable through the observation period.

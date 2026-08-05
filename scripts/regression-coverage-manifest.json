@@ -3712,16 +3712,17 @@
     },
     {
       "area": "release",
-      "description": "Proves privileged deploy and rollback operations keep Caddy active, retain protected recovery evidence, and reopen only after exact verification.",
+      "description": "Proves Compose deploy and rollback keep the reviewed maintenance curtain active, retain whole-state recovery evidence, and reopen only after exact immutable verification.",
       "id": "release.deploy-maintenance-curtain",
       "legacy": false,
       "path": "scripts/regressions/release/deploy-maintenance-curtain.regression.mjs",
       "releaseGate": true,
       "runMode": "static",
       "tags": [
-        "bare-metal",
+        "compose",
         "deployment",
         "maintenance",
+        "recovery",
         "security"
       ],
       "tier": "release-gate"
@@ -3825,18 +3826,17 @@
     },
     {
       "area": "release",
-      "description": "Proves the initial Compose cutover preserves the bare-metal recovery path and establishes the constrained digest baseline safely.",
+      "description": "Proves the completed live Compose cutover retired bare-metal production support without weakening the immutable digest deployment and recovery contract.",
       "id": "release.live-compose-cutover",
       "legacy": false,
       "path": "scripts/regressions/release/live-compose-cutover.regression.mjs",
       "releaseGate": true,
       "runMode": "static",
       "tags": [
-        "backup",
         "compose",
-        "cutover",
         "deployment",
         "recovery",
+        "retirement",
         "security"
       ],
       "tier": "release-gate"
@@ -3928,14 +3928,13 @@
     },
     {
       "area": "release",
-      "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready while bare-metal remains transition-only.",
+      "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
       "id": "release.preview-deployment-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
       "releaseGate": true,
       "runMode": "static",
       "tags": [
-        "bare-metal",
         "container",
         "deployment",
         "docker",

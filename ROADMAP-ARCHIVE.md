@@ -1,5 +1,23 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.28.5 - Bare-metal production-support retirement, documentation, and closeout
+
+Completed on 2026-08-05 after both supported hosts completed their Compose observation period. `rt-ltf` and `rt-ltf-demo` continue to run the immutable `0.33.28.3-main` Compose release while the former systemd services are inactive and disabled; required backups, Secure Notes recovery material, historical releases, and operation records remain retained as private evidence. Repository production support is now Compose-only, and the active cursor advanced to `0.33.29.1`.
+
+**Model: High Effort** — This removed a security- and recovery-sensitive production contract only after its replacement was live, while preserving development access and the controlled artifact payload the image still requires.
+
+- [x] Confirmed the successful replacement observation on both live hosts: the `longtail-forge` Compose project is running, the former `longtail-forge` systemd unit is inactive and disabled, and public health, readiness, and `/api/app-info` remain bound to protected-main commit `c1ce4538b17cfcfffdab372bdfe31ae990d65827` and immutable image index `sha256:6ae3294d86f5612f96466feccebcfb016f9eb510fb0f7c1debd21d5c2827e8fd`.
+- [x] Retired `bare-metal:smoke`, its promotion aggregation, the systemd example, root-owned direct-artifact deploy/upgrade/rollback helper, first-cutover helper, Nightly host deployment, helper environments, runtime-artifact allowlist entry, and production-only assertions. Preserved the constrained metadata-only SSH transport for Compose deploy and rollback by immutable published digest.
+- [x] Kept `npm install`, `npm start`, and direct Node execution for development, testing, and advanced unsupported experimentation. Retained the controlled runtime artifact, `artifact:smoke`, native Linux dependency proof, image build, `container:smoke`, Compose lifecycle helper, and release gates.
+- [x] Rewrote the governing self-hosting, production, release, workflow, upgrade, backup/recovery, runtime-artifact, versioning, public-edge, readiness, README, database-native-dependency, and commercial packaging documentation around the sole supported Compose lifecycle.
+- [x] Kept operator responsibility explicit for DNS, TLS, firewalling, durable storage, backup retention/export/restore, malware scanning, secrets, monitoring, Secure Notes recovery keys, and disaster-recovery decisions.
+- [x] Replaced the retired bare-metal state-machine fixture with focused static retirement and Compose marker/recovery-order guardrails while retaining the complete container lifecycle owner. Refreshed release workflow assertions and the generated regression inventory.
+- [x] Ran `npm run docs:suggest`; updated `DECISIONS.md`, `CHANGELOG.md`, and the owning docs; advanced only through `npm run version:bump -- 0.33.28.5`; proved local runtime identity; and ran `npm run verify:slice` exactly once at final local closeout.
+
+Acceptance criteria:
+
+- Docker Compose is the sole documented and release-gated production/self-hosted deployment; direct Node/systemd is explicitly unsupported; controlled artifact and container proof remain; bare-metal-specific production code, gates, examples, procedures, and promises are retired after successful live replacement; retained host evidence remains protected; and invitations or announcement remain a separate readiness decision.
+
 ## Version 0.33.28.4 - Live Compose cutover and replacement-gate proof
 
 Completed live on 2026-08-04. Both supported native `linux/amd64` hosts now run the verified immutable Compose candidate behind their reviewed public edges, while every prior bare-metal release, service definition, environment, data tree, backup, helper, and recovery record remains retained. The active cursor advanced to `0.33.28.5`, whose retirement work remains gated on a successful observation period.
