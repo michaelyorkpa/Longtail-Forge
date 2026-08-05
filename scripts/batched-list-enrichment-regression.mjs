@@ -76,7 +76,7 @@ try {
   assert.equal(counters.clientsReadById || 0, 0, "Lists linked client targets should not be read one at a time");
   assert.equal(counters.clientsReadByIds || 0, 1, "Lists linked client targets should use one batch read");
   assert.equal(counters.projectsReadById || 0, 0, "Lists linked project targets should not be read one at a time");
-  assert.equal(counters.projectsReadByIds || 0, 1, "Lists linked project targets should use one batch read");
+  assert.equal(counters.projectsReadByIds || 0, 2, "Lists linked project targets and canonical Notes context authorization should each use one bounded batch read");
   assert.equal(counters.tasksReadById || 0, 0, "Lists linked task targets should not be read one at a time");
   assert.equal(counters.tasksReadByIds || 0, 1, "Lists linked task targets should use one batch read");
   assert.equal(counters.notesReadById || 0, 0, "Lists linked note targets should not be read one at a time");
@@ -100,6 +100,7 @@ function assertStaticContracts() {
   assert.match(tasksRepoSource, /readAssigneesForTasks\([\s\S]*taskRows\.map\(\(task\) => task\.task_id\)/, "Tasks assignee labels should remain batch-read for list rows");
   assert.match(notesServiceSource, /createVisibleRecordBatch\(notes, \{ idField: "note_id" \}\)/, "Notes list access should use the shared visible-record batch helper");
   assert.match(notesServiceSource, /groupRowsByRecordId\(links, \{ idField: "note_id" \}\)/, "Notes linked-context access should use shared batch grouping");
+  assert.match(notesServiceSource, /createLinkedContextAccessCache\(session, notes, linksByNoteId\)/, "Notes linked-context authorization should prefetch visible context targets in bounded batches");
   assert.match(listsRepoSource, /async function listItemsForLists/, "Lists repository should batch item reads for visible lists");
   assert.match(listsRepoSource, /async function listLinksForLists/, "Lists repository should batch link reads for visible lists");
   assert.match(listsRepoSource, /async function readByIds/, "Lists repository should batch source-list reads");

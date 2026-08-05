@@ -72,7 +72,7 @@ async function assertStaticContracts() {
   assert.match(notesScript, /data-note-notification-toggle/, "Notes editor should expose a heading notification toggle hook");
   assert.match(notesScript, /action: "follow-note-notifications"[\s\S]*icon: "bell"[\s\S]*iconOnly: true[\s\S]*label: "Follow note notifications"[\s\S]*text: ""[\s\S]*title: "Follow note notifications"/, "Notes follow bell should be icon-only like the Task follow bell");
   assert.match(notesScript, /notificationToggle\?\.addEventListener\("click", toggleNoteNotificationFollow\)/, "Notes bell should use a Notes-owned toggle handler");
-  assert.match(notesScript, /function writeNoteNotificationFollowFields\(note\)[\s\S]*note\?\.security_mode !== "secure"[\s\S]*subscriptions\.readStatus\(subscriptions\.noteTarget\(noteId\)\)/, "Notes bell should be saved-note and non-secure only");
+  assert.match(notesScript, /function writeNoteNotificationFollowFields\(note\)[\s\S]*!isSecureNote\(note\)[\s\S]*subscriptions\.readStatus\(subscriptions\.noteTarget\(noteId\)\)/, "Notes bell should be saved-note and effectively non-secure only");
   assert.match(notesScript, /function toggleNoteNotificationFollow\(\)[\s\S]*subscriptions\.noteTarget\(noteId\)[\s\S]*subscriptions\.unfollow\(target\)[\s\S]*subscriptions\.follow\(target\)/, "Notes bell should call the shared follow APIs");
   assert.doesNotMatch(notesScript, /dataset\.noteDialogClose/, "Notes editor should not keep the duplicate top Close button");
   assert.doesNotMatch(notesScript, /document\.querySelector\("\[data-note-dialog-close\]"\)/, "Notes editor should not query a removed top Close button");
@@ -81,7 +81,8 @@ async function assertStaticContracts() {
   assert.match(notesModuleEventsSource, /notificationEvents:\s*\[[\s\S]*id: "note\.updated"[\s\S]*id: "note\.archived"[\s\S]*id: "note\.restored"[\s\S]*id: "note\.linked"[\s\S]*id: "note\.unlinked"/, "Notes should declare meaningful notification events");
   assert.match(notesModuleEventsSource, /suppressActorSubscriptions: true/, "Notes notification events should suppress followed-note notifications for the acting user");
   assert.match(notesModuleEventsSource, /notificationFollowTargets:\s*\[[\s\S]*targetType: "note"[\s\S]*eventTypes: \[[\s\S]*"note\.updated"[\s\S]*"note\.unlinked"/, "Notes should declare note as a followable notification target");
-  assert.match(notificationServiceSource, /function readNoteTargetMetadata\(notification, session, baseMetadata\)[\s\S]*notesService\.read\(notification\.record_id, session\)/, "Notification target metadata should re-check note access");
+  assert.match(notificationServiceSource, /function readNoteTargetMetadata\(notification, session, baseMetadata\)[\s\S]*notesService\.readConsumerSummary\([\s\S]*"notes\.notifications"/, "Notification target metadata should re-check note access through the effective-security consumer policy");
+  assert.match(notificationServiceSource, /Protected or unavailable note/, "Inaccessible or effectively secure note notifications should not retain stale titles");
   assert.match(notificationServiceSource, /suppressActorSubscriptions === true[\s\S]*suppressActorRecipients\(rawSubscribedRecipients, event\)/, "Notification service should honor event-level subscription actor suppression");
   assert.match(notificationServiceSource, /function isNotificationSuppressed\(event\)[\s\S]*suppress_notifications/, "Notification service should let module events suppress notification delivery");
   assert.match(manifestContract, /optionalBoolean\(item, "suppressActorSubscriptions"/, "Manifest contract should document subscription actor suppression");

@@ -2,47 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.29.3`.
+Active cursor: `0.33.30.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.29 - Secure Notes Catalog Policy and Inherited Protection
-**Model: High Effort** — Catalog-level authorization, encryption transitions, search suppression, and non-exposure across every Notes consumer carry security and data-integrity risk.
-
-Purpose:
-
-Make a Notes catalog a first-class security boundary. A secure catalog protects every note in its subtree without using tags as authorization and without copying an ordinary security flag onto every child while it remains inside that protected tree.
-
-Decision:
-
-Notes owns one effective-security calculation: a note is secure when it has explicit note-level security or when its current catalog or any ancestor catalog has an active secure policy. A secure ancestor always wins; a child catalog cannot weaken it. Effective security drives authorization, encrypted-at-rest body/revision handling, shaping, and every downstream consumer. Catalog membership is never itself permission to read secure content.
-
-Dependencies and baseline:
-
-- Build on the existing `notes.security_mode`, secure-note permissions, encrypted payload/revision path, `note_library_collections` hierarchy, Notes access policy, and framework audit/event contracts.
-- Preserve the current rule that secure Notes content and attachments do not enter normal Files, Search, notification, public API, resume-context, or export flows without an explicitly designed secure equivalent.
-- Land before Support View (0.33.30), which must consume the same effective-security decision and exclude secure catalogs and their contents unconditionally.
-
-Non-goals:
-
-- Do not represent security as a tag, visibility value, naming convention, client-side filter, or copied catalog label.
-- Do not add sharing links, external recipients, field-level encryption, secure file attachments, or a generic policy engine.
-- Do not silently decrypt or expose notes when a note/catalog is moved or a catalog policy is weakened.
-
-### Version 0.33.29.3 - Consumer enforcement, management UI, and closeout
-
-**Model: High Effort** — The security boundary is only complete when every existing and declared future Notes consumer shares the same non-exposure rule.
-
-- [ ] Route Notes list/detail/title shaping, attachments, previews, revisions, backlinks/wiki links, activity/events, notifications, Search/index jobs, resume state/Workbench, exports, browser/public APIs, and connector/provider declarations through the effective-security policy. Secure titles, counts, existence, and relationship labels must not leak to unauthorized callers.
-- [ ] Keep effectively secure notes out of normal search documents, notification payloads, excerpts, public APIs, exports, and future indexing/AI/provider catalogs; add a source/manifest guardrail so a new Notes consumer must declare and test secure-content behavior.
-- [ ] Add catalog management UI that clearly shows inherited versus explicit secure policy, prevents a child override under a secure ancestor, explains transition/failure state without exposing content, and keeps downgrade separate from ordinary edit/move controls.
-- [ ] Record catalog policy enable/complete/failure, subtree-preservation, and explicit downgrade events without note bodies, keys, plaintext, or secret metadata. Update Notes, security, module-contract, Help, and operator recovery documentation.
-- [ ] Add permission, workspace-isolation, search, Files, notification, API, export, hierarchy, and encryption regressions; expose a fail-closed policy assertion that 0.33.30 can exercise when Support View lands. Run the canonical slice verification and confirm database integrity.
-
-Acceptance criteria:
-
-- Secure catalog contents are encrypted and authorization-protected everywhere the product can surface Notes data, their existence does not leak to unauthorized consumers or Support View, and operators have a tested recovery path for interrupted conversion.
 
 ## Version 0.33.30 - Read-Only Support View
 

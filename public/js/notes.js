@@ -2495,7 +2495,7 @@ async function writeNoteNotificationFollowFields(note) {
   }
 
   const noteId = note?.note_id || "";
-  const canEmitNotifications = note?.security_mode !== "secure";
+  const canEmitNotifications = !isSecureNote(note);
   const subscriptions = window.LongtailForge?.notificationSubscriptions;
   const canToggleNotifications = Boolean(noteId && canEmitNotifications && subscriptions?.noteTarget);
   writeNoteNotificationFollowState(false);
@@ -4643,7 +4643,7 @@ function providerDisplayLabel(...values) {
 }
 
 function isSecureNote(note) {
-  return note?.security_mode === "secure";
+  return note?.effective_security_mode === "secure" || note?.security_mode === "secure";
 }
 
 function isSecureEditorMode() {

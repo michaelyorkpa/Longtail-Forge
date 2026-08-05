@@ -9,6 +9,8 @@ const view = window.LongtailForge.view;
 
 const state = {
   catalogs: [],
+  canManageSecurity: false,
+  refreshTimer: null,
   selectedCatalogIds: new Set(),
   statusFilter: "all",
 };
@@ -60,10 +62,12 @@ async function loadNotesSettings() {
 async function loadCatalogs() {
   const result = await api.getJson("/api/notes/settings/catalogs", { cache: "no-store" });
   state.catalogs = Array.isArray(result.catalogs) ? result.catalogs : [];
+  state.canManageSecurity = result.capabilities?.manageSecurity === true;
   state.selectedCatalogIds = new Set([...state.selectedCatalogIds].filter((catalogId) => (
     state.catalogs.some((catalog) => catalog.catalogId === catalogId)
   )));
   renderCatalogManager();
+  scheduleCatalogRefresh();
 }
 
 function mountCatalogManager() {
@@ -102,7 +106,7 @@ function mountCatalogManager() {
       view.createElement("legend", { className: "view-settings-section-legend", text: "Catalog Management" }),
       view.createElement("p", {
         className: "settings-help",
-        text: "Catalogs are the Collections shown in the Notes Library. Create or edit one catalog at a time, or select up to 100 catalogs for bulk archive or restore.",
+        text: "Catalogs are the Collections shown in the Notes Library. Security is inherited from secure ancestors, and removing security is a separate reauthenticated action.",
       }),
       controls,
       view.createElement("div", { dataset: { notesCatalogBulk: "" } }),
@@ -155,6 +159,7 @@ function renderCatalogManager() {
       { key: "path", label: "Catalog", header: true },
       { key: "library", label: "Library", render: (catalog) => libraryLabel(catalog.libraryBucket) },
       { key: "status", label: "Status", render: (catalog) => statusChip(catalog.status) },
+      { key: "security", label: "Security", render: (catalog) => catalogSecurityStatus(catalog) },
       { key: "updated", label: "Updated", render: (catalog) => formatDateTime(catalog.updatedAt) },
       { key: "actions", label: "Actions", align: "right", render: (catalog) => catalogActions(catalog) },
     ],
@@ -184,14 +189,175 @@ function catalogActions(catalog) {
     label: "Edit",
     role: "utility",
     type: "button",
-    disabled: catalog.status !== "active",
+    disabled: catalog.status !== "active" || catalog.securityTransitionState !== "stable",
   });
-  editButton.title = catalog.status === "active" ? `Edit ${catalog.title}` : "Restore this catalog before editing it.";
+  editButton.title = catalog.status !== "active"
+    ? "Restore this catalog before editing it."
+    : catalog.securityTransitionState !== "stable"
+      ? "Wait for the catalog security transition to finish or retry it."
+      : `Edit ${catalog.title}`;
   editButton.addEventListener("click", () => openCatalogEditor(catalog));
-  return view.createDetailActionStrip({
-    ariaLabel: `Catalog actions for ${catalog.title}`,
+  const ordinaryActions = view.createDetailActionStrip({
+    ariaLabel: `Catalog editing actions for ${catalog.title}`,
     actions: [editButton],
   });
+  const securityAction = catalogSecurityAction(catalog);
+  if (!securityAction) {
+    return ordinaryActions;
+  }
+  return view.createElement("div", {
+    className: "notes-catalog-action-groups",
+    children: [
+      ordinaryActions,
+      view.createDetailActionStrip({
+        ariaLabel: `Catalog security actions for ${catalog.title}`,
+        actions: [securityAction],
+      }),
+    ],
+  });
+}
+
+function catalogSecurityAction(catalog) {
+  if (!state.canManageSecurity || catalog.status !== "active" || catalog.securityTransitionState === "securing") {
+    return null;
+  }
+
+  let label = "Enable Security";
+  let action = "enable";
+  let role = "secondary";
+  if (catalog.securityTransitionState === "failed") {
+    label = "Retry Security";
+    action = "retry";
+    role = "primary";
+  } else if (catalog.securityPolicy === "secure") {
+    label = "Remove Security";
+    action = "remove";
+    role = "destructive";
+  } else if (catalog.securityInherited || catalog.effectiveSecurityMode === "secure") {
+    return null;
+  }
+
+  const button = view.createActionButton({ label, role, type: "button" });
+  button.addEventListener("click", () => openCatalogSecurityDialog(catalog, action));
+  return button;
+}
+
+function catalogSecurityStatus(catalog) {
+  const labels = [];
+  if (catalog.securityInherited) {
+    labels.push("Secure (inherited)");
+  } else if (catalog.securityPolicy === "secure") {
+    labels.push("Secure (explicit)");
+  } else {
+    labels.push("Normal");
+  }
+
+  if (catalog.securityTransitionState === "securing") {
+    labels.push(catalog.securityTransitionAction === "remove" ? "removing security" : "securing");
+  } else if (catalog.securityTransitionState === "failed") {
+    labels.push(`recovery needed${catalog.securityTransitionErrorCode ? `: ${safeFailureLabel(catalog.securityTransitionErrorCode)}` : ""}`);
+  }
+
+  const element = view.createElement("span", { className: "surface-chip", text: labels.join(" - ") });
+  if (catalog.securityInherited) {
+    element.title = "A secure ancestor protects this catalog. Child catalogs cannot weaken inherited security.";
+  }
+  return element;
+}
+
+async function openCatalogSecurityDialog(catalog, requestedAction) {
+  const transitionAction = requestedAction === "retry" ? catalog.securityTransitionAction : requestedAction;
+  setCatalogStatus("Loading catalog security preview...");
+  try {
+    const result = await api.getJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/preflight?action=${encodeURIComponent(transitionAction)}`, { cache: "no-store" });
+    showCatalogSecurityConfirmation(catalog, requestedAction, result.preflight || {});
+    setCatalogStatus("");
+  } catch (error) {
+    setCatalogStatus(error.message || "Catalog security preview could not be loaded.", { isError: true });
+  }
+}
+
+function showCatalogSecurityConfirmation(catalog, requestedAction, preflight) {
+  const removing = preflight.action === "remove";
+  const passwordField = removing
+    ? view.createField({ field: "currentPassword", type: "password", label: "Current password", required: true, autocomplete: "current-password" })
+    : null;
+  const confirmationField = removing
+    ? view.createField({ field: "confirmCatalogId", type: "text", label: "Type the catalog ID to confirm", required: true, autocomplete: "off" })
+    : null;
+  const cancelButton = view.createActionButton({ label: "Cancel", role: "secondary", type: "button" });
+  const submitButton = view.createActionButton({
+    label: requestedAction === "retry" ? "Retry Security Transition" : removing ? "Remove Security" : "Enable Security",
+    role: removing ? "destructive" : "primary",
+    type: "submit",
+    disabled: preflight.canProceed !== true,
+  });
+  const summary = view.createElement("div", {
+    className: "notes-catalog-security-preview",
+    children: [
+      view.createElement("p", { text: `${preflight.catalogCount || 1} catalog${preflight.catalogCount === 1 ? "" : "s"}, ${preflight.affectedNoteCount || 0} note${preflight.affectedNoteCount === 1 ? "" : "s"}, and ${preflight.affectedRevisionCount || 0} revision${preflight.affectedRevisionCount === 1 ? "" : "s"} are in scope.` }),
+      view.createElement("p", { text: preflight.execution === "job" ? "This transition will continue as a resumable background job." : "This transition will complete in the current request." }),
+      removing
+        ? view.createElement("p", { className: "settings-help", text: `Removing security is a deliberate downgrade. Type ${catalog.catalogId} and enter your current password. Explicitly secure notes and independently protected subtrees remain secure.` })
+        : view.createElement("p", { className: "settings-help", text: "Security becomes effective immediately. Notes remain fail-closed if conversion is interrupted, and Retry Security resumes failed work." }),
+      ...(preflight.blockerCodes || []).map((code) => view.createElement("p", { className: "form-error", text: `Recovery blocker: ${safeFailureLabel(code)}` })),
+    ],
+  });
+  const dialog = view.createModalForm({
+    title: requestedAction === "retry" ? "Retry Catalog Security" : removing ? "Remove Catalog Security" : "Enable Catalog Security",
+    className: "notes-catalog-security-dialog",
+    formClassName: "notes-catalog-security-form",
+    fields: [summary, passwordField, confirmationField].filter(Boolean),
+    actions: [cancelButton, submitButton],
+  });
+
+  cancelButton.addEventListener("click", () => closeDialog(dialog));
+  dialog.viewParts.form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!dialog.viewParts.form.reportValidity()) return;
+    if (removing && confirmationField.viewParts.control.value.trim() !== catalog.catalogId) {
+      setCatalogStatus("The catalog ID confirmation does not match.", { isError: true });
+      confirmationField.viewParts.control.focus();
+      return;
+    }
+
+    submitButton.disabled = true;
+    const endpointAction = requestedAction === "retry" ? "retry" : preflight.action;
+    const payload = {
+      confirmAffectedNoteCount: preflight.affectedNoteCount || 0,
+      ...(removing ? {
+        confirmAction: "remove_security",
+        confirmCatalogId: confirmationField.viewParts.control.value.trim(),
+        currentPassword: passwordField.viewParts.control.value,
+      } : {}),
+    };
+    try {
+      const response = await api.postJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/${endpointAction}`, payload);
+      closeDialog(dialog);
+      await loadCatalogs();
+      setCatalogStatus(response.execution === "job" ? "Catalog security transition queued. Status will refresh automatically." : "Catalog security transition completed.", { type: "success" });
+    } catch (error) {
+      submitButton.disabled = false;
+      setCatalogStatus(error.message || "Catalog security transition could not be started.", { isError: true });
+    }
+  });
+
+  notesSettingsHost.appendChild(dialog);
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  (passwordField || confirmationField)?.viewParts.control.focus();
+}
+
+function scheduleCatalogRefresh() {
+  if (state.refreshTimer) window.clearTimeout(state.refreshTimer);
+  state.refreshTimer = null;
+  if (state.catalogs.some((catalog) => catalog.securityTransitionState === "securing")) {
+    state.refreshTimer = window.setTimeout(() => loadCatalogs().catch(() => {}), 3000);
+  }
+}
+
+function safeFailureLabel(value) {
+  return String(value || "catalog security transition failed").replaceAll("_", " ").slice(0, 120);
 }
 
 function catalogBulkButton(label, action, disabled) {

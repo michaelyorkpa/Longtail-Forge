@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 432,
+    "discoveredScripts": 433,
     "legacyScripts": 309,
     "releaseGateScripts": 59,
     "areaCounts": {
@@ -15,7 +15,7 @@
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
-      "notes": 39,
+      "notes": 40,
       "notifications": 3,
       "permissions": 11,
       "public-api": 3,
@@ -28,13 +28,13 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 203,
+      "focused": 204,
       "integration": 162,
       "release-gate": 59,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 177,
+      "isolated-database": 178,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3516,7 +3516,7 @@
     },
     {
       "area": "notes",
-      "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, canonical row editing, and bounded bulk archive/restore behavior.",
+      "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, explicit/inherited security controls, and bounded bulk archive/restore behavior.",
       "id": "notes.notes-settings-catalog-management",
       "legacy": false,
       "path": "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs",
@@ -3528,7 +3528,29 @@
         "navigation",
         "notes",
         "permissions",
+        "security",
         "settings"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "description": "Proves the declared fail-closed effective-security policy across Notes consumers and the future Support View boundary.",
+      "id": "notes.secure-catalog-consumer-enforcement",
+      "legacy": false,
+      "path": "scripts/regressions/notes/secure-catalog-consumer-enforcement.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "api",
+        "encryption",
+        "exports",
+        "files",
+        "notifications",
+        "permissions",
+        "search",
+        "security",
+        "workspace"
       ],
       "tier": "focused"
     },

@@ -1,3 +1,13 @@
+## Version 0.33.29.3 - 2026-08-05
+
+- Added one declared Notes protected-content consumer policy for workspace/revision/relationship authorization and fail-closed exclusion from Files, activity/notifications, Search, resume/Workbench, public API, exports, generic provider catalogs, and future Support View reads. Becoming effectively secure also removes stale normal notification/subscription, resume-state, and Search artifacts.
+- Added manifest validation and focused source guardrails so unknown or newly added Notes consumers cannot silently bypass effective catalog security. Inherited-secure records now remain absent from secondary titles, counts, excerpts, relationship labels, notification decoration, and public API results.
+- Added Notes Settings catalog security controls with explicit/inherited status, safe transition/failure presentation, preflight counts, background-status refresh, retry, and a separate current-password plus exact-ID downgrade confirmation.
+- Redacted effectively secure note audit/event shapes and added safe preservation audit actions for notes and subtrees leaving inherited protection while retaining the existing requested/completed/failed transition records.
+- Added focused coverage for permission and workspace isolation, encrypted storage/revisions, Search, Files, notifications, public API, exports policy, provider catalogs, Workbench/resume, Support View fail-closed behavior, management UI, interrupted recovery, transition preservation, and SQLite integrity.
+- Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/module-contract.md`, `docs/notes-module.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `help/modules/notes/using-notes.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Lists, Files, Notifications, Tasks, and Workbench retain their existing user workflows; only their Notes secondary-consumer exclusion boundary changed, which is owned by the Notes, security, and module-contract documents above.
+
 ## Version 0.33.29.2 - 2026-08-05
 
 - Added a dedicated catalog-security preflight/enable/retry/remove service with `notes.secure.manage` and Library-management checks, current-password reauthentication for downgrade, exact affected-content confirmation, safe audit metadata, and synchronous-versus-job routing from measured note/revision counts.
@@ -6,7 +16,7 @@
 - Added deliberate downgrade handling that decrypts only content that will become effectively normal while preserving explicit notes and independently protected subtrees. Partial failure remains fail-closed, retry does not duplicate revisions, and normal Search reindexing starts only after policy is safely removed.
 - Added focused coverage for permission denial, preflight counts, current-password and confirmation failures, synchronous conversion, 102-record job routing, stale/concurrent work, fail-closed reads and indexing, injected partial failures, retries, preservation moves, audit non-exposure, and SQLite integrity.
 - Docs updated: `DECISIONS.md`, `docs/database.md`, `docs/notes-module.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
-- No docs change needed: `docs/module-contract.md` already governs module runtime job registration; management UI and Help remain assigned to 0.33.29.3, and the backup, import, workflow-context, and runtime-configuration contracts are unchanged.
+- No docs change needed: `docs/module-contract.md` already governed module runtime job registration; management UI and Help were intentionally deferred to the next slice, and the backup, import, workflow-context, and runtime-configuration contracts were unchanged.
 
 ## Version 0.33.29.1 - 2026-08-05
 

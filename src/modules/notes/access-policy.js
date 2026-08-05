@@ -317,6 +317,7 @@ function sanitizeNoteLifecyclePayload(payload = {}) {
     library_bucket: textOrNull(payload.library_bucket),
     visibility: textOrNull(payload.visibility),
     security_mode: textOrNull(payload.security_mode),
+    effective_security_mode: textOrNull(payload.effective_security_mode),
     client_id: textOrNull(payload.client_id),
     project_id: textOrNull(payload.project_id),
     task_id: textOrNull(payload.task_id),

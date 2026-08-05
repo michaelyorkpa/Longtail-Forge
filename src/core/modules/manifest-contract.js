@@ -46,6 +46,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "tagPropagation",
   "searchableTypes",
   "attachableTypes",
+  "protectedContentConsumers",
   "help",
   "hooks",
   "frameworkDependencies",
@@ -382,6 +383,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateTagPropagationDescriptors(moduleDefinition.tagPropagation, moduleDefinition.id, errors);
   validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
   validateAttachableTypes(moduleDefinition.attachableTypes, moduleDefinition.id, errors);
+  validateProtectedContentConsumers(moduleDefinition.protectedContentConsumers, moduleDefinition.id, errors);
   validateHelpContribution(moduleDefinition.help, {
     ownerId: moduleDefinition.id,
     ownerType: "module",
@@ -1989,6 +1991,30 @@ function validateAttachableTypes(attachableTypes, moduleId, errors) {
       errors.push(`${prefix}.maxFileSizeBytes must be at least 1.`);
     }
   });
+}
+
+function validateProtectedContentConsumers(consumers, moduleId, errors) {
+  optionalArrayOfObjects(consumers, "protectedContentConsumers", errors, (item, index) => {
+    const prefix = `protectedContentConsumers[${index}]`;
+    requireString(item, "id", errors, { prefix });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix });
+    requireString(item, "recordType", errors, { prefix });
+    requireString(item, "surface", errors, { prefix });
+    requireString(item, "assertion", errors, { prefix });
+    requireString(item, "behavior", errors, { prefix });
+    if (item.behavior && !["authorize", "exclude"].includes(item.behavior)) {
+      errors.push(`${prefix}.behavior must be 'authorize' or 'exclude'.`);
+    }
+  });
+
+  const ids = new Set();
+  for (const [index, item] of (Array.isArray(consumers) ? consumers : []).entries()) {
+    if (!item?.id || ids.has(item.id)) {
+      if (item?.id) errors.push(`protectedContentConsumers[${index}].id must be unique.`);
+      continue;
+    }
+    ids.add(item.id);
+  }
 }
 
 function validateAttachableTypeReferences(moduleDefinition, context) {
