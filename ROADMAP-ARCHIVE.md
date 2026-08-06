@@ -1,5 +1,20 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30.4 - Atomic CodeQL Action 4.37.4 baseline
+
+Completed on 2026-08-06. Dependabot PRs #112 and #113 are integrated as one atomic workflow change so CodeQL initialization and analysis use the same reviewed 4.37.4 immutable revision. The active cursor advanced to `0.33.30.5` for the isolated Markdown-it 15 runtime baseline; the shared pull request remains open through that slice.
+
+**Model: High Effort** — A pinned security-scanning workflow update must keep initialization, analysis, regression ownership, and protected-branch evidence on one reviewed immutable revision.
+
+- [x] Updated both `github/codeql-action/init` and `github/codeql-action/analyze` from the reviewed 4.37.3 SHA to the shared 4.37.4 SHA `f205ea1c3313d32999d8d6a48b4f6530d4437b38`, including accurate version comments. Neither invalid mixed-version state is present.
+- [x] Advanced the reviewed immutable CodeQL SHA in `release.github-release-operations` and retained exact-once assertions for both steps. The workflow's JavaScript/TypeScript language selection, least-privilege permissions, triggers, concurrency, timeout, Ubuntu runner, checkout pin, and stable `CodeQL JavaScript analysis` check identity are unchanged.
+- [x] Recorded the 0.33.30.4 version/changelog closeout and documentation disposition. No owning documentation changed because the pinned action advanced without changing the documented CI contract.
+- [x] Ran the focused GitHub release-operations regression during implementation and the canonical local slice verification after all files were final. The protected draft pull request supplies the independent clean-Linux CodeQL and Development evidence before the slice is reported complete.
+
+Acceptance criteria:
+
+- Both CodeQL steps use the same reviewed 4.37.4 immutable SHA, the regression rejects drift or asymmetric updates, local final verification passes once, and the protected pull request completes a real successful `CodeQL JavaScript analysis` without weakening any required workflow or check contract.
+
 ## Version 0.33.30 - Read-Only Support View
 
 Completed on 2026-08-05. The default-off Support View capability is now complete across durable actor/effective identity, central read-only and sensitive-data enforcement, administrator entry and exit, persistent browser state, bounded append-only audit review/export/retention, documentation, and focused plus canonical verification. The active cursor advanced to `0.33.31.1` for public-demo hardening.

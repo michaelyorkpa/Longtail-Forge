@@ -2,10 +2,38 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.1`.
+Active cursor: `0.33.30.5`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
+
+## Version 0.33.30 Maintenance Follow-up - Dependabot Integration
+
+**Model: High Effort** — The updates cross the protected security-analysis workflow and the framework-owned runtime Markdown renderer, where a seemingly mechanical dependency change can weaken CI proof or alter unsafe-content handling.
+
+Purpose:
+
+Integrate the three Dependabot pull requests opened against `nightly` on August 5, 2026 without accepting their deliberately incomplete one-file baselines: PRs #112 and #113 become one atomic CodeQL action update, while PR #111 remains isolated as a major runtime Markdown parser upgrade.
+
+Release priority and boundaries:
+
+- This explicitly authorized maintenance follow-up runs before the planned `0.33.31.1` public-demo slice. After `0.33.30.5` closes, the active cursor returns to `0.33.31.1`; the existing 0.33.31 numbering and scope do not change.
+- Work begins from reconciled protected `nightly` SHA `9339ab339c75ec14ae40266dac34d9cf789b9907` on the dedicated dependency-maintenance topic branch. Do not merge the individual Dependabot branches into this branch or let their stale base replace newer Nightly work; reproduce and verify the reviewed updates against the current integration baseline.
+- Preserve Node `>=24.7 <25`, the production/development dependency boundary, the `better-sqlite3@13.0.1` lifecycle allowlist, immutable GitHub Action pins, required protected check names, Markdown source storage, and the existing approved syntax and safe-output policy.
+
+### Version 0.33.30.5 - Markdown-it 15 runtime baseline
+
+**Model: High Effort** — This major runtime dependency parses user-authored content and changes parser packaging plus transitive link/entity behavior, so safe rendering and every framework consumer need explicit compatibility proof.
+
+- [ ] Integrate Dependabot PR #111 by advancing the runtime dependency and lockfile from `markdown-it` 14.3.0 to 15.0.0. Review the resolved production graph, including `linkify-it` 6 and `entities` 8, retain `markdown-it` under `dependencies`, do not add the now-bundled `@types/markdown-it`, keep the Node 24 engine and lifecycle-script allowlist unchanged, and require `npm audit` to report no known vulnerabilities.
+- [ ] Update the explicit Markdown dependency baselines in `markdown-renderer-service` and `release.dependency-baseline` without weakening their assertions. Prove the existing `MarkdownIt("commonmark", ...)` construction, table enablement, disabled raw HTML/linkify/typographer/strikethrough, custom underline rule, `validateLink` override, renderer hooks, token traversal, and document versus user-authored render modes remain compatible with the v15 TypeScript-built distribution and prototype-method changes.
+- [ ] Expand focused fixtures only where v15 behavior is not already pinned: reference links/images, literal backslashes in link destinations, named-entity semicolon handling, image alt text containing inline code, unsafe schemes/raw HTML/event handlers, opt-in images, task lists, tables, excerpts, and plain-text extraction. Preserve stored Markdown exactly and do not adopt new syntax, fuzzy linkification, browser parsing, or parser-internal subpath imports.
+- [ ] Prove the framework renderer remains the single server-side authority across Notes saved reads and draft preview, Help articles/search text, Markdown Files preview, and any existing excerpt/search consumers. Update `docs/markdown-platform-contract.md` to the reviewed v15 baseline and use `npm run docs:suggest` to confirm whether any other current owner needs changes.
+- [ ] Record the 0.33.30.5 version/changelog closeout, run the cheapest focused Markdown and dependency regressions while iterating, then run `npm run verify:slice` exactly once after all slice files are final. Restart the app after the version bump and prove `/healthz`, `/readyz`, and `/api/app-info` report the expected 0.33.30.5 identity.
+
+Acceptance criteria:
+
+- Markdown-it 15.0.0 and its reviewed production graph install cleanly on supported Node 24, all existing approved rendering and safety semantics remain exact across framework consumers, new v15 edge fixtures pass without broadening syntax or exposure, documentation and baselines are current, `npm audit` is clean, final local verification passes once, and the restarted runtime reports 0.33.30.5.
 
 ## Version 0.33.31 - Public Demo Hardening and Hourly Reset
 

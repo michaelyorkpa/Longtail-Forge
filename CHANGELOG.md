@@ -1,3 +1,10 @@
+## Version 0.33.30.4 - 2026-08-06
+
+- Advanced both `github/codeql-action/init` and `github/codeql-action/analyze` atomically from 4.37.3 to 4.37.4 on the same reviewed immutable SHA, integrating Dependabot PRs #112 and #113 without either PR's invalid mixed-version intermediate state.
+- Updated the release-gate CodeQL pin owner while retaining exact-once assertions for both steps, the JavaScript/TypeScript language selection, least-privilege permissions, workflow triggers, cancellation-safe concurrency, finite timeout, pinned checkout action, and stable required check identity.
+- Preserved clean-Linux protected-PR CodeQL as the independent execution proof; local source validation cannot substitute for the real `CodeQL JavaScript analysis` job.
+- No docs change needed: the patch advances an internal pinned action without changing the documented CI contract.
+
 ## Version 0.33.30.3 - 2026-08-05
 
 - Added the Super-Admin-only Support View entry workflow with active readable user/workspace choices, current-password reauthentication, required bounded reason/reference, explicit read-only confirmation, and visible expiry. The install capability remains disabled by default.
