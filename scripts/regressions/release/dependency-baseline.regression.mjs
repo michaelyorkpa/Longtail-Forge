@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -19,6 +19,11 @@ const eslintConfigHelpersLock = packageLock.packages["node_modules/@eslint/confi
 const minimatchLock = packageLock.packages["node_modules/minimatch"];
 const nodeTypesLock = packageLock.packages["node_modules/@types/node"];
 const markdownItLock = packageLock.packages["node_modules/markdown-it"];
+const argparseLock = packageLock.packages["node_modules/argparse"];
+const entitiesLock = packageLock.packages["node_modules/entities"];
+const linkifyItLock = packageLock.packages["node_modules/linkify-it"];
+const mdurlLock = packageLock.packages["node_modules/mdurl"];
+const ucMicroLock = packageLock.packages["node_modules/uc.micro"];
 
 assert.equal(packageJson.devDependencies.eslint, "^10.8.0", "ESLint should use the reviewed 10.8 development baseline");
 assert.equal(packageJson.dependencies.eslint, undefined, "ESLint must remain development-only tooling");
@@ -40,13 +45,28 @@ assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must rema
 assert.equal(packageJson.engines.node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.1": true }, "the approved lifecycle-script allowlist must remain unchanged");
 
-assert.equal(packageJson.dependencies["markdown-it"], "^14.3.0", "Markdown-it should use the reviewed 14.3 runtime baseline");
-assert.equal(rootLock.dependencies["markdown-it"], "^14.3.0", "the lockfile root should match the Markdown-it package contract");
-assert.equal(markdownItLock.version, "14.3.0", "the resolved Markdown-it baseline should remain 14.3.0");
-assert.equal(markdownItLock.dependencies.entities, "^4.5.0", "Markdown-it should retain its reviewed entities range");
-assert.equal(markdownItLock.dependencies["linkify-it"], "^5.0.2", "Markdown-it should retain its reviewed linkify-it range");
-assert.equal(packageLock.packages["node_modules/entities"].version, "4.5.0", "entities should resolve to the reviewed 4.5 baseline");
-assert.equal(packageLock.packages["node_modules/linkify-it"].version, "5.0.2", "linkify-it should resolve to the reviewed 5.0.2 baseline");
+assert.equal(packageJson.dependencies["markdown-it"], "^15.0.0", "Markdown-it should use the reviewed 15.0 runtime baseline");
+assert.equal(packageJson.devDependencies["markdown-it"], undefined, "Markdown-it must remain runtime parser infrastructure");
+assert.equal(rootLock.dependencies["markdown-it"], "^15.0.0", "the lockfile root should match the Markdown-it package contract");
+assert.equal(markdownItLock.version, "15.0.0", "the resolved Markdown-it baseline should remain 15.0.0");
+assert.deepEqual(markdownItLock.dependencies, {
+  argparse: "^3.0.0",
+  entities: "^8.0.0",
+  "linkify-it": "^6.0.0",
+  mdurl: "^2.1.0",
+  "punycode.js": "^2.3.1",
+  "uc.micro": "^3.0.0",
+}, "Markdown-it should retain its complete reviewed v15 production dependency graph");
+assert.equal(argparseLock.version, "3.0.0", "argparse should resolve to the reviewed 3.0 baseline");
+assert.equal(entitiesLock.version, "8.0.0", "entities should resolve to the reviewed 8.0 baseline");
+assert.equal(entitiesLock.engines.node, ">=20.19.0", "entities 8 should retain a Node range supported by the repository's Node 24 runtime");
+assert.equal(linkifyItLock.version, "6.1.0", "linkify-it should resolve to the reviewed 6.1 baseline");
+assert.equal(linkifyItLock.dependencies["uc.micro"], "^3.0.0", "linkify-it should share the reviewed uc.micro 3 range");
+assert.equal(mdurlLock.version, "2.1.0", "mdurl should resolve to the reviewed 2.1 baseline");
+assert.equal(ucMicroLock.version, "3.0.0", "uc.micro should resolve to the reviewed 3.0 baseline");
+assert.equal(packageJson.dependencies["@types/markdown-it"], undefined, "Markdown-it's bundled declarations should not add a redundant runtime types package");
+assert.equal(packageJson.devDependencies["@types/markdown-it"], undefined, "Markdown-it's bundled declarations should not add a redundant development types package");
+assert.equal(packageLock.packages["node_modules/@types/markdown-it"], undefined, "the resolved graph should not include redundant Markdown-it types");
 
 const backslashSpaceHardBreakSource = "Literal backslash\\  \nNext line";
 for (const [mode, breaks] of [

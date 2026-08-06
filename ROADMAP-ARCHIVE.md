@@ -1,5 +1,36 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.30.5 - Markdown-it 15 runtime baseline
+
+Completed on 2026-08-06. Dependabot PR #111 is integrated on the current Nightly baseline with explicit framework compatibility and safe-rendering proof, closing the 0.33.30 dependency-maintenance follow-up across all three Dependabot updates. The active cursor returned to `0.33.31.1`; draft PR #119 remains open for final review and an explicit later merge decision.
+
+**Model: High Effort** — This major runtime dependency parses user-authored content and changes parser packaging plus transitive link/entity behavior, so safe rendering and every framework consumer need explicit compatibility proof.
+
+- [x] Advanced the runtime dependency and lockfile from `markdown-it` 14.3.0 to 15.0.0 with reviewed `entities` 8.0.0, `linkify-it` 6.1.0, `argparse` 3.0.0, `mdurl` 2.1.0, and `uc.micro` 3.0.0 resolutions. Markdown-it remains under `dependencies`, bundled declarations replace any need for `@types/markdown-it`, Node remains `>=24.7 <25`, the lifecycle-script allowlist is unchanged, and the audit is clean.
+- [x] Updated the explicit Markdown dependency baselines without weakening them. The public package-root CommonMark parser, table enablement, disabled raw HTML/linkification/typographer/strikethrough, custom underline, instance `validateLink` override, renderer hooks, token traversal, and document/user-authored render modes remain compatible with the v15 TypeScript-built distribution and prototype helpers.
+- [x] Added focused v15 fixtures for safe and unsafe reference links, a literal backslash before a terminating link-destination space, semicolon-required named entities, inline-code image alt text, opt-in images, unsafe schemes/raw HTML/event handlers, inert plain URLs, task lists, tables, excerpts, plain-text extraction, and removed internal subpath imports. Stored Markdown and the approved syntax set are unchanged.
+- [x] Updated the custom image renderer to use v15's inline-text helper and made plain-text extraction include image alt content exactly once. Focused Notes saved/preview/soft-break, Help, Files Markdown preview, and Notes/Search regressions prove the shared server renderer remains authoritative.
+- [x] Updated the Markdown platform contract, generated third-party notices, and generated regression manifest description; recorded the version/changelog closeout; ran focused owners while iterating; and completed the canonical local verification plus restarted runtime identity proof.
+
+Acceptance criteria:
+
+- Markdown-it 15.0.0 and its reviewed production graph install cleanly on supported Node 24, all existing approved rendering and safety semantics remain exact across framework consumers, new v15 edge fixtures pass without broadening syntax or exposure, documentation and baselines are current, `npm audit` is clean, final local verification passes once, and the restarted runtime reports 0.33.30.5.
+
+## Version 0.33.30.4 - Atomic CodeQL Action 4.37.4 baseline
+
+Completed on 2026-08-06. Dependabot PRs #112 and #113 are integrated as one atomic workflow change so CodeQL initialization and analysis use the same reviewed 4.37.4 immutable revision. The active cursor advanced to `0.33.30.5` for the isolated Markdown-it 15 runtime baseline; the shared pull request remains open through that slice.
+
+**Model: High Effort** — A pinned security-scanning workflow update must keep initialization, analysis, regression ownership, and protected-branch evidence on one reviewed immutable revision.
+
+- [x] Updated both `github/codeql-action/init` and `github/codeql-action/analyze` from the reviewed 4.37.3 SHA to the shared 4.37.4 SHA `f205ea1c3313d32999d8d6a48b4f6530d4437b38`, including accurate version comments. Neither invalid mixed-version state is present.
+- [x] Advanced the reviewed immutable CodeQL SHA in `release.github-release-operations` and retained exact-once assertions for both steps. The workflow's JavaScript/TypeScript language selection, least-privilege permissions, triggers, concurrency, timeout, Ubuntu runner, checkout pin, and stable `CodeQL JavaScript analysis` check identity are unchanged.
+- [x] Recorded the 0.33.30.4 version/changelog closeout and documentation disposition. No owning documentation changed because the pinned action advanced without changing the documented CI contract.
+- [x] Ran the focused GitHub release-operations regression during implementation and the canonical local slice verification after all files were final. The protected draft pull request supplies the independent clean-Linux CodeQL and Development evidence before the slice is reported complete.
+
+Acceptance criteria:
+
+- Both CodeQL steps use the same reviewed 4.37.4 immutable SHA, the regression rejects drift or asymmetric updates, local final verification passes once, and the protected pull request completes a real successful `CodeQL JavaScript analysis` without weakening any required workflow or check contract.
+
 ## Version 0.33.30 - Read-Only Support View
 
 Completed on 2026-08-05. The default-off Support View capability is now complete across durable actor/effective identity, central read-only and sensitive-data enforcement, administrator entry and exit, persistent browser state, bounded append-only audit review/export/retention, documentation, and focused plus canonical verification. The active cursor advanced to `0.33.31.1` for public-demo hardening.

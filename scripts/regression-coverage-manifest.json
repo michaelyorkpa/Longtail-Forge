@@ -3797,7 +3797,7 @@
     },
     {
       "area": "release",
-      "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 14.3 dependency baseline and keeps obsolete js-yaml out of the resolved graph.",
+      "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
       "id": "release.dependency-baseline",
       "legacy": false,
       "path": "scripts/regressions/release/dependency-baseline.regression.mjs",

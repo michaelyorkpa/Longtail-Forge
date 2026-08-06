@@ -16,7 +16,7 @@ permissive and compatible with distributing Longtail Forge under
 | Component | Version | License | Copyright holder(s) | License text |
 | --- | --- | --- | --- | --- |
 | accepts | 2.0.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L01](#l01) |
-| argparse | 2.0.1 | Python-2.0 | Python Software Foundation and contributors | [L02](#l02) |
+| argparse | 3.0.0 | Python-2.0 | Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam, | [L02](#l02) |
 | better-sqlite3 | 13.0.1 | MIT | Copyright (c) 2017 Joshua Wise | [L03](#l03) |
 | body-parser | 2.3.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
 | busboy | 1.6.0 | MIT | Brian White | [L05](#l05) |
@@ -38,7 +38,7 @@ permissive and compatible with distributing Longtail Forge under
 | dunder-proto | 1.0.1 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
 | ee-first | 1.1.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com | [L18](#l18) |
 | encodeurl | 2.0.0 | MIT | Copyright (c) 2016 Douglas Christopher Wilson | [L19](#l19) |
-| entities | 4.5.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L20](#l20) |
+| entities | 8.0.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L20](#l20) |
 | es-define-property | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-errors | 1.3.0 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-object-atoms | 1.1.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
@@ -61,11 +61,11 @@ permissive and compatible with distributing Longtail Forge under
 | ip-address | 10.3.1 | MIT | Copyright (C) 2011 by Beau Gunderson | [L36](#l36) |
 | ipaddr.js | 1.9.1 | MIT | Copyright (C) 2011-2017 whitequark &lt;whitequark@whitequark.org&gt; | [L37](#l37) |
 | is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L38](#l38) |
-| linkify-it | 5.0.2 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L39](#l39) |
+| linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L39](#l39) |
 | Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L40](#l40) |
-| markdown-it | 14.3.0 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
+| markdown-it | 15.0.0 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
 | math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
-| mdurl | 2.0.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L42](#l42) |
+| mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L42](#l42) |
 | media-typer | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | merge-descriptors | 2.0.0 | MIT | Copyright (c) Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt;; Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [L43](#l43) |
 | mime-db | 1.54.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L44](#l44) |
@@ -100,7 +100,7 @@ permissive and compatible with distributing Longtail Forge under
 | streamsearch | 1.1.0 | MIT | Brian White | [L05](#l05) |
 | toidentifier | 1.0.1 | MIT | Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L67](#l67) |
 | type-is | 2.1.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
-| uc.micro | 2.1.0 | MIT | Copyright Mathias Bynens &lt;https://mathiasbynens.be/&gt; | [L68](#l68) |
+| uc.micro | 3.0.0 | MIT | Copyright Mathias Bynens &lt;https://mathiasbynens.be/&gt; | [L68](#l68) |
 | unpipe | 1.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L69](#l69) |
 | uuid | 14.0.1 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L70](#l70) |
 | vary | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
@@ -151,7 +151,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L02
 
-Applies to: argparse@2.0.1
+Applies to: argparse@3.0.0
 
 ```text
 A. HISTORY OF THE SOFTWARE
@@ -897,7 +897,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L20
 
-Applies to: entities@4.5.0
+Applies to: entities@8.0.0
 
 ```text
 Copyright (c) Felix Böhm
@@ -1414,7 +1414,7 @@ THE SOFTWARE.
 
 ### L39
 
-Applies to: linkify-it@5.0.2
+Applies to: linkify-it@6.1.0
 
 ```text
 Copyright (c) 2015 Vitaly Puzrin.
@@ -1510,7 +1510,7 @@ SOFTWARE.
 
 ### L41
 
-Applies to: markdown-it@14.3.0
+Applies to: markdown-it@15.0.0
 
 ```text
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
@@ -1539,7 +1539,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 ### L42
 
-Applies to: mdurl@2.0.0
+Applies to: mdurl@2.1.0
 
 ```text
 Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.
@@ -2285,7 +2285,7 @@ SOFTWARE.
 
 ### L68
 
-Applies to: uc.micro@2.1.0
+Applies to: uc.micro@3.0.0
 
 ```text
 Copyright Mathias Bynens <https://mathiasbynens.be/>

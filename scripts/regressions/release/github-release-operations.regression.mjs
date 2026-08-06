@@ -22,7 +22,7 @@ const workflowPaths = [
   ".github/workflows/codeql.yml",
 ];
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-const REVIEWED_CODEQL_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81";
+const REVIEWED_CODEQL_SHA = "f205ea1c3313d32999d8d6a48b4f6530d4437b38";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
 const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
