@@ -1,3 +1,11 @@
+## Version 0.33.30.5 - 2026-08-06
+
+- Advanced the framework-owned runtime Markdown parser from `markdown-it` 14.3.0 to 15.0.0 with the reviewed production graph: `entities` 8.0.0, `linkify-it` 6.1.0, `argparse` 3.0.0, `mdurl` 2.1.0, and `uc.micro` 3.0.0. Markdown-it remains a runtime dependency, uses its supported package-root export and bundled declarations, and does not add redundant `@types/markdown-it`.
+- Preserved CommonMark mode, disabled raw HTML/linkification/typographer/strikethrough, safe URL validation, opt-in images, tables, task lists, underline, excerpts, and document/user-authored rendering. Safe and unsafe references, semicolon-required entities, literal-backslash link destinations, inert plain URLs, and package-internal import exclusion are now regression-pinned.
+- Updated the custom image renderer to use v15's inline-text helper so code inside alt text becomes safe plain alt content, and removed duplicate image alt text from plain-text/search extraction. Notes saved reads and preview, Help, Files Markdown preview, and Notes/Search consumer regressions remain green.
+- Refreshed the production dependency notices for the six changed Markdown packages and the generated regression manifest description for the reviewed v15 baseline.
+- Docs updated: `docs/markdown-platform-contract.md`, `THIRD_PARTY_NOTICES.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+
 ## Version 0.33.30.4 - 2026-08-06
 
 - Advanced both `github/codeql-action/init` and `github/codeql-action/analyze` atomically from 4.37.3 to 4.37.4 on the same reviewed immutable SHA, integrating Dependabot PRs #112 and #113 without either PR's invalid mixed-version intermediate state.
