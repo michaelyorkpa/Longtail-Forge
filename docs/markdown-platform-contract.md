@@ -22,9 +22,11 @@ The dependency should be added in 0.33.5.17.2, not in this contract slice.
 
 ## Current Dependency Baseline
 
-As of 0.33.18.1, the reviewed runtime baseline is `markdown-it` 14.3 with `entities` 4.5 and `linkify-it` 5.0.2. The upgrade preserves the existing CommonMark, raw-HTML, safe-URL, image opt-in, table, task-list, underline, plain-text, excerpt, and render-mode policies.
+As of 0.33.30.5, the reviewed runtime baseline is `markdown-it` 15.0 with `entities` 8.0, `linkify-it` 6.1, `argparse` 3.0, `mdurl` 2.1, and `uc.micro` 3.0. Markdown-it remains a production dependency, uses its supported package-root export, and supplies its own TypeScript declarations; Longtail Forge does not install redundant `@types/markdown-it` or import removed package-internal subpaths. The repository's supported Node 24 line satisfies the transitive Node requirements.
 
-Markdown-it 14.3 corrects the CommonMark edge where a literal backslash immediately precedes the two trailing spaces that create a hard line break. The dependency regression exercises that behavior with both the document/default (`breaks: false`) and user-authored (`breaks: true`) parser configurations. Longtail Forge's application-level source normalization and formatting policy are unchanged by this dependency update.
+The v15 package is built from TypeScript and reorganizes its ESM/CommonJS/browser distribution, moves link-normalization helpers to prototype methods, adds reference-token metadata, and changes linkify/entity behavior. Longtail Forge still constructs the public package-root parser in CommonMark mode, overrides `validateLink` on the parser instance, disables automatic linkification, and does not consume a browser parser. Linkify-it 6 fuzzy-link changes therefore do not broaden product syntax.
+
+Focused coverage preserves the existing raw-HTML, safe-URL, image opt-in, table, task-list, underline, plain-text, excerpt, and document/user-authored render-mode policies. It also pins safe and unsafe reference links, a literal backslash before a terminating link-destination space, semicolon-required named entities, inline-code image alt text without duplicated plain text, and inert plain URLs. The earlier 14.3 hard-break correction remains covered in both render modes. Stored Markdown and application-level source normalization are unchanged by the dependency update.
 
 ## Approved Syntax
 

@@ -6,8 +6,10 @@ const packageJson = JSON.parse(await readText("package.json"));
 const roadmap = await readText("ROADMAP.md");
 const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
+const serviceSource = await readText("src/core/markdown/markdown.service.js");
 
-assert.equal(packageJson.dependencies["markdown-it"], "^14.3.0", "markdown-it should use the reviewed 14.3 baseline");
+assert.equal(packageJson.dependencies["markdown-it"], "^15.0.0", "markdown-it should use the reviewed 15.0 baseline");
+assert.doesNotMatch(serviceSource, /from\s+["']markdown-it\//, "the service should use the supported package-root export rather than removed internal subpaths");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
 assert.equal(typeof markdownService.markdownToPlainText, "function", "service should expose plain-text conversion");
@@ -77,12 +79,33 @@ assert.match(unsafe, /~~not enabled~~/, "unapproved strikethrough should remain 
 
 const imageHtml = renderMarkdownToHtml("![Logo](/assets/logo.png)", { allowImages: true });
 assert.match(imageHtml, /<img src="\/assets\/logo\.png" alt="Logo">/, "safe images should render only when explicitly allowed");
+const imageInlineCodeSource = "![Before `code` after](https://example.com/image.png)";
+const imageInlineCodeHtml = renderMarkdownToHtml(imageInlineCodeSource, { allowImages: true });
+assert.match(imageInlineCodeHtml, /<img src="https:\/\/example\.com\/image\.png" alt="Before code after">/, "image alt text should include inline-code content without Markdown control syntax");
+assert.equal(markdownToPlainText(imageInlineCodeSource, { allowImages: true }), "Before code after", "plain-text extraction should include image alt text exactly once");
 assert.equal(isSafeMarkdownUrl("https://example.com"), true);
 assert.equal(isSafeMarkdownUrl("mailto:user@example.com"), true);
 assert.equal(isSafeMarkdownUrl("/safe/path"), true);
 assert.equal(isSafeMarkdownUrl("#section"), true);
 assert.equal(isSafeMarkdownUrl("javascript:alert(1)"), false);
 assert.equal(isSafeMarkdownUrl("data:text/html,evil"), false);
+
+const safeReferenceHtml = renderMarkdownToHtml("[Safe reference][safe]\n\n[safe]: https://example.com/reference");
+assert.match(safeReferenceHtml, /<a href="https:\/\/example\.com\/reference">Safe reference<\/a>/, "safe reference links should render through the same URL policy");
+assert.doesNotMatch(safeReferenceHtml, /\[safe\]:/, "reference definitions should remain omitted from rendered output");
+
+const unsafeReferenceHtml = renderMarkdownToHtml("[Unsafe reference][bad]\n\n[bad]: javascript:alert(1)");
+assert.doesNotMatch(unsafeReferenceHtml, /href="javascript:/i, "unsafe reference links should never become active links");
+assert.match(unsafeReferenceHtml, /\[Unsafe reference\]\[bad\]/, "unsafe reference links should degrade to inert source text");
+
+const escapedDestinationHtml = renderMarkdownToHtml("[Backslash](https://example.com/path\\\\ )");
+assert.match(escapedDestinationHtml, /href="https:\/\/example\.com\/path%5C"/, "a literal backslash before a terminating link-destination space should survive v15 normalization");
+
+const entityHtml = renderMarkdownToHtml("&copy &copy; &amp &amp;");
+assert.match(entityHtml, /&amp;copy © &amp;amp &amp;/, "named entities should require semicolons while valid entities still decode");
+
+const plainUrlHtml = renderMarkdownToHtml("Visit https://example.com/path");
+assert.doesNotMatch(plainUrlHtml, /<a\s/i, "plain URLs should remain text because automatic linkification is disabled");
 
 const plain = markdownToPlainText(markdown);
 for (const expected of ["Heading", "strong", "emphasis", "underlined text", "safe link", "inline code", "Quote", "Parent", "Child", "Ordered child", "Open task", "Done task", "Alpha", "Ready", "const value = 1;"]) {
@@ -92,9 +115,12 @@ assert.doesNotMatch(plain, /[#*_`|]|\+\+|\[x\]|\[ \]/, "plain text should not ex
 assert.equal(createMarkdownExcerpt(markdown, 30), "Heading Paragraph with strong...", "excerpts should come from the parser-backed plain text path");
 
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.2 - Shared Server-Side Markdown Renderer/, "completed Markdown renderer roadmap slice should be archived out of the live roadmap");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.30\.5 - Markdown-it 15 runtime baseline/, "completed Markdown-it 15 roadmap slice should be archived out of the live roadmap");
 
 assert.match(changelog, /## Version 0\.33\.5\.17\.2 - /, "changelog should include the renderer service slice");
+assert.match(changelog, /## Version 0\.33\.30\.5 - /, "changelog should include the Markdown-it 15 baseline slice");
 assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should note the renderer service implementation");
+assert.match(contract, /As of 0\.33\.30\.5, the reviewed runtime baseline is `markdown-it` 15\.0/, "contract should record the reviewed Markdown-it 15 baseline");
 
 console.log("Markdown renderer service regression passed.");
 

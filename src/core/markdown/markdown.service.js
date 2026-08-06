@@ -98,7 +98,7 @@ function createParser({ softLineBreaks = false } = {}) {
     return self.renderToken(tokens, index, options);
   };
 
-  parser.renderer.rules.image = (tokens, index, options, env) => {
+  parser.renderer.rules.image = (tokens, index, options, env, self) => {
     const token = tokens[index];
     const src = token.attrGet("src") || "";
 
@@ -106,7 +106,10 @@ function createParser({ softLineBreaks = false } = {}) {
       return escapeHtml(token.content || token.attrGet("alt") || "");
     }
 
-    const alt = escapeAttribute(token.content || token.attrGet("alt") || "");
+    const altText = Array.isArray(token.children)
+      ? self.renderInlineAsText(token.children, options, env)
+      : token.content || token.attrGet("alt") || "";
+    const alt = escapeAttribute(altText);
     return `<img src="${escapeAttribute(src)}" alt="${alt}">`;
   };
 
@@ -201,7 +204,12 @@ function collectPlainText(tokens = [], parts = []) {
     }
 
     if (token.type === "image") {
-      appendPlainText(parts, token.content || token.attrGet("alt") || "");
+      if (Array.isArray(token.children)) {
+        collectPlainText(token.children, parts);
+      } else {
+        appendPlainText(parts, token.content || token.attrGet("alt") || "");
+      }
+      continue;
     }
 
     if (Array.isArray(token.children)) {
