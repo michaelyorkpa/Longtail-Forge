@@ -55,6 +55,7 @@ import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
 import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
 import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
+import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
 
 function createApp() {
   const app = express();
@@ -136,6 +137,7 @@ async function startServer() {
     logRuntimeConfigWarnings(config.environment === "production"
       ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
       : console.warn);
+    await assertPublicDemoRuntimeReady();
     await assertRuntimeDataPathsReady();
     await filesService.assertConfiguredFileStorageProviderReady();
     await filesService.assertConfiguredFileScannerReady();

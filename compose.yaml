@@ -16,6 +16,7 @@ services:
         required: true
     environment:
       LONGTAIL_ENV: ${LONGTAIL_ENV:-production}
+      LONGTAIL_DEPLOYMENT_MODE: compose
       HOST: 0.0.0.0
       PORT: 8001
       LONGTAIL_DATA_DIR: /var/lib/longtail-forge

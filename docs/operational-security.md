@@ -14,6 +14,12 @@ For support, ask only for the displayed Request ID, approximate time, and attemp
 
 Collect stdout and stderr through the service manager or container runtime, restrict log access to operators, set an explicit retention period, and protect exported logs as potentially sensitive operational data even though the application redacts its structured fields.
 
+## Public-demo runtime identity
+
+Public-demo behavior is a default-off framework profile, not a hostname convention. `DEMO_MODE=true` is accepted only for the exact production demo origin under the Compose deployment identity, an immutable `main` release, the self-hosted installation mode, disabled Support View, and a regular, narrowly permissioned `.longtail-demo-data.json` marker in the configured data root whose contract and target identify `rt-ltf-demo`. Application and worker startup verify that marker before database, Files, scanner, or worker initialization. Public-demo-prefixed credentials, seed controls, reset metadata, or login-assistance settings are rejected whenever demo mode is off.
+
+The framework capability catalog is the sole classification source for later demo enforcement. Runtime diagnostics may disclose only the profile state and stable permitted, read-only, disabled, or hourly-resettable classifications. They must never return public credentials, private paths, marker contents, release recovery material, or operator details. Enabling this identity alone does not make the public demo ready: later `0.33.31` slices own server enforcement, fixed public identities, data reset, abuse controls, and deployment proof.
+
 ## Support View identity and event boundary
 
 Support View is an install-level security capability and remains disabled unless `LONGTAIL_SUPPORT_VIEW_ENABLED=true`. The dedicated `support_view.enter` permission is granted only to the installation Super Admin role; ordinary Workspace Administrators do not receive it. The administrator entry page requires an active target user/workspace selected through readable labels, current-password reauthentication, bounded reason/reference text, and explicit confirmation of the read-only warning and visible expiry.
