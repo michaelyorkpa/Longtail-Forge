@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.7 - Compose reset activation and automatic recovery
+
+Completed on 2026-08-07. The root-owned `rt-ltf-demo` Compose reset now promotes one verified database-and-Files baseline under a shared lifecycle lock, verifies the restarted release and representative visitor workflow, and automatically reconstructs the retained prior unit on failure. The active cursor advanced to `0.33.31.8` for external hourly scheduling and reset observability.
+
+**Model: High Effort** — This is the single live-state mutation boundary for SQLite, Files, sessions, and last-known-good recovery.
+
+- [x] Add a dedicated root-owned `rt-ltf-demo` reset entry that reuses the supported Compose maintenance, backup, start/stop, health, identity, and recovery primitives rather than extending the retired systemd application helper.
+- [x] Hold one exclusive host lock through cleanup/recovery, assert the maintenance curtain, stop and prove quiescent the Compose app and worker, create and inspect a whole-instance backup, handle database/WAL/SHM only while stopped, and promote the verified database plus Files candidate as one matched same-filesystem unit.
+- [x] Start the prior Compose release, require direct and public health/readiness, exact `/api/app-info`, baseline identity, representative role login/read/write, and rejection of a pre-reset session. On failure, restore the retained prior database-and-Files unit, restart it, verify recovery, and retain evidence if recovery cannot complete.
+- [x] Make retries and interrupted-state handling deterministic; overlapping reset, deploy, rollback, backup, or manual reset operations must fail safely without two promoters or mixed state.
+- [x] Add lifecycle regressions for success, contention, stale/interrupted state, failed stop/start/readiness/identity, WAL/SHM handling, session invalidation, database/Files pairing, automatic recovery, and fail-closed unrecovered state.
+
+Acceptance criteria:
+
+- One guarded Compose operation atomically activates a verified baseline only while every SQLite user is stopped and either returns healthy on that baseline or automatically returns healthy on the retained prior unit.
+
 ## Version 0.33.31.6 - Deterministic public baseline candidate
 
 Completed on 2026-08-07. The exact Compose demo profile can now build and revalidate one deterministic, inactive database-and-Files candidate without stopping or replacing the running installation. The active cursor advanced to `0.33.31.7` for Compose reset activation and automatic recovery.

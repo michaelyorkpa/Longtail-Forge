@@ -344,7 +344,7 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   for (const normalSource of [hostSource, serverSource, workerSource]) {
     assert.doesNotMatch(normalSource, /public-demo-baseline-candidate\.mjs|demo:baseline:candidate/);
   }
-  assertRoadmapCursorAtLeast("0.33.31.7", "public-demo candidate closeout", roadmap);
+  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo candidate and Compose reset closeout", roadmap);
   assert.doesNotMatch(roadmap, /^### Version 0\.33\.31\.6\b/m);
   assert.match(archive, /^## Version 0\.33\.31\.6 - Deterministic public baseline candidate$/m);
   assert.match(changelog, /^## Version 0\.33\.31\.6 - 2026-08-07$/m);

@@ -37,8 +37,8 @@ const SECRET_KEY_PATTERN = /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/;
 
 function parsePublicDemoCandidateArgs(args) {
   const action = args[0];
-  if (!new Set(["build", "validate"]).has(action)) {
-    throw new Error("Choose build or validate.");
+  if (!new Set(["active", "build", "validate"]).has(action)) {
+    throw new Error("Choose active, build, or validate.");
   }
   const options = { action, dryRun: false };
   const seenFlags = new Set();
@@ -182,16 +182,17 @@ async function runPublicDemoCandidateOperation(options) {
     }),
   } = options;
   await assertCandidateState(paths, { allowCandidate: action === "validate" });
-  if (action === "validate") {
+  if (action === "validate" || action === "active") {
     const verification = await verifyPublicDemoCandidate({
       anchorDate,
       appVersion,
-      candidateRoot: paths.candidateRoot,
+      candidateRoot: action === "active" ? paths.dataRoot : paths.candidateRoot,
+      exactEntries: action !== "active",
       forbiddenValues,
       releaseDir,
       roleFixtures,
     });
-    return candidateResult("candidate-valid", anchorDate, appVersion, verification);
+    return candidateResult(action === "active" ? "active-baseline-valid" : "candidate-valid", anchorDate, appVersion, verification);
   }
   if (dryRun) {
     return Object.freeze({
@@ -287,6 +288,7 @@ async function verifyPublicDemoCandidate({
   anchorDate,
   appVersion,
   candidateRoot,
+  exactEntries = true,
   forbiddenValues = [],
   releaseDir,
   roleFixtures,
@@ -295,8 +297,8 @@ async function verifyPublicDemoCandidate({
   await assertRealDirectory(resolvedRoot, "public-demo candidate root");
   await assertNoLinksInTree(resolvedRoot);
   const entries = await fs.readdir(resolvedRoot);
-  if (entries.length !== EXPECTED_CANDIDATE_ENTRIES.size
-    || entries.some((entry) => !EXPECTED_CANDIDATE_ENTRIES.has(entry))) {
+  if (exactEntries && (entries.length !== EXPECTED_CANDIDATE_ENTRIES.size
+    || entries.some((entry) => !EXPECTED_CANDIDATE_ENTRIES.has(entry)))) {
     throw new Error("Public-demo candidate contains unexpected or partial state.");
   }
   const databaseFile = path.join(resolvedRoot, "longtail-forge.db");

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
-readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
 
 fail() {
   printf 'longtail-forge-compose-deploy: %s\n' "$*" >&2
@@ -60,6 +60,7 @@ INBOX="$DEPLOY_ROOT/inbox"
 STATE_ROOT="$DEPLOY_ROOT/state"
 RELEASE_ROOT="$DEPLOY_ROOT/releases"
 OPERATION_ROOT="$DEPLOY_ROOT/operations"
+OPERATION_LOCK="$DEPLOY_ROOT/compose-operation.lock"
 BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge/compose}"
 BACKUP_CONTAINER_ROOT="/var/backups/longtail-forge"
 DEPLOY_ACCOUNT="${LTF_DEPLOY_ACCOUNT:-longtail-forge-deploy}"
@@ -86,7 +87,7 @@ done
 test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must remain the dedicated protected Compose backup directory"
 if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
 
-for command in curl docker grep install jq stat; do require_command "$command"; done
+for command in curl docker flock grep install jq stat; do require_command "$command"; done
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
 test "$(id -u)" = "0" || fail "helper must run as root through the constrained sudo rule"
 id "$DEPLOY_ACCOUNT" >/dev/null 2>&1 || fail "deployment account does not exist"
@@ -100,6 +101,10 @@ install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROO
 install -d -o 10001 -g 10001 -m 0700 "$BACKUP_ROOT"
 test "$(stat -c '%u:%g:%a' "$BACKUP_ROOT")" = "10001:10001:700" || fail "backup root must be owner-only for container UID/GID 10001"
 test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail "deployment marker directory is not installed"
+if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
+require_root_owned_private_file "$OPERATION_LOCK" "Compose operation lock"
+exec 9<>"$OPERATION_LOCK"
+flock -n 9 || fail "another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock"
 
 MODE="${1:-}"
 shift || true

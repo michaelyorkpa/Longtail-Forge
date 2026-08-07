@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.7`.
+Active cursor: `0.33.31.8`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,20 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.7 - Compose reset activation and automatic recovery
-
-**Model: High Effort** — This is the single live-state mutation boundary for SQLite, Files, sessions, and last-known-good recovery.
-
-- [ ] Add a dedicated root-owned `rt-ltf-demo` reset entry that reuses the supported Compose maintenance, backup, start/stop, health, identity, and recovery primitives rather than extending the retired systemd application helper.
-- [ ] Hold one exclusive host lock through cleanup/recovery, assert the maintenance curtain, stop and prove quiescent the Compose app and worker, create and inspect a whole-instance backup, handle database/WAL/SHM only while stopped, and promote the verified database plus Files candidate as one matched same-filesystem unit.
-- [ ] Start the prior Compose release, require direct and public health/readiness, exact `/api/app-info`, baseline identity, representative role login/read/write, and rejection of a pre-reset session. On failure, restore the retained prior database-and-Files unit, restart it, verify recovery, and retain evidence if recovery cannot complete.
-- [ ] Make retries and interrupted-state handling deterministic; overlapping reset, deploy, rollback, backup, or manual reset operations must fail safely without two promoters or mixed state.
-- [ ] Add lifecycle regressions for success, contention, stale/interrupted state, failed stop/start/readiness/identity, WAL/SHM handling, session invalidation, database/Files pairing, automatic recovery, and fail-closed unrecovered state.
-
-Acceptance criteria:
-
-- One guarded Compose operation atomically activates a verified baseline only while every SQLite user is stopped and either returns healthy on that baseline or automatically returns healthy on the retained prior unit.
 
 ### Version 0.33.31.8 - External hourly scheduler and reset observability
 
