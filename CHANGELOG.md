@@ -1,3 +1,12 @@
+## Version 0.33.31.5 - 2026-08-07
+
+- Added a demo-only, no-store public account catalog for the six source-owned visitor credentials with real role names, readable scopes, representative records, useful actions, and expected denials, while excluding internal IDs, directory state, and the private Super Administrator identity.
+- Added one responsive native-select credential helper to the login form with keyboard-first focus, explicit labels, live role guidance and status, and a warning that demo changes reset hourly; disabled, unavailable, or malformed catalog responses leave ordinary login unchanged.
+- Kept the existing `/api/login` submission as the only authentication/session path: selecting or filling a public account makes no login request, bypasses no password verification or throttling, and exposes no live account state.
+- Added a focused catalog/route security regression plus desktop/mobile Playwright coverage for all six choices, exact role/scope wording, keyboard use, accessible status, safe failure, disabled-mode absence, generic login failure, and no Super Administrator option.
+- Docs updated: `DECISIONS.md`, `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help remains authenticated and no module workflow, permission, runtime setting, proxy, public API, or deployment lifecycle changed.
+
 ## Version 0.33.31.4 - 2026-08-07
 
 - Added an exact-bound `public-demo` fixture mode that derives the six visitor accounts from the shipped seven-role identity/scope definitions without changing roles, assignments, permissions, fictional records, or reserved-domain identities.
@@ -5,7 +14,7 @@
 - Adapted the authenticated role journey to prove all six public logins, representative Task reads and Time Tracking writes, cross-scope and cross-workspace denials, stable credential immutability, logout, and no public Super Administrator credential or delegated-role path.
 - Updated the guarded host operation and regressions for the six-public-plus-one-private profile, retained the original private seven-role journey, and added a dedicated release-gate regression with non-decreasing manifest, release-gate, and permissions coverage floors.
 - Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/marketing/screenshot-and-demo-data-plan.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
-- No docs change needed: Help and browser login guidance remain owned by `0.33.31.5`; this slice adds no chooser or alternate authentication path.
+- No docs change needed: Help and browser login guidance remained owned by the following dedicated chooser slice; this slice added no chooser or alternate authentication path.
 
 ## Version 0.33.31.3 - 2026-08-06
 

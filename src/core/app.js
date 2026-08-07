@@ -7,6 +7,7 @@ import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { supportViewRequestGate } from "../middleware/support-view-request-gate.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
+import { publicDemoAccountRoutes } from "../routes/public-demo-account.routes.js";
 import { accountExportRecoveryRoutes } from "../routes/account-export-recovery.routes.js";
 import { appShellRoutes } from "../routes/app-shell.routes.js";
 import { apiKeysRoutes } from "../routes/api-keys.routes.js";
@@ -82,6 +83,7 @@ function createApp() {
   app.use(operationalHealthRoutes);
   app.use(express.static(config.publicDir));
   app.use("/api", appInfoRoutes);
+  app.use("/api", publicDemoAccountRoutes);
   app.use("/api", authRoutes);
   app.use("/api/v1", requirePublicDemoCapability("api_keys"));
   app.use(publicApiRoutes);

@@ -2,6 +2,7 @@
 // render until the authenticated login response or session state requires it.
 
 import { expect, test } from "@playwright/test";
+import { listPublicDemoVisitorAccounts } from "../../src/core/public-demo-visitor-accounts.js";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -129,4 +130,97 @@ test("login follows the safe server-resolved preferred landing page", async ({ p
   await page.locator('[data-login-form] button[type="submit"]').click();
   await expect(page).toHaveURL(/\/workbench\.html$/);
   expect(loginPayload.rememberMe).toBe(false);
+});
+
+test("public demo chooser exposes six scoped roles through native keyboard controls without authenticating on selection", async ({ page }) => {
+  const accounts = listPublicDemoVisitorAccounts();
+  let loginRequests = 0;
+  await page.route("**/api/session", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: { code: "authentication_required", message: "Login required." } }),
+  }));
+  await page.route("**/api/public-demo/accounts", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    headers: { "Cache-Control": "no-store" },
+    body: JSON.stringify({
+      accounts,
+      notice: "This public demo resets every hour, so your changes are temporary.",
+    }),
+  }));
+  await page.route("**/api/login", (route) => {
+    loginRequests += 1;
+    return route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "authentication_required", message: "Login failed." } }),
+    });
+  });
+
+  await page.goto("/login.html");
+  const helper = page.locator("[data-demo-account-helper]");
+  const select = page.locator("[data-demo-account-choice]");
+  const useButton = page.locator("[data-demo-account-use]");
+
+  await expect(helper).toBeVisible();
+  await expect(helper.locator("legend")).toHaveText("Explore the public demo");
+  await expect(helper).toContainText("resets every hour");
+  await expect(select).toHaveAccessibleName("Choose a role and scope");
+  await expect(select).toBeFocused();
+  await expect(select.locator('option:not([value=""])')).toHaveCount(6);
+  await expect(select.locator('option:not([value=""])')).toHaveText([
+    "Workspace Administrator — Northwind Studio workspace",
+    "Client Administrator — Cedar & Bloom client",
+    "Project Administrator — Website Refresh project",
+    "Client User — Cedar & Bloom client",
+    "Project User — Website Refresh project",
+    "Client User (External) — Cedar & Bloom client",
+  ]);
+  await expect(helper).not.toContainText(/Super Administrator/i);
+  expect(loginRequests, "loading and selecting guidance must not authenticate").toBe(0);
+
+  await select.press("End");
+  await expect(select).toHaveValue("role-client-external-user@example.test");
+  await expect(page.locator("[data-demo-account-details]")).toContainText("Client User (External) — Cedar & Bloom client");
+  await expect(page.locator("[data-demo-account-details]")).toContainText("Representative records");
+  await expect(page.locator("[data-demo-account-details]")).toContainText("Useful actions");
+  await expect(page.locator("[data-demo-account-details]")).toContainText("Expected limits");
+  expect(loginRequests, "changing the native selection must not authenticate").toBe(0);
+
+  await page.keyboard.press("Tab");
+  await expect(useButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[name="username"]')).toHaveValue("role-client-external-user@example.test");
+  await expect(page.locator('[name="password"]')).toHaveValue(accounts[5].password);
+  await expect(page.locator('[data-login-form] button[type="submit"]')).toBeFocused();
+  await expect(page.locator("[data-demo-account-status]")).toContainText("Activate Log In to authenticate");
+  expect(loginRequests, "filling the public credentials must not authenticate").toBe(0);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("[data-login-status]")).toHaveText("Login failed.");
+  await expect(helper).toBeVisible();
+  await expect(useButton).toBeEnabled();
+  expect(loginRequests, "only the ordinary Log In submit may authenticate").toBe(1);
+});
+
+test("ordinary login stays unchanged when demo guidance is disabled or unavailable", async ({ page }) => {
+  await page.route("**/api/session", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: { code: "authentication_required", message: "Login required." } }),
+  }));
+  await page.route("**/api/public-demo/accounts", (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ error: { code: "service_unavailable", message: "Unavailable." } }),
+  }));
+
+  await page.goto("/login.html");
+  await expect(page.locator("[data-demo-account-helper]")).toHaveCount(0);
+  await expect(page.locator(".login-page")).not.toHaveClass(/login-page--public-demo/);
+  await expect(page.locator("[data-login-form]")).toBeVisible();
+  await expect(page.locator('[name="username"]')).toBeFocused();
+  await expect(page.locator('[name="username"]')).toHaveAttribute("autocomplete", "username");
+  await expect(page.locator('[name="password"]')).toHaveAttribute("autocomplete", "current-password");
 });

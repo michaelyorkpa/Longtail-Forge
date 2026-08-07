@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.5`.
+Active cursor: `0.33.31.6`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.5 - Accessible demo account chooser and role guidance
-
-**Model: Medium Effort** — This is a bounded login-surface adaptation after the server identity and permission contracts are fixed.
-
-- [ ] Provide a demo-only, safely shaped account catalog mapping each visitor account to its real role name, readable scope label, representative records, useful allowed actions, and expected denials. Return no internal IDs, private operator identity, directory data, or credential material beyond the intentionally public login contract.
-- [ ] Add one keyboard- and screen-reader-usable account chooser or credential helper to the login surface, with clear focus order, labels, error recovery, responsive behavior, and a concise warning that changes are temporary. Do not alter ordinary login markup or behavior when demo mode is false.
-- [ ] Keep normal authentication throttling and generic failures authoritative; selecting a role must not create a session, bypass password verification, reveal account state, or introduce an alternate authentication mechanism.
-- [ ] Add focused service/browser/accessibility regressions for all six choices, role/scope wording, keyboard operation, disabled-mode absence, safe failures, and no Super Admin option.
-
-Acceptance criteria:
-
-- A visitor can deliberately choose and understand one of six real scoped roles through an accessible login flow, while ordinary login and authentication security remain unchanged.
 
 ### Version 0.33.31.6 - Deterministic public baseline candidate
 
