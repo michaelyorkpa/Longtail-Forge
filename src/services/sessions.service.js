@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { internalEventBus } from "../core/events/event-bus.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
@@ -123,6 +124,7 @@ async function assertCanManageUserSessions(session, userId, operation) {
   if (!targetUser) {
     throw new AppError("User was not found.", 404);
   }
+  assertPublicDemoVisitorIdentityMutable(targetUser.user_id);
   return targetUser;
 }
 

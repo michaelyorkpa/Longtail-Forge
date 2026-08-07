@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 436,
+    "discoveredScripts": 437,
     "legacyScripts": 309,
     "releaseGateScripts": 61,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 41,
       "docs": 10,
       "files": 44,
-      "framework": 75,
+      "framework": 76,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -29,12 +29,12 @@
     },
     "tierCounts": {
       "focused": 204,
-      "integration": 163,
+      "integration": 164,
       "release-gate": 61,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 181,
+      "isolated-database": 182,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3203,6 +3203,26 @@
         "permissions",
         "routes",
         "security"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves exact marked public identities can authenticate and log out but cannot be changed, recovered, retired, session-managed, or used for API keys by self or administrators.",
+      "id": "framework.public-demo-identity-immutability",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "api-keys",
+        "authentication",
+        "demo",
+        "permissions",
+        "routes",
+        "security",
+        "sessions",
+        "users"
       ],
       "tier": "integration"
     },

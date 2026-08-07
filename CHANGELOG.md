@@ -1,3 +1,12 @@
+## Version 0.33.31.3 - 2026-08-06
+
+- Bound public-demo identity ownership to exactly six unique seeded visitor user IDs in the protected host marker, using explicit fixture contract flags rather than usernames, labels, email domains, or roles; the protected private Super Administrator is excluded.
+- Added one stable safe `public_demo_identity_immutable` guard across self-service and administrator password/profile takeover, account recovery, forced-password, managed-session, membership/account retirement, and API-key mutation/use paths while preserving login, ordinary expiry, logout, and resettable non-identity preferences.
+- Kept marked credentials unchanged during transparent login rehash, rejected account-export recovery for marked visitors, and required regenerated demo candidates to contain zero sessions so cookies from the prior data root expire after activation.
+- Preserved ordinary user lifecycle behavior, private-operator profile/password recovery, development fixtures, preview, and supported self-hosted installations whenever the exact demo marker state is absent.
+- Added real HTTP coverage for self/cross-account and direct-route denial, safe errors, login/logout, API-key invalidation, private-operator recovery, and normal-mode compatibility; expanded startup and host-operation coverage for exact identity markers, operator exclusion, and stale-session rejection.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `docs/settings-ownership.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser account guidance remain deferred to the dedicated public account chooser/guidance slice; this slice adds no public credentials or new role workflow.
 ## Version 0.33.31.2 - 2026-08-06
 
 - Added one authoritative public-demo capability enforcement boundary with the stable safe `public_demo_capability_disabled` response before protected authorization or persistence.

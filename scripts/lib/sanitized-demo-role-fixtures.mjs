@@ -14,13 +14,13 @@ export const RT_LTF_DEMO_ROLE_FIXTURE_BINDING = Object.freeze({
 });
 
 export const SANITIZED_DEMO_ROLE_FIXTURES = Object.freeze([
-  roleFixture("super_admin", "Role Fixture Super Administrator", "role-super-admin@example.test", "all", "all"),
-  roleFixture("workspace_admin", "Role Fixture Workspace Administrator", "role-workspace-admin@example.test", "workspace", "northwind"),
-  roleFixture("client_admin", "Role Fixture Client Administrator", "role-client-admin@example.test", "client", "cedar"),
-  roleFixture("project_admin", "Role Fixture Project Administrator", "role-project-admin@example.test", "project", "website"),
-  roleFixture("client_user", "Role Fixture Client User", "role-client-user@example.test", "client", "cedar"),
-  roleFixture("project_user", "Role Fixture Project User", "role-project-user@example.test", "project", "website"),
-  roleFixture("client_external_user", "Role Fixture External Client User", "role-client-external-user@example.test", "client", "cedar"),
+  roleFixture("super_admin", "Role Fixture Super Administrator", "role-super-admin@example.test", "all", "all", false),
+  roleFixture("workspace_admin", "Role Fixture Workspace Administrator", "role-workspace-admin@example.test", "workspace", "northwind", true),
+  roleFixture("client_admin", "Role Fixture Client Administrator", "role-client-admin@example.test", "client", "cedar", true),
+  roleFixture("project_admin", "Role Fixture Project Administrator", "role-project-admin@example.test", "project", "website", true),
+  roleFixture("client_user", "Role Fixture Client User", "role-client-user@example.test", "client", "cedar", true),
+  roleFixture("project_user", "Role Fixture Project User", "role-project-user@example.test", "project", "website", true),
+  roleFixture("client_external_user", "Role Fixture External Client User", "role-client-external-user@example.test", "client", "cedar", true),
 ]);
 
 const EXPECTED_ROLE_IDS = Object.freeze(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.roleId));
@@ -89,8 +89,8 @@ export function configureSanitizedDemoBootstrap(roleFixtures, env = process.env)
   env.SUPER_ADMIN_PASSWORD = superAdmin.password;
 }
 
-function roleFixture(roleId, displayName, username, scopeType, scopeKey) {
-  return Object.freeze({ displayName, roleId, scopeKey, scopeType, username });
+function roleFixture(roleId, displayName, username, scopeType, scopeKey, publicVisitor) {
+  return Object.freeze({ displayName, publicVisitor, roleId, scopeKey, scopeType, username });
 }
 
 function parseCredentialDocument(source, credentialBinding) {

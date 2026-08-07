@@ -21,6 +21,7 @@ const {
   PUBLIC_DEMO_DATA_MARKER_FILE,
   PUBLIC_DEMO_TARGET,
   assertPublicDemoRuntimeReady,
+  isPublicDemoVisitorIdentity,
 } = await import("../../../src/core/public-demo-runtime.js");
 const { createErrorHandler } = await import("../../../src/middleware/error-handler.js");
 const secretMarker = "do-not-disclose-production-secret";
@@ -255,6 +256,7 @@ try {
   }
 
   const markerPath = path.join(dataDir, PUBLIC_DEMO_DATA_MARKER_FILE);
+  const publicVisitorUserIds = Array.from({ length: 6 }, (_, index) => `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`);
   await fs.writeFile(markerPath, "{}\n", { mode: 0o600 });
   await assert.rejects(
     () => assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
@@ -266,6 +268,7 @@ try {
   );
   await fs.writeFile(markerPath, `${JSON.stringify({
     contract: PUBLIC_DEMO_DATA_MARKER_CONTRACT,
+    publicVisitorUserIds,
     target: PUBLIC_DEMO_TARGET,
   })}\n`, { mode: 0o600 });
   if (process.platform !== "win32") {
@@ -280,6 +283,8 @@ try {
     await assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
     { enabled: true, marker: "verified" },
   );
+  assert.equal(isPublicDemoVisitorIdentity(publicVisitorUserIds[0]), true);
+  assert.equal(isPublicDemoVisitorIdentity("00000000-0000-4000-8000-999999999999"), false);
 } finally {
   await fs.rm(tempRoot, { force: true, recursive: true });
 }

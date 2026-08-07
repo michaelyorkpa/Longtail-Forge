@@ -129,7 +129,7 @@ Unrecognized `app_settings` rows have no registered definition or consumer and a
 
 ## Per-user `users` settings
 
-`GET/PUT /api/user/settings` is owned by `usersService`; normalization lives in `src/utils/normalizers.js` and profile validation in `users.service.js`; persistence lives in `usersRepository`. These values remain per-user and do not move into the workspace/module store.
+`GET/PUT /api/user/settings` is owned by `usersService`; normalization lives in `src/utils/normalizers.js` and profile validation in `users.service.js`; persistence lives in `usersRepository`. These values remain per-user and do not move into the workspace/module store. In the exact public-demo profile, a user ID present in the protected marker cannot change the username/sign-in email or alternate recovery email; unrelated resettable preferences such as theme, timezone, display name, and landing choices keep their ordinary write paths. The private operator and every normal-mode identity retain the standard settings contract.
 
 | Setting | Classification and owner | Current storage and normalization | Read consumers | Current write path | Target storage |
 | --- | --- | --- | --- | --- | --- |

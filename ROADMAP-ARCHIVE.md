@@ -1,5 +1,20 @@
-﻿# Longtail Forge Roadmap Archive
+# Longtail Forge Roadmap Archive
 
+## Version 0.33.31.3 - Shared-account identity and credential immutability
+
+Completed on 2026-08-06. The protected demo seed marker now owns the exact six public visitor identities and server-side guards make their credential, recovery, session-management, API-key, and account lifecycle immutable. The active cursor advanced to `0.33.31.4` for public six-role credential activation and its permission journey.
+
+**Model: High Effort** — Public credentials require a server-owned identity rule that even normally authorized administrators cannot bypass.
+
+- [x] Marked the deterministic public visitor identities through explicit `publicVisitor` fields in the seeded demo contract and wrote only their six UUID user IDs to the protected marker; usernames, display labels, email domains, and role names are not runtime authority, and the private operator is excluded.
+- [x] Denied password, username/email, alternate-email, recovery, forced-password, managed-session, membership/account retirement, and API-key takeover paths for marked identities through self-service, administrator-on-user, route, and service boundaries. Login, ordinary session expiry, logout, and resettable non-identity preferences remain functional.
+- [x] Kept enforcement exact to the validated demo marker state, skipped marked-credential login rehash, required regenerated candidates to contain zero sessions, and preserved ordinary user lifecycle plus private-operator recovery in development, preview, supported self-hosted, and all other normal-mode installations.
+- [x] Added authentication, Users, session, administrator, API-key, recovery, direct-route, startup-marker, and host-reset regressions for self/cross denial, safe errors, stale-session rejection, login/logout, private-operator exclusion/recovery, and normal-mode non-regression.
+- [x] Updated the security, runtime, permission, settings, demo-data operation, decision, changelog, version, roadmap, archive, and generated regression contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- Shared visitor accounts can authenticate and log out but neither they nor another visitor can change, retire, recover, or take over any public visitor identity.
 ## Version 0.33.31.2 - Administrative and persistence escape denials
 
 Completed on 2026-08-06. Public-demo capability classifications now deny durable administrative and persistence escape paths at authoritative server boundaries while preserving ordinary installation behavior. The active cursor advanced to `0.33.31.3` for shared-account identity and credential immutability.

@@ -181,18 +181,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 436 |
+| Active discovered regressions | 437 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 127 |
+| Convention-path metadata regressions | 128 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 61 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 439 |
+| Global ratchet floor | 440 |
 | Release-gate ratchet floor | 63 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 75 | 0 | 75 |
+| `framework` | 76 | 0 | 76 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -216,7 +216,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | --- | ---: |
 | `unit-like` | 0 |
 | `focused` | 204 |
-| `integration` | 163 |
+| `integration` | 164 |
 | `release-gate` | 61 |
 | `slow` | 8 |
 
@@ -226,7 +226,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 181 |
+| `isolated-database` | 182 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
