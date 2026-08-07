@@ -37,7 +37,7 @@ assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.7, the Files browse\/edit\
 assert.match(moduleContract, /route-backed File Context and Preview modals[\s\S]*shared attachment\/upload\/action shells[\s\S]*strict `files\.browse` guardrails/, "Module contract should summarize the completed Files boundary");
 assert.match(moduleContract, /Future Files work must explicitly reopen scope before adding inline detail, inline preview, inline metadata, Inspector behavior, rename\/replacement, storage moves, hard purge, permanent delete, or raw storage controls/, "Module contract should preserve future Files scope discipline");
 
-assert.match(filesInventory, /Current as of 0\.33\.5\.18\.12\.7/, "Files inventory should report the closeout version");
+assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Files inventory should preserve the conversion closeout version");
 assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Files inventory should include closeout coverage");
 assert.match(filesInventory, /compact listing-first browse[\s\S]*slide-out filters[\s\S]*shared upload and attachment panel shells[\s\S]*route-backed File Context editing[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/, "Files inventory should summarize the shipped closeout boundary");
 

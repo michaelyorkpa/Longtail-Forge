@@ -41,6 +41,7 @@ import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { registerFrameworkSettingDefinition } from "../core/settings/framework-settings-registry.js";
 import { registerPersistenceHandler } from "../core/settings/settings-behavior-registry.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -436,6 +437,7 @@ async function resolveAttachableType(workspaceId, moduleId, targetType) {
 }
 
 async function uploadAndAttach(session, payload = {}) {
+  assertFileIngressAllowed();
   await emitFileLifecycleEvent("file.upload.requested", {
     session,
     moduleId: payload.moduleId,
@@ -467,6 +469,7 @@ async function uploadAndAttach(session, payload = {}) {
 }
 
 async function uploadStreamAndAttach(session, payload = {}) {
+  assertFileIngressAllowed();
   await emitFileLifecycleEvent("file.upload.requested", {
     session,
     moduleId: payload.moduleId,
@@ -560,6 +563,7 @@ async function recordUploadRejected(session, payload = {}, error) {
 }
 
 async function uploadBatchAndAttach(session, rawPayload = {}) {
+  assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(CreateFileBatchSchema, rawPayload);
   const files = payload.files;
 
@@ -617,6 +621,7 @@ async function uploadBatchAndAttach(session, rawPayload = {}) {
 }
 
 async function attachExistingFile(session, rawPayload = {}) {
+  assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(FileAttachmentSchema, rawPayload);
   const file = await readFileRow(session.workspace_id, payload.fileId);
   if (!file || file.status === "deleted") {
@@ -4415,8 +4420,13 @@ async function recordFileAudit(session, event = {}) {
   });
 }
 
+function assertFileIngressAllowed() {
+  return assertPublicDemoCapabilityAllowed("files.ingress");
+}
+
 export const filesService = {
   assertConfiguredFileScannerReady,
+  assertFileIngressAllowed,
   assertConfiguredFileStorageProviderReady,
   attachExistingFile,
   assertCanUseAttachableTarget,

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 445,
+  "minimumActiveScripts": 446,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 42,
     "docs": 10,
     "files": 44,
-    "framework": 77,
+    "framework": 78,
     "jobs": 7,
     "licensing": 1,
     "lists": 12,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 67,
+  "minimumReleaseGateScripts": 68,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",

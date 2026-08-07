@@ -10,7 +10,6 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
 const paths = Object.freeze({
   alert: "scripts/release/longtail-forge-public-demo-reset-alert.example",
@@ -101,7 +100,7 @@ for (const docs of [source.demoDocs, source.previewDocs]) {
 assert.match(source.runtimeDocs, /host-only scheduler control/i);
 assert.match(source.runtimeDocs, /not an Admin setting/i);
 assert.match(source.decisions, /As of 0\.33\.31\.8/);
-assertRoadmapCursorAtLeast("0.33.31.9", "public-demo reset scheduler closeout", source.roadmap);
+assert.doesNotMatch(source.roadmap, /^### Version 0\\.33\\.31\\.8\\b/m);
 assert.match(source.archive, /^## Version 0\.33\.31\.8 - External hourly scheduler and reset observability$/m);
 assert.match(source.changelog, /^## Version 0\.33\.31\.8 - \d{4}-\d{2}-\d{2}$/m);
 assert.doesNotMatch(source.roadmap, /^### Version 0\.33\.(31|33) slice \d+/m);

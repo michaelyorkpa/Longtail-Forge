@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 442,
+    "discoveredScripts": 443,
     "legacyScripts": 309,
-    "releaseGateScripts": 65,
+    "releaseGateScripts": 66,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
       "docs": 10,
       "files": 44,
-      "framework": 77,
+      "framework": 78,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 204,
       "integration": 165,
-      "release-gate": 65,
+      "release-gate": 66,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 184,
+      "isolated-database": 185,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 224
@@ -3242,6 +3242,24 @@
         "security"
       ],
       "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves public-demo Files ingestion is denied before payload parsing or persistence while seeded reads and standard-mode ingress remain available.",
+      "id": "framework.public-demo-files-ingress",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-files-ingress.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "demo",
+        "files",
+        "permissions",
+        "routes",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",

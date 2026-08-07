@@ -48,6 +48,8 @@ As of 0.33.31.5, `framework.public-demo-account-catalog` pins the exact six sour
 
 As of 0.33.31.6, `database.public-demo-baseline-candidate` runs as an isolated release gate and proves exact-target/profile refusal, non-mutating dry run, two same-anchor builds with identical semantic and migration identities, standalone validation, fixed public/private credential hashes, exact database-to-Files inventory, and unchanged active database/Files sentinels. Its corruption matrix covers release migration checksums, Files bytes and extra objects, roles, scopes, credential hashes, sessions, Secure Notes, analytics persistence, marker anchors, plaintext protected values, symlinks, existing candidates, and partial build state. The retained `database.demo-data-host-operation` and `database.development-data-seed` regressions independently preserve historical recovery behavior and private local seed contracts.
 
+As of 0.33.31.9, `framework.public-demo-files-ingress` is an isolated release gate. It launches exact demo and standard child probes, requires direct service denials before payload/session access, sends malformed JSON and multipart bodies through every creation route to prove capability refusal wins before parsing, pins the stable safe response, verifies read-only seeded-content classification, and confirms ordinary-mode ingress remains enabled. Static inventory assertions keep the shared attachment helper as the only browser file-input/upload endpoint owner, omit its chooser/drop/upload controls plus the File quick action in demo mode, freeze absent paste/profile/avatar/import and `/api/v1/files` ingress, and retain list/preview/content/download entry points.
+
 ## Streamlining Review Policy And Budget
 
 The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
@@ -185,18 +187,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 442 |
+| Active discovered regressions | 443 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 133 |
+| Convention-path metadata regressions | 134 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 65 |
+| Active release-gate regressions | 66 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 445 |
-| Release-gate ratchet floor | 67 |
+| Global ratchet floor | 446 |
+| Release-gate ratchet floor | 68 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 77 | 0 | 77 |
+| `framework` | 78 | 0 | 78 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -221,7 +223,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 204 |
 | `integration` | 165 |
-| `release-gate` | 65 |
+| `release-gate` | 66 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -230,7 +232,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 184 |
+| `isolated-database` | 185 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
