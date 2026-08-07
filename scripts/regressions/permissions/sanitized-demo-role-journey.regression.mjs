@@ -53,6 +53,7 @@ try {
   const output = JSON.parse(result.stdout.slice(result.stdout.lastIndexOf("\n{") + 1));
   assert.equal(output.ok, true);
   assert.equal(output.credentialsPrinted, false);
+  assert.equal(output.publicDemo, false);
   assert.ok(output.checks >= 80, "the journey should retain broad allowed/denied coverage");
   assert.deepEqual(output.rolesVerified, SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.roleId));
 

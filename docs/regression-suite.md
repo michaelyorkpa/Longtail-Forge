@@ -40,9 +40,9 @@ As of 0.33.21.21.3, `workbench.direct-task-completion` replaces the retired comp
 
 Blocked persistence is also pinned as a Task-timer pause invariant. `task-timer-status-regression.mjs` proves canonical update and automatic blocking-child rollup both pause a running timer, the static Tasks quick-fix contract requires a cross-user source-scoped Time Tracking repository update with no user predicate, and the rendered recovery spec proves the open editor changes from Running to Paused immediately.
 
-As of 0.33.26.9, `database.development-data-seed` proves the seed CLI loads root `.env` before bootstrap configuration while explicit process values retain precedence. The fat development profile preserves that protected operator and adds seven separately credentialed role fixtures; sanitized-demo reuses its bootstrap identity and retains exactly seven active logins. Paired seeds prove deterministic semantic identity across different operator/fixture passwords, exact roles/scopes/memberships, disabled ordinary personas, and the local-only credential boundary. `database.startup-maintenance-lifecycle` proves a later `SUPER_ADMIN_USERNAME` change does not create or rename a user and that a nonempty installation without an administrator does not receive an invented account during startup.
+As of 0.33.31.4, `database.development-data-seed` continues to prove the private local contract: the fat development profile preserves its operator and adds seven separately credentialed fixtures, while local sanitized-demo reuses its bootstrap identity and retains seven private active logins. Paired seeds prove deterministic semantic identity across different private values, exact roles/scopes/memberships, disabled ordinary personas, and local-only activation. `permissions.sanitized-demo-role-journey` retains the original seven-account authenticated proof. The additional `permissions.public-demo-role-journey` requires the exact bound version 2 operator-only credential document, authenticates only the six public visitors, and proves authorized reads/writes, scoped and workspace denials, immutable credentials, logout, and no public Super Administrator credential or delegated role. `database.startup-maintenance-lifecycle` still proves startup cannot invent or rename an administrator.
 
-As of 0.33.26.8, `database.demo-data-host-operation` proves exact `rt-ltf-demo` host/target/origin refusal occurs before either protected credential source is read; the separate root-owned role file has exact mode and binding; only its path enters the minimal candidate environment; and missing, weak, copied, or malformed secrets fail before backup or mutation. The isolated operation then proves non-mutating preflight, backup-first seven-role candidate construction, exact identity/role/scope/membership/no-override verification, fingerprint/domain/Secure Notes/Search/Files rejection, atomic database-and-Files promotion, safe output redaction, retained prior state, and automatic rollback. Normal startup and deployment sources remain unable to invoke it.
+As of 0.33.31.4, `database.demo-data-host-operation` proves exact `rt-ltf-demo` host/target/origin refusal occurs before protected credential reads; the separate root-owned version 2 role file has exact mode and binding and contains only the private operator value; only its path enters the minimal candidate environment; and missing, weak, copied, extra-role, or malformed input fails before backup or mutation. The isolated operation proves non-mutating preflight, backup-first six-public-plus-one-private candidate construction, exact identity/role/scope/membership/no-override verification, public visitor marker and operator exclusion, fingerprint/domain/Secure Notes/Search/Files rejection, atomic database-and-Files promotion, safe output redaction, retained prior state, and automatic rollback. Normal startup and deployment sources remain unable to invoke it.
 
 ## Streamlining Review Policy And Budget
 
@@ -181,14 +181,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 437 |
+| Active discovered regressions | 438 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 128 |
+| Convention-path metadata regressions | 129 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 61 |
+| Active release-gate regressions | 62 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 440 |
-| Release-gate ratchet floor | 63 |
+| Global ratchet floor | 441 |
+| Release-gate ratchet floor | 64 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -205,7 +205,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 9 | 0 | 9 |
 | `database` | 41 | 0 | 41 |
-| `permissions` | 11 | 0 | 11 |
+| `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
 | `release` | 31 | 3 | 34 |
@@ -217,7 +217,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 204 |
 | `integration` | 164 |
-| `release-gate` | 61 |
+| `release-gate` | 62 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -226,7 +226,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 182 |
+| `isolated-database` | 183 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

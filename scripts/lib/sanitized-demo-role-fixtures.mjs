@@ -2,10 +2,13 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_DEMO_VISITOR_PASSWORDS } from "../../src/core/public-demo-visitor-accounts.js";
 import { validatePassword } from "../../src/security/passwords.js";
 import { DEMO_PROFILE, DEVELOPMENT_PROFILE } from "./development-data-safety.mjs";
 
 export const LOCAL_ROLE_FIXTURE_MODE = "local-sanitized-demo";
+export { PUBLIC_DEMO_VISITOR_PASSWORDS };
+export const PUBLIC_DEMO_ROLE_FIXTURE_MODE = "public-demo";
 export const ROLE_CREDENTIALS_FILE_ENV = "LONGTAIL_SANITIZED_DEMO_ROLE_CREDENTIALS_FILE";
 export const DEFAULT_ROLE_CREDENTIALS_FILE = ".local/sanitized-demo-role-credentials.json";
 export const RT_LTF_DEMO_ROLE_FIXTURE_BINDING = Object.freeze({
@@ -43,24 +46,36 @@ export async function loadSanitizedDemoRoleFixtures({
     return null;
   }
 
-  if (mode !== LOCAL_ROLE_FIXTURE_MODE) {
-    throw new Error(`${target.profile} seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}.`);
+  if (![LOCAL_ROLE_FIXTURE_MODE, PUBLIC_DEMO_ROLE_FIXTURE_MODE].includes(mode)) {
+    throw new Error(`${target.profile} seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} or ${PUBLIC_DEMO_ROLE_FIXTURE_MODE}.`);
   }
 
   assertLocalOnlyEnvironment(env);
+
+  const usesPublicDemoProfile = mode === PUBLIC_DEMO_ROLE_FIXTURE_MODE;
+  if (usesPublicDemoProfile) {
+    assertExactPublicDemoBinding(target, credentialBinding);
+  } else if (credentialBinding) {
+    throw new Error("Bound demo credentials require --role-fixtures public-demo.");
+  }
 
   const configuredPath = String(env[ROLE_CREDENTIALS_FILE_ENV] || DEFAULT_ROLE_CREDENTIALS_FILE).trim();
   const credentialsFile = path.resolve(cwd, configuredPath);
   await assertProtectedLocalCredentialFile(credentialsFile);
   const parsed = parseCredentialDocument(
     await fs.readFile(credentialsFile, "utf8"),
-    credentialBinding,
+    usesPublicDemoProfile ? credentialBinding : null,
+    usesPublicDemoProfile,
   );
   const credentials = new Map();
   const normalizedPasswords = new Set();
 
   for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
-    const password = String(parsed.passwords[fixture.roleId] || "");
+    const password = String(
+      usesPublicDemoProfile && fixture.publicVisitor
+        ? PUBLIC_DEMO_VISITOR_PASSWORDS[fixture.roleId]
+        : parsed.passwords[fixture.roleId] || "",
+    );
     assertStrongUniquePassword(password, fixture, normalizedPasswords);
     normalizedPasswords.add(password);
     credentials.set(fixture.roleId, Object.freeze({
@@ -74,7 +89,7 @@ export async function loadSanitizedDemoRoleFixtures({
     credentialsFile,
     credentialBinding: credentialBinding ? Object.freeze({ ...credentialBinding }) : null,
     fixtures: SANITIZED_DEMO_ROLE_FIXTURES,
-    mode: LOCAL_ROLE_FIXTURE_MODE,
+    mode,
     usesBootstrapSuperAdmin: target.profile === DEMO_PROFILE,
   });
 }
@@ -93,7 +108,7 @@ function roleFixture(roleId, displayName, username, scopeType, scopeKey, publicV
   return Object.freeze({ displayName, publicVisitor, roleId, scopeKey, scopeType, username });
 }
 
-function parseCredentialDocument(source, credentialBinding) {
+function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfile) {
   let parsed;
   try {
     parsed = JSON.parse(source);
@@ -105,12 +120,12 @@ function parseCredentialDocument(source, credentialBinding) {
     !parsed
     || typeof parsed !== "object"
     || Array.isArray(parsed)
-    || parsed.version !== 1
+    || parsed.version !== (usesPublicDemoProfile ? 2 : 1)
     || !parsed.passwords
     || typeof parsed.passwords !== "object"
     || Array.isArray(parsed.passwords)
   ) {
-    throw new Error("Sanitized-demo role credential file must contain version 1 and a passwords object.");
+    throw new Error(`Sanitized-demo role credential file must contain version ${usesPublicDemoProfile ? 2 : 1} and a passwords object.`);
   }
 
   const expectedDocumentKeys = credentialBinding
@@ -135,12 +150,25 @@ function parseCredentialDocument(source, credentialBinding) {
   }
 
   const passwordKeys = Object.keys(parsed.passwords).sort();
-  const expectedKeys = [...EXPECTED_ROLE_IDS].sort();
+  const expectedKeys = usesPublicDemoProfile ? ["super_admin"] : [...EXPECTED_ROLE_IDS].sort();
   if (passwordKeys.join(",") !== expectedKeys.join(",")) {
-    throw new Error("Sanitized-demo role credential file must define exactly one password for every shipped role.");
+    throw new Error(usesPublicDemoProfile
+      ? "Bound public-demo credentials must define only the private Super Administrator password."
+      : "Sanitized-demo role credential file must define exactly one password for every shipped role.");
   }
 
   return parsed;
+}
+
+function assertExactPublicDemoBinding(target, credentialBinding) {
+  if (
+    target?.profile !== DEMO_PROFILE
+    || !credentialBinding
+    || credentialBinding.target !== RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target
+    || credentialBinding.publicUrl !== RT_LTF_DEMO_ROLE_FIXTURE_BINDING.publicUrl
+  ) {
+    throw new Error("Public-demo visitor credentials require the exact bound rt-ltf-demo profile.");
+  }
 }
 
 function assertLocalOnlyEnvironment(env) {

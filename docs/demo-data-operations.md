@@ -1,6 +1,6 @@
 # Demo Host Data Provisioning and Reset
 
-Version 0.33.26.8 extends the explicit operator operation for the named Longtail Forge demo/development installation. It installs the same coherent fictional scenario and seven-role permission fixture used by the local `sanitized-demo` profile while keeping the production runtime, normal startup, and routine Nightly deployments non-destructive.
+As of version 0.33.31.4, the explicit operator operation for the named Longtail Forge demo installation installs the coherent fictional scenario with six public visitor roles and one separate private Super Administrator. It derives those identities and scopes from the same seven-role fixture used by local `sanitized-demo` while keeping the production runtime, normal startup, and routine Nightly deployments non-destructive.
 
 This is not a general production seed command. The operation accepts only target `rt-ltf-demo`, host identity `rt-ltf-demo`, and public origin `https://demo.longtailforge.com`. Do not install its root-owned wrapper or helper configuration on preview, customer, or ordinary self-hosted installations.
 
@@ -44,26 +44,20 @@ Create the separate role credential document with a root-only editor or secret-m
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "binding": {
     "target": "rt-ltf-demo",
     "publicUrl": "https://demo.longtailforge.com"
   },
   "passwords": {
-    "super_admin": "<unique-strong-private-password>",
-    "workspace_admin": "<unique-strong-private-password>",
-    "client_admin": "<unique-strong-private-password>",
-    "project_admin": "<unique-strong-private-password>",
-    "client_user": "<unique-strong-private-password>",
-    "project_user": "<unique-strong-private-password>",
-    "client_external_user": "<unique-strong-private-password>"
+    "super_admin": "<unique-strong-private-password>"
   }
 }
 ```
 
-Replace every bracketed value before installation. The document must contain exactly these fields and role keys. Each password must be unique, at least 16 characters, satisfy the normal application password policy, and differ from every password, token, master key, or other secret in the application environment. Never copy a Friends-and-Family Preview credential or its environment file. The target/origin binding, protected path, non-symlink check, exact mode, and distinct-secret check all fail closed before service quiescence or backup.
+Replace the bracketed value before installation. The version 2 document must contain exactly these fields and only the `super_admin` password. It must be at least 16 characters, satisfy the normal application password policy, and differ from every password, token, master key, or other secret in the application environment. The six visitor passwords are intentionally public, deterministic source-owned fixture values; they are not accepted from the host file or any other environment. Never reuse a local fixture, Friends-and-Family Preview, customer, or application credential. The target/origin binding, explicit `public-demo` fixture mode, protected path, non-symlink check, exact mode, and distinct-secret check all fail closed before service quiescence or backup.
 
-The application environment remains `/etc/longtail-forge/longtail-forge.env` and is parsed only after exact root/hostname/target/origin refusal. It still supplies the production runtime and backup inventory, but no application secret enters the candidate seed. The minimal child environment contains only safe process keys, local development/SQLite/scanner settings, and the protected role-file path. The child reads the seven values directly, validates them again, and stores only normal Argon2id hashes. The values never enter arguments, helper configuration, markers, backups, logs, output, or the runtime artifact.
+The application environment remains `/etc/longtail-forge/longtail-forge.env` and is parsed only after exact root/hostname/target/origin refusal. It still supplies the production runtime and backup inventory, but no application secret enters the candidate seed. The minimal child environment contains only safe process keys, local development/SQLite/scanner settings, and the protected role-file path. The child reads and validates the one private operator value, combines it with the six reviewed public visitor values only under the exact bound profile, and stores normal Argon2id hashes. The private value never enters arguments, helper configuration, markers, backups, logs, output, or the runtime artifact.
 
 ## Preflight
 
@@ -104,7 +98,7 @@ Routine verified `nightly` deployments preserve the database and Files tree. The
 
 Resetting with `--anchor-date today` re-anchors the whole relative timeline: yesterday's overdue tasks stay one day overdue, next week's work stays next week. An explicit `YYYY-MM-DD` anchor remains available for pinned, repeatable captures.
 
-The fictional scenario remains the fat Northwind dataset (seed contract `development-data-v2`): 5 workspaces (Northwind Studio, Northwind Field Ops, two personal, one family), 17 inactive/login-disabled ordinary personas, 7 active private role fixtures, 20 clients, 46 projects, 400 tasks across every lifecycle state, 200 notes, 24 lists, ~600 time entries, and a fully materialized Search index — generated deterministically from themed pools so two seeds with the same anchor and different private passwords produce identical semantic fingerprints.
+The fictional scenario remains the fat Northwind dataset (seed contract `development-data-v2`): 5 workspaces (Northwind Studio, Northwind Field Ops, two personal, one family), 17 inactive/login-disabled ordinary personas, 6 active public visitor fixtures plus 1 private operator, 20 clients, 46 projects, 400 tasks across every lifecycle state, 200 notes, 24 lists, ~600 time entries, and a fully materialized Search index — generated deterministically from themed pools so two seeds with the same anchor and different private passwords produce identical semantic fingerprints.
 
 `reset` requires the matching live ownership marker. It refuses an unmarked, mismatched, preview/customer, unknown-host, unknown-origin, non-production, symbolic-link-substituted, incorrectly owned/mode, partial-stage, unexpectedly populated, nested backup/data, or unresolved installation.
 
@@ -136,7 +130,7 @@ npm run backup:inspect -- \
 
 Use the full restore command and recovery rules in [Baseline Backup and Restore](backup-restore.md) if automatic prior-state recovery failed. Never mix one snapshot's database with another snapshot's Files tree.
 
-After the first installation and after any reset, retain a private operational record of the sanitized output and separately prove all seven logins, exact role/scope assignments, disabled ordinary-persona login, representative permission allows/denials, Search, Files read/preview, worker/job health, direct and public health/readiness, and `/api/app-info`. Local regressions do not substitute for the live evidence.
+After the first installation and after any reset, retain a private operational record of the sanitized output and separately prove the six public visitor logins, the private operator recovery login, exact role/scope assignments, disabled ordinary-persona login, representative permission allows/denials, Search, Files read/preview, worker/job health, direct and public health/readiness, and `/api/app-info`. Local regressions do not substitute for the live evidence.
 
 ## Reviewed 0.33.26.9 live-operation checklist
 
@@ -148,5 +142,5 @@ Do not begin the live operation until every item is available:
 4. Preflight returns `preflight-ready` and `nextAction: reset` without a service, backup, database, Files, or marker change.
 5. A new whole-instance database-and-Files backup can be created and inspected as restorable; the retained prior data state and prior runtime artifact have sufficient storage and a reviewed recovery path.
 6. The exact reset confirmation is entered only for target `rt-ltf-demo`. Never run a provision, reset, seed, credential, backup, or data command against `rt-ltf` or the Friends-and-Family Preview.
-7. After activation, prove integrity, foreign keys, Files/Search, all seven private logins and exact scopes, representative 0.33.26 permission behavior, rejection of an old session, direct/public runtime identity, and automatic prior-state restoration on any failed activation check.
+7. After activation, prove integrity, foreign keys, Files/Search, all six public visitor logins and exact scopes, the separate private operator recovery login, representative permission behavior, rejection of an old session, direct/public runtime identity, and automatic prior-state restoration on any failed activation check.
 8. Retain only sanitized operational evidence. No credential value, protected path, application environment, backup content, raw assignment identifier, or secret-bearing command/output belongs in repository history.

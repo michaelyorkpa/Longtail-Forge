@@ -11,7 +11,7 @@ import {
 } from "./development-data-safety.mjs";
 import {
   loadSanitizedDemoRoleFixtures,
-  LOCAL_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_ROLE_FIXTURE_MODE,
   ROLE_CREDENTIALS_FILE_ENV,
   RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
   SANITIZED_DEMO_ROLE_FIXTURES,
@@ -241,7 +241,7 @@ async function readDemoRoleFixtures(credentialsFile) {
       LONGTAIL_RELEASE_BRANCH: "",
       [ROLE_CREDENTIALS_FILE_ENV]: credentialsFile,
     },
-    mode: LOCAL_ROLE_FIXTURE_MODE,
+    mode: PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     target: { profile: DEMO_PROFILE },
   });
 }
@@ -547,7 +547,7 @@ async function seedCandidate({
     "--environment", "development",
     "--data-dir", seedDataRoot,
     "--anchor-date", anchorDate,
-    "--role-fixtures", LOCAL_ROLE_FIXTURE_MODE,
+    "--role-fixtures", PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     "--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target,
   ], {
     cwd: releaseDir,
