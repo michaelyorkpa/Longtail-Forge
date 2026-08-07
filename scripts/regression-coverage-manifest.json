@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 439,
+    "discoveredScripts": 440,
     "legacyScripts": 309,
-    "releaseGateScripts": 62,
+    "releaseGateScripts": 63,
     "areaCounts": {
       "dashboard": 2,
-      "database": 41,
+      "database": 42,
       "docs": 10,
       "files": 44,
       "framework": 77,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 204,
       "integration": 165,
-      "release-gate": 62,
+      "release-gate": 63,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 183,
+      "isolated-database": 184,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 222
@@ -2659,6 +2659,25 @@
         "workspace-isolation"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
+      "id": "database.public-demo-baseline-candidate",
+      "legacy": false,
+      "path": "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "demo",
+        "deployment",
+        "files",
+        "migrations",
+        "security",
+        "seed",
+        "sqlite"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "database",

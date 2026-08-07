@@ -30,6 +30,7 @@ assert.equal(runtimePackage.scripts.start, "node server.js");
 assert.equal(runtimePackage.scripts["backup:create"], "node scripts/backup.mjs create");
 assert.equal(runtimePackage.scripts["backup:restore"], "node scripts/backup.mjs restore");
 assert.equal(runtimePackage.scripts["demo:data:host"], "node scripts/demo-data-host.mjs");
+assert.equal(runtimePackage.scripts["demo:baseline:candidate"], "node scripts/public-demo-baseline-candidate.mjs");
 assert.equal(runtimePackage.scripts["workspace-backup:inspect"], "node scripts/workspace-backup.mjs inspect");
 assert.equal(runtimePackage.scripts["workspace-backup:restore"], "node scripts/workspace-backup.mjs restore");
 assert.equal(runtimePackage.scripts["workspace:purge"], "node scripts/workspace-purge.mjs");
@@ -69,11 +70,13 @@ try {
     "public/js/navigation.js",
     "scripts/backup.mjs",
     "scripts/demo-data-host.mjs",
+    "scripts/public-demo-baseline-candidate.mjs",
     "scripts/development-data.mjs",
     "scripts/workspace-backup.mjs",
     "scripts/workspace-purge.mjs",
     "scripts/lib/backup-archive.mjs",
     "scripts/lib/demo-data-operation.mjs",
+    "scripts/lib/public-demo-baseline-candidate.mjs",
     "scripts/lib/development-data-safety.mjs",
     "scripts/lib/sanitized-demo-role-fixtures.mjs",
     "docs/backup-restore.md",

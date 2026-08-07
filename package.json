@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.31.5",
+  "version": "0.33.31.6",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -20,6 +20,7 @@
     "backup:inspect": "node scripts/backup.mjs inspect",
     "backup:restore": "node scripts/backup.mjs restore",
     "demo:data:host": "node scripts/demo-data-host.mjs",
+    "demo:baseline:candidate": "node scripts/public-demo-baseline-candidate.mjs",
     "backup:drill": "node scripts/backup-restore-drill.mjs",
     "workspace-backup:inspect": "node scripts/workspace-backup.mjs inspect",
     "workspace-backup:restore": "node scripts/workspace-backup.mjs restore",

@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.6`.
+Active cursor: `0.33.31.7`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.6 - Deterministic public baseline candidate
-
-**Model: High Effort** — The baseline builder is a data-integrity boundary, but it can be isolated from live activation and scheduling.
-
-- [ ] Extract or adapt the existing guarded demo candidate builder for the six-account public profile and current Compose data-root layout without stopping or replacing the active unit. Keep non-mutating `--dry-run`/baseline-validation behavior and exact-target refusal.
-- [ ] Build in a new same-filesystem staging location through normal migrations and reviewed seed definitions; verify migration identity, semantic fingerprint/counts, `PRAGMA integrity_check`, zero foreign-key violations, Files sizes/checksums, demo ownership marker, empty sessions, fixed public identities, private operator separation, and absence of real data, Secure Notes material, analytics, feedback, or interest capture.
-- [ ] Reject partial/reused staging, mismatched anchors or markers, credential leakage, symlink/path escapes, and database/Files mismatch. A prebuilt artifact may accelerate work but cannot replace repository-controlled reconstruction and verification.
-- [ ] Add candidate-only regressions for repeatability, dry run, corrupt database/Files/roles/scopes, unexpected sessions or protected data, output redaction, and unchanged private development/demo seed behavior.
-
-Acceptance criteria:
-
-- A non-activating operator command reproducibly builds and proves one exact public database-and-Files candidate without touching the running installation.
 
 ### Version 0.33.31.7 - Compose reset activation and automatic recovery
 

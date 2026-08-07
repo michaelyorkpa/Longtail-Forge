@@ -46,6 +46,8 @@ As of 0.33.31.4, `database.demo-data-host-operation` proves exact `rt-ltf-demo` 
 
 As of 0.33.31.5, `framework.public-demo-account-catalog` pins the exact six source-aligned public account projections, role/scope wording, nonempty representative/action/denial guidance, intentionally public credential contract, no internal IDs or Super Admin option, no-store enabled response, and generic disabled-mode not-found response without booting a database. `login.spec.mjs` independently renders the helper at desktop and mobile widths, proves the native select's accessible name and keyboard focus order, all six option labels and guidance groups, selection/fill without authentication, ordinary submit as the only login request, generic failure recovery, and complete absence with unchanged focus/autocomplete when the optional catalog is unavailable.
 
+As of 0.33.31.6, `database.public-demo-baseline-candidate` runs as an isolated release gate and proves exact-target/profile refusal, non-mutating dry run, two same-anchor builds with identical semantic and migration identities, standalone validation, fixed public/private credential hashes, exact database-to-Files inventory, and unchanged active database/Files sentinels. Its corruption matrix covers release migration checksums, Files bytes and extra objects, roles, scopes, credential hashes, sessions, Secure Notes, analytics persistence, marker anchors, plaintext protected values, symlinks, existing candidates, and partial build state. The retained `database.demo-data-host-operation` and `database.development-data-seed` regressions independently preserve historical recovery behavior and private local seed contracts.
+
 ## Streamlining Review Policy And Budget
 
 The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
@@ -183,14 +185,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 439 |
+| Active discovered regressions | 440 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 130 |
+| Convention-path metadata regressions | 131 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 62 |
+| Active release-gate regressions | 63 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 442 |
-| Release-gate ratchet floor | 64 |
+| Global ratchet floor | 443 |
+| Release-gate ratchet floor | 65 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -206,7 +208,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 9 | 0 | 9 |
-| `database` | 41 | 0 | 41 |
+| `database` | 42 | 0 | 42 |
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
@@ -219,7 +221,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 204 |
 | `integration` | 165 |
-| `release-gate` | 62 |
+| `release-gate` | 63 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -228,7 +230,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 183 |
+| `isolated-database` | 184 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
