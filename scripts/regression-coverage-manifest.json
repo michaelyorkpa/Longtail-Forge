@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 440,
+    "discoveredScripts": 441,
     "legacyScripts": 309,
-    "releaseGateScripts": 63,
+    "releaseGateScripts": 64,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 12,
       "public-api": 3,
-      "release": 31,
+      "release": 32,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 204,
       "integration": 165,
-      "release-gate": 63,
+      "release-gate": 64,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 184,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 222
+      "static": 223
     }
   },
   "coverageFamilies": [
@@ -4132,6 +4132,23 @@
         "deployment",
         "docker",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the guarded Compose public-demo reset promotes one verified database-and-Files unit under a shared lock and automatically reconstructs prior state after failures or interruption.",
+      "id": "release.public-demo-compose-reset",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-compose-reset.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "compose",
+        "demo",
+        "recovery",
+        "security",
+        "sqlite"
       ],
       "tier": "release-gate"
     },

@@ -427,15 +427,20 @@
         "^docs/development-and-demo-data\\.md$",
         "^docs/marketing/screenshot-and-demo-data-plan\\.md$",
         "^scripts/demo-data-host\\.mjs$",
+        "^scripts/public-demo-baseline-(?:activation|candidate)\\.mjs$",
         "^scripts/development-data\\.mjs$",
         "^scripts/sanitized-demo-role-journey\\.mjs$",
         "^scripts/lib/demo-data-operation\\.mjs$",
+        "^scripts/lib/public-demo-baseline-(?:activation|candidate)\\.mjs$",
         "^scripts/lib/development-data-safety\\.mjs$",
         "^scripts/lib/sanitized-demo-role-fixtures\\.mjs$",
-        "^scripts/release/longtail-forge-demo-data-host\\.example$",
+        "^scripts/release/longtail-forge-(?:demo-data-host|public-demo-reset-host)\\.example$",
         "^scripts/regressions/database/demo-data-host-operation\\.regression\\.mjs$",
+        "^scripts/regressions/database/public-demo-baseline-candidate\\.regression\\.mjs$",
+        "^scripts/regressions/release/public-demo-compose-reset\\.regression\\.mjs$",
         "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$",
-        "^scripts/regressions/permissions/sanitized-demo-role-journey\\.regression\\.mjs$"
+        "^scripts/regressions/permissions/sanitized-demo-role-journey\\.regression\\.mjs$",
+        "^scripts/regressions/permissions/public-demo-role-journey\\.regression\\.mjs$"
       ],
       "docs": [
         "docs/demo-data-operations.md",

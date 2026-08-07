@@ -1,0 +1,413 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+readonly DEMO_TARGET='rt-ltf-demo'
+readonly DEMO_ORIGIN='https://demo.longtailforge.com'
+
+fail() {
+  printf 'longtail-forge-public-demo-reset: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
+}
+
+require_safe_absolute_path() {
+  local target="$1" label="$2"
+  [[ "$target" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
+  [[ "$target" != *'/../'* && "$target" != */.. && "$target" != *'//'* ]] || fail "$label contains unsafe traversal"
+}
+
+require_root_owned_private_file() {
+  local target="$1" label="$2" owner mode parent parent_owner parent_mode
+  test -f "$target" && test ! -L "$target" || fail "$label must be a regular non-symbolic-link file"
+  owner="$(stat -c '%u' "$target")"
+  mode="$(stat -c '%a' "$target")"
+  test "$owner" = '0' || fail "$label must be root-owned"
+  test "$mode" = '600' || fail "$label must use mode 0600"
+  parent="$(dirname "$target")"
+  parent_owner="$(stat -c '%u' "$parent")"
+  parent_mode="$(stat -c '%a' "$parent")"
+  test "$parent_owner" = '0' || fail "$label parent must be root-owned"
+  test $((8#$parent_mode & 8#022)) -eq 0 || fail "$label parent must not be group- or other-writable"
+}
+
+load_helper_environment() {
+  require_root_owned_private_file "$HELPER_ENV" 'compose helper environment'
+  local line key
+  declare -A seen=()
+  while IFS= read -r line || test -n "$line"; do
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"
+    [[ "$key" =~ $ALLOWED_ENV_KEYS ]] || fail "compose helper environment contains unsupported key: $key"
+    test -z "${seen[$key]:-}" || fail "compose helper environment contains duplicate key: $key"
+    seen[$key]=1
+    export "$line"
+  done < "$HELPER_ENV"
+}
+
+for command in curl date docker flock grep install jq mktemp realpath stat; do require_command "$command"; done
+test "$(id -u)" = '0' || fail 'helper must run as root through the constrained sudo rule'
+load_helper_environment
+
+COMPOSE_DIR="${LTF_COMPOSE_DIR:-/opt/longtail-forge-compose}"
+COMPOSE_FILE="${LTF_COMPOSE_FILE:-$COMPOSE_DIR/compose.yaml}"
+COMPOSE_HOST_ENV="${LTF_COMPOSE_HOST_ENV:-/etc/longtail-forge/compose-host.env}"
+DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
+STATE_ROOT="$DEPLOY_ROOT/state"
+RELEASE_ROOT="$DEPLOY_ROOT/releases"
+OPERATION_ROOT="$DEPLOY_ROOT/demo-reset-operations"
+OPERATION_LOCK="$DEPLOY_ROOT/compose-operation.lock"
+BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge/compose}"
+BACKUP_CONTAINER_ROOT='/var/backups/longtail-forge'
+MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
+DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"
+PUBLIC_URL="${LTF_PUBLIC_URL:-}"
+ROLE_CREDENTIALS="${LTF_DEMO_ROLE_CREDENTIALS:-/etc/longtail-forge/demo-role-credentials.json}"
+SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+CURRENT_STATE="$STATE_ROOT/current.json"
+
+for pair in \
+  "$COMPOSE_DIR:compose directory" \
+  "$COMPOSE_FILE:compose file" \
+  "$COMPOSE_HOST_ENV:compose host environment" \
+  "$DEPLOY_ROOT:deployment root" \
+  "$BACKUP_ROOT:backup root" \
+  "$MAINTENANCE_STATE_ROOT:maintenance state root" \
+  "$ROLE_CREDENTIALS:public-demo role credentials"; do
+  require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
+done
+test "$PUBLIC_URL" = "$DEMO_ORIGIN" || fail 'public origin must be the exact named demo origin'
+test "$BACKUP_ROOT" = '/var/backups/longtail-forge/compose' || fail 'backup root must remain the protected Compose backup directory'
+test -d "$COMPOSE_DIR" && test ! -L "$COMPOSE_DIR" || fail 'compose directory must be a real directory'
+test -f "$COMPOSE_FILE" && test ! -L "$COMPOSE_FILE" || fail 'compose file must be a real file'
+require_root_owned_private_file "$COMPOSE_HOST_ENV" 'compose host environment'
+require_root_owned_private_file "$ROLE_CREDENTIALS" 'public-demo role credentials'
+ROLE_CREDENTIALS_REAL="$(realpath -e -- "$ROLE_CREDENTIALS")"
+case "$ROLE_CREDENTIALS_REAL" in
+  "$DEPLOY_ROOT"/*|"$BACKUP_ROOT"/*|"$COMPOSE_DIR"/*) fail 'public-demo role credentials must remain outside deployment, backup, and Compose trees' ;;
+esac
+require_root_owned_private_file "$CURRENT_STATE" 'recorded current Compose state'
+if test -n "$SECURE_KEY_BACKUP"; then
+  require_safe_absolute_path "$SECURE_KEY_BACKUP" 'Secure Notes recovery-key backup'
+  require_root_owned_private_file "$SECURE_KEY_BACKUP" 'Secure Notes recovery-key backup'
+fi
+
+install -d -o root -g root -m 0711 "$DEPLOY_ROOT"
+install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROOT"
+if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
+require_root_owned_private_file "$OPERATION_LOCK" 'Compose operation lock'
+exec 9<>"$OPERATION_LOCK"
+flock -n 9 || fail 'another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock'
+
+MODE="${1:-}"
+shift || true
+TARGET=''
+ANCHOR_DATE=''
+CONFIRM=''
+declare -A SEEN_ARGS=()
+while test "$#" -gt 0; do
+  case "$1" in
+    --target) key=target; TARGET="${2:-}" ;;
+    --anchor-date) key=anchor; ANCHOR_DATE="${2:-}" ;;
+    --confirm) key=confirm; CONFIRM="${2:-}" ;;
+    *) fail "unknown argument: $1" ;;
+  esac
+  test -z "${SEEN_ARGS[$key]:-}" || fail "argument may be supplied only once: $1"
+  test -n "${2:-}" && [[ "${2:-}" != --* ]] || fail "$1 requires a value"
+  SEEN_ARGS[$key]=1
+  shift 2
+done
+test "$MODE" = 'reset' || fail 'command must be reset'
+test "$TARGET" = "$DEMO_TARGET" || fail 'target must be exactly rt-ltf-demo'
+test "$CONFIRM" = 'RESET RT-LTF-DEMO COMPOSE DATA' || fail 'exact reset confirmation is required'
+if test "$ANCHOR_DATE" = 'today'; then ANCHOR_DATE="$(date -u +%F)"; fi
+[[ "$ANCHOR_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'anchor date must be today or YYYY-MM-DD'
+test "$(date -u -d "$ANCHOR_DATE" +%F 2>/dev/null)" = "$ANCHOR_DATE" || fail 'anchor date is not a real calendar date'
+
+OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-reset-$$"
+OPERATION_DIR="$OPERATION_ROOT/$OPERATION_ID"
+test ! -e "$OPERATION_DIR" || fail 'operation identity already exists'
+install -d -o root -g root -m 0700 "$OPERATION_DIR"
+SESSION_ROOT="$(mktemp -d /run/longtail-forge-public-demo-reset.XXXXXX)"
+chmod 0700 "$SESSION_ROOT"
+
+cleanup_session_material() {
+  rm -f -- "$SESSION_ROOT/pre-reset.cookie" "$SESSION_ROOT/post-reset.cookie"
+  rmdir -- "$SESSION_ROOT" 2>/dev/null || true
+}
+trap cleanup_session_material EXIT
+
+state_value() { jq -er "$2" "$1"; }
+CURRENT_RELEASE_ENV="$(state_value "$CURRENT_STATE" '.deployment.releaseEnv')"
+require_safe_absolute_path "$CURRENT_RELEASE_ENV" 'recorded release environment'
+case "$CURRENT_RELEASE_ENV" in "$RELEASE_ROOT"/*.env) ;; *) fail 'recorded release environment escaped the protected release root' ;; esac
+require_root_owned_private_file "$CURRENT_RELEASE_ENV" 'recorded release environment'
+
+compose() {
+  docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
+    --env-file "$COMPOSE_HOST_ENV" --env-file "$CURRENT_RELEASE_ENV" "$@"
+}
+
+compose config --quiet
+compose config --format json | jq -e --arg origin "$DEMO_ORIGIN" '
+  .services["longtail-forge"].environment |
+    .LONGTAIL_ENV == "production" and
+    .DEMO_MODE == "true" and
+    .LONGTAIL_DEPLOYMENT_MODE == "compose" and
+    .LONGTAIL_PUBLIC_URL == $origin and
+    .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and
+    .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db" and
+    .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
+' >/dev/null || fail 'resolved Compose profile is not the exact production public demo'
+
+mapfile -t SQLITE_SERVICES < <(compose config --services | grep -E '^longtail-forge(-worker)?$')
+printf '%s\n' "${SQLITE_SERVICES[@]}" | grep -Fxq 'longtail-forge' || fail 'Compose application service is missing'
+test "${#SQLITE_SERVICES[@]}" -le 2 || fail 'unexpected duplicate SQLite service topology'
+
+assert_marker() {
+  test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail 'deployment marker parent is unsafe'
+  if test -e "$DEPLOYMENT_MARKER"; then
+    test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail 'deployment marker substitution is unsafe'
+  else
+    install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
+  fi
+}
+
+clear_marker() {
+  test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail 'deployment marker is not a safe regular file'
+  rm -f -- "$DEPLOYMENT_MARKER"
+}
+
+record_phase() {
+  local phase="$1" outcome="${2:-}"
+  jq -n --arg anchor "$ANCHOR_DATE" --arg operationId "$OPERATION_ID" --arg outcome "$outcome" --arg phase "$phase" \
+    --arg target "$DEMO_TARGET" '{contract:"longtail-forge-public-demo-reset-v1",target:$target,operationId:$operationId,anchorDate:$anchor,phase:$phase,outcome:$outcome}' \
+    > "$OPERATION_DIR/state.json.tmp"
+  install -o root -g root -m 0600 "$OPERATION_DIR/state.json.tmp" "$OPERATION_DIR/state.json"
+  rm -f -- "$OPERATION_DIR/state.json.tmp"
+}
+
+run_candidate() {
+  local action="$1" output="$2"
+  compose run --rm --no-deps --user 0:0 \
+    --volume "$ROLE_CREDENTIALS:/run/secrets/demo-role-credentials.json:ro" \
+    longtail-forge node scripts/public-demo-baseline-candidate.mjs "$action" \
+    --target "$DEMO_TARGET" --anchor-date "$ANCHOR_DATE" \
+    --data-root /var/lib/longtail-forge \
+    --role-credentials /run/secrets/demo-role-credentials.json > "$output"
+}
+
+run_activation() {
+  local action="$1" output="$2"
+  local arguments=("$action" --target "$DEMO_TARGET" --data-root /var/lib/longtail-forge)
+  if test "$action" = 'activate'; then
+    arguments+=(--operation-id "$OPERATION_ID" --confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
+  elif test "$action" = 'recover'; then
+    arguments+=(--confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
+  elif test "$action" = 'finalize'; then
+    arguments+=(--operation-id "$OPERATION_ID")
+  fi
+  compose run --rm --no-deps --user 0:0 longtail-forge \
+    node scripts/public-demo-baseline-activation.mjs "${arguments[@]}" > "$output"
+}
+
+stop_sqlite_users() {
+  compose stop "${SQLITE_SERVICES[@]}"
+  local service
+  for service in "${SQLITE_SERVICES[@]}"; do
+    test -z "$(compose ps --status running -q "$service")" || fail 'a Compose SQLite service remained running'
+  done
+}
+
+start_sqlite_users() {
+  compose up -d --no-deps --force-recreate "${SQLITE_SERVICES[@]}"
+  local service container
+  for service in "${SQLITE_SERVICES[@]}"; do
+    container="$(compose ps -q "$service")"
+    test -n "$container" || return 1
+    test "$(docker inspect --format '{{.State.Running}}' "$container")" = 'true' || return 1
+  done
+}
+
+backup_current_unit() {
+  local output="$1" output_name container_output
+  output_name="$(basename "$output")"
+  test "$output" = "$BACKUP_ROOT/$output_name" || fail 'backup output escaped the protected Compose backup root'
+  container_output="$BACKUP_CONTAINER_ROOT/$output_name"
+  local key_args=()
+  if test -n "$SECURE_KEY_BACKUP"; then key_args=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro"); fi
+  compose run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs create \
+    --confirm-stopped --database /var/lib/longtail-forge/longtail-forge.db \
+    --files-root /var/lib/longtail-forge/files --output "$container_output" \
+    ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} \
+    > "$OPERATION_DIR/backup-create.json"
+  compose run --rm --no-deps "${key_args[@]}" longtail-forge node scripts/backup.mjs inspect \
+    --archive "$container_output" \
+    ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} \
+    > "$OPERATION_DIR/backup-inspect.json"
+  test -f "$output" && test ! -L "$output" || fail 'protected whole-instance backup was not created'
+}
+
+wait_for_health() {
+  local container deadline status
+  container="$(compose ps -q longtail-forge)"
+  test -n "$container" || return 1
+  deadline=$((SECONDS + 90))
+  while test "$SECONDS" -lt "$deadline"; do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container")"
+    test "$status" != 'unhealthy' || return 1
+    test "$status" = 'healthy' && return 0
+    sleep 2
+  done
+  return 1
+}
+
+verify_runtime() {
+  local version commit artifact
+  version="$(state_value "$CURRENT_STATE" '.version')"
+  commit="$(state_value "$CURRENT_STATE" '.commitSha')"
+  artifact="$(state_value "$CURRENT_STATE" '.artifact.sha256')"
+  wait_for_health || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
+    --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
+    '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error "$PUBLIC_URL/api/app-info" | jq -e \
+    --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
+    '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null
+}
+
+capture_old_session() {
+  local catalog username password payload status
+  catalog="$(curl --fail --silent --show-error http://127.0.0.1:8001/api/public-demo/accounts)"
+  username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
+  password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
+  payload="$(jq -cn --arg username "$username" --arg password "$password" '{username:$username,password:$password}')"
+  status="$(curl --silent --show-error --output "$OPERATION_DIR/pre-reset-login.json" --write-out '%{http_code}' \
+    --cookie-jar "$SESSION_ROOT/pre-reset.cookie" -H 'content-type: application/json' \
+    --data "$payload" http://127.0.0.1:8001/api/login)"
+  test "$status" = '200' || fail 'representative pre-reset session could not be captured'
+}
+
+verify_old_session_rejected() {
+  local status
+  status="$(curl --silent --show-error --output "$OPERATION_DIR/old-session-response.json" --write-out '%{http_code}' \
+    --cookie "$SESSION_ROOT/pre-reset.cookie" http://127.0.0.1:8001/api/session)"
+  test "$status" = '401' || return 1
+}
+
+verify_representative_role() {
+  local catalog username password payload status project_id now_start now_end csrf_token
+  catalog="$(curl --fail --silent --show-error http://127.0.0.1:8001/api/public-demo/accounts)"
+  username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
+  password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
+  payload="$(jq -cn --arg username "$username" --arg password "$password" '{username:$username,password:$password}')"
+  status="$(curl --silent --show-error --output "$OPERATION_DIR/post-reset-login.json" --write-out '%{http_code}' \
+    --cookie-jar "$SESSION_ROOT/post-reset.cookie" -H 'content-type: application/json' \
+    --data "$payload" http://127.0.0.1:8001/api/login)"
+  test "$status" = '200' || return 1
+  csrf_token="$(curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+    --cookie-jar "$SESSION_ROOT/post-reset.cookie" http://127.0.0.1:8001/api/csrf-token | jq -er '.csrfToken')" || return 1
+  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+    'http://127.0.0.1:8001/api/tasks?limit=1' > "$OPERATION_DIR/role-read.json" || return 1
+  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+    http://127.0.0.1:8001/api/client-projects > "$OPERATION_DIR/client-projects.json" || return 1
+  project_id="$(jq -er '.. | objects | select(.name? == "Website Refresh") | (.project_id // .id)' "$OPERATION_DIR/client-projects.json" | head -n 1)"
+  test -n "$project_id" || return 1
+  now_start="$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S.000Z)"
+  now_end="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+  payload="$(jq -cn --arg project_id "$project_id" --arg start_time "$now_start" --arg end_time "$now_end" \
+    '{project_id:$project_id,start_time:$start_time,end_time:$end_time,description:"Public demo reset verification"}')"
+  status="$(curl --silent --show-error --output "$OPERATION_DIR/role-write.json" --write-out '%{http_code}' \
+    --cookie "$SESSION_ROOT/post-reset.cookie" -H 'content-type: application/json' \
+    -H "X-CSRF-Token: $csrf_token" --data "$payload" http://127.0.0.1:8001/api/time-entries)"
+  test "$status" = '201' || return 1
+  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+    -H "X-CSRF-Token: $csrf_token" --request POST http://127.0.0.1:8001/api/logout \
+    > "$OPERATION_DIR/logout.json" || return 1
+}
+
+RECOVERY_ARMED=false
+RECOVERY_RUNNING=false
+recover_on_exit() {
+  local status="$1"
+  cleanup_session_material
+  test "$status" -ne 0 && test "$RECOVERY_ARMED" = true && test "$RECOVERY_RUNNING" = false || return "$status"
+  RECOVERY_RUNNING=true
+  trap - EXIT HUP INT TERM
+  set +e
+  record_phase 'recovering' 'reset-failed'
+  assert_marker
+  stop_sqlite_users
+  recovery_ready=true
+  if run_activation inspect "$OPERATION_DIR/recovery-inspect.json" 2>/dev/null; then
+    if test "$(jq -r '.active // false' "$OPERATION_DIR/recovery-inspect.json" 2>/dev/null)" = true; then
+      run_activation recover "$OPERATION_DIR/recovery.json" || recovery_ready=false
+    fi
+  else
+    recovery_ready=false
+  fi
+  if test "$recovery_ready" = true && start_sqlite_users && verify_runtime; then
+    clear_marker
+    record_phase 'recovered' 'prior-unit-healthy'
+    printf 'longtail-forge-public-demo-reset: reset failed; prior unit was restored and verified\n' >&2
+  else
+    record_phase 'unrecovered' 'maintenance-curtain-retained'
+    printf 'longtail-forge-public-demo-reset: reset and automatic recovery failed; maintenance curtain and protected evidence remain\n' >&2
+  fi
+  exit "$status"
+}
+trap 'recover_on_exit $?' EXIT
+trap 'exit 130' HUP INT TERM
+
+record_phase 'preflight'
+run_activation inspect "$OPERATION_DIR/initial-inspect.json"
+if test "$(jq -r '.active' "$OPERATION_DIR/initial-inspect.json")" = true; then
+  assert_marker
+  RECOVERY_ARMED=true
+  stop_sqlite_users
+  run_activation recover "$OPERATION_DIR/interrupted-recovery.json"
+  start_sqlite_users
+  verify_runtime
+  clear_marker
+  RECOVERY_ARMED=false
+  record_phase 'recovered-interrupted' 'rerun-required'
+  fail 'an interrupted reset was recovered and verified; rerun the reset deliberately'
+fi
+
+run_candidate build "$OPERATION_DIR/candidate-build.json"
+run_candidate validate "$OPERATION_DIR/candidate-validate.json"
+capture_old_session
+assert_marker
+RECOVERY_ARMED=true
+record_phase 'curtained'
+stop_sqlite_users
+record_phase 'quiescent'
+BACKUP="$BACKUP_ROOT/pre-demo-reset-$OPERATION_ID.ltfbackup.tgz"
+backup_current_unit "$BACKUP"
+record_phase 'backed-up'
+run_activation activate "$OPERATION_DIR/activation.json"
+record_phase 'activated'
+run_candidate active "$OPERATION_DIR/active-baseline.json"
+start_sqlite_users
+record_phase 'started'
+verify_runtime
+verify_old_session_rejected
+verify_representative_role
+record_phase 'verified'
+run_activation finalize "$OPERATION_DIR/finalize.json"
+clear_marker
+RECOVERY_ARMED=false
+record_phase 'completed' 'baseline-healthy'
+
+printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","version":"%s","commitSha":"%s","backup":"%s"}\n' \
+  "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" "$(state_value "$CURRENT_STATE" '.version')" \
+  "$(state_value "$CURRENT_STATE" '.commitSha')" "$(basename "$BACKUP")"

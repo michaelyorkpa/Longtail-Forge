@@ -1,72 +1,94 @@
-# Public Demo Baseline Candidate and Historical Host Reset
+# Public Demo Compose Reset
 
-As of version 0.33.31.6, the current operator boundary for the named Longtail Forge demo installation builds and validates a coherent public baseline candidate alongside the active Compose database and Files. It derives six public visitors and one separate private Super Administrator from the same reviewed seven-role fixture used by local `sanitized-demo`. It does not stop a container, create a backup, replace active state, schedule a reset, or activate the candidate; Compose activation and automatic recovery belong to 0.33.31.7, and external hourly scheduling belongs to 0.33.31.8.
+As of version 0.33.31.7, the supported manual reset for the named `rt-ltf-demo` installation is the root-owned Compose helper `scripts/release/longtail-forge-public-demo-reset-host.example`. It builds and validates the deterministic public candidate from the exact currently deployed immutable image, activates database plus Files only while every configured Compose SQLite user is stopped, and either returns healthy on the new baseline or automatically reconstructs and verifies the retained prior unit.
 
-This is not a general production seed command. It accepts only target `rt-ltf-demo`, the exact production Compose public-demo profile, the canonical container data root `/var/lib/longtail-forge`, and public origin `https://demo.longtailforge.com`. Do not run it on preview, customer, ordinary self-hosted, or private development installations.
+This is not a general production seed or restore command. It accepts only target `rt-ltf-demo`, public origin `https://demo.longtailforge.com`, `LONGTAIL_ENV=production`, `DEMO_MODE=true`, the maintained Compose deployment classification, the canonical container data root `/var/lib/longtail-forge`, the root-owned version 2 role credential document, and the release environment already recorded by the protected Compose deployment helper. External hourly scheduling remains exclusively owned by version 0.33.31.8; this slice installs no cron entry, timer, or in-process interval.
 
-## Repository and host boundaries
+## Installed and generated boundaries
 
-Repository/runtime-artifact owned:
+Repository and release owned:
 
-- deterministic fictional scenario builder;
-- non-activating Compose candidate builder and validator;
-- retained historical pre-Compose host operation source for reference until the Compose activation replacement lands;
-- root-owned wrapper and non-secret helper configuration example;
-- shared deterministic role identity/scope definition and credential validator;
-- regressions and this runbook.
+- the non-activating candidate builder and active-baseline validator inside the immutable runtime image;
+- the stopped-volume activation/recovery primitive inside the immutable runtime image;
+- the separately installed root-owned Compose reset helper;
+- the maintained Compose deploy/rollback helper with the same shared Compose operation lock;
+- the non-secret helper configuration example, regressions, and this runbook.
 
 Demo-host-only state:
 
-- generated SQLite database and Files objects;
-- `.longtail-demo-data.json` ownership marker;
-- current and retained previous data directories;
-- whole-instance archives, checksums, and operator logs;
-- application environment and the separately installed role credential document;
+- active, candidate, retained-prior, and failed-evidence SQLite and Files units;
+- SQLite WAL/SHM sidecars handled only while all configured SQLite services are stopped;
+- `.longtail-demo-data.json` and phase-specific reset markers;
+- whole-instance archives and checksums;
+- root-only operation records, session-proof cookies, API proof responses, and logs;
+- application secrets, the private operator credential document, and any separately protected Secure Notes recovery key.
 
-Generated state never enters Git or a runtime artifact. The runtime artifact contains the reviewed operator code so the installed release can build and verify its own matching database. The wrapper is installed separately only on the named demo host.
+Generated state and protected evidence never enter Git, a GitHub artifact, or normal command output. The helper emits only the target, anchor, operation ID, release identity, and backup basename after success.
 
-## Build and validate the current Compose candidate
+## Installation
 
-Use the immutable image and release environment already recorded by the protected Compose deployment helper. Review the exact release environment path in the root-owned deployment state, assign that literal path to `CURRENT_RELEASE_ENV`, and run from the reviewed Compose directory. Do not substitute a mutable image tag or an unreviewed environment file.
-
-The non-mutating dry run validates the exact target/profile, canonical volume root, active database/Files presence, release metadata, protected version 2 role document, absence of an existing candidate, and absence of partial build state. It reads no application data and creates no directory:
+Install both LF-only host helpers from the same reviewed release. Reinstalling only one would leave deploy/rollback and reset with different lock contracts.
 
 ```sh
-cd /opt/longtail-forge-compose
-CURRENT_RELEASE_ENV=/var/lib/longtail-forge-compose-deploy/releases/REPLACE_WITH_REVIEWED_DIGEST.env
+install -o root -g root -m 0755 \
+  scripts/release/longtail-forge-compose-deploy-host.example \
+  /usr/local/sbin/longtail-forge-compose-deploy
 
-docker compose --project-directory /opt/longtail-forge-compose \
-  --file /opt/longtail-forge-compose/compose.yaml \
-  --env-file /etc/longtail-forge/compose-host.env \
-  --env-file "$CURRENT_RELEASE_ENV" \
-  run --rm --no-deps --user 0:0 \
-  --volume /etc/longtail-forge/demo-role-credentials.json:/run/secrets/demo-role-credentials.json:ro \
-  longtail-forge node scripts/public-demo-baseline-candidate.mjs build \
-  --target rt-ltf-demo \
-  --anchor-date today \
-  --data-root /var/lib/longtail-forge \
-  --role-credentials /run/secrets/demo-role-credentials.json \
-  --dry-run
+install -o root -g root -m 0755 \
+  scripts/release/longtail-forge-public-demo-reset-host.example \
+  /usr/local/sbin/longtail-forge-public-demo-reset
 ```
 
-Remove only `--dry-run` to build. The command reconstructs the normal migrated `sanitized-demo` seed in a fresh `.longtail-public-demo-build-*` directory inside the mounted data volume, checkpoints it out of WAL mode, verifies it, writes its ownership marker, and atomically renames that complete unit to `.longtail-public-demo-candidate`. The running container continues using only the top-level `longtail-forge.db` and `files/`; the builder never opens, renames, stops, or replaces them. An existing candidate or partial build is refused rather than reused or overwritten.
+Both helpers read `/etc/longtail-forge/compose-deploy-helper.env`, which must remain a real `root:root` file with mode `0600` beneath a root-owned non-writable parent. On the exact public-demo host add the path-only setting:
 
-Validate the fixed candidate later without rebuilding it by replacing `build` with `validate` and omitting `--dry-run`. Validation requires the same explicit anchor, current immutable release, and protected role document. It proves:
+```text
+LTF_PUBLIC_URL=https://demo.longtailforge.com
+LTF_DEMO_ROLE_CREDENTIALS=/etc/longtail-forge/demo-role-credentials.json
+```
 
-- the exact current baseline plus every checked-in migration checksum;
-- the semantic fingerprint and expected Workspaces, Users, Tasks, Notes, Lists, Files, Search, and zero-session counts;
-- `PRAGMA integrity_check`, zero foreign-key violations, and a sidecar-free complete database;
-- exact database-to-Files inventory, extension, size, and SHA-256 agreement;
-- exactly six fixed public credential hashes and one separate private operator hash, with exact roles, scopes, memberships, and no overrides;
-- a matching candidate ownership marker containing only safe identity/count/fingerprint data;
-- reserved fictional identities, no active ordinary personas, no Secure Notes material, and no analytics, feedback, or interest-capture persistence; and
-- no symlinks, path escapes, unexpected entries, plaintext protected values, or credential leakage.
+The credential document is a separate real `root:root` file with mode `0600`, outside the Compose, deployment, and backup trees. It retains the version 2 target/origin binding and contains only the private Super Administrator password. The six public visitor passwords remain deterministic source-owned values. Never place a credential value in the helper configuration, command line, repository, or operation log.
 
-Successful output is limited to status, target, anchor, application version, semantic and migration-identity digests, safe counts, and fixture count. It contains no path, password, environment value, record content, storage key, session, or private operator identity. Candidate construction is deliberately not wired into app/worker startup, ordinary deployment, Nightly, or an in-process timer.
+The helper and release workflow carry both host files as reviewed release assets. The runtime image carries the candidate and activation primitives but no role credential document or generated demo data.
+
+## Manual reset
+
+Use one explicit command. The literal `today` resolves once to a UTC calendar date and that value is used for candidate construction and every later proof.
+
+```sh
+/usr/local/sbin/longtail-forge-public-demo-reset reset \
+  --target rt-ltf-demo \
+  --anchor-date today \
+  --confirm "RESET RT-LTF-DEMO COMPOSE DATA"
+```
+
+The helper performs these phases under one non-blocking shared Compose operation lock:
+
+1. Revalidates root ownership, exact target/origin/profile, recorded current release environment, Compose data paths, protected role document, maintenance marker boundary, and optional recovery-key material. An overlapping Compose deploy, rollback, backup, manual reset, or later scheduled reset is refused before mutation.
+2. Uses a root-run one-off container from the recorded immutable release to build and fully validate a fresh inactive candidate. Existing or partial candidate state remains a hard refusal.
+3. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running.
+4. Creates and inspects a whole-instance database-and-Files archive while stopped. No promotion starts until the protected archive exists and inspection succeeds.
+5. Moves the active database, Files tree, ownership marker, and any WAL/SHM sidecars into one operation-specific retained-prior directory. It then promotes only the three sidecar-free verified candidate members. A root-only phase marker makes partial retirement or promotion deterministic to inspect and recover.
+6. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services.
+7. Starts the exact recorded Compose release and requires direct plus public health/readiness and exact `/api/app-info`. While the curtain remains asserted it also proves the pre-reset session is rejected, a fresh Workspace Administrator login succeeds, an authorized Task read succeeds, a CSRF-protected representative Time Entry write succeeds, and logout succeeds. Transient session cookie jars live only in a root-private `/run` directory and are removed on every handled exit rather than retained as operation evidence.
+8. Archives the completed phase marker with the retained prior unit and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed.
+
+A successful reset intentionally leaves the new public write used by the role proof; it is ordinary hourly-resettable demo state and does not alter the verified candidate that was proved before startup.
+
+## Automatic recovery and retry behavior
+
+Any error or handled `HUP`, `INT`, or `TERM` after the curtain is asserted triggers the same fail-closed recovery path: stop all SQLite services, quarantine any promoted candidate members and candidate WAL/SHM sidecars, reconstruct every prior member from the retained same-filesystem unit, start the exact recorded release, and require direct plus public runtime identity. The curtain is cleared only if that prior unit is healthy. Failed recovery keeps the curtain and all archive, prior-unit, failed-candidate, and phase evidence.
+
+A `SIGKILL`, host loss, or runtime crash may prevent the in-process trap. The next manual invocation finds the fixed active-operation marker while holding the shared lock, recovers and verifies the prior unit, clears the curtain, and then exits with a rerun-required error instead of silently starting a second promotion. The operator must invoke the reset again deliberately. Completed prior units and failed evidence are not pruned automatically.
+
+Do not bypass the shared lock with an ad hoc `docker compose run`, direct database copy, manual WAL deletion, or independent backup/reset command. Do not mix one operation's database and Files tree. If automatic recovery cannot prove the prior unit, keep traffic curtained and use the retained inspected whole-instance archive through the documented Compose restore path.
+
+## Candidate-only diagnostics
+
+The candidate command remains useful for non-mutating diagnosis from the exact recorded release. `build --dry-run` validates prerequisites without creating a directory; `build` reconstructs one inactive same-filesystem candidate; `validate` re-proves it; and `active` is reserved for the reset helper after stopped-volume promotion. None of these actions starts, stops, deploys, schedules, or clears maintenance state by itself.
 
 ## Historical pre-Compose helper (do not install for Compose)
 
-The older `scripts/demo-data-host.mjs` helper below documents the backup-first invariants that preceded the supported Compose lifecycle. It stops systemd-managed application services and promotes data directly, so it must not be installed or extended as the public reset path. Version 0.33.31.7 will replace activation/recovery with the supported Compose maintenance, lock, backup, and health primitives.
+The older `scripts/demo-data-host.mjs` helper below documents the backup-first invariants that preceded the supported Compose lifecycle. It stops systemd-managed application services and promotes data directly, so it must not be installed or extended as the public reset path. Version 0.33.31.7 replaced activation/recovery with the supported Compose maintenance, lock, backup, and health primitives.
 
 ### Historical installation reference
 

@@ -1,3 +1,12 @@
+## Version 0.33.31.7 - 2026-08-07
+
+- Added a dedicated root-owned `rt-ltf-demo` Compose reset helper that builds and validates the deterministic candidate before maintenance, shares one exclusive host lifecycle lock with deploy and rollback, proves app and optional worker quiescence, and creates and inspects a whole-instance backup before activation.
+- Added a stopped-volume activation primitive that moves the database, Files, ownership marker, and WAL/SHM state as one same-filesystem unit, retains the prior unit, records every phase, and deterministically reconciles interrupted retirement, promotion, finalization, and recovery.
+- Restarted the recorded immutable `main` release only after active-baseline revalidation, then required direct/public health and readiness, exact `/api/app-info`, rejection of the pre-reset session, and a fresh Workspace Administrator task/client-project read plus Time Entry write/logout journey.
+- Kept failures curtained until the retained prior unit is reconstructed and re-proved, preserving backup and operation evidence when recovery cannot complete; the helper contains no scheduler, in-process timer, or revived systemd application lifecycle.
+- Added `release.public-demo-compose-reset` lifecycle coverage plus runtime-artifact and GitHub Release asset coverage; ratcheted the generated regression manifest/inventory and applicable coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: release workflow, self-hosting, upgrade, private-preview, Help, permission, UI, and module behavior are unchanged; hourly scheduling and reset alerting remain owned by 0.33.31.8.
 ## Version 0.33.31.6 - 2026-08-07
 
 - Added a root-run, non-activating Compose operator command that dry-runs, builds, and revalidates one exact `rt-ltf-demo` public baseline candidate under the canonical data volume without stopping a container or opening, renaming, or replacing active database/Files state.
