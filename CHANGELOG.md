@@ -1,3 +1,12 @@
+## Version 0.33.31.9 - 2026-08-07
+
+- Made the existing `files.ingress` public-demo capability authoritative at every Files creation service and JSON/multipart single/batch route before payload inspection, authorization, metadata validation, quota accounting, storage, scan jobs, audit events, or attachment records.
+- Denied both new bytes and attach-existing relinking with the stable safe `403 public_demo_capability_disabled` response while leaving seeded attachment list, preview, content, and permission-checked download paths unchanged.
+- Exposed one safe app-shell capability hint, removed the temporary File quick action, and replaced the shared attachment helper's chooser, drop target, and upload controls with concise read-only demo guidance across every current host module; normal installations retain the existing UI and service behavior.
+- Added `framework.public-demo-files-ingress` release-gate coverage plus an exact-config child probe for direct services, malformed JSON, multipart preflight, browser/UI ownership, absent paste/profile/avatar/import/API-v1 ingress, safe seeded-read classification, and ordinary-mode compatibility.
+- Docs updated: `DECISIONS.md`, `docs/files-strict-guardrail-inventory.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `help/framework/files-and-attachments.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: `docs/module-contract.md`, `docs/development-and-demo-data.md`, and scanner setup are unchanged because this slice consumes the existing framework capability; the three historical public-demo regression edits only stabilize their closeout cursor assertions, and no module manifest, seed/data contract, file validation, storage, scanning, permission, schema, or deployment control changed.
+
 ## Version 0.33.31.8 - 2026-08-07
 
 - Added a root-owned external systemd oneshot and timer that invoke the same proven `rt-ltf-demo` Compose reset at the top of every UTC hour, skip missed boundaries without catch-up bursts, and never supervise the application lifecycle.

@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.9 - Public-demo Files ingress shutdown
+
+Completed on 2026-08-07. The exact public demo now refuses all Files ingress before bytes or metadata are parsed while authorized seeded attachments remain safely readable. The active cursor advanced to `0.33.31.10` for public perimeter throttling and correlated security evidence.
+
+**Model: High Effort** — Files is one primary module blast radius, and its centralized service boundary made server denial plus the mechanical UI rollout one closeable slice.
+
+- [x] Enforced the existing disabled `files.ingress` capability at buffered, streamed, batch, and attach-existing service boundaries before payload/session inspection, permission work, metadata, quotas, storage objects, scan jobs, audit events, or attachment records.
+- [x] Preflighted JSON and multipart single/batch routes before body parsing, preserved one stable safe `403 public_demo_capability_disabled` response, and kept all `/api/v1` requests under the existing demo-disabled API-key boundary.
+- [x] Exposed one safe app-shell availability hint, filtered the temporary File quick action, and made the shared attachment helper omit chooser, drop, and upload controls across every current consumer while preserving authorized seeded listing, Preview, content, and Download paths.
+- [x] Added exact-demo and normal-mode direct-service/route probes plus static browser, Files ingress, absent-path, registered-contribution, safe-read, and API-v1 inventory coverage; refreshed generated regression contracts and documented the Files boundary.
+- [x] Updated Files Help, runtime, regression, decision, changelog, version, roadmap, and archive contracts; completed focused proof before canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- No demo request or UI path can ingest file bytes or create an upload artifact, while authorized seeded attachments remain safely read-only and non-demo Files behavior is unchanged.
+
 ## Version 0.33.31.8 - External hourly scheduler and reset observability
 
 Completed on 2026-08-07. The exact `rt-ltf-demo` public demo now runs the proven Compose reset at the top of every UTC hour through a root-owned external timer, with safe overlap refusal, bounded redacted evidence, and a required failure-alert boundary. The active cursor advanced to `0.33.31.9` for public-demo Files ingress shutdown.
