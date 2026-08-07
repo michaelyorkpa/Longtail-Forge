@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.5 - Accessible demo account chooser and role guidance
+
+Completed on 2026-08-07. The public login now offers one accessible six-account chooser only when the exact demo profile is active, while ordinary login and authentication remain unchanged. The active cursor advanced to `0.33.31.6` for the deterministic public baseline candidate.
+
+**Model: Medium Effort** - This was a bounded login-surface adaptation after the server identity and permission contracts were fixed.
+
+- [x] Added one source-owned, safely shaped public account catalog for the exact six visitor identities, with real role names, readable Northwind Studio, Cedar & Bloom, and Website Refresh scopes, representative records, useful allowed actions, and expected denials. The response contains no internal IDs, private operator identity, directory data, or credential material beyond the intentionally public login contract.
+- [x] Added a demo-only native-select credential helper with explicit labels, keyboard flow, screen-reader announcements, responsive desktop/mobile layout, role guidance, and a concise hourly-reset warning. Disabled, unavailable, or malformed catalog responses leave the ordinary login markup and focus behavior unchanged.
+- [x] Kept `/api/login` as the only session-creating path. Role selection and credential fill perform no authentication request, bypass, account lookup, or session creation; the existing submit, throttling, password verification, and generic failures remain authoritative.
+- [x] Added focused catalog/route security coverage and desktop/mobile Playwright coverage for all six choices, exact role/scope wording, native keyboard operation, accessible labels/status, safe failure, disabled-mode absence, no Super Administrator option, and ordinary login compatibility.
+- [x] Updated the runtime, security, regression, end-to-end, decision, changelog, version, roadmap, archive, and generated regression contracts; completed canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- A visitor can deliberately choose and understand one of six real scoped roles through an accessible login flow, while ordinary login and authentication security remain unchanged.
+
 ## Version 0.33.31.4 - Public six-role fixture and permission journey
 
 Completed on 2026-08-07. The exact-bound public fixture now derives six visitor accounts from the shipped role/scope model, keeps the Super Administrator credential private, and proves the complete public permission journey while preserving the private seven-role fixture. The active cursor advanced to `0.33.31.5` for the accessible demo account chooser and role guidance.

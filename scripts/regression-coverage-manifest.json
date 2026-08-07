@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 438,
+    "discoveredScripts": 439,
     "legacyScripts": 309,
     "releaseGateScripts": 62,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 41,
       "docs": 10,
       "files": 44,
-      "framework": 76,
+      "framework": 77,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -29,7 +29,7 @@
     },
     "tierCounts": {
       "focused": 204,
-      "integration": 164,
+      "integration": 165,
       "release-gate": 62,
       "slow": 8
     },
@@ -37,7 +37,7 @@
       "isolated-database": 183,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 221
+      "static": 222
     }
   },
   "coverageFamilies": [
@@ -3185,6 +3185,24 @@
         "production",
         "security",
         "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the six-account public-demo login catalog is safely shaped, demo-only, source-aligned, and excludes Super Admin and internal identity data.",
+      "id": "framework.public-demo-account-catalog",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "authentication",
+        "browser",
+        "demo",
+        "routes",
+        "security"
       ],
       "tier": "integration"
     },

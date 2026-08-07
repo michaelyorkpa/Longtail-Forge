@@ -308,6 +308,7 @@ async function assertReadRouteDeclarations() {
         "auth.routes.js",
         "operational-health.routes.js",
         "public-api.routes.js",
+        "public-demo-account.routes.js",
       ].includes(name))
       .map((name) => path.join(root, "src", "routes", name)),
     ...(await listFiles(path.join(root, "src", "modules")))

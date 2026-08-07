@@ -124,7 +124,7 @@ The framework-owned catalog is data-only and uses stable IDs. Capability enforce
 | `hourly_resettable` | `records.workspace` |
 | `disabled` | `accounts.shared_identity_mutation`, `administration.installation`, `administration.role_management`, `administration.workspace_lifecycle`, `api_keys`, `backups.workspace`, `exports.account`, `files.ingress`, `outbound.email`, `outbound.url_fetch`, `outbound.webhooks`, `secure_notes.catalog_security`, `secure_notes.recovery`, `support_view` |
 
-The installation Super Admin remains a private operator recovery identity and is not a public capability. As of 0.33.31.4, the exact six public role accounts and their authenticated permission journey are complete; the accessible account chooser, hourly reset activation/scheduling, abuse controls, and launch gate remain later slices.
+The installation Super Admin remains a private operator recovery identity and is not a public capability. As of 0.33.31.5, `GET /api/public-demo/accounts` returns one no-store, safely shaped catalog only while the exact demo profile is active. It contains the six intentionally public visitor usernames/passwords plus reviewed role names, readable scopes, representative records, useful actions, and expected denials; it contains no internal IDs, live directory/account state, or private operator data. Disabled mode returns generic not-found. The login page renders the native-select helper only after a complete valid response, and choosing or filling an account does not authenticate; ordinary `/api/login` throttling, password verification, generic failure, and session behavior remain unchanged. This adds no setting: hourly reset activation/scheduling, abuse controls, and the launch gate remain later slices.
 
 ### Trusted Reverse Proxy
 

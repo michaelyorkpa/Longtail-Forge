@@ -44,6 +44,8 @@ As of 0.33.31.4, `database.development-data-seed` continues to prove the private
 
 As of 0.33.31.4, `database.demo-data-host-operation` proves exact `rt-ltf-demo` host/target/origin refusal occurs before protected credential reads; the separate root-owned version 2 role file has exact mode and binding and contains only the private operator value; only its path enters the minimal candidate environment; and missing, weak, copied, extra-role, or malformed input fails before backup or mutation. The isolated operation proves non-mutating preflight, backup-first six-public-plus-one-private candidate construction, exact identity/role/scope/membership/no-override verification, public visitor marker and operator exclusion, fingerprint/domain/Secure Notes/Search/Files rejection, atomic database-and-Files promotion, safe output redaction, retained prior state, and automatic rollback. Normal startup and deployment sources remain unable to invoke it.
 
+As of 0.33.31.5, `framework.public-demo-account-catalog` pins the exact six source-aligned public account projections, role/scope wording, nonempty representative/action/denial guidance, intentionally public credential contract, no internal IDs or Super Admin option, no-store enabled response, and generic disabled-mode not-found response without booting a database. `login.spec.mjs` independently renders the helper at desktop and mobile widths, proves the native select's accessible name and keyboard focus order, all six option labels and guidance groups, selection/fill without authentication, ordinary submit as the only login request, generic failure recovery, and complete absence with unchanged focus/autocomplete when the optional catalog is unavailable.
+
 ## Streamlining Review Policy And Budget
 
 The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
@@ -181,18 +183,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 438 |
+| Active discovered regressions | 439 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 129 |
+| Convention-path metadata regressions | 130 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 62 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 441 |
+| Global ratchet floor | 442 |
 | Release-gate ratchet floor | 64 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 76 | 0 | 76 |
+| `framework` | 77 | 0 | 77 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -216,13 +218,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | --- | ---: |
 | `unit-like` | 0 |
 | `focused` | 204 |
-| `integration` | 164 |
+| `integration` | 165 |
 | `release-gate` | 62 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 221 |
+| `static` | 222 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
