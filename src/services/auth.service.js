@@ -52,6 +52,7 @@ async function login(payload, context = {}) {
   const user = await usersRepository.readByUsername(username);
   const throttleContext = {
     ipAddress: context.ipAddress,
+    requestId: context.requestId,
     scope: "login",
     username,
   };
@@ -297,6 +298,7 @@ async function recordLoginSecurityEvent({ context, outcome, reasonClass, user, u
       ? "security.authentication.login_succeeded"
       : "security.authentication.login_failed",
     ipAddress: context.ipAddress,
+    metadata: { request_id: context.requestId },
     outcome,
     reasonClass,
     recordId: outcome === "success" ? user?.user_id : null,

@@ -58,6 +58,7 @@ import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
 import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
 import { requirePublicDemoCapability } from "./public-demo-enforcement.js";
+import { createPublicDemoPerimeterMiddlewares } from "./public-demo-perimeter.js";
 
 function createApp() {
   const app = express();
@@ -78,6 +79,7 @@ function createApp() {
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware());
   app.use(createTransportSecurityMiddleware());
+  app.use(...createPublicDemoPerimeterMiddlewares());
   app.use(cookieParser());
   app.use(createCsrfProtectionMiddleware());
   app.use(operationalHealthRoutes);

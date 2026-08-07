@@ -30,6 +30,7 @@
 		Strict-Transport-Security "max-age=300"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
+		X-Request-ID {http.request.uuid}
 	}
 	rewrite * /maintenance.html
 	file_server {
@@ -45,6 +46,7 @@
 		Retry-After "60"
 		Strict-Transport-Security "max-age=300"
 		X-Content-Type-Options "nosniff"
+		X-Request-ID {http.request.uuid}
 	}
 	respond `{"status":"unavailable"}` 503
 }
@@ -57,6 +59,26 @@ http://{$LONGTAIL_PUBLIC_HOST}:8080 {
 	@not_public_edge not remote_ip {$LONGTAIL_EDGE_WIREGUARD_PEER}
 	respond @not_public_edge 403
 
+	# Keep edge evidence bounded and secret-free. Paths and headers are omitted;
+	# request_id is the only cross-layer lookup key.
+	log {
+		format filter {
+			request>uri replace REDACTED
+			request>headers delete
+			resp_headers>Set-Cookie delete
+			request>remote_ip ip_mask 24 56
+			request>client_ip ip_mask 24 56
+			wrap json
+		}
+	}
+	log_append request_id {http.request.uuid}
+
+	# Stock Caddy rejects oversized bodies before proxying them to Node. The
+	# public-demo application applies its tighter 128 KiB declaration ceiling.
+	request_body {
+		max_size 8MB
+	}
+
 	# Exact diagnostics bypass both maintenance markers and retain real Node
 	# responses. If Node is stopped, the error route returns generic JSON 503.
 	@longtail_diagnostic path /healthz /readyz /api/app-info
@@ -65,6 +87,7 @@ http://{$LONGTAIL_PUBLIC_HOST}:8080 {
 			header_up X-Forwarded-For {client_ip}
 			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
 			header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+			header_up X-Request-ID {http.request.uuid}
 		}
 	}
 
@@ -85,12 +108,14 @@ http://{$LONGTAIL_PUBLIC_HOST}:8080 {
 			header_up X-Forwarded-For {client_ip}
 			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
 			header_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+			header_up X-Request-ID {http.request.uuid}
 		}
 	}
 
 	# Only connection-level proxy failures enter this route. Diagnostic failures
 	# stay machine-readable and ordinary application failures receive the same
 	# safe curtain as a marker-driven hold.
+
 	handle_errors {
 		@longtail_diagnostic_failure path /healthz /readyz /api/app-info
 		handle @longtail_diagnostic_failure {

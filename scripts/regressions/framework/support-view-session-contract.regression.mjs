@@ -172,6 +172,15 @@ ORDER BY role_id;
   assert.deepEqual((await supportSessionsRepository.listEvents(firstStart.supportView.supportSessionId)).map((row) => row.event_type), ["entered", "exited"]);
   const diagnostics = await runtimeDiagnosticsService.read(await readRequestSession(exited.session.sessionId));
   assert.deepEqual(diagnostics.features.supportView, { enabled: true });
+  assert.deepEqual(diagnostics.features.publicDemo.perimeter, {
+    enabled: false,
+    clientRequestLimit: 600,
+    globalRequestLimit: 2400,
+    maxBodyBytes: 128 * 1024,
+    mutationLimit: 120,
+    searchLimit: 60,
+    windowSeconds: 60,
+  });
   assert.equal(JSON.stringify(diagnostics).includes("supportSession"), false, "diagnostics must reveal no support-session details");
   assert.equal(JSON.stringify(diagnostics).includes(TARGET_USERNAME), false);
 

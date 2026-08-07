@@ -2,6 +2,8 @@
 
 import { config } from "../config.js";
 import { AppError } from "../utils/app-error.js";
+import { internalEventBus } from "./events/event-bus.js";
+import { getRequestContext } from "./request-context.js";
 import {
   PUBLIC_DEMO_CAPABILITY_CLASSIFICATIONS,
   getPublicDemoCapability,
@@ -78,14 +80,32 @@ function filterContributionValue(value, options, fieldName) {
 }
 
 function requirePublicDemoCapability(capabilityId, options = {}) {
-  return function publicDemoCapabilityGate(_request, _response, next) {
+  return function publicDemoCapabilityGate(request, _response, next) {
     try {
       assertPublicDemoCapabilityAllowed(capabilityId, options);
       next();
     } catch (error) {
+      const context = getRequestContext(request);
+      void internalEventBus.emit("security.public_demo.capability_denied", {
+        source: "public-demo-enforcement",
+        session: request.session,
+        metadata: {
+          capability_id: normalizeCapabilityId(capabilityId),
+          operation: String(request.method || "").trim().toLowerCase(),
+          request_id: context.requestId,
+          route_class: classifyRoute(request),
+        },
+      });
       next(error);
     }
   };
+}
+
+function classifyRoute(request) {
+  const path = String(request.originalUrl || request.path || "");
+  if (path.startsWith("/api/v1/")) return "api-v1";
+  if (path === "/api" || path.startsWith("/api/")) return "api-internal";
+  return "public-resource";
 }
 
 function normalizeAccess(value) {

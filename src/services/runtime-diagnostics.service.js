@@ -37,6 +37,15 @@ async function read(session) {
         enabled: config.demo.enabled,
         profile: config.demo.profile,
         capabilities: config.demo.enabled ? listPublicDemoCapabilities() : [],
+        perimeter: {
+          enabled: config.demo.enabled,
+          clientRequestLimit: config.demo.perimeter.clientRequestLimit,
+          globalRequestLimit: config.demo.perimeter.globalRequestLimit,
+          maxBodyBytes: config.demo.perimeter.maxBodyBytes,
+          mutationLimit: config.demo.perimeter.mutationLimit,
+          searchLimit: config.demo.perimeter.searchLimit,
+          windowSeconds: config.demo.perimeter.windowSeconds,
+        },
       },
       supportView: {
         enabled: config.supportView.enabled,

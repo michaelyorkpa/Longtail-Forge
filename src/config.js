@@ -32,6 +32,12 @@ const DEFAULT_AUTH_THROTTLE_FAILURE_LIMIT = 5;
 const DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS = 15 * 60;
 const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_LIMIT = 4;
 const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT = 2;
+const DEFAULT_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS = 60;
+const DEFAULT_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT = 2400;
+const DEFAULT_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT = 600;
+const DEFAULT_PUBLIC_DEMO_MUTATION_LIMIT = 120;
+const DEFAULT_PUBLIC_DEMO_SEARCH_LIMIT = 60;
+const DEFAULT_PUBLIC_DEMO_MAX_BODY_BYTES = 128 * 1024;
 const DEFAULT_SECURE_NOTES_KEY_VERSION = "v1";
 const DEFAULT_STORAGE_PROVIDER = "local";
 const DEFAULT_FILE_SCANNER = "none";
@@ -161,6 +167,42 @@ function createConfig(env = process.env) {
     DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT,
     { min: 1, max: authenticationVerificationConcurrencyLimit },
   );
+  const publicDemoPerimeterWindowSeconds = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS",
+    DEFAULT_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS,
+    { min: 1, max: 60 * 60 },
+  );
+  const publicDemoGlobalRequestLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT",
+    DEFAULT_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT,
+    { min: 1, max: 100000 },
+  );
+  const publicDemoClientRequestLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT",
+    DEFAULT_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT,
+    { min: 1, max: publicDemoGlobalRequestLimit },
+  );
+  const publicDemoMutationLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT",
+    DEFAULT_PUBLIC_DEMO_MUTATION_LIMIT,
+    { min: 1, max: publicDemoClientRequestLimit },
+  );
+  const publicDemoSearchLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_SEARCH_LIMIT",
+    DEFAULT_PUBLIC_DEMO_SEARCH_LIMIT,
+    { min: 1, max: publicDemoClientRequestLimit },
+  );
+  const publicDemoMaxBodyBytes = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_MAX_BODY_BYTES",
+    DEFAULT_PUBLIC_DEMO_MAX_BODY_BYTES,
+    { min: 1024, max: 8 * 1024 * 1024 },
+  );
   const bootstrapPassword = readRuntimeSecret("SUPER_ADMIN_PASSWORD", env);
   const secureNotesMasterKey = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY", env)
     || readRuntimeSecret("SECURE_NOTES_MASTER_KEY", env);
@@ -276,6 +318,14 @@ function createConfig(env = process.env) {
     },
     demo: {
       enabled: demoEnabled,
+      perimeter: {
+        clientRequestLimit: publicDemoClientRequestLimit,
+        globalRequestLimit: publicDemoGlobalRequestLimit,
+        maxBodyBytes: publicDemoMaxBodyBytes,
+        mutationLimit: publicDemoMutationLimit,
+        searchLimit: publicDemoSearchLimit,
+        windowSeconds: publicDemoPerimeterWindowSeconds,
+      },
       profile: demoEnabled ? "public_demo" : "standard",
     },
     legal: {

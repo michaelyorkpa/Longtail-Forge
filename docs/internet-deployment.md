@@ -112,6 +112,10 @@ caddy adapt --config ./Caddyfile --adapter caddyfile --pretty
 nginx -t
 ```
 
+Both checked-in Caddy references use only stock Caddy 2.11 directives. They generate one UUID per edge request, overwrite upstream `X-Request-ID`, append the same `request_id` to JSON access evidence, replace the entire logged URI with `REDACTED`, omit request headers, delete response `Set-Cookie`, mask client addresses to `/24` or `/56`, and stop bodies above 8 MB before Node. The application trusts the UUID only from loopback Caddy. Caddy writes access records to its normal service output rather than an application-owned file; configure the demo host service manager for operator-only access, a seven-day maximum retention, and a disk cap. Never enable `log_credentials` or add paths, queries, headers, cookies, bodies, bearer calendar URLs, or analytics identifiers to the access record.
+
+The public-demo application adds the tighter measured 128 KiB declaration ceiling plus global/client/mutation/Search rate limits. Stock Caddy's extreme-body abort enters the existing generic maintenance error route in the tested topology; its response and edge record share the edge UUID, and absence of an application completion record correctly shows Node did not handle it. See [Operational Security](operational-security.md#public-demo-perimeter-threat-model-and-response).
+
 Before enabling the multi-proxy server block, install the tracked public-edge
 fallback independently of the application release. The destination directory
 and file stay root-owned; Nginx may read the one file but no deployment or
@@ -186,6 +190,7 @@ Manual review through the complete selected proxy path must confirm:
 - A client-supplied forwarding IP/protocol/host is replaced at the public edge. In the multi-proxy path, Caddy rejects a non-edge WireGuard peer and collapses the accepted chain to one client IP. The resulting security event contains the real edge-observed client address, not the forged value or a proxy address.
 - Cross-origin browser mutations fail, same-origin CSRF-protected login succeeds, revocation invalidates the next request, and protected workspace/admin routes retain their permission and workspace boundaries.
 - Production application logs are valid JSON lines, correlate the public response's `X-Request-ID`, and do not contain credentials, cookies, request bodies, private content, internal paths, or raw errors.
+- Caddy access evidence shares that request ID, redacts the complete URI and request headers, omits response cookies, masks client addresses, and correlates an edge-only oversized-body rejection without creating an application completion record.
 
 The canonical repository-local proof is `npm run maintenance:rehearse`. On native Linux it composes the root-owned asset/helper fixture, direct Caddy smoke, real Nginx/private-Caddy smoke, and the Compose deployment marker/recovery guardrail. The native container smoke owns executable backup-first replacement and restored-rollback behavior. The dedicated clean-Ubuntu pull-request job installs checksum-pinned Caddy plus the distribution Nginx/OpenSSL packages and runs the maintenance command. Use `npm run maintenance:rehearse -- --plan` on another platform only to inspect the stages; a plan is not execution evidence. Retain the command, revision, tool versions, timestamps, outcome, and any protected failure references in the private operational record.
 

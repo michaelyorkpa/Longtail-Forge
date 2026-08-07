@@ -1,3 +1,12 @@
+## Version 0.33.31.10 - 2026-08-07
+
+- Added a demo-only 60-second perimeter with 2,400 global requests, 600 trusted-client requests, 120 hashed-session mutations, and 60 hashed-session Search reads; login remains IP-keyed and the existing database-backed authentication throttle remains authoritative.
+- Added a 128 KiB public-demo declared-body ceiling before route parsing plus the stock-Caddy 8 MB edge ceiling, preserving generic canonical `429`/`413` application responses, shared-IP/session fairness, probe availability, fixed-window recovery, and unchanged non-demo behavior.
+- Made the supported Caddy edge generate and forward one request UUID that Node accepts only from an explicit trusted socket peer; redacted the complete edge URI/request headers/response cookies, masked client addresses, and correlated application, authentication, capability-denial, perimeter, and reset evidence without logging passwords, content, sessions, or analytics identifiers.
+- Added `framework.public-demo-perimeter`, expanded trusted-proxy/security-event/configuration/runtime diagnostics proof, extended the real Caddy smoke with an edge-only oversized-body and redacted-log assertion, and added `npm run demo:perimeter:probe` for reproducible actual-threshold review.
+- Docs updated: `.env.example`, `DECISIONS.md`, `docs/Caddyfile.private-preview.example`, `docs/Caddyfile.private-preview.multi-proxy.example`, `docs/architecture.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/http-errors.md`, `docs/internet-deployment.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: `SECURITY.md`, public API, permissions matrix, Help, module docs, database schema, and UI behavior are unchanged; this slice is an exact-demo runtime/edge security boundary.
+
 ## Version 0.33.31.9 - 2026-08-07
 
 - Made the existing `files.ingress` public-demo capability authoritative at every Files creation service and JSON/multipart single/batch route before payload inspection, authorization, metadata validation, quota accounting, storage, scan jobs, audit events, or attachment records.
@@ -13,7 +22,7 @@
 - Added one exact-demo host-only enable switch, scheduler-wrapped manual parity, shared correlation IDs, and distinct no-mutation lock-contention handling while preserving reset-owned automatic recovery and the common deploy/reset lifecycle lock.
 - Added bounded root-private JSONL start/finish evidence with trigger, scheduled boundary, lock result, duration, semantic fingerprint, health, failure class, rollback, recovery, and alert outcome, plus a narrow alert-helper contract that receives no application output, credentials, content, sessions, secrets, or private paths.
 - Added `release.public-demo-reset-scheduler` release-gate coverage and extended the Compose reset contract for scheduler-supplied operation IDs, contention exit 75, and safe semantic-fingerprint output; published every scheduler host asset with LF checkout enforcement.
-- Normalized the later roadmap headings from prose `slice 10` forms to dotted `0.33.31.10`-`.15` and `0.33.33.10`-`.21` version identifiers.
+- Normalized the later roadmap headings from prose `slice 10` forms to dotted identifiers across the remaining `0.33.31` and `0.33.33` slices.
 - Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
 - No docs change needed: Help, user/admin UI, permissions, application settings, database schema, module workflows, self-hosting, upgrades, and private-preview policy are unchanged; this is an exact-host release operation.
 

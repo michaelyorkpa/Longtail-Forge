@@ -65,7 +65,22 @@ const publicDemo = createConfig({
   LONGTAIL_RELEASE_BRANCH: "main",
   LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
 });
-assert.deepEqual(publicDemo.demo, { enabled: true, profile: "public_demo" });
+assert.deepEqual(publicDemo.demo, {
+  enabled: true,
+  perimeter: {
+    clientRequestLimit: 600,
+    globalRequestLimit: 2400,
+    maxBodyBytes: 128 * 1024,
+    mutationLimit: 120,
+    searchLimit: 60,
+    windowSeconds: 60,
+  },
+  profile: "public_demo",
+});
+assert.throws(
+  () => createConfig({ LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT: "10" }),
+  /LONGTAIL_PUBLIC_DEMO_\* settings require DEMO_MODE=true/,
+);
 assert.equal(publicDemo.deployment.mode, "compose");
 
 const development = createConfig({

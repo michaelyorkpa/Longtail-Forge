@@ -1,6 +1,6 @@
 # HTTP Error and Recovery Contract
 
-This document is the canonical development and support contract for HTTP failures in Longtail Forge. It covers failures handled while the Node application is running. Proxy-owned maintenance and upstream-outage behavior belongs to the `0.33.24` operator-maintenance contract.
+This document is the canonical development and support contract for HTTP failures in Longtail Forge. It covers failures handled while the Node application is running. Proxy-owned maintenance, upstream-outage behavior, and the stock-Caddy extreme-body rejection belong to the operator-maintenance contract; those edge responses carry the edge request UUID but do not claim that Node handled the request.
 
 ## Route Classes and Response Formats
 
@@ -135,7 +135,7 @@ The boundary provides one accessible recovery action, assertive announcement, he
 
 When a user reports an unexpected error:
 
-1. Ask for the displayed Request ID, approximate time, and the action they attempted. Treat the ID as opaque.
+1. Ask for the displayed Request ID, approximate time, and the action they attempted. Treat the ID as opaque. In the supported proxy topology Caddy generates it and Node accepts it only from the allowlisted immediate peer; direct client values are never trusted.
 2. Do not ask for passwords, bearer URLs, cookies, request bodies, private record text, raw record IDs, database paths, or screenshots containing secrets.
 3. Search protected application logs for an exact `requestId` match and the `http.request.failed` event.
 4. Expect exactly one failure diagnostic for that failed request. A separate `http.request.completed` record may exist in production and is not a second diagnostic.

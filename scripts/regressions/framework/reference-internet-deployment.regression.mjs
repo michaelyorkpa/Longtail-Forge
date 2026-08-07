@@ -68,7 +68,7 @@ assert.match(caddyfile, /\{\$LONGTAIL_PUBLIC_HOST\}/);
 assert.match(caddyfile, /reverse_proxy 127\.0\.0\.1:8001/);
 assert.match(caddyfile, /default X-Forwarded-\* behavior/i);
 assert.doesNotMatch(caddyfile, /(?:basic_auth|basicauth|forward_auth)/i, "the application login remains the only required authentication gate");
-assert.doesNotMatch(caddyfile, /header_up|trusted_proxies/i, "the supported edge should retain Caddy's reviewed forwarding defaults");
+assert.doesNotMatch(caddyfile, /header_up X-Forwarded-|trusted_proxies/i, "the supported edge should retain Caddy's reviewed forwarding defaults");
 
 for (const [label, proxyConfig] of [
   ["direct Caddy", caddyfile],
@@ -87,6 +87,9 @@ for (const [label, proxyConfig] of [
     /Strict-Transport-Security "max-age=300"/,
     /X-Content-Type-Options "nosniff"/,
     /X-Frame-Options "DENY"/,
+    /header_up X-Request-ID \{http\.request\.uuid\}/,
+    /log_append request_id \{http\.request\.uuid\}/,
+    /request_body \{[\s\S]*max_size 8MB/,
     /rewrite \* \/maintenance\.html/,
     /root \/usr\/local\/share\/longtail-forge-maintenance/,
     /status 503/,

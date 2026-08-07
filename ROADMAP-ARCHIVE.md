@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.10 - Public perimeter throttling and correlated security evidence
+
+Completed on 2026-08-07. The exact public demo now has measured request, mutation, Search, and body limits plus cross-layer secret-free evidence, while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.11` for server-side demo growth, input, and query budgets.
+
+**Model: High Effort** — Public shared credentials require limits that coordinate trusted client identity, account contention, edge behavior, and safe diagnostics.
+
+- [x] Recorded the bounded shared-demo threat model for credential stuffing, account contention, request/mutation floods, expensive Search reads, reset interference, and disk/database pressure; added and ran one reproducible actual-threshold load probe.
+- [x] Retained durable authentication throttling and added demo-only global/trusted-client request, hashed-session mutation, and Search buckets with shared-NAT fairness, generic `429` responses, one application declaration ceiling, and a stock-Caddy body ceiling.
+- [x] Made Caddy generate and forward the request UUID, accepted it in Node only from the configured immediate proxy, redacted edge paths/headers/cookies/client addresses, and correlated application, authentication, capability-denial, perimeter, and reset evidence through safe request/operation references.
+- [x] Added focused threshold, recovery, parallel-session, login-cookie, Search, malformed/oversized-body, forwarding-spoof, diagnostic, sanitizer, normal-mode, and real-Caddy regressions; documented retention and incident response.
+- [x] Updated governing decisions, runtime/edge/security/error/reset docs, examples, regression inventory, changelog, version, roadmap, and archive contracts; completed focused proof before canonical verification.
+
+Acceptance criteria:
+
+- Measured perimeter controls bound authentication and request abuse without turning ordinary shared/NAT use into an avoidable lockout, and operators receive correlated secret-free evidence.
+
 ## Version 0.33.31.9 - Public-demo Files ingress shutdown
 
 Completed on 2026-08-07. The exact public demo now refuses all Files ingress before bytes or metadata are parsed while authorized seeded attachments remain safely readable. The active cursor advanced to `0.33.31.10` for public perimeter throttling and correlated security evidence.
