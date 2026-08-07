@@ -353,6 +353,7 @@ function registerNotificationJobHandlers(options = {}) {
   }
 
   registerJobHandler(NOTIFICATION_EVENT_JOB_TYPE, handleNotificationEventJob, {
+    publicDemoCapability: "records.workspace",
     replace: true,
   });
   notificationJobHandlersRegistered = true;

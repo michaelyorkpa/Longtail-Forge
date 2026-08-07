@@ -4,10 +4,12 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
 const API_KEY_PREFIX = "ltf_live";
 
 async function list(session) {
+  assertPublicDemoCapabilityAllowed("api_keys");
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "read",
@@ -20,6 +22,7 @@ async function list(session) {
 }
 
 async function create(payload, session) {
+  assertPublicDemoCapabilityAllowed("api_keys");
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -73,6 +76,7 @@ async function create(payload, session) {
 }
 
 async function revoke(apiKeyId, session) {
+  assertPublicDemoCapabilityAllowed("api_keys");
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -109,6 +113,7 @@ async function revoke(apiKeyId, session) {
 }
 
 async function readActiveKey(rawKey) {
+  assertPublicDemoCapabilityAllowed("api_keys");
   const apiKey = await apiKeysRepository.readByHash(hashApiKey(rawKey));
 
   if (!apiKey || apiKey.status !== "active") {
@@ -123,6 +128,7 @@ function hasScope(apiKey, requiredScope) {
 }
 
 async function markUsed(apiKey) {
+  assertPublicDemoCapabilityAllowed("api_keys");
   await apiKeysRepository.updateLastUsed(apiKey.api_key_id);
 }
 

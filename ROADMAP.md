@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.2`.
+Active cursor: `0.33.31.3`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.2 - Administrative and persistence escape denials
-
-**Model: High Effort** — A shared Workspace Administrator must remain useful without gaining any path to durable or installation-level control.
-
-- [ ] Make the capability catalog authoritative at the server service/route boundary for installation administration, workspace creation/deletion, account and role administration outside the fixed visitor set, API-key use/creation, backup/export/restore, Support View, Secure Notes recovery/key-management and catalog security transitions, and equivalent durable escape paths.
-- [ ] Inventory current routes, registered actions, public API scopes, jobs, and contribution catalogs; record absent capabilities so a later integration, invitation, export, or administrator contribution cannot silently default to allowed in demo mode.
-- [ ] Return one stable safe denial contract, keep browser visibility presentation-only, and preserve normal authorization plus behavior when demo mode is false.
-- [ ] Add focused service/route/catalog regressions proving representative visitor-role denial, direct-request denial, no private Super Admin path, and non-demo compatibility.
-
-Acceptance criteria:
-
-- No visitor account can acquire installation authority, new identities/scopes, API credentials, durable exports/backups, Support View, or Secure Notes recovery control, even through direct requests or future undeclared contributions.
 
 ### Version 0.33.31.3 - Shared-account identity and credential immutability
 

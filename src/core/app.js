@@ -56,6 +56,7 @@ import { createRequestLoggingMiddleware, operationalLogger } from "./operational
 import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
 import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
+import { requirePublicDemoCapability } from "./public-demo-enforcement.js";
 
 function createApp() {
   const app = express();
@@ -82,6 +83,7 @@ function createApp() {
   app.use(express.static(config.publicDir));
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
+  app.use("/api/v1", requirePublicDemoCapability("api_keys"));
   app.use(publicApiRoutes);
   app.use(privateFeedPublicRoutes);
   for (const moduleRoutes of modulesService.listModuleRoutes("public")) {

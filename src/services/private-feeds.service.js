@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import {
@@ -20,6 +21,7 @@ const DUMMY_TOKEN_HASH = createHash("sha256").update("longtail-forge-private-fee
 const VALID_SCOPE_TYPES = new Set(["workspace", "client", "project"]);
 
 async function listCalendarSubscriptions(session) {
+  assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
   const rows = await privateFeedTokensRepository.listForWorkspace(
     session.workspace_id,
@@ -31,6 +33,7 @@ async function listCalendarSubscriptions(session) {
 }
 
 async function createCalendarSubscription(payload, session, requestOrigin) {
+  assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
   const scope = await resolveScope(payload, session);
   const rawToken = createRawToken();
@@ -54,6 +57,7 @@ async function createCalendarSubscription(payload, session, requestOrigin) {
 }
 
 async function rotateCalendarSubscription(subscriptionId, session, requestOrigin) {
+  assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
   const current = await readManagedSubscription(subscriptionId, session);
   if (current.user_id !== session.user_id) {
@@ -88,6 +92,7 @@ async function rotateCalendarSubscription(subscriptionId, session, requestOrigin
 }
 
 async function removeCalendarSubscription(subscriptionId, session) {
+  assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
   const current = await readManagedSubscription(subscriptionId, session);
   const result = await privateFeedTokensRepository.remove(
@@ -112,6 +117,7 @@ async function removeCalendarSubscription(subscriptionId, session) {
 }
 
 async function renderCalendar(rawToken) {
+  assertPublicDemoCapabilityAllowed("private_feeds");
   const authentication = await authenticateToken(rawToken, PRIVATE_CALENDAR_PROVIDER_ID);
   if (!authentication) {
     return null;

@@ -1,7 +1,7 @@
 import { clearInterval, setInterval } from "node:timers";
 import { config } from "../../config.js";
 import { db } from "../database.js";
-import { getJobHandler, listRegisteredJobTypes } from "./job-handlers.js";
+import { assertRegisteredJobPublicDemoCapabilityAllowed, getJobHandler, listRegisteredJobTypes } from "./job-handlers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
 
 const ACTIVE_JOB_STATUSES = Object.freeze(["pending", "failed"]);
@@ -307,6 +307,7 @@ async function runClaimedJob(job) {
     await markJobCompleted(job.job_id);
     return;
   }
+  assertRegisteredJobPublicDemoCapabilityAllowed(job.job_type);
   const handler = getJobHandler(job.job_type);
 
   if (!handler) {

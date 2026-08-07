@@ -1,6 +1,7 @@
 import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import {
   normalizeBooleanPreference,
   normalizeOptionalEmail,
@@ -24,6 +25,7 @@ async function assertEligible(userId) {
 }
 
 async function exportPortableAccount(session) {
+  assertPublicDemoCapabilityAllowed("exports.account");
   if (session?.session_mode !== RECOVERY_MODE || !session.user_id) {
     throw new AppError("Account export recovery is not available.", 403);
   }

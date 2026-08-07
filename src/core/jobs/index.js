@@ -1,4 +1,5 @@
 export {
+  assertRegisteredJobPublicDemoCapabilityAllowed,
   clearJobHandlersForTests,
   getJobHandler,
   listRegisteredJobTypes,

@@ -2028,6 +2028,7 @@ function registerFileScanJobHandlers(options = {}) {
   }
 
   registerJobHandler(FILE_SCAN_JOB_TYPE, handleFileScanJob, {
+    publicDemoCapability: "records.workspace",
     replace: true,
   });
   fileScanJobHandlersRegistered = true;

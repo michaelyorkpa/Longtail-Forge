@@ -18,6 +18,7 @@ function registerSearchIndexJobHandlers(options = {}) {
   }
 
   registerJobHandler(SEARCH_INDEX_JOB_TYPE, handleSearchIndexJob, {
+    publicDemoCapability: "records.workspace",
     replace: true,
   });
   searchIndexJobHandlersRegistered = true;

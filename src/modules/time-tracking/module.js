@@ -175,10 +175,10 @@ const timeTrackingModule = {
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
       requiresEnabledModules: ["time-tracking"],
       actions: [
-        { id: "start", label: "Start", route: "/api/workbench/timers/:timerSlot/status" },
-        { id: "pause", label: "Pause", route: "/api/workbench/timers/:timerSlot/status" },
-        { id: "finalize", label: "Save & End", route: "/api/active-timers/:timerSlot/finalize" },
-        { id: "discard", label: "Discard", route: "/api/active-timers/:timerSlot" },
+        { publicDemoCapability: "records.workspace", id: "start", label: "Start", route: "/api/workbench/timers/:timerSlot/status" },
+        { publicDemoCapability: "records.workspace", id: "pause", label: "Pause", route: "/api/workbench/timers/:timerSlot/status" },
+        { publicDemoCapability: "records.workspace", id: "finalize", label: "Save & End", route: "/api/active-timers/:timerSlot/finalize" },
+        { publicDemoCapability: "records.workspace", id: "discard", label: "Discard", route: "/api/active-timers/:timerSlot" },
       ],
       defaultCollapsed: false,
       sortOrder: 10,
@@ -244,8 +244,8 @@ const timeTrackingModule = {
     },
   ],
   publicApiEndpoints: [
-    { method: "GET", path: "/api/v1/time-entries", scope: "time_entries:read" },
-    { method: "POST", path: "/api/v1/time-entries", scope: "time_entries:write" },
+    { method: "GET", path: "/api/v1/time-entries", scope: "time_entries:read", publicDemoCapability: "api_keys" },
+    { method: "POST", path: "/api/v1/time-entries", scope: "time_entries:write", publicDemoCapability: "api_keys" },
   ],
   requiredPermissions: [
     "time_entries.create",
@@ -475,6 +475,7 @@ const timeTrackingModule = {
   apiScopes: [
     {
       id: "time_entries:read",
+      publicDemoCapability: "api_keys",
       moduleId: "time-tracking",
       label: "Read Time Entries",
       description: "Read time entries through the public API.",
@@ -482,6 +483,7 @@ const timeTrackingModule = {
     },
     {
       id: "time_entries:write",
+      publicDemoCapability: "api_keys",
       moduleId: "time-tracking",
       label: "Write Time Entries",
       description: "Create time entries through the public API.",

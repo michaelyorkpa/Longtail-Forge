@@ -5,12 +5,13 @@ import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-conte
 const notesIntegrations = {
   protectedContentConsumers: NOTES_PROTECTED_CONTENT_CONSUMERS,
   publicApiEndpoints: [
-      { method: "GET", path: "/api/v1/notes", scope: "notes:read" },
-      { method: "GET", path: "/api/v1/notes/:noteId", scope: "notes:read" },
+      { method: "GET", path: "/api/v1/notes", scope: "notes:read", publicDemoCapability: "api_keys" },
+      { method: "GET", path: "/api/v1/notes/:noteId", scope: "notes:read", publicDemoCapability: "api_keys" },
     ],
   apiScopes: [
       {
         id: "notes:read",
+        publicDemoCapability: "api_keys",
         moduleId: "notes",
         label: "Read Notes",
         description: "Read non-secure notes through the public API.",

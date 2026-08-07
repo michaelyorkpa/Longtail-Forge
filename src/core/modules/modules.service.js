@@ -47,6 +47,7 @@ import { db } from "../database.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
+import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
 
 const MODULE_INSERT_COLUMNS = [
   "module_id",
@@ -598,6 +599,7 @@ async function listAvailableApiScopes(workspaceId) {
   return listModuleApiScopeEntries()
     .filter((scope) => enabledModuleIdSet.has(scope.moduleId))
     .filter((scope) => apiScopeSupportsWorkspaceType(scope, workspaceType))
+    .filter((scope) => evaluatePublicDemoCapability(scope.publicDemoCapability).allowed)
     .map((scope) => {
       const resolvedScope = resolveContributionTerminology(scope, workspaceType, "apiScopes");
 
@@ -1084,9 +1086,10 @@ async function listActiveViewSurfaces(workspaceId, session = null) {
       continue;
     }
 
+    const resolvedSurface = resolveContributionTerminology(surface, workspaceType, "viewSurfaces");
     surfaces.push(normalizeViewSurfaceContribution(
       moduleDefinition,
-      resolveContributionTerminology(surface, workspaceType, "viewSurfaces"),
+      frameworkOwned ? resolvedSurface : filterPublicDemoContributionActions(resolvedSurface),
       protectedView,
     ));
   }
@@ -1319,10 +1322,10 @@ async function listActiveHelpItems(workspaceId, session, items) {
 }
 
 function normalizeContribution(moduleDefinition, contribution) {
-  return {
+  return filterPublicDemoContributionActions({
     ...contribution,
     moduleId: contribution.moduleId || moduleDefinition.id,
-  };
+  });
 }
 
 function normalizeViewSurfaceContribution(moduleDefinition, surface, protectedView) {

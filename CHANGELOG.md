@@ -1,3 +1,12 @@
+## Version 0.33.31.2 - 2026-08-06
+
+- Added one authoritative public-demo capability enforcement boundary with the stable safe `public_demo_capability_disabled` response before protected authorization or persistence.
+- Denied installation/workspace administration and deletion, new account/workspace/role-assignment paths, API keys and every `/api/v1` request, workspace backup/export, private feeds, Support View, and Secure Notes catalog transitions while the exact demo profile is active.
+- Required registered declarative actions, public API endpoints/scopes, and jobs to declare known capabilities; disabled and undeclared contributions fail closed in demo mode, including recorded future integration, invitation, import/export, restore, and extension-administration surfaces.
+- Preserved ordinary installation behavior and operator-only host recovery boundaries, and added focused unit plus isolated-database coverage for direct denial, safe errors, complete contribution inventories, future fail-closed behavior, and non-demo compatibility.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-contract.md`, `docs/operational-security.md`, `docs/public-api.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Tasks, Notes, Clients/Projects, Lists, Files, Search, Notifications, Time Tracking, Settings, and permission workflows are unchanged; their source edits only declare or consume the shared framework-owned demo capability.
+
 ## Version 0.33.31.1 - 2026-08-06
 
 - Added a typed, default-off public-demo runtime profile and a stable framework capability catalog covering permitted, read-only, disabled, and hourly-resettable behavior without hostname-based feature branches.

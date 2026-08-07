@@ -1,8 +1,10 @@
 // @ts-check
+import { config } from "../../config.js";
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
 import { listFrameworkSettingDefinitions } from "../settings/framework-settings-registry.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provider-contract.js";
 import { listFrameworkPermissionIds } from "../permissions/framework-permission-catalog.js";
+import { getPublicDemoCapability } from "../public-demo-capabilities.js";
 
 const ACTIVE_MANIFEST_FIELDS = new Set([
   "id",
@@ -257,6 +259,7 @@ const VIEW_LINKED_RECORDS_FIELDS = new Set([
 ]);
 const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
 const VIEW_ACTION_FIELDS = new Set([
+  "publicDemoCapability",
   "id",
   "label",
   "labelKey",
@@ -1096,6 +1099,7 @@ function validateActionDescriptor(action, prefix, errors) {
   }
   validateKnownObjectFields(action, VIEW_ACTION_FIELDS, prefix, errors);
   requireString(action, "id", errors, { prefix });
+  requirePublicDemoCapabilityDeclaration(action, prefix, errors);
   validateLabelDescriptor(action, prefix, errors);
   optionalString(action, "role", errors, { prefix });
   optionalString(action, "icon", errors, { prefix });
@@ -1642,6 +1646,7 @@ function validateApiScopes(apiScopes, moduleId, errors) {
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `apiScopes[${index}]` });
     requireString(item, "label", errors, { prefix: `apiScopes[${index}]` });
     requireString(item, "description", errors, { prefix: `apiScopes[${index}]` });
+    requirePublicDemoCapabilityDeclaration(item, `apiScopes[${index}]`, errors);
     optionalString(item, "access", errors, { prefix: `apiScopes[${index}]` });
     optionalStringArray(item, "workspaceTypes", errors, { prefix: `apiScopes[${index}]` });
     validateTerminology(item.terminology, `apiScopes[${index}].terminology`, errors);
@@ -1656,7 +1661,22 @@ function validatePublicApiEndpoints(publicApiEndpoints, errors) {
     }
     requireString(item, "path", errors, { prefix: `publicApiEndpoints[${index}]` });
     requireString(item, "scope", errors, { prefix: `publicApiEndpoints[${index}]` });
+    requirePublicDemoCapabilityDeclaration(item, `publicApiEndpoints[${index}]`, errors);
   });
+}
+
+function requirePublicDemoCapabilityDeclaration(item, prefix, errors) {
+  if (typeof item.publicDemoCapability !== "string" || !item.publicDemoCapability.trim()) {
+    if (config.demo.enabled) {
+      errors.push(`${prefix}.publicDemoCapability is required in public-demo mode.`);
+    }
+    return;
+  }
+  try {
+    getPublicDemoCapability(item.publicDemoCapability);
+  } catch {
+    errors.push(`${prefix}.publicDemoCapability must name a declared public-demo capability.`);
+  }
 }
 
 function validateEventTypes(eventTypes, moduleId, errors) {

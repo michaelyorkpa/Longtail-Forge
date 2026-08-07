@@ -238,6 +238,7 @@ const listsModule = {
         titleKey: "label",
         primaryAction: {
           id: "create-list",
+          publicDemoCapability: "records.workspace",
           label: "Create List",
           labelKey: "createButton",
           role: "primary",
@@ -383,16 +384,16 @@ const listsModule = {
         actionStrip: {
           label: "List actions",
           actions: [
-            { id: "duplicate-list", label: "Duplicate", role: "secondary", behavior: "lists.workflow.duplicate", requiredPermissions: [LIST_PERMISSIONS.DUPLICATE] },
-            { id: "edit-list", label: "Edit", role: "secondary", behavior: "lists.workflow.edit", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
-            { id: "complete-list", label: "Complete", role: "secondary", behavior: "lists.workflow.complete", requiredPermissions: [LIST_PERMISSIONS.COMPLETE] },
-            { id: "finalize-list", label: "Finalize", role: "secondary", behavior: "lists.workflow.finalize", requiredPermissions: [LIST_PERMISSIONS.FINALIZE] },
-            { id: "reopen-list", label: "Reopen", role: "secondary", behavior: "lists.workflow.reopen", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
-            { id: "mark-reusable-list", label: "Mark Reusable", role: "secondary", behavior: "lists.workflow.mark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
-            { id: "unmark-reusable-list", label: "Unmark Reusable", role: "secondary", behavior: "lists.workflow.unmark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
-            { id: "archive-list", label: "Archive", role: "secondary", behavior: "lists.workflow.archive", requiredPermissions: [LIST_PERMISSIONS.ARCHIVE] },
-            { id: "delete-list", label: "Delete", role: "destructive", behavior: "lists.workflow.delete", requiredPermissions: [LIST_PERMISSIONS.DELETE] },
-            { id: "restore-list", label: "Restore", role: "secondary", behavior: "lists.workflow.restore", requiredPermissions: [LIST_PERMISSIONS.RESTORE] },
+            { publicDemoCapability: "records.workspace", id: "duplicate-list", label: "Duplicate", role: "secondary", behavior: "lists.workflow.duplicate", requiredPermissions: [LIST_PERMISSIONS.DUPLICATE] },
+            { publicDemoCapability: "records.workspace", id: "edit-list", label: "Edit", role: "secondary", behavior: "lists.workflow.edit", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
+            { publicDemoCapability: "records.workspace", id: "complete-list", label: "Complete", role: "secondary", behavior: "lists.workflow.complete", requiredPermissions: [LIST_PERMISSIONS.COMPLETE] },
+            { publicDemoCapability: "records.workspace", id: "finalize-list", label: "Finalize", role: "secondary", behavior: "lists.workflow.finalize", requiredPermissions: [LIST_PERMISSIONS.FINALIZE] },
+            { publicDemoCapability: "records.workspace", id: "reopen-list", label: "Reopen", role: "secondary", behavior: "lists.workflow.reopen", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
+            { publicDemoCapability: "records.workspace", id: "mark-reusable-list", label: "Mark Reusable", role: "secondary", behavior: "lists.workflow.mark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
+            { publicDemoCapability: "records.workspace", id: "unmark-reusable-list", label: "Unmark Reusable", role: "secondary", behavior: "lists.workflow.unmark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
+            { publicDemoCapability: "records.workspace", id: "archive-list", label: "Archive", role: "secondary", behavior: "lists.workflow.archive", requiredPermissions: [LIST_PERMISSIONS.ARCHIVE] },
+            { publicDemoCapability: "records.workspace", id: "delete-list", label: "Delete", role: "destructive", behavior: "lists.workflow.delete", requiredPermissions: [LIST_PERMISSIONS.DELETE] },
+            { publicDemoCapability: "records.workspace", id: "restore-list", label: "Restore", role: "secondary", behavior: "lists.workflow.restore", requiredPermissions: [LIST_PERMISSIONS.RESTORE] },
           ],
         },
         summaryPanels: [
@@ -436,7 +437,7 @@ const listsModule = {
             { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true", width: "full" },
           ],
           actions: [
-            { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { publicDemoCapability: "records.workspace", id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
           ],
         },
         itemRows: {
@@ -451,10 +452,10 @@ const listsModule = {
             { id: "actions", label: "Actions", type: "actions" },
           ],
           actions: [
-            { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
-            { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
-            { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
-            { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { publicDemoCapability: "records.workspace", id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { publicDemoCapability: "records.workspace", id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { publicDemoCapability: "records.workspace", id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { publicDemoCapability: "records.workspace", id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
           ],
           emptyState: {
             message: "No items yet.",
@@ -474,8 +475,8 @@ const listsModule = {
             { field: "description", type: "textarea", label: "Description", rows: "4", width: "full" },
           ],
           footerActions: [
-            { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
-            { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save", requiredPermissions: [LIST_PERMISSIONS.CREATE, LIST_PERMISSIONS.UPDATE] },
+            { publicDemoCapability: "records.workspace", id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
+            { publicDemoCapability: "records.workspace", id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save", requiredPermissions: [LIST_PERMISSIONS.CREATE, LIST_PERMISSIONS.UPDATE] },
           ],
         },
       ],
@@ -541,12 +542,13 @@ const listsModule = {
   resourceDefinitions: [LIST_RESOURCE_DEFINITION],
   auditRecordTypes: LIST_AUDIT_RECORD_TYPES,
   publicApiEndpoints: [
-    { method: "GET", path: "/api/v1/lists", scope: "lists:read" },
-    { method: "GET", path: "/api/v1/lists/:listId", scope: "lists:read" },
+    { method: "GET", path: "/api/v1/lists", scope: "lists:read", publicDemoCapability: "api_keys" },
+    { method: "GET", path: "/api/v1/lists/:listId", scope: "lists:read", publicDemoCapability: "api_keys" },
   ],
   apiScopes: [
     {
       id: "lists:read",
+      publicDemoCapability: "api_keys",
       moduleId: LIST_MODULE_ID,
       label: "Read Lists",
       description: "Read lists through the public API.",

@@ -2,6 +2,10 @@
 
 Longtail Forge public API routes are versioned under `/api/v1`. Browser UI routes remain under `/api` and should not be treated as stable integration contracts.
 
+## Public-demo availability
+
+The public API is unavailable while the exact fail-closed public-demo profile is active. Every `/api/v1` request returns `403` with the stable `public_demo_capability_disabled` code before API-key authentication or module dispatch, and the demo API-scope catalog is empty. Module endpoint and scope contributions declare the `api_keys` capability so undeclared future contributions fail closed. Ordinary installations retain the existing API-key, scope, permission, and module behavior when demo mode is false.
+
 ## Authentication
 
 Send an active API key with either header:
