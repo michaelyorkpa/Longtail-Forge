@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.8 - External hourly scheduler and reset observability
+
+Completed on 2026-08-07. The exact `rt-ltf-demo` public demo now runs the proven Compose reset at the top of every UTC hour through a root-owned external timer, with safe overlap refusal, bounded redacted evidence, and a required failure-alert boundary. The active cursor advanced to `0.33.31.9` for public-demo Files ingress shutdown.
+
+**Model: High Effort** — Automatic destructive scheduling needs an independently testable host boundary, safe overlap behavior, and actionable failure evidence.
+
+- [x] Install one reviewed external host scheduler around the same manual Compose reset entry. Do not add an in-process timer or revive systemd as the application lifecycle; systemd timer/cron may own only host scheduling if that is the selected operator mechanism.
+- [x] Define UTC/local schedule semantics, expected downtime, missed-run/catch-up policy, overlap exit, disable/re-enable, manual invocation, deployment/reset lock coordination, and recovery ownership.
+- [x] Emit redacted structured reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health, failure class, rollback, and recovery status with bounded retention and an actionable failure alert. Never log public passwords, content, session IDs, private paths, or secret-bearing environment values.
+- [x] Add scheduler/alert regressions covering scheduled-equivalent success, manual parity, missed/failing execution, lock contention, alert invocation, log redaction, and safe disable/recovery.
+
+Acceptance criteria:
+
+- The external schedule invokes the same proven manual reset every hour, cannot overlap another lifecycle operation, and produces actionable secret-free success or failure evidence.
+
 ## Version 0.33.31.7 - Compose reset activation and automatic recovery
 
 Completed on 2026-08-07. The root-owned `rt-ltf-demo` Compose reset now promotes one verified database-and-Files baseline under a shared lifecycle lock, verifies the restarted release and representative visitor workflow, and automatically reconstructs the retained prior unit on failure. The active cursor advanced to `0.33.31.8` for external hourly scheduling and reset observability.

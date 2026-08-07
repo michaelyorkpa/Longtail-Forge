@@ -1,3 +1,13 @@
+## Version 0.33.31.8 - 2026-08-07
+
+- Added a root-owned external systemd oneshot and timer that invoke the same proven `rt-ltf-demo` Compose reset at the top of every UTC hour, skip missed boundaries without catch-up bursts, and never supervise the application lifecycle.
+- Added one exact-demo host-only enable switch, scheduler-wrapped manual parity, shared correlation IDs, and distinct no-mutation lock-contention handling while preserving reset-owned automatic recovery and the common deploy/reset lifecycle lock.
+- Added bounded root-private JSONL start/finish evidence with trigger, scheduled boundary, lock result, duration, semantic fingerprint, health, failure class, rollback, recovery, and alert outcome, plus a narrow alert-helper contract that receives no application output, credentials, content, sessions, secrets, or private paths.
+- Added `release.public-demo-reset-scheduler` release-gate coverage and extended the Compose reset contract for scheduler-supplied operation IDs, contention exit 75, and safe semantic-fingerprint output; published every scheduler host asset with LF checkout enforcement.
+- Normalized the later roadmap headings from prose `slice 10` forms to dotted `0.33.31.10`-`.15` and `0.33.33.10`-`.21` version identifiers.
+- Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, user/admin UI, permissions, application settings, database schema, module workflows, self-hosting, upgrades, and private-preview policy are unchanged; this is an exact-host release operation.
+
 ## Version 0.33.31.7 - 2026-08-07
 
 - Added a dedicated root-owned `rt-ltf-demo` Compose reset helper that builds and validates the deterministic candidate before maintenance, shares one exclusive host lifecycle lock with deploy and rollback, proves app and optional worker quiescence, and creates and inspects a whole-instance backup before activation.
@@ -6,7 +16,8 @@
 - Kept failures curtained until the retained prior unit is reconstructed and re-proved, preserving backup and operation evidence when recovery cannot complete; the helper contains no scheduler, in-process timer, or revived systemd application lifecycle.
 - Added `release.public-demo-compose-reset` lifecycle coverage plus runtime-artifact and GitHub Release asset coverage; ratcheted the generated regression manifest/inventory and applicable coverage floors.
 - Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
-- No docs change needed: release workflow, self-hosting, upgrade, private-preview, Help, permission, UI, and module behavior are unchanged; hourly scheduling and reset alerting remain owned by 0.33.31.8.
+- No docs change needed: release workflow, self-hosting, upgrade, private-preview, Help, permission, UI, and module behavior are unchanged; hourly scheduling and reset alerting remain owned by the following scheduler slice.
+
 ## Version 0.33.31.6 - 2026-08-07
 
 - Added a root-run, non-activating Compose operator command that dry-runs, builds, and revalidates one exact `rt-ltf-demo` public baseline candidate under the canonical data volume without stopping a container or opening, renaming, or replacing active database/Files state.

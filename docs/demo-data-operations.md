@@ -1,8 +1,8 @@
 # Public Demo Compose Reset
 
-As of version 0.33.31.7, the supported manual reset for the named `rt-ltf-demo` installation is the root-owned Compose helper `scripts/release/longtail-forge-public-demo-reset-host.example`. It builds and validates the deterministic public candidate from the exact currently deployed immutable image, activates database plus Files only while every configured Compose SQLite user is stopped, and either returns healthy on the new baseline or automatically reconstructs and verifies the retained prior unit.
+As of version 0.33.31.8, the named `rt-ltf-demo` installation uses one reviewed external systemd timer to invoke the same root-owned Compose reset used manually. The reset builds and validates the deterministic public candidate from the exact currently deployed immutable image, activates database plus Files only while every configured Compose SQLite user is stopped, and either returns healthy on the new baseline or automatically reconstructs and verifies the retained prior unit.
 
-This is not a general production seed or restore command. It accepts only target `rt-ltf-demo`, public origin `https://demo.longtailforge.com`, `LONGTAIL_ENV=production`, `DEMO_MODE=true`, the maintained Compose deployment classification, the canonical container data root `/var/lib/longtail-forge`, the root-owned version 2 role credential document, and the release environment already recorded by the protected Compose deployment helper. External hourly scheduling remains exclusively owned by version 0.33.31.8; this slice installs no cron entry, timer, or in-process interval.
+This is not a general production seed or restore command. It accepts only target `rt-ltf-demo`, public origin `https://demo.longtailforge.com`, `LONGTAIL_ENV=production`, `DEMO_MODE=true`, the maintained Compose deployment classification, the canonical container data root `/var/lib/longtail-forge`, the root-owned version 2 role credential document, and the release environment already recorded by the protected Compose deployment helper. The systemd unit schedules only this host operation; it never starts or supervises the application, runs inside the app or worker, or applies to another installation.
 
 ## Installed and generated boundaries
 
@@ -11,6 +11,7 @@ Repository and release owned:
 - the non-activating candidate builder and active-baseline validator inside the immutable runtime image;
 - the stopped-volume activation/recovery primitive inside the immutable runtime image;
 - the separately installed root-owned Compose reset helper;
+- the root-owned scheduler and alert helpers plus the systemd oneshot service and timer;
 - the maintained Compose deploy/rollback helper with the same shared Compose operation lock;
 - the non-secret helper configuration example, regressions, and this runbook.
 
@@ -23,7 +24,7 @@ Demo-host-only state:
 - root-only operation records, session-proof cookies, API proof responses, and logs;
 - application secrets, the private operator credential document, and any separately protected Secure Notes recovery key.
 
-Generated state and protected evidence never enter Git, a GitHub artifact, or normal command output. The helper emits only the target, anchor, operation ID, release identity, and backup basename after success.
+Generated state and protected evidence never enter Git, a GitHub artifact, or normal command output. The reset helper emits only the target, anchor, operation ID, semantic fingerprint, release identity, and backup basename after success. The scheduler never copies reset stdout or stderr into its log or alert.
 
 ## Installation
 
@@ -39,7 +40,19 @@ install -o root -g root -m 0755 \
   /usr/local/sbin/longtail-forge-public-demo-reset
 ```
 
-Both helpers read `/etc/longtail-forge/compose-deploy-helper.env`, which must remain a real `root:root` file with mode `0600` beneath a root-owned non-writable parent. On the exact public-demo host add the path-only setting:
+Install the scheduler boundary from the same release. The example alert writes one bounded `daemon.alert` event; replace its implementation with the host's paging integration while preserving the exact argument allowlist. The scheduler refuses missing, writable, or non-root helper files.
+
+```sh
+install -o root -g root -m 0755 scripts/release/longtail-forge-public-demo-reset-scheduler-host.example /usr/local/sbin/longtail-forge-public-demo-reset-scheduler
+install -o root -g root -m 0755 scripts/release/longtail-forge-public-demo-reset-alert.example /usr/local/sbin/longtail-forge-public-demo-reset-alert
+install -o root -g root -m 0600 docs/longtail-forge-public-demo-reset-scheduler.env.example /etc/longtail-forge/public-demo-reset-scheduler.env
+install -o root -g root -m 0644 scripts/release/longtail-forge-public-demo-reset.service.example /etc/systemd/system/longtail-forge-public-demo-reset.service
+install -o root -g root -m 0644 scripts/release/longtail-forge-public-demo-reset.timer.example /etc/systemd/system/longtail-forge-public-demo-reset.timer
+systemctl daemon-reload
+systemctl enable --now longtail-forge-public-demo-reset.timer
+```
+
+Both lifecycle helpers read `/etc/longtail-forge/compose-deploy-helper.env`, which must remain a real `root:root` file with mode `0600` beneath a root-owned non-writable parent. On the exact public-demo host add the path-only setting:
 
 ```text
 LTF_PUBLIC_URL=https://demo.longtailforge.com
@@ -49,6 +62,24 @@ LTF_DEMO_ROLE_CREDENTIALS=/etc/longtail-forge/demo-role-credentials.json
 The credential document is a separate real `root:root` file with mode `0600`, outside the Compose, deployment, and backup trees. It retains the version 2 target/origin binding and contains only the private Super Administrator password. The six public visitor passwords remain deterministic source-owned values. Never place a credential value in the helper configuration, command line, repository, or operation log.
 
 The helper and release workflow carry both host files as reviewed release assets. The runtime image carries the candidate and activation primitives but no role credential document or generated demo data.
+
+## Hourly schedule, evidence, and alerts
+
+The timer starts at the top of every UTC hour (`OnCalendar=*-*-* *:00:00 UTC`). UTC is authoritative; local wall-clock and daylight-saving changes do not shift it. `Persistent=false` deliberately skips boundaries missed while the host or timer is down, so startup cannot produce a catch-up reset or burst. The next ordinary UTC boundary is the only automatic retry. `systemctl list-timers longtail-forge-public-demo-reset.timer` shows the next and previous trigger.
+
+Candidate construction happens before the maintenance curtain. User-visible downtime begins only when the validated candidate is ready and the helper asserts the curtain; it covers quiescence, backup, activation, restart, session invalidation, and runtime/role proof. There is no zero-downtime promise. The oneshot has a 30-minute safety ceiling, while a healthy ordinary run should spend only the shorter host-dependent backup/restart/proof interval behind the curtain. A timeout follows the reset helper's recovery ownership and produces a failure alert.
+
+Every scheduled and scheduler-wrapped manual run receives one correlation ID. The root-only JSONL log retains at most 336 records—start and finish records for seven days at the hourly rate—with trigger, scheduled boundary, lock outcome, duration, semantic fingerprint on success, health, bounded failure class, rollback status, recovery status, and alert outcome. It contains no passwords, record content, sessions, cookies, role document, application output, secret values, or private infrastructure paths. Send the bounded alert-helper arguments into the host's real paging system and alert if that helper itself fails. Inspect the protected log and reset operation evidence by correlation ID; do not add raw stdout/stderr to the page.
+
+Deploy, rollback, backup, manual reset, and scheduled reset coordinate through the same non-blocking Compose operation lock. Contention exits with code 75, records `lifecycle-lock-contended`, invokes the failure alert, performs no mutation, and waits for the next normal boundary rather than retrying inside the hour. Other failures remain owned by the reset helper: a proved prior-unit recovery is reported as healthy-but-failed, while failed recovery keeps the curtain and protected evidence for operator action.
+
+`LTF_PUBLIC_DEMO_RESET_ENABLED=false` in the root-only scheduler environment is the exact demo-host switch. A fired timer records `skipped-disabled` without calling the reset. It is intentionally not an Admin setting, database value, application environment variable, or general demo-mode feature. For extended maintenance, set the flag false and use `systemctl disable --now longtail-forge-public-demo-reset.timer`; to resume, restore true and use `systemctl enable --now longtail-forge-public-demo-reset.timer`. Confirm the next UTC boundary after either change.
+
+For a correlated manual run with the same logging and alert behavior:
+
+```sh
+/usr/local/sbin/longtail-forge-public-demo-reset-scheduler run --trigger manual
+```
 
 ## Manual reset
 

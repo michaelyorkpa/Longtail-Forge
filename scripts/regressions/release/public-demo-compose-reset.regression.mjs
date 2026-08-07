@@ -286,6 +286,10 @@ async function assertHostContract() {
     /run_activation recover .* \|\| recovery_ready=false/,
     /test "\$recovery_ready" = true && start_sqlite_users && verify_runtime/,
     /maintenance curtain and protected evidence remain/,
+    /lock_contended\(\)[\s\S]*exit 75/,
+    /--operation-id\) key=operation/,
+    /provided operation identity is invalid/,
+    /"semanticFingerprint":"%s"/,
   ]) assert.match(host, requirement);
   assertOrdered(host, [
     "run_candidate build", "run_candidate validate", "capture_old_session", "assert_marker",
@@ -301,7 +305,7 @@ async function assertHostContract() {
   assert.doesNotMatch(host, /systemctl|longtail-forge\.service|cron|systemd timer|setInterval/);
   assert.match(docs, /shared Compose operation lock/i);
   assert.match(docs, /pre-reset session/i);
-  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", roadmap);
+  assertRoadmapCursorAtLeast("0.33.31.9", "public-demo Compose reset closeout", roadmap);
   assert.match(archive, /^## Version 0\.33\.31\.7 - Compose reset activation and automatic recovery$/m);
   assert.match(changelog, /^## Version 0\.33\.31\.7 - \d{4}-\d{2}-\d{2}$/m);
 }
