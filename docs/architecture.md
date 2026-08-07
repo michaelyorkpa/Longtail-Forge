@@ -1511,14 +1511,14 @@ Notifications are infrastructure.
 
 The public API foundation is framework-owned.
 
-Modules may declare public API endpoints and scopes.
+Modules may declare public API endpoints and scopes. Each registered endpoint, scope, and declarative module action declares a known `publicDemoCapability`; public-demo catalog filtering is presentation only, while server services and routes remain authoritative.
 
 Example:
 
 ```js
 publicApiEndpoints: [
-  { method: "GET", path: "/api/v1/tasks", scope: "tasks:read" },
-  { method: "POST", path: "/api/v1/tasks", scope: "tasks:write" }
+  { method: "GET", path: "/api/v1/tasks", scope: "tasks:read", publicDemoCapability: "api_keys" },
+  { method: "POST", path: "/api/v1/tasks", scope: "tasks:write", publicDemoCapability: "api_keys" }
 ]
 ```
 

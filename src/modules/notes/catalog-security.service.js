@@ -1,4 +1,5 @@
 import { auditService } from "../../core/audit.js";
+import { assertPublicDemoCapabilityAllowed } from "../../core/public-demo-enforcement.js";
 import { AppError } from "../../core/errors.js";
 import { getJobHandler, registerJobHandler } from "../../core/jobs/index.js";
 import { enqueueJob } from "../../core/jobs/job-queue.js";
@@ -46,11 +47,12 @@ function registerCatalogSecurityJobHandler(options = {}) {
     return;
   }
 
-  registerJobHandler(CATALOG_SECURITY_JOB_TYPE, handleCatalogSecurityJob, { replace: true });
+  registerJobHandler(CATALOG_SECURITY_JOB_TYPE, handleCatalogSecurityJob, { publicDemoCapability: "secure_notes.catalog_security", replace: true });
   catalogSecurityJobHandlerRegistered = true;
 }
 
 async function preflight(collectionId, query = {}, session) {
+  assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const action = normalizeAction(query.action);
   const context = await buildTransitionContext(session.workspace_id, collectionId, action);
@@ -58,11 +60,13 @@ async function preflight(collectionId, query = {}, session) {
 }
 
 async function enable(collectionId, payload = {}, session) {
+  assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   return startTransition(collectionId, TRANSITION_ACTIONS.ENABLE, payload, session);
 }
 
 async function remove(collectionId, payload = {}, session) {
+  assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const context = await buildTransitionContext(session.workspace_id, collectionId, TRANSITION_ACTIONS.REMOVE);
   assertDowngradeConfirmation(payload, context);
@@ -71,6 +75,7 @@ async function remove(collectionId, payload = {}, session) {
 }
 
 async function retry(collectionId, payload = {}, session) {
+  assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const collection = await readCollectionOrThrow(session.workspace_id, collectionId);
   if (collection.security_transition_state !== CATALOG_SECURITY_TRANSITION_STATES.FAILED) {

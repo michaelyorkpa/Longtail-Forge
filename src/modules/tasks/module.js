@@ -109,6 +109,7 @@ const tasksModule = {
         titleKey: "label",
         primaryAction: {
           id: "create-task",
+          publicDemoCapability: "records.workspace",
           label: "Add Task",
           labelKey: "createButton",
           role: "primary",
@@ -276,10 +277,10 @@ const tasksModule = {
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
       requiresEnabledModules: ["tasks"],
       actions: [
-        { id: "open", label: "Open Task", route: "tasks.html?task=:taskId" },
-        { id: "start-timer", label: "Start Timer", route: "/api/tasks/:taskId/timer" },
-        { id: "pause-timer", label: "Pause Timer", route: "/api/tasks/:taskId/timer" },
-        { id: "finalize-timer", label: "Save & End", route: "/api/tasks/:taskId/timer/finalize" },
+        { publicDemoCapability: "records.workspace", id: "open", label: "Open Task", route: "tasks.html?task=:taskId" },
+        { publicDemoCapability: "records.workspace", id: "start-timer", label: "Start Timer", route: "/api/tasks/:taskId/timer" },
+        { publicDemoCapability: "records.workspace", id: "pause-timer", label: "Pause Timer", route: "/api/tasks/:taskId/timer" },
+        { publicDemoCapability: "records.workspace", id: "finalize-timer", label: "Save & End", route: "/api/tasks/:taskId/timer/finalize" },
       ],
       defaultCollapsed: false,
       sortOrder: 20,

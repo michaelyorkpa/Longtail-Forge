@@ -1,4 +1,5 @@
 import { usersRepository } from "../repositories/users.repo.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
@@ -67,6 +68,7 @@ async function listWorkspaces(session) {
 }
 
 async function readAddUserOptions(session, requestedWorkspaceId = "") {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace, workspaces } = await resolveAddUserWorkspace(
     session,
     requestedWorkspaceId,
@@ -84,6 +86,7 @@ async function readAddUserOptions(session, requestedWorkspaceId = "") {
 }
 
 async function lookupAddUserAccount(payload, session) {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const username = normalizeCreateUsername(payload.username);
   const { targetSession, workspace } = await resolveAddUserWorkspace(
     session,
@@ -116,6 +119,7 @@ async function lookupAddUserAccount(payload, session) {
 }
 
 async function create(payload, session) {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace } = await resolveAddUserWorkspace(
     session,
     payload.workspaceId || payload.workspace_id,
@@ -733,6 +737,7 @@ async function readSettings(session) {
 }
 
 async function createWorkspace(payload, session, sessionId = "") {
+  assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   const workspaceType = normalizeWorkspaceType(payload.workspaceType || payload.workspace_type);
   const options = await readWorkspaceCreationOptions(session);
 

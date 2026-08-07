@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 435,
+    "discoveredScripts": 436,
     "legacyScripts": 309,
     "releaseGateScripts": 61,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 41,
       "docs": 10,
       "files": 44,
-      "framework": 74,
+      "framework": 75,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -29,12 +29,12 @@
     },
     "tierCounts": {
       "focused": 204,
-      "integration": 162,
+      "integration": 163,
       "release-gate": 61,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 180,
+      "isolated-database": 181,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -3185,6 +3185,24 @@
         "production",
         "security",
         "startup"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves fail-closed public-demo denials at service, route, action, public API scope, job, and future-capability boundaries without changing standard mode.",
+      "id": "framework.public-demo-capability-enforcement",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "catalog",
+        "demo",
+        "jobs",
+        "permissions",
+        "routes",
+        "security"
       ],
       "tier": "integration"
     },

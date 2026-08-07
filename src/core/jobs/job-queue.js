@@ -1,6 +1,7 @@
 import { db } from "../database.js";
 import { createRecordId } from "../identifiers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
+import { assertRegisteredJobPublicDemoCapabilityAllowed } from "./job-handlers.js";
 
 const DEFAULT_JOB_PRIORITY = 0;
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -29,6 +30,7 @@ async function enqueueJob(options = {}) {
   const now = new Date().toISOString();
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Job workspace is required.");
   const jobType = normalizeRequiredText(options.jobType || options.job_type, "Job type is required.");
+  assertRegisteredJobPublicDemoCapabilityAllowed(jobType);
   const dedupeKey = normalizeNullableText(options.dedupeKey || options.dedupe_key);
   const payloadJson = JSON.stringify(options.payload || {});
   const priority = normalizeInteger(options.priority, DEFAULT_JOB_PRIORITY);

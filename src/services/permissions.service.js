@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { permissionsRepository } from "../repositories/permissions.repo.js";
 import { internalEventBus } from "../core/events/event-bus.js";
 import { readRequestScopedCache } from "../core/request-cache.js";
@@ -141,6 +142,7 @@ async function readUserAssignments(session, userId) {
 }
 
 async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
+  assertPublicDemoCapabilityAllowed("administration.role_management");
   await assertCanAssignRoles(session);
   const username = normalizeUsername(payload.username);
 
@@ -182,6 +184,7 @@ async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
 }
 
 async function replaceUserAssignments(session, userId, payload) {
+  assertPublicDemoCapabilityAllowed("administration.role_management");
   await assertCanAssignRoles(session);
   const fullAdministrator = await isWorkspaceAdministrator(session);
   if (!Array.isArray(payload.assignments)) {

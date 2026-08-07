@@ -90,6 +90,7 @@ const notesModule = {
         titleKey: "label",
         primaryAction: {
           id: "create-note",
+          publicDemoCapability: "records.workspace",
           label: "Create Note",
           labelKey: "createButton",
           role: "primary",
@@ -184,9 +185,9 @@ const notesModule = {
         actionStrip: {
           label: "Note actions",
           actions: [
-            { id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit", requiredPermissions: [NOTE_PERMISSIONS.UPDATE] },
-            { id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive", requiredPermissions: [NOTE_PERMISSIONS.ARCHIVE] },
-            { id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore", requiredPermissions: [NOTE_PERMISSIONS.RESTORE] },
+            { publicDemoCapability: "records.workspace", id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit", requiredPermissions: [NOTE_PERMISSIONS.UPDATE] },
+            { publicDemoCapability: "records.workspace", id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive", requiredPermissions: [NOTE_PERMISSIONS.ARCHIVE] },
+            { publicDemoCapability: "records.workspace", id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore", requiredPermissions: [NOTE_PERMISSIONS.RESTORE] },
           ],
         },
         summaryPanels: [
@@ -205,8 +206,8 @@ const notesModule = {
             { field: "target_results", type: "select", label: "Record", required: true, behavior: "notes.link.results" },
           ],
           actions: [
-            { id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
-            { id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
+            { publicDemoCapability: "records.workspace", id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
+            { publicDemoCapability: "records.workspace", id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
           ],
         },
         emptyState: {
@@ -227,9 +228,9 @@ const notesModule = {
             { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
           ],
           footerActions: [
-            { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
-            { id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
-            { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
+            { publicDemoCapability: "records.workspace", id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
+            { publicDemoCapability: "records.workspace", id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
+            { publicDemoCapability: "records.workspace", id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
           ],
         },
         {
@@ -243,8 +244,8 @@ const notesModule = {
             { id: "note-bulk-tag-action", field: "tagAction", type: "select", label: "Tag Action", options: [["", "No change"], ["add", "Add tags"], ["remove", "Remove tags"], ["replace", "Replace direct tags"]] },
           ],
           footerActions: [
-            { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
-            { id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
+            { publicDemoCapability: "records.workspace", id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
+            { publicDemoCapability: "records.workspace", id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
           ],
         },
         {
@@ -256,8 +257,8 @@ const notesModule = {
             { id: "collection-parent", field: "parent", type: "select", label: "Parent", options: [["", "Root collection"]] },
           ],
           footerActions: [
-            { id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
-            { id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
+            { publicDemoCapability: "records.workspace", id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
+            { publicDemoCapability: "records.workspace", id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
           ],
         },
       ],

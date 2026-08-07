@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.31.2 - Administrative and persistence escape denials
+
+Completed on 2026-08-06. Public-demo capability classifications now deny durable administrative and persistence escape paths at authoritative server boundaries while preserving ordinary installation behavior. The active cursor advanced to `0.33.31.3` for shared-account identity and credential immutability.
+
+**Model: High Effort** — A shared Workspace Administrator must remain useful without gaining any path to durable or installation-level control.
+
+- [x] Made the capability catalog authoritative before authorization or persistence for installation/workspace administration and deletion, account/workspace creation, role assignment, API keys and `/api/v1`, backup/export, private feeds, Support View, and Secure Notes catalog transitions.
+- [x] Required registered declarative actions, public API endpoints/scopes, and jobs to declare a known capability. Demo catalogs filter disabled entries for presentation while direct server enforcement remains authoritative, and absent integration, invitation, import/export, restore, and extension administration are recorded disabled.
+- [x] Added one safe `public_demo_capability_disabled` denial contract, kept the private Super Admin outside browser contracts, and preserved existing authorization, catalogs, services, jobs, and public API behavior when demo mode is false.
+- [x] Added focused unit and isolated-database regression coverage for classifications, future undeclared contributions, direct middleware/service denial, complete action/API/job inventories, safe error shape, and normal-mode compatibility.
+- [x] Updated the security, architecture, module-contribution, public API, decision, ownership, changelog, version, roadmap, and archive contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- No visitor account can acquire installation authority, new identities/scopes, API credentials, durable exports/backups, Support View, or Secure Notes recovery control, even through direct requests or future undeclared contributions.
+
 ## Version 0.33.31.1 - Fail-closed demo runtime identity and capability catalog
 
 Completed on 2026-08-06. The default-off public-demo identity and its framework-owned capability catalog now fail closed before database, storage, scanner, or worker initialization. The active cursor advanced to `0.33.31.2` for server-enforced administrative and persistence denials.

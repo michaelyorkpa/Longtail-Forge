@@ -2,14 +2,14 @@ import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-conte
 
 const tasksIntegrations = {
   publicApiEndpoints: [
-      { method: "GET", path: "/api/v1/tasks", scope: "tasks:read" },
-      { method: "GET", path: "/api/v1/tasks/:taskId", scope: "tasks:read" },
-      { method: "POST", path: "/api/v1/tasks", scope: "tasks:write" },
-      { method: "PUT", path: "/api/v1/tasks/:taskId", scope: "tasks:write" },
-      { method: "POST", path: "/api/v1/tasks/:taskId/complete", scope: "tasks:write" },
-      { method: "POST", path: "/api/v1/tasks/:taskId/reopen", scope: "tasks:write" },
-      { method: "POST", path: "/api/v1/tasks/:taskId/archive", scope: "tasks:write" },
-      { method: "POST", path: "/api/v1/tasks/:taskId/restore", scope: "tasks:write" },
+      { method: "GET", path: "/api/v1/tasks", scope: "tasks:read", publicDemoCapability: "api_keys" },
+      { method: "GET", path: "/api/v1/tasks/:taskId", scope: "tasks:read", publicDemoCapability: "api_keys" },
+      { method: "POST", path: "/api/v1/tasks", scope: "tasks:write", publicDemoCapability: "api_keys" },
+      { method: "PUT", path: "/api/v1/tasks/:taskId", scope: "tasks:write", publicDemoCapability: "api_keys" },
+      { method: "POST", path: "/api/v1/tasks/:taskId/complete", scope: "tasks:write", publicDemoCapability: "api_keys" },
+      { method: "POST", path: "/api/v1/tasks/:taskId/reopen", scope: "tasks:write", publicDemoCapability: "api_keys" },
+      { method: "POST", path: "/api/v1/tasks/:taskId/archive", scope: "tasks:write", publicDemoCapability: "api_keys" },
+      { method: "POST", path: "/api/v1/tasks/:taskId/restore", scope: "tasks:write", publicDemoCapability: "api_keys" },
     ],
   taggableTypes: [
       {
@@ -105,6 +105,7 @@ const tasksIntegrations = {
   apiScopes: [
       {
         id: "tasks:read",
+        publicDemoCapability: "api_keys",
         moduleId: "tasks",
         label: "Read Tasks",
         description: "Read tasks through the public API.",
@@ -112,6 +113,7 @@ const tasksIntegrations = {
       },
       {
         id: "tasks:write",
+        publicDemoCapability: "api_keys",
         moduleId: "tasks",
         label: "Write Tasks",
         description: "Create and update tasks through the public API.",
