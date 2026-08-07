@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.6 - Deterministic public baseline candidate
+
+Completed on 2026-08-07. The exact Compose demo profile can now build and revalidate one deterministic, inactive database-and-Files candidate without stopping or replacing the running installation. The active cursor advanced to `0.33.31.7` for Compose reset activation and automatic recovery.
+
+**Model: High Effort** - The baseline builder is a data-integrity boundary, but it is isolated from live activation and scheduling.
+
+- [x] Adapted the existing guarded seed and verification primitives into a root-run one-off Compose candidate command for the exact six-account public profile and canonical data volume. Dry run validates without mutation; build and validation never stop a service or open, rename, or replace the active database/Files.
+- [x] Reconstructed each candidate through normal migrations and reviewed seed definitions in a fresh same-filesystem child, checkpointed it out of WAL mode, and verified exact release migration identity, semantic fingerprint/counts, SQLite integrity, zero foreign-key violations, exact Files inventory/sizes/checksums, the protected candidate marker, zero sessions, fixed public credentials, and separate private operator ownership.
+- [x] Rejected existing or partial candidates, unexpected entries, mismatched anchors/versions/markers/migrations/fingerprints/counts, corrupt Files/roles/scopes/credential hashes, sessions, Secure Notes or analytics/feedback/interest persistence, symlinks/path escapes, plaintext protected values, and database/Files mismatch. One atomic rename publishes only the fully verified inactive candidate.
+- [x] Added candidate-only release-gate coverage for dry-run immutability, repeatable builds, standalone validation, corrupt-state refusals, output redaction, exact-target/profile refusal, preservation of active Compose data, and unchanged private development/sanitized-demo commands and historical host behavior.
+- [x] Updated the demo-data, runtime, regression, decision, changelog, version, roadmap, archive, and generated regression contracts; completed focused proof before canonical final verification and runtime identity proof.
+
+Acceptance criteria:
+
+- A non-activating operator command reproducibly builds and proves one exact public database-and-Files candidate without touching the running installation.
+
 ## Version 0.33.31.5 - Accessible demo account chooser and role guidance
 
 Completed on 2026-08-07. The public login now offers one accessible six-account chooser only when the exact demo profile is active, while ordinary login and authentication remain unchanged. The active cursor advanced to `0.33.31.6` for the deterministic public baseline candidate.

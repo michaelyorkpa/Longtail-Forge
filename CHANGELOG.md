@@ -1,3 +1,12 @@
+## Version 0.33.31.6 - 2026-08-07
+
+- Added a root-run, non-activating Compose operator command that dry-runs, builds, and revalidates one exact `rt-ltf-demo` public baseline candidate under the canonical data volume without stopping a container or opening, renaming, or replacing active database/Files state.
+- Reused normal migrations and the reviewed six-public-plus-one-private `sanitized-demo` seed, checkpointed candidate SQLite out of WAL mode, and proved exact migration identity, semantic fingerprint/counts, integrity, foreign keys, zero sessions, exact roles/scopes/credential hashes, private-operator separation, and database-to-Files size/checksum inventory.
+- Added fail-closed refusal for existing/partial candidates, target/profile/path/anchor/version/marker mismatch, corrupt databases/Files/roles/scopes/credentials, unexpected sessions or entries, Secure Notes and analytics/feedback/interest persistence, symlinks/path escapes, and plaintext protected material; only a fully verified unit receives the fixed inactive candidate name.
+- Added `database.public-demo-baseline-candidate` release-gate coverage for dry-run immutability, repeatable reconstruction, standalone validation, corruption/redaction cases, active-data preservation, and unchanged local/private seed commands and historical host behavior; ratcheted active, release-gate, and database coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: the marketing screenshot plan still consumes the unchanged fictional scenario and local capture commands; Compose activation/recovery, scheduling, Help, visitor workflows, permissions, and live deployment behavior remain owned by later slices.
+
 ## Version 0.33.31.5 - 2026-08-07
 
 - Added a demo-only, no-store public account catalog for the six source-owned visitor credentials with real role names, readable scopes, representative records, useful actions, and expected denials, while excluding internal IDs, directory state, and the private Super Administrator identity.
