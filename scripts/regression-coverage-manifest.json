@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 437,
+    "discoveredScripts": 438,
     "legacyScripts": 309,
-    "releaseGateScripts": 61,
+    "releaseGateScripts": 62,
     "areaCounts": {
       "dashboard": 2,
       "database": 41,
@@ -17,7 +17,7 @@
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 11,
+      "permissions": 12,
       "public-api": 3,
       "release": 31,
       "search": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 204,
       "integration": 164,
-      "release-gate": 61,
+      "release-gate": 62,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 182,
+      "isolated-database": 183,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 221
@@ -2575,7 +2575,7 @@
     },
     {
       "area": "database",
-      "description": "Proves exact-target preflight and seven-role demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -3736,6 +3736,23 @@
         "users"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Authenticates the exact six public demo visitors and proves allowed work, denials, isolation, immutable credentials, logout, and absence of a public Super Administrator path.",
+      "id": "permissions.public-demo-role-journey",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "demo",
+        "permissions",
+        "seed"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "permissions",

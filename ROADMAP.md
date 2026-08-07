@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.4`.
+Active cursor: `0.33.31.5`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.4 - Public six-role fixture and permission journey
-
-**Model: High Effort** — Reusing the shipped role fixture safely requires a distinct public-credential activation boundary and proof that Super Admin stays private.
-
-- [ ] Derive the visitor set from the existing `0.33.26.7-.9` fixture definitions: Workspace Administrator, Client Administrator, Project Administrator, Client User, Project User, and Client User (External), with the existing representative Northwind Studio, Cedar & Bloom, and Website Refresh scopes. Do not create another role or assignment model.
-- [ ] Keep deterministic fake names, reserved non-deliverable example-domain addresses, IDs, memberships, assignments, records, and public non-secret credentials valid only under the exact fail-closed demo profile. Preserve the separate strong private operator credential and refuse public-demo credential input in every other environment.
-- [ ] Adapt the existing authenticated role journey instead of rebuilding it: prove representative allowed reads/writes, expected denials, cross-scope and workspace isolation, immutable credentials, logout, and the absence of any public `super_admin` credential or escalation path.
-- [ ] Preserve the private seven-role development/operator fixture and its existing regressions; public-demo assertions are an additional six-account profile, not a replacement for private test coverage.
-
-Acceptance criteria:
-
-- The exact six visitor accounts reproducibly demonstrate the shipped role model without permission changes, real email, private credential reuse, or public installation authority.
 
 ### Version 0.33.31.5 - Accessible demo account chooser and role guidance
 

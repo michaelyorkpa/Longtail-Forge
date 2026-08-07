@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.4 - Public six-role fixture and permission journey
+
+Completed on 2026-08-07. The exact-bound public fixture now derives six visitor accounts from the shipped role/scope model, keeps the Super Administrator credential private, and proves the complete public permission journey while preserving the private seven-role fixture. The active cursor advanced to `0.33.31.5` for the accessible demo account chooser and role guidance.
+
+**Model: High Effort** - Reusing the shipped role fixture safely requires a distinct public-credential activation boundary and proof that Super Admin stays private.
+
+- [x] Derived the visitor set from the existing `0.33.26.7-.9` fixture definitions: Workspace Administrator, Client Administrator, Project Administrator, Client User, Project User, and Client User (External), with the existing representative Northwind Studio, Cedar & Bloom, and Website Refresh scopes. No role, assignment, or permission model changed.
+- [x] Added deterministic public non-secret visitor credentials under one source-owned catalog valid only through the explicit `public-demo` fixture mode and exact `rt-ltf-demo` target/origin binding. The protected version 2 host file accepts only the separate strong private Super Administrator password; every other mode preserves the private version 1 seven-password contract or fails closed.
+- [x] Adapted the existing authenticated journey to prove six-account login, representative Task reads and Time Tracking writes, cross-scope and cross-workspace denials, immutable credentials, logout, and absence of a public Super Administrator password or delegated role.
+- [x] Preserved the private seven-role development/operator fixture and its authenticated regression, and updated the host-operation proof for six source-defined public visitors plus one private operator.
+- [x] Updated the demo-data, runtime, permissions, regression, marketing, decision, changelog, version, roadmap, archive, and generated regression contracts; completed the canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- The exact six visitor accounts reproducibly demonstrate the shipped role model without permission changes, real email, private credential reuse, or public installation authority.
+
 ## Version 0.33.31.3 - Shared-account identity and credential immutability
 
 Completed on 2026-08-06. The protected demo seed marker now owns the exact six public visitor identities and server-side guards make their credential, recovery, session-management, API-key, and account lifecycle immutable. The active cursor advanced to `0.33.31.4` for public six-role credential activation and its permission journey.

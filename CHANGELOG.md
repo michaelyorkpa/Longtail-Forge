@@ -1,3 +1,12 @@
+## Version 0.33.31.4 - 2026-08-07
+
+- Added an exact-bound `public-demo` fixture mode that derives the six visitor accounts from the shipped seven-role identity/scope definitions without changing roles, assignments, permissions, fictional records, or reserved-domain identities.
+- Made the six deterministic visitor passwords intentionally public, source-owned fixture data while reducing the protected version 2 host credential document to the separate private Super Administrator password; public mode is refused without the exact `rt-ltf-demo` target/origin binding, and the local version 1 seven-private-password fixture remains unchanged.
+- Adapted the authenticated role journey to prove all six public logins, representative Task reads and Time Tracking writes, cross-scope and cross-workspace denials, stable credential immutability, logout, and no public Super Administrator credential or delegated-role path.
+- Updated the guarded host operation and regressions for the six-public-plus-one-private profile, retained the original private seven-role journey, and added a dedicated release-gate regression with non-decreasing manifest, release-gate, and permissions coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/marketing/screenshot-and-demo-data-plan.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser login guidance remain owned by `0.33.31.5`; this slice adds no chooser or alternate authentication path.
+
 ## Version 0.33.31.3 - 2026-08-06
 
 - Bound public-demo identity ownership to exactly six unique seeded visitor user IDs in the protected host marker, using explicit fixture contract flags rather than usernames, labels, email domains, or roles; the protected private Super Administrator is excluded.

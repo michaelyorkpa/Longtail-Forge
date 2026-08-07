@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 440,
+  "minimumActiveScripts": 441,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 41,
@@ -12,7 +12,7 @@
     "lists": 12,
     "notes": 40,
     "notifications": 3,
-    "permissions": 11,
+    "permissions": 12,
     "public-api": 3,
     "release": 34,
     "search": 12,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 63,
+  "minimumReleaseGateScripts": 64,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
