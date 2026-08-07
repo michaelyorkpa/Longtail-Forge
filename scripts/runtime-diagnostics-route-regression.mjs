@@ -85,6 +85,17 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.runtime.deploymentMode, "direct");
   assert.deepEqual(diagnostics.features.publicDemo, {
     capabilities: [],
+    budgets: {
+      accountMutationUnits: 120,
+      enabled: false,
+      maxArrayItems: 50,
+      maxFieldBytes: 8 * 1024,
+      maxPageSize: 100,
+      maxQueryBytes: 2048,
+      maxRichTextBytes: 32 * 1024,
+      operationCount: 411,
+      workspaceMutationUnits: 600,
+    },
     enabled: false,
     perimeter: {
       clientRequestLimit: 600,

@@ -59,6 +59,7 @@ import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
 import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
 import { requirePublicDemoCapability } from "./public-demo-enforcement.js";
 import { createPublicDemoPerimeterMiddlewares } from "./public-demo-perimeter.js";
+import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 
 function createApp() {
   const app = express();
@@ -96,6 +97,7 @@ function createApp() {
   app.use("/api/v1", apiRouteBoundary);
   app.use(requireAuth);
   app.use(supportViewRequestGate);
+  app.use(createPublicDemoBudgetMiddleware());
   app.use("/api", accountExportRecoveryRoutes);
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);

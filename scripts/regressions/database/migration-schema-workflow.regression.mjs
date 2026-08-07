@@ -29,8 +29,8 @@ const tempRoots = [];
 try {
 
   const liveMigrations = await listMigrationFiles();
-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090", "091"]);
-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "092_add_widget_status.sql");
+  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090", "091", "092"]);
+  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "093_add_widget_status.sql");
 
   await assertMigrationCreation();
   await assertDuplicateVersionsFail();
@@ -67,6 +67,7 @@ try {
   assert.match(liveSchema.sql, /preferred_calendar_view TEXT/);
   assert.match(liveSchema.sql, /CREATE TABLE workspace_purge_tombstones/);
   assert.match(liveSchema.sql, /CREATE TABLE authentication_throttle_entries/);
+  assert.match(liveSchema.sql, /CREATE TABLE public_demo_budget_usage/);
   assert.match(liveSchema.sql, /CREATE TABLE startup_maintenance_runs/);
   assert.match(liveSchema.sql, /estimate_minutes INTEGER[\s\S]*estimate_minutes % 15 = 0/);
   assert.match(liveSchema.sql, /CREATE UNIQUE INDEX idx_tasks_recurrence_instance_unique/);

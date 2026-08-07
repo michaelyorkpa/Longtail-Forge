@@ -172,6 +172,11 @@ ORDER BY version;
       module_id: "core",
       name: "support_view_action_events",
     },
+    {
+      version: "092",
+      module_id: "core",
+      name: "public_demo_budget_usage",
+    },
   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
@@ -242,6 +247,7 @@ ORDER BY name;
     "permissions",
     "private_feed_tokens",
     "projects",
+    "public_demo_budget_usage",
     "role_permissions",
     "roles",
     "schema_migrations",
@@ -392,6 +398,7 @@ WHERE type = 'index'
     'idx_private_feed_tokens_owner',
     'idx_private_feed_tokens_scope',
     'idx_private_feed_tokens_workspace',
+    'idx_public_demo_budget_usage_workspace',
     'idx_search_index_workspace_body',
     'idx_search_index_workspace_client',
     'idx_search_index_workspace_indexed_at',
@@ -547,6 +554,7 @@ ORDER BY name;
     "idx_private_feed_tokens_owner",
     "idx_private_feed_tokens_scope",
     "idx_private_feed_tokens_workspace",
+    "idx_public_demo_budget_usage_workspace",
     "idx_search_index_workspace_body",
     "idx_search_index_workspace_client",
     "idx_search_index_workspace_indexed_at",

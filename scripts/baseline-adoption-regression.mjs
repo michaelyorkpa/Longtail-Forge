@@ -37,6 +37,7 @@ DROP TABLE IF EXISTS account_export_recovery_qualifications;
 DROP TABLE IF EXISTS authentication_throttle_entries;
 DROP TABLE IF EXISTS startup_maintenance_runs;
 DROP TABLE IF EXISTS private_feed_tokens;
+DROP TABLE IF EXISTS public_demo_budget_usage;
 DROP TABLE IF EXISTS support_view_events;
 DROP TABLE IF EXISTS support_sessions;
 DROP INDEX IF EXISTS sessions_support_session_idx;
@@ -377,6 +378,11 @@ ORDER BY version;
       version: "091",
       module_id: "core",
       name: "support_view_action_events",
+    },
+    {
+      version: "092",
+      module_id: "core",
+      name: "public_demo_budget_usage",
     },
   ]);
 }

@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.11`.
+Active cursor: `0.33.31.12`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.11 - Server-side demo growth, input, and query budgets
-
-**Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
-
-- [ ] Add one framework-owned demo budget service for per-account/workspace mutable record growth between resets, field/rich-text/body sizes, maximum page sizes, expensive query/search bounds, and safe pre-write/pre-query refusal. The hourly reset is recovery depth, not quota enforcement.
-- [ ] Register every current demo-writable create/bulk/import and expensive list/search path through stable IDs; preserve module-owned validation and permission checks, and make undeclared future contributions fail closed in demo mode.
-- [ ] Return stable safe limit feedback and presentation hints without making browser counts authoritative. Prove denied work creates no partial rows, jobs, Files metadata, audit-content leakage, or unbounded parsing.
-- [ ] Add focused budget regressions for boundary values, concurrent attempts, bulk requests, rollback/no-partial-write behavior, page/query ceilings, restart persistence within the hour, catalog completeness, and normal-mode compatibility.
-
-Acceptance criteria:
-
-- Server-owned budgets prevent record, input, query, and database amplification for the full hour with atomic safe failures and no change to ordinary deployments.
 
 ### Version 0.33.31.12 - Cross-role editable-content safety proof
 

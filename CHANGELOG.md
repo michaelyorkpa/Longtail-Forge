@@ -1,3 +1,12 @@
+## Version 0.33.31.11 - 2026-08-07
+
+- Added a framework-owned exact-demo budget authority with atomic SQLite reservations capped at 120 successful mutation units per marked visitor and 600 per workspace until the external hourly baseline reset; failed responses release reservations and successful usage survives app restart.
+- Registered every current authenticated browser API read and mutation under stable operation IDs, made undeclared future routes fail closed for marked visitors, and added state-dependent Lists duplication accounting before persistence.
+- Added fixed JSON field, rich-text, array, object-depth/field/node limits plus raw query, list, text/Search, page-size, page, and offset ceilings before module service work, with stable safe `public_demo_*` errors and no live browser/diagnostic counters.
+- Added migration 092, safe fixed runtime diagnostics, structured expected-error fields, and `framework.public-demo-budgets` coverage for boundaries, concurrency, bulk refusal, rollback/no partial work, restart persistence, catalog completeness, normal-mode compatibility, and SQLite integrity.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/http-errors.md`, `docs/lists-module.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Lists user/Help behavior, permissions, public API, Files, proxy, environment examples, deployment lifecycle, and Admin settings are unchanged; this is an exact-demo server admission boundary.
+
 ## Version 0.33.31.10 - 2026-08-07
 
 - Added a demo-only 60-second perimeter with 2,400 global requests, 600 trusted-client requests, 120 hashed-session mutations, and 60 hashed-session Search reads; login remains IP-keyed and the existing database-backed authentication throttle remains authoritative.
