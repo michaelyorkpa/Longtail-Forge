@@ -14,6 +14,7 @@ const DEFAULT_PORT = 8001;
 const DEFAULT_DATA_DIR = path.join(root, "data");
 const DEFAULT_DATABASE_PROVIDER = "sqlite";
 const DEFAULT_DATABASE_FILE_NAME = "longtail-forge.db";
+const DEFAULT_DEPLOYMENT_MODE = "direct";
 const DEFAULT_SQLITE_FOREIGN_KEYS = true;
 const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
 const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
@@ -48,6 +49,7 @@ const DEFAULT_CORRESPONDING_SOURCE_URL_TEMPLATE = "https://github.com/michaelyor
 const SESSION_SAMESITE_VALUES = new Set(["Lax", "Strict", "None"]);
 const ENVIRONMENTS = new Set(["development", "test", "production"]);
 const DATABASE_PROVIDERS = new Set(["sqlite"]);
+const DEPLOYMENT_MODES = new Set(["direct", "compose"]);
 const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
 const SQLITE_SYNCHRONOUS_MODES = new Set(["normal", "full", "extra"]);
 const SQLITE_TEMP_STORE_MODES = new Set(["default", "file", "memory"]);
@@ -78,6 +80,8 @@ function toDisplayName(packageName) {
 
 function createConfig(env = process.env) {
   const environment = readEnum(env, "LONGTAIL_ENV", DEFAULT_ENVIRONMENT, ENVIRONMENTS);
+  const deploymentMode = readEnum(env, "LONGTAIL_DEPLOYMENT_MODE", DEFAULT_DEPLOYMENT_MODE, DEPLOYMENT_MODES);
+  const demoEnabled = readBoolean(env, "DEMO_MODE", false);
   const publicUrl = readPublicUrl(env);
   const publicUrlProtocol = publicUrl ? new URL(publicUrl).protocol : "";
   const publicDir = path.join(root, "public");
@@ -165,6 +169,12 @@ function createConfig(env = process.env) {
   const releaseCommit = readOptionalHex(env, "LONGTAIL_RELEASE_COMMIT", 40);
   const releaseArtifactSha256 = readOptionalHex(env, "LONGTAIL_RELEASE_ARTIFACT_SHA256", 64);
   const releaseSourceBranch = normalizeReleaseBranch(readText(env, "LONGTAIL_RELEASE_BRANCH", ""));
+  const workspaceInstallMode = readEnum(
+    env,
+    "WORKSPACE_INSTALL_MODE",
+    DEFAULT_WORKSPACE_INSTALL_MODE,
+    WORKSPACE_INSTALL_MODES,
+  );
   const runtimeWarnings = [];
 
   if (!sqliteForeignKeys) {
@@ -190,6 +200,19 @@ function createConfig(env = process.env) {
       throw new Error("LONGTAIL_PUBLIC_URL is required when LONGTAIL_ENV=production.");
     }
   }
+
+  assertPublicDemoOnlySettings(env, demoEnabled);
+  assertPublicDemoConfiguration({
+    demoEnabled,
+    deploymentMode,
+    environment,
+    publicUrl,
+    releaseArtifactSha256,
+    releaseCommit,
+    releaseSourceBranch,
+    supportViewEnabled,
+    workspaceInstallMode,
+  });
 
   if (environment === "production" && publicUrlProtocol === "http:" && !allowInsecurePublicUrl) {
     throw new Error("LONGTAIL_PUBLIC_URL must use https in production. Set LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=true only for an explicitly accepted unsafe development deployment.");
@@ -248,6 +271,13 @@ function createConfig(env = process.env) {
       commitSha: releaseCommit,
       artifactSha256: releaseArtifactSha256,
     },
+    deployment: {
+      mode: deploymentMode,
+    },
+    demo: {
+      enabled: demoEnabled,
+      profile: demoEnabled ? "public_demo" : "standard",
+    },
     legal: {
       termsContentPath,
       privacyContentPath,
@@ -287,12 +317,7 @@ function createConfig(env = process.env) {
         max: 8 * 1024 * 1024 * 1024,
       }),
     },
-    workspaceInstallMode: readEnum(
-      env,
-      "WORKSPACE_INSTALL_MODE",
-      DEFAULT_WORKSPACE_INSTALL_MODE,
-      WORKSPACE_INSTALL_MODES,
-    ),
+    workspaceInstallMode,
     supportView: {
       enabled: supportViewEnabled,
       ttlSeconds: supportViewTtlSeconds,
@@ -404,6 +429,48 @@ function createConfig(env = process.env) {
         : "",
     },
   };
+}
+
+function assertPublicDemoOnlySettings(env, demoEnabled) {
+  if (demoEnabled) {
+    return;
+  }
+
+  const configured = Object.keys(env).some((key) => (
+    key.startsWith("LONGTAIL_PUBLIC_DEMO_") && hasEnvText(env, key)
+  ));
+  if (configured) {
+    throw new Error("LONGTAIL_PUBLIC_DEMO_* settings require DEMO_MODE=true.");
+  }
+}
+
+function assertPublicDemoConfiguration(options) {
+  if (!options.demoEnabled) {
+    return;
+  }
+
+  if (options.environment !== "production") {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_ENV=production.");
+  }
+  if (options.publicUrl !== "https://demo.longtailforge.com") {
+    throw new Error("DEMO_MODE=true requires the exact public demo origin.");
+  }
+  if (options.deploymentMode !== "compose") {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_DEPLOYMENT_MODE=compose.");
+  }
+  if (
+    options.releaseSourceBranch !== "main"
+    || !options.releaseCommit
+    || !options.releaseArtifactSha256
+  ) {
+    throw new Error("DEMO_MODE=true requires an immutable protected-main release identity.");
+  }
+  if (options.workspaceInstallMode !== "self_hosted") {
+    throw new Error("DEMO_MODE=true requires WORKSPACE_INSTALL_MODE=self_hosted.");
+  }
+  if (options.supportViewEnabled) {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_SUPPORT_VIEW_ENABLED=false.");
+  }
 }
 
 function assertProductionSecret(secret, key, minimumLength) {

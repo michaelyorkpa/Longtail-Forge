@@ -14,6 +14,8 @@ appInfoRoutes.get("/app-info", (_request, response) => {
     sourceBranch: config.release.sourceBranch,
     commitSha: config.release.commitSha || null,
     artifactSha256: config.release.artifactSha256 || null,
+    deploymentMode: config.deployment.mode,
+    demoMode: config.demo.enabled,
     correspondingSourceUrl: correspondingSourceUrl(),
   });
 });

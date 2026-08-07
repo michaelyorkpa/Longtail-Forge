@@ -37,6 +37,7 @@ try {
   assert.match(serviceSource, /readSafeStorageHealth/, "runtime diagnostics service should expose safe storage provider health");
   assert.match(serviceSource, /\.health\(\)/, "runtime diagnostics service should call the storage adapter health hook");
   assert.match(serviceSource, /configurationWarnings/, "runtime diagnostics service should expose safe config warnings");
+  assert.match(serviceSource, /listPublicDemoCapabilities/, "runtime diagnostics should use the data-only public-demo catalog");
   assert.doesNotMatch(serviceSource, /process\.env/, "runtime diagnostics service must not expose raw environment variables");
   assert.doesNotMatch(serviceSource, /clamdHost|clamdPort|clamscanPath|masterKey/i, "runtime diagnostics service must not expose scanner internals or key material");
 
@@ -81,6 +82,12 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.app.version, appVersion);
   assert.equal(diagnostics.runtime.environment, "development");
   assert.deepEqual(diagnostics.runtime.configurationWarnings, []);
+  assert.equal(diagnostics.runtime.deploymentMode, "direct");
+  assert.deepEqual(diagnostics.features.publicDemo, {
+    capabilities: [],
+    enabled: false,
+    profile: "standard",
+  });
   assert.deepEqual(diagnostics.features.supportView, { enabled: false });
   assert.equal(diagnostics.database.provider, "sqlite");
   assert.equal(diagnostics.database.health.status, "ok");

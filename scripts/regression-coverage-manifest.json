@@ -166,9 +166,9 @@
       "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
       "movedInVersion": "0.33.19.4",
       "movementType": "pure-contract-to-vitest",
-      "assertionCount": 123,
+      "assertionCount": 142,
       "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
-      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 123-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 142-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
       "movedTo": "tests/unit/runtime-configuration.test.mjs",
       "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
       "verificationPerformed": [

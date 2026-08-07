@@ -22,6 +22,7 @@ import { operationalLogger } from "../operational-logger.js";
 import { workspacePurgeService } from "../../services/workspace-purge.service.js";
 import { activateModuleRuntime, runModuleStartupTasks } from "../modules/module-runtime.js";
 import { registerFrameworkHelpSearchIndexers } from "../help/search-indexers.js";
+import { assertPublicDemoRuntimeReady } from "../public-demo-runtime.js";
 
 let workerLock = null;
 let shuttingDown = false;
@@ -41,6 +42,7 @@ async function startWorkerProcess(options = {}) {
     throw new Error("node worker.js requires LONGTAIL_WORKER_MODE=separate. Use inline mode from the app server, or disabled mode for troubleshooting.");
   }
 
+  await assertPublicDemoRuntimeReady();
   await assertRuntimeDataPathsReady();
   await filesService.assertConfiguredFileStorageProviderReady();
   await filesService.assertConfiguredFileScannerReady();

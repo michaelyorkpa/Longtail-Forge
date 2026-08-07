@@ -1,3 +1,11 @@
+## Version 0.33.31.1 - 2026-08-06
+
+- Added a typed, default-off public-demo runtime profile and a stable framework capability catalog covering permitted, read-only, disabled, and hourly-resettable behavior without hostname-based feature branches.
+- Made demo startup fail closed unless the exact production origin, Compose deployment identity, main release metadata, self-hosted installation mode, disabled Support View, and a validated demo-owned data-root marker all agree. Public-demo-prefixed controls are rejected outside demo mode.
+- Exposed only safe deployment/profile and capability classifications through app-info and runtime diagnostics; credentials, private paths, marker contents, and operator recovery details remain excluded.
+- Added focused configuration, startup-order, marker, catalog, diagnostics, and non-demo compatibility coverage.
+- Docs updated: `DECISIONS.md`, `.env.example`, `docs/architecture.md`, `docs/compose.env.example`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+
 ## Version 0.33.30.5 - 2026-08-06
 
 - Advanced the framework-owned runtime Markdown parser from `markdown-it` 14.3.0 to 15.0.0 with the reviewed production graph: `entities` 8.0.0, `linkify-it` 6.1.0, `argparse` 3.0.0, `mdurl` 2.1.0, and `uc.micro` 3.0.0. Markdown-it remains a runtime dependency, uses its supported package-root export and bundled declarations, and does not add redundant `@types/markdown-it`.

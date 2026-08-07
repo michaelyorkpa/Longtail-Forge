@@ -95,6 +95,8 @@ As of 0.33.24.1, `/etc/longtail-forge/maintenance-helper.env` is a separate root
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `LONGTAIL_ENV` | `development` | Must be `development`, `test`, or `production`. Production activates the fail-closed policy below. |
+| `LONGTAIL_DEPLOYMENT_MODE` | `direct` | Safe deployment classification. The maintained Compose file sets `compose` inside the container; direct/npm operation retains `direct` and remains unsupported for production. Public-demo mode requires `compose`. |
+| `DEMO_MODE` | `false` | Enables the exact fail-closed public-demo runtime profile. `true` requires production, `https://demo.longtailforge.com`, Compose, `self_hosted`, disabled Support View, and complete protected-`main` commit/artifact identity. It is not a hostname behavior switch and does not publish the demo by itself. |
 | `LONGTAIL_PUBLIC_URL` | empty | Absolute HTTP/HTTPS public URL. It is required in production; production HTTPS requires the configured trusted TLS reverse proxy. A declared production HTTP URL fails startup unless the explicit unsafe override below is true. |
 | `LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL` | `false` | Unmistakable development-only escape hatch for an explicitly accepted production HTTP deployment. When enabled with a production HTTP URL, startup emits an unsafe-override warning. Do not use for an internet preview. |
 | `LONGTAIL_LOG_LEVEL` | `info` | Must be `trace`, `debug`, `info`, `warn`, or `error`. Production rejects `trace`/`debug` unless the explicit override below is true. |
@@ -108,6 +110,21 @@ As of 0.33.24.1, `/etc/longtail-forge/maintenance-helper.env` is a separate root
 | `LONGTAIL_TERMS_CONTENT_PATH` | `./legal/default-terms.md` | Readable Markdown for the public Terms page. Replace the neutral template with operator-approved terms before offering a hosted service. Must not resolve inside `public/`. |
 | `LONGTAIL_PRIVACY_CONTENT_PATH` | `./legal/default-privacy.md` | Readable Markdown for the public Privacy page. The installation operator is responsible for an accurate notice and data-controller disclosures. Must not resolve inside `public/`. |
 | `LONGTAIL_CORRESPONDING_SOURCE_URL_TEMPLATE` | Longtail Forge repository tree URL with `{ref}` | Absolute HTTP/HTTPS source URL template for the running build. Must contain `{ref}` and must identify the downstream build's actual Corresponding Source. |
+
+### Public-demo runtime profile
+
+`DEMO_MODE=true` is accepted only for the exact named public-demo identity. Before the app or separate worker checks storage/scanner readiness or opens the database, it requires a regular, non-symbolic, non-group/other-writable `.longtail-demo-data.json` inside `LONGTAIL_DATA_DIR` with contract `longtail-forge-demo-data-v1` and target `rt-ltf-demo`. Missing, oversized, malformed, weakly writable, wrong-contract, or wrong-target markers fail with one path- and content-free startup error. `LONGTAIL_PUBLIC_DEMO_*` settings are rejected while demo mode is false; later slices own any specific credential, seed, reset, or login-assistance controls under that namespace.
+
+The framework-owned catalog is data-only and uses stable IDs. This slice classifies the intended public-demo boundary; later slices wire the relevant server enforcement without letting modules infer behavior from the public hostname.
+
+| Classification | Current capability IDs |
+| --- | --- |
+| `permitted` | `accounts.authenticate` |
+| `read_only` | `files.seeded_content`, `runtime.diagnostics` |
+| `hourly_resettable` | `records.workspace` |
+| `disabled` | `accounts.shared_identity_mutation`, `administration.installation`, `administration.role_management`, `administration.workspace_lifecycle`, `api_keys`, `backups.workspace`, `exports.account`, `files.ingress`, `outbound.email`, `outbound.url_fetch`, `outbound.webhooks`, `secure_notes.catalog_security`, `secure_notes.recovery`, `support_view` |
+
+The installation Super Admin remains a private operator recovery identity and is not a public capability. The profile being accepted by startup means only that runtime identity is exact; it does not claim that the later server denials, public role accounts, hourly reset, abuse controls, or launch gate are complete.
 
 ### Trusted Reverse Proxy
 
@@ -438,7 +455,7 @@ Startup warnings are reserved for explicit unsafe overrides, not missing product
 
 `GET /api/runtime-diagnostics` returns the safe runtime diagnostics read model for authenticated users with `workspace_settings.manage` in the active workspace. The route is diagnostic only; it does not edit runtime configuration or expose raw environment variables.
 
-The response includes app version, runtime environment, the enabled/disabled Support View gate (but no session details), database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, storage provider health, safe local storage root location, scanner mode, scanner health status, scanner disabled/pass-through warnings, worker mode, lock TTL, safe worker status counters, last poll/run/success timestamps, registered job types, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
+The response includes app version, runtime environment, deployment classification, safe public-demo enabled/profile state and capability ID/classification pairs, the enabled/disabled Support View gate (but no session details), database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, storage provider health, safe local storage root location, scanner mode, scanner health status, scanner disabled/pass-through warnings, worker mode, lock TTL, safe worker status counters, last poll/run/success timestamps, registered job types, and configuration warnings. The capability list is empty while demo mode is off. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
 
 Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. The panel shows storage provider status, safe local storage root location, scanner mode/status, server-provided scanner disabled/pass-through warnings, worker mode, state, timer activity, last poll/run/success timestamps, completed/failed/dead counters, and registered job types without exposing job payloads or runtime secrets. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 

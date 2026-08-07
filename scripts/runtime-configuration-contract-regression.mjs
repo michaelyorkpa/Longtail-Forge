@@ -58,6 +58,8 @@ for (const heading of [
 
 for (const key of [
   "LONGTAIL_ENV=development",
+  "LONGTAIL_DEPLOYMENT_MODE=direct",
+  "DEMO_MODE=false",
   "LONGTAIL_PUBLIC_URL=http://localhost:8001",
   "LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=false",
   "LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING=false",
@@ -138,9 +140,13 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and S
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
 assert.match(configSource, /import \{ appVersion, normalizeReleaseBranch, qualifyAppVersion \} from "\.\/core\/version\.js";/, "runtime config should consume canonical and branch-qualified version helpers");
 assert.match(configSource, /LONGTAIL_RELEASE_BRANCH/, "runtime config should read the explicit source branch");
+assert.match(configSource, /DEMO_MODE/, "runtime config should read the explicit default-off public-demo switch");
+assert.match(configSource, /LONGTAIL_DEPLOYMENT_MODE/, "runtime config should read the explicit deployment identity");
 assert.match(appInfoRoutesSource, /version: config\.appDisplayVersion/, "app-info should report the qualified display version");
 assert.match(appInfoRoutesSource, /canonicalVersion: config\.appVersion/, "app-info should retain the canonical package version");
 assert.match(appInfoRoutesSource, /sourceBranch: config\.release\.sourceBranch/, "app-info should report the explicit source branch");
+assert.match(appInfoRoutesSource, /deploymentMode: config\.deployment\.mode/, "app-info should report the safe deployment classification");
+assert.match(appInfoRoutesSource, /demoMode: config\.demo\.enabled/, "app-info should report only the safe public-demo enabled classification");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");
 assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
@@ -176,7 +182,7 @@ assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY
 assert.match(secureCrypto, /readRuntimeSecret\("SECURE_NOTES_MASTER_KEY"\)/, "secure notes should preserve the legacy runtime secret name");
 assert.match(localStorageAdapter, /const LOCAL_FILE_STORAGE_ROOT = config\.storage\.localRoot/, "local file storage root should come from runtime config");
 
-assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*123/, "Vitest should retain the complete 123-case pure configuration inventory");
+assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*142/, "Vitest should retain the complete 142-case pure configuration inventory");
 assert.match(pureContractTest, /createConfig\(overrides\)/, "Vitest should own direct expected-error validation without child processes");
 
 const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
@@ -185,7 +191,7 @@ const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
 assert.ok(assertionMovement, "coverage policy should record the runtime-configuration assertion movement");
 assert.equal(assertionMovement.movedTo, "tests/unit/runtime-configuration.test.mjs");
 assert.equal(assertionMovement.retainedIntegrationOwner, "scripts/runtime-configuration-contract-regression.mjs");
-assert.equal(assertionMovement.assertionCount, 123);
+assert.equal(assertionMovement.assertionCount, 142);
 
 // Keep a deliberately small child-process seam here. Vitest owns the complete
 // deterministic matrix; this regression owns process.env materialization and

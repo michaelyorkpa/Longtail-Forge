@@ -4,6 +4,7 @@ import { getJobWorkerStatus } from "../core/jobs/index.js";
 import { readDatabaseHealth } from "../db/index.js";
 import { filesService } from "./files.service.js";
 import { permissionsService } from "./permissions.service.js";
+import { listPublicDemoCapabilities } from "../core/public-demo-capabilities.js";
 
 const REQUIRED_PERMISSION = "workspace_settings.manage";
 
@@ -28,9 +29,15 @@ async function read(session) {
     },
     runtime: {
       environment: config.environment,
+      deploymentMode: config.deployment.mode,
       configurationWarnings: [...config.runtimeWarnings],
     },
     features: {
+      publicDemo: {
+        enabled: config.demo.enabled,
+        profile: config.demo.profile,
+        capabilities: config.demo.enabled ? listPublicDemoCapabilities() : [],
+      },
       supportView: {
         enabled: config.supportView.enabled,
       },

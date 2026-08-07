@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.1`.
+Active cursor: `0.33.31.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -17,111 +17,208 @@ Make `https://demo.longtailforge.com` safe to publish as an August 31, 2026 publ
 
 Decision:
 
-Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data and exposes no installation Super Admin. An externally scheduled, lock-protected operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
+Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data. Its private installation Super Admin remains an operator-only recovery identity and is never offered to visitors. An externally scheduled, lock-protected Compose operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
 
-Release priority and dependencies:
+Already-shipped foundation — preserve and reuse it rather than planning it again:
 
-- This slice is explicitly eligible to execute before 0.33.29 and 0.33.30 when the August 31 public-demo deadline requires it. Do not renumber those slices. 0.33.31 neither depends on Secure Notes catalog policy nor Support View and must not partially implement either; if they have landed when final proof runs, demo-mode exclusions must cover their new sensitive capabilities.
-- Build on the existing fail-closed production configuration, database-backed sessions and authentication throttling, framework permission catalog, deterministic Northwind scenario, guarded `rt-ltf-demo` provision/reset helper, whole-instance database-and-Files backup contract, health/readiness/app-identity probes, Files service boundary, and structured production logging.
-- Repository implementation may begin before 0.33.28 is fully closed. Live release acceptance must use the deployment format supported when the public demo launches—expected to be the 0.33.28 Docker Compose contract—and must repeat reset, persistence, rollback, and scheduler proof if the demo moves from the retained bare-metal host during this work.
-- 0.33.31 is complete only as a coordinated release after 0.33.31.1-.6 pass. Completing its planning or any individual sub-slice does not authorize publication of the URL.
+- `0.33.26.7-.9` already provides one deterministic private fixture per shipped role, exact Workspace/Client/Project scopes, reserved fictional identities, a broad authenticated allowed/denied role journey, and a guarded backup-first `rt-ltf-demo` database-and-Files reset. Public-demo work derives the six non-Super-Admin visitor accounts from that contract; it does not create roles, broaden permissions, or publish the private Super Admin fixture.
+- `0.33.28.5` made Docker Compose the sole supported production lifecycle. The earlier demo helper's candidate validation and recovery invariants remain useful, but its systemd-managed Node/worker lifecycle is historical and must not be extended as the public reset path.
+- `0.33.29` Secure Notes catalog security and `0.33.30` Support View have landed. Demo-mode capability review must now explicitly keep Secure Notes recovery/key-management and Support View outside the visitor boundary rather than treating either feature as conditional future work.
+
+Delivery and sizing rule:
+
+- Each numbered sub-slice below has one primary blast radius and is intended to complete, verify, document, version, and close in one working session. Do not merge adjacent slices during implementation merely because they share the rollup version; propose a merge first only if the live seam proves the combined ceremony has real isolation value and still fits one session.
+- `0.33.31` is complete only as one coordinated release after all fifteen numbered sub-slices pass. Completing any individual sub-slice does not authorize publication of the URL.
 
 Non-goals:
 
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
-- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
-- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or a public installation Super Admin.
+- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
+- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
 
-### Version 0.33.31.1 - Fail-closed public-demo configuration and capability boundary
+### Version 0.33.31.2 - Administrative and persistence escape denials
 
-**Model: High Effort** — A configuration mistake here could expose administrative, credential, export, integration, or outbound capabilities on a public shared installation.
+**Model: High Effort** — A shared Workspace Administrator must remain useful without gaining any path to durable or installation-level control.
 
-- [ ] Add one typed runtime `DEMO_MODE` setting, default false, and a framework-owned demo capability catalog consumed by server services/routes and browser-safe diagnostics. Do not branch on `demo.longtailforge.com` inside feature modules; the hostname/origin may be one production startup identity assertion, not the behavior switch.
-- [ ] Make production startup reject contradictory or incomplete demo configuration before listening: demo mode must require the exact intended deployment identity and an explicitly demo-owned data root/marker, while ordinary production must reject demo credentials, seed controls, reset metadata, or demo-only login assistance when demo mode is false. Diagnostics expose only safe enabled/disabled classifications.
-- [ ] Define and document the permitted, read-only, disabled, and hourly-resettable capability matrix. Audit API-key creation/use, integrations, webhooks, outbound mail and invitations, password/email/authentication changes, backup/export/restore, installation administration, workspace creation/deletion, recovery paths, arbitrary outbound requests, and every other capability that could escape or persist beyond the shared demo.
-- [ ] Isolate the public demo runtime, database, Files tree, backups, secrets, network reach, logs, and deployment identity from development, friends-and-family, customer, and ordinary self-hosted installations. Seed and preflight proof must reject real domains/data, active external destinations, genuine credentials, key/recovery material, and any unreviewed environment inheritance.
-- [ ] Add focused unit and startup/integration tests for default-off behavior, exact demo enablement, contradictory settings, wrong host/origin/data marker, accidental demo credentials outside demo mode, redacted diagnostics, and unchanged normal development/self-hosted/SaaS configuration behavior.
-
-Acceptance criteria:
-
-- One explicit, default-off, fail-closed capability profile governs all public-demo exceptions; unsafe or ambiguous production configuration prevents startup, no feature module relies on hostname checks, and the reviewed matrix proves that no demo action can administer or communicate outside the isolated installation.
-
-### Version 0.33.31.2 - Deterministic permission-showcase accounts and login guidance
-
-**Model: High Effort** — Shared authentication combined with scoped role assignments requires exact permission and credential-mutation denial rather than illustrative labels.
-
-- [ ] Extend the deterministic fictional scenario with active public-demo-only accounts using the shipped role model and scopes: a workspace owner represented by a Workspace Administrator assignment, an elevated Client Administrator and/or project-scoped Project Administrator, a standard Client User and/or Project User, and a limited Client User (External) where the seeded records support a meaningful comparison. Do not seed or publish `super_admin`, invent a Manager role, or broaden any role's permissions.
-- [ ] Use fake names and reserved non-deliverable example-domain addresses only. Keep user IDs, memberships, role scopes, records, and public demo-only credentials deterministic across resets; treat those public credentials as non-secret demo fixtures that are valid only when the exact fail-closed demo profile is active and are never copied into another environment.
-- [ ] Make shared account credentials immutable in demo mode: deny password, username/email, alternate-email, authentication setting, recovery, session-management, API-key, and equivalent account takeover paths on the server even if a role would ordinarily permit one. Do not depend on outbound email or invitation delivery.
-- [ ] Provide a clear accessible mapping from each demo account to its real role name, scope, representative records, allowed examples, and expected denials. Optionally add a demo-only login account selector or credential panel after security/accessibility review; ordinary login markup and behavior must remain unchanged when demo mode is false.
-- [ ] Add a permission matrix regression that authenticates every shared account, proves representative allowed reads/writes and forbidden cross-scope/admin/credential actions, verifies workspace isolation, and proves no public Super Admin credential or privilege path exists.
+- [ ] Make the capability catalog authoritative at the server service/route boundary for installation administration, workspace creation/deletion, account and role administration outside the fixed visitor set, API-key use/creation, backup/export/restore, Support View, Secure Notes recovery/key-management and catalog security transitions, and equivalent durable escape paths.
+- [ ] Inventory current routes, registered actions, public API scopes, jobs, and contribution catalogs; record absent capabilities so a later integration, invitation, export, or administrator contribution cannot silently default to allowed in demo mode.
+- [ ] Return one stable safe denial contract, keep browser visibility presentation-only, and preserve normal authorization plus behavior when demo mode is false.
+- [ ] Add focused service/route/catalog regressions proving representative visitor-role denial, direct-request denial, no private Super Admin path, and non-demo compatibility.
 
 Acceptance criteria:
 
-- Visitors can deliberately choose among real, accurately scoped Longtail Forge roles using reproducible fictional accounts; every account demonstrates both allowed and denied behavior, cannot change shared credentials, needs no real email, and has no path to installation-level authority.
+- No visitor account can acquire installation authority, new identities/scopes, API credentials, durable exports/backups, Support View, or Secure Notes recovery control, even through direct requests or future undeclared contributions.
 
-### Version 0.33.31.3 - Reproducible golden baseline and hourly reset operator
+### Version 0.33.31.3 - Shared-account identity and credential immutability
 
-**Model: High Effort** — Safe replacement of a live native SQLite database and Files tree requires exclusive coordination, service quiescence, integrity proof, and tested automatic recovery.
+**Model: High Effort** — Public credentials require a server-owned identity rule that even normally authorized administrators cannot bypass.
 
-- [ ] Add a dedicated reviewed CLI/package entry such as `npm run demo:reset`, with explicit manual reset and non-destructive `--dry-run`/baseline-validation modes. Reuse or carefully extend the guarded `rt-ltf-demo` operator boundary rather than creating an unscoped general production reset command.
-- [ ] Build each candidate in a new same-filesystem staging location through the normal migration runner and deterministic public-demo seeder. Validate complete migration identity, expected semantic fingerprint/counts, SQLite `PRAGMA integrity_check`, zero foreign-key violations, seeded Files bytes/checksums, demo ownership marker, empty session state, and the absence of real credentials, Secure Notes recovery material, analytics, newsletter signups, or other external-interest data before promotion. A reviewed prebuilt artifact may accelerate startup but cannot be the sole or undocumented source of truth.
-- [ ] Acquire an exclusive host-level reset lock before staging and retain it through recovery/cleanup; overlapping scheduled/manual resets must fail or exit safely with a distinct status. Make retries idempotent, detect interrupted/partial state, retain the last known-good unit, and cover lock ownership/staleness without allowing two promoters.
-- [ ] Put the demo into a brief explicit maintenance/unavailable state, stop and prove quiescent every Node app/worker process that can hold SQLite or Files handles, checkpoint/close or discard the active database/WAL/SHM only under that stopped boundary, and promote database plus Files as one matched data-root unit using same-filesystem atomic renames where supported. Never replace a database beneath an open `better-sqlite3` connection or mix one reset's database with another reset's Files.
-- [ ] Start the previously active runtime, require direct and public health/readiness plus exact `/api/app-info`, migration, semantic-baseline, and representative login/read/write proof, then retire only transient candidate state. If restart or verification fails, close traffic, restore the retained previous known-good unit atomically, restart it, verify recovery, and preserve the whole-instance backup and failure evidence when automatic recovery cannot complete.
-- [ ] Ensure every prior demo session expires at promotion and no session from the previous database becomes valid again after rollback decisions. Record structured, secret-free reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health outcome, failure class, rollback, and recovery status; define retention and an actionable failure alert without logging credentials, content, raw paths, or session IDs.
-- [ ] Install the hourly schedule outside the application process using the mechanism appropriate to the supported deployment—host `systemd` timer/cron while the retained service host is active, or a reviewed host/container scheduler around Compose. Document the manual command, schedule/time zone, expected downtime, missed-run/catch-up policy, health alert, disable/recovery procedure, and scheduler ownership. Optionally expose a safe next-reset timestamp and accessible “changes are temporary” warning if user testing shows material value.
-- [ ] Add reset lifecycle tests for successful mutation-to-exact-baseline restoration, dry-run, repeat/idempotent runs, invalid/mismatched baseline, interrupted staging/promotion, lock contention, stale partial state, failed stop/start/readiness, automatic prior-state recovery, WAL/SHM handling, session expiry, Files/database pairing, log redaction, and alert invocation.
+- [ ] Mark the deterministic public visitor identities through the seeded demo contract rather than username patterns, display labels, or role names; the private operator identity is never marked public.
+- [ ] Deny password, username/email, alternate-email, authentication settings, recovery, forced-password, session-management, deactivation/deletion, API-key, and equivalent takeover mutations for every public visitor identity in demo mode, including self-service and administrator-on-user paths. Login, ordinary session expiry, and logout remain functional.
+- [ ] Keep the rule exact to the demo profile and seeded public identities so ordinary users, private operator recovery, development fixtures, preview, and supported self-hosted installations retain their current lifecycle.
+- [ ] Add authentication, Users, session, administrator, and direct-route regressions for self and cross-account mutation denial, old-session expiry after reset, safe errors, and normal-mode non-regression.
 
 Acceptance criteria:
 
-- An external hourly schedule and the same manual operator entry rebuild a fresh candidate from repository-controlled migrations and seed definitions, prove its exact database-and-Files fingerprint, swap only while native SQLite users are stopped, invalidate sessions, and either return healthy on the new baseline or automatically return healthy on the retained prior unit with actionable secret-free evidence.
+- Shared visitor accounts can authenticate and log out but neither they nor another visitor can change, retire, recover, or take over any public visitor identity.
 
-### Version 0.33.31.4 - Public-demo file-ingress shutdown
+### Version 0.33.31.4 - Public six-role fixture and permission journey
 
-**Model: High Effort** — Missing one alternate upload or attachment path would turn a shared public account into an untrusted storage and malware-ingress service.
+**Model: High Effort** — Reusing the shipped role fixture safely requires a distinct public-credential activation boundary and proof that Super Admin stays private.
 
-- [ ] Add a server-authoritative demo capability denial at the Files/service boundary before bytes, streams, metadata, quotas, storage objects, scan jobs, or attachment records can be created. Return one stable machine-readable error code/status and a user-facing explanation that uploads are unavailable in the public demo.
-- [ ] Cover current JSON single/batch and multipart single/batch Files routes plus attachment helpers and direct service callers. Audit Quick Capture, Notes, Tasks, Client/Project actions, Lists, Time Tracking, profile/avatar surfaces, imports, rich-text attachments, drag-and-drop, pasted files, module contributions, and any other ingress; explicitly record paths that do not currently exist so future additions cannot bypass the gate.
-- [ ] Keep API v1 file upload absent/denied in demo mode and add route/catalog guardrails so a later public upload contribution must declare and test demo capability behavior. Direct HTTP, API-key, alternate content type, malformed multipart, and internal attachment calls must not bypass rejection.
-- [ ] Hide or disable every applicable upload control and drop/paste target for clarity while keeping the server denial authoritative and ordinary development, self-hosted, and future SaaS behavior unchanged when demo mode is false.
-- [ ] Permit existing sanitized seeded attachments to remain viewable/downloadable/previewable only through the normal permission, scanner, safe-preview, and storage boundaries. Prove they cannot be replaced, extended, relinked through new bytes, or used to expose protected storage metadata.
-- [ ] Add configuration, permission, service, direct-route, multipart/JSON, browser, and source/catalog regressions covering every discovered ingress and normal-mode non-regression.
+- [ ] Derive the visitor set from the existing `0.33.26.7-.9` fixture definitions: Workspace Administrator, Client Administrator, Project Administrator, Client User, Project User, and Client User (External), with the existing representative Northwind Studio, Cedar & Bloom, and Website Refresh scopes. Do not create another role or assignment model.
+- [ ] Keep deterministic fake names, reserved non-deliverable example-domain addresses, IDs, memberships, assignments, records, and public non-secret credentials valid only under the exact fail-closed demo profile. Preserve the separate strong private operator credential and refuse public-demo credential input in every other environment.
+- [ ] Adapt the existing authenticated role journey instead of rebuilding it: prove representative allowed reads/writes, expected denials, cross-scope and workspace isolation, immutable credentials, logout, and the absence of any public `super_admin` credential or escalation path.
+- [ ] Preserve the private seven-role development/operator fixture and its existing regressions; public-demo assertions are an additional six-account profile, not a replacement for private test coverage.
 
 Acceptance criteria:
 
-- No public-demo request or UI path can ingest file bytes or create an upload/scan artifact, seeded safe attachments remain read-only where authorized, bypass attempts receive stable safe feedback, and the same routes behave normally outside demo mode.
+- The exact six visitor accounts reproducibly demonstrate the shipped role model without permission changes, real email, private credential reuse, or public installation authority.
 
-### Version 0.33.31.5 - Public-internet abuse resistance and infrastructure isolation
+### Version 0.33.31.5 - Accessible demo account chooser and role guidance
 
-**Model: High Effort** — Shared credentials and a public URL require layered resource, content, network, and observability controls independent of the hourly reset.
+**Model: Medium Effort** — This is a bounded login-surface adaptation after the server identity and permission contracts are fixed.
 
-- [ ] Threat-model the shared demo and record bounded controls for credential stuffing, shared-account contention, mutation floods, record amplification, expensive reads/search, stored content abuse, XSS, outbound abuse, disk/database exhaustion, reset interference, and attempts to reach private infrastructure.
-- [ ] Retain database-backed authentication throttling and add measured reverse-proxy and/or application request and mutation limits appropriate to public shared accounts, trusted proxy identity, NAT/shared-IP fairness, and generic non-enumerating `429` responses. Define limits and alert thresholds from a reproducible public-demo smoke/load probe rather than arbitrary hidden constants.
-- [ ] Enforce server-side per-account/workspace caps on mutable record growth between resets, bounded query/page sizes, request/body/field/rich-text limits even with uploads disabled, and safe failure behavior before expensive parsing or durable writes. The hourly rebuild is recovery depth, not quota enforcement.
-- [ ] Exercise existing Markdown/HTML sanitization, escaping, CSP/security-header, and stored-XSS coverage against every representative demo-editable text surface and seeded cross-role reader. Do not add a demo-only renderer or weaken normal validation.
-- [ ] Disable or deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, and unreviewed background work through the capability catalog plus network egress policy. Prove the demo host/container has no customer network route, private service credential, production secret, or writable production storage.
-- [ ] Define useful reverse-proxy/application/security logging, request correlation, retention, redaction, reset-event linkage, operational dashboards/alerts, and incident response without recording shared passwords or user content. Keep anonymous product analytics conceptually and technically separate from security/audit logs; analytics/provider work remains 0.33.32.
+- [ ] Provide a demo-only, safely shaped account catalog mapping each visitor account to its real role name, readable scope label, representative records, useful allowed actions, and expected denials. Return no internal IDs, private operator identity, directory data, or credential material beyond the intentionally public login contract.
+- [ ] Add one keyboard- and screen-reader-usable account chooser or credential helper to the login surface, with clear focus order, labels, error recovery, responsive behavior, and a concise warning that changes are temporary. Do not alter ordinary login markup or behavior when demo mode is false.
+- [ ] Keep normal authentication throttling and generic failures authoritative; selecting a role must not create a session, bypass password verification, reveal account state, or introduce an alternate authentication mechanism.
+- [ ] Add focused service/browser/accessibility regressions for all six choices, role/scope wording, keyboard operation, disabled-mode absence, safe failures, and no Super Admin option.
 
 Acceptance criteria:
 
-- The published demo has layered authentication, mutation, record, input, content, outbound-network, and infrastructure controls that remain effective for the full hour; logging supports abuse response without becoming analytics or exposing sensitive data.
+- A visitor can deliberately choose and understand one of six real scoped roles through an accessible login flow, while ordinary login and authentication security remain unchanged.
 
-### Version 0.33.31.6 - Deployment proof, runbook, and public-demo release gate
+### Version 0.33.31.6 - Deterministic public baseline candidate
 
-**Model: High Effort** — Closure requires reproducible repository proof and live public-host evidence across configuration, permissions, reset recovery, deployment, and unaffected environments.
+**Model: High Effort** — The baseline builder is a data-integrity boundary, but it can be isolated from live activation and scheduling.
 
-- [ ] Add the redacted deployment-environment example and manual/operator runbook for the actual supported demo deployment. Document demo capability classifications, shared-account ownership, scheduler installation, lock/maintenance behavior, expected reset downtime, next-reset visitor messaging if shipped, backups/retained states, alerts, rollback/recovery, log locations/retention, and escalation without including secrets or public account credentials in operator-only material.
-- [ ] Run unit/integration configuration tests, the complete shared-account permission matrix, direct upload-bypass coverage, abuse/input/XSS/outbound denials, and reset success/failure/recovery tests. Verify ordinary development, friends-and-family, supported self-hosted production, and future SaaS/default configuration remain unchanged when `DEMO_MODE` is false.
-- [ ] Add a release-owned public-demo smoke test covering each role login, representative scoped reads/writes/denials, attachment read-only behavior, disabled dangerous capabilities, health/readiness/app identity, rate-limit behavior, safe visitor messaging, and logout without exposing secrets in output.
-- [ ] Mutate representative records through real routes as multiple demo roles, create state up to configured caps, hold an old session, run the scheduled-equivalent reset, and prove the exact expected semantic/database-and-Files baseline returns, the old session is rejected, fresh role logins work, and no mutation survives unintentionally.
-- [ ] Prove analytics events, feedback, and newsletter/email interest are either disabled or sent only to the separately governed external boundary; none may be stored in the hourly-reset demo database. Defer provider operation, permanent interest capture, consent policy, and final privacy copy to 0.33.32.
-- [ ] Exercise deployment, hourly scheduling, missed/failing reset alerts, last-known-good rollback, whole-instance backup recovery, and public smoke on the real `demo.longtailforge.com` architecture. If the deployment format changes during the branch, repeat these live proofs on the supported replacement before launch.
-- [ ] Run `npm run docs:suggest`, update only owning configuration/security/demo/deployment/testing docs plus `DECISIONS.md` and `CHANGELOG.md` during implementation closeout, run database integrity proof, and run `npm run verify:slice` exactly once on the final unchanged worktree. Do not mark the release complete from documentation or local simulation alone.
+- [ ] Extract or adapt the existing guarded demo candidate builder for the six-account public profile and current Compose data-root layout without stopping or replacing the active unit. Keep non-mutating `--dry-run`/baseline-validation behavior and exact-target refusal.
+- [ ] Build in a new same-filesystem staging location through normal migrations and reviewed seed definitions; verify migration identity, semantic fingerprint/counts, `PRAGMA integrity_check`, zero foreign-key violations, Files sizes/checksums, demo ownership marker, empty sessions, fixed public identities, private operator separation, and absence of real data, Secure Notes material, analytics, feedback, or interest capture.
+- [ ] Reject partial/reused staging, mismatched anchors or markers, credential leakage, symlink/path escapes, and database/Files mismatch. A prebuilt artifact may accelerate work but cannot replace repository-controlled reconstruction and verification.
+- [ ] Add candidate-only regressions for repeatability, dry run, corrupt database/Files/roles/scopes, unexpected sessions or protected data, output redaction, and unchanged private development/demo seed behavior.
 
 Acceptance criteria:
 
-- Repository verification and retained live evidence prove the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from reset failure, session-invalidating, and safe to operate without affecting any non-demo environment. Publication remains blocked until that evidence and the August 31 launch readiness review are recorded.
+- A non-activating operator command reproducibly builds and proves one exact public database-and-Files candidate without touching the running installation.
+
+### Version 0.33.31.7 - Compose reset activation and automatic recovery
+
+**Model: High Effort** — This is the single live-state mutation boundary for SQLite, Files, sessions, and last-known-good recovery.
+
+- [ ] Add a dedicated root-owned `rt-ltf-demo` reset entry that reuses the supported Compose maintenance, backup, start/stop, health, identity, and recovery primitives rather than extending the retired systemd application helper.
+- [ ] Hold one exclusive host lock through cleanup/recovery, assert the maintenance curtain, stop and prove quiescent the Compose app and worker, create and inspect a whole-instance backup, handle database/WAL/SHM only while stopped, and promote the verified database plus Files candidate as one matched same-filesystem unit.
+- [ ] Start the prior Compose release, require direct and public health/readiness, exact `/api/app-info`, baseline identity, representative role login/read/write, and rejection of a pre-reset session. On failure, restore the retained prior database-and-Files unit, restart it, verify recovery, and retain evidence if recovery cannot complete.
+- [ ] Make retries and interrupted-state handling deterministic; overlapping reset, deploy, rollback, backup, or manual reset operations must fail safely without two promoters or mixed state.
+- [ ] Add lifecycle regressions for success, contention, stale/interrupted state, failed stop/start/readiness/identity, WAL/SHM handling, session invalidation, database/Files pairing, automatic recovery, and fail-closed unrecovered state.
+
+Acceptance criteria:
+
+- One guarded Compose operation atomically activates a verified baseline only while every SQLite user is stopped and either returns healthy on that baseline or automatically returns healthy on the retained prior unit.
+
+### Version 0.33.31.8 - External hourly scheduler and reset observability
+
+**Model: High Effort** — Automatic destructive scheduling needs an independently testable host boundary, safe overlap behavior, and actionable failure evidence.
+
+- [ ] Install one reviewed external host scheduler around the same manual Compose reset entry. Do not add an in-process timer or revive systemd as the application lifecycle; systemd timer/cron may own only host scheduling if that is the selected operator mechanism.
+- [ ] Define UTC/local schedule semantics, expected downtime, missed-run/catch-up policy, overlap exit, disable/re-enable, manual invocation, deployment/reset lock coordination, and recovery ownership.
+- [ ] Emit redacted structured reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health, failure class, rollback, and recovery status with bounded retention and an actionable failure alert. Never log public passwords, content, session IDs, private paths, or secret-bearing environment values.
+- [ ] Add scheduler/alert regressions covering scheduled-equivalent success, manual parity, missed/failing execution, lock contention, alert invocation, log redaction, and safe disable/recovery.
+
+Acceptance criteria:
+
+- The external schedule invokes the same proven manual reset every hour, cannot overlap another lifecycle operation, and produces actionable secret-free success or failure evidence.
+
+### Version 0.33.31.9 - Public-demo Files ingress shutdown
+
+**Model: High Effort** — Files is one primary module blast radius, and its centralized service boundary makes server denial plus the mechanical UI rollout one closeable slice.
+
+- [ ] Deny demo ingestion at the Files service boundary before bytes, streams, metadata, quotas, storage objects, scan jobs, or attachment records exist. Return one stable machine-readable error/status and safe user explanation.
+- [ ] Cover JSON and multipart single/batch routes, attachment helpers, direct service callers, Quick Capture, Notes, Tasks, Clients/Projects, Lists, Time Tracking, drag/drop, paste, imports, profile/avatar, registered contributions, and any currently absent ingress with a catalog guardrail. API v1 remains absent/denied.
+- [ ] Hide or disable applicable upload controls and drop/paste targets for clarity while keeping the server denial authoritative. Preserve seeded attachment view/download/preview only through normal permission, scanner, and safe-preview boundaries; replacement, new-byte relinking, and storage metadata exposure remain impossible.
+- [ ] Add configuration, permission, service, direct-route, multipart/JSON, browser, inventory/catalog, seeded-read, and normal-mode regressions. Do not split the mechanical control rollout into another ceremony-only slice once the shared capability is available.
+
+Acceptance criteria:
+
+- No demo request or UI path can ingest file bytes or create an upload artifact, while authorized seeded attachments remain safely read-only and non-demo Files behavior is unchanged.
+
+### Version 0.33.31 slice 10 - Public perimeter throttling and correlated security evidence
+
+**Model: High Effort** — Public shared credentials require limits that coordinate trusted client identity, account contention, edge behavior, and safe diagnostics.
+
+- [ ] Record the bounded shared-demo threat model for credential stuffing, account contention, request/mutation floods, expensive reads/search, reset interference, and disk/database pressure; use one reproducible smoke/load probe to select reviewable limits and alert thresholds.
+- [ ] Retain database-backed authentication throttling and add measured Caddy/application request and mutation limits with exact trusted-proxy semantics, NAT/shared-IP fairness, generic non-enumerating `429` responses, bounded request bodies before expensive parsing, and no hostname-based bypass.
+- [ ] Correlate edge, application, authentication, capability-denial, and reset events through safe request/operation references with documented retention and incident-response steps. Do not log shared passwords, submitted content, raw sessions, or analytics identifiers.
+- [ ] Add focused edge/application/load regressions for threshold behavior, recovery windows, parallel shared-account use, malformed/oversized requests, spoofed forwarding headers, diagnostic truth, redaction, and unchanged non-demo defaults.
+
+Acceptance criteria:
+
+- Measured perimeter controls bound authentication and request abuse without turning ordinary shared/NAT use into an avoidable lockout, and operators receive correlated secret-free evidence.
+
+### Version 0.33.31 slice 11 - Server-side demo growth, input, and query budgets
+
+**Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
+
+- [ ] Add one framework-owned demo budget service for per-account/workspace mutable record growth between resets, field/rich-text/body sizes, maximum page sizes, expensive query/search bounds, and safe pre-write/pre-query refusal. The hourly reset is recovery depth, not quota enforcement.
+- [ ] Register every current demo-writable create/bulk/import and expensive list/search path through stable IDs; preserve module-owned validation and permission checks, and make undeclared future contributions fail closed in demo mode.
+- [ ] Return stable safe limit feedback and presentation hints without making browser counts authoritative. Prove denied work creates no partial rows, jobs, Files metadata, audit-content leakage, or unbounded parsing.
+- [ ] Add focused budget regressions for boundary values, concurrent attempts, bulk requests, rollback/no-partial-write behavior, page/query ceilings, restart persistence within the hour, catalog completeness, and normal-mode compatibility.
+
+Acceptance criteria:
+
+- Server-owned budgets prevent record, input, query, and database amplification for the full hour with atomic safe failures and no change to ordinary deployments.
+
+### Version 0.33.31 slice 12 - Cross-role editable-content safety proof
+
+**Model: High Effort** — Stored content written by one public role and rendered to another needs a focused XSS and sanitization proof across existing surfaces.
+
+- [ ] Inventory the representative demo-editable plain-text, Markdown, and rich-text fields and their cross-role readers. Exercise the existing validation, Markdown service, escaping, CSP, security headers, URL handling, and preview boundaries; do not add a demo-only renderer.
+- [ ] Add seeded-writer/reader regression cases for stored and reflected script payloads, dangerous links/attributes, malformed Markdown/HTML, oversized content at the new budgets, and safe error rendering across the affected modules.
+- [ ] Fix only demonstrated gaps in the owning shared sanitizer or module renderer, preserving ordinary rendering behavior and avoiding a broad UI rewrite.
+- [ ] Document the reviewed surface inventory and a contribution guardrail so a new public-demo-editable renderer cannot bypass the existing safe-content contract.
+
+Acceptance criteria:
+
+- Content created by any visitor role remains inert and safely rendered to every other role through the ordinary application rendering contracts.
+
+### Version 0.33.31 slice 13 - Outbound and infrastructure isolation
+
+**Model: High Effort** — Application denials and container networking must agree so no visitor action can reach an external or private system.
+
+- [ ] Deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, unreviewed jobs, and future undeclared outbound contributions through the demo capability catalog. Record currently absent surfaces rather than inventing placeholder implementations.
+- [ ] Define and prove the Compose network-egress policy, secret/environment allowlist, database/Files/backups/log isolation, and inability to reach customer networks, private services, production credentials, or writable non-demo storage.
+- [ ] Keep analytics, feedback, and interest capture disabled; no visitor or security event is sent to a product-analytics provider in this slice. Security/reset logs remain operational evidence, not analytics.
+- [ ] Add catalog, direct-request, worker/job, network-policy, environment-leakage, and non-demo compatibility regressions plus a repeatable host/container isolation smoke.
+
+Acceptance criteria:
+
+- Neither application behavior nor container networking gives a public visitor a path to external communication, private infrastructure, real secrets, or non-demo persistent storage.
+
+### Version 0.33.31 slice 14 - Repository release candidate, runbook, and public-demo smoke
+
+**Model: High Effort** — This slice assembles already-implemented contracts into one reproducible candidate without claiming live-host acceptance.
+
+- [ ] Add the redacted Compose deployment example and operator runbook covering capability classifications, private operator/public account ownership, scheduler installation, lock/maintenance behavior, reset downtime, backups/retained states, alerts, rollback/recovery, log retention, incident response, and safe visitor messaging.
+- [ ] Add one release-owned local/container public-demo smoke covering all six role logins, scoped reads/writes/denials, identity immutability, seeded attachment read-only behavior, disabled dangerous/outbound capabilities, limits, content safety, health/readiness/app identity, reset-to-baseline, old-session rejection, and logout without exposing credentials.
+- [ ] Prove `DEMO_MODE=false` leaves development, Friends-and-Family Preview, supported self-hosted production, and future SaaS/default configuration unchanged. Prove analytics, feedback, newsletter, and other interest capture remain disabled and absent from the reset database.
+- [ ] Run `npm run docs:suggest`, update only owning configuration/security/demo/deployment/testing docs plus current governing decisions and changelog, run required database integrity proof, and run `npm run verify:slice` exactly once on the final unchanged worktree.
+
+Acceptance criteria:
+
+- Repository and container proof produce one deployable public-demo candidate and complete operator instructions; the URL remains unpublished until the next live gate passes.
+
+### Version 0.33.31 slice 15 - Live Compose proof and public-demo release gate
+
+**Model: High Effort** — Final acceptance requires retained evidence from the real public host and remains independently stoppable if infrastructure is not ready.
+
+- [ ] Deploy the exact protected `main` SHA by immutable published image digest through the supported root-owned Compose helper; prove direct and public health/readiness plus exact `/api/app-info`, isolated environment identity, safe diagnostics, and no impact on Friends-and-Family or another installation.
+- [ ] Authenticate every public role, exercise representative scoped reads/writes/denials, immutable identity, seeded attachment reads, disabled capabilities, rate/input/growth limits, cross-role content safety, egress denial, visitor messaging, and logout without retaining credentials in evidence.
+- [ ] Mutate representative records to configured caps, retain a pre-reset session, run the scheduled-equivalent reset and observe an actual hourly invocation, then prove the exact database-and-Files baseline, old-session rejection, fresh role logins, scheduler evidence, and no unintended mutation survival.
+- [ ] Exercise a missed/failing reset alert, lock contention, last-known-good automatic recovery, whole-instance backup restore path, and final successful public smoke. Preserve secret-free operation evidence and stop without publication if any recovery or isolation proof is incomplete.
+- [ ] Record the August 31 launch readiness decision, close the final roadmap/archive/version/changelog handoff, and keep 0.33.32 analytics/feedback/interest capture disabled unless its separate review and implementation later authorize them.
+
+Acceptance criteria:
+
+- Retained live evidence proves the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from failure, session-invalidating, and safe to operate without affecting another environment. Publication remains blocked until this gate and the explicit launch decision are complete.
 
 ## Version 0.33.32 - Public Demo Analytics, Privacy, and Interest Capture
 

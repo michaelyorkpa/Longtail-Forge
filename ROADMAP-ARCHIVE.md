@@ -1,5 +1,21 @@
 ﻿# Longtail Forge Roadmap Archive
 
+## Version 0.33.31.1 - Fail-closed demo runtime identity and capability catalog
+
+Completed on 2026-08-06. The default-off public-demo identity and its framework-owned capability catalog now fail closed before database, storage, scanner, or worker initialization. The active cursor advanced to `0.33.31.2` for server-enforced administrative and persistence denials.
+
+**Model: High Effort** — Startup identity and the catalog become the authority every later demo denial consumes.
+
+- [x] Added typed `DEMO_MODE` and deployment-mode configuration with unchanged ordinary defaults, plus one stable framework catalog classifying permitted, read-only, disabled, and hourly-resettable capabilities without hostname branching.
+- [x] Required the exact production demo origin, Compose identity, main release metadata, self-hosted installation mode, disabled Support View, and a verified demo-owned data-root marker. Public-demo-prefixed controls are rejected while demo mode is off, and startup checks the marker before protected runtime subsystems initialize.
+- [x] Added safe app-info and runtime-diagnostics fields that expose only deployment/profile state and catalog classifications, never credentials, paths, marker contents, or recovery details.
+- [x] Added focused unit and regression coverage for default-off behavior, exact enablement, contradictory configuration, missing or invalid marker state, startup ordering, safe diagnostics, catalog stability, and non-demo compatibility.
+- [x] Updated the runtime, architecture, decision, regression, Compose, environment-example, and documentation-ownership contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- One default-off runtime profile and catalog fail closed before startup, provide the only supported demo capability decision path, and leave every non-demo runtime unchanged.
+
 ## Version 0.33.30.5 - Markdown-it 15 runtime baseline
 
 Completed on 2026-08-06. Dependabot PR #111 is integrated on the current Nightly baseline with explicit framework compatibility and safe-rendering proof, closing the 0.33.30 dependency-maintenance follow-up across all three Dependabot updates. The active cursor returned to `0.33.31.1`; draft PR #119 remains open for final review and an explicit later merge decision.
