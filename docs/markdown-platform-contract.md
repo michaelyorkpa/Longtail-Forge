@@ -63,7 +63,7 @@ The Markdown platform must reject, strip, or neutralize unsafe output while pres
 - Unsafe image sources, including `data:` and scriptable sources.
 - Renderer-specific rewrites of saved note bodies, Help files, revisions, or future Knowledge Base source snapshots.
 
-Allowed link schemes are `http:`, `https:`, `mailto:`, and safe relative app paths. Hash-only links may be allowed for same-document navigation. Other schemes require explicit review before use.
+Allowed link schemes are `http:`, `https:`, `mailto:`, and safe relative app paths. Safe relative paths include normal root-relative paths, `./`, `../`, and same-document hashes; protocol-relative `//host` and slash-backslash network paths are not relative app paths and must remain inert. Other schemes require explicit review before use.
 
 ## Framework APIs
 
@@ -82,6 +82,8 @@ As of 0.33.5.18.6.8.1, the service exposes explicit render modes:
 - `user-authored` rendering makes soft line breaks visible in the rendered HTML. Notes uses this mode for saved detail reads and draft preview so textarea-authored single newlines display the way users expect without rewriting stored Markdown.
 
 As of 0.33.5.18.6.8.4, the service owns the safe underline contract. The parser recognizes the explicit `++text++` token and emits generated `<u>` output only for that token; it does not enable raw HTML, source-provided underline attributes, event handlers, scripts, or a general HTML allowlist.
+
+As of 0.33.31.12, the cross-role editable-content inventory and contribution guardrail live in [editable-content-safety.md](editable-content-safety.md). The proof freezes the intentional browser HTML-sink inventory and verifies that plain text stays text, server-rendered Markdown stays inert, unsafe URL destinations lose their active link, and rejected input is not reflected.
 
 ## Module Responsibilities
 

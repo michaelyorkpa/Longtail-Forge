@@ -13,7 +13,7 @@ import {
 const budgetContext = new AsyncLocalStorage();
 const REQUEST_BUDGET_STATE = Symbol("public-demo-budget-state");
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
-const RICH_TEXT_FIELDS = new Set(["body", "content", "description", "html", "markdown", "text"]);
+const RICH_TEXT_FIELDS = new Set(["body", "body_markdown", "bodymarkdown", "content", "description", "html", "markdown", "text"]);
 
 function createPublicDemoBudgetMiddleware(options = {}) {
   const enabled = options.enabled ?? config.demo.enabled;

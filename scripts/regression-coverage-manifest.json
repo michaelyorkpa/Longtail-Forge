@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 445,
+    "discoveredScripts": 446,
     "legacyScripts": 309,
-    "releaseGateScripts": 67,
+    "releaseGateScripts": 68,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
       "docs": 10,
       "files": 44,
-      "framework": 80,
+      "framework": 81,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 205,
       "integration": 165,
-      "release-gate": 67,
+      "release-gate": 68,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 187,
+      "isolated-database": 188,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 224
@@ -3260,6 +3260,24 @@
         "security"
       ],
       "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
+      "id": "framework.public-demo-cross-role-content-safety",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "database",
+        "demo",
+        "markdown",
+        "permissions",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",

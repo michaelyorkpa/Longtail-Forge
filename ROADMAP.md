@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.12`.
+Active cursor: `0.33.31.13`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.12 - Cross-role editable-content safety proof
-
-**Model: High Effort** — Stored content written by one public role and rendered to another needs a focused XSS and sanitization proof across existing surfaces.
-
-- [ ] Inventory the representative demo-editable plain-text, Markdown, and rich-text fields and their cross-role readers. Exercise the existing validation, Markdown service, escaping, CSP, security headers, URL handling, and preview boundaries; do not add a demo-only renderer.
-- [ ] Add seeded-writer/reader regression cases for stored and reflected script payloads, dangerous links/attributes, malformed Markdown/HTML, oversized content at the new budgets, and safe error rendering across the affected modules.
-- [ ] Fix only demonstrated gaps in the owning shared sanitizer or module renderer, preserving ordinary rendering behavior and avoiding a broad UI rewrite.
-- [ ] Document the reviewed surface inventory and a contribution guardrail so a new public-demo-editable renderer cannot bypass the existing safe-content contract.
-
-Acceptance criteria:
-
-- Content created by any visitor role remains inert and safely rendered to every other role through the ordinary application rendering contracts.
 
 ### Version 0.33.31.13 - Outbound and infrastructure isolation
 

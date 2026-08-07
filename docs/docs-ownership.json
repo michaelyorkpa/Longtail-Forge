@@ -450,6 +450,25 @@
       ]
     },
     {
+      "id": "editable-content-safety",
+      "label": "Editable content safety",
+      "sourcePatterns": [
+        "^src/core/markdown/",
+        "^src/core/public-demo-budgets\\.js$",
+        "^src/modules/notes/markdown\\.js$",
+        "^public/js/shared/file-preview\\.js$",
+        "^scripts/markdown-renderer-service-regression\\.mjs$",
+        "^scripts/regressions/framework/public-demo-cross-role-content-safety\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/editable-content-safety.md",
+        "docs/markdown-platform-contract.md",
+        "docs/module-development.md",
+        "docs/notes-module.md",
+        "docs/operational-security.md"
+      ]
+    },
+    {
       "id": "release-process",
       "label": "Release process",
       "sourcePatterns": [

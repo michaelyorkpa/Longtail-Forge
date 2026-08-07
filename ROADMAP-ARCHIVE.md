@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.12 - Cross-role editable-content safety proof
+
+Completed on 2026-08-07. The public demo now uses one documented ordinary safe-content contract across cross-role plain-text and Markdown reads, with corrected URL, rich-content budget, and safe validation-error boundaries. The active cursor advanced to `0.33.31.13` for outbound and infrastructure isolation.
+
+**Model: High Effort** — Stored content written by one public role and rendered to another needs a focused XSS and sanitization proof across existing surfaces.
+
+- [x] Inventory the representative demo-editable plain-text, Markdown, and rich-text fields and their cross-role readers. Exercise the existing validation, Markdown service, escaping, CSP, security headers, URL handling, and preview boundaries; do not add a demo-only renderer.
+- [x] Add seeded-writer/reader regression cases for stored and reflected script payloads, dangerous links/attributes, malformed Markdown/HTML, oversized content at the new budgets, and safe error rendering across the affected modules.
+- [x] Fix only demonstrated gaps in the owning shared sanitizer or module renderer, preserving ordinary rendering behavior and avoiding a broad UI rewrite.
+- [x] Document the reviewed surface inventory and a contribution guardrail so a new public-demo-editable renderer cannot bypass the existing safe-content contract.
+
+Acceptance criteria:
+
+- Content created by any visitor role remains inert and safely rendered to every other role through the ordinary application rendering contracts.
+
 ## Version 0.33.31.11 - Server-side demo growth, input, and query budgets
 
 Completed on 2026-08-07. The exact public demo now refuses database growth, oversized input, and amplification-prone queries through persistent server-owned budgets while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.12` for cross-role editable-content safety proof.
