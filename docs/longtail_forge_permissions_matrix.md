@@ -140,7 +140,7 @@ target `rt-ltf-demo` and origin `https://demo.longtailforge.com`. The helper
 accepts only a protected root-owned `0600` path, verifies exactly one assignment
 and no overrides for each active fixture, and refuses every other active
 identity or scope before promotion. No local credential and no
-Friends-and-Family Preview secret qualifies for this operation.
+Friends-and-Family Preview secret qualifies for this operation. The promoted marker records exactly the six fixture identities whose explicit seed contract sets `publicVisitor: true`; the protected fixture Super Admin is excluded. In public-demo runtime, that exact marker set may authenticate and log out but cannot change sign-in/recovery fields, passwords, forced-password state, memberships, account status, managed sessions, or API-key ownership through self-service, administrator, or direct service paths. The denial does not expose the target identity. Normal mode and the unmarked private operator retain the standard lifecycle.
 
 Workspace backup creation and latest-receipt reads are administrative capabilities, not a new assignable permission key. The service requires the existing effective Workspace Administrator boundary for the active workspace or installation Super Admin authority. Client Administrators, Project Administrators, Client Users, Project Users, and external users cannot invoke either route even if they hold unrelated record permissions. A successful response contains only the safe receipt/checksum summary; archive access stays on the protected host operator boundary.
 

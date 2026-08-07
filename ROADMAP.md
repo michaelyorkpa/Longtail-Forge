@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.3`.
+Active cursor: `0.33.31.4`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.3 - Shared-account identity and credential immutability
-
-**Model: High Effort** — Public credentials require a server-owned identity rule that even normally authorized administrators cannot bypass.
-
-- [ ] Mark the deterministic public visitor identities through the seeded demo contract rather than username patterns, display labels, or role names; the private operator identity is never marked public.
-- [ ] Deny password, username/email, alternate-email, authentication settings, recovery, forced-password, session-management, deactivation/deletion, API-key, and equivalent takeover mutations for every public visitor identity in demo mode, including self-service and administrator-on-user paths. Login, ordinary session expiry, and logout remain functional.
-- [ ] Keep the rule exact to the demo profile and seeded public identities so ordinary users, private operator recovery, development fixtures, preview, and supported self-hosted installations retain their current lifecycle.
-- [ ] Add authentication, Users, session, administrator, and direct-route regressions for self and cross-account mutation denial, old-session expiry after reset, safe errors, and normal-mode non-regression.
-
-Acceptance criteria:
-
-- Shared visitor accounts can authenticate and log out but neither they nor another visitor can change, retire, recover, or take over any public visitor identity.
 
 ### Version 0.33.31.4 - Public six-role fixture and permission journey
 

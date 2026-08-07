@@ -113,9 +113,9 @@ As of 0.33.24.1, `/etc/longtail-forge/maintenance-helper.env` is a separate root
 
 ### Public-demo runtime profile
 
-`DEMO_MODE=true` is accepted only for the exact named public-demo identity. Before the app or separate worker checks storage/scanner readiness or opens the database, it requires a regular, non-symbolic, non-group/other-writable `.longtail-demo-data.json` inside `LONGTAIL_DATA_DIR` with contract `longtail-forge-demo-data-v1` and target `rt-ltf-demo`. Missing, oversized, malformed, weakly writable, wrong-contract, or wrong-target markers fail with one path- and content-free startup error. `LONGTAIL_PUBLIC_DEMO_*` settings are rejected while demo mode is false; later slices own any specific credential, seed, reset, or login-assistance controls under that namespace.
+`DEMO_MODE=true` is accepted only for the exact named public-demo identity. Before the app or separate worker checks storage/scanner readiness or opens the database, it requires a regular, non-symbolic, non-group/other-writable `.longtail-demo-data.json` inside `LONGTAIL_DATA_DIR` with contract `longtail-forge-demo-data-v1`, target `rt-ltf-demo`, and exactly six unique UUID user IDs in `publicVisitorUserIds`. The reviewed demo seed derives those IDs from explicit `publicVisitor` fixture flags and excludes the protected private operator. Missing, oversized, malformed, weakly writable, wrong-contract, wrong-target, missing/duplicate, or malformed-identity markers fail with one path- and content-free startup error. Marker contents remain host-only. `LONGTAIL_PUBLIC_DEMO_*` settings are rejected while demo mode is false; later slices own any specific public credential or login-assistance controls under that namespace.
 
-The framework-owned catalog is data-only and uses stable IDs. This slice classifies the intended public-demo boundary; later slices wire the relevant server enforcement without letting modules infer behavior from the public hostname.
+The framework-owned catalog is data-only and uses stable IDs. Capability enforcement is server-owned, and the shared-identity guard compares only the validated marker set; modules and services do not infer demo behavior from the public hostname, role, username, display label, or email domain.
 
 | Classification | Current capability IDs |
 | --- | --- |

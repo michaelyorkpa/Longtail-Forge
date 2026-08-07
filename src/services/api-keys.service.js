@@ -5,6 +5,8 @@ import { permissionsService } from "./permissions.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../utils/app-error.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
+import { isPublicDemoVisitorIdentity } from "../core/public-demo-runtime.js";
 
 const API_KEY_PREFIX = "ltf_live";
 
@@ -23,6 +25,7 @@ async function list(session) {
 
 async function create(payload, session) {
   assertPublicDemoCapabilityAllowed("api_keys");
+  assertPublicDemoVisitorIdentityMutable(session.user_id);
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -87,6 +90,7 @@ async function revoke(apiKeyId, session) {
   if (!previousKey) {
     throw new AppError("API key was not found.", 404);
   }
+  assertPublicDemoVisitorIdentityMutable(previousKey.created_by_user_id);
 
   const apiKey = await apiKeysRepository.revoke(session.workspace_id, apiKeyId);
   await auditService.record({
@@ -116,7 +120,7 @@ async function readActiveKey(rawKey) {
   assertPublicDemoCapabilityAllowed("api_keys");
   const apiKey = await apiKeysRepository.readByHash(hashApiKey(rawKey));
 
-  if (!apiKey || apiKey.status !== "active") {
+  if (!apiKey || apiKey.status !== "active" || isPublicDemoVisitorIdentity(apiKey.created_by_user_id)) {
     return null;
   }
 
@@ -129,6 +133,7 @@ function hasScope(apiKey, requiredScope) {
 
 async function markUsed(apiKey) {
   assertPublicDemoCapabilityAllowed("api_keys");
+  assertPublicDemoVisitorIdentityMutable(apiKey.created_by_user_id);
   await apiKeysRepository.updateLastUsed(apiKey.api_key_id);
 }
 

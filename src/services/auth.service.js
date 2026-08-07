@@ -1,4 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
+import { isPublicDemoVisitorIdentity } from "../core/public-demo-runtime.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
@@ -97,13 +99,14 @@ async function login(payload, context = {}) {
   }
 
   const passwordVerification = verificationAttempt.value;
+  const publicDemoVisitor = isPublicDemoVisitorIdentity(user.user_id);
   const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
   const activeWorkspaceId = resolveActiveWorkspaceId(user, workspaceMemberships);
   if (!activeWorkspaceId) {
     const qualification = await accountExportRecoveryRepository.readForUser(user.user_id);
-    if (qualification && !normalizeBooleanPreference(user.password_change_required)) {
+    if (qualification && !publicDemoVisitor && !normalizeBooleanPreference(user.password_change_required)) {
       let passwordRehash = null;
-      if (passwordVerification.needsRehash) {
+      if (passwordVerification.needsRehash && !publicDemoVisitor) {
         await usersRepository.updatePasswordByUserId(user.user_id, await hashPassword(password), {
           passwordChangeRequired: false,
         });
@@ -167,7 +170,7 @@ async function login(payload, context = {}) {
   await accountExportRecoveryRepository.clear(user.user_id);
   let passwordRehash = null;
 
-  if (passwordVerification.needsRehash) {
+  if (passwordVerification.needsRehash && !publicDemoVisitor) {
     await usersRepository.updatePassword(activeWorkspaceId, user.user_id, await hashPassword(password), {
       passwordChangeRequired: normalizeBooleanPreference(user.password_change_required),
     });
@@ -431,6 +434,7 @@ async function switchWorkspace(sessionId, session, payload) {
 }
 
 async function changePassword(payload, session, context = {}) {
+  assertPublicDemoVisitorIdentityMutable(session.user_id);
   const currentPassword = String(payload.currentPassword || "");
   const newPassword = String(payload.newPassword || "");
 

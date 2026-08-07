@@ -1,4 +1,5 @@
 import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
@@ -13,6 +14,7 @@ import {
 const RECOVERY_MODE = "account_export_recovery";
 
 async function assertEligible(userId) {
+  assertPublicDemoVisitorIdentityMutable(userId);
   const [qualification, hasActiveWorkspace, user] = await Promise.all([
     accountExportRecoveryRepository.readForUser(userId),
     accountExportRecoveryRepository.hasActiveWorkspace(userId),

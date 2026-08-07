@@ -275,6 +275,7 @@ try {
   assert.equal(result.counts.users, 24);
   assert.equal(result.counts.tasks, 400);
   assert.equal(result.counts.files, 2);
+  assert.equal(result.counts.sessions, 0, "fresh demo activation must discard every prior session");
   assert.doesNotMatch(JSON.stringify(result), new RegExp(operatorPassword));
   assert.deepEqual(events.slice(0, 7), ["capture", "stop", "stopped", "backup", "inspect", "seed", "repair"]);
   assert.deepEqual(events.slice(-2), ["start", "verify"]);
@@ -284,6 +285,17 @@ try {
   assert.equal(liveMarker.anchorDate, "2026-07-20");
   assert.equal(liveMarker.semanticFingerprint, result.semanticFingerprint);
   assert.equal(liveMarker.roleFixtureCount, 7);
+  assert.equal(liveMarker.publicVisitorUserIds.length, 6);
+  assert.equal(new Set(liveMarker.publicVisitorUserIds).size, 6);
+  assert.ok(liveMarker.publicVisitorUserIds.every((userId) => /^[0-9a-f-]{36}$/i.test(userId)));
+  const liveDatabase = new Database(paths.databaseFile, { readonly: true });
+  try {
+    const privateOperator = liveDatabase.prepare("SELECT user_id FROM users WHERE protected_user = 'yes'").get();
+    assert.ok(privateOperator?.user_id);
+    assert.equal(liveMarker.publicVisitorUserIds.includes(privateOperator.user_id), false, "the private operator must never be marked public");
+  } finally {
+    liveDatabase.close();
+  }
   assert.doesNotMatch(JSON.stringify(liveMarker), new RegExp(operatorPassword));
   for (const password of Object.values(rolePasswords)) {
     assert.doesNotMatch(JSON.stringify(result), new RegExp(password));
@@ -339,6 +351,21 @@ try {
     expectedAnchorDate: "2026-07-20",
     expectedFingerprint: "0".repeat(64),
   }), /seed identity/);
+  await assertCorruptCandidateRejected("old-session", (database) => {
+    database.prepare(`
+INSERT INTO sessions (
+  session_id, home_workspace_id, active_workspace_id, user_id, username,
+  timezone, ip_address, expires_at, created_at, updated_at
+)
+SELECT
+  'stale-before-reset', home_workspace_id, active_workspace_id, user_id, username,
+  timezone, '127.0.0.1', '2099-01-01T00:00:00.000Z',
+  '2026-07-20T12:00:00.000Z', '2026-07-20T12:00:00.000Z'
+FROM users
+WHERE protected_user = 'yes'
+LIMIT 1;
+`).run();
+  }, /rich fictional scenario counts/);
   await assertCorruptCandidateRejected("wrong-role", (database) => {
     database.prepare(`
 UPDATE user_role_assignments
