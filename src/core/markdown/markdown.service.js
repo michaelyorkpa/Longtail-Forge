@@ -1,7 +1,7 @@
 import MarkdownIt from "markdown-it";
 
 const SAFE_LINK_SCHEMES = new Set(["http:", "https:", "mailto:"]);
-const SAFE_RELATIVE_PREFIXES = ["/", "./", "../", "#"];
+const SAFE_RELATIVE_PREFIXES = ["./", "../", "#"];
 const TASK_LIST_ITEM_PATTERN = /<li>\[([ xX])\]\s+/g;
 const PLUS_MARKER = 0x2B;
 const BACKSLASH_MARKER = 0x5C;
@@ -56,6 +56,12 @@ function isSafeMarkdownUrl(url = "") {
 
   if (!value) {
     return false;
+  }
+
+  if (value.startsWith("/")) {
+    return !value.startsWith("//")
+      && !value.startsWith("/\\")
+      && !/[\u0000-\u001F\u007F]/.test(value);
   }
 
   if (SAFE_RELATIVE_PREFIXES.some((prefix) => value.startsWith(prefix))) {

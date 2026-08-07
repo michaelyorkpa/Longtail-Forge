@@ -49,6 +49,7 @@ assert.deepEqual(
     "e2e-testing",
     "accessibility",
     "development-demo-data",
+    "editable-content-safety",
     "release-process",
   ],
   "the ownership index should cover every roadmap-listed documentation area",
@@ -131,6 +132,14 @@ assert.deepEqual(developmentData.docs, [
   "docs/development-and-demo-data.md",
   "docs/marketing/screenshot-and-demo-data-plan.md",
 ]);
+
+const editableContentSafety = suggestDocsForPaths([
+  "src/core/markdown/markdown.service.js",
+  "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
+], { index: rawIndex });
+assert.deepEqual(editableContentSafety.matchedAreas.map((area) => area.id), ["editable-content-safety"]);
+assert.ok(editableContentSafety.docs.includes("docs/editable-content-safety.md"));
+assert.ok(editableContentSafety.docs.includes("docs/markdown-platform-contract.md"));
 
 const runtimeSecurity = suggestDocsForPaths([
   "public/js/theme-init.js",

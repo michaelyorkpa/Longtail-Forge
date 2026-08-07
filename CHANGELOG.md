@@ -1,3 +1,13 @@
+## Version 0.33.31.12 - 2026-08-07
+
+- Proved a Workspace Administrator writer to Project Administrator reader journey across Tasks, Lists, and Notes, including stored markup-shaped plain text, malformed Markdown/HTML, dangerous links, server-rendered previews, CSP directives, safe errors, and SQLite integrity.
+- Tightened the shared Markdown URL policy so protocol-relative and slash-backslash network destinations remain inert while normal root-relative, `./`, `../`, hash, HTTP(S), and mail links keep their existing behavior.
+- Extended public-demo rich-content admission to the actual Notes `body_markdown` and `bodyMarkdown` field names at the configured 32 KiB boundary, with fixed non-reflective oversize failures.
+- Mapped unsafe Notes Markdown validation to the existing safe 400 application error contract instead of treating expected visitor input as an internal failure.
+- Added a frozen browser HTML-sink inventory and an editable-content contribution guardrail so future fields, renderers, URL schemes, and sinks must declare and prove their safety contract.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/editable-content-safety.md`, `docs/markdown-platform-contract.md`, `docs/module-development.md`, `docs/notes-module.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, user workflow copy, permissions, public API, Files behavior, deployment, reset operations, and runtime configuration are unchanged; this slice strengthens shared rendering and request-validation contracts.
+
 ## Version 0.33.31.11 - 2026-08-07
 
 - Added a framework-owned exact-demo budget authority with atomic SQLite reservations capped at 120 successful mutation units per marked visitor and 600 per workspace until the external hourly baseline reset; failed responses release reservations and successful usage survives app restart.

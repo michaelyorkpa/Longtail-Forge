@@ -1,3 +1,4 @@
+import { AppError } from "../../core/errors.js";
 import {
   MARKDOWN_RENDER_MODES,
   createMarkdownExcerpt as createFrameworkMarkdownExcerpt,
@@ -49,7 +50,7 @@ function assertSafeMarkdown(markdown = "") {
   const result = validateMarkdownSafety(markdown);
 
   if (!result.ok) {
-    throw new Error(result.errors[0]);
+    throw new AppError(result.errors[0], 400);
   }
 
   return result.markdown;

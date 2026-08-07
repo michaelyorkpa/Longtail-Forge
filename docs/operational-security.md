@@ -34,6 +34,12 @@ Input admission caps an array at 50 items, an ordinary field at 8 KiB, a rich-te
 
 Every current authenticated browser API mutation and read template has a stable catalog operation ID. Unknown future routes fail with `public_demo_budget_undeclared` for marked visitors until reviewed; normal deployments bypass the catalog. Denials use stable generic codes and fixed recovery hints, reach no module persistence, and expose no submitted content or budget usage. Runtime diagnostics expose only fixed limits, enabled state, and catalog size, never visitor/workspace counters or identities.
 
+## Cross-role editable-content safety
+
+Public-demo content uses ordinary module validation, permission-scoped reads, the framework Markdown service, text-only browser insertion, safe server-rendered HTML fields, and the standing CSP; there is no demo-only renderer. Tasks and Lists preserve markup-shaped values as literal text. Notes stores Markdown source, rejects script-capable elements, event attributes, and scriptable schemes with a fixed non-reflective 400 response, and renders saved/detail preview HTML through the same server adapter. Files Markdown preview consumes that framework renderer too.
+
+The shared URL policy permits reviewed web/mail schemes and safe app-relative paths but rejects protocol-relative and slash-backslash network destinations. The public-demo rich-content classifier covers both `body_markdown` and `bodyMarkdown` at the configured 32 KiB ceiling; oversize failures expose no submitted content. The reviewed field and browser-sink inventory plus the contributor checklist are maintained in [editable-content-safety.md](editable-content-safety.md). Any new editable renderer, HTML sink, URL scheme, or content field must update that inventory and pass the cross-role hostile-input regression before it is available to visitors.
+
 ## Public-demo perimeter threat model and response
 
 This boundary protects one small shared demonstration service, not a general multi-tenant rate-limiting platform. The bounded threats are credential stuffing against the six published accounts, contention when several visitors use one account, request or mutation floods, repeated expensive Search reads, interference with the hourly reset, and database/disk pressure from large bodies or excessive evidence. Distributed attacks above one Node process and one Caddy edge, volumetric denial of service before Caddy, and hosted multi-node enforcement remain infrastructure/provider concerns.
