@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 441,
+    "discoveredScripts": 442,
     "legacyScripts": 309,
-    "releaseGateScripts": 64,
+    "releaseGateScripts": 65,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 12,
       "public-api": 3,
-      "release": 32,
+      "release": 33,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 204,
       "integration": 165,
-      "release-gate": 64,
+      "release-gate": 65,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 184,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 223
+      "static": 224
     }
   },
   "coverageFamilies": [
@@ -4149,6 +4149,23 @@
         "recovery",
         "security",
         "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the external UTC hourly public-demo reset trigger, shared-lock behavior, bounded redacted evidence, alert invocation, and safe disable/recovery contract.",
+      "id": "release.public-demo-reset-scheduler",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-reset-scheduler.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "alerts",
+        "compose",
+        "demo",
+        "scheduling",
+        "security"
       ],
       "tier": "release-gate"
     },

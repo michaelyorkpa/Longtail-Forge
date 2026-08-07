@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.8`.
+Active cursor: `0.33.31.9`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -36,19 +36,6 @@ Non-goals:
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
 
-### Version 0.33.31.8 - External hourly scheduler and reset observability
-
-**Model: High Effort** — Automatic destructive scheduling needs an independently testable host boundary, safe overlap behavior, and actionable failure evidence.
-
-- [ ] Install one reviewed external host scheduler around the same manual Compose reset entry. Do not add an in-process timer or revive systemd as the application lifecycle; systemd timer/cron may own only host scheduling if that is the selected operator mechanism.
-- [ ] Define UTC/local schedule semantics, expected downtime, missed-run/catch-up policy, overlap exit, disable/re-enable, manual invocation, deployment/reset lock coordination, and recovery ownership.
-- [ ] Emit redacted structured reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health, failure class, rollback, and recovery status with bounded retention and an actionable failure alert. Never log public passwords, content, session IDs, private paths, or secret-bearing environment values.
-- [ ] Add scheduler/alert regressions covering scheduled-equivalent success, manual parity, missed/failing execution, lock contention, alert invocation, log redaction, and safe disable/recovery.
-
-Acceptance criteria:
-
-- The external schedule invokes the same proven manual reset every hour, cannot overlap another lifecycle operation, and produces actionable secret-free success or failure evidence.
-
 ### Version 0.33.31.9 - Public-demo Files ingress shutdown
 
 **Model: High Effort** — Files is one primary module blast radius, and its centralized service boundary makes server denial plus the mechanical UI rollout one closeable slice.
@@ -62,7 +49,7 @@ Acceptance criteria:
 
 - No demo request or UI path can ingest file bytes or create an upload artifact, while authorized seeded attachments remain safely read-only and non-demo Files behavior is unchanged.
 
-### Version 0.33.31 slice 10 - Public perimeter throttling and correlated security evidence
+### Version 0.33.31.10 - Public perimeter throttling and correlated security evidence
 
 **Model: High Effort** — Public shared credentials require limits that coordinate trusted client identity, account contention, edge behavior, and safe diagnostics.
 
@@ -75,7 +62,7 @@ Acceptance criteria:
 
 - Measured perimeter controls bound authentication and request abuse without turning ordinary shared/NAT use into an avoidable lockout, and operators receive correlated secret-free evidence.
 
-### Version 0.33.31 slice 11 - Server-side demo growth, input, and query budgets
+### Version 0.33.31.11 - Server-side demo growth, input, and query budgets
 
 **Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
 
@@ -88,7 +75,7 @@ Acceptance criteria:
 
 - Server-owned budgets prevent record, input, query, and database amplification for the full hour with atomic safe failures and no change to ordinary deployments.
 
-### Version 0.33.31 slice 12 - Cross-role editable-content safety proof
+### Version 0.33.31.12 - Cross-role editable-content safety proof
 
 **Model: High Effort** — Stored content written by one public role and rendered to another needs a focused XSS and sanitization proof across existing surfaces.
 
@@ -101,7 +88,7 @@ Acceptance criteria:
 
 - Content created by any visitor role remains inert and safely rendered to every other role through the ordinary application rendering contracts.
 
-### Version 0.33.31 slice 13 - Outbound and infrastructure isolation
+### Version 0.33.31.13 - Outbound and infrastructure isolation
 
 **Model: High Effort** — Application denials and container networking must agree so no visitor action can reach an external or private system.
 
@@ -114,7 +101,7 @@ Acceptance criteria:
 
 - Neither application behavior nor container networking gives a public visitor a path to external communication, private infrastructure, real secrets, or non-demo persistent storage.
 
-### Version 0.33.31 slice 14 - Repository release candidate, runbook, and public-demo smoke
+### Version 0.33.31.14 - Repository release candidate, runbook, and public-demo smoke
 
 **Model: High Effort** — This slice assembles already-implemented contracts into one reproducible candidate without claiming live-host acceptance.
 
@@ -127,7 +114,7 @@ Acceptance criteria:
 
 - Repository and container proof produce one deployable public-demo candidate and complete operator instructions; the URL remains unpublished until the next live gate passes.
 
-### Version 0.33.31 slice 15 - Live Compose proof and public-demo release gate
+### Version 0.33.31.15 - Live Compose proof and public-demo release gate
 
 **Model: High Effort** — Final acceptance requires retained evidence from the real public host and remains independently stoppable if infrastructure is not ready.
 
@@ -304,7 +291,7 @@ Acceptance criteria:
 
 - Malformed options and placeholder misuse fail typecheck while generated SQL and values remain equivalent.
 
-### Version 0.33.33 slice 10 - High-fan-in repository signatures
+### Version 0.33.33.10 - High-fan-in repository signatures
 
 **Model: High Effort** — Users, workspaces, and settings are broad data and permission dependencies.
 
@@ -315,7 +302,7 @@ Acceptance criteria:
 
 - The three widest repositories expose checked methods and result nullability with no runtime query change.
 
-### Version 0.33.33 slice 11 - Bundled module manifest declarations
+### Version 0.33.33.11 - Bundled module manifest declarations
 
 **Model: Medium Effort** — Eight small declaration files share one already-validated contract.
 
@@ -326,7 +313,7 @@ Acceptance criteria:
 
 - Every bundled manifest fails the fast gate on structural drift before runtime validation.
 
-### Version 0.33.33 slice 12 - Module registry service fan-out
+### Version 0.33.33.12 - Module registry service fan-out
 
 **Model: High Effort** — The roughly 1,600-line module service is framework-wide and earns its own session.
 
@@ -337,7 +324,7 @@ Acceptance criteria:
 
 - The widest registry consumer typechecks while its public catalog behavior remains unchanged.
 
-### Version 0.33.33 slice 13 - Search reference contract and indexers
+### Version 0.33.33.13 - Search reference contract and indexers
 
 **Model: High Effort** — The audit found a concrete casing disagreement at a recovery seam.
 
@@ -348,7 +335,7 @@ Acceptance criteria:
 
 - Every first-party indexer consumes one proven shape without losing indexed records.
 
-### Version 0.33.33 slice 14 - Work Resume State implementation closure
+### Version 0.33.33.14 - Work Resume State implementation closure
 
 **Model: Medium Effort** — Two files close one otherwise-typed recovery chain.
 
@@ -359,7 +346,7 @@ Acceptance criteria:
 
 - The first-party resume-state chain is checked without changing recovery behavior or ownership.
 
-### Version 0.33.33 slice 15 - Jobs and event-summary implementation closure
+### Version 0.33.33.15 - Jobs and event-summary implementation closure
 
 **Model: High Effort** — These related infrastructure contracts are bounded to existing implementations.
 
@@ -370,7 +357,7 @@ Acceptance criteria:
 
 - Existing job and event-summary implementations typecheck with execution, retry, and redaction unchanged.
 
-### Version 0.33.33 slice 16 - Authentication and API-key services
+### Version 0.33.33.16 - Authentication and API-key services
 
 **Model: High Effort** — Credential/session issuance is isolated from permission-resource work.
 
@@ -381,7 +368,7 @@ Acceptance criteria:
 
 - Both services typecheck without weakening credential, enumeration, or session semantics.
 
-### Version 0.33.33 slice 17 - Permission resources and route call sites
+### Version 0.33.33.17 - Permission resources and route call sites
 
 **Model: High Effort** — Permission scoping is a separate security boundary with a large service.
 
@@ -393,7 +380,7 @@ Acceptance criteria:
 
 - Missing workspace scope is a compile error and all existing allowed/denied decisions remain green.
 
-### Version 0.33.33 slice 18 - Bounded server clean-file rollout
+### Version 0.33.33.18 - Bounded server clean-file rollout
 
 **Model: High Effort** — Mechanical rollout is useful only when its size and ownership are reviewable.
 
@@ -405,7 +392,7 @@ Acceptance criteria:
 
 - One explicit server ownership cluster gains coverage in a bounded session; no percentage target forces unrelated edits.
 
-### Version 0.33.33 slice 19 - Browser typecheck program and shared utilities
+### Version 0.33.33.19 - Browser typecheck program and shared utilities
 
 **Model: High Effort** — A new browser program is shared build-time infrastructure, but the first utility tier is intentionally small.
 
@@ -417,7 +404,7 @@ Acceptance criteria:
 
 - The small shared browser tier typechecks against one contract vocabulary with runtime load order unchanged.
 
-### Version 0.33.33 slice 20 - App-shell bootstrap boundary adapter
+### Version 0.33.33.20 - App-shell bootstrap boundary adapter
 
 **Model: High Effort** — The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
 
@@ -429,7 +416,7 @@ Acceptance criteria:
 
 - Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
 
-### Version 0.33.33 slice 21 - Descriptor-declared response record adapter
+### Version 0.33.33.21 - Descriptor-declared response record adapter
 
 **Model: High Effort** — One extracted checked helper can replace response-key guessing without attempting whole-file conversion of either 2,000-line declarative runtime.
 

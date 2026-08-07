@@ -12,6 +12,11 @@ fail() {
   exit 1
 }
 
+lock_contended() {
+  printf 'longtail-forge-public-demo-reset: %s\n' "$*" >&2
+  exit 75
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
 }
@@ -102,18 +107,20 @@ install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROO
 if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
 require_root_owned_private_file "$OPERATION_LOCK" 'Compose operation lock'
 exec 9<>"$OPERATION_LOCK"
-flock -n 9 || fail 'another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock'
+flock -n 9 || lock_contended 'another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock'
 
 MODE="${1:-}"
 shift || true
 TARGET=''
 ANCHOR_DATE=''
 CONFIRM=''
+REQUESTED_OPERATION_ID=''
 declare -A SEEN_ARGS=()
 while test "$#" -gt 0; do
   case "$1" in
     --target) key=target; TARGET="${2:-}" ;;
     --anchor-date) key=anchor; ANCHOR_DATE="${2:-}" ;;
+    --operation-id) key=operation; REQUESTED_OPERATION_ID="${2:-}" ;;
     --confirm) key=confirm; CONFIRM="${2:-}" ;;
     *) fail "unknown argument: $1" ;;
   esac
@@ -129,7 +136,13 @@ if test "$ANCHOR_DATE" = 'today'; then ANCHOR_DATE="$(date -u +%F)"; fi
 [[ "$ANCHOR_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'anchor date must be today or YYYY-MM-DD'
 test "$(date -u -d "$ANCHOR_DATE" +%F 2>/dev/null)" = "$ANCHOR_DATE" || fail 'anchor date is not a real calendar date'
 
-OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-reset-$$"
+if test -n "$REQUESTED_OPERATION_ID"; then
+  [[ "$REQUESTED_OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual)-[0-9]+$ ]] \
+    || fail 'provided operation identity is invalid'
+  OPERATION_ID="$REQUESTED_OPERATION_ID"
+else
+  OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-reset-$$"
+fi
 OPERATION_DIR="$OPERATION_ROOT/$OPERATION_ID"
 test ! -e "$OPERATION_DIR" || fail 'operation identity already exists'
 install -d -o root -g root -m 0700 "$OPERATION_DIR"
@@ -408,6 +421,8 @@ clear_marker
 RECOVERY_ARMED=false
 record_phase 'completed' 'baseline-healthy'
 
-printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","version":"%s","commitSha":"%s","backup":"%s"}\n' \
-  "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" "$(state_value "$CURRENT_STATE" '.version')" \
-  "$(state_value "$CURRENT_STATE" '.commitSha')" "$(basename "$BACKUP")"
+printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","semanticFingerprint":"%s","version":"%s","commitSha":"%s","backup":"%s"}\n' \
+  "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" \
+  "$(state_value "$OPERATION_DIR/active-baseline.json" '.semanticFingerprint')" \
+  "$(state_value "$CURRENT_STATE" '.version')" "$(state_value "$CURRENT_STATE" '.commitSha')" \
+  "$(basename "$BACKUP")"
