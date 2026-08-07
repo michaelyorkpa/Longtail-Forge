@@ -721,6 +721,7 @@ function scanUnexpectedFrameworkCoupling() {
     "src/core/modules/bundled-module-catalog.generated.js",
     "src/core/modules/modules.service.js",
     "src/core/modules/registry.js",
+    "src/core/public-demo-budget-catalog.js",
     "src/core/record-scope.js",
     "src/services/work-candidate.service.js",
     "src/services/workbench-task-focus-related-context.service.js",

@@ -66,6 +66,8 @@ The explicit **End Support View** and **Log Out** POSTs are the only lifecycle e
 
 Prefer the default code when the HTTP status is sufficient. A workflow may add a more specific code only when callers have a real behavior to distinguish. New custom codes must be stable lowercase `snake_case`, documented in the owning module or API contract, and pinned by a focused regression. Published legacy codes remain compatibility contracts even when they predate this naming rule.
 
+Expected `AppError` instances may also carry a reviewed `fields` array for safe structured recovery hints. The final API error middleware forwards it only for exposed expected failures; unexpected and hidden failures never receive fields. Public-demo budgets use `public_demo_budget_exceeded` (429), `public_demo_input_limit` (400), `public_demo_query_limit` (400), and `public_demo_budget_undeclared` (403), with only fixed field classes and the hourly-reset hint. Never place submitted values, arbitrary field names, record IDs, counters, limits remaining, paths, SQL, credentials, or private operational details in this array.
+
 ## Expected and Unexpected Failures
 
 Use `AppError` for an expected request failure:

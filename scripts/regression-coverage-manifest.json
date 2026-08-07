@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 444,
+    "discoveredScripts": 445,
     "legacyScripts": 309,
-    "releaseGateScripts": 66,
+    "releaseGateScripts": 67,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
       "docs": 10,
       "files": 44,
-      "framework": 79,
+      "framework": 80,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,11 +30,11 @@
     "tierCounts": {
       "focused": 205,
       "integration": 165,
-      "release-gate": 66,
+      "release-gate": 67,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 186,
+      "isolated-database": 187,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 224
@@ -3224,6 +3224,24 @@
         "security"
       ],
       "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves persistent atomic public-demo growth, input, and query budgets plus fail-closed route catalog coverage without changing normal mode.",
+      "id": "framework.public-demo-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-budgets.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "demo",
+        "http",
+        "limits",
+        "routes",
+        "security"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",

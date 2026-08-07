@@ -50,6 +50,8 @@ As of 0.33.31.6, `database.public-demo-baseline-candidate` runs as an isolated r
 
 As of 0.33.31.9, `framework.public-demo-files-ingress` is an isolated release gate. It launches exact demo and standard child probes, requires direct service denials before payload/session access, sends malformed JSON and multipart bodies through every creation route to prove capability refusal wins before parsing, pins the stable safe response, verifies read-only seeded-content classification, and confirms ordinary-mode ingress remains enabled. Static inventory assertions keep the shared attachment helper as the only browser file-input/upload endpoint owner, omit its chooser/drop/upload controls plus the File quick action in demo mode, freeze absent paste/profile/avatar/import and `/api/v1/files` ingress, and retain list/preview/content/download entry points.
 
+As of 0.33.31.11, `framework.public-demo-budgets` is an isolated release gate. It proves exact input/query boundary values, fixed safe error hints, undeclared-route refusal, bulk pre-service atomicity, rollback after failed responses, concurrent account and workspace ceilings, restart persistence, normal-mode bypass, SQLite integrity, and exact catalog coverage for every authenticated framework/module route. The retained HTTP error and Lists regressions independently prove structured expected-error forwarding and unchanged ordinary list duplication behavior.
+
 ## Streamlining Review Policy And Budget
 
 The first formal review at 0.33.18.7 measured 380/380 pre-change regressions in 193.28 seconds with no flaky recoveries, then 379/379 post-change regressions in 279.78 seconds with one visible migration-lock recovery on the documented Windows reference workstation. The current local reference budget is 300 seconds for the full regression runner on comparable hardware and workload. This is a review threshold, not a cross-machine hard failure: two comparable runs above budget, a material slow-tail change, or more than 20% growth in the rolling three-run median triggers another ownership/setup review. The measurement, bucket totals, slow tail, retirement evidence, and consolidation queue live in [regression-suite-performance.md](regression-suite-performance.md).
@@ -187,18 +189,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 444 |
+| Active discovered regressions | 445 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 135 |
+| Convention-path metadata regressions | 136 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 66 |
+| Active release-gate regressions | 67 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 447 |
-| Release-gate ratchet floor | 68 |
+| Global ratchet floor | 448 |
+| Release-gate ratchet floor | 69 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 79 | 0 | 79 |
+| `framework` | 80 | 0 | 80 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -223,7 +225,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 205 |
 | `integration` | 165 |
-| `release-gate` | 66 |
+| `release-gate` | 67 |
 | `slow` | 8 |
 
 | Run mode | Active |
@@ -232,7 +234,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 186 |
+| `isolated-database` | 187 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.11 - Server-side demo growth, input, and query budgets
+
+Completed on 2026-08-07. The exact public demo now refuses database growth, oversized input, and amplification-prone queries through persistent server-owned budgets while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.12` for cross-role editable-content safety proof.
+
+
+**Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
+
+- [x] Add one framework-owned demo budget service for per-account/workspace mutable record growth between resets, field/rich-text/body sizes, maximum page sizes, expensive query/search bounds, and safe pre-write/pre-query refusal. The hourly reset is recovery depth, not quota enforcement.
+- [x] Register every current demo-writable create/bulk/import and expensive list/search path through stable IDs; preserve module-owned validation and permission checks, and make undeclared future contributions fail closed in demo mode.
+- [x] Return stable safe limit feedback and presentation hints without making browser counts authoritative. Prove denied work creates no partial rows, jobs, Files metadata, audit-content leakage, or unbounded parsing.
+- [x] Add focused budget regressions for boundary values, concurrent attempts, bulk requests, rollback/no-partial-write behavior, page/query ceilings, restart persistence within the hour, catalog completeness, and normal-mode compatibility.
+
+Acceptance criteria:
+
+- Server-owned budgets prevent record, input, query, and database amplification for the full hour with atomic safe failures and no change to ordinary deployments.
+
 ## Version 0.33.31.10 - Public perimeter throttling and correlated security evidence
 
 Completed on 2026-08-07. The exact public demo now has measured request, mutation, Search, and body limits plus cross-layer secret-free evidence, while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.11` for server-side demo growth, input, and query budgets.

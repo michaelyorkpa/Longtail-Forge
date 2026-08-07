@@ -89,6 +89,8 @@ Keep the framework page entry generic. Permission-filtered module scripts and st
 
 Browser/session routes go in `browserApiRoutes` and are mounted under `/api` after authentication. The framework wraps optional module browser routes with write protection so disabled modules cannot receive normal writes.
 
+Every new authenticated browser route must also receive an exact template under a stable ID in `src/core/public-demo-budget-catalog.js`. Choose the read or mutation catalog deliberately, declare bulk collection keys when one request can create multiple records, and add a service-level `reserveAdditionalPublicDemoBudgetUnits(...)` call before persistence when output growth depends on stored state rather than the request body. Do not use a broad prefix: undeclared future routes must fail closed for marked demo visitors. Capability, permission, workspace, validation, and module behavior remain separate authoritative checks after budget admission.
+
 Public API routes go in `publicApiRoutes` and should use API key middleware with a module-declared scope. Describe those endpoints in `publicApiEndpoints` so docs and sanity checks can discover them.
 
 ## Handle Route Failures

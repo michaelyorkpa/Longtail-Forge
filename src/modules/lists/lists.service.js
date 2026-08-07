@@ -29,6 +29,7 @@ import {
 } from "../../core/list-enrichment.js";
 import { permissionsService } from "../../core/permissions.js";
 import { AppError } from "../../core/errors.js";
+import { reserveAdditionalPublicDemoBudgetUnits } from "../../core/public-demo-budgets.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
@@ -257,6 +258,7 @@ async function duplicate(listId, payload = {}, session) {
   await assertCanAccessList(session, sourceList, "duplicate");
 
   const sourceItems = await listsRepository.listItems(session.workspace_id, sourceList.list_id);
+  await reserveAdditionalPublicDemoBudgetUnits(sourceItems.length);
   const title = normalizeOptionalText(payload.title || payload.copyTitle) || `Copy of ${sourceList.title}`;
   const duplicatedList = await normalizeListPayload({
     client_id: sourceList.client_id,

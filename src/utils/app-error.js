@@ -5,6 +5,7 @@ class AppError extends Error {
     this.statusCode = statusCode;
     this.code = options.code || "";
     this.expose = options.expose ?? statusCode < 500;
+    this.fields = Array.isArray(options.fields) ? options.fields : [];
   }
 }
 
