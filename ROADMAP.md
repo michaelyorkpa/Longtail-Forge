@@ -214,6 +214,286 @@ Acceptance criteria:
 
 - The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
+## Version 0.33.33 - TypeScript Seam Expansion
+
+**Model: High Effort** — The branch targets high-value trusted seams; identity, permissions, database access, billing, and framework-wide browser contracts can expose live behavioral drift that must be resolved with regression proof rather than suppressed.
+
+Purpose:
+
+Expand checked TypeScript-annotated JavaScript at seams Support Tickets and future modules will depend on, while preserving the 0.33.7.4 runtime and checking model. Coverage percentage is not the goal: a file earns opt-in when its contract catches meaningful drift or gives checked consumers useful guarantees.
+
+Audit evidence:
+
+- The 2026-08-06 read-only probe at 0.33.30.3 found 1,057 errors in 116 files and 206 included files already clean. A 2026-08-07 recount at the current planning baseline found 22 of 400 runtime/test JavaScript files carrying `// @ts-check`; `public/` remains 74 JavaScript files and about 53k lines outside the typecheck program.
+- The original eleven-slice draft was not session-safe. Its time-tracking slice combined four defect investigations across roughly 3,700 lines; its implementation-closure slice crossed Search, resume state, jobs, and events; its clean-file slice proposed about 200 files at once; and its client slices combined 1,700-2,100-line files with framework behavior changes.
+- The checked contracts still identify high-value drift: Search indexers destructure camelCase from a snake_case `SearchReference`, and auth/session consumers infer different shapes for the same trusted identity.
+- `--noImplicitAny` remains off because enabling it would add broad annotation work without comparable near-term contract value.
+
+Decision:
+
+- Preserve the 0.33.7.4 regime: `strict` on, `noImplicitAny` off, `checkJs` per-file opt-in, no `@ts-nocheck` or `@ts-ignore`, no runtime `.ts` imports, and no compile/build step in `npm start`. Zod remains the untrusted-edge validator.
+- Put the coverage inventory and monotonic opted-in floor first so every later slice extends one standing guardrail. Do not mass-add pragmas merely to reach a percentage target.
+- When checking exposes possible runtime drift, the owning slice reproduces the named behavior before changing it. Checker findings do not authorize unrelated cleanup or silent behavior changes.
+- Dual-cased or dual-typed shapes remain honestly represented until a separately proven runtime change removes compatibility.
+
+Delivery and sizing rule:
+
+- Every numbered slice has one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
+- A slice may type one large file, one small cohesive cluster, or adjudicate one behavior risk. It must not absorb another listed slice because nearby checker errors look convenient.
+- Dependencies: slice 1 precedes all others; slice 2 precedes slices 16-17; slice 3 precedes slices 4-7; slice 8 precedes slices 9-10; slice 11 precedes slice 12; and slice 19 precedes slices 20-21. Other slices may be reordered or deferred independently.
+
+Non-goals:
+
+- Do not flip `checkJs` or `noImplicitAny` globally, convert runtime files to `.ts`, add a runtime build step, duplicate Zod validation, weaken a runtime schema, or rewrite tests for checker satisfaction.
+- Do not pursue majority-of-files coverage or spend release ceremony on low-value clean-file counts.
+- Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. This version may introduce small checked boundary helpers that those runtimes consume; whole-file client conversion requires a separately audited client-hardening branch.
+- Do not add `scripts/` to the typecheck program.
+
+### Version 0.33.33.1 - Checked-seam inventory and monotonic ratchet
+
+**Model: Medium Effort** — This is a bounded release-gate change with no product behavior.
+
+- [ ] Recount all first-party `// @ts-check` files, reconcile `CHECKED_SEAM_FILES` with the live set, and store one reviewable inventory plus a monotonic opted-in floor.
+- [ ] Decide the nominal `tests/**/*.mjs` include explicitly; do not imply unchecked tests provide type coverage. Preserve every checking dial and escape-hatch prohibition.
+- [ ] Run the focused seam regression and fast typecheck/contract gates.
+
+Acceptance criteria:
+
+- One release gate fails if an opted-in seam disappears or a checking dial weakens, without forcing unrelated clean files into the program.
+
+### Version 0.33.33.2 - HTTP identity contract and authentication middleware
+
+**Model: High Effort** — This types the trusted identity behind authentication and permission decisions, including Support View impersonation.
+
+- [ ] Author `src/types/http-contracts.d.ts` with distinct request-session, API-session, Support View, permission-resource, rotation, and invalidation shapes plus Express request augmentation.
+- [ ] Opt in `src/security/sessions.js`, both auth middleware files, and `support-view-request-gate.js`; reconcile `password_change_required` and `session_mode` shapes without changing behavior.
+- [ ] Include `src/utils/http.js` and `src/utils/app-error.js` only where the request contract requires them; extend the inventory and run auth/session regressions plus the permission harness.
+
+Acceptance criteria:
+
+- One identity contract covers both authentication modes and Support View with unchanged runtime behavior and green permission proof.
+
+### Version 0.33.33.3 - Canonical record normalizers and timezone math
+
+**Model: High Effort** — The small utility layer defines shared record shapes and DST-sensitive arithmetic.
+
+- [ ] Type `src/utils/normalizers.js` with an authoritative `TimeEntry` typedef that honestly preserves current string durations and tri-state billable values; make numeric coercions explicit.
+- [ ] Type `src/utils/timezones.js` with accepted input unions, an `edge` literal union, and null-safe ISO conversion. Prove whether empty `normalizeUtcIso` input intentionally means now before changing it.
+- [ ] Extend the inventory and run utility/timezone contract tests.
+
+Acceptance criteria:
+
+- Consumers have one honest typed time-entry shape and timezone utilities retain proven DST and invalid-input behavior.
+
+### Version 0.33.33.4 - Time-entry duration persistence and public API ingress
+
+**Model: High Effort** — This is one revenue-relevant write seam and one suspected duration defect.
+
+- [ ] Opt in Time Tracking's `time-entries.service.js`, `time-entries.repo.js`, and `public-api.service.js` against the slice-3 contract.
+- [ ] Reproduce whether a public-API entry supplying only `duration_hours` bills as zero because downstream code reads only `duration_seconds`; fix only the confirmed normalization/persistence defect.
+- [ ] Extend the inventory and run focused public-API and persistence regressions; billing periods, sourced entries, and timers remain out of scope.
+
+Acceptance criteria:
+
+- Public API and persistence agree on one duration representation, with the named defect proven fixed or disproven.
+
+### Version 0.33.33.5 - Sourced time-entry and task-timer bridge
+
+**Model: High Effort** — This cross-module seam can silently change billable meaning.
+
+- [ ] Opt in `src/modules/tasks/task-timers.service.js` and the Time Tracking `saveSourced` path against the canonical entry contract and public module boundary.
+- [ ] Reproduce whether sourced saves bypass the edge contract or collapse `billable: false` to `"yes"`; fix only the confirmed bridge/service defect.
+- [ ] Extend the inventory and run focused Tasks/Time Tracking bridge regressions.
+
+Acceptance criteria:
+
+- Sourced entries preserve duration and billable intent without a new internal cross-module dependency.
+
+### Version 0.33.33.6 - Active timer duration consistency
+
+**Model: High Effort** — Timer start/stop persistence is one data-integrity seam with one named contradiction risk.
+
+- [ ] Opt in `active-timers.service.js` and `active-timers.repo.js` against canonical timer/entry contracts.
+- [ ] Reproduce whether finalization clamps missing seconds to one while retaining client-supplied hours; fix the confirmed canonicalization boundary only.
+- [ ] Extend the inventory and run focused active-timer and duration regressions.
+
+Acceptance criteria:
+
+- Finalized timers cannot persist contradictory duration fields, with other lifecycle behavior unchanged.
+
+### Version 0.33.33.7 - Billing period and dashboard time boundaries
+
+**Model: High Effort** — This isolates the revenue-calculation and timezone boundary.
+
+- [ ] Opt in `time-tracking-billing.service.js` and `time-tracking-dashboard.service.js` against canonical entry/timezone contracts.
+- [ ] Reproduce whether period boundaries use server-local time while entries are UTC; choose and document one authoritative timezone source before fixing a confirmed defect.
+- [ ] Extend the inventory and run billing/dashboard calculations across UTC and DST boundaries.
+
+Acceptance criteria:
+
+- Billing and dashboard periods use one documented timezone contract and produce regression-backed totals.
+
+### Version 0.33.33.8 - Database adapter and transaction-client contract
+
+**Model: High Effort** — The adapter distinction is a database-integrity contract and includes only its direct injected-client proofs.
+
+- [ ] Define distinct `DatabaseAdapter` and `TransactionClient` types; opt in the SQLite adapter, provider, driver facade, and SQL literals while representing nullable module state.
+- [ ] Type injected database parameters in `authentication-throttle.repo.js`, `private-feed-tokens.repo.js`, and `account-export-recovery.repo.js`; fix only misuse the type split proves.
+- [ ] Extend the inventory and run adapter, transaction, and affected repository regressions.
+
+Acceptance criteria:
+
+- Nested transaction misuse is a compile-time failure across the driver and injected repositories, with SQLite behavior unchanged.
+
+### Version 0.33.33.9 - Dialect seams and parameter bindings
+
+**Model: High Effort** — These helpers shape every query and require exact discriminated unions.
+
+- [ ] Type `sqlite-dialect-seams.js` with explicit builder option bags, the current row-ID union, and paired types for boolean field transforms.
+- [ ] Type `parameter-bindings.js` as scalar/array discriminated unions so consumers cannot read the wrong placeholder property.
+- [ ] Extend the inventory and run dialect/binding regressions; high-fan-in repositories remain slice 10.
+
+Acceptance criteria:
+
+- Malformed options and placeholder misuse fail typecheck while generated SQL and values remain equivalent.
+
+### Version 0.33.33 slice 10 - High-fan-in repository signatures
+
+**Model: High Effort** — Users, workspaces, and settings are broad data and permission dependencies.
+
+- [ ] Opt in `settings.repo.js`, `users.repo.js`, and `workspaces.repo.js` against settled database contracts.
+- [ ] Resolve signatures and nullable row results without changing queries, lifecycle, or permissions; extend the inventory and run focused repository/database regressions.
+
+Acceptance criteria:
+
+- The three widest repositories expose checked methods and result nullability with no runtime query change.
+
+### Version 0.33.33 slice 11 - Bundled module manifest declarations
+
+**Model: Medium Effort** — Eight small declaration files share one already-validated contract.
+
+- [ ] Opt in all eight `src/modules/*/module.js` files against `ModuleManifest`; fix declaration drift only.
+- [ ] Extend the inventory and run module catalog and manifest guardrails.
+
+Acceptance criteria:
+
+- Every bundled manifest fails the fast gate on structural drift before runtime validation.
+
+### Version 0.33.33 slice 12 - Module registry service fan-out
+
+**Model: High Effort** — The roughly 1,600-line module service is framework-wide and earns its own session.
+
+- [ ] Opt in `src/core/modules/modules.service.js` with types derived from `ModuleManifest` and catalog projections.
+- [ ] Preserve permission filtering, enablement, ordering, caching, and envelopes; extend the inventory and run module catalog/permission regressions.
+
+Acceptance criteria:
+
+- The widest registry consumer typechecks while its public catalog behavior remains unchanged.
+
+### Version 0.33.33 slice 13 - Search reference contract and indexers
+
+**Model: High Effort** — The audit found a concrete casing disagreement at a recovery seam.
+
+- [ ] Prove live Search reference payload casing before aligning `SearchReference` and first-party module/Help indexers.
+- [ ] Preserve intentional compatibility only where callers require it; extend the inventory and run indexing/rebuild regressions.
+
+Acceptance criteria:
+
+- Every first-party indexer consumes one proven shape without losing indexed records.
+
+### Version 0.33.33 slice 14 - Work Resume State implementation closure
+
+**Model: Medium Effort** — Two files close one otherwise-typed recovery chain.
+
+- [ ] Opt in `work-resume-state-initial-producers.js` and `work-resume-state-read-checks.js` against existing contracts.
+- [ ] Preserve registration, permission pruning, unavailable states, ranking, and payloads; extend the inventory and run focused coverage.
+
+Acceptance criteria:
+
+- The first-party resume-state chain is checked without changing recovery behavior or ownership.
+
+### Version 0.33.33 slice 15 - Jobs and event-summary implementation closure
+
+**Model: High Effort** — These related infrastructure contracts are bounded to existing implementations.
+
+- [ ] Opt in the job queue, runner, and handlers against existing job types; opt in `event-summaries.js` against event payload contracts.
+- [ ] Add no workflow, retry, notification, or event behavior; preserve redaction and fallbacks. Extend the inventory and run jobs/events/notifications regressions.
+
+Acceptance criteria:
+
+- Existing job and event-summary implementations typecheck with execution, retry, and redaction unchanged.
+
+### Version 0.33.33 slice 16 - Authentication and API-key services
+
+**Model: High Effort** — Credential/session issuance is isolated from permission-resource work.
+
+- [ ] Opt in `auth.service.js` and `api-keys.service.js` against slice-2 identity types.
+- [ ] Resolve null flows and audit shapes without changing generic errors, hashing, throttling, rotation, scopes, or demo protections. Extend the inventory and run focused security regressions.
+
+Acceptance criteria:
+
+- Both services typecheck without weakening credential, enumeration, or session semantics.
+
+### Version 0.33.33 slice 17 - Permission resources and route call sites
+
+**Model: High Effort** — Permission scoping is a separate security boundary with a large service.
+
+- [ ] Opt in `permissions.service.js` against `PermissionResource`, requiring the workspace scope the runtime contract needs.
+- [ ] Type only audit/Search/Search-index resource construction needed to prove the contract; preserve roles, Support View intersection, module enablement, hidden resources, and errors.
+- [ ] Extend the inventory; run the permission harness and focused route regressions.
+
+Acceptance criteria:
+
+- Missing workspace scope is a compile error and all existing allowed/denied decisions remain green.
+
+### Version 0.33.33 slice 18 - Bounded server clean-file rollout
+
+**Model: High Effort** — Mechanical rollout is useful only when its size and ownership are reviewable.
+
+- [ ] From slice 1, select at most 40 already-clean server files from one coherent ownership tier, excluding every file named by another slice.
+- [ ] Commit the exact path list before adding pragmas; defer any file with non-trivial fallout rather than turning this into behavior work.
+- [ ] Extend the inventory and run the full fast check plus the changed-area plan.
+
+Acceptance criteria:
+
+- One explicit server ownership cluster gains coverage in a bounded session; no percentage target forces unrelated edits.
+
+### Version 0.33.33 slice 19 - Browser typecheck program and shared utilities
+
+**Model: High Effort** — A new browser program is shared build-time infrastructure, but the first utility tier is intentionally small.
+
+- [ ] Add `tsconfig.public.json` with browser libraries and settled opt-in dials, wire it into typecheck, and reuse framework contract types.
+- [ ] Opt in `api-client.js`, `error-contract.js`, `records.js`, `formatters.js`, `cached-fetch.js`, and `page-controller.js` with one shared error-envelope owner.
+- [ ] Extend the inventory and run shared-browser utility and framework-view regressions.
+
+Acceptance criteria:
+
+- The small shared browser tier typechecks against one contract vocabulary with runtime load order unchanged.
+
+### Version 0.33.33 slice 20 - App-shell bootstrap boundary adapter
+
+**Model: High Effort** — The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
+
+- [ ] Author `AppShellBootstrap` at the producing service and add one small checked browser bootstrap adapter/normalizer that accepts `unknown` and exposes the safe current envelope to navigation.
+- [ ] Route `public/js/navigation.js` through that adapter without opting the whole navigation file into checking or refactoring unrelated navigation behavior.
+- [ ] Preserve safe defaults, workspace switching, module visibility, caching, responsive navigation, and script load order; extend the inventory and run app-shell/browser regressions.
+
+Acceptance criteria:
+
+- Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
+
+### Version 0.33.33 slice 21 - Descriptor-declared response record adapter
+
+**Model: High Effort** — One extracted checked helper can replace response-key guessing without attempting whole-file conversion of either 2,000-line declarative runtime.
+
+- [ ] Add `dataSource.recordsKey` to `ViewSurfaceDescriptor` and extract the renderer's record-envelope selection into one small checked helper that prefers the declared key and retains a measured compatibility fallback.
+- [ ] Route `view-renderer.js` through the helper without opting the full renderer or builder into checking; inventory every bundled declarative list and declare its real envelope key.
+- [ ] Add a guardrail against new descriptor-backed key guessing and prove list results, empty/error states, selection, paging, and permissions across bundled surfaces.
+- [ ] Extend the inventory and run the full views area plus rendered browser smoke.
+
+Acceptance criteria:
+
+- Bundled declarative views read records through one checked declared-key boundary, with compatibility explicit and the giant renderer/builder conversions safely deferred.
 ## Version 0.34 - Support Tickets Module
 
 **Model: High Effort** — Tickets is a committed cross-module workflow with schema, permission, client-visibility, Files, API, and public-intake risk.
