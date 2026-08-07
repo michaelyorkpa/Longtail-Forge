@@ -195,6 +195,15 @@ try {
   assert.equal(loginPage.headers["referrer-policy"], "strict-origin-when-cross-origin");
   assert.match(loginPage.headers["permissions-policy"], /camera=\(\)/);
 
+  const oversized = await sendHttpsRequest({
+    body: { value: "x".repeat(8 * 1024 * 1024) },
+    method: "POST",
+    pathName: "/api/login",
+    proxyPort,
+  });
+  assertMaintenanceCurtain(oversized);
+  assert.match(oversized.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+
   const csrf = await sendHttpsRequest({ headers: forgedHeaders, pathName: "/api/csrf-token", proxyPort });
   assert.equal(csrf.status, 200);
   const csrfToken = csrf.body.csrfToken;
@@ -454,6 +463,17 @@ try {
     logRecords.some((record) => record.event === "http.request.completed" && record.requestId === health.headers["x-request-id"]),
     "the public response request ID should correlate to a production completion record",
   );
+  const caddyAccessRecords = readJsonRecords(caddyOutput)
+    .filter((record) => record.request_id && record.request);
+  const healthEdgeRecord = caddyAccessRecords.find((record) => record.request_id === health.headers["x-request-id"]);
+  assert.ok(healthEdgeRecord, "the Caddy access record should share the public response request ID");
+  assert.equal(healthEdgeRecord.request.uri, "REDACTED", "edge access evidence must omit request paths and query values");
+  assert.equal(healthEdgeRecord.request.headers, undefined, "edge access evidence must omit submitted headers and cookies");
+  assert.equal(JSON.stringify(caddyAccessRecords).includes(sessionCookie.pair.split("=")[1]), false, "edge access evidence must omit raw session cookies");
+  assert.ok(
+    caddyAccessRecords.some((record) => record.request_id === oversized.headers["x-request-id"] && record.status === 503),
+    "the edge body rejection should remain correlated in redacted access evidence",
+  );
 
   console.log(JSON.stringify({
     appVersion: appInfo.body.version,
@@ -575,6 +595,7 @@ function createLocalCaddyfile({
     assetRoot: maintenanceAssetRoot,
     stateRoot: maintenanceStateRoot,
   });
+  const perimeterDirectives = createPerimeterDirectives();
   if (selectedTopology === "multi-proxy") {
     return `{
 \tadmin off
@@ -596,12 +617,14 @@ http://localhost:${innerPort} {
 \t@not_public_edge not remote_ip 127.0.0.1/32 ::1/128
 \trespond @not_public_edge 403
 
+${perimeterDirectives}
 \t@longtail_diagnostic path /healthz /readyz /api/app-info
 \thandle @longtail_diagnostic {
 \t\treverse_proxy 127.0.0.1:${upstreamPort} {
 \t\t\theader_up X-Forwarded-For {client_ip}
 \t\t\theader_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
 \t\t\theader_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+\t\t\theader_up X-Request-ID {http.request.uuid}
 \t\t}
 \t}
 
@@ -618,11 +641,11 @@ http://localhost:${innerPort} {
 \t\t\theader_up X-Forwarded-For {client_ip}
 \t\t\theader_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
 \t\t\theader_up X-Forwarded-Host {http.request.header.X-Forwarded-Host}
+\t\t\theader_up X-Request-ID {http.request.uuid}
 \t\t}
 \t}
 
-\thandle_errors {
-\t\t@longtail_diagnostic_failure path /healthz /readyz /api/app-info
+\thandle_errors {\n\t\t@longtail_diagnostic_failure path /healthz /readyz /api/app-info
 \t\thandle @longtail_diagnostic_failure {
 \t\t\timport longtail_unavailable_diagnostic
 \t\t}
@@ -645,9 +668,10 @@ ${maintenanceSnippets}
 https://localhost:${tlsPort} {
 \ttls internal
 
+${perimeterDirectives}
 \t@longtail_diagnostic path /healthz /readyz /api/app-info
 \thandle @longtail_diagnostic {
-\t\treverse_proxy 127.0.0.1:${upstreamPort}
+\t\treverse_proxy 127.0.0.1:${upstreamPort} {\n\t\t\theader_up X-Request-ID {http.request.uuid}\n\t\t}
 \t}
 
 \t@longtail_maintenance_active file {
@@ -659,11 +683,10 @@ https://localhost:${tlsPort} {
 \t}
 
 \thandle {
-\t\treverse_proxy 127.0.0.1:${upstreamPort}
+\t\treverse_proxy 127.0.0.1:${upstreamPort} {\n\t\t\theader_up X-Request-ID {http.request.uuid}\n\t\t}
 \t}
 
-\thandle_errors {
-\t\t@longtail_diagnostic_failure path /healthz /readyz /api/app-info
+\thandle_errors {\n\t\t@longtail_diagnostic_failure path /healthz /readyz /api/app-info
 \t\thandle @longtail_diagnostic_failure {
 \t\t\timport longtail_unavailable_diagnostic
 \t\t}
@@ -672,6 +695,25 @@ https://localhost:${tlsPort} {
 \t\t}
 \t}
 }
+`;
+}
+
+function createPerimeterDirectives() {
+  return `\tlog {
+\t\toutput stderr
+\t\tformat filter {
+\t\t\trequest>uri replace REDACTED
+\t\t\trequest>headers delete
+\t\t\tresp_headers>Set-Cookie delete
+\t\t\trequest>remote_ip ip_mask 24 56
+\t\t\trequest>client_ip ip_mask 24 56
+\t\t\twrap json
+\t\t}
+\t}
+\tlog_append request_id {http.request.uuid}
+\trequest_body {
+\t\tmax_size 8MB
+\t}
 `;
 }
 
@@ -688,6 +730,7 @@ function createMaintenanceSnippets({ assetRoot, stateRoot }) {
 \t\tStrict-Transport-Security "max-age=300"
 \t\tX-Content-Type-Options "nosniff"
 \t\tX-Frame-Options "DENY"
+\t\tX-Request-ID {http.request.uuid}
 \t}
 \trewrite * /maintenance.html
 \tfile_server {
@@ -703,6 +746,7 @@ function createMaintenanceSnippets({ assetRoot, stateRoot }) {
 \t\tRetry-After "60"
 \t\tStrict-Transport-Security "max-age=300"
 \t\tX-Content-Type-Options "nosniff"
+\t\tX-Request-ID {http.request.uuid}
 \t}
 \trespond \`{"status":"unavailable"}\` 503
 }`;
@@ -809,6 +853,16 @@ function captureOutput(child, target) {
     stream.setEncoding("utf8");
     stream.on("data", (chunk) => target.push(chunk));
   }
+}
+
+function readJsonRecords(chunks) {
+  return chunks.join("").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+    try {
+      return [JSON.parse(line)];
+    } catch {
+      return [];
+    }
+  });
 }
 
 function assertProductionJsonLogs(chunks, secrets) {

@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 443,
+    "discoveredScripts": 444,
     "legacyScripts": 309,
     "releaseGateScripts": 66,
     "areaCounts": {
@@ -11,7 +11,7 @@
       "database": 42,
       "docs": 10,
       "files": 44,
-      "framework": 78,
+      "framework": 79,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -28,13 +28,13 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 204,
+      "focused": 205,
       "integration": 165,
       "release-gate": 66,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 185,
+      "isolated-database": 186,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 224
@@ -3280,6 +3280,24 @@
         "users"
       ],
       "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves demo-only global/client/mutation/search limits, NAT fairness, recovery, bounded bodies, trusted edge correlation, generic responses, and redacted evidence.",
+      "id": "framework.public-demo-perimeter",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "baseline-bypass",
+        "public-demo",
+        "rate-limit",
+        "security",
+        "trusted-proxy"
+      ],
+      "tier": "focused"
     },
     {
       "area": "framework",

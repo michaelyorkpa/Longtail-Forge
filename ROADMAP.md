@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.10`.
+Active cursor: `0.33.31.11`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.10 - Public perimeter throttling and correlated security evidence
-
-**Model: High Effort** — Public shared credentials require limits that coordinate trusted client identity, account contention, edge behavior, and safe diagnostics.
-
-- [ ] Record the bounded shared-demo threat model for credential stuffing, account contention, request/mutation floods, expensive reads/search, reset interference, and disk/database pressure; use one reproducible smoke/load probe to select reviewable limits and alert thresholds.
-- [ ] Retain database-backed authentication throttling and add measured Caddy/application request and mutation limits with exact trusted-proxy semantics, NAT/shared-IP fairness, generic non-enumerating `429` responses, bounded request bodies before expensive parsing, and no hostname-based bypass.
-- [ ] Correlate edge, application, authentication, capability-denial, and reset events through safe request/operation references with documented retention and incident-response steps. Do not log shared passwords, submitted content, raw sessions, or analytics identifiers.
-- [ ] Add focused edge/application/load regressions for threshold behavior, recovery windows, parallel shared-account use, malformed/oversized requests, spoofed forwarding headers, diagnostic truth, redaction, and unchanged non-demo defaults.
-
-Acceptance criteria:
-
-- Measured perimeter controls bound authentication and request abuse without turning ordinary shared/NAT use into an avoidable lockout, and operators receive correlated secret-free evidence.
 
 ### Version 0.33.31.11 - Server-side demo growth, input, and query budgets
 

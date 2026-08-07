@@ -20,18 +20,31 @@ function getRequestContext(request) {
   );
   const protocol = normalizeText(request.protocol).toLowerCase() || "http";
   const hostname = normalizeText(request.hostname);
+  const upstreamRequestId = trustedUpstreamRequestId(request, socketPeerAddress);
   const context = Object.freeze({
     hostname,
     ipAddress: normalizeText(request.ip) || socketPeerAddress,
     isSecure: protocol === "https",
     origin: resolveRequestOrigin(request, protocol, hostname),
     protocol,
-    requestId: createOpaqueId(),
+    requestId: upstreamRequestId || createOpaqueId(),
     socketPeerAddress,
   });
 
   request.requestContext = context;
   return context;
+}
+
+function trustedUpstreamRequestId(request, socketPeerAddress) {
+  const trustProxy = request.app?.get?.("trust proxy fn");
+  if (typeof trustProxy !== "function" || !trustProxy(socketPeerAddress, 0)) {
+    return "";
+  }
+
+  const candidate = normalizeText(request.get?.("x-request-id") || request.headers?.["x-request-id"]);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)
+    ? candidate.toLowerCase()
+    : "";
 }
 
 function resolveRequestOrigin(request, protocol, hostname) {

@@ -14,6 +14,7 @@
 		Strict-Transport-Security "max-age=300"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
+		X-Request-ID {http.request.uuid}
 	}
 	rewrite * /maintenance.html
 	file_server {
@@ -29,17 +30,39 @@
 		Retry-After "60"
 		Strict-Transport-Security "max-age=300"
 		X-Content-Type-Options "nosniff"
+		X-Request-ID {http.request.uuid}
 	}
 	respond `{"status":"unavailable"}` 503
 }
 
 {$LONGTAIL_PUBLIC_HOST} {
+	# Keep edge evidence bounded and secret-free. Paths and headers are omitted;
+	# request_id is the only cross-layer lookup key.
+	log {
+		format filter {
+			request>uri replace REDACTED
+			request>headers delete
+			resp_headers>Set-Cookie delete
+			request>remote_ip ip_mask 24 56
+			request>client_ip ip_mask 24 56
+			wrap json
+		}
+	}
+	log_append request_id {http.request.uuid}
+
+	# Stock Caddy rejects oversized bodies before proxying them to Node. The
+	# public-demo application applies its tighter 128 KiB declaration ceiling.
+	request_body {
+		max_size 8MB
+	}
 	# Probes and release identity always reach Node, even while a maintenance
 	# marker exists. A stopped Node process therefore returns generic non-200
 	# JSON for these exact paths instead of a false healthy or branded response.
 	@longtail_diagnostic path /healthz /readyz /api/app-info
 	handle @longtail_diagnostic {
-		reverse_proxy 127.0.0.1:8001
+		reverse_proxy 127.0.0.1:8001 {
+			header_up X-Request-ID {http.request.uuid}
+		}
 	}
 
 	# Checking marker existence on every request makes on/off effective without
@@ -56,11 +79,14 @@
 	# Keep Caddy's default X-Forwarded-* behavior. It ignores incoming values
 	# from an untrusted direct client and derives the values supplied upstream.
 	handle {
-		reverse_proxy 127.0.0.1:8001
+		reverse_proxy 127.0.0.1:8001 {
+			header_up X-Request-ID {http.request.uuid}
+		}
 	}
 
 	# A connection-level upstream failure invokes this error route. Application
 	# HTTP responses, including a real /readyz 503, pass through unchanged.
+
 	handle_errors {
 		@longtail_diagnostic_failure path /healthz /readyz /api/app-info
 		handle @longtail_diagnostic_failure {

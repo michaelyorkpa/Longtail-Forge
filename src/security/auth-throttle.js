@@ -204,6 +204,7 @@ async function emitAuthenticationThrottleLockout(context = {}, result = {}) {
       attempted_username: normalizeUsername(context.username),
       client_ip: normalizeIpAddress(context.ipAddress),
       dimensions: [...result.newlyLockedDimensions],
+      request_id: normalizeText(context.requestId),
       scope: normalizeScope(context.scope),
     },
   });

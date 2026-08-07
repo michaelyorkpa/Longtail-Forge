@@ -19,6 +19,7 @@
     "scripts/regressions/framework/password-hashing-modernization.regression.mjs",
     "scripts/regressions/framework/password-reset-hardening.regression.mjs",
     "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs",
+    "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
     "scripts/regressions/framework/remembered-sessions.regression.mjs",
     "scripts/regressions/framework/security-event-logging.regression.mjs",
     "scripts/regressions/framework/session-revocation.regression.mjs",

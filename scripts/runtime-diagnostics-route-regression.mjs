@@ -86,6 +86,15 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.deepEqual(diagnostics.features.publicDemo, {
     capabilities: [],
     enabled: false,
+    perimeter: {
+      clientRequestLimit: 600,
+      enabled: false,
+      globalRequestLimit: 2400,
+      maxBodyBytes: 128 * 1024,
+      mutationLimit: 120,
+      searchLimit: 60,
+      windowSeconds: 60,
+    },
     profile: "standard",
   });
   assert.deepEqual(diagnostics.features.supportView, { enabled: false });
