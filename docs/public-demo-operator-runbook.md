@@ -39,8 +39,9 @@ The canonical classifications and environment contract are in
    service/timer, and scheduler environment from the same immutable release.
    Follow [Demo Data Operations](demo-data-operations.md) for root ownership,
    modes, locations, and the separately protected role-credential document.
-3. Create only the named external internal IPv4 bridge and data volume from the
-   redacted profile. Install and prove the reviewed ClamAV gateway handoff.
+3. Create only the named external non-masquerading IPv4 bridge and data volume
+   from the redacted profile. Install and prove the reviewed stateful firewall,
+   loopback publication, and ClamAV gateway handoff.
 4. Install the host-only scheduler disabled, run candidate build/validation,
    isolation enforcement, guarded Compose deployment, representative-role
    proof, and one manual reset. Enable the timer only after all evidence passes.

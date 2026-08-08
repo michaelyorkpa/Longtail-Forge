@@ -1,3 +1,11 @@
+## Version 0.33.31.14.3 - 2026-08-08
+
+- Corrected the live public-demo bridge contract after Docker Engine 29 proved that an external network created with the internal flag records but does not realize the required loopback port publication.
+- Kept outbound denial fail closed with a dedicated non-masquerading bridge and a first-position forwarding chain that permits only established/related return traffic for Caddy's `127.0.0.1:8001` request path, then rejects every new forwarded connection; the separate host-input chain still permits only the reviewed ClamAV gateway/port.
+- Extended the isolation helper to require the realized loopback binding as live container state, retain sole-peer/storage/runtime checks, and continue proving failed DNS, undeclared host-service, and public-network connection attempts.
+- Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/public-demo-operator-runbook.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, reset semantics, and application configuration are unchanged; this is the contained infrastructure correction needed by the still-active 0.33.31.15 live gate.
+
 ## Version 0.33.31.14.2 - 2026-08-08
 
 - Added an exact-demo-only, idempotent ownership handoff for the mounted Compose data root after the application stops and before backup access, fixing first-cutover SQLite WAL/SHM creation on a newly created root-owned Docker volume.
