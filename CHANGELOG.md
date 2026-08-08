@@ -1,3 +1,11 @@
+## Version 0.33.31.14.5 - 2026-08-08
+
+- Corrected routed Files downloads for Client- and Project-scoped roles by carrying the already-readable attachment's scope into the `files.download` authorization check instead of rechecking the permission with workspace-only context.
+- Kept download lifecycle and audit attribution bound to that same readable attachment, avoiding unrelated attachment context when one stored file has multiple links.
+- Extended the exact six-role public-demo journey to require seeded attachment listing, preview descriptor/content, and permission-routed download for every visitor role.
+- Docs updated: `docs/runtime-configuration.md`.
+- No docs change needed: role definitions, permissions, Files ingress denial, schema/migrations, reset semantics, deployment topology, and ordinary attachment visibility are unchanged; this is the live-gate correction for an existing scoped permission.
+
 ## Version 0.33.31.14.4 - 2026-08-08
 
 - Completed the live loopback/isolation correction by permitting established/related return traffic in the first-position host-input chain as well as forwarding, while retaining the ClamAV-only new host-input exception and denying every new forwarded connection.

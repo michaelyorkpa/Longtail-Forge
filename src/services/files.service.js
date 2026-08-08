@@ -897,7 +897,7 @@ async function readFileForSession(session, fileId) {
   }
 
   const attachments = await readActiveAttachmentsForFile(session.workspace_id, file.file_id);
-  if (attachments.length > 0 && !(await canReadAnyAttachment(session, attachments))) {
+  if (attachments.length > 0 && !(await findReadableAttachment(session, attachments))) {
     throw new AppError("You do not have permission to view that file.", 403);
   }
 
@@ -922,11 +922,14 @@ async function downloadFile(session, fileId) {
   }
 
   const attachments = await readActiveAttachmentsForFile(session.workspace_id, file.file_id);
-  if (attachments.length === 0 || !(await canReadAnyAttachment(session, attachments))) {
+  const readableAttachment = await findReadableAttachment(session, attachments);
+  if (!readableAttachment) {
     throw new AppError("You do not have permission to download that file.", 403);
   }
 
   await permissionsService.assertCan(session, "files.download", {
+    client_id: readableAttachment.client_id || "",
+    project_id: readableAttachment.project_id || "",
     workspace_id: session.workspace_id,
     operation: "download",
   });
@@ -936,9 +939,9 @@ async function downloadFile(session, fileId) {
   await emitFileLifecycleEvent("file.downloaded", {
     session,
     fileId: file.file_id,
-    moduleId: attachments[0].module_id,
-    targetId: attachments[0].target_id,
-    targetType: attachments[0].target_type,
+    moduleId: readableAttachment.module_id,
+    targetId: readableAttachment.target_id,
+    targetType: readableAttachment.target_type,
     status: file.status,
     scanStatus: file.scan_status,
   });
@@ -948,9 +951,9 @@ async function downloadFile(session, fileId) {
     recordId: file.file_id,
     recordLabel: file.display_name,
     metadata: {
-      attachment_id: attachments[0].file_attachment_id,
-      target_id: attachments[0].target_id,
-      target_type: attachments[0].target_type,
+      attachment_id: readableAttachment.file_attachment_id,
+      target_id: readableAttachment.target_id,
+      target_type: readableAttachment.target_type,
     },
   });
 
@@ -3020,14 +3023,18 @@ WHERE file_attachments.workspace_id = :workspaceId
   });
 }
 
-async function canReadAnyAttachment(session, attachments) {
+async function findReadableAttachment(session, attachments) {
   for (const attachment of attachments) {
     if (await canReadAttachment(session, attachment)) {
-      return true;
+      return attachment;
     }
   }
 
-  return false;
+  return null;
+}
+
+async function canReadAnyAttachment(session, attachments) {
+  return Boolean(await findReadableAttachment(session, attachments));
 }
 
 async function canReadAttachment(session, attachment) {
