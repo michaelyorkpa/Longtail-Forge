@@ -121,6 +121,13 @@ and recovery invocation adds only `CAP_DAC_OVERRIDE` to inspect and move that
 UID-owned `0700` tree atomically. Backup and the application remain
 capability-free, and the helper never uses privileged containers.
 
+Before the backup container opens SQLite, the deploy helper stops the current
+application and, only for the exact demo profile, uses one ephemeral root
+container with `CAP_CHOWN` and `CAP_DAC_OVERRIDE` to make the mounted data root
+itself UID/GID 10001 mode `0700`. It first reclaims root ownership, applies the
+mode, then transfers ownership so `CAP_FOWNER` is unnecessary. This idempotent
+initial-volume handoff is not run for ordinary Compose installations.
+
 1. Revalidates root ownership, exact target/origin/profile, recorded current release environment, Compose data paths, protected role document, maintenance marker boundary, and optional recovery-key material. An overlapping Compose deploy, rollback, backup, manual reset, or later scheduled reset is refused before mutation.
 2. Uses a root-run one-off container from the recorded immutable release to build and fully validate a fresh inactive candidate. Existing or partial candidate state remains a hard refusal.
 3. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running.
