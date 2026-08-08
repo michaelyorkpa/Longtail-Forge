@@ -1,3 +1,13 @@
+## Version 0.33.31.13 - 2026-08-08
+
+- Expanded the public-demo capability catalog with explicit disabled/absent analytics, feedback, integration, interest-capture, email, webhook, and arbitrary URL-fetch families; direct request and registered-job boundaries return the existing safe denial while current server transports remain absent.
+- Added a demo-only runtime environment allowlist that rejects future undeclared application settings, unsafe overrides, S3 configuration, and known external-provider variables without changing normal development or self-hosted configuration.
+- Added a root-owned exact-demo isolation helper that requires the dedicated internal IPv4 Docker network, loopback-only resolver, and data volume, installs a ClamAV-only host exception plus default-deny input/forwarding policy, and proves the application is the sole peer with no DNS, host, or public egress.
+- Bound deploy and hourly reset success to repeatable environment, network, scanner, database/Files/backup mount, read-only root, disabled unattended restart, and bounded local-log proof; included the helper as an immutable LF-normalized release asset.
+- Added `release.public-demo-isolation`, expanded `framework.public-demo-capability-enforcement`, and extended runtime/capability unit coverage for catalog, direct-request, worker/job, network-policy, environment-leakage, absent-transport, and non-demo compatibility contracts.
+- Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/longtail-forge-compose-deploy-helper.env.example`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, module workflows, permissions, public API behavior, database schema, reset scheduling, and visitor-facing UI are unchanged; this slice closes the exact-demo application/infrastructure isolation boundary.
+
 ## Version 0.33.31.12 - 2026-08-07
 
 - Proved a Workspace Administrator writer to Project Administrator reader journey across Tasks, Lists, and Notes, including stored markup-shaped plain text, malformed Markdown/HTML, dangerous links, server-rendered previews, CSP directives, safe errors, and SQLite integrity.

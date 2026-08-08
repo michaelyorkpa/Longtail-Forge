@@ -310,6 +310,23 @@ describe("runtime configuration pure contract", () => {
     assert.equal(demo.demoProfile, "public_demo");
   });
 
+  it("rejects undeclared runtime settings and external-provider environment in public-demo mode only", () => {
+    for (const leakedEnvironment of [
+      { LONGTAIL_FUTURE_OUTBOUND_URL: "https://internal.example.test" },
+      { LONGTAIL_S3_ACCESS_KEY_ID: "customer-key" },
+      { LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING: "true" },
+      { POSTHOG_API_KEY: "analytics-key" },
+      { SMTP_HOST: "smtp.example.test" },
+      { WEBHOOK_SECRET: "webhook-secret" },
+    ]) {
+      assert.throws(
+        () => createConfig({ ...SAFE_PUBLIC_DEMO_ENV, ...leakedEnvironment }),
+        /only the reviewed public-demo runtime environment/,
+      );
+      assert.doesNotThrow(() => createConfig(leakedEnvironment));
+    }
+  });
+
   it("ignores the retired SQLite command and accepts every scanner mode", () => {
     const legacySqliteCommand = readPureConfig({ SQLITE_COMMAND: "sqlite3-command-should-be-ignored" });
     assert.equal(legacySqliteCommand.databaseProvider, "sqlite", "legacy SQLITE_COMMAND should not affect config creation");

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
-readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
 
 fail() {
   printf 'longtail-forge-compose-deploy: %s\n' "$*" >&2
@@ -69,6 +69,7 @@ DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"
 PUBLIC_URL="${LTF_PUBLIC_URL:-}"
 IMAGE_REPOSITORY="${LTF_IMAGE_REPOSITORY:-}"
 SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+PUBLIC_DEMO_ISOLATION_HELPER="${LTF_PUBLIC_DEMO_ISOLATION_HELPER:-/usr/local/sbin/longtail-forge-public-demo-isolation}"
 CURRENT_STATE="$STATE_ROOT/current.json"
 PREVIOUS_STATE="$STATE_ROOT/previous.json"
 
@@ -78,7 +79,8 @@ for pair in \
   "$COMPOSE_HOST_ENV:compose host environment" \
   "$DEPLOY_ROOT:deployment root" \
   "$BACKUP_ROOT:backup root" \
-  "$MAINTENANCE_STATE_ROOT:maintenance state root"; do
+  "$MAINTENANCE_STATE_ROOT:maintenance state root" \
+  "$PUBLIC_DEMO_ISOLATION_HELPER:public-demo isolation helper"; do
   require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
 done
 [[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
@@ -320,6 +322,23 @@ verify_candidate_scanner() {
     ' || fail "candidate container could not reach the reviewed host ClamAV handoff"
 }
 
+public_demo_isolation() {
+  local mode="$1" release_env="$2" container="${3:-}" demo_mode scanner_host scanner_port network volume
+  demo_mode="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.DEMO_MODE')"
+  test "$demo_mode" = 'true' || return 0
+  test "$PUBLIC_URL" = 'https://demo.longtailforge.com' || fail 'public-demo isolation requires the exact demo origin'
+  test -f "$PUBLIC_DEMO_ISOLATION_HELPER" && test ! -L "$PUBLIC_DEMO_ISOLATION_HELPER" \
+    && test -x "$PUBLIC_DEMO_ISOLATION_HELPER" && test "$(stat -c '%u' "$PUBLIC_DEMO_ISOLATION_HELPER")" = '0' \
+    || fail 'public-demo isolation helper must be a root-owned executable regular file'
+  scanner_host="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_HOST')"
+  scanner_port="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_PORT')"
+  network="$(compose "$release_env" config --format json | jq -er '. as $root | (.services["longtail-forge"].networks | keys[0]) as $key | $root.networks[$key].name')"
+  volume="$(compose "$release_env" config --format json | jq -er '. as $root | (.services["longtail-forge"].volumes[] | select(.target == "/var/lib/longtail-forge").source) as $key | $root.volumes[$key].name')"
+  local arguments=("$mode" --network "$network" --scanner-host "$scanner_host" --scanner-port "$scanner_port" --data-volume "$volume" --backup-root "$BACKUP_ROOT")
+  if test -n "$container"; then arguments+=(--container "$container"); fi
+  "$PUBLIC_DEMO_ISOLATION_HELPER" "${arguments[@]}" >/dev/null
+}
+
 verify_runtime() {
   local metadata_file="$1" release_env="$2" version commit artifact
   version="$(jq -er '.version' "$metadata_file")"
@@ -327,6 +346,7 @@ verify_runtime() {
   artifact="$(jq -er '.artifact.sha256' "$metadata_file")"
   wait_for_health "$release_env" || return 1
   verify_container_posture "$metadata_file" "$release_env" || return 1
+  public_demo_isolation check "$release_env" "$(compose "$release_env" ps -q longtail-forge)" || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
@@ -362,6 +382,7 @@ compose "$RELEASE_ENV" config --format json | jq -e '
     (.tmpfs | index("/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001") != null) and
     (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].target == 8001 and .[0].published == "8001")
 ' >/dev/null || fail "resolved Compose application posture is not the reviewed non-root read-only loopback contract"
+public_demo_isolation enforce "$RELEASE_ENV"
 verify_candidate_scanner "$RELEASE_ENV"
 assert_marker
 

@@ -189,14 +189,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 446 |
+| Active discovered regressions | 447 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 137 |
+| Convention-path metadata regressions | 138 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 68 |
+| Active release-gate regressions | 69 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 449 |
-| Release-gate ratchet floor | 70 |
+| Global ratchet floor | 450 |
+| Release-gate ratchet floor | 71 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -216,7 +216,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 33 | 3 | 36 |
+| `release` | 34 | 3 | 37 |
 | `docs` | 10 | 0 | 10 |
 | `licensing` | 1 | 0 | 1 |
 
@@ -225,12 +225,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 205 |
 | `integration` | 165 |
-| `release-gate` | 68 |
+| `release-gate` | 69 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 224 |
+| `static` | 225 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

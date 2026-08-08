@@ -93,7 +93,6 @@ function runProbe(demoEnabled) {
 
 function demoEnvironment() {
   return {
-    ...process.env,
     DEMO_MODE: "true",
     LONGTAIL_DATA_DIR: fixture.root,
     LONGTAIL_DATABASE_FILE: fixture.databaseFile,

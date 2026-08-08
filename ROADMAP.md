@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.13`.
+Active cursor: `0.33.31.14`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.13 - Outbound and infrastructure isolation
-
-**Model: High Effort** — Application denials and container networking must agree so no visitor action can reach an external or private system.
-
-- [ ] Deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, unreviewed jobs, and future undeclared outbound contributions through the demo capability catalog. Record currently absent surfaces rather than inventing placeholder implementations.
-- [ ] Define and prove the Compose network-egress policy, secret/environment allowlist, database/Files/backups/log isolation, and inability to reach customer networks, private services, production credentials, or writable non-demo storage.
-- [ ] Keep analytics, feedback, and interest capture disabled; no visitor or security event is sent to a product-analytics provider in this slice. Security/reset logs remain operational evidence, not analytics.
-- [ ] Add catalog, direct-request, worker/job, network-policy, environment-leakage, and non-demo compatibility regressions plus a repeatable host/container isolation smoke.
-
-Acceptance criteria:
-
-- Neither application behavior nor container networking gives a public visitor a path to external communication, private infrastructure, real secrets, or non-demo persistent storage.
 
 ### Version 0.33.31.14 - Repository release candidate, runbook, and public-demo smoke
 
