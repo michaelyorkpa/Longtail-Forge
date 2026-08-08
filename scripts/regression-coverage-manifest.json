@@ -4226,7 +4226,7 @@
     },
     {
       "area": "release",
-      "description": "Proves exact-demo outbound denial, environment and storage allowlists, internal networking, host firewall enforcement, and lifecycle-owned isolation smoke.",
+      "description": "Proves exact-demo outbound denial, environment and storage allowlists, loopback publishing, host firewall enforcement, and lifecycle-owned isolation smoke.",
       "id": "release.public-demo-isolation",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-isolation.regression.mjs",
