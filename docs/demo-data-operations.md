@@ -4,6 +4,8 @@ As of version 0.33.31.8, the named `rt-ltf-demo` installation uses one reviewed 
 
 This is not a general production seed or restore command. It accepts only target `rt-ltf-demo`, public origin `https://demo.longtailforge.com`, `LONGTAIL_ENV=production`, `DEMO_MODE=true`, the maintained Compose deployment classification, the canonical container data root `/var/lib/longtail-forge`, the root-owned version 2 role credential document, and the release environment already recorded by the protected Compose deployment helper. The systemd unit schedules only this host operation; it never starts or supervises the application, runs inside the app or worker, or applies to another installation.
 
+The assembled release-candidate checklist, capability/account ownership, retention and incident procedure, and safe visitor copy live in [Public Demo Operator Runbook](public-demo-operator-runbook.md). Start from the separately protected values in [public-demo-compose.env.example](public-demo-compose.env.example); never copy its profile onto local development, Friends-and-Family Preview, or another installation.
+
 ## Installed and generated boundaries
 
 Repository and release owned:

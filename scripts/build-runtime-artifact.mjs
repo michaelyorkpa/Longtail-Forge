@@ -48,6 +48,8 @@ const RUNTIME_PATHS = Object.freeze([
   "docs/internet-deployment.md",
   "docs/operational-security.md",
   "docs/preview-deployment.md",
+  "docs/public-demo-compose.env.example",
+  "docs/public-demo-operator-runbook.md",
   "docs/runtime-artifact.md",
   "docs/runtime-configuration.md",
   "docs/sqlite-small-office-mode.md",

@@ -84,6 +84,8 @@ try {
     "docs/backup-restore.md",
     "docs/demo-data-helper.env.example",
     "docs/demo-data-operations.md",
+    "docs/public-demo-compose.env.example",
+    "docs/public-demo-operator-runbook.md",
     "docs/runtime-artifact.md",
     "docs/workspace-backup.md",
   ]) {

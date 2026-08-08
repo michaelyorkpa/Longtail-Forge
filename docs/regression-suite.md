@@ -48,6 +48,8 @@ As of 0.33.31.5, `framework.public-demo-account-catalog` pins the exact six sour
 
 As of 0.33.31.6, `database.public-demo-baseline-candidate` runs as an isolated release gate and proves exact-target/profile refusal, non-mutating dry run, two same-anchor builds with identical semantic and migration identities, standalone validation, fixed public/private credential hashes, exact database-to-Files inventory, and unchanged active database/Files sentinels. Its corruption matrix covers release migration checksums, Files bytes and extra objects, roles, scopes, credential hashes, sessions, Secure Notes, analytics persistence, marker anchors, plaintext protected values, symlinks, existing candidates, and partial build state. The retained `database.demo-data-host-operation` and `database.development-data-seed` regressions independently preserve historical recovery behavior and private local seed contracts.
 
+As of 0.33.31.14, `release.public-demo-release-candidate` freezes the redacted Compose profile, credential-free operator runbook, twelve-script exact-demo contract inventory, artifact/release-asset membership, live disposable-demo health/readiness/app-version checks, normal-mode boundary, and analytics/feedback/interest-persistence rejection. `npm run demo:release-candidate:smoke` runs those existing owners, creates and boots the controlled runtime artifact, and optionally invokes the supported native container lifecycle smoke against the same tarball; it is repository candidate proof, not live-host acceptance.
+
 As of 0.33.31.9, `framework.public-demo-files-ingress` is an isolated release gate. It launches exact demo and standard child probes, requires direct service denials before payload/session access, sends malformed JSON and multipart bodies through every creation route to prove capability refusal wins before parsing, pins the stable safe response, verifies read-only seeded-content classification, and confirms ordinary-mode ingress remains enabled. Static inventory assertions keep the shared attachment helper as the only browser file-input/upload endpoint owner, omit its chooser/drop/upload controls plus the File quick action in demo mode, freeze absent paste/profile/avatar/import and `/api/v1/files` ingress, and retain list/preview/content/download entry points.
 
 As of 0.33.31.11, `framework.public-demo-budgets` is an isolated release gate. It proves exact input/query boundary values, fixed safe error hints, undeclared-route refusal, bulk pre-service atomicity, rollback after failed responses, concurrent account and workspace ceilings, restart persistence, normal-mode bypass, SQLite integrity, and exact catalog coverage for every authenticated framework/module route. The retained HTTP error and Lists regressions independently prove structured expected-error forwarding and unchanged ordinary list duplication behavior.
@@ -189,14 +191,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 447 |
+| Active discovered regressions | 448 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 138 |
+| Convention-path metadata regressions | 139 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 69 |
+| Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 450 |
-| Release-gate ratchet floor | 71 |
+| Global ratchet floor | 451 |
+| Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -216,7 +218,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 34 | 3 | 37 |
+| `release` | 35 | 3 | 38 |
 | `docs` | 10 | 0 | 10 |
 | `licensing` | 1 | 0 | 1 |
 
@@ -225,12 +227,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 205 |
 | `integration` | 165 |
-| `release-gate` | 69 |
+| `release-gate` | 70 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 225 |
+| `static` | 226 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.14 - Repository release candidate, runbook, and public-demo smoke
+
+Completed on 2026-08-08. The repository now assembles the exact demo contracts, redacted deployment profile, operator procedures, runtime artifact, and native container lifecycle into one reproducible candidate without claiming live-host acceptance. The active cursor advanced to `0.33.31.15` for the live Compose proof and explicit public-demo release gate.
+
+**Model: High Effort** — This slice assembles already-implemented contracts into one reproducible candidate without claiming live-host acceptance.
+
+- [x] Added the redacted Compose deployment example and operator runbook covering capability classifications, private operator/public account ownership, scheduler installation, lock/maintenance behavior, reset downtime, backups/retained states, alerts, rollback/recovery, log retention, incident response, and safe visitor messaging.
+- [x] Added one release-owned local/container public-demo smoke covering all six role logins, scoped reads/writes/denials, identity immutability, seeded attachment read-only behavior, disabled dangerous/outbound capabilities, limits, content safety, health/readiness/app identity, reset-to-baseline, old-session rejection, and logout without exposing credentials.
+- [x] Proved `DEMO_MODE=false` leaves development, Friends-and-Family Preview, supported self-hosted production, and future SaaS/default configuration unchanged. Proved analytics, feedback, newsletter, and other interest capture remain disabled and absent from the reset database.
+- [x] Ran `npm run docs:suggest`, updated only owning configuration/security/demo/deployment/testing docs plus current governing decisions and changelog, ran required database integrity proof, and ran `npm run verify:slice` exactly once on the final unchanged worktree.
+
+Acceptance criteria:
+
+- Repository and container proof produce one deployable public-demo candidate and complete operator instructions; the URL remains unpublished until the next live gate passes.
+
 ## Version 0.33.31.13 - Outbound and infrastructure isolation
 
 Completed on 2026-08-08. The exact public demo now fails closed at both application and container boundaries for outbound communication, external-provider environment, private infrastructure, and non-demo storage. The active cursor advanced to `0.33.31.14` for the repository release candidate, runbook, and complete public-demo smoke.

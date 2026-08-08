@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.14`.
+Active cursor: `0.33.31.15`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,19 +35,6 @@ Non-goals:
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
 - Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
 - Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.14 - Repository release candidate, runbook, and public-demo smoke
-
-**Model: High Effort** — This slice assembles already-implemented contracts into one reproducible candidate without claiming live-host acceptance.
-
-- [ ] Add the redacted Compose deployment example and operator runbook covering capability classifications, private operator/public account ownership, scheduler installation, lock/maintenance behavior, reset downtime, backups/retained states, alerts, rollback/recovery, log retention, incident response, and safe visitor messaging.
-- [ ] Add one release-owned local/container public-demo smoke covering all six role logins, scoped reads/writes/denials, identity immutability, seeded attachment read-only behavior, disabled dangerous/outbound capabilities, limits, content safety, health/readiness/app identity, reset-to-baseline, old-session rejection, and logout without exposing credentials.
-- [ ] Prove `DEMO_MODE=false` leaves development, Friends-and-Family Preview, supported self-hosted production, and future SaaS/default configuration unchanged. Prove analytics, feedback, newsletter, and other interest capture remain disabled and absent from the reset database.
-- [ ] Run `npm run docs:suggest`, update only owning configuration/security/demo/deployment/testing docs plus current governing decisions and changelog, run required database integrity proof, and run `npm run verify:slice` exactly once on the final unchanged worktree.
-
-Acceptance criteria:
-
-- Repository and container proof produce one deployable public-demo candidate and complete operator instructions; the URL remains unpublished until the next live gate passes.
 
 ### Version 0.33.31.15 - Live Compose proof and public-demo release gate
 

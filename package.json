@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.31.13",
+  "version": "0.33.31.14",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -95,6 +95,7 @@
     "demo:roles:journey": "node scripts/sanitized-demo-role-journey.mjs",
     "demo:roles:journey:public": "node scripts/sanitized-demo-role-journey.mjs --public-demo",
     "demo:perimeter:probe": "node scripts/public-demo-perimeter-load-smoke.mjs",
+    "demo:release-candidate:smoke": "node scripts/release/public-demo-release-candidate-smoke.mjs",
     "regressions:manifest": "node scripts/generate-regression-manifest.mjs",
     "regressions:manifest:check": "node scripts/generate-regression-manifest.mjs --check",
     "regressions:inventory:write": "node scripts/generate-regression-doc-inventory.mjs --write",
