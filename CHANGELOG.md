@@ -7,6 +7,7 @@
 - Added `release.public-demo-isolation`, expanded `framework.public-demo-capability-enforcement`, and extended runtime/capability unit coverage for catalog, direct-request, worker/job, network-policy, environment-leakage, absent-transport, and non-demo compatibility contracts.
 - Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/longtail-forge-compose-deploy-helper.env.example`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
 - No docs change needed: Help, module workflows, permissions, public API behavior, database schema, reset scheduling, and visitor-facing UI are unchanged; this slice closes the exact-demo application/infrastructure isolation boundary.
+- Corrective follow-up 2026-08-08: advanced the transitive development-only `nanoid` lockfile resolution from 3.3.16 to 3.3.18 after GHSA-2v37-7h3g-55p8 caused the exact post-merge Nightly audit to fail; application and runtime behavior are unchanged.
 
 ## Version 0.33.31.12 - 2026-08-07
 
