@@ -336,7 +336,7 @@ verify_old_session_rejected() {
 }
 
 verify_representative_role() {
-  local catalog username password payload status project_id now_start now_end csrf_token
+  local catalog username password payload status csrf_token
   catalog="$(curl --fail --silent --show-error http://127.0.0.1:8001/api/public-demo/accounts)"
   username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
   password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
@@ -351,16 +351,9 @@ verify_representative_role() {
     'http://127.0.0.1:8001/api/tasks?limit=1' > "$OPERATION_DIR/role-read.json" || return 1
   curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
     http://127.0.0.1:8001/api/client-projects > "$OPERATION_DIR/client-projects.json" || return 1
-  project_id="$(jq -er '.. | objects | select(.name? == "Website Refresh") | (.project_id // .id)' "$OPERATION_DIR/client-projects.json" | head -n 1)"
-  test -n "$project_id" || return 1
-  now_start="$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S.000Z)"
-  now_end="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
-  payload="$(jq -cn --arg project_id "$project_id" --arg start_time "$now_start" --arg end_time "$now_end" \
-    '{project_id:$project_id,start_time:$start_time,end_time:$end_time,description:"Public demo reset verification"}')"
-  status="$(curl --silent --show-error --output "$OPERATION_DIR/role-write.json" --write-out '%{http_code}' \
-    --cookie "$SESSION_ROOT/post-reset.cookie" -H 'content-type: application/json' \
-    -H "X-CSRF-Token: $csrf_token" --data "$payload" http://127.0.0.1:8001/api/time-entries)"
-  test "$status" = '201' || return 1
+  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+    'http://127.0.0.1:8001/api/files/attachments?limit=1' > "$OPERATION_DIR/role-files.json" || return 1
+  jq -e '.attachments | length >= 1' "$OPERATION_DIR/role-files.json" >/dev/null || return 1
   curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
     -H "X-CSRF-Token: $csrf_token" --request POST http://127.0.0.1:8001/api/logout \
     > "$OPERATION_DIR/logout.json" || return 1

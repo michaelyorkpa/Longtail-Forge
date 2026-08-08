@@ -60,7 +60,9 @@ Each hourly reset builds and validates a fresh database-and-Files candidate,
 enters the deployment-owned maintenance curtain, captures a protected
 whole-instance backup, stops every SQLite user, promotes the candidate as one
 unit, starts and verifies the runtime, rejects the pre-reset session, proves a
-representative role, and only then finalizes. Visitors should expect a short
+representative role with read-only Task, hierarchy, and seeded attachment
+checks plus authenticated logout, and only then finalizes without changing the
+promoted baseline. Visitors should expect a short
 unavailable window around the top of the UTC hour. The operator maintenance
 marker is independent and must never be cleared by automated reset.
 

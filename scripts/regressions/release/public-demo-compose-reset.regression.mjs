@@ -280,6 +280,10 @@ async function assertHostContract() {
     /verify_representative_role/,
     /api\/csrf-token/,
     /X-CSRF-Token: \$csrf_token/,
+    /api\/tasks\?limit=1/,
+    /api\/client-projects/,
+    /api\/files\/attachments\?limit=1/,
+    /\.attachments \| length >= 1/,
     /run_activation finalize/,
     /clear_marker/,
     /run_activation recover/,
@@ -291,6 +295,7 @@ async function assertHostContract() {
     /provided operation identity is invalid/,
     /"semanticFingerprint":"%s"/,
   ]) assert.match(host, requirement);
+  assert.doesNotMatch(host, /api\/time-entries|role-write\.json|Public demo reset verification/);
   assert.match(
     host,
     /run_candidate\(\)[\s\S]*compose run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \\\n\s+--volume "\$ROLE_CREDENTIALS:\/run\/secrets\/demo-role-credentials\.json:ro"/,
