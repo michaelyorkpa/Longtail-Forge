@@ -63,6 +63,14 @@ representative role, and only then finalizes. Visitors should expect a short
 unavailable window around the top of the UTC hour. The operator maintenance
 marker is independent and must never be cleared by automated reset.
 
+Candidate construction runs in an ephemeral root container with only the
+filesystem capabilities `CAP_CHOWN` and `CAP_DAC_OVERRIDE` added back
+after the Compose-wide capability drop so its private tree can be verified and
+owned by runtime UID/GID 10001. Activation and recovery add only
+`CAP_DAC_OVERRIDE` to inspect and move that UID-owned `0700` tree.
+The application and backup containers remain capability-free; privileged
+containers are not part of this workflow.
+
 The prior unit and failed/recovery units are protected operational evidence.
 Retain only the current policy-approved set after a successful later reset and
 backup inspection; never delete the only verified last-known-good unit. Reset

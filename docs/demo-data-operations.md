@@ -113,6 +113,14 @@ Use one explicit command. The literal `today` resolves once to a UTC calendar da
 
 The helper performs these phases under one non-blocking shared Compose operation lock:
 
+The long-running application keeps the Compose-wide `cap_drop: ALL` posture.
+Only the ephemeral root-run candidate build/validation container adds
+`CAP_CHOWN` and `CAP_DAC_OVERRIDE` so it can prepare, verify, and hand
+the private database-and-Files tree to runtime UID/GID 10001. The activation
+and recovery invocation adds only `CAP_DAC_OVERRIDE` to inspect and move that
+UID-owned `0700` tree atomically. Backup and the application remain
+capability-free, and the helper never uses privileged containers.
+
 1. Revalidates root ownership, exact target/origin/profile, recorded current release environment, Compose data paths, protected role document, maintenance marker boundary, and optional recovery-key material. An overlapping Compose deploy, rollback, backup, manual reset, or later scheduled reset is refused before mutation.
 2. Uses a root-run one-off container from the recorded immutable release to build and fully validate a fresh inactive candidate. Existing or partial candidate state remains a hard refusal.
 3. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running.

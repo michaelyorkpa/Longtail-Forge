@@ -550,12 +550,12 @@ function assertDistinctRoleCredentials(roleFixtures, environment) {
 
 async function repairCandidatePermissions(candidateRoot) {
   const files = await listTree(candidateRoot);
-  if (process.platform !== "win32" && process.getuid?.() === 0) {
-    for (const entry of files) await fs.chown(entry, 10001, 10001);
-  }
   for (const entry of files) {
     const stats = await fs.lstat(entry);
     await fs.chmod(entry, stats.isDirectory() ? 0o700 : 0o600);
+  }
+  if (process.platform !== "win32" && process.getuid?.() === 0) {
+    for (const entry of files) await fs.chown(entry, 10001, 10001);
   }
 }
 
