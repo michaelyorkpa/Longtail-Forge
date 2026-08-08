@@ -1,3 +1,11 @@
+## Version 0.33.31.14.6 - 2026-08-08
+
+- Corrected the public-demo reset's post-activation representative-role proof to use authenticated Task, client/project hierarchy, and seeded attachment reads plus logout instead of creating a Time Entry.
+- Preserved CSRF-protected logout and fresh-session proof while ensuring a successful reset leaves no mutation-budget usage or application record outside the validated candidate baseline.
+- Added release regression coverage that requires all three representative reads and rejects any post-activation Time Entry write or retained write evidence.
+- Docs updated: `docs/demo-data-operations.md`, `docs/public-demo-operator-runbook.md`.
+- No docs change needed: visitor roles, ordinary application permissions, schema/migrations, deployment topology, scheduler timing, and non-demo operation are unchanged; this is the exact-baseline correction required by the active `0.33.31.15` live gate.
+
 ## Version 0.33.31.14.5 - 2026-08-08
 
 - Corrected routed Files downloads for Client- and Project-scoped roles by carrying the already-readable attachment's scope into the `files.download` authorization check instead of rechecking the permission with workspace-only context.
