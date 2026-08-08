@@ -224,7 +224,7 @@ record_phase() {
 
 run_candidate() {
   local action="$1" output="$2"
-  compose run --rm --no-deps --user 0:0 \
+  compose run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \
     --volume "$ROLE_CREDENTIALS:/run/secrets/demo-role-credentials.json:ro" \
     longtail-forge node scripts/public-demo-baseline-candidate.mjs "$action" \
     --target "$DEMO_TARGET" --anchor-date "$ANCHOR_DATE" \
@@ -242,7 +242,7 @@ run_activation() {
   elif test "$action" = 'finalize'; then
     arguments+=(--operation-id "$OPERATION_ID")
   fi
-  compose run --rm --no-deps --user 0:0 longtail-forge \
+  compose run --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE longtail-forge \
     node scripts/public-demo-baseline-activation.mjs "${arguments[@]}" > "$output"
 }
 
