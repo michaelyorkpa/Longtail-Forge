@@ -59,6 +59,7 @@ ensure_jump() {
 if test "$MODE" = 'enforce'; then
   iptables -w -N "$INPUT_CHAIN" >/dev/null 2>&1 || true
   iptables -w -F "$INPUT_CHAIN"
+  iptables -w -A "$INPUT_CHAIN" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
   iptables -w -A "$INPUT_CHAIN" -d "$SCANNER_HOST" -p tcp --dport "$SCANNER_PORT" -j ACCEPT
   iptables -w -A "$INPUT_CHAIN" -j DROP
   ensure_jump INPUT "$DEMO_BRIDGE" "$INPUT_CHAIN"
@@ -69,15 +70,18 @@ if test "$MODE" = 'enforce'; then
   ensure_jump DOCKER-USER "$DEMO_BRIDGE" "$FORWARD_CHAIN"
 fi
 iptables -w -C INPUT -i "$DEMO_BRIDGE" -j "$INPUT_CHAIN" >/dev/null 2>&1 || fail 'host-input isolation jump is missing'
+iptables -w -C "$INPUT_CHAIN" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT >/dev/null 2>&1 || fail 'host-input stateful response exception is missing'
 iptables -w -C "$INPUT_CHAIN" -d "$SCANNER_HOST" -p tcp --dport "$SCANNER_PORT" -j ACCEPT >/dev/null 2>&1 || fail 'scanner exception is missing'
 iptables -w -C "$INPUT_CHAIN" -j DROP >/dev/null 2>&1 || fail 'host-input default denial is missing'
 iptables -w -C DOCKER-USER -i "$DEMO_BRIDGE" -j "$FORWARD_CHAIN" >/dev/null 2>&1 || fail 'forwarding isolation jump is missing'
 iptables -w -C "$FORWARD_CHAIN" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT >/dev/null 2>&1 || fail 'stateful response exception is missing'
 iptables -w -C "$FORWARD_CHAIN" -j DROP >/dev/null 2>&1 || fail 'forwarding default denial is missing'
-test "$(iptables -w -S "$INPUT_CHAIN" | wc -l)" = '3' || fail 'host-input isolation chain contains an undeclared rule'
+test "$(iptables -w -S "$INPUT_CHAIN" | wc -l)" = '4' || fail 'host-input isolation chain contains an undeclared rule'
 test "$(iptables -w -S "$FORWARD_CHAIN" | wc -l)" = '3' || fail 'forwarding isolation chain contains an undeclared rule'
 test "$(iptables -w -S INPUT | grep '^-A ' | head -n 1)" = "-A INPUT -i $DEMO_BRIDGE -j $INPUT_CHAIN" \
   || fail 'host-input isolation jump is not first'
+test "$(iptables -w -S "$INPUT_CHAIN" | grep '^-A ' | head -n 1)" = "-A $INPUT_CHAIN -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT" \
+  || fail 'host-input stateful response exception is not first'
 test "$(iptables -w -S DOCKER-USER | grep '^-A ' | head -n 1)" = "-A DOCKER-USER -i $DEMO_BRIDGE -j $FORWARD_CHAIN" \
   || fail 'forwarding isolation jump is not first'
 test "$(iptables -w -S "$FORWARD_CHAIN" | grep '^-A ' | head -n 1)" = "-A $FORWARD_CHAIN -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT" \
@@ -105,7 +109,7 @@ jq -e --arg backup "$BACKUP_ROOT" --arg network "$NETWORK" --arg volume "$DATA_V
 
 is_allowed_environment_key() {
   case "$1" in
-    DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|HOME|HOSTNAME|NODE_VERSION|PATH|YARN_VERSION) return 0 ;;
+    DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|HOME|HOSTNAME|NODE_ENV|NODE_VERSION|PATH|YARN_VERSION) return 0 ;;
     SUPER_ADMIN_DISPLAY_NAME|SUPER_ADMIN_PASSWORD|SUPER_ADMIN_USERNAME) return 0 ;;
     LONGTAIL_AUTH_*|LONGTAIL_CLAMD_HOST|LONGTAIL_CLAMD_PORT|LONGTAIL_DATA_DIR|LONGTAIL_DATABASE_FILE|LONGTAIL_DATABASE_PROVIDER|LONGTAIL_DEPLOYMENT_MODE|LONGTAIL_ENV|LONGTAIL_FILE_SCANNER) return 0 ;;
     LONGTAIL_HSTS_MAX_AGE_SECONDS|LONGTAIL_JOB_*|LONGTAIL_LOCAL_STORAGE_ROOT|LONGTAIL_LOG_LEVEL|LONGTAIL_PUBLIC_URL|LONGTAIL_RELEASE_*) return 0 ;;
@@ -115,6 +119,7 @@ is_allowed_environment_key() {
   esac
 }
 while IFS= read -r entry; do
+  test -n "$entry" || continue
   key="$(printf '%s' "$entry" | cut -d= -f1)"
   is_allowed_environment_key "$key" || fail 'container environment contains an undeclared key'
 done < <(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CONTAINER")
