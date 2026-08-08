@@ -37,6 +37,7 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
   const dataDir = path.join(journeyRoot, "sanitized-demo", "permission-journey");
   let closeDatabase;
   let server;
+  let stopJobWorker;
 
   try {
     seedDisposableSanitizedDemo(dataDir, roleFixtures);
@@ -48,11 +49,13 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
         }
       : null;
 
-    const [{ createApp }, databaseApi] = await Promise.all([
+    const [{ createApp }, databaseApi, jobsApi] = await Promise.all([
       import("../src/core/app.js"),
       import("../src/db/index.js"),
+      import("../src/core/jobs/index.js"),
     ]);
     closeDatabase = databaseApi.closeDatabase;
+    stopJobWorker = jobsApi.stopJobWorker;
     await databaseApi.initializeDatabase();
     if (publicDemo) {
       await activatePublicDemoRuntime(
@@ -62,11 +65,28 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
         publicDemoContracts,
       );
     }
-    server = await listen(createApp());
+    const app = createApp();
+    await jobsApi.startJobWorker({
+      logger: { error() {}, log() {}, warn() {} },
+      mode: "inline",
+      workerId: "public-demo-role-journey",
+    });
+    server = await listen(app);
     const address = server.address();
     const api = createApi(`http://127.0.0.1:${address.port}`);
     const sessions = new Map();
     let checks = 0;
+
+    const [health, readiness, appInfo] = await Promise.all([
+      api.get("/healthz"),
+      api.get("/readyz"),
+      api.get("/api/app-info"),
+    ]);
+    assert.deepEqual(health.body, { status: "ok" });
+    assert.deepEqual(readiness.body, { status: "ready" });
+    assert.equal(appInfo.status, 200);
+    assert.match(appInfo.body.version, /^\d+\.\d+\.\d+(?:\.\d+)*$/);
+    checks += 4;
 
     for (const fixture of journeyFixtures) {
       const login = await api.post("/api/login", {
@@ -265,6 +285,7 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
     };
   } finally {
     if (server) await closeServer(server);
+    if (stopJobWorker) await stopJobWorker({ logger: { error() {}, log() {}, warn() {} } });
     if (closeDatabase) await closeDatabase();
     await fs.rm(journeyRoot, { force: true, recursive: true });
   }

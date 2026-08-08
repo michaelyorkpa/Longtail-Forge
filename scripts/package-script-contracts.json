@@ -29,6 +29,7 @@
     "demo:data:reset": "node scripts/development-data.mjs reset --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --confirm sanitized-demo",
     "demo:data:seed": "node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --role-fixtures local-sanitized-demo",
     "demo:perimeter:probe": "node scripts/public-demo-perimeter-load-smoke.mjs",
+    "demo:release-candidate:smoke": "node scripts/release/public-demo-release-candidate-smoke.mjs",
     "demo:roles:journey": "node scripts/sanitized-demo-role-journey.mjs",
     "demo:roles:journey:public": "node scripts/sanitized-demo-role-journey.mjs --public-demo",
     "deploy:ssh": "node scripts/release/deploy-via-ssh.mjs",

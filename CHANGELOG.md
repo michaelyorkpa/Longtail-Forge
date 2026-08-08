@@ -1,3 +1,14 @@
+## Version 0.33.31.14 - 2026-08-08
+
+- Added a redacted exact-`rt-ltf-demo` Compose environment showing the immutable release identity, dedicated volume/network, disabled restart and DNS forwarding, local SQLite/Files, inline worker, ClamAV handoff, explicit perimeter limits, disabled Support View, and secret-store placeholders without publishing credentials.
+- Added the public-demo operator runbook for account/capability ownership, candidate and scheduler installation, shared lock and maintenance behavior, expected reset downtime, backups/retained states, bounded logs and alerts, rollback/recovery, incident response, and safe visitor messaging; URL publication remains blocked on `0.33.31.15`.
+- Added `npm run demo:release-candidate:smoke` to execute the twelve authoritative public-demo contract owners, build and smoke the same runtime artifact, and optionally run the supported native container lifecycle proof against it.
+- Extended the six-role public-demo permission journey with exact disposable-runtime health, readiness, and app-version assertions, while retaining credential-redaction and logout proof.
+- Shipped the operator profile and runbook inside the runtime artifact and immutable GitHub Release assets, and added `release.public-demo-release-candidate` plus runtime-artifact coverage for the assembled boundary.
+- Proved normal `DEMO_MODE=false` development, Friends-and-Family Preview, supported self-hosting, and future/default configuration remain unchanged; candidate validation continues rejecting analytics, feedback, newsletter/interest-capture persistence from the reset database.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/public-demo-compose.env.example`, `docs/public-demo-operator-runbook.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, module workflows, permission definitions, public API behavior, schema/migrations, reset mechanics, edge configuration, and visitor login UI are unchanged; this slice assembles already-shipped contracts into a release candidate.
+
 ## Version 0.33.31.13 - 2026-08-08
 
 - Expanded the public-demo capability catalog with explicit disabled/absent analytics, feedback, integration, interest-capture, email, webhook, and arbitrary URL-fetch families; direct request and registered-job boundaries return the existing safe denial while current server transports remain absent.

@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 447,
+    "discoveredScripts": 448,
     "legacyScripts": 309,
-    "releaseGateScripts": 69,
+    "releaseGateScripts": 70,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 12,
       "public-api": 3,
-      "release": 34,
+      "release": 35,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 205,
       "integration": 165,
-      "release-gate": 69,
+      "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 188,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 225
+      "static": 226
     }
   },
   "coverageFamilies": [
@@ -4237,6 +4237,23 @@
         "demo",
         "jobs",
         "network",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the redacted exact-demo deployment profile, complete operator runbook, aggregate candidate smoke, and non-demo/interest-capture boundaries.",
+      "id": "release.public-demo-release-candidate",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-release-candidate.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "artifact",
+        "container",
+        "demo",
+        "deployment",
         "security"
       ],
       "tier": "release-gate"

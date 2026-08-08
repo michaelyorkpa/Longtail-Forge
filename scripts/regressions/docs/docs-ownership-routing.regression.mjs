@@ -131,6 +131,7 @@ assert.deepEqual(developmentData.docs, [
   "docs/demo-data-operations.md",
   "docs/development-and-demo-data.md",
   "docs/marketing/screenshot-and-demo-data-plan.md",
+  "docs/public-demo-operator-runbook.md",
 ]);
 
 const editableContentSafety = suggestDocsForPaths([
