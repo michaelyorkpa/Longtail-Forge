@@ -9,21 +9,31 @@ function asyncRoute(handler) {
 function readJsonBody(request, options = {}) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let bodyBytes = 0;
     const maxBytes = options.maxBytes || 100000;
 
     request.on("data", (chunk) => {
       body += chunk;
+      bodyBytes += Buffer.byteLength(chunk);
 
-      if (body.length > maxBytes) {
+      if (bodyBytes > maxBytes) {
         request.destroy();
         reject(new AppError("Request body is too large.", 413));
       }
     });
 
-    request.on("end", () => {
+    request.on("end", async () => {
       try {
-        resolve(JSON.parse(body));
-      } catch {
+        const payload = JSON.parse(body);
+        if (typeof request.publicDemoBudgetPayloadValidator === "function") {
+          await request.publicDemoBudgetPayloadValidator(payload);
+        }
+        resolve(payload);
+      } catch (error) {
+        if (error instanceof AppError) {
+          reject(error);
+          return;
+        }
         reject(new AppError("Request body must contain valid JSON.", 400));
       }
     });

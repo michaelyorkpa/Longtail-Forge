@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.1`.
+Active cursor: `0.33.31.15`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -17,111 +17,38 @@ Make `https://demo.longtailforge.com` safe to publish as an August 31, 2026 publ
 
 Decision:
 
-Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data and exposes no installation Super Admin. An externally scheduled, lock-protected operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
+Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data. Its private installation Super Admin remains an operator-only recovery identity and is never offered to visitors. An externally scheduled, lock-protected Compose operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
 
-Release priority and dependencies:
+Already-shipped foundation — preserve and reuse it rather than planning it again:
 
-- This slice is explicitly eligible to execute before 0.33.29 and 0.33.30 when the August 31 public-demo deadline requires it. Do not renumber those slices. 0.33.31 neither depends on Secure Notes catalog policy nor Support View and must not partially implement either; if they have landed when final proof runs, demo-mode exclusions must cover their new sensitive capabilities.
-- Build on the existing fail-closed production configuration, database-backed sessions and authentication throttling, framework permission catalog, deterministic Northwind scenario, guarded `rt-ltf-demo` provision/reset helper, whole-instance database-and-Files backup contract, health/readiness/app-identity probes, Files service boundary, and structured production logging.
-- Repository implementation may begin before 0.33.28 is fully closed. Live release acceptance must use the deployment format supported when the public demo launches—expected to be the 0.33.28 Docker Compose contract—and must repeat reset, persistence, rollback, and scheduler proof if the demo moves from the retained bare-metal host during this work.
-- 0.33.31 is complete only as a coordinated release after 0.33.31.1-.6 pass. Completing its planning or any individual sub-slice does not authorize publication of the URL.
+- `0.33.26.7-.9` already provides one deterministic private fixture per shipped role, exact Workspace/Client/Project scopes, reserved fictional identities, a broad authenticated allowed/denied role journey, and a guarded backup-first `rt-ltf-demo` database-and-Files reset. Public-demo work derives the six non-Super-Admin visitor accounts from that contract; it does not create roles, broaden permissions, or publish the private Super Admin fixture.
+- `0.33.28.5` made Docker Compose the sole supported production lifecycle. The earlier demo helper's candidate validation and recovery invariants remain useful, but its systemd-managed Node/worker lifecycle is historical and must not be extended as the public reset path.
+- `0.33.29` Secure Notes catalog security and `0.33.30` Support View have landed. Demo-mode capability review must now explicitly keep Secure Notes recovery/key-management and Support View outside the visitor boundary rather than treating either feature as conditional future work.
+
+Delivery and sizing rule:
+
+- Each numbered sub-slice below has one primary blast radius and is intended to complete, verify, document, version, and close in one working session. Do not merge adjacent slices during implementation merely because they share the rollup version; propose a merge first only if the live seam proves the combined ceremony has real isolation value and still fits one session.
+- `0.33.31` is complete only as one coordinated release after all fifteen numbered sub-slices pass. Completing any individual sub-slice does not authorize publication of the URL.
 
 Non-goals:
 
 - Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
-- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
-- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or a public installation Super Admin.
+- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
+- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
 
-### Version 0.33.31.1 - Fail-closed public-demo configuration and capability boundary
+### Version 0.33.31.15 - Live Compose proof and public-demo release gate
 
-**Model: High Effort** — A configuration mistake here could expose administrative, credential, export, integration, or outbound capabilities on a public shared installation.
+**Model: High Effort** — Final acceptance requires retained evidence from the real public host and remains independently stoppable if infrastructure is not ready.
 
-- [ ] Add one typed runtime `DEMO_MODE` setting, default false, and a framework-owned demo capability catalog consumed by server services/routes and browser-safe diagnostics. Do not branch on `demo.longtailforge.com` inside feature modules; the hostname/origin may be one production startup identity assertion, not the behavior switch.
-- [ ] Make production startup reject contradictory or incomplete demo configuration before listening: demo mode must require the exact intended deployment identity and an explicitly demo-owned data root/marker, while ordinary production must reject demo credentials, seed controls, reset metadata, or demo-only login assistance when demo mode is false. Diagnostics expose only safe enabled/disabled classifications.
-- [ ] Define and document the permitted, read-only, disabled, and hourly-resettable capability matrix. Audit API-key creation/use, integrations, webhooks, outbound mail and invitations, password/email/authentication changes, backup/export/restore, installation administration, workspace creation/deletion, recovery paths, arbitrary outbound requests, and every other capability that could escape or persist beyond the shared demo.
-- [ ] Isolate the public demo runtime, database, Files tree, backups, secrets, network reach, logs, and deployment identity from development, friends-and-family, customer, and ordinary self-hosted installations. Seed and preflight proof must reject real domains/data, active external destinations, genuine credentials, key/recovery material, and any unreviewed environment inheritance.
-- [ ] Add focused unit and startup/integration tests for default-off behavior, exact demo enablement, contradictory settings, wrong host/origin/data marker, accidental demo credentials outside demo mode, redacted diagnostics, and unchanged normal development/self-hosted/SaaS configuration behavior.
-
-Acceptance criteria:
-
-- One explicit, default-off, fail-closed capability profile governs all public-demo exceptions; unsafe or ambiguous production configuration prevents startup, no feature module relies on hostname checks, and the reviewed matrix proves that no demo action can administer or communicate outside the isolated installation.
-
-### Version 0.33.31.2 - Deterministic permission-showcase accounts and login guidance
-
-**Model: High Effort** — Shared authentication combined with scoped role assignments requires exact permission and credential-mutation denial rather than illustrative labels.
-
-- [ ] Extend the deterministic fictional scenario with active public-demo-only accounts using the shipped role model and scopes: a workspace owner represented by a Workspace Administrator assignment, an elevated Client Administrator and/or project-scoped Project Administrator, a standard Client User and/or Project User, and a limited Client User (External) where the seeded records support a meaningful comparison. Do not seed or publish `super_admin`, invent a Manager role, or broaden any role's permissions.
-- [ ] Use fake names and reserved non-deliverable example-domain addresses only. Keep user IDs, memberships, role scopes, records, and public demo-only credentials deterministic across resets; treat those public credentials as non-secret demo fixtures that are valid only when the exact fail-closed demo profile is active and are never copied into another environment.
-- [ ] Make shared account credentials immutable in demo mode: deny password, username/email, alternate-email, authentication setting, recovery, session-management, API-key, and equivalent account takeover paths on the server even if a role would ordinarily permit one. Do not depend on outbound email or invitation delivery.
-- [ ] Provide a clear accessible mapping from each demo account to its real role name, scope, representative records, allowed examples, and expected denials. Optionally add a demo-only login account selector or credential panel after security/accessibility review; ordinary login markup and behavior must remain unchanged when demo mode is false.
-- [ ] Add a permission matrix regression that authenticates every shared account, proves representative allowed reads/writes and forbidden cross-scope/admin/credential actions, verifies workspace isolation, and proves no public Super Admin credential or privilege path exists.
+- [ ] Deploy the exact protected `main` SHA by immutable published image digest through the supported root-owned Compose helper; prove direct and public health/readiness plus exact `/api/app-info`, isolated environment identity, safe diagnostics, and no impact on Friends-and-Family or another installation.
+- [ ] Authenticate every public role, exercise representative scoped reads/writes/denials, immutable identity, seeded attachment reads, disabled capabilities, rate/input/growth limits, cross-role content safety, egress denial, visitor messaging, and logout without retaining credentials in evidence.
+- [ ] Mutate representative records to configured caps, retain a pre-reset session, run the scheduled-equivalent reset and observe an actual hourly invocation, then prove the exact database-and-Files baseline, old-session rejection, fresh role logins, scheduler evidence, and no unintended mutation survival.
+- [ ] Exercise a missed/failing reset alert, lock contention, last-known-good automatic recovery, whole-instance backup restore path, and final successful public smoke. Preserve secret-free operation evidence and stop without publication if any recovery or isolation proof is incomplete.
+- [ ] Record the August 31 launch readiness decision, close the final roadmap/archive/version/changelog handoff, and keep 0.33.32 analytics/feedback/interest capture disabled unless its separate review and implementation later authorize them.
 
 Acceptance criteria:
 
-- Visitors can deliberately choose among real, accurately scoped Longtail Forge roles using reproducible fictional accounts; every account demonstrates both allowed and denied behavior, cannot change shared credentials, needs no real email, and has no path to installation-level authority.
-
-### Version 0.33.31.3 - Reproducible golden baseline and hourly reset operator
-
-**Model: High Effort** — Safe replacement of a live native SQLite database and Files tree requires exclusive coordination, service quiescence, integrity proof, and tested automatic recovery.
-
-- [ ] Add a dedicated reviewed CLI/package entry such as `npm run demo:reset`, with explicit manual reset and non-destructive `--dry-run`/baseline-validation modes. Reuse or carefully extend the guarded `rt-ltf-demo` operator boundary rather than creating an unscoped general production reset command.
-- [ ] Build each candidate in a new same-filesystem staging location through the normal migration runner and deterministic public-demo seeder. Validate complete migration identity, expected semantic fingerprint/counts, SQLite `PRAGMA integrity_check`, zero foreign-key violations, seeded Files bytes/checksums, demo ownership marker, empty session state, and the absence of real credentials, Secure Notes recovery material, analytics, newsletter signups, or other external-interest data before promotion. A reviewed prebuilt artifact may accelerate startup but cannot be the sole or undocumented source of truth.
-- [ ] Acquire an exclusive host-level reset lock before staging and retain it through recovery/cleanup; overlapping scheduled/manual resets must fail or exit safely with a distinct status. Make retries idempotent, detect interrupted/partial state, retain the last known-good unit, and cover lock ownership/staleness without allowing two promoters.
-- [ ] Put the demo into a brief explicit maintenance/unavailable state, stop and prove quiescent every Node app/worker process that can hold SQLite or Files handles, checkpoint/close or discard the active database/WAL/SHM only under that stopped boundary, and promote database plus Files as one matched data-root unit using same-filesystem atomic renames where supported. Never replace a database beneath an open `better-sqlite3` connection or mix one reset's database with another reset's Files.
-- [ ] Start the previously active runtime, require direct and public health/readiness plus exact `/api/app-info`, migration, semantic-baseline, and representative login/read/write proof, then retire only transient candidate state. If restart or verification fails, close traffic, restore the retained previous known-good unit atomically, restart it, verify recovery, and preserve the whole-instance backup and failure evidence when automatic recovery cannot complete.
-- [ ] Ensure every prior demo session expires at promotion and no session from the previous database becomes valid again after rollback decisions. Record structured, secret-free reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health outcome, failure class, rollback, and recovery status; define retention and an actionable failure alert without logging credentials, content, raw paths, or session IDs.
-- [ ] Install the hourly schedule outside the application process using the mechanism appropriate to the supported deployment—host `systemd` timer/cron while the retained service host is active, or a reviewed host/container scheduler around Compose. Document the manual command, schedule/time zone, expected downtime, missed-run/catch-up policy, health alert, disable/recovery procedure, and scheduler ownership. Optionally expose a safe next-reset timestamp and accessible “changes are temporary” warning if user testing shows material value.
-- [ ] Add reset lifecycle tests for successful mutation-to-exact-baseline restoration, dry-run, repeat/idempotent runs, invalid/mismatched baseline, interrupted staging/promotion, lock contention, stale partial state, failed stop/start/readiness, automatic prior-state recovery, WAL/SHM handling, session expiry, Files/database pairing, log redaction, and alert invocation.
-
-Acceptance criteria:
-
-- An external hourly schedule and the same manual operator entry rebuild a fresh candidate from repository-controlled migrations and seed definitions, prove its exact database-and-Files fingerprint, swap only while native SQLite users are stopped, invalidate sessions, and either return healthy on the new baseline or automatically return healthy on the retained prior unit with actionable secret-free evidence.
-
-### Version 0.33.31.4 - Public-demo file-ingress shutdown
-
-**Model: High Effort** — Missing one alternate upload or attachment path would turn a shared public account into an untrusted storage and malware-ingress service.
-
-- [ ] Add a server-authoritative demo capability denial at the Files/service boundary before bytes, streams, metadata, quotas, storage objects, scan jobs, or attachment records can be created. Return one stable machine-readable error code/status and a user-facing explanation that uploads are unavailable in the public demo.
-- [ ] Cover current JSON single/batch and multipart single/batch Files routes plus attachment helpers and direct service callers. Audit Quick Capture, Notes, Tasks, Client/Project actions, Lists, Time Tracking, profile/avatar surfaces, imports, rich-text attachments, drag-and-drop, pasted files, module contributions, and any other ingress; explicitly record paths that do not currently exist so future additions cannot bypass the gate.
-- [ ] Keep API v1 file upload absent/denied in demo mode and add route/catalog guardrails so a later public upload contribution must declare and test demo capability behavior. Direct HTTP, API-key, alternate content type, malformed multipart, and internal attachment calls must not bypass rejection.
-- [ ] Hide or disable every applicable upload control and drop/paste target for clarity while keeping the server denial authoritative and ordinary development, self-hosted, and future SaaS behavior unchanged when demo mode is false.
-- [ ] Permit existing sanitized seeded attachments to remain viewable/downloadable/previewable only through the normal permission, scanner, safe-preview, and storage boundaries. Prove they cannot be replaced, extended, relinked through new bytes, or used to expose protected storage metadata.
-- [ ] Add configuration, permission, service, direct-route, multipart/JSON, browser, and source/catalog regressions covering every discovered ingress and normal-mode non-regression.
-
-Acceptance criteria:
-
-- No public-demo request or UI path can ingest file bytes or create an upload/scan artifact, seeded safe attachments remain read-only where authorized, bypass attempts receive stable safe feedback, and the same routes behave normally outside demo mode.
-
-### Version 0.33.31.5 - Public-internet abuse resistance and infrastructure isolation
-
-**Model: High Effort** — Shared credentials and a public URL require layered resource, content, network, and observability controls independent of the hourly reset.
-
-- [ ] Threat-model the shared demo and record bounded controls for credential stuffing, shared-account contention, mutation floods, record amplification, expensive reads/search, stored content abuse, XSS, outbound abuse, disk/database exhaustion, reset interference, and attempts to reach private infrastructure.
-- [ ] Retain database-backed authentication throttling and add measured reverse-proxy and/or application request and mutation limits appropriate to public shared accounts, trusted proxy identity, NAT/shared-IP fairness, and generic non-enumerating `429` responses. Define limits and alert thresholds from a reproducible public-demo smoke/load probe rather than arbitrary hidden constants.
-- [ ] Enforce server-side per-account/workspace caps on mutable record growth between resets, bounded query/page sizes, request/body/field/rich-text limits even with uploads disabled, and safe failure behavior before expensive parsing or durable writes. The hourly rebuild is recovery depth, not quota enforcement.
-- [ ] Exercise existing Markdown/HTML sanitization, escaping, CSP/security-header, and stored-XSS coverage against every representative demo-editable text surface and seeded cross-role reader. Do not add a demo-only renderer or weaken normal validation.
-- [ ] Disable or deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, and unreviewed background work through the capability catalog plus network egress policy. Prove the demo host/container has no customer network route, private service credential, production secret, or writable production storage.
-- [ ] Define useful reverse-proxy/application/security logging, request correlation, retention, redaction, reset-event linkage, operational dashboards/alerts, and incident response without recording shared passwords or user content. Keep anonymous product analytics conceptually and technically separate from security/audit logs; analytics/provider work remains 0.33.32.
-
-Acceptance criteria:
-
-- The published demo has layered authentication, mutation, record, input, content, outbound-network, and infrastructure controls that remain effective for the full hour; logging supports abuse response without becoming analytics or exposing sensitive data.
-
-### Version 0.33.31.6 - Deployment proof, runbook, and public-demo release gate
-
-**Model: High Effort** — Closure requires reproducible repository proof and live public-host evidence across configuration, permissions, reset recovery, deployment, and unaffected environments.
-
-- [ ] Add the redacted deployment-environment example and manual/operator runbook for the actual supported demo deployment. Document demo capability classifications, shared-account ownership, scheduler installation, lock/maintenance behavior, expected reset downtime, next-reset visitor messaging if shipped, backups/retained states, alerts, rollback/recovery, log locations/retention, and escalation without including secrets or public account credentials in operator-only material.
-- [ ] Run unit/integration configuration tests, the complete shared-account permission matrix, direct upload-bypass coverage, abuse/input/XSS/outbound denials, and reset success/failure/recovery tests. Verify ordinary development, friends-and-family, supported self-hosted production, and future SaaS/default configuration remain unchanged when `DEMO_MODE` is false.
-- [ ] Add a release-owned public-demo smoke test covering each role login, representative scoped reads/writes/denials, attachment read-only behavior, disabled dangerous capabilities, health/readiness/app identity, rate-limit behavior, safe visitor messaging, and logout without exposing secrets in output.
-- [ ] Mutate representative records through real routes as multiple demo roles, create state up to configured caps, hold an old session, run the scheduled-equivalent reset, and prove the exact expected semantic/database-and-Files baseline returns, the old session is rejected, fresh role logins work, and no mutation survives unintentionally.
-- [ ] Prove analytics events, feedback, and newsletter/email interest are either disabled or sent only to the separately governed external boundary; none may be stored in the hourly-reset demo database. Defer provider operation, permanent interest capture, consent policy, and final privacy copy to 0.33.32.
-- [ ] Exercise deployment, hourly scheduling, missed/failing reset alerts, last-known-good rollback, whole-instance backup recovery, and public smoke on the real `demo.longtailforge.com` architecture. If the deployment format changes during the branch, repeat these live proofs on the supported replacement before launch.
-- [ ] Run `npm run docs:suggest`, update only owning configuration/security/demo/deployment/testing docs plus `DECISIONS.md` and `CHANGELOG.md` during implementation closeout, run database integrity proof, and run `npm run verify:slice` exactly once on the final unchanged worktree. Do not mark the release complete from documentation or local simulation alone.
-
-Acceptance criteria:
-
-- Repository verification and retained live evidence prove the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from reset failure, session-invalidating, and safe to operate without affecting any non-demo environment. Publication remains blocked until that evidence and the August 31 launch readiness review are recorded.
+- Retained live evidence proves the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from failure, session-invalidating, and safe to operate without affecting another environment. Publication remains blocked until this gate and the explicit launch decision are complete.
 
 ## Version 0.33.32 - Public Demo Analytics, Privacy, and Interest Capture
 
@@ -143,6 +70,286 @@ Acceptance criteria:
 
 - The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
+## Version 0.33.33 - TypeScript Seam Expansion
+
+**Model: High Effort** — The branch targets high-value trusted seams; identity, permissions, database access, billing, and framework-wide browser contracts can expose live behavioral drift that must be resolved with regression proof rather than suppressed.
+
+Purpose:
+
+Expand checked TypeScript-annotated JavaScript at seams Support Tickets and future modules will depend on, while preserving the 0.33.7.4 runtime and checking model. Coverage percentage is not the goal: a file earns opt-in when its contract catches meaningful drift or gives checked consumers useful guarantees.
+
+Audit evidence:
+
+- The 2026-08-06 read-only probe at 0.33.30.3 found 1,057 errors in 116 files and 206 included files already clean. A 2026-08-07 recount at the current planning baseline found 22 of 400 runtime/test JavaScript files carrying `// @ts-check`; `public/` remains 74 JavaScript files and about 53k lines outside the typecheck program.
+- The original eleven-slice draft was not session-safe. Its time-tracking slice combined four defect investigations across roughly 3,700 lines; its implementation-closure slice crossed Search, resume state, jobs, and events; its clean-file slice proposed about 200 files at once; and its client slices combined 1,700-2,100-line files with framework behavior changes.
+- The checked contracts still identify high-value drift: Search indexers destructure camelCase from a snake_case `SearchReference`, and auth/session consumers infer different shapes for the same trusted identity.
+- `--noImplicitAny` remains off because enabling it would add broad annotation work without comparable near-term contract value.
+
+Decision:
+
+- Preserve the 0.33.7.4 regime: `strict` on, `noImplicitAny` off, `checkJs` per-file opt-in, no `@ts-nocheck` or `@ts-ignore`, no runtime `.ts` imports, and no compile/build step in `npm start`. Zod remains the untrusted-edge validator.
+- Put the coverage inventory and monotonic opted-in floor first so every later slice extends one standing guardrail. Do not mass-add pragmas merely to reach a percentage target.
+- When checking exposes possible runtime drift, the owning slice reproduces the named behavior before changing it. Checker findings do not authorize unrelated cleanup or silent behavior changes.
+- Dual-cased or dual-typed shapes remain honestly represented until a separately proven runtime change removes compatibility.
+
+Delivery and sizing rule:
+
+- Every numbered slice has one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
+- A slice may type one large file, one small cohesive cluster, or adjudicate one behavior risk. It must not absorb another listed slice because nearby checker errors look convenient.
+- Dependencies: slice 1 precedes all others; slice 2 precedes slices 16-17; slice 3 precedes slices 4-7; slice 8 precedes slices 9-10; slice 11 precedes slice 12; and slice 19 precedes slices 20-21. Other slices may be reordered or deferred independently.
+
+Non-goals:
+
+- Do not flip `checkJs` or `noImplicitAny` globally, convert runtime files to `.ts`, add a runtime build step, duplicate Zod validation, weaken a runtime schema, or rewrite tests for checker satisfaction.
+- Do not pursue majority-of-files coverage or spend release ceremony on low-value clean-file counts.
+- Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. This version may introduce small checked boundary helpers that those runtimes consume; whole-file client conversion requires a separately audited client-hardening branch.
+- Do not add `scripts/` to the typecheck program.
+
+### Version 0.33.33.1 - Checked-seam inventory and monotonic ratchet
+
+**Model: Medium Effort** — This is a bounded release-gate change with no product behavior.
+
+- [ ] Recount all first-party `// @ts-check` files, reconcile `CHECKED_SEAM_FILES` with the live set, and store one reviewable inventory plus a monotonic opted-in floor.
+- [ ] Decide the nominal `tests/**/*.mjs` include explicitly; do not imply unchecked tests provide type coverage. Preserve every checking dial and escape-hatch prohibition.
+- [ ] Run the focused seam regression and fast typecheck/contract gates.
+
+Acceptance criteria:
+
+- One release gate fails if an opted-in seam disappears or a checking dial weakens, without forcing unrelated clean files into the program.
+
+### Version 0.33.33.2 - HTTP identity contract and authentication middleware
+
+**Model: High Effort** — This types the trusted identity behind authentication and permission decisions, including Support View impersonation.
+
+- [ ] Author `src/types/http-contracts.d.ts` with distinct request-session, API-session, Support View, permission-resource, rotation, and invalidation shapes plus Express request augmentation.
+- [ ] Opt in `src/security/sessions.js`, both auth middleware files, and `support-view-request-gate.js`; reconcile `password_change_required` and `session_mode` shapes without changing behavior.
+- [ ] Include `src/utils/http.js` and `src/utils/app-error.js` only where the request contract requires them; extend the inventory and run auth/session regressions plus the permission harness.
+
+Acceptance criteria:
+
+- One identity contract covers both authentication modes and Support View with unchanged runtime behavior and green permission proof.
+
+### Version 0.33.33.3 - Canonical record normalizers and timezone math
+
+**Model: High Effort** — The small utility layer defines shared record shapes and DST-sensitive arithmetic.
+
+- [ ] Type `src/utils/normalizers.js` with an authoritative `TimeEntry` typedef that honestly preserves current string durations and tri-state billable values; make numeric coercions explicit.
+- [ ] Type `src/utils/timezones.js` with accepted input unions, an `edge` literal union, and null-safe ISO conversion. Prove whether empty `normalizeUtcIso` input intentionally means now before changing it.
+- [ ] Extend the inventory and run utility/timezone contract tests.
+
+Acceptance criteria:
+
+- Consumers have one honest typed time-entry shape and timezone utilities retain proven DST and invalid-input behavior.
+
+### Version 0.33.33.4 - Time-entry duration persistence and public API ingress
+
+**Model: High Effort** — This is one revenue-relevant write seam and one suspected duration defect.
+
+- [ ] Opt in Time Tracking's `time-entries.service.js`, `time-entries.repo.js`, and `public-api.service.js` against the slice-3 contract.
+- [ ] Reproduce whether a public-API entry supplying only `duration_hours` bills as zero because downstream code reads only `duration_seconds`; fix only the confirmed normalization/persistence defect.
+- [ ] Extend the inventory and run focused public-API and persistence regressions; billing periods, sourced entries, and timers remain out of scope.
+
+Acceptance criteria:
+
+- Public API and persistence agree on one duration representation, with the named defect proven fixed or disproven.
+
+### Version 0.33.33.5 - Sourced time-entry and task-timer bridge
+
+**Model: High Effort** — This cross-module seam can silently change billable meaning.
+
+- [ ] Opt in `src/modules/tasks/task-timers.service.js` and the Time Tracking `saveSourced` path against the canonical entry contract and public module boundary.
+- [ ] Reproduce whether sourced saves bypass the edge contract or collapse `billable: false` to `"yes"`; fix only the confirmed bridge/service defect.
+- [ ] Extend the inventory and run focused Tasks/Time Tracking bridge regressions.
+
+Acceptance criteria:
+
+- Sourced entries preserve duration and billable intent without a new internal cross-module dependency.
+
+### Version 0.33.33.6 - Active timer duration consistency
+
+**Model: High Effort** — Timer start/stop persistence is one data-integrity seam with one named contradiction risk.
+
+- [ ] Opt in `active-timers.service.js` and `active-timers.repo.js` against canonical timer/entry contracts.
+- [ ] Reproduce whether finalization clamps missing seconds to one while retaining client-supplied hours; fix the confirmed canonicalization boundary only.
+- [ ] Extend the inventory and run focused active-timer and duration regressions.
+
+Acceptance criteria:
+
+- Finalized timers cannot persist contradictory duration fields, with other lifecycle behavior unchanged.
+
+### Version 0.33.33.7 - Billing period and dashboard time boundaries
+
+**Model: High Effort** — This isolates the revenue-calculation and timezone boundary.
+
+- [ ] Opt in `time-tracking-billing.service.js` and `time-tracking-dashboard.service.js` against canonical entry/timezone contracts.
+- [ ] Reproduce whether period boundaries use server-local time while entries are UTC; choose and document one authoritative timezone source before fixing a confirmed defect.
+- [ ] Extend the inventory and run billing/dashboard calculations across UTC and DST boundaries.
+
+Acceptance criteria:
+
+- Billing and dashboard periods use one documented timezone contract and produce regression-backed totals.
+
+### Version 0.33.33.8 - Database adapter and transaction-client contract
+
+**Model: High Effort** — The adapter distinction is a database-integrity contract and includes only its direct injected-client proofs.
+
+- [ ] Define distinct `DatabaseAdapter` and `TransactionClient` types; opt in the SQLite adapter, provider, driver facade, and SQL literals while representing nullable module state.
+- [ ] Type injected database parameters in `authentication-throttle.repo.js`, `private-feed-tokens.repo.js`, and `account-export-recovery.repo.js`; fix only misuse the type split proves.
+- [ ] Extend the inventory and run adapter, transaction, and affected repository regressions.
+
+Acceptance criteria:
+
+- Nested transaction misuse is a compile-time failure across the driver and injected repositories, with SQLite behavior unchanged.
+
+### Version 0.33.33.9 - Dialect seams and parameter bindings
+
+**Model: High Effort** — These helpers shape every query and require exact discriminated unions.
+
+- [ ] Type `sqlite-dialect-seams.js` with explicit builder option bags, the current row-ID union, and paired types for boolean field transforms.
+- [ ] Type `parameter-bindings.js` as scalar/array discriminated unions so consumers cannot read the wrong placeholder property.
+- [ ] Extend the inventory and run dialect/binding regressions; high-fan-in repositories remain slice 10.
+
+Acceptance criteria:
+
+- Malformed options and placeholder misuse fail typecheck while generated SQL and values remain equivalent.
+
+### Version 0.33.33.10 - High-fan-in repository signatures
+
+**Model: High Effort** — Users, workspaces, and settings are broad data and permission dependencies.
+
+- [ ] Opt in `settings.repo.js`, `users.repo.js`, and `workspaces.repo.js` against settled database contracts.
+- [ ] Resolve signatures and nullable row results without changing queries, lifecycle, or permissions; extend the inventory and run focused repository/database regressions.
+
+Acceptance criteria:
+
+- The three widest repositories expose checked methods and result nullability with no runtime query change.
+
+### Version 0.33.33.11 - Bundled module manifest declarations
+
+**Model: Medium Effort** — Eight small declaration files share one already-validated contract.
+
+- [ ] Opt in all eight `src/modules/*/module.js` files against `ModuleManifest`; fix declaration drift only.
+- [ ] Extend the inventory and run module catalog and manifest guardrails.
+
+Acceptance criteria:
+
+- Every bundled manifest fails the fast gate on structural drift before runtime validation.
+
+### Version 0.33.33.12 - Module registry service fan-out
+
+**Model: High Effort** — The roughly 1,600-line module service is framework-wide and earns its own session.
+
+- [ ] Opt in `src/core/modules/modules.service.js` with types derived from `ModuleManifest` and catalog projections.
+- [ ] Preserve permission filtering, enablement, ordering, caching, and envelopes; extend the inventory and run module catalog/permission regressions.
+
+Acceptance criteria:
+
+- The widest registry consumer typechecks while its public catalog behavior remains unchanged.
+
+### Version 0.33.33.13 - Search reference contract and indexers
+
+**Model: High Effort** — The audit found a concrete casing disagreement at a recovery seam.
+
+- [ ] Prove live Search reference payload casing before aligning `SearchReference` and first-party module/Help indexers.
+- [ ] Preserve intentional compatibility only where callers require it; extend the inventory and run indexing/rebuild regressions.
+
+Acceptance criteria:
+
+- Every first-party indexer consumes one proven shape without losing indexed records.
+
+### Version 0.33.33.14 - Work Resume State implementation closure
+
+**Model: Medium Effort** — Two files close one otherwise-typed recovery chain.
+
+- [ ] Opt in `work-resume-state-initial-producers.js` and `work-resume-state-read-checks.js` against existing contracts.
+- [ ] Preserve registration, permission pruning, unavailable states, ranking, and payloads; extend the inventory and run focused coverage.
+
+Acceptance criteria:
+
+- The first-party resume-state chain is checked without changing recovery behavior or ownership.
+
+### Version 0.33.33.15 - Jobs and event-summary implementation closure
+
+**Model: High Effort** — These related infrastructure contracts are bounded to existing implementations.
+
+- [ ] Opt in the job queue, runner, and handlers against existing job types; opt in `event-summaries.js` against event payload contracts.
+- [ ] Add no workflow, retry, notification, or event behavior; preserve redaction and fallbacks. Extend the inventory and run jobs/events/notifications regressions.
+
+Acceptance criteria:
+
+- Existing job and event-summary implementations typecheck with execution, retry, and redaction unchanged.
+
+### Version 0.33.33.16 - Authentication and API-key services
+
+**Model: High Effort** — Credential/session issuance is isolated from permission-resource work.
+
+- [ ] Opt in `auth.service.js` and `api-keys.service.js` against slice-2 identity types.
+- [ ] Resolve null flows and audit shapes without changing generic errors, hashing, throttling, rotation, scopes, or demo protections. Extend the inventory and run focused security regressions.
+
+Acceptance criteria:
+
+- Both services typecheck without weakening credential, enumeration, or session semantics.
+
+### Version 0.33.33.17 - Permission resources and route call sites
+
+**Model: High Effort** — Permission scoping is a separate security boundary with a large service.
+
+- [ ] Opt in `permissions.service.js` against `PermissionResource`, requiring the workspace scope the runtime contract needs.
+- [ ] Type only audit/Search/Search-index resource construction needed to prove the contract; preserve roles, Support View intersection, module enablement, hidden resources, and errors.
+- [ ] Extend the inventory; run the permission harness and focused route regressions.
+
+Acceptance criteria:
+
+- Missing workspace scope is a compile error and all existing allowed/denied decisions remain green.
+
+### Version 0.33.33.18 - Bounded server clean-file rollout
+
+**Model: High Effort** — Mechanical rollout is useful only when its size and ownership are reviewable.
+
+- [ ] From slice 1, select at most 40 already-clean server files from one coherent ownership tier, excluding every file named by another slice.
+- [ ] Commit the exact path list before adding pragmas; defer any file with non-trivial fallout rather than turning this into behavior work.
+- [ ] Extend the inventory and run the full fast check plus the changed-area plan.
+
+Acceptance criteria:
+
+- One explicit server ownership cluster gains coverage in a bounded session; no percentage target forces unrelated edits.
+
+### Version 0.33.33.19 - Browser typecheck program and shared utilities
+
+**Model: High Effort** — A new browser program is shared build-time infrastructure, but the first utility tier is intentionally small.
+
+- [ ] Add `tsconfig.public.json` with browser libraries and settled opt-in dials, wire it into typecheck, and reuse framework contract types.
+- [ ] Opt in `api-client.js`, `error-contract.js`, `records.js`, `formatters.js`, `cached-fetch.js`, and `page-controller.js` with one shared error-envelope owner.
+- [ ] Extend the inventory and run shared-browser utility and framework-view regressions.
+
+Acceptance criteria:
+
+- The small shared browser tier typechecks against one contract vocabulary with runtime load order unchanged.
+
+### Version 0.33.33.20 - App-shell bootstrap boundary adapter
+
+**Model: High Effort** — The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
+
+- [ ] Author `AppShellBootstrap` at the producing service and add one small checked browser bootstrap adapter/normalizer that accepts `unknown` and exposes the safe current envelope to navigation.
+- [ ] Route `public/js/navigation.js` through that adapter without opting the whole navigation file into checking or refactoring unrelated navigation behavior.
+- [ ] Preserve safe defaults, workspace switching, module visibility, caching, responsive navigation, and script load order; extend the inventory and run app-shell/browser regressions.
+
+Acceptance criteria:
+
+- Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
+
+### Version 0.33.33.21 - Descriptor-declared response record adapter
+
+**Model: High Effort** — One extracted checked helper can replace response-key guessing without attempting whole-file conversion of either 2,000-line declarative runtime.
+
+- [ ] Add `dataSource.recordsKey` to `ViewSurfaceDescriptor` and extract the renderer's record-envelope selection into one small checked helper that prefers the declared key and retains a measured compatibility fallback.
+- [ ] Route `view-renderer.js` through the helper without opting the full renderer or builder into checking; inventory every bundled declarative list and declare its real envelope key.
+- [ ] Add a guardrail against new descriptor-backed key guessing and prove list results, empty/error states, selection, paging, and permissions across bundled surfaces.
+- [ ] Extend the inventory and run the full views area plus rendered browser smoke.
+
+Acceptance criteria:
+
+- Bundled declarative views read records through one checked declared-key boundary, with compatibility explicit and the giant renderer/builder conversions safely deferred.
 ## Version 0.34 - Support Tickets Module
 
 **Model: High Effort** — Tickets is a committed cross-module workflow with schema, permission, client-visibility, Files, API, and public-intake risk.

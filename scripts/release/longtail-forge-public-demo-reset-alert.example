@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'longtail-forge-public-demo-reset-alert: %s\n' "$*" >&2
+  exit 1
+}
+
+command -v logger >/dev/null 2>&1 || fail 'logger is required'
+test "$(id -u)" = '0' || fail 'alert helper must run as root'
+test "${1:-}" = 'notify' || fail 'command must be notify'
+shift
+
+TARGET=''
+OPERATION_ID=''
+TRIGGER=''
+SCHEDULED_BOUNDARY=''
+FAILURE_CLASS=''
+RECOVERY_STATUS=''
+EXIT_CODE=''
+declare -A SEEN_ARGS=()
+while test "$#" -gt 0; do
+  case "$1" in
+    --target) key=target; TARGET="${2:-}" ;;
+    --operation-id) key=operation; OPERATION_ID="${2:-}" ;;
+    --trigger) key=trigger; TRIGGER="${2:-}" ;;
+    --scheduled-boundary) key=boundary; SCHEDULED_BOUNDARY="${2:-}" ;;
+    --failure-class) key=failure; FAILURE_CLASS="${2:-}" ;;
+    --recovery-status) key=recovery; RECOVERY_STATUS="${2:-}" ;;
+    --exit-code) key=exit; EXIT_CODE="${2:-}" ;;
+    *) fail "unknown argument: $1" ;;
+  esac
+  test -z "${SEEN_ARGS[$key]:-}" || fail "argument may be supplied only once: $1"
+  test -n "${2:-}" && [[ "${2:-}" != --* ]] || fail "$1 requires a value"
+  SEEN_ARGS[$key]=1
+  shift 2
+done
+
+test "$TARGET" = 'rt-ltf-demo' || fail 'target must be exactly rt-ltf-demo'
+[[ "$OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual)-[0-9]+$ ]] || fail 'operation identity is invalid'
+test "$TRIGGER" = 'scheduled' || test "$TRIGGER" = 'manual' || fail 'trigger is invalid'
+[[ "$SCHEDULED_BOUNDARY" = 'none' || "$SCHEDULED_BOUNDARY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$ ]] || fail 'scheduled boundary is invalid'
+[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered)$ ]] || fail 'failure class is invalid'
+[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|maintenance-curtain-retained)$ ]] || fail 'recovery status is invalid'
+[[ "$EXIT_CODE" =~ ^[1-9][0-9]{0,2}$ ]] || fail 'exit code is invalid'
+
+# Replace this bounded implementation with the operator's paging integration.
+# Keep this exact argument contract so credentials, content, sessions, and paths
+# never need to cross the alert boundary.
+logger --priority daemon.alert --tag longtail-forge-public-demo-reset \
+  "target=$TARGET operationId=$OPERATION_ID trigger=$TRIGGER scheduledBoundary=$SCHEDULED_BOUNDARY failureClass=$FAILURE_CLASS recoveryStatus=$RECOVERY_STATUS exitCode=$EXIT_CODE"

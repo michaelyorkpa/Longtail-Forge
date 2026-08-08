@@ -1,4 +1,5 @@
 import { auditLogsRepository } from "../repositories/audit-logs.repo.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
@@ -162,10 +163,12 @@ async function listSecurityEvents(session, filters = {}, options = {}) {
 }
 
 async function exportCsv(session, filters = {}) {
+  assertPublicDemoCapabilityAllowed("exports.audit");
   return exportCsvForList(list, session, filters);
 }
 
 async function exportSecurityEventsCsv(session, filters = {}) {
+  assertPublicDemoCapabilityAllowed("exports.audit");
   return exportCsvForList(listSecurityEvents, session, filters);
 }
 

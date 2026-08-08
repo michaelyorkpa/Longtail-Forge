@@ -1,3 +1,135 @@
+## Version 0.33.31.14 - 2026-08-08
+
+- Added a redacted exact-`rt-ltf-demo` Compose environment showing the immutable release identity, dedicated volume/network, disabled restart and DNS forwarding, local SQLite/Files, inline worker, ClamAV handoff, explicit perimeter limits, disabled Support View, and secret-store placeholders without publishing credentials.
+- Added the public-demo operator runbook for account/capability ownership, candidate and scheduler installation, shared lock and maintenance behavior, expected reset downtime, backups/retained states, bounded logs and alerts, rollback/recovery, incident response, and safe visitor messaging; URL publication remains blocked on `0.33.31.15`.
+- Added `npm run demo:release-candidate:smoke` to execute the twelve authoritative public-demo contract owners, build and smoke the same runtime artifact, and optionally run the supported native container lifecycle proof against it.
+- Extended the six-role public-demo permission journey with exact disposable-runtime health, readiness, and app-version assertions, while retaining credential-redaction and logout proof.
+- Shipped the operator profile and runbook inside the runtime artifact and immutable GitHub Release assets, and added `release.public-demo-release-candidate` plus runtime-artifact coverage for the assembled boundary.
+- Proved normal `DEMO_MODE=false` development, Friends-and-Family Preview, supported self-hosting, and future/default configuration remain unchanged; candidate validation continues rejecting analytics, feedback, newsletter/interest-capture persistence from the reset database.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/public-demo-compose.env.example`, `docs/public-demo-operator-runbook.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, module workflows, permission definitions, public API behavior, schema/migrations, reset mechanics, edge configuration, and visitor login UI are unchanged; this slice assembles already-shipped contracts into a release candidate.
+
+## Version 0.33.31.13 - 2026-08-08
+
+- Expanded the public-demo capability catalog with explicit disabled/absent analytics, feedback, integration, interest-capture, email, webhook, and arbitrary URL-fetch families; direct request and registered-job boundaries return the existing safe denial while current server transports remain absent.
+- Added a demo-only runtime environment allowlist that rejects future undeclared application settings, unsafe overrides, S3 configuration, and known external-provider variables without changing normal development or self-hosted configuration.
+- Added a root-owned exact-demo isolation helper that requires the dedicated internal IPv4 Docker network, loopback-only resolver, and data volume, installs a ClamAV-only host exception plus default-deny input/forwarding policy, and proves the application is the sole peer with no DNS, host, or public egress.
+- Bound deploy and hourly reset success to repeatable environment, network, scanner, database/Files/backup mount, read-only root, disabled unattended restart, and bounded local-log proof; included the helper as an immutable LF-normalized release asset.
+- Added `release.public-demo-isolation`, expanded `framework.public-demo-capability-enforcement`, and extended runtime/capability unit coverage for catalog, direct-request, worker/job, network-policy, environment-leakage, absent-transport, and non-demo compatibility contracts.
+- Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/longtail-forge-compose-deploy-helper.env.example`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, module workflows, permissions, public API behavior, database schema, reset scheduling, and visitor-facing UI are unchanged; this slice closes the exact-demo application/infrastructure isolation boundary.
+- Corrective follow-up 2026-08-08: advanced the transitive development-only `nanoid` lockfile resolution from 3.3.16 to 3.3.18 after GHSA-2v37-7h3g-55p8 caused the exact post-merge Nightly audit to fail; application and runtime behavior are unchanged.
+
+## Version 0.33.31.12 - 2026-08-07
+
+- Proved a Workspace Administrator writer to Project Administrator reader journey across Tasks, Lists, and Notes, including stored markup-shaped plain text, malformed Markdown/HTML, dangerous links, server-rendered previews, CSP directives, safe errors, and SQLite integrity.
+- Tightened the shared Markdown URL policy so protocol-relative and slash-backslash network destinations remain inert while normal root-relative, `./`, `../`, hash, HTTP(S), and mail links keep their existing behavior.
+- Extended public-demo rich-content admission to the actual Notes `body_markdown` and `bodyMarkdown` field names at the configured 32 KiB boundary, with fixed non-reflective oversize failures.
+- Mapped unsafe Notes Markdown validation to the existing safe 400 application error contract instead of treating expected visitor input as an internal failure.
+- Added a frozen browser HTML-sink inventory and an editable-content contribution guardrail so future fields, renderers, URL schemes, and sinks must declare and prove their safety contract.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/editable-content-safety.md`, `docs/markdown-platform-contract.md`, `docs/module-development.md`, `docs/notes-module.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, user workflow copy, permissions, public API, Files behavior, deployment, reset operations, and runtime configuration are unchanged; this slice strengthens shared rendering and request-validation contracts.
+
+## Version 0.33.31.11 - 2026-08-07
+
+- Added a framework-owned exact-demo budget authority with atomic SQLite reservations capped at 120 successful mutation units per marked visitor and 600 per workspace until the external hourly baseline reset; failed responses release reservations and successful usage survives app restart.
+- Registered every current authenticated browser API read and mutation under stable operation IDs, made undeclared future routes fail closed for marked visitors, and added state-dependent Lists duplication accounting before persistence.
+- Added fixed JSON field, rich-text, array, object-depth/field/node limits plus raw query, list, text/Search, page-size, page, and offset ceilings before module service work, with stable safe `public_demo_*` errors and no live browser/diagnostic counters.
+- Added migration 092, safe fixed runtime diagnostics, structured expected-error fields, and `framework.public-demo-budgets` coverage for boundaries, concurrency, bulk refusal, rollback/no partial work, restart persistence, catalog completeness, normal-mode compatibility, and SQLite integrity.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/http-errors.md`, `docs/lists-module.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Lists user/Help behavior, permissions, public API, Files, proxy, environment examples, deployment lifecycle, and Admin settings are unchanged; this is an exact-demo server admission boundary.
+
+## Version 0.33.31.10 - 2026-08-07
+
+- Added a demo-only 60-second perimeter with 2,400 global requests, 600 trusted-client requests, 120 hashed-session mutations, and 60 hashed-session Search reads; login remains IP-keyed and the existing database-backed authentication throttle remains authoritative.
+- Added a 128 KiB public-demo declared-body ceiling before route parsing plus the stock-Caddy 8 MB edge ceiling, preserving generic canonical `429`/`413` application responses, shared-IP/session fairness, probe availability, fixed-window recovery, and unchanged non-demo behavior.
+- Made the supported Caddy edge generate and forward one request UUID that Node accepts only from an explicit trusted socket peer; redacted the complete edge URI/request headers/response cookies, masked client addresses, and correlated application, authentication, capability-denial, perimeter, and reset evidence without logging passwords, content, sessions, or analytics identifiers.
+- Added `framework.public-demo-perimeter`, expanded trusted-proxy/security-event/configuration/runtime diagnostics proof, extended the real Caddy smoke with an edge-only oversized-body and redacted-log assertion, and added `npm run demo:perimeter:probe` for reproducible actual-threshold review.
+- Docs updated: `.env.example`, `DECISIONS.md`, `docs/Caddyfile.private-preview.example`, `docs/Caddyfile.private-preview.multi-proxy.example`, `docs/architecture.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/http-errors.md`, `docs/internet-deployment.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: `SECURITY.md`, public API, permissions matrix, Help, module docs, database schema, and UI behavior are unchanged; this slice is an exact-demo runtime/edge security boundary.
+
+## Version 0.33.31.9 - 2026-08-07
+
+- Made the existing `files.ingress` public-demo capability authoritative at every Files creation service and JSON/multipart single/batch route before payload inspection, authorization, metadata validation, quota accounting, storage, scan jobs, audit events, or attachment records.
+- Denied both new bytes and attach-existing relinking with the stable safe `403 public_demo_capability_disabled` response while leaving seeded attachment list, preview, content, and permission-checked download paths unchanged.
+- Exposed one safe app-shell capability hint, removed the temporary File quick action, and replaced the shared attachment helper's chooser, drop target, and upload controls with concise read-only demo guidance across every current host module; normal installations retain the existing UI and service behavior.
+- Added `framework.public-demo-files-ingress` release-gate coverage plus an exact-config child probe for direct services, malformed JSON, multipart preflight, browser/UI ownership, absent paste/profile/avatar/import/API-v1 ingress, safe seeded-read classification, and ordinary-mode compatibility.
+- Docs updated: `DECISIONS.md`, `docs/files-strict-guardrail-inventory.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `help/framework/files-and-attachments.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: `docs/module-contract.md`, `docs/development-and-demo-data.md`, and scanner setup are unchanged because this slice consumes the existing framework capability; the three historical public-demo regression edits only stabilize their closeout cursor assertions, and no module manifest, seed/data contract, file validation, storage, scanning, permission, schema, or deployment control changed.
+
+## Version 0.33.31.8 - 2026-08-07
+
+- Added a root-owned external systemd oneshot and timer that invoke the same proven `rt-ltf-demo` Compose reset at the top of every UTC hour, skip missed boundaries without catch-up bursts, and never supervise the application lifecycle.
+- Added one exact-demo host-only enable switch, scheduler-wrapped manual parity, shared correlation IDs, and distinct no-mutation lock-contention handling while preserving reset-owned automatic recovery and the common deploy/reset lifecycle lock.
+- Added bounded root-private JSONL start/finish evidence with trigger, scheduled boundary, lock result, duration, semantic fingerprint, health, failure class, rollback, recovery, and alert outcome, plus a narrow alert-helper contract that receives no application output, credentials, content, sessions, secrets, or private paths.
+- Added `release.public-demo-reset-scheduler` release-gate coverage and extended the Compose reset contract for scheduler-supplied operation IDs, contention exit 75, and safe semantic-fingerprint output; published every scheduler host asset with LF checkout enforcement.
+- Normalized the later roadmap headings from prose `slice 10` forms to dotted identifiers across the remaining `0.33.31` and `0.33.33` slices.
+- Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help, user/admin UI, permissions, application settings, database schema, module workflows, self-hosting, upgrades, and private-preview policy are unchanged; this is an exact-host release operation.
+
+## Version 0.33.31.7 - 2026-08-07
+
+- Added a dedicated root-owned `rt-ltf-demo` Compose reset helper that builds and validates the deterministic candidate before maintenance, shares one exclusive host lifecycle lock with deploy and rollback, proves app and optional worker quiescence, and creates and inspects a whole-instance backup before activation.
+- Added a stopped-volume activation primitive that moves the database, Files, ownership marker, and WAL/SHM state as one same-filesystem unit, retains the prior unit, records every phase, and deterministically reconciles interrupted retirement, promotion, finalization, and recovery.
+- Restarted the recorded immutable `main` release only after active-baseline revalidation, then required direct/public health and readiness, exact `/api/app-info`, rejection of the pre-reset session, and a fresh Workspace Administrator task/client-project read plus Time Entry write/logout journey.
+- Kept failures curtained until the retained prior unit is reconstructed and re-proved, preserving backup and operation evidence when recovery cannot complete; the helper contains no scheduler, in-process timer, or revived systemd application lifecycle.
+- Added `release.public-demo-compose-reset` lifecycle coverage plus runtime-artifact and GitHub Release asset coverage; ratcheted the generated regression manifest/inventory and applicable coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: release workflow, self-hosting, upgrade, private-preview, Help, permission, UI, and module behavior are unchanged; hourly scheduling and reset alerting remain owned by the following scheduler slice.
+
+## Version 0.33.31.6 - 2026-08-07
+
+- Added a root-run, non-activating Compose operator command that dry-runs, builds, and revalidates one exact `rt-ltf-demo` public baseline candidate under the canonical data volume without stopping a container or opening, renaming, or replacing active database/Files state.
+- Reused normal migrations and the reviewed six-public-plus-one-private `sanitized-demo` seed, checkpointed candidate SQLite out of WAL mode, and proved exact migration identity, semantic fingerprint/counts, integrity, foreign keys, zero sessions, exact roles/scopes/credential hashes, private-operator separation, and database-to-Files size/checksum inventory.
+- Added fail-closed refusal for existing/partial candidates, target/profile/path/anchor/version/marker mismatch, corrupt databases/Files/roles/scopes/credentials, unexpected sessions or entries, Secure Notes and analytics/feedback/interest persistence, symlinks/path escapes, and plaintext protected material; only a fully verified unit receives the fixed inactive candidate name.
+- Added `database.public-demo-baseline-candidate` release-gate coverage for dry-run immutability, repeatable reconstruction, standalone validation, corruption/redaction cases, active-data preservation, and unchanged local/private seed commands and historical host behavior; ratcheted active, release-gate, and database coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: the marketing screenshot plan still consumes the unchanged fictional scenario and local capture commands; Compose activation/recovery, scheduling, Help, visitor workflows, permissions, and live deployment behavior remain owned by later slices.
+
+## Version 0.33.31.5 - 2026-08-07
+
+- Added a demo-only, no-store public account catalog for the six source-owned visitor credentials with real role names, readable scopes, representative records, useful actions, and expected denials, while excluding internal IDs, directory state, and the private Super Administrator identity.
+- Added one responsive native-select credential helper to the login form with keyboard-first focus, explicit labels, live role guidance and status, and a warning that demo changes reset hourly; disabled, unavailable, or malformed catalog responses leave ordinary login unchanged.
+- Kept the existing `/api/login` submission as the only authentication/session path: selecting or filling a public account makes no login request, bypasses no password verification or throttling, and exposes no live account state.
+- Added a focused catalog/route security regression plus desktop/mobile Playwright coverage for all six choices, exact role/scope wording, keyboard use, accessible status, safe failure, disabled-mode absence, generic login failure, and no Super Administrator option.
+- Docs updated: `DECISIONS.md`, `docs/e2e-testing.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help remains authenticated and no module workflow, permission, runtime setting, proxy, public API, or deployment lifecycle changed.
+
+## Version 0.33.31.4 - 2026-08-07
+
+- Added an exact-bound `public-demo` fixture mode that derives the six visitor accounts from the shipped seven-role identity/scope definitions without changing roles, assignments, permissions, fictional records, or reserved-domain identities.
+- Made the six deterministic visitor passwords intentionally public, source-owned fixture data while reducing the protected version 2 host credential document to the separate private Super Administrator password; public mode is refused without the exact `rt-ltf-demo` target/origin binding, and the local version 1 seven-private-password fixture remains unchanged.
+- Adapted the authenticated role journey to prove all six public logins, representative Task reads and Time Tracking writes, cross-scope and cross-workspace denials, stable credential immutability, logout, and no public Super Administrator credential or delegated-role path.
+- Updated the guarded host operation and regressions for the six-public-plus-one-private profile, retained the original private seven-role journey, and added a dedicated release-gate regression with non-decreasing manifest, release-gate, and permissions coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/marketing/screenshot-and-demo-data-plan.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser login guidance remained owned by the following dedicated chooser slice; this slice added no chooser or alternate authentication path.
+
+## Version 0.33.31.3 - 2026-08-06
+
+- Bound public-demo identity ownership to exactly six unique seeded visitor user IDs in the protected host marker, using explicit fixture contract flags rather than usernames, labels, email domains, or roles; the protected private Super Administrator is excluded.
+- Added one stable safe `public_demo_identity_immutable` guard across self-service and administrator password/profile takeover, account recovery, forced-password, managed-session, membership/account retirement, and API-key mutation/use paths while preserving login, ordinary expiry, logout, and resettable non-identity preferences.
+- Kept marked credentials unchanged during transparent login rehash, rejected account-export recovery for marked visitors, and required regenerated demo candidates to contain zero sessions so cookies from the prior data root expire after activation.
+- Preserved ordinary user lifecycle behavior, private-operator profile/password recovery, development fixtures, preview, and supported self-hosted installations whenever the exact demo marker state is absent.
+- Added real HTTP coverage for self/cross-account and direct-route denial, safe errors, login/logout, API-key invalidation, private-operator recovery, and normal-mode compatibility; expanded startup and host-operation coverage for exact identity markers, operator exclusion, and stale-session rejection.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/operational-security.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `docs/settings-ownership.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Help and browser account guidance remain deferred to the dedicated public account chooser/guidance slice; this slice adds no public credentials or new role workflow.
+## Version 0.33.31.2 - 2026-08-06
+
+- Added one authoritative public-demo capability enforcement boundary with the stable safe `public_demo_capability_disabled` response before protected authorization or persistence.
+- Denied installation/workspace administration and deletion, new account/workspace/role-assignment paths, API keys and every `/api/v1` request, workspace backup/export, private feeds, Support View, and Secure Notes catalog transitions while the exact demo profile is active.
+- Required registered declarative actions, public API endpoints/scopes, and jobs to declare known capabilities; disabled and undeclared contributions fail closed in demo mode, including recorded future integration, invitation, import/export, restore, and extension-administration surfaces.
+- Preserved ordinary installation behavior and operator-only host recovery boundaries, and added focused unit plus isolated-database coverage for direct denial, safe errors, complete contribution inventories, future fail-closed behavior, and non-demo compatibility.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-contract.md`, `docs/operational-security.md`, `docs/public-api.md`, `docs/regression-suite.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+- No docs change needed: Tasks, Notes, Clients/Projects, Lists, Files, Search, Notifications, Time Tracking, Settings, and permission workflows are unchanged; their source edits only declare or consume the shared framework-owned demo capability.
+
+## Version 0.33.31.1 - 2026-08-06
+
+- Added a typed, default-off public-demo runtime profile and a stable framework capability catalog covering permitted, read-only, disabled, and hourly-resettable behavior without hostname-based feature branches.
+- Made demo startup fail closed unless the exact production origin, Compose deployment identity, main release metadata, self-hosted installation mode, disabled Support View, and a validated demo-owned data-root marker all agree. Public-demo-prefixed controls are rejected outside demo mode.
+- Exposed only safe deployment/profile and capability classifications through app-info and runtime diagnostics; credentials, private paths, marker contents, and operator recovery details remain excluded.
+- Added focused configuration, startup-order, marker, catalog, diagnostics, and non-demo compatibility coverage.
+- Docs updated: `DECISIONS.md`, `.env.example`, `docs/architecture.md`, `docs/compose.env.example`, `docs/docs-ownership.json`, `docs/operational-security.md`, `docs/regression-suite-performance.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
+
 ## Version 0.33.30.5 - 2026-08-06
 
 - Advanced the framework-owned runtime Markdown parser from `markdown-it` 14.3.0 to 15.0.0 with the reviewed production graph: `entities` 8.0.0, `linkify-it` 6.1.0, `argparse` 3.0.0, `mdurl` 2.1.0, and `uc.micro` 3.0.0. Markdown-it remains a runtime dependency, uses its supported package-root export and bundled declarations, and does not add redundant `@types/markdown-it`.

@@ -3,23 +3,23 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 435,
+    "discoveredScripts": 448,
     "legacyScripts": 309,
-    "releaseGateScripts": 61,
+    "releaseGateScripts": 70,
     "areaCounts": {
       "dashboard": 2,
-      "database": 41,
+      "database": 42,
       "docs": 10,
       "files": 44,
-      "framework": 74,
+      "framework": 81,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 11,
+      "permissions": 12,
       "public-api": 3,
-      "release": 31,
+      "release": 35,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -28,16 +28,16 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 204,
-      "integration": 162,
-      "release-gate": 61,
+      "focused": 205,
+      "integration": 165,
+      "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 180,
+      "isolated-database": 188,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 221
+      "static": 226
     }
   },
   "coverageFamilies": [
@@ -166,9 +166,9 @@
       "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
       "movedInVersion": "0.33.19.4",
       "movementType": "pure-contract-to-vitest",
-      "assertionCount": 123,
+      "assertionCount": 142,
       "rationale": "Defaults, normalization, accepted values, production warnings, and expected configuration errors are deterministic createConfig behavior and do not need one fresh Node process per case.",
-      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 123-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
+      "assertionDisposition": "tests/unit/runtime-configuration.test.mjs owns the complete 142-case pure matrix through direct createConfig calls. The discovered source regression remains active and owns child-process environment materialization, startup/import failure propagation, the disposable database and module registry, version/runtime documentation contracts, and runtime/app-info consumer integration.",
       "movedTo": "tests/unit/runtime-configuration.test.mjs",
       "retainedIntegrationOwner": "scripts/runtime-configuration-contract-regression.mjs",
       "verificationPerformed": [
@@ -2575,7 +2575,7 @@
     },
     {
       "area": "database",
-      "description": "Proves exact-target preflight and seven-role demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -2659,6 +2659,25 @@
         "workspace-isolation"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
+      "id": "database.public-demo-baseline-candidate",
+      "legacy": false,
+      "path": "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "demo",
+        "deployment",
+        "files",
+        "migrations",
+        "security",
+        "seed",
+        "sqlite"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "database",
@@ -3190,6 +3209,134 @@
     },
     {
       "area": "framework",
+      "description": "Proves the six-account public-demo login catalog is safely shaped, demo-only, source-aligned, and excludes Super Admin and internal identity data.",
+      "id": "framework.public-demo-account-catalog",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "accessibility",
+        "authentication",
+        "browser",
+        "demo",
+        "routes",
+        "security"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves persistent atomic public-demo growth, input, and query budgets plus fail-closed route catalog coverage without changing normal mode.",
+      "id": "framework.public-demo-budgets",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-budgets.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "demo",
+        "http",
+        "limits",
+        "routes",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves fail-closed public-demo denials at service, route, action, public API scope, job, and future-capability boundaries without changing standard mode.",
+      "id": "framework.public-demo-capability-enforcement",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "catalog",
+        "demo",
+        "jobs",
+        "permissions",
+        "routes",
+        "security"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
+      "id": "framework.public-demo-cross-role-content-safety",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "database",
+        "demo",
+        "markdown",
+        "permissions",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves public-demo Files ingestion is denied before payload parsing or persistence while seeded reads and standard-mode ingress remain available.",
+      "id": "framework.public-demo-files-ingress",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-files-ingress.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "browser",
+        "demo",
+        "files",
+        "permissions",
+        "routes",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves exact marked public identities can authenticate and log out but cannot be changed, recovered, retired, session-managed, or used for API keys by self or administrators.",
+      "id": "framework.public-demo-identity-immutability",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "api-keys",
+        "authentication",
+        "demo",
+        "permissions",
+        "routes",
+        "security",
+        "sessions",
+        "users"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "framework",
+      "description": "Proves demo-only global/client/mutation/search limits, NAT fairness, recovery, bounded bodies, trusted edge correlation, generic responses, and redacted evidence.",
+      "id": "framework.public-demo-perimeter",
+      "legacy": false,
+      "path": "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "baseline-bypass",
+        "public-demo",
+        "rate-limit",
+        "security",
+        "trusted-proxy"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "framework",
       "description": "Proves session-less Terms and Privacy routes, neutral defaults, shared security headers, footer links, and runtime-bound Corresponding Source.",
       "id": "framework.public-legal-surfaces",
       "legacy": false,
@@ -3701,6 +3848,23 @@
     },
     {
       "area": "permissions",
+      "description": "Authenticates the exact six public demo visitors and proves allowed work, denials, isolation, immutable credentials, logout, and absence of a public Super Administrator path.",
+      "id": "permissions.public-demo-role-journey",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authentication",
+        "database",
+        "demo",
+        "permissions",
+        "seed"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "permissions",
       "description": "Authenticates every local sanitized-demo role fixture and proves the complete scoped permission journey without exposing credentials.",
       "id": "permissions.sanitized-demo-role-journey",
       "legacy": false,
@@ -4040,6 +4204,74 @@
         "deployment",
         "docker",
         "release"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the guarded Compose public-demo reset promotes one verified database-and-Files unit under a shared lock and automatically reconstructs prior state after failures or interruption.",
+      "id": "release.public-demo-compose-reset",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-compose-reset.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "compose",
+        "demo",
+        "recovery",
+        "security",
+        "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves exact-demo outbound denial, environment and storage allowlists, internal networking, host firewall enforcement, and lifecycle-owned isolation smoke.",
+      "id": "release.public-demo-isolation",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-isolation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "container",
+        "demo",
+        "jobs",
+        "network",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the redacted exact-demo deployment profile, complete operator runbook, aggregate candidate smoke, and non-demo/interest-capture boundaries.",
+      "id": "release.public-demo-release-candidate",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-release-candidate.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "artifact",
+        "container",
+        "demo",
+        "deployment",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the external UTC hourly public-demo reset trigger, shared-lock behavior, bounded redacted evidence, alert invocation, and safe disable/recovery contract.",
+      "id": "release.public-demo-reset-scheduler",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-reset-scheduler.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "alerts",
+        "compose",
+        "demo",
+        "scheduling",
+        "security"
       ],
       "tier": "release-gate"
     },

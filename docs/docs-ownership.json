@@ -233,20 +233,22 @@
       "sourcePatterns": [
         "^\\.env\\.example$",
         "^src/config\\.js$",
+        "^compose\\.yaml$",
         "^scripts/runtime-configuration-contract-regression\\.mjs$",
-        "^tests/unit/runtime-configuration\\.test\\.mjs$",
+        "^tests/unit/(?:public-demo-capabilities|public-demo-enforcement|runtime-configuration)\\.test\\.mjs$",
         "^public/js/(?:footer|login|notification-load-guard|theme-init)\\.js$",
         "^views/public/(?:login|privacy|terms)\\.html$",
         "^legal/",
         "^(?:server|worker)\\.js$",
-        "^src/core/(?:app|corresponding-source|csrf-protection|operational-logger|request-context|transport-security)\\.js$",
+        "^src/core/(?:app|corresponding-source|csrf-protection|operational-logger|public-demo-capabilities|public-demo-enforcement|public-demo-runtime|request-context|runtime-readiness|transport-security)\\.js$",
         "^src/core/private-feeds/",
-        "^src/core/jobs/worker-process-lock\\.js$",
+        "^src/core/jobs/(?:job-handlers|job-queue|job-runner|worker-process-lock)\\.js$",
         "^src/middleware/(?:require-auth|support-view-request-gate)\\.js$",
-        "^src/routes/(?:auth|operational-health|private-feeds|support-view|users)\\.routes\\.js$",
+        "^src/routes/(?:app-info|auth|operational-health|private-feeds|runtime-diagnostics|support-view|users)\\.routes\\.js$",
         "^src/security/(?:auth-throttle|cookies|current-password-verification|password-events|passwords|session-records|sessions)\\.js$",
         "^src/repositories/(?:authentication-throttle|private-feed-tokens|support-sessions)\\.repo\\.js$",
-        "^src/services/(?:auth|legal-content|private-feeds|support-view)\\.service\\.js$",
+        "^src/services/(?:auth|legal-content|private-feeds|runtime-diagnostics|support-view)\\.service\\.js$",
+        "^scripts/regressions/framework/(?:production-configuration-hardening|public-demo-capability-enforcement)\\.regression\\.mjs$",
         "^src/(?:repositories|services)/sessions(?:[./-]|$)",
         "^src/services/operational-readiness\\.service\\.js$",
         "^scripts/reference-caddy-security-smoke\\.mjs$",
@@ -422,23 +424,50 @@
       "label": "Development and sanitized demo data",
       "sourcePatterns": [
         "^docs/demo-data-(?:helper\\.env\\.example|operations\\.md)$",
+        "^docs/public-demo-(?:compose\\.env\\.example|operator-runbook\\.md)$",
+        "^docs/longtail-forge-public-demo-reset-scheduler\\.env\\.example$",
         "^docs/development-and-demo-data\\.md$",
         "^docs/marketing/screenshot-and-demo-data-plan\\.md$",
         "^scripts/demo-data-host\\.mjs$",
+        "^scripts/public-demo-baseline-(?:activation|candidate)\\.mjs$",
         "^scripts/development-data\\.mjs$",
         "^scripts/sanitized-demo-role-journey\\.mjs$",
         "^scripts/lib/demo-data-operation\\.mjs$",
+        "^scripts/lib/public-demo-baseline-(?:activation|candidate)\\.mjs$",
         "^scripts/lib/development-data-safety\\.mjs$",
         "^scripts/lib/sanitized-demo-role-fixtures\\.mjs$",
-        "^scripts/release/longtail-forge-demo-data-host\\.example$",
+        "^scripts/release/longtail-forge-(?:demo-data-host|public-demo-reset(?:-host|-scheduler-host|-alert|\\.(?:service|timer))?)\\.example$",
         "^scripts/regressions/database/demo-data-host-operation\\.regression\\.mjs$",
+        "^scripts/regressions/database/public-demo-baseline-candidate\\.regression\\.mjs$",
+        "^scripts/regressions/release/public-demo-(?:compose-reset|reset-scheduler)\\.regression\\.mjs$",
         "^scripts/regressions/database/development-data-seed\\.regression\\.mjs$",
-        "^scripts/regressions/permissions/sanitized-demo-role-journey\\.regression\\.mjs$"
+        "^scripts/regressions/permissions/sanitized-demo-role-journey\\.regression\\.mjs$",
+        "^scripts/regressions/permissions/public-demo-role-journey\\.regression\\.mjs$"
       ],
       "docs": [
         "docs/demo-data-operations.md",
         "docs/development-and-demo-data.md",
-        "docs/marketing/screenshot-and-demo-data-plan.md"
+        "docs/marketing/screenshot-and-demo-data-plan.md",
+        "docs/public-demo-operator-runbook.md"
+      ]
+    },
+    {
+      "id": "editable-content-safety",
+      "label": "Editable content safety",
+      "sourcePatterns": [
+        "^src/core/markdown/",
+        "^src/core/public-demo-budgets\\.js$",
+        "^src/modules/notes/markdown\\.js$",
+        "^public/js/shared/file-preview\\.js$",
+        "^scripts/markdown-renderer-service-regression\\.mjs$",
+        "^scripts/regressions/framework/public-demo-cross-role-content-safety\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/editable-content-safety.md",
+        "docs/markdown-platform-contract.md",
+        "docs/module-development.md",
+        "docs/notes-module.md",
+        "docs/operational-security.md"
       ]
     },
     {
@@ -451,7 +480,7 @@
         "^docs/docs-ownership\\.(?:json|md)$",
         "^docs/(?:backup-and-restore|private-preview-readiness|releasing|self-hosting|upgrading)\\.md$",
         "^docs/development/github-workflow\\.md$",
-        "^docs/(?:compose\\.env\\.example|demo-data-helper\\.env\\.example|demo-data-operations\\.md|longtail-forge-(?:compose-deploy|maintenance)-helper\\.env\\.example|preview-deployment\\.md)$",
+        "^docs/(?:compose\\.env\\.example|demo-data-helper\\.env\\.example|demo-data-operations\\.md|longtail-forge-(?:compose-deploy|maintenance)-helper\\.env\\.example|longtail-forge-public-demo-reset-scheduler\\.env\\.example|preview-deployment\\.md|public-demo-(?:compose\\.env\\.example|operator-runbook\\.md))$",
         "^archive/(?:2026-07-18-preview-real-ip-and-maintenance-mode\\.md|maintenance-mode/)",
         "^scripts/release/",
         "^scripts/(?:agent-brief|backup|backup-restore-drill|workspace-backup(?:-drill)?|build-container-image|build-runtime-artifact|bump-version|classify-github-changes|container-deployment-smoke|generate-regression-(?:doc-inventory|manifest)|regression-(?:clean-clone|coverage|files-isolation-audit|runner|suite)|run-(?:changed-regressions|closeout|regressions|slice-verification|timed-stage)|runtime-artifact-smoke|suggest-regressions|version-literal)",
@@ -472,6 +501,7 @@
         "docs/docs-ownership.md",
         "docs/preview-deployment.md",
         "docs/private-preview-readiness.md",
+        "docs/public-demo-operator-runbook.md",
         "docs/regression-suite-performance.md",
         "docs/regression-suite.md",
         "docs/releasing.md",

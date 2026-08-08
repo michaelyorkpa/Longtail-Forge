@@ -8,6 +8,8 @@ Preview opens a modal for supported image, text, Markdown, and PDF content. Unsu
 
 Protected internal files are the default. Downloads go through permission-checked app routes, and public or client-visible file behavior depends on explicit file visibility and permission checks rather than tags.
 
+On the public demo, seeded attachments remain available to view, preview, and download when your role and the file review state allow it. Upload choices and drop targets are not shown there, and direct upload or relinking requests are refused. This restriction applies only to the public demo; ordinary installations and local development keep their normal Files behavior.
+
 Uploads use server-side file type checks. In multi-file uploads, accepted files stay attached even when another file in the same selection is rejected. Deleting a file uses an in-app warning and staged deletion: the file becomes unavailable from attachments but remains restorable during the retention window.
 
 Workspace file settings are separate from the listing. Administrators reach the current Files controls through **Settings → Admin → Modules → Files**, where the active file type policy, reserved storage limits, and aggregate storage accounting appear when available.

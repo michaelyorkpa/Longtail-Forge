@@ -87,8 +87,14 @@ assert.equal(isSafeMarkdownUrl("https://example.com"), true);
 assert.equal(isSafeMarkdownUrl("mailto:user@example.com"), true);
 assert.equal(isSafeMarkdownUrl("/safe/path"), true);
 assert.equal(isSafeMarkdownUrl("#section"), true);
+assert.equal(isSafeMarkdownUrl("//attacker.example/path"), false);
+assert.equal(isSafeMarkdownUrl("/\\attacker.example/path"), false);
 assert.equal(isSafeMarkdownUrl("javascript:alert(1)"), false);
 assert.equal(isSafeMarkdownUrl("data:text/html,evil"), false);
+
+const protocolRelativeHtml = renderMarkdownToHtml("[Off-site](//attacker.example/path)");
+assert.doesNotMatch(protocolRelativeHtml, /href=/i, "protocol-relative destinations should degrade to inert label text");
+assert.match(protocolRelativeHtml, />Off-site</, "protocol-relative destinations should preserve their readable label");
 
 const safeReferenceHtml = renderMarkdownToHtml("[Safe reference][safe]\n\n[safe]: https://example.com/reference");
 assert.match(safeReferenceHtml, /<a href="https:\/\/example\.com\/reference">Safe reference<\/a>/, "safe reference links should render through the same URL policy");

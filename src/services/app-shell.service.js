@@ -7,6 +7,7 @@ import { settingsService } from "./settings.service.js";
 import { normalizeCalendarViewPreference, normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
+import { evaluatePublicDemoCapability } from "../core/public-demo-enforcement.js";
 
 const QUICK_ACTION_DEFINITIONS = Object.freeze([
   Object.freeze({
@@ -63,6 +64,7 @@ const QUICK_ACTION_DEFINITIONS = Object.freeze([
     actionType: "fallback-link",
     href: "files.html",
     moduleId: "framework",
+    publicDemoCapability: "files.ingress",
     requiredPermissions: ["files.upload"],
     temporaryFallback: true,
     temporaryLabel: "Temporary fallback: opens Files until target-aware file upload capture ships.",
@@ -155,6 +157,10 @@ async function bootstrap(session) {
     },
     workspaceContext: {
       ...workspaceContext,
+      publicDemo: {
+        enabled: config.demo.enabled,
+        filesIngressAllowed: evaluatePublicDemoCapability("files.ingress").allowed,
+      },
       quickActions,
       viewSurfaces,
     },
@@ -166,6 +172,9 @@ async function readQuickActions(session, workspaceContext, options = {}) {
   const visibleActions = [];
 
   for (const action of QUICK_ACTION_DEFINITIONS) {
+    if (!evaluatePublicDemoCapability(action.publicDemoCapability || "records.workspace").allowed) {
+      continue;
+    }
     if (session.support_view && action.actionType === "module-action") {
       continue;
     }

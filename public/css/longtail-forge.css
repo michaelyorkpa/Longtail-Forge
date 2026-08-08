@@ -3303,6 +3303,74 @@ a.search-result-title:hover {
     display: none;
 }
 
+.login-page--public-demo {
+    width: min(94vw, 640px);
+}
+
+.demo-account-helper {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface-muted);
+}
+
+.demo-account-helper legend {
+    padding: 0 6px;
+    font-weight: 700;
+}
+
+.demo-account-helper label,
+.demo-account-helper select,
+.demo-account-helper button {
+    min-width: 0;
+}
+
+.demo-account-notice,
+.demo-account-status,
+.demo-account-details p {
+    margin: 0;
+}
+
+.demo-account-notice,
+.demo-account-status {
+    color: var(--color-text-secondary);
+    line-height: 1.45;
+}
+
+.demo-account-details {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.demo-account-details h2,
+.demo-account-details h3 {
+    margin: 0;
+}
+
+.demo-account-details h2 {
+    font-size: 1rem;
+}
+
+.demo-account-details h3 {
+    font-size: 0.9rem;
+}
+
+.demo-account-details ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
+
+.demo-account-details li + li {
+    margin-top: 4px;
+}
+
 .login-form h1 {
     margin-bottom: 4px;
     text-align: center;

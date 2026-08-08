@@ -36,6 +36,7 @@ function createErrorHandler(options = {}) {
     if (isApiRequest(request)) {
       sendApiError(request, response, {
         code,
+        fields: expose ? error.fields : [],
         message,
         statusCode,
       });

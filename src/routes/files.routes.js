@@ -11,22 +11,26 @@ const MAX_MULTIPART_FIELD_BYTES = 64 * 1024;
 const MAX_MULTIPART_FIELDS = 20;
 
 filesRoutes.post("/files", asyncRoute(async (request, response) => {
+  filesService.assertFileIngressAllowed();
   const payload = await readJsonBody(request, { maxBytes: MAX_FILE_JSON_BODY_BYTES });
   const result = await filesService.uploadAndAttach(request.session, payload);
   response.status(201).json(result);
 }));
 
 filesRoutes.post("/files/upload", asyncRoute(async (request, response) => {
+  filesService.assertFileIngressAllowed();
   const result = await readMultipartUpload(request);
   response.status(201).json(result);
 }));
 
 filesRoutes.post("/files/upload/batch", asyncRoute(async (request, response) => {
+  filesService.assertFileIngressAllowed();
   const result = await readMultipartBatchUpload(request);
   response.status(result.failed > 0 ? 207 : 201).json(result);
 }));
 
 filesRoutes.post("/files/batch", asyncRoute(async (request, response) => {
+  filesService.assertFileIngressAllowed();
   const payload = await readJsonBody(request, { maxBytes: MAX_FILE_JSON_BODY_BYTES });
   const result = await filesService.uploadBatchAndAttach(request.session, payload);
   response.status(result.failed > 0 ? 207 : 201).json(result);
@@ -83,6 +87,7 @@ filesRoutes.put("/files/settings", asyncRoute(async (request, response) => {
 }));
 
 filesRoutes.post("/files/attachments", asyncRoute(async (request, response) => {
+  filesService.assertFileIngressAllowed();
   const payload = await readJsonBody(request);
   const result = await filesService.attachExistingFile(request.session, payload);
   response.status(201).json(result);

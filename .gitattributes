@@ -1,4 +1,11 @@
 scripts/release/longtail-forge-compose-deploy-host.example text eol=lf
+scripts/release/longtail-forge-public-demo-reset-host.example text eol=lf
+scripts/release/longtail-forge-public-demo-isolation-host.example text eol=lf
+scripts/release/longtail-forge-public-demo-reset-scheduler-host.example text eol=lf
+scripts/release/longtail-forge-public-demo-reset-alert.example text eol=lf
+scripts/release/longtail-forge-public-demo-reset.service.example text eol=lf
+scripts/release/longtail-forge-public-demo-reset.timer.example text eol=lf
+docs/longtail-forge-public-demo-reset-scheduler.env.example text eol=lf
 scripts/release/longtail-forge-demo-data-host.example text eol=lf
 scripts/release/longtail-forge-edge-unavailable.html text eol=lf
 scripts/release/longtail-forge-maintenance-host.example text eol=lf

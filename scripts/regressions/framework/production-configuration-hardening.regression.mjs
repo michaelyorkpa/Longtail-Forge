@@ -16,6 +16,13 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 const databaseFixture = await createDisposableDatabaseFixture("production-configuration-hardening");
 const { createConfig } = await import("../../../src/config.js");
 const { assertRuntimeDataPathsReady } = await import("../../../src/core/runtime-readiness.js");
+const {
+  PUBLIC_DEMO_DATA_MARKER_CONTRACT,
+  PUBLIC_DEMO_DATA_MARKER_FILE,
+  PUBLIC_DEMO_TARGET,
+  assertPublicDemoRuntimeReady,
+  isPublicDemoVisitorIdentity,
+} = await import("../../../src/core/public-demo-runtime.js");
 const { createErrorHandler } = await import("../../../src/middleware/error-handler.js");
 const secretMarker = "do-not-disclose-production-secret";
 const appSource = await fs.readFile(path.resolve("src/core/app.js"), "utf8");
@@ -24,8 +31,8 @@ const filesRoutesSource = await fs.readFile(path.resolve("src/routes/files.route
 const filesServiceSource = await fs.readFile(path.resolve("src/services/files.service.js"), "utf8");
 const csrfSource = await fs.readFile(path.resolve("src/core/csrf-protection.js"), "utf8");
 
-assert.match(appSource, /await assertRuntimeDataPathsReady\(\)[\s\S]*await filesService\.assertConfiguredFileStorageProviderReady\(\)[\s\S]*await filesService\.assertConfiguredFileScannerReady\(\)/, "app startup should prove data, storage, and scanner readiness before listening");
-assert.match(workerSource, /await assertRuntimeDataPathsReady\(\)[\s\S]*await filesService\.assertConfiguredFileStorageProviderReady\(\)[\s\S]*await filesService\.assertConfiguredFileScannerReady\(\)/, "separate worker startup should prove the same readiness before polling");
+assert.match(appSource, /await assertPublicDemoRuntimeReady\(\)[\s\S]*await assertRuntimeDataPathsReady\(\)[\s\S]*await filesService\.assertConfiguredFileStorageProviderReady\(\)[\s\S]*await filesService\.assertConfiguredFileScannerReady\(\)/, "app startup should prove demo identity, data, storage, and scanner readiness before listening");
+assert.match(workerSource, /await assertPublicDemoRuntimeReady\(\)[\s\S]*await assertRuntimeDataPathsReady\(\)[\s\S]*await filesService\.assertConfiguredFileStorageProviderReady\(\)[\s\S]*await filesService\.assertConfiguredFileScannerReady\(\)/, "separate worker startup should prove the same demo identity and readiness before polling");
 assert.match(filesRoutesSource, /MAX_FILE_JSON_BODY_BYTES = 8 \* 1024 \* 1024/, "Files JSON compatibility uploads should remain bounded");
 assert.match(filesRoutesSource, /MAX_MULTIPART_BATCH_FILES = 50/, "multipart upload batches should remain bounded");
 assert.match(filesRoutesSource, /MAX_MULTIPART_FIELDS = 20/, "multipart metadata fields should remain bounded");
@@ -48,6 +55,33 @@ assert.equal(production.cookies.secure, true);
 assert.equal(production.secureNotes.masterKeyConfigured, true);
 assert.equal(production.scanner.mode, "clamscan");
 assert.deepEqual(production.runtimeWarnings, []);
+
+const publicDemo = createConfig({
+  ...secureProduction,
+  DEMO_MODE: "true",
+  LONGTAIL_DEPLOYMENT_MODE: "compose",
+  LONGTAIL_PUBLIC_URL: "https://demo.longtailforge.com",
+  LONGTAIL_RELEASE_ARTIFACT_SHA256: "b".repeat(64),
+  LONGTAIL_RELEASE_BRANCH: "main",
+  LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
+});
+assert.deepEqual(publicDemo.demo, {
+  enabled: true,
+  perimeter: {
+    clientRequestLimit: 600,
+    globalRequestLimit: 2400,
+    maxBodyBytes: 128 * 1024,
+    mutationLimit: 120,
+    searchLimit: 60,
+    windowSeconds: 60,
+  },
+  profile: "public_demo",
+});
+assert.throws(
+  () => createConfig({ LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT: "10" }),
+  /LONGTAIL_PUBLIC_DEMO_\* settings require DEMO_MODE=true/,
+);
+assert.equal(publicDemo.deployment.mode, "compose");
 
 const development = createConfig({
   LONGTAIL_AUTH_THROTTLE_ENABLED: "false",
@@ -215,6 +249,14 @@ const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-production-readine
 try {
   const dataDir = path.join(tempRoot, "data");
   const filesDir = path.join(dataDir, "files");
+  assert.deepEqual(
+    await assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: false } }),
+    { enabled: false, marker: "not_required" },
+  );
+  await assert.rejects(
+    () => assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
+    /DEMO_MODE data ownership marker is missing, unreadable, or invalid/,
+  );
   await assertRuntimeDataPathsReady({
     environment: "production",
     paths: [
@@ -227,8 +269,43 @@ try {
   if (process.platform !== "win32") {
     assert.equal(stats.mode & 0o077, 0, "new production data directories should be owner-only");
   }
+
+  const markerPath = path.join(dataDir, PUBLIC_DEMO_DATA_MARKER_FILE);
+  const publicVisitorUserIds = Array.from({ length: 6 }, (_, index) => `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`);
+  await fs.writeFile(markerPath, "{}\n", { mode: 0o600 });
+  await assert.rejects(
+    () => assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
+    (error) => {
+      assert.match(error.message, /DEMO_MODE data ownership marker is missing, unreadable, or invalid/);
+      assert.doesNotMatch(error.message, new RegExp(escapeRegExp(tempRoot)));
+      return true;
+    },
+  );
+  await fs.writeFile(markerPath, `${JSON.stringify({
+    contract: PUBLIC_DEMO_DATA_MARKER_CONTRACT,
+    publicVisitorUserIds,
+    target: PUBLIC_DEMO_TARGET,
+  })}\n`, { mode: 0o600 });
+  if (process.platform !== "win32") {
+    await fs.chmod(markerPath, 0o622);
+    await assert.rejects(
+      () => assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
+      /DEMO_MODE data ownership marker is missing, unreadable, or invalid/,
+    );
+    await fs.chmod(markerPath, 0o600);
+  }
+  assert.deepEqual(
+    await assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
+    { enabled: true, marker: "verified" },
+  );
+  assert.equal(isPublicDemoVisitorIdentity(publicVisitorUserIds[0]), true);
+  assert.equal(isPublicDemoVisitorIdentity("00000000-0000-4000-8000-999999999999"), false);
 } finally {
   await fs.rm(tempRoot, { force: true, recursive: true });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 console.log("Production configuration hardening regression passed.");

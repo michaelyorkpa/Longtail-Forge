@@ -67,7 +67,7 @@ for (const requirement of [
   /longtail-data:\/var\/lib\/longtail-forge/,
   /LONGTAIL_BACKUP_DIR:-\.\/backups/,
   /LONGTAIL_WORKSPACE_BACKUP_ROOT: \/var\/backups\/longtail-forge\/workspaces/,
-  /restart: unless-stopped/,
+  /restart: \$\{LONGTAIL_RESTART_POLICY:-unless-stopped\}/,
   /\/readyz/,
   /172\.30\.17\.1\/32/,
   /LONGTAIL_CLAMD_HOST: \$\{LONGTAIL_CLAMD_HOST:-172\.30\.17\.1\}/,

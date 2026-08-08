@@ -79,6 +79,8 @@ Lists use these statuses:
 
 Finalized lists are read-only for normal item and list edits. Users can duplicate finalized or bill-of-materials-style lists into active working copies when they have duplicate permission.
 
+For an exact marked public-demo visitor, duplication reads the source item count and reserves one durable mutation unit for the new list plus one per copied item before the first create. A budget denial therefore creates neither the list nor any item; permission checks still run first, and normal installations call the same helper as a no-op.
+
 ## Reusable Lists And Catalog Suggestions
 
 Reusable lists are normal `lists` rows marked with `is_reusable`. They are not live parents. Duplicating a reusable list creates an independent active list and snapshots useful item structure while resetting checked/completed state, actual costs, tracking IDs, and purchase/order status.

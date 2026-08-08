@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "database",
   tier: "release-gate",
   tags: ["backup", "demo", "deployment", "files", "security", "seed", "sqlite"],
-  description: "Proves exact-target preflight and seven-role demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+  description: "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
   runMode: "isolated-database",
 });
 
@@ -34,6 +34,8 @@ import {
   verifyDemoSeedCandidate,
 } from "../../lib/demo-data-operation.mjs";
 import {
+  PUBLIC_DEMO_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_VISITOR_PASSWORDS,
   ROLE_CREDENTIALS_FILE_ENV,
   RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
   SANITIZED_DEMO_ROLE_FIXTURES,
@@ -46,6 +48,9 @@ const rolePasswords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixtu
   fixture.roleId,
   `H${index}r!Demo-Host-Private-75319zZ`,
 ]));
+const hostRolePasswords = Object.freeze({
+  super_admin: "Host-Only-Demo-Operator-75319zZ!",
+});
 const generatedOperatorId = createDemoOperationId();
 assertUuidVersion(generatedOperatorId, 4, "demo-data operator identity");
 assert.notEqual(createDemoOperationId(), generatedOperatorId, "separate demo-data operations must receive independent opaque identities");
@@ -110,7 +115,7 @@ try {
     `${Object.entries(appEnvironment).map(([key, value]) => `${key}=${value}`).join("\n")}\n`,
     "utf8",
   );
-  await writeHostRoleCredentials(paths.roleCredentialsFile, rolePasswords);
+  await writeHostRoleCredentials(paths.roleCredentialsFile, hostRolePasswords);
   const originalRoleCredentialsFile = path.join(root, "protected", "original-role-credentials.json");
   await fs.writeFile(originalRoleCredentialsFile, `${JSON.stringify({ passwords: rolePasswords, version: 1 }, null, 2)}\n`, "utf8");
   await assertProtectedFile(paths.appEnvFile, { label: "test environment", requireRoot: false });
@@ -160,6 +165,19 @@ try {
   });
   assert.equal(path.resolve(safeHost.releaseDir), path.resolve(fixtureRelease));
   assert.equal(safeHost.roleFixtures.fixtures.length, 7);
+  assert.equal(safeHost.roleFixtures.mode, PUBLIC_DEMO_ROLE_FIXTURE_MODE);
+  assert.equal(
+    safeHost.roleFixtures.credentials.get("super_admin").password,
+    hostRolePasswords.super_admin,
+  );
+  assert.deepEqual(
+    Object.fromEntries(
+      [...safeHost.roleFixtures.credentials.entries()]
+        .filter(([roleId]) => roleId !== "super_admin")
+        .map(([roleId, credential]) => [roleId, credential.password]),
+    ),
+    PUBLIC_DEMO_VISITOR_PASSWORDS,
+  );
   const preflightResult = await runDemoDataOperation({
     ...preflightArgs,
     appEnvironment: safeHost.appEnvironment,
@@ -204,8 +222,7 @@ try {
     requireRoot: false,
   }), /ENOENT|no such file/i);
   await writeHostRoleCredentials(paths.roleCredentialsFile, {
-    ...rolePasswords,
-    client_user: "weak",
+    super_admin: "weak",
   });
   await assert.rejects(prepareDemoHostContext({
     action: "provision",
@@ -214,7 +231,7 @@ try {
     hostname: "rt-ltf-demo",
     requireRoot: false,
   }), /at least 16 characters/);
-  await writeHostRoleCredentials(paths.roleCredentialsFile, rolePasswords, {
+  await writeHostRoleCredentials(paths.roleCredentialsFile, hostRolePasswords, {
     target: "rt-ltf",
   });
   await assert.rejects(prepareDemoHostContext({
@@ -225,7 +242,6 @@ try {
     requireRoot: false,
   }), /binding does not match/);
   await writeHostRoleCredentials(paths.roleCredentialsFile, {
-    ...rolePasswords,
     super_admin: operatorPassword,
   });
   await assert.rejects(prepareDemoHostContext({
@@ -235,7 +251,7 @@ try {
     hostname: "rt-ltf-demo",
     requireRoot: false,
   }), /distinct from application or copied installation secrets/);
-  await writeHostRoleCredentials(paths.roleCredentialsFile, rolePasswords);
+  await writeHostRoleCredentials(paths.roleCredentialsFile, hostRolePasswords);
   await assert.rejects(assertDemoHostSafety({
     action: "provision",
     appEnvironment,
@@ -275,6 +291,7 @@ try {
   assert.equal(result.counts.users, 24);
   assert.equal(result.counts.tasks, 400);
   assert.equal(result.counts.files, 2);
+  assert.equal(result.counts.sessions, 0, "fresh demo activation must discard every prior session");
   assert.doesNotMatch(JSON.stringify(result), new RegExp(operatorPassword));
   assert.deepEqual(events.slice(0, 7), ["capture", "stop", "stopped", "backup", "inspect", "seed", "repair"]);
   assert.deepEqual(events.slice(-2), ["start", "verify"]);
@@ -284,6 +301,17 @@ try {
   assert.equal(liveMarker.anchorDate, "2026-07-20");
   assert.equal(liveMarker.semanticFingerprint, result.semanticFingerprint);
   assert.equal(liveMarker.roleFixtureCount, 7);
+  assert.equal(liveMarker.publicVisitorUserIds.length, 6);
+  assert.equal(new Set(liveMarker.publicVisitorUserIds).size, 6);
+  assert.ok(liveMarker.publicVisitorUserIds.every((userId) => /^[0-9a-f-]{36}$/i.test(userId)));
+  const liveDatabase = new Database(paths.databaseFile, { readonly: true });
+  try {
+    const privateOperator = liveDatabase.prepare("SELECT user_id FROM users WHERE protected_user = 'yes'").get();
+    assert.ok(privateOperator?.user_id);
+    assert.equal(liveMarker.publicVisitorUserIds.includes(privateOperator.user_id), false, "the private operator must never be marked public");
+  } finally {
+    liveDatabase.close();
+  }
   assert.doesNotMatch(JSON.stringify(liveMarker), new RegExp(operatorPassword));
   for (const password of Object.values(rolePasswords)) {
     assert.doesNotMatch(JSON.stringify(result), new RegExp(password));
@@ -339,6 +367,21 @@ try {
     expectedAnchorDate: "2026-07-20",
     expectedFingerprint: "0".repeat(64),
   }), /seed identity/);
+  await assertCorruptCandidateRejected("old-session", (database) => {
+    database.prepare(`
+INSERT INTO sessions (
+  session_id, home_workspace_id, active_workspace_id, user_id, username,
+  timezone, ip_address, expires_at, created_at, updated_at
+)
+SELECT
+  'stale-before-reset', home_workspace_id, active_workspace_id, user_id, username,
+  timezone, '127.0.0.1', '2099-01-01T00:00:00.000Z',
+  '2026-07-20T12:00:00.000Z', '2026-07-20T12:00:00.000Z'
+FROM users
+WHERE protected_user = 'yes'
+LIMIT 1;
+`).run();
+  }, /rich fictional scenario counts/);
   await assertCorruptCandidateRejected("wrong-role", (database) => {
     database.prepare(`
 UPDATE user_role_assignments
@@ -448,7 +491,7 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   assert.match(operationSource, /fs\.rename\(previousDataRoot, paths\.dataRoot\)/);
   assert.match(operationSource, /minimalSeedEnvironment/);
   assert.match(operationSource, /"--profile", DEMO_PROFILE/);
-  assert.match(operationSource, /"--role-fixtures", LOCAL_ROLE_FIXTURE_MODE/);
+  assert.match(operationSource, /"--role-fixtures", PUBLIC_DEMO_ROLE_FIXTURE_MODE/);
   assert.match(operationSource, /"--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING\.target/);
   assert.match(operationSource, /\[ROLE_CREDENTIALS_FILE_ENV\]: roleCredentialsFile/);
   assert.match(operationSource, /expectedMode: 0o600/);
@@ -471,8 +514,8 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   if (!symlinkProven) assert.match(operationSource, /stats\.isSymbolicLink\(\)/, "static guard remains required where local symlink creation is unavailable");
   assert.equal(
     redactDemoError(
-      new Error(`${operatorPassword} ${rolePasswords.client_admin} ${paths.dataRoot}`),
-      [operatorPassword, rolePasswords.client_admin, paths.dataRoot],
+      new Error(`${operatorPassword} ${hostRolePasswords.super_admin} ${paths.dataRoot}`),
+      [operatorPassword, hostRolePasswords.super_admin, paths.dataRoot],
     ),
     "[protected] [protected] [protected]",
   );
@@ -540,7 +583,7 @@ async function writeHostRoleCredentials(file, passwords, binding = RT_LTF_DEMO_R
   await fs.writeFile(file, `${JSON.stringify({
     binding,
     passwords,
-    version: 1,
+    version: 2,
   }, null, 2)}\n`, "utf8");
 }
 

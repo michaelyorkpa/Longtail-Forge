@@ -11,7 +11,7 @@ import {
 } from "./development-data-safety.mjs";
 import {
   loadSanitizedDemoRoleFixtures,
-  LOCAL_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_ROLE_FIXTURE_MODE,
   ROLE_CREDENTIALS_FILE_ENV,
   RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
   SANITIZED_DEMO_ROLE_FIXTURES,
@@ -241,7 +241,7 @@ async function readDemoRoleFixtures(credentialsFile) {
       LONGTAIL_RELEASE_BRANCH: "",
       [ROLE_CREDENTIALS_FILE_ENV]: credentialsFile,
     },
-    mode: LOCAL_ROLE_FIXTURE_MODE,
+    mode: PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     target: { profile: DEMO_PROFILE },
   });
 }
@@ -418,6 +418,7 @@ async function runDemoDataOperation(options) {
       backupSha256: backup.archiveSha256,
       previousDataState: path.basename(previousDataRoot),
       semanticFingerprint: verification.semanticFingerprint,
+      publicVisitorUserIds: verification.publicVisitorUserIds,
       roleFixtureCount: SANITIZED_DEMO_ROLE_FIXTURES.length,
       target: DEMO_DATA_TARGET,
     });
@@ -546,7 +547,7 @@ async function seedCandidate({
     "--environment", "development",
     "--data-dir", seedDataRoot,
     "--anchor-date", anchorDate,
-    "--role-fixtures", LOCAL_ROLE_FIXTURE_MODE,
+    "--role-fixtures", PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     "--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target,
   ], {
     cwd: releaseDir,
@@ -582,18 +583,18 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
       throw new Error("Candidate demo database seed identity does not match the requested operation.");
     }
     const counts = {};
-    for (const table of ["workspaces", "users", "tasks", "notes", "lists", "files", "search_index"]) {
+    for (const table of ["workspaces", "users", "tasks", "notes", "lists", "files", "search_index", "sessions"]) {
       counts[table] = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
     }
     if (counts.workspaces !== 5 || counts.users !== 24 || counts.tasks !== 400 || counts.notes !== 200
-      || counts.lists !== 24 || counts.files !== 2 || counts.search_index < 600) {
+      || counts.lists !== 24 || counts.files !== 2 || counts.search_index < 600 || counts.sessions !== 0) {
       throw new Error("Candidate demo database does not match the rich fictional scenario counts.");
     }
     const searchBackendCount = Number(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count);
     if (searchBackendCount !== counts.search_index) {
       throw new Error("Candidate demo Search backend does not match the canonical search index.");
     }
-    verifyDemoRoleFixtureRows(database);
+    const publicVisitorUserIds = verifyDemoRoleFixtureRows(database);
     const secureNotes = Number(database.prepare(`SELECT COUNT(*) AS count FROM notes
       WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL`).get().count);
     if (secureNotes !== 0) {
@@ -615,6 +616,7 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
     return Object.freeze({
       semanticFingerprint: seedRun.semantic_fingerprint,
       counts: Object.freeze(counts),
+      publicVisitorUserIds,
     });
   } finally {
     database.close();
@@ -681,6 +683,7 @@ async function assertProtectedFile(filePath, options = {}) {
 }
 
 function verifyDemoRoleFixtureRows(database) {
+  const publicVisitorUserIds = [];
   const manifestRow = database.prepare(
     "SELECT scenario_manifest_json FROM development_data_seed_runs LIMIT 1",
   ).get();
@@ -698,7 +701,7 @@ function verifyDemoRoleFixtureRows(database) {
   }
 
   const activeUsers = database.prepare(`
-SELECT user_id, username, password, protected_user
+SELECT user_id, username, password, password_change_required, protected_user
 FROM users
 WHERE user_status = 'active'
 ORDER BY username;
@@ -716,10 +719,12 @@ ORDER BY username;
     if (
       !user
       || !String(user.password || "").startsWith("$argon2id$")
-      || (user.protected_user === "yes") !== (fixture.roleId === "super_admin")
+      || Number(user.password_change_required) !== 0
+      || (user.protected_user === "yes") !== !fixture.publicVisitor
     ) {
       throw new Error("Candidate demo role identity or password-hash contract is invalid.");
     }
+    if (fixture.publicVisitor) publicVisitorUserIds.push(user.user_id);
     const assignments = database.prepare(`
 SELECT
   assignment.role_id,
@@ -791,6 +796,10 @@ WHERE user_status != 'active';
       }
     }
   }
+  if (publicVisitorUserIds.length !== 6) {
+    throw new Error("Candidate demo database must mark exactly six public visitor identities.");
+  }
+  return Object.freeze([...publicVisitorUserIds].sort());
 }
 
 function demoFixtureScopeMatches(fixture, assignment) {
@@ -1039,8 +1048,11 @@ export {
   assertDemoHostSafety,
   assertDemoHostIdentity,
   assertDemoMarkerForAction,
+  assertNoLinksInTree,
   assertNoPartialDemoState,
   assertProtectedFile,
+  assertRealDirectory,
+  assertRealFile,
   createHostDependencies,
   createDemoOperationId,
   minimalSeedEnvironment,
@@ -1052,5 +1064,7 @@ export {
   redactDemoError,
   resolveDemoPaths,
   runDemoDataOperation,
+  seedCandidate,
   verifyDemoSeedCandidate,
+  writeDemoMarker,
 };

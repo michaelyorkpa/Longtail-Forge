@@ -4,6 +4,8 @@ import { getJobWorkerStatus } from "../core/jobs/index.js";
 import { readDatabaseHealth } from "../db/index.js";
 import { filesService } from "./files.service.js";
 import { permissionsService } from "./permissions.service.js";
+import { listPublicDemoCapabilities } from "../core/public-demo-capabilities.js";
+import { PUBLIC_DEMO_BUDGET_LIMITS, listPublicDemoBudgetOperations } from "../core/public-demo-budget-catalog.js";
 
 const REQUIRED_PERMISSION = "workspace_settings.manage";
 
@@ -28,9 +30,35 @@ async function read(session) {
     },
     runtime: {
       environment: config.environment,
+      deploymentMode: config.deployment.mode,
       configurationWarnings: [...config.runtimeWarnings],
     },
     features: {
+      publicDemo: {
+        enabled: config.demo.enabled,
+        profile: config.demo.profile,
+        capabilities: config.demo.enabled ? listPublicDemoCapabilities() : [],
+        budgets: {
+          enabled: config.demo.enabled,
+          accountMutationUnits: PUBLIC_DEMO_BUDGET_LIMITS.accountMutationUnits,
+          workspaceMutationUnits: PUBLIC_DEMO_BUDGET_LIMITS.workspaceMutationUnits,
+          maxArrayItems: PUBLIC_DEMO_BUDGET_LIMITS.maxArrayItems,
+          maxFieldBytes: PUBLIC_DEMO_BUDGET_LIMITS.maxFieldBytes,
+          maxRichTextBytes: PUBLIC_DEMO_BUDGET_LIMITS.maxRichTextBytes,
+          maxPageSize: PUBLIC_DEMO_BUDGET_LIMITS.maxPageSize,
+          maxQueryBytes: PUBLIC_DEMO_BUDGET_LIMITS.maxQueryBytes,
+          operationCount: listPublicDemoBudgetOperations().length,
+        },
+        perimeter: {
+          enabled: config.demo.enabled,
+          clientRequestLimit: config.demo.perimeter.clientRequestLimit,
+          globalRequestLimit: config.demo.perimeter.globalRequestLimit,
+          maxBodyBytes: config.demo.perimeter.maxBodyBytes,
+          mutationLimit: config.demo.perimeter.mutationLimit,
+          searchLimit: config.demo.perimeter.searchLimit,
+          windowSeconds: config.demo.perimeter.windowSeconds,
+        },
+      },
       supportView: {
         enabled: config.supportView.enabled,
       },

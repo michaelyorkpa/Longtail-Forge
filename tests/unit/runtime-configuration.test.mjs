@@ -5,6 +5,9 @@ import { createConfig } from "../../src/config.js";
 
 const DEFAULT_EXPECTATIONS = Object.freeze({
   environment: "development",
+  deploymentMode: "direct",
+  demoEnabled: false,
+  demoProfile: "standard",
   databaseProvider: "sqlite",
   sqliteForeignKeys: true,
   sqliteJournalMode: "wal",
@@ -45,6 +48,7 @@ const DEFAULT_EXPECTATIONS = Object.freeze({
 
 const CUSTOM_ENV = Object.freeze({
   HOST: "127.0.0.1",
+  LONGTAIL_DEPLOYMENT_MODE: "compose",
   PORT: "8015",
   LONGTAIL_DATA_DIR: "./custom-data",
   LONGTAIL_DATABASE_FILE: "./custom-data/custom.db",
@@ -83,6 +87,9 @@ const CUSTOM_ENV = Object.freeze({
 
 const CUSTOM_EXPECTATIONS = Object.freeze({
   host: "127.0.0.1",
+  deploymentMode: "compose",
+  demoEnabled: false,
+  demoProfile: "standard",
   port: 8015,
   sqliteForeignKeys: true,
   sqliteJournalMode: "delete",
@@ -126,9 +133,21 @@ const SAFE_PRODUCTION_ENV = Object.freeze({
   TRUST_PROXY: "127.0.0.1/32",
 });
 
+const SAFE_PUBLIC_DEMO_ENV = Object.freeze({
+  ...SAFE_PRODUCTION_ENV,
+  DEMO_MODE: "true",
+  LONGTAIL_DEPLOYMENT_MODE: "compose",
+  LONGTAIL_PUBLIC_URL: "https://demo.longtailforge.com",
+  LONGTAIL_RELEASE_ARTIFACT_SHA256: "b".repeat(64),
+  LONGTAIL_RELEASE_BRANCH: "main",
+  LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
+});
+
 const INVALID_CASES = Object.freeze([
   [{ PORT: "not-a-number" }, /PORT must be an integer/],
   [{ PORT: "70000" }, /PORT must be at most 65535/],
+  [{ LONGTAIL_DEPLOYMENT_MODE: "systemd" }, /LONGTAIL_DEPLOYMENT_MODE must be direct or compose/],
+  [{ LONGTAIL_PUBLIC_DEMO_LOGIN_ASSISTANCE: "true" }, /LONGTAIL_PUBLIC_DEMO_\* settings require DEMO_MODE=true/],
   [{ LONGTAIL_DATABASE_PROVIDER: "postgres" }, /LONGTAIL_DATABASE_PROVIDER must be sqlite/],
   [{ LONGTAIL_SQLITE_FOREIGN_KEYS: "false" }, /LONGTAIL_SQLITE_FOREIGN_KEYS must be on/],
   [{ LONGTAIL_SQLITE_JOURNAL_MODE: "invalid" }, /LONGTAIL_SQLITE_JOURNAL_MODE must be/],
@@ -186,6 +205,17 @@ const INVALID_CASES = Object.freeze([
   [{ WORKSPACE_TYPE_LIMIT: "personal" }, /WORKSPACE_TYPE_LIMIT must be business/],
 ]);
 
+const INVALID_PUBLIC_DEMO_CASES = Object.freeze([
+  [{ LONGTAIL_ENV: "development" }, /DEMO_MODE=true requires LONGTAIL_ENV=production/],
+  [{ LONGTAIL_PUBLIC_URL: "https://preview.longtailforge.com" }, /exact public demo origin/],
+  [{ LONGTAIL_DEPLOYMENT_MODE: "direct" }, /LONGTAIL_DEPLOYMENT_MODE=compose/],
+  [{ LONGTAIL_RELEASE_BRANCH: "nightly" }, /immutable protected-main release identity/],
+  [{ LONGTAIL_RELEASE_COMMIT: "" }, /immutable protected-main release identity/],
+  [{ LONGTAIL_RELEASE_ARTIFACT_SHA256: "" }, /immutable protected-main release identity/],
+  [{ WORKSPACE_INSTALL_MODE: "saas" }, /WORKSPACE_INSTALL_MODE=self_hosted/],
+  [{ LONGTAIL_SUPPORT_VIEW_ENABLED: "true" }, /LONGTAIL_SUPPORT_VIEW_ENABLED=false/],
+]);
+
 const SCANNER_MODES = Object.freeze(["none", "noop", "clamd", "clamscan"]);
 const PURE_ASSERTION_INVENTORY = Object.keys(DEFAULT_EXPECTATIONS).length
   + Object.keys(CUSTOM_EXPECTATIONS).length
@@ -195,11 +225,13 @@ const PURE_ASSERTION_INVENTORY = Object.keys(DEFAULT_EXPECTATIONS).length
   + 2
   + 2
   + SCANNER_MODES.length
-  + INVALID_CASES.length;
+  + INVALID_CASES.length
+  + INVALID_PUBLIC_DEMO_CASES.length
+  + 3;
 
 describe("runtime configuration pure contract", () => {
-  it("preserves the 123-case assertion inventory moved from the integration regression", () => {
-    assert.equal(PURE_ASSERTION_INVENTORY, 123);
+  it("preserves the expanded pure assertion inventory moved from the integration regression", () => {
+    assert.equal(PURE_ASSERTION_INVENTORY, 142);
   });
 
   it("applies deterministic defaults", () => {
@@ -271,6 +303,30 @@ describe("runtime configuration pure contract", () => {
     assert.deepEqual(productionHttps.runtimeWarnings, []);
   });
 
+  it("accepts only the exact immutable public-demo runtime identity", () => {
+    const demo = readPureConfig(SAFE_PUBLIC_DEMO_ENV);
+    assert.equal(demo.deploymentMode, "compose");
+    assert.equal(demo.demoEnabled, true);
+    assert.equal(demo.demoProfile, "public_demo");
+  });
+
+  it("rejects undeclared runtime settings and external-provider environment in public-demo mode only", () => {
+    for (const leakedEnvironment of [
+      { LONGTAIL_FUTURE_OUTBOUND_URL: "https://internal.example.test" },
+      { LONGTAIL_S3_ACCESS_KEY_ID: "customer-key" },
+      { LONGTAIL_UNSAFE_ALLOW_DEBUG_LOGGING: "true" },
+      { POSTHOG_API_KEY: "analytics-key" },
+      { SMTP_HOST: "smtp.example.test" },
+      { WEBHOOK_SECRET: "webhook-secret" },
+    ]) {
+      assert.throws(
+        () => createConfig({ ...SAFE_PUBLIC_DEMO_ENV, ...leakedEnvironment }),
+        /only the reviewed public-demo runtime environment/,
+      );
+      assert.doesNotThrow(() => createConfig(leakedEnvironment));
+    }
+  });
+
   it("ignores the retired SQLite command and accepts every scanner mode", () => {
     const legacySqliteCommand = readPureConfig({ SQLITE_COMMAND: "sqlite3-command-should-be-ignored" });
     assert.equal(legacySqliteCommand.databaseProvider, "sqlite", "legacy SQLITE_COMMAND should not affect config creation");
@@ -288,6 +344,10 @@ describe("runtime configuration pure contract", () => {
   it.each(INVALID_CASES)("rejects invalid configuration %#", (overrides, pattern) => {
     assert.throws(() => createConfig(overrides), pattern);
   });
+
+  it.each(INVALID_PUBLIC_DEMO_CASES)("rejects invalid public-demo configuration %#", (overrides, pattern) => {
+    assert.throws(() => createConfig({ ...SAFE_PUBLIC_DEMO_ENV, ...overrides }), pattern);
+  });
 });
 
 function readPureConfig(env = {}) {
@@ -296,6 +356,9 @@ function readPureConfig(env = {}) {
     dataDir: config.dataDir,
     databaseFile: config.databaseFile,
     databaseProvider: config.databaseProvider,
+    deploymentMode: config.deployment.mode,
+    demoEnabled: config.demo.enabled,
+    demoProfile: config.demo.profile,
     environment: config.environment,
     publicUrl: config.publicUrl,
     host: config.host,

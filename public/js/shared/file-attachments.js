@@ -16,14 +16,24 @@
       error: "",
       isLoading: false,
       isUploading: false,
+      filesIngressAllowed: publicDemoFilesIngressAllowed(),
       options: normalizeOptions(options),
       uploadResults: [],
     };
 
+    const syncFilesIngressAvailability = () => {
+      state.filesIngressAllowed = publicDemoFilesIngressAllowed();
+      render(container, state);
+    };
+
     render(container, state);
+    global.addEventListener?.("longtailforge:workspace-context-updated", syncFilesIngressAvailability);
     const controller = {
       refresh: () => refresh(container, state),
-      destroy: () => container.replaceChildren(),
+      destroy: () => {
+        global.removeEventListener?.("longtailforge:workspace-context-updated", syncFilesIngressAvailability);
+        container.replaceChildren();
+      },
     };
 
     refresh(container, state);
@@ -123,7 +133,16 @@
     if (!options.targetId) {
       children.push(createAttachmentEmptyState(options.saveFirstMessage || "Save before adding files.", false, view));
     } else {
-      children.push(uploadControls(container, state), attachmentList(container, state, view));
+      if (state.filesIngressAllowed) {
+        children.push(uploadControls(container, state));
+      } else {
+        children.push(createAttachmentEmptyState(
+          "Uploads are unavailable in the public demo. Seeded attachments remain available to view.",
+          false,
+          view,
+        ));
+      }
+      children.push(attachmentList(container, state, view));
     }
 
     container.replaceChildren(createAttachmentPanelShell(state, view, header, children));
@@ -644,7 +663,7 @@
   async function uploadFiles(container, state, files) {
     const { options } = state;
 
-    if (!options.targetId || options.canUpload === false) {
+    if (!state.filesIngressAllowed || !options.targetId || options.canUpload === false) {
       return;
     }
 
@@ -915,6 +934,12 @@
         targetType: state.options.targetType,
       },
     }));
+  }
+
+  function publicDemoFilesIngressAllowed() {
+    const publicDemo = namespace.workspaceContext?.publicDemo;
+
+    return publicDemo?.enabled !== true || publicDemo.filesIngressAllowed === true;
   }
 
   function normalizeOptions(options) {

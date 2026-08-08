@@ -4,12 +4,14 @@ import { workspacesRepository } from "../repositories/workspaces.repo.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
 const DELETION_GRACE_DAYS = 30;
 const RECENT_BACKUP_WINDOW_HOURS = 24;
 const NO_CURRENT_BACKUP_ACKNOWLEDGEMENT = "DELETE WITHOUT CURRENT BACKUP";
 
 async function read(session) {
+  assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   await assertCanManageWorkspaceDeletion(session);
   const workspace = await requireWorkspace(session.workspace_id);
   const [lifecycle, latestBackup] = await Promise.all([
@@ -20,6 +22,7 @@ async function read(session) {
 }
 
 async function request(payload, session, options = {}) {
+  assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   await assertCanManageWorkspaceDeletion(session);
   const workspace = await requireWorkspace(session.workspace_id);
   const existing = await workspaceDeletionLifecycleRepository.read(session.workspace_id);
@@ -56,6 +59,7 @@ async function request(payload, session, options = {}) {
 }
 
 async function cancel(session, options = {}) {
+  assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   await assertCanManageWorkspaceDeletion(session);
   const workspace = await requireWorkspace(session.workspace_id);
   const lifecycle = await workspaceDeletionLifecycleRepository.read(session.workspace_id);

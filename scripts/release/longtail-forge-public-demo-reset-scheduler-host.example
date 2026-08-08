@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+readonly SCHEDULER_ENV='/etc/longtail-forge/public-demo-reset-scheduler.env'
+readonly ALLOWED_ENV_KEYS='^(LTF_PUBLIC_DEMO_RESET_ENABLED|LTF_PUBLIC_DEMO_RESET_HELPER|LTF_PUBLIC_DEMO_RESET_ALERT_HELPER|LTF_PUBLIC_DEMO_RESET_LOG|LTF_PUBLIC_DEMO_RESET_LOG_RECORDS)$'
+readonly DEMO_TARGET='rt-ltf-demo'
+readonly RESET_CONFIRMATION='RESET RT-LTF-DEMO COMPOSE DATA'
+
+# Privileged configuration comes only from the validated root-owned file.
+unset LTF_PUBLIC_DEMO_RESET_ENABLED
+unset LTF_PUBLIC_DEMO_RESET_HELPER
+unset LTF_PUBLIC_DEMO_RESET_ALERT_HELPER
+unset LTF_PUBLIC_DEMO_RESET_LOG
+unset LTF_PUBLIC_DEMO_RESET_LOG_RECORDS
+
+fail() {
+  printf 'longtail-forge-public-demo-reset-scheduler: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
+}
+
+require_safe_absolute_path() {
+  local value="$1" label="$2"
+  [[ "$value" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
+  [[ "$value" != '/' && "$value" != *'/../'* && "$value" != */.. && "$value" != *'//'* ]] \
+    || fail "$label contains an unsafe path"
+}
+
+require_root_owned_file() {
+  local value="$1" expected_mode="$2" label="$3" owner group mode parent parent_owner parent_mode
+  test -f "$value" && test ! -L "$value" || fail "$label must be a regular non-symbolic-link file"
+  owner="$(stat -c '%u' "$value")"
+  group="$(stat -c '%g' "$value")"
+  mode="$(stat -c '%a' "$value")"
+  test "$owner" = '0' && test "$group" = '0' && test "$mode" = "$expected_mode" \
+    || fail "$label must be root:root with mode 0$expected_mode"
+  parent="$(dirname "$value")"
+  parent_owner="$(stat -c '%u' "$parent")"
+  parent_mode="$(stat -c '%a' "$parent")"
+  test "$parent_owner" = '0' || fail "$label parent must be root-owned"
+  test $((8#$parent_mode & 8#022)) -eq 0 || fail "$label parent must not be group- or other-writable"
+}
+
+require_root_owned_directory() {
+  local value="$1" expected_mode="$2" label="$3" owner group mode
+  test -d "$value" && test ! -L "$value" || fail "$label must be a real non-symbolic-link directory"
+  owner="$(stat -c '%u' "$value")"
+  group="$(stat -c '%g' "$value")"
+  mode="$(stat -c '%a' "$value")"
+  test "$owner" = '0' && test "$group" = '0' && test "$mode" = "$expected_mode" \
+    || fail "$label must be root:root with mode 0$expected_mode"
+}
+
+load_scheduler_environment() {
+  require_root_owned_file "$SCHEDULER_ENV" '600' 'scheduler environment'
+  local line key value
+  declare -A seen=()
+  while IFS= read -r line || test -n "$line"; do
+    case "$line" in ''|'#'*) continue ;; esac
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || fail 'scheduler environment contains an invalid line'
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    [[ "$key" =~ $ALLOWED_ENV_KEYS ]] || fail "scheduler environment contains unsupported key: $key"
+    test -z "${seen[$key]:-}" || fail "scheduler environment contains duplicate key: $key"
+    seen[$key]=1
+    printf -v "$key" '%s' "$value"
+    export "$key"
+  done < "$SCHEDULER_ENV"
+}
+
+append_event() {
+  local event="$1" outcome="$2" lock_outcome="$3" duration_ms="$4" fingerprint="$5"
+  local health="$6" failure_class="$7" recovery_status="$8" alert_outcome="$9"
+  local record temporary_log
+  record="$(jq -cn \
+    --arg event "$event" --arg outcome "$outcome" --arg trigger "$TRIGGER" \
+    --arg operationId "$OPERATION_ID" --arg scheduledBoundary "$SCHEDULED_BOUNDARY" \
+    --arg lockOutcome "$lock_outcome" --argjson durationMs "$duration_ms" \
+    --arg semanticFingerprint "$fingerprint" --arg health "$health" \
+    --arg failureClass "$failure_class" --arg recoveryStatus "$recovery_status" \
+    --arg alertOutcome "$alert_outcome" \
+    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome}')"
+  exec 8<>"$LOG_PATH.lock"
+  flock 8
+  printf '%s\n' "$record" >> "$LOG_PATH"
+  temporary_log="$(mktemp "${LOG_PATH}.trim.XXXXXX")"
+  tail -n "$LOG_RECORDS" "$LOG_PATH" > "$temporary_log"
+  install -o root -g root -m 0600 "$temporary_log" "$LOG_PATH"
+  rm -f -- "$temporary_log"
+  flock -u 8
+}
+
+for command in chmod date dirname flock grep id install jq mktemp rm rmdir stat tail; do require_command "$command"; done
+test "$(id -u)" = '0' || fail 'scheduler must run as root'
+load_scheduler_environment
+
+ENABLED="${LTF_PUBLIC_DEMO_RESET_ENABLED:-true}"
+RESET_HELPER="${LTF_PUBLIC_DEMO_RESET_HELPER:-/usr/local/sbin/longtail-forge-public-demo-reset}"
+ALERT_HELPER="${LTF_PUBLIC_DEMO_RESET_ALERT_HELPER:-/usr/local/sbin/longtail-forge-public-demo-reset-alert}"
+LOG_PATH="${LTF_PUBLIC_DEMO_RESET_LOG:-/var/log/longtail-forge/public-demo-reset.jsonl}"
+LOG_RECORDS="${LTF_PUBLIC_DEMO_RESET_LOG_RECORDS:-336}"
+
+test "$ENABLED" = 'true' || test "$ENABLED" = 'false' || fail 'LTF_PUBLIC_DEMO_RESET_ENABLED must be true or false'
+[[ "$LOG_RECORDS" =~ ^[0-9]+$ ]] && test "$LOG_RECORDS" -ge 48 && test "$LOG_RECORDS" -le 10000 \
+  || fail 'LTF_PUBLIC_DEMO_RESET_LOG_RECORDS must be an integer from 48 through 10000'
+for pair in "$RESET_HELPER:reset helper" "$ALERT_HELPER:alert helper" "$LOG_PATH:scheduler log"; do
+  require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
+done
+require_root_owned_file "$RESET_HELPER" '755' 'reset helper'
+require_root_owned_file "$ALERT_HELPER" '755' 'alert helper'
+LOG_DIRECTORY="$(dirname "$LOG_PATH")"
+if test -e "$LOG_DIRECTORY" || test -L "$LOG_DIRECTORY"; then
+  require_root_owned_directory "$LOG_DIRECTORY" '700' 'scheduler log directory'
+else
+  install -d -o root -g root -m 0700 "$LOG_DIRECTORY"
+fi
+test ! -L "$LOG_PATH" || fail 'scheduler log must not be a symbolic link'
+test ! -L "$LOG_PATH.lock" || fail 'scheduler log lock must not be a symbolic link'
+if test ! -e "$LOG_PATH"; then install -o root -g root -m 0600 /dev/null "$LOG_PATH"; fi
+if test ! -e "$LOG_PATH.lock"; then install -o root -g root -m 0600 /dev/null "$LOG_PATH.lock"; fi
+require_root_owned_file "$LOG_PATH" '600' 'scheduler log'
+require_root_owned_file "$LOG_PATH.lock" '600' 'scheduler log lock'
+
+MODE="${1:-}"
+shift || true
+TRIGGER=''
+declare -A SEEN_ARGS=()
+while test "$#" -gt 0; do
+  case "$1" in
+    --trigger) key=trigger; TRIGGER="${2:-}" ;;
+    *) fail "unknown argument: $1" ;;
+  esac
+  test -z "${SEEN_ARGS[$key]:-}" || fail "argument may be supplied only once: $1"
+  test -n "${2:-}" && [[ "${2:-}" != --* ]] || fail "$1 requires a value"
+  SEEN_ARGS[$key]=1
+  shift 2
+done
+test "$MODE" = 'run' || fail 'command must be run'
+test "$TRIGGER" = 'scheduled' || test "$TRIGGER" = 'manual' || fail 'trigger must be scheduled or manual'
+
+STARTED_EPOCH_MS="$(date -u +%s%3N)"
+OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-${TRIGGER}-$$"
+SCHEDULED_BOUNDARY=''
+if test "$TRIGGER" = 'scheduled'; then SCHEDULED_BOUNDARY="$(date -u +%Y-%m-%dT%H:00:00Z)"; fi
+append_event 'started' 'running' 'pending' '0' '' 'not-checked' '' 'not-required' 'not-required'
+
+if test "$ENABLED" = 'false'; then
+  append_event 'finished' 'skipped-disabled' 'not-attempted' '0' '' 'not-checked' '' 'not-required' 'not-required'
+  exit 0
+fi
+
+RUN_ROOT="$(mktemp -d /run/longtail-forge-public-demo-reset-scheduler.XXXXXX)"
+chmod 0700 "$RUN_ROOT"
+cleanup() { rm -f -- "$RUN_ROOT/reset.out" "$RUN_ROOT/reset.err"; rmdir -- "$RUN_ROOT" 2>/dev/null || true; }
+trap cleanup EXIT
+
+set +e
+"$RESET_HELPER" reset --target "$DEMO_TARGET" --anchor-date today \
+  --operation-id "$OPERATION_ID" --confirm "$RESET_CONFIRMATION" \
+  > "$RUN_ROOT/reset.out" 2> "$RUN_ROOT/reset.err"
+RESET_STATUS=$?
+set -e
+DURATION_MS="$(( $(date -u +%s%3N) - STARTED_EPOCH_MS ))"
+
+if test "$RESET_STATUS" -eq 0; then
+  set +e
+  RESULT="$(tail -n 1 "$RUN_ROOT/reset.out" | jq -ce \
+    'select(.ok == true and .target == "rt-ltf-demo" and (.semanticFingerprint | test("^[a-f0-9]{64}$")) and (.operationId | type == "string"))')"
+  RESULT_STATUS=$?
+  set -e
+  if test "$RESULT_STATUS" -eq 0 && test "$(jq -r '.operationId' <<<"$RESULT")" = "$OPERATION_ID"; then
+    FINGERPRINT="$(jq -r '.semanticFingerprint' <<<"$RESULT")"
+    append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' '' 'not-required' 'not-required'
+    exit 0
+  fi
+  RESET_STATUS=70
+fi
+
+LOCK_OUTCOME='unknown'
+FAILURE_CLASS='reset-failed'
+RECOVERY_STATUS='unknown'
+HEALTH='unknown'
+if test "$RESET_STATUS" -eq 75; then
+  LOCK_OUTCOME='contended'
+  FAILURE_CLASS='lifecycle-lock-contended'
+  RECOVERY_STATUS='not-started'
+elif grep -Fq 'prior unit was restored and verified' "$RUN_ROOT/reset.err"; then
+  LOCK_OUTCOME='acquired'
+  FAILURE_CLASS='reset-failed-recovered'
+  RECOVERY_STATUS='prior-unit-healthy'
+  HEALTH='healthy'
+elif grep -Fq 'maintenance curtain and protected evidence remain' "$RUN_ROOT/reset.err"; then
+  LOCK_OUTCOME='acquired'
+  FAILURE_CLASS='reset-failed-unrecovered'
+  RECOVERY_STATUS='maintenance-curtain-retained'
+  HEALTH='unavailable'
+fi
+
+set +e
+"$ALERT_HELPER" notify --target "$DEMO_TARGET" --operation-id "$OPERATION_ID" \
+  --trigger "$TRIGGER" --scheduled-boundary "${SCHEDULED_BOUNDARY:-none}" \
+  --failure-class "$FAILURE_CLASS" --recovery-status "$RECOVERY_STATUS" --exit-code "$RESET_STATUS"
+ALERT_STATUS=$?
+set -e
+ALERT_OUTCOME='delivered'
+test "$ALERT_STATUS" -eq 0 || ALERT_OUTCOME='failed'
+append_event 'finished' 'failed' "$LOCK_OUTCOME" "$DURATION_MS" '' "$HEALTH" \
+  "$FAILURE_CLASS" "$RECOVERY_STATUS" "$ALERT_OUTCOME"
+exit "$RESET_STATUS"

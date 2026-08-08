@@ -89,6 +89,8 @@ Keep the framework page entry generic. Permission-filtered module scripts and st
 
 Browser/session routes go in `browserApiRoutes` and are mounted under `/api` after authentication. The framework wraps optional module browser routes with write protection so disabled modules cannot receive normal writes.
 
+Every new authenticated browser route must also receive an exact template under a stable ID in `src/core/public-demo-budget-catalog.js`. Choose the read or mutation catalog deliberately, declare bulk collection keys when one request can create multiple records, and add a service-level `reserveAdditionalPublicDemoBudgetUnits(...)` call before persistence when output growth depends on stored state rather than the request body. Do not use a broad prefix: undeclared future routes must fail closed for marked demo visitors. Capability, permission, workspace, validation, and module behavior remain separate authoritative checks after budget admission.
+
 Public API routes go in `publicApiRoutes` and should use API key middleware with a module-declared scope. Describe those endpoints in `publicApiEndpoints` so docs and sanity checks can discover them.
 
 ## Handle Route Failures
@@ -329,6 +331,8 @@ Markdown rendering is framework-owned. Use `src/core/markdown/markdown.service.j
 The approved syntax set is CommonMark plus explicitly supported tables, task lists, and safe underline using the `++text++` token. Raw HTML, raw underline tags, scriptable links, unsafe image sources, automatic URL linking, typographer replacements, broad extension bundles, and renderer rewrites of saved source are not part of the current contract. Saved Markdown should remain unchanged; render/search/preview output is where normalization and safety handling happen.
 
 The framework service supports default document rendering and explicit `user-authored` rendering. Document rendering keeps CommonMark soft-line behavior for repo-authored Help and future documentation-style content. Notes is the reference module for user-authored Markdown and opts into `user-authored` rendering so single newlines in note bodies display as visible line breaks in both saved reads and draft preview without rewriting stored Markdown.
+
+Editable-content contributions must follow [editable-content-safety.md](editable-content-safety.md): declare the source format, input ceiling, writer/reader permission scope, and output sink; default browser output to `textContent`; and reserve HTML sinks for explicitly named server-rendered safe-HTML fields. New editable renderers, URL schemes, or HTML sinks require cross-role hostile-input coverage and an update to the frozen sink inventory. Public-demo reset is recovery depth, never permission to relax this contract.
 
 `src/modules/notes/markdown.js` validates unsafe note input, preserves wiki-link handling, and delegates safe rendering/plain text/excerpts to the framework service. Saved Notes detail reads expose `body_html`, while draft preview uses the protected `POST /api/notes/preview` route so browser preview stays aligned with saved rendering. The browser editor remains a textarea with authoring helpers in `public/js/shared/notes-editor.js`; do not replace it with WYSIWYG behavior unless a later roadmap version explicitly changes that product decision.
 

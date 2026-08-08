@@ -32,6 +32,7 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
   const requestContext = getRequestContext(request);
   const result = await authService.login(payload, {
     ipAddress: requestContext.ipAddress,
+    requestId: requestContext.requestId,
   });
 
   response.setHeader("Set-Cookie", [

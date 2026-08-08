@@ -48,7 +48,9 @@ assert.throws(
   "invalid proxy CIDR ranges should fail closed",
 );
 
+const edgeRequestId = "f59e475f-bd7a-4ad4-9a1f-e40db5adab77";
 const forwardedHeaders = {
+  "x-request-id": edgeRequestId,
   "x-forwarded-for": "203.0.113.7",
   "x-forwarded-host": "forge.example.test",
   "x-forwarded-proto": "https",
@@ -58,6 +60,7 @@ const direct = await probeRequest([], forwardedHeaders);
 assert.equal(direct.body.ipAddress, "127.0.0.1", "direct mode should use the socket peer IP");
 assert.equal(direct.body.protocol, "http", "direct mode should ignore forged forwarded protocol");
 assert.equal(direct.body.hostname, "127.0.0.1", "direct mode should ignore forged forwarded host");
+assert.notEqual(direct.body.requestId, edgeRequestId, "direct mode should ignore a client-supplied request ID");
 assert.ok(direct.cookies.every((cookie) => !cookie.includes("; Secure")), "direct HTTP cookies should not claim Secure");
 
 const untrusted = await probeRequest(["10.0.0.0/8"], forwardedHeaders);
@@ -69,8 +72,12 @@ const trusted = await probeRequest(["127.0.0.1/32"], forwardedHeaders);
 assert.equal(trusted.body.ipAddress, "203.0.113.7", "a configured trusted proxy should supply the client IP");
 assert.equal(trusted.body.protocol, "https", "a configured trusted proxy should supply effective HTTPS");
 assert.equal(trusted.body.hostname, "forge.example.test", "a configured trusted proxy should supply the public host");
+assert.equal(trusted.body.requestId, edgeRequestId, "the configured edge should own the cross-layer request ID");
 assert.ok(trusted.cookies.length === 3, "the probe should issue session and theme cookies");
 assert.ok(trusted.cookies.every((cookie) => cookie.includes("; Secure")), "effective HTTPS should secure every session/theme cookie");
+
+const malformedEdgeId = await probeRequest(["127.0.0.1/32"], { ...forwardedHeaders, "x-request-id": "not-a-uuid" });
+assert.notEqual(malformedEdgeId.body.requestId, "not-a-uuid", "a trusted edge must still supply a valid UUID");
 
 const uncollapsedMultiProxy = await probeRequest(["127.0.0.1/32"], {
   ...forwardedHeaders,

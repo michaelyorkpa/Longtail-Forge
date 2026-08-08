@@ -10,8 +10,10 @@ import { filesService } from "./files.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { createWorkspaceBackupPackage } from "./workspace-backup-package.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
 async function create(session) {
+  assertPublicDemoCapabilityAllowed("backups.workspace");
   await assertCanManageWorkspaceBackup(session);
   const workspace = await workspacesRepository.readById(session.workspace_id);
   if (!workspace) throw new AppError("Workspace not found.", 404);
@@ -67,6 +69,7 @@ async function create(session) {
 }
 
 async function readLatest(session) {
+  assertPublicDemoCapabilityAllowed("backups.workspace");
   await assertCanManageWorkspaceBackup(session);
   const workspace = await workspacesRepository.readById(session.workspace_id);
   if (!workspace) throw new AppError("Workspace not found.", 404);

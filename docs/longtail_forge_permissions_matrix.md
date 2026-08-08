@@ -121,26 +121,39 @@ keyboard focus and accessible announcements. No directory, hidden count,
 assignment or scope ID, profile, membership, password, session, override, or
 deletion control is exposed. User Admin remains protected by `users.manage`.
 
-The private pretty-data permission fixture provides one deterministic identity
-for each of these seven roles. Super Admin is assigned at installation scope;
+The pretty-data permission fixture provides one deterministic identity for
+each of these seven roles. Super Admin is assigned at installation scope;
 Workspace Administrator is scoped to Northwind Studio; Client Administrator,
 Client User, and Client User (External) are scoped to Cedar & Bloom; Project
 Administrator and Project User are scoped to Website Refresh. Every identity
 has exactly one assignment and no overrides. The fat `development-seed` keeps
-its existing protected operator and adds all seven identities as separate
-accounts; `sanitized-demo` reuses its protected bootstrap identity as fixture
-Super Admin and therefore has exactly seven active accounts. Ordinary personas
-remain inactive. The fixture and authenticated role journey are private local
-tools, not shared preview accounts, and are never enabled for the
-Friends-and-Family Preview.
+its existing protected operator and adds all seven private fixture identities;
+local `sanitized-demo` reuses its protected bootstrap identity as fixture
+Super Admin and therefore has exactly seven private active accounts. Ordinary
+personas remain inactive. Those local fixtures and their seven-account journey
+remain private tools and are never enabled for the Friends-and-Family Preview.
 
-The separately installed `rt-ltf-demo` host operation reuses exactly that
-identity/scope definition with a different seven-password document bound to
-target `rt-ltf-demo` and origin `https://demo.longtailforge.com`. The helper
-accepts only a protected root-owned `0600` path, verifies exactly one assignment
-and no overrides for each active fixture, and refuses every other active
-identity or scope before promotion. No local credential and no
-Friends-and-Family Preview secret qualifies for this operation.
+The separately installed `rt-ltf-demo` operation activates an additional
+profile over the same identities and scopes. Its exact-bound version 2
+credential document contains only the private Super Administrator password;
+the other six passwords are deterministic public non-secret fixture values
+that cannot be supplied or overridden by host or environment input. The helper
+accepts only the protected root-owned `0600` path and exact target/origin,
+verifies one assignment and no overrides for each active fixture, and refuses
+every other active identity or scope before promotion. No local or
+Friends-and-Family Preview credential qualifies.
+
+The promoted marker records exactly the six fixture identities whose explicit
+seed contract sets `publicVisitor: true`; the protected fixture Super Admin is
+excluded. The public journey authenticates those six accounts and proves
+representative task reads, Time Tracking writes, cross-scope and cross-workspace
+denials, immutable credentials, logout, and that Super Admin is absent from the
+public password map and delegated role catalog. Public-demo runtime continues
+to deny sign-in/recovery mutation, forced-password state, memberships, account
+status, managed sessions, and API-key ownership through self-service,
+administrator, or direct service paths. The denial does not expose the target
+identity. Normal mode and the unmarked private operator retain the standard
+lifecycle.
 
 Workspace backup creation and latest-receipt reads are administrative capabilities, not a new assignable permission key. The service requires the existing effective Workspace Administrator boundary for the active workspace or installation Super Admin authority. Client Administrators, Project Administrators, Client Users, Project Users, and external users cannot invoke either route even if they hold unrelated record permissions. A successful response contains only the safe receipt/checksum summary; archive access stays on the protected host operator boundary.
 

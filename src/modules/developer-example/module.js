@@ -151,11 +151,12 @@ const developerExampleModule = {
     },
   ],
   publicApiEndpoints: [
-    { method: "GET", path: "/api/v1/developer-example", scope: "developer_example:read" },
+    { method: "GET", path: "/api/v1/developer-example", scope: "developer_example:read", publicDemoCapability: "api_keys" },
   ],
   apiScopes: [
     {
       id: "developer_example:read",
+      publicDemoCapability: "api_keys",
       moduleId: "developer-example",
       label: "Read Developer Example",
       description: "Read developer example module output through the public API.",

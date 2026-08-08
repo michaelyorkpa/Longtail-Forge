@@ -7,6 +7,7 @@ import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { supportViewRequestGate } from "../middleware/support-view-request-gate.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
+import { publicDemoAccountRoutes } from "../routes/public-demo-account.routes.js";
 import { accountExportRecoveryRoutes } from "../routes/account-export-recovery.routes.js";
 import { appShellRoutes } from "../routes/app-shell.routes.js";
 import { apiKeysRoutes } from "../routes/api-keys.routes.js";
@@ -55,6 +56,10 @@ import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
 import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
 import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
+import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
+import { requirePublicDemoCapability } from "./public-demo-enforcement.js";
+import { createPublicDemoPerimeterMiddlewares } from "./public-demo-perimeter.js";
+import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 
 function createApp() {
   const app = express();
@@ -75,12 +80,15 @@ function createApp() {
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware());
   app.use(createTransportSecurityMiddleware());
+  app.use(...createPublicDemoPerimeterMiddlewares());
   app.use(cookieParser());
   app.use(createCsrfProtectionMiddleware());
   app.use(operationalHealthRoutes);
   app.use(express.static(config.publicDir));
   app.use("/api", appInfoRoutes);
+  app.use("/api", publicDemoAccountRoutes);
   app.use("/api", authRoutes);
+  app.use("/api/v1", requirePublicDemoCapability("api_keys"));
   app.use(publicApiRoutes);
   app.use(privateFeedPublicRoutes);
   for (const moduleRoutes of modulesService.listModuleRoutes("public")) {
@@ -89,6 +97,7 @@ function createApp() {
   app.use("/api/v1", apiRouteBoundary);
   app.use(requireAuth);
   app.use(supportViewRequestGate);
+  app.use(createPublicDemoBudgetMiddleware());
   app.use("/api", accountExportRecoveryRoutes);
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);
@@ -136,6 +145,7 @@ async function startServer() {
     logRuntimeConfigWarnings(config.environment === "production"
       ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
       : console.warn);
+    await assertPublicDemoRuntimeReady();
     await assertRuntimeDataPathsReady();
     await filesService.assertConfiguredFileStorageProviderReady();
     await filesService.assertConfiguredFileScannerReady();

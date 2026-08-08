@@ -13,7 +13,10 @@ import { loadRuntimeEnvFile } from "../src/runtime-env.js";
 import {
   loadSanitizedDemoRoleFixtures,
   LOCAL_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_VISITOR_PASSWORDS,
   ROLE_CREDENTIALS_FILE_ENV,
+  RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
   SANITIZED_DEMO_ROLE_FIXTURES,
 } from "./lib/sanitized-demo-role-fixtures.mjs";
 
@@ -21,33 +24,71 @@ loadRuntimeEnvFile();
 
 const scriptPath = fileURLToPath(import.meta.url);
 
-async function runRolePermissionJourney() {
+async function runRolePermissionJourney({ publicDemo = false } = {}) {
   const roleFixtures = await loadSanitizedDemoRoleFixtures({
-    mode: LOCAL_ROLE_FIXTURE_MODE,
+    credentialBinding: publicDemo ? RT_LTF_DEMO_ROLE_FIXTURE_BINDING : null,
+    mode: publicDemo ? PUBLIC_DEMO_ROLE_FIXTURE_MODE : LOCAL_ROLE_FIXTURE_MODE,
     target: { profile: "sanitized-demo" },
   });
+  const journeyFixtures = publicDemo
+    ? SANITIZED_DEMO_ROLE_FIXTURES.filter((fixture) => fixture.publicVisitor)
+    : SANITIZED_DEMO_ROLE_FIXTURES;
   const journeyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-role-journey-"));
   const dataDir = path.join(journeyRoot, "sanitized-demo", "permission-journey");
   let closeDatabase;
   let server;
+  let stopJobWorker;
 
   try {
-    seedDisposableSanitizedDemo(dataDir, roleFixtures.credentialsFile);
+    seedDisposableSanitizedDemo(dataDir, roleFixtures);
     configureJourneyRuntime(dataDir, roleFixtures);
+    const publicDemoContracts = publicDemo
+      ? {
+          ...(await import("../src/core/public-demo-runtime.js")),
+          ...(await import("../src/core/public-demo-identities.js")),
+        }
+      : null;
 
-    const [{ createApp }, databaseApi] = await Promise.all([
+    const [{ createApp }, databaseApi, jobsApi] = await Promise.all([
       import("../src/core/app.js"),
       import("../src/db/index.js"),
+      import("../src/core/jobs/index.js"),
     ]);
     closeDatabase = databaseApi.closeDatabase;
+    stopJobWorker = jobsApi.stopJobWorker;
     await databaseApi.initializeDatabase();
-    server = await listen(createApp());
+    if (publicDemo) {
+      await activatePublicDemoRuntime(
+        dataDir,
+        databaseApi.db,
+        journeyFixtures,
+        publicDemoContracts,
+      );
+    }
+    const app = createApp();
+    await jobsApi.startJobWorker({
+      logger: { error() {}, log() {}, warn() {} },
+      mode: "inline",
+      workerId: "public-demo-role-journey",
+    });
+    server = await listen(app);
     const address = server.address();
     const api = createApi(`http://127.0.0.1:${address.port}`);
     const sessions = new Map();
     let checks = 0;
 
-    for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
+    const [health, readiness, appInfo] = await Promise.all([
+      api.get("/healthz"),
+      api.get("/readyz"),
+      api.get("/api/app-info"),
+    ]);
+    assert.deepEqual(health.body, { status: "ok" });
+    assert.deepEqual(readiness.body, { status: "ready" });
+    assert.equal(appInfo.status, 200);
+    assert.match(appInfo.body.version, /^\d+\.\d+\.\d+(?:\.\d+)*$/);
+    checks += 4;
+
+    for (const fixture of journeyFixtures) {
       const login = await api.post("/api/login", {
         password: roleFixtures.credentials.get(fixture.roleId).password,
         username: fixture.username,
@@ -60,7 +101,7 @@ async function runRolePermissionJourney() {
     }
 
     const shellByRole = new Map();
-    for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
+    for (const fixture of journeyFixtures) {
       const shell = await api.get("/api/app-shell/bootstrap", {
         cookie: sessions.get(fixture.roleId),
       });
@@ -118,7 +159,7 @@ async function runRolePermissionJourney() {
     checks += 2;
 
     const pageExpectations = [
-      ["super_admin", 200, 200, 200],
+      ...(!publicDemo ? [["super_admin", 200, 200, 200]] : []),
       ["workspace_admin", 200, 200, 200],
       ["client_admin", 200, 403, 200],
       ["project_admin", 200, 403, 200],
@@ -143,7 +184,7 @@ async function runRolePermissionJourney() {
     }
 
     const expectedRoleCatalogSizes = new Map([
-      ["super_admin", 7],
+      ...(!publicDemo ? [["super_admin", 7]] : []),
       ["workspace_admin", 6],
       ["client_admin", 4],
       ["project_admin", 1],
@@ -195,6 +236,17 @@ async function runRolePermissionJourney() {
     );
     checks += 2;
 
+    if (publicDemo) {
+      checks += await assertPublicDemoJourney({
+        api,
+        contracts: publicDemoContracts,
+        db: databaseApi.db,
+        journeyFixtures,
+        roleFixtures,
+        sessions,
+      });
+    }
+
     const clientAdminLookup = await api.post("/api/role-assignments/lookup", {
       username: roleFixtures.credentials.get("project_user").username,
     }, { cookie: sessions.get("client_admin") });
@@ -228,16 +280,133 @@ async function runRolePermissionJourney() {
       checks,
       credentialsPrinted: false,
       ok: true,
-      rolesVerified: SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.roleId),
+      publicDemo,
+      rolesVerified: journeyFixtures.map((fixture) => fixture.roleId),
     };
   } finally {
     if (server) await closeServer(server);
+    if (stopJobWorker) await stopJobWorker({ logger: { error() {}, log() {}, warn() {} } });
     if (closeDatabase) await closeDatabase();
     await fs.rm(journeyRoot, { force: true, recursive: true });
   }
 }
 
-function seedDisposableSanitizedDemo(dataDir, credentialsFile) {
+async function activatePublicDemoRuntime(dataDir, db, journeyFixtures, contracts) {
+  const publicVisitorUserIds = [];
+  for (const fixture of journeyFixtures) {
+    const user = await db.get(
+      "SELECT user_id FROM users WHERE username = :username;",
+      { username: fixture.username },
+    );
+    assert.ok(user?.user_id, `${fixture.roleId} should have a deterministic seeded identity`);
+    publicVisitorUserIds.push(user.user_id);
+  }
+
+  await fs.writeFile(path.join(dataDir, contracts.PUBLIC_DEMO_DATA_MARKER_FILE), `${JSON.stringify({
+    contract: contracts.PUBLIC_DEMO_DATA_MARKER_CONTRACT,
+    publicVisitorUserIds,
+    target: contracts.PUBLIC_DEMO_TARGET,
+  })}\n`, { mode: 0o600 });
+  assert.deepEqual(
+    await contracts.assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
+    { enabled: true, marker: "verified" },
+  );
+}
+
+async function assertPublicDemoJourney({
+  api,
+  contracts,
+  db,
+  journeyFixtures,
+  roleFixtures,
+  sessions,
+}) {
+  const fieldOps = await db.get(
+    "SELECT workspace_id FROM workspaces WHERE name = 'Northwind Field Ops';",
+  );
+  const website = await db.get(
+    "SELECT id AS project_id FROM projects WHERE name = 'Website Refresh';",
+  );
+  const outsideProject = await db.get(
+    "SELECT id AS project_id FROM projects WHERE name = 'POS Setup';",
+  );
+  assert.ok(fieldOps?.workspace_id);
+  assert.ok(website?.project_id);
+  assert.ok(outsideProject?.project_id);
+  let checks = 3;
+
+  assert.equal(PUBLIC_DEMO_VISITOR_PASSWORDS.super_admin, undefined);
+  assert.ok(
+    Object.values(PUBLIC_DEMO_VISITOR_PASSWORDS)
+      .every((password) => password !== roleFixtures.credentials.get("super_admin").password),
+  );
+  checks += 2;
+
+  const adminCatalog = await api.get("/api/roles", {
+    cookie: sessions.get("workspace_admin"),
+  });
+  assert.equal(adminCatalog.status, 200);
+  assert.equal(
+    adminCatalog.body.roles.some((role) => role.role_id === "super_admin"),
+    false,
+  );
+  checks += 2;
+
+  const operatorGuess = await api.post("/api/login", {
+    password: PUBLIC_DEMO_VISITOR_PASSWORDS.workspace_admin,
+    username: roleFixtures.credentials.get("super_admin").username,
+  });
+  assert.equal(operatorGuess.status, 401);
+  checks += 1;
+
+  for (const fixture of journeyFixtures) {
+    const cookie = sessions.get(fixture.roleId);
+    const tasks = await api.get("/api/tasks?limit=10", { cookie });
+    assert.equal(tasks.status, 200, `${fixture.roleId} should read authorized tasks`);
+
+    const allowedWrite = await api.post("/api/time-entries", {
+      description: `Public demo permission journey: ${fixture.roleId}`,
+      end_time: "2026-07-30T15:30:00.000Z",
+      project_id: website.project_id,
+      start_time: "2026-07-30T15:00:00.000Z",
+    }, { cookie });
+    assert.equal(allowedWrite.status, 201, JSON.stringify(allowedWrite.body));
+
+    if (fixture.roleId !== "workspace_admin") {
+      const deniedCrossScope = await api.post("/api/time-entries", {
+        description: `Denied public demo cross-scope write: ${fixture.roleId}`,
+        end_time: "2026-07-30T16:30:00.000Z",
+        project_id: outsideProject.project_id,
+        start_time: "2026-07-30T16:00:00.000Z",
+      }, { cookie });
+      assert.equal(deniedCrossScope.status, 403, JSON.stringify(deniedCrossScope.body));
+      checks += 1;
+    }
+
+    const deniedWorkspaceSwitch = await api.post("/api/session/workspace", {
+      workspaceId: fieldOps.workspace_id,
+    }, { cookie });
+    assert.equal(deniedWorkspaceSwitch.status, 403, JSON.stringify(deniedWorkspaceSwitch.body));
+
+    const deniedPasswordChange = await api.put("/api/user/password", {
+      currentPassword: roleFixtures.credentials.get(fixture.roleId).password,
+      newPassword: `Blocked-${fixture.roleId}-2026!`,
+    }, { cookie });
+    assert.equal(deniedPasswordChange.status, 403, JSON.stringify(deniedPasswordChange.body));
+    assert.deepEqual(deniedPasswordChange.body?.error && {
+      code: deniedPasswordChange.body.error.code,
+      message: deniedPasswordChange.body.error.message,
+    }, {
+      code: contracts.PUBLIC_DEMO_IDENTITY_DENIAL_CODE,
+      message: contracts.PUBLIC_DEMO_IDENTITY_DENIAL_MESSAGE,
+    });
+    checks += 5;
+  }
+
+  return checks;
+}
+
+function seedDisposableSanitizedDemo(dataDir, roleFixtures) {
   const result = spawnSync(process.execPath, [
     "scripts/development-data.mjs",
     "seed",
@@ -250,7 +419,10 @@ function seedDisposableSanitizedDemo(dataDir, credentialsFile) {
     "--anchor-date",
     "2026-07-30",
     "--role-fixtures",
-    LOCAL_ROLE_FIXTURE_MODE,
+    roleFixtures.mode,
+    ...(roleFixtures.mode === PUBLIC_DEMO_ROLE_FIXTURE_MODE
+      ? ["--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target]
+      : []),
   ], {
     cwd: process.cwd(),
     encoding: "utf8",
@@ -259,7 +431,7 @@ function seedDisposableSanitizedDemo(dataDir, credentialsFile) {
       LONGTAIL_ENV: "development",
       LONGTAIL_PUBLIC_URL: "http://127.0.0.1",
       LONGTAIL_RELEASE_BRANCH: "",
-      [ROLE_CREDENTIALS_FILE_ENV]: credentialsFile,
+      [ROLE_CREDENTIALS_FILE_ENV]: roleFixtures.credentialsFile,
     },
   });
   if (result.status !== 0) {
@@ -304,6 +476,7 @@ function createApi(baseUrl) {
   return {
     get: (url, options) => request("GET", url, undefined, options),
     post: (url, body, options) => request("POST", url, body, options),
+    put: (url, body, options) => request("PUT", url, body, options),
   };
 }
 
@@ -344,7 +517,9 @@ function closeServer(server) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
-    console.log(JSON.stringify(await runRolePermissionJourney(), null, 2));
+    console.log(JSON.stringify(await runRolePermissionJourney({
+      publicDemo: process.argv.includes("--public-demo"),
+    }), null, 2));
   } catch (error) {
     console.error(error?.message || error);
     process.exitCode = 1;

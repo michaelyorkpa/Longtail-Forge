@@ -1,6 +1,8 @@
 import { accountExportRecoveryRepository } from "../repositories/account-export-recovery.repo.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import {
   normalizeBooleanPreference,
   normalizeOptionalEmail,
@@ -12,6 +14,7 @@ import {
 const RECOVERY_MODE = "account_export_recovery";
 
 async function assertEligible(userId) {
+  assertPublicDemoVisitorIdentityMutable(userId);
   const [qualification, hasActiveWorkspace, user] = await Promise.all([
     accountExportRecoveryRepository.readForUser(userId),
     accountExportRecoveryRepository.hasActiveWorkspace(userId),
@@ -24,6 +27,7 @@ async function assertEligible(userId) {
 }
 
 async function exportPortableAccount(session) {
+  assertPublicDemoCapabilityAllowed("exports.account");
   if (session?.session_mode !== RECOVERY_MODE || !session.user_id) {
     throw new AppError("Account export recovery is not available.", 403);
   }

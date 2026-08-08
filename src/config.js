@@ -14,6 +14,7 @@ const DEFAULT_PORT = 8001;
 const DEFAULT_DATA_DIR = path.join(root, "data");
 const DEFAULT_DATABASE_PROVIDER = "sqlite";
 const DEFAULT_DATABASE_FILE_NAME = "longtail-forge.db";
+const DEFAULT_DEPLOYMENT_MODE = "direct";
 const DEFAULT_SQLITE_FOREIGN_KEYS = true;
 const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
 const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
@@ -31,6 +32,12 @@ const DEFAULT_AUTH_THROTTLE_FAILURE_LIMIT = 5;
 const DEFAULT_AUTH_THROTTLE_LOCKOUT_SECONDS = 15 * 60;
 const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_LIMIT = 4;
 const DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT = 2;
+const DEFAULT_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS = 60;
+const DEFAULT_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT = 2400;
+const DEFAULT_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT = 600;
+const DEFAULT_PUBLIC_DEMO_MUTATION_LIMIT = 120;
+const DEFAULT_PUBLIC_DEMO_SEARCH_LIMIT = 60;
+const DEFAULT_PUBLIC_DEMO_MAX_BODY_BYTES = 128 * 1024;
 const DEFAULT_SECURE_NOTES_KEY_VERSION = "v1";
 const DEFAULT_STORAGE_PROVIDER = "local";
 const DEFAULT_FILE_SCANNER = "none";
@@ -48,6 +55,7 @@ const DEFAULT_CORRESPONDING_SOURCE_URL_TEMPLATE = "https://github.com/michaelyor
 const SESSION_SAMESITE_VALUES = new Set(["Lax", "Strict", "None"]);
 const ENVIRONMENTS = new Set(["development", "test", "production"]);
 const DATABASE_PROVIDERS = new Set(["sqlite"]);
+const DEPLOYMENT_MODES = new Set(["direct", "compose"]);
 const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
 const SQLITE_SYNCHRONOUS_MODES = new Set(["normal", "full", "extra"]);
 const SQLITE_TEMP_STORE_MODES = new Set(["default", "file", "memory"]);
@@ -57,6 +65,67 @@ const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 const WORKER_MODES = new Set(["inline", "separate", "disabled"]);
 const LOG_LEVELS = new Set(["trace", "debug", "info", "warn", "error"]);
 const PRODUCTION_FILE_SCANNERS = new Set(["clamd", "clamscan"]);
+const PUBLIC_DEMO_ALLOWED_RUNTIME_ENV_KEYS = new Set([
+  "DEMO_MODE",
+  "HOST",
+  "LONGTAIL_AUTH_THROTTLE_ENABLED",
+  "LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT",
+  "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS",
+  "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT",
+  "LONGTAIL_CLAMD_HOST",
+  "LONGTAIL_CLAMD_PORT",
+  "LONGTAIL_DATA_DIR",
+  "LONGTAIL_DATABASE_FILE",
+  "LONGTAIL_DATABASE_PROVIDER",
+  "LONGTAIL_DEPLOYMENT_MODE",
+  "LONGTAIL_ENV",
+  "LONGTAIL_FILE_SCANNER",
+  "LONGTAIL_HSTS_MAX_AGE_SECONDS",
+  "LONGTAIL_JOB_COMPLETED_RETENTION_DAYS",
+  "LONGTAIL_JOB_DEAD_RETENTION_DAYS",
+  "LONGTAIL_JOB_LOCK_TTL_SECONDS",
+  "LONGTAIL_JOB_POLL_INTERVAL_MS",
+  "LONGTAIL_LOCAL_STORAGE_ROOT",
+  "LONGTAIL_LOG_LEVEL",
+  "LONGTAIL_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_MAX_BODY_BYTES",
+  "LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS",
+  "LONGTAIL_PUBLIC_DEMO_SEARCH_LIMIT",
+  "LONGTAIL_PUBLIC_URL",
+  "LONGTAIL_RELEASE_ARTIFACT_SHA256",
+  "LONGTAIL_RELEASE_BRANCH",
+  "LONGTAIL_RELEASE_COMMIT",
+  "LONGTAIL_SECURE_NOTES_KEY_VERSION",
+  "LONGTAIL_SECURE_NOTES_MASTER_KEY",
+  "LONGTAIL_SESSION_COOKIE_SAMESITE",
+  "LONGTAIL_SESSION_COOKIE_SECURE",
+  "LONGTAIL_SESSION_TTL_SECONDS",
+  "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS",
+  "LONGTAIL_SQLITE_CACHE_SIZE_KIB",
+  "LONGTAIL_SQLITE_FOREIGN_KEYS",
+  "LONGTAIL_SQLITE_JOURNAL_MODE",
+  "LONGTAIL_SQLITE_MMAP_SIZE_BYTES",
+  "LONGTAIL_SQLITE_SYNCHRONOUS",
+  "LONGTAIL_SQLITE_TEMP_STORE",
+  "LONGTAIL_STORAGE_PROVIDER",
+  "LONGTAIL_SUPPORT_VIEW_ENABLED",
+  "LONGTAIL_SUPPORT_VIEW_TTL_SECONDS",
+  "LONGTAIL_WORKER_ID",
+  "LONGTAIL_WORKER_MODE",
+  "LONGTAIL_WORKSPACE_BACKUP_ROOT",
+  "PORT",
+  "SUPER_ADMIN_DISPLAY_NAME",
+  "SUPER_ADMIN_PASSWORD",
+  "SUPER_ADMIN_USERNAME",
+  "TRUST_PROXY",
+  "WORKSPACE_INSTALL_MODE",
+  "WORKSPACE_TYPE_LIMIT",
+]);
+const PUBLIC_DEMO_EXTERNAL_ENV_KEY_PATTERN = /^(?:ANALYTICS_|AWS_|AZURE_|FEEDBACK_|GCP_|GOOGLE_|MAILGUN_|NEWSLETTER_|POSTHOG_|POSTMARK_|SENDGRID_|SENTRY_|SLACK_|SMTP_|STRIPE_|TELEMETRY_|WEBHOOK_)|^(?:ANALYTICS|FEEDBACK)$/;
 const UNSAFE_SECRET_VALUES = new Set([
   "admin",
   "changeme",
@@ -78,6 +147,9 @@ function toDisplayName(packageName) {
 
 function createConfig(env = process.env) {
   const environment = readEnum(env, "LONGTAIL_ENV", DEFAULT_ENVIRONMENT, ENVIRONMENTS);
+  const deploymentMode = readEnum(env, "LONGTAIL_DEPLOYMENT_MODE", DEFAULT_DEPLOYMENT_MODE, DEPLOYMENT_MODES);
+  const demoEnabled = readBoolean(env, "DEMO_MODE", false);
+  assertPublicDemoEnvironmentAllowlist(env, demoEnabled);
   const publicUrl = readPublicUrl(env);
   const publicUrlProtocol = publicUrl ? new URL(publicUrl).protocol : "";
   const publicDir = path.join(root, "public");
@@ -157,6 +229,42 @@ function createConfig(env = process.env) {
     DEFAULT_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT,
     { min: 1, max: authenticationVerificationConcurrencyLimit },
   );
+  const publicDemoPerimeterWindowSeconds = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS",
+    DEFAULT_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS,
+    { min: 1, max: 60 * 60 },
+  );
+  const publicDemoGlobalRequestLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT",
+    DEFAULT_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT,
+    { min: 1, max: 100000 },
+  );
+  const publicDemoClientRequestLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT",
+    DEFAULT_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT,
+    { min: 1, max: publicDemoGlobalRequestLimit },
+  );
+  const publicDemoMutationLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT",
+    DEFAULT_PUBLIC_DEMO_MUTATION_LIMIT,
+    { min: 1, max: publicDemoClientRequestLimit },
+  );
+  const publicDemoSearchLimit = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_SEARCH_LIMIT",
+    DEFAULT_PUBLIC_DEMO_SEARCH_LIMIT,
+    { min: 1, max: publicDemoClientRequestLimit },
+  );
+  const publicDemoMaxBodyBytes = readInteger(
+    env,
+    "LONGTAIL_PUBLIC_DEMO_MAX_BODY_BYTES",
+    DEFAULT_PUBLIC_DEMO_MAX_BODY_BYTES,
+    { min: 1024, max: 8 * 1024 * 1024 },
+  );
   const bootstrapPassword = readRuntimeSecret("SUPER_ADMIN_PASSWORD", env);
   const secureNotesMasterKey = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY", env)
     || readRuntimeSecret("SECURE_NOTES_MASTER_KEY", env);
@@ -165,6 +273,12 @@ function createConfig(env = process.env) {
   const releaseCommit = readOptionalHex(env, "LONGTAIL_RELEASE_COMMIT", 40);
   const releaseArtifactSha256 = readOptionalHex(env, "LONGTAIL_RELEASE_ARTIFACT_SHA256", 64);
   const releaseSourceBranch = normalizeReleaseBranch(readText(env, "LONGTAIL_RELEASE_BRANCH", ""));
+  const workspaceInstallMode = readEnum(
+    env,
+    "WORKSPACE_INSTALL_MODE",
+    DEFAULT_WORKSPACE_INSTALL_MODE,
+    WORKSPACE_INSTALL_MODES,
+  );
   const runtimeWarnings = [];
 
   if (!sqliteForeignKeys) {
@@ -190,6 +304,19 @@ function createConfig(env = process.env) {
       throw new Error("LONGTAIL_PUBLIC_URL is required when LONGTAIL_ENV=production.");
     }
   }
+
+  assertPublicDemoOnlySettings(env, demoEnabled);
+  assertPublicDemoConfiguration({
+    demoEnabled,
+    deploymentMode,
+    environment,
+    publicUrl,
+    releaseArtifactSha256,
+    releaseCommit,
+    releaseSourceBranch,
+    supportViewEnabled,
+    workspaceInstallMode,
+  });
 
   if (environment === "production" && publicUrlProtocol === "http:" && !allowInsecurePublicUrl) {
     throw new Error("LONGTAIL_PUBLIC_URL must use https in production. Set LONGTAIL_UNSAFE_ALLOW_INSECURE_PUBLIC_URL=true only for an explicitly accepted unsafe development deployment.");
@@ -248,6 +375,21 @@ function createConfig(env = process.env) {
       commitSha: releaseCommit,
       artifactSha256: releaseArtifactSha256,
     },
+    deployment: {
+      mode: deploymentMode,
+    },
+    demo: {
+      enabled: demoEnabled,
+      perimeter: {
+        clientRequestLimit: publicDemoClientRequestLimit,
+        globalRequestLimit: publicDemoGlobalRequestLimit,
+        maxBodyBytes: publicDemoMaxBodyBytes,
+        mutationLimit: publicDemoMutationLimit,
+        searchLimit: publicDemoSearchLimit,
+        windowSeconds: publicDemoPerimeterWindowSeconds,
+      },
+      profile: demoEnabled ? "public_demo" : "standard",
+    },
     legal: {
       termsContentPath,
       privacyContentPath,
@@ -287,12 +429,7 @@ function createConfig(env = process.env) {
         max: 8 * 1024 * 1024 * 1024,
       }),
     },
-    workspaceInstallMode: readEnum(
-      env,
-      "WORKSPACE_INSTALL_MODE",
-      DEFAULT_WORKSPACE_INSTALL_MODE,
-      WORKSPACE_INSTALL_MODES,
-    ),
+    workspaceInstallMode,
     supportView: {
       enabled: supportViewEnabled,
       ttlSeconds: supportViewTtlSeconds,
@@ -404,6 +541,65 @@ function createConfig(env = process.env) {
         : "",
     },
   };
+}
+
+function assertPublicDemoOnlySettings(env, demoEnabled) {
+  if (demoEnabled) {
+    return;
+  }
+
+  const configured = Object.keys(env).some((key) => (
+    key.startsWith("LONGTAIL_PUBLIC_DEMO_") && hasEnvText(env, key)
+  ));
+  if (configured) {
+    throw new Error("LONGTAIL_PUBLIC_DEMO_* settings require DEMO_MODE=true.");
+  }
+}
+
+function assertPublicDemoEnvironmentAllowlist(env, demoEnabled) {
+  if (!demoEnabled) {
+    return;
+  }
+
+  const configuredKeys = Object.keys(env).filter((key) => hasEnvText(env, key));
+  const undeclaredRuntimeKey = configuredKeys.some((key) => (
+    /^(?:LONGTAIL_|SUPER_ADMIN_|WORKSPACE_)/.test(key)
+      || key === "SECURE_NOTES_MASTER_KEY"
+  ) && !PUBLIC_DEMO_ALLOWED_RUNTIME_ENV_KEYS.has(key));
+  const externalProviderKey = configuredKeys.some((key) => PUBLIC_DEMO_EXTERNAL_ENV_KEY_PATTERN.test(key));
+
+  if (undeclaredRuntimeKey || externalProviderKey) {
+    throw new Error("DEMO_MODE=true accepts only the reviewed public-demo runtime environment.");
+  }
+}
+
+function assertPublicDemoConfiguration(options) {
+  if (!options.demoEnabled) {
+    return;
+  }
+
+  if (options.environment !== "production") {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_ENV=production.");
+  }
+  if (options.publicUrl !== "https://demo.longtailforge.com") {
+    throw new Error("DEMO_MODE=true requires the exact public demo origin.");
+  }
+  if (options.deploymentMode !== "compose") {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_DEPLOYMENT_MODE=compose.");
+  }
+  if (
+    options.releaseSourceBranch !== "main"
+    || !options.releaseCommit
+    || !options.releaseArtifactSha256
+  ) {
+    throw new Error("DEMO_MODE=true requires an immutable protected-main release identity.");
+  }
+  if (options.workspaceInstallMode !== "self_hosted") {
+    throw new Error("DEMO_MODE=true requires WORKSPACE_INSTALL_MODE=self_hosted.");
+  }
+  if (options.supportViewEnabled) {
+    throw new Error("DEMO_MODE=true requires LONGTAIL_SUPPORT_VIEW_ENABLED=false.");
+  }
 }
 
 function assertProductionSecret(secret, key, minimumLength) {
@@ -650,4 +846,9 @@ function logRuntimeConfigWarnings(logger = console.warn) {
 
 const config = createConfig();
 
-export { config, createConfig, logRuntimeConfigWarnings, readRuntimeSecret };
+export {
+  config,
+  createConfig,
+  logRuntimeConfigWarnings,
+  readRuntimeSecret,
+};

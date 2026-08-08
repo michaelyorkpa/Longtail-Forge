@@ -60,6 +60,7 @@ try {
 
   for (const [name, metadata] of [
     ["security.authentication_throttle.lockout", { client_ip: "127.0.0.1", dimensions: ["account"], scope: "login" }],
+    ["security.public_demo.perimeter_limited", { limit: 600, request_id: "00000000-0000-4000-8000-000000000010", retry_after_seconds: 60, route_class: "api-internal", scope: "client_request", session_id: "must-not-persist", submitted_content: "must-not-persist", window_seconds: 60 }],
     ["security.session.revoked", { reason: "managed_workspace_sessions", revoked_session_count: 2 }],
     ["security.password.reset", { change_required: true, revoked_session_count: 2 }],
   ]) {
@@ -98,6 +99,7 @@ WHERE user_id = :userId;
   );
   for (const eventName of [
     "security.authentication_throttle.lockout",
+    "security.public_demo.perimeter_limited",
     "security.session.revoked",
     "security.password.reset",
   ]) {
@@ -146,6 +148,9 @@ WHERE record_type = 'security_event';
   const serializedSecurityRows = JSON.stringify(storedSecurityRows);
   assert.equal(serializedSecurityRows.includes(WRONG_PASSWORD), false, "failed-login records must not contain submitted passwords");
   assert.ok(storedSecurityRows.every((row) => row.previous_value_json === null && row.new_value_json === null));
+  const perimeterRow = storedSecurityRows.find((row) => row.action === "security.public_demo.perimeter_limited");
+  assert.equal(JSON.parse(perimeterRow.metadata_json).request_id, "00000000-0000-4000-8000-000000000010");
+  assert.equal(perimeterRow.metadata_json.includes("must-not-persist"), false);
   for (const row of storedSecurityRows) {
     assertSafeMetadataKeys(JSON.parse(row.metadata_json || "{}"));
   }

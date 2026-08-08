@@ -89,6 +89,7 @@ const clientProjectsModule = {
         description: "Review client records, hierarchy, billing defaults, and tags.",
         primaryAction: {
           id: "add-client",
+          publicDemoCapability: "records.workspace",
           label: "Add Client",
           role: "primary",
           behavior: "client-projects.clients.create",
@@ -171,6 +172,7 @@ const clientProjectsModule = {
         rowActions: [
           {
             id: "add-child-client",
+            publicDemoCapability: "records.workspace",
             label: "Add Child Client",
             role: "secondary",
             icon: "add",
@@ -182,6 +184,7 @@ const clientProjectsModule = {
           },
           {
             id: "edit-client",
+            publicDemoCapability: "records.workspace",
             label: "Edit Client",
             role: "utility",
             icon: "edit",
@@ -250,6 +253,7 @@ const clientProjectsModule = {
         description: "Review project records, hierarchy, client context, billing defaults, and tags.",
         primaryAction: {
           id: "add-project",
+          publicDemoCapability: "records.workspace",
           label: "Add Project",
           role: "primary",
           behavior: "client-projects.projects.create",
@@ -344,6 +348,7 @@ const clientProjectsModule = {
         rowActions: [
           {
             id: "edit-project",
+            publicDemoCapability: "records.workspace",
             label: "Edit Project",
             role: "utility",
             icon: "edit",
@@ -407,17 +412,17 @@ const clientProjectsModule = {
   ],
   dashboard: [],
   publicApiEndpoints: [
-    { method: "GET", path: "/api/v1/clients", scope: "clients:read" },
-    { method: "POST", path: "/api/v1/clients", scope: "clients:write" },
-    { method: "GET", path: "/api/v1/clients/:clientId", scope: "clients:read" },
-    { method: "PUT", path: "/api/v1/clients/:clientId", scope: "clients:write" },
-    { method: "DELETE", path: "/api/v1/clients/:clientId", scope: "clients:write" },
-    { method: "GET", path: "/api/v1/projects", scope: "projects:read" },
-    { method: "POST", path: "/api/v1/projects", scope: "projects:write" },
-    { method: "POST", path: "/api/v1/clients/:clientId/projects", scope: "projects:write" },
-    { method: "GET", path: "/api/v1/projects/:projectId", scope: "projects:read" },
-    { method: "PUT", path: "/api/v1/projects/:projectId", scope: "projects:write" },
-    { method: "DELETE", path: "/api/v1/projects/:projectId", scope: "projects:write" },
+    { method: "GET", path: "/api/v1/clients", scope: "clients:read", publicDemoCapability: "api_keys" },
+    { method: "POST", path: "/api/v1/clients", scope: "clients:write", publicDemoCapability: "api_keys" },
+    { method: "GET", path: "/api/v1/clients/:clientId", scope: "clients:read", publicDemoCapability: "api_keys" },
+    { method: "PUT", path: "/api/v1/clients/:clientId", scope: "clients:write", publicDemoCapability: "api_keys" },
+    { method: "DELETE", path: "/api/v1/clients/:clientId", scope: "clients:write", publicDemoCapability: "api_keys" },
+    { method: "GET", path: "/api/v1/projects", scope: "projects:read", publicDemoCapability: "api_keys" },
+    { method: "POST", path: "/api/v1/projects", scope: "projects:write", publicDemoCapability: "api_keys" },
+    { method: "POST", path: "/api/v1/clients/:clientId/projects", scope: "projects:write", publicDemoCapability: "api_keys" },
+    { method: "GET", path: "/api/v1/projects/:projectId", scope: "projects:read", publicDemoCapability: "api_keys" },
+    { method: "PUT", path: "/api/v1/projects/:projectId", scope: "projects:write", publicDemoCapability: "api_keys" },
+    { method: "DELETE", path: "/api/v1/projects/:projectId", scope: "projects:write", publicDemoCapability: "api_keys" },
   ],
   requiredPermissions: [
     "clients.manage",
@@ -679,6 +684,7 @@ const clientProjectsModule = {
   apiScopes: [
     {
       id: "clients:read",
+      publicDemoCapability: "api_keys",
       moduleId: "client-projects",
       label: "Read Clients",
       description: "Read client records through the public API.",
@@ -687,6 +693,7 @@ const clientProjectsModule = {
     },
     {
       id: "clients:write",
+      publicDemoCapability: "api_keys",
       moduleId: "client-projects",
       label: "Write Clients",
       description: "Create, update, and archive client records through the public API.",
@@ -695,6 +702,7 @@ const clientProjectsModule = {
     },
     {
       id: "projects:read",
+      publicDemoCapability: "api_keys",
       moduleId: "client-projects",
       label: "Read Projects",
       description: "Read project records through the public API.",
@@ -702,6 +710,7 @@ const clientProjectsModule = {
     },
     {
       id: "projects:write",
+      publicDemoCapability: "api_keys",
       moduleId: "client-projects",
       label: "Write Projects",
       description: "Create, update, and archive project records through the public API.",

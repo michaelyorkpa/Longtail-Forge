@@ -32,9 +32,11 @@ function registerTaskJobHandlers(options = {}) {
   }
 
   registerJobHandler(TASK_REMINDER_JOB_TYPE, handleTaskReminderJob, {
+    publicDemoCapability: "records.workspace",
     replace: true,
   });
   registerJobHandler(TASK_RECURRENCE_JOB_TYPE, handleTaskRecurrenceJob, {
+    publicDemoCapability: "records.workspace",
     replace: true,
   });
   taskJobHandlersRegistered = true;

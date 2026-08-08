@@ -1,6 +1,6 @@
 # Files Strict Guardrail Inventory
 
-Current as of 0.33.5.18.12.7. Files strict enforcement is active and the Files conversion branch is closed. The 0.33.5.18.15 branch closeout preserves this Files boundary as one strict surface in the final converted-surface set alongside Lists, Notes, Tasks, Clients, and Projects.
+Current as of 0.33.31.9. Files strict enforcement is active and the Files conversion branch is closed. The 0.33.5.18.15 branch closeout preserves this Files boundary as one strict surface in the final converted-surface set alongside Lists, Notes, Tasks, Clients, and Projects.
 
 `files.browse` is now a framework-owned strict descriptor surface. The guardrails fail when the protected Files page, `public/js/files.js`, or framework-owned view portions of `public/js/shared/file-attachments.js` reintroduce hand-built page/filter/table/panel/upload/action anatomy that the descriptor renderer or shared view helpers already own.
 
@@ -52,6 +52,14 @@ Files strict guardrails fail reintroduced browse behavior that turns Files into 
 - Raw IDs as visible labels when safe readable labels or unavailable states can be shown.
 - Filename rename, binary replacement, storage move, provider/key editing, hard purge, permanent delete, scan/quarantine metadata editing, or raw storage controls without explicit Files service routes, permissions, audit behavior, and regressions.
 - Direct static downloads or route bypasses outside authenticated Files routes.
+
+## Public-demo Files Ingress Boundary
+
+As of 0.33.31.9, `files.ingress` is denied only under the exact `DEMO_MODE=true` profile. `uploadAndAttach()`, `uploadStreamAndAttach()`, `uploadBatchAndAttach()`, and `attachExistingFile()` reject before inspecting payload or session data. Every JSON and multipart creation route performs the same preflight before reading or parsing a request body, while the service checks remain authoritative for direct callers.
+
+`public/js/shared/file-attachments.js` remains the only browser owner of a file input, upload endpoint, and drag/drop upload path. It consumes the safe app-shell availability hint and replaces upload anatomy with read-only public-demo guidance across Tasks, Notes, Quick Capture, and any current or future host using this shared helper. The temporary app-shell File quick action also declares `files.ingress` and is filtered in demo mode. No current paste, profile/avatar, import, registered contribution, replacement, or `/api/v1/files` ingress exists; the release-gate inventory fails if another browser file-input or Files upload endpoint owner appears without joining this boundary.
+
+Seeded listing, Preview, preview content, and permission-checked Download are not ingestion. They retain normal target visibility, file permission, scanner, lifecycle, and safe-rendering enforcement and never expose storage metadata. Ordinary installations, including local development, retain the existing upload and attachment workflows.
 
 ## Strict Enforcement Coverage In 0.33.5.18.12.6
 

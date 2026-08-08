@@ -167,6 +167,192 @@ function normalizeLandingPath(value) {
 }
 
 redirectIfLoggedIn();
+void loadPublicDemoAccountChooser();
+
+async function loadPublicDemoAccountChooser() {
+  if (!loginForm) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/public-demo/accounts", { cache: "no-store" });
+    if (!response.ok) {
+      return;
+    }
+
+    const body = await response.json().catch(() => null);
+    const accounts = normalizePublicDemoAccounts(body?.accounts);
+    const notice = normalizePublicDemoText(body?.notice);
+    if (accounts.length !== 6 || !notice) {
+      return;
+    }
+
+    renderPublicDemoAccountChooser(accounts, notice);
+  } catch {
+    // Login remains the safe fallback when optional demo guidance is unavailable.
+  }
+}
+
+function renderPublicDemoAccountChooser(accounts, notice) {
+  const usernameInput = loginForm.querySelector('[name="username"]');
+  const passwordInput = loginForm.querySelector('[name="password"]');
+  const submitButton = loginForm.querySelector('button[type="submit"]');
+  const heading = loginForm.querySelector("h1");
+  if (!usernameInput || !passwordInput || !submitButton || !heading) {
+    return;
+  }
+
+  const helper = document.createElement("fieldset");
+  helper.className = "demo-account-helper";
+  helper.dataset.demoAccountHelper = "";
+
+  const legend = document.createElement("legend");
+  legend.textContent = "Explore the public demo";
+  helper.append(legend);
+
+  const noticeCopy = document.createElement("p");
+  noticeCopy.className = "demo-account-notice";
+  noticeCopy.textContent = notice;
+  helper.append(noticeCopy);
+
+  const label = document.createElement("label");
+  label.htmlFor = "demo-account-choice";
+  label.textContent = "Choose a role and scope";
+  const select = document.createElement("select");
+  select.id = "demo-account-choice";
+  select.dataset.demoAccountChoice = "";
+  select.required = false;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a demo account";
+  select.append(placeholder);
+  for (const account of accounts) {
+    const option = document.createElement("option");
+    option.value = account.username;
+    option.textContent = `${account.roleName} — ${account.scopeLabel}`;
+    select.append(option);
+  }
+  label.append(select);
+  helper.append(label);
+
+  const details = document.createElement("section");
+  details.className = "demo-account-details";
+  details.dataset.demoAccountDetails = "";
+  details.setAttribute("aria-live", "polite");
+  details.setAttribute("aria-atomic", "true");
+  const prompt = document.createElement("p");
+  prompt.textContent = "Choose an account to see representative records, useful actions, and expected limits.";
+  details.append(prompt);
+  helper.append(details);
+
+  const useButton = document.createElement("button");
+  useButton.type = "button";
+  useButton.dataset.demoAccountUse = "";
+  useButton.disabled = true;
+  useButton.textContent = "Use this account";
+  helper.append(useButton);
+
+  const helperStatus = document.createElement("p");
+  helperStatus.className = "demo-account-status";
+  helperStatus.dataset.demoAccountStatus = "";
+  helperStatus.setAttribute("role", "status");
+  helperStatus.setAttribute("aria-live", "polite");
+  helper.append(helperStatus);
+
+  let selectedAccount = null;
+  select.addEventListener("change", () => {
+    selectedAccount = accounts.find((account) => account.username === select.value) || null;
+    renderPublicDemoAccountDetails(details, selectedAccount);
+    useButton.disabled = !selectedAccount;
+    helperStatus.textContent = "";
+  });
+
+  useButton.addEventListener("click", () => {
+    if (!selectedAccount) {
+      return;
+    }
+    usernameInput.value = selectedAccount.username;
+    passwordInput.value = selectedAccount.password;
+    usernameInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    passwordInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+    setLoginStatus("");
+    helperStatus.textContent = `${selectedAccount.roleName} credentials are ready. Activate Log In to authenticate.`;
+    submitButton.focus();
+  });
+
+  heading.insertAdjacentElement("afterend", helper);
+  document.querySelector(".login-page")?.classList.add("login-page--public-demo");
+  if (document.activeElement === usernameInput && !usernameInput.value && !passwordInput.value) {
+    select.focus();
+  }
+}
+
+function renderPublicDemoAccountDetails(container, account) {
+  container.replaceChildren();
+  if (!account) {
+    const prompt = document.createElement("p");
+    prompt.textContent = "Choose an account to see representative records, useful actions, and expected limits.";
+    container.append(prompt);
+    return;
+  }
+
+  const heading = document.createElement("h2");
+  heading.textContent = `${account.roleName} — ${account.scopeLabel}`;
+  container.append(heading);
+  appendDemoGuidanceList(container, "Representative records", account.representativeRecords);
+  appendDemoGuidanceList(container, "Useful actions", account.allowedActions);
+  appendDemoGuidanceList(container, "Expected limits", account.expectedDenials);
+}
+
+function appendDemoGuidanceList(container, headingText, items) {
+  const group = document.createElement("div");
+  const heading = document.createElement("h3");
+  heading.textContent = headingText;
+  const list = document.createElement("ul");
+  for (const item of items) {
+    const listItem = document.createElement("li");
+    listItem.textContent = item;
+    list.append(listItem);
+  }
+  group.append(heading, list);
+  container.append(group);
+}
+
+function normalizePublicDemoAccounts(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const accounts = value.map((account) => {
+    const normalized = {
+      allowedActions: normalizePublicDemoTextList(account?.allowedActions),
+      expectedDenials: normalizePublicDemoTextList(account?.expectedDenials),
+      password: normalizePublicDemoText(account?.password),
+      representativeRecords: normalizePublicDemoTextList(account?.representativeRecords),
+      roleName: normalizePublicDemoText(account?.roleName),
+      scopeLabel: normalizePublicDemoText(account?.scopeLabel),
+      username: normalizePublicDemoText(account?.username),
+    };
+    return Object.values(normalized).every((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))
+      ? normalized
+      : null;
+  }).filter(Boolean);
+
+  if (new Set(accounts.map((account) => account.username)).size !== accounts.length) {
+    return [];
+  }
+  return accounts;
+}
+
+function normalizePublicDemoTextList(value) {
+  return Array.isArray(value)
+    ? value.map(normalizePublicDemoText).filter(Boolean)
+    : [];
+}
+
+function normalizePublicDemoText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 function apiError(body, fallback, status) {
   return window.LongtailForge?.errors?.createError?.(body, fallback, status)

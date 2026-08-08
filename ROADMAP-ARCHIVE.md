@@ -1,4 +1,223 @@
-﻿# Longtail Forge Roadmap Archive
+# Longtail Forge Roadmap Archive
+
+## Version 0.33.31.14 - Repository release candidate, runbook, and public-demo smoke
+
+Completed on 2026-08-08. The repository now assembles the exact demo contracts, redacted deployment profile, operator procedures, runtime artifact, and native container lifecycle into one reproducible candidate without claiming live-host acceptance. The active cursor advanced to `0.33.31.15` for the live Compose proof and explicit public-demo release gate.
+
+**Model: High Effort** — This slice assembles already-implemented contracts into one reproducible candidate without claiming live-host acceptance.
+
+- [x] Added the redacted Compose deployment example and operator runbook covering capability classifications, private operator/public account ownership, scheduler installation, lock/maintenance behavior, reset downtime, backups/retained states, alerts, rollback/recovery, log retention, incident response, and safe visitor messaging.
+- [x] Added one release-owned local/container public-demo smoke covering all six role logins, scoped reads/writes/denials, identity immutability, seeded attachment read-only behavior, disabled dangerous/outbound capabilities, limits, content safety, health/readiness/app identity, reset-to-baseline, old-session rejection, and logout without exposing credentials.
+- [x] Proved `DEMO_MODE=false` leaves development, Friends-and-Family Preview, supported self-hosted production, and future SaaS/default configuration unchanged. Proved analytics, feedback, newsletter, and other interest capture remain disabled and absent from the reset database.
+- [x] Ran `npm run docs:suggest`, updated only owning configuration/security/demo/deployment/testing docs plus current governing decisions and changelog, ran required database integrity proof, and ran `npm run verify:slice` exactly once on the final unchanged worktree.
+
+Acceptance criteria:
+
+- Repository and container proof produce one deployable public-demo candidate and complete operator instructions; the URL remains unpublished until the next live gate passes.
+
+## Version 0.33.31.13 - Outbound and infrastructure isolation
+
+Completed on 2026-08-08. The exact public demo now fails closed at both application and container boundaries for outbound communication, external-provider environment, private infrastructure, and non-demo storage. The active cursor advanced to `0.33.31.14` for the repository release candidate, runbook, and complete public-demo smoke.
+
+**Model: High Effort** — Application denials and container networking must agree so no visitor action can reach an external or private system.
+
+- [x] Deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, unreviewed jobs, and future undeclared outbound contributions through the demo capability catalog. Record currently absent surfaces rather than inventing placeholder implementations.
+- [x] Define and prove the Compose network-egress policy, secret/environment allowlist, database/Files/backups/log isolation, and inability to reach customer networks, private services, production credentials, or writable non-demo storage.
+- [x] Keep analytics, feedback, and interest capture disabled; no visitor or security event is sent to a product-analytics provider in this slice. Security/reset logs remain operational evidence, not analytics.
+- [x] Add catalog, direct-request, worker/job, network-policy, environment-leakage, and non-demo compatibility regressions plus a repeatable host/container isolation smoke.
+
+Acceptance criteria:
+
+- Neither application behavior nor container networking gives a public visitor a path to external communication, private infrastructure, real secrets, or non-demo persistent storage.
+
+## Version 0.33.31.12 - Cross-role editable-content safety proof
+
+Completed on 2026-08-07. The public demo now uses one documented ordinary safe-content contract across cross-role plain-text and Markdown reads, with corrected URL, rich-content budget, and safe validation-error boundaries. The active cursor advanced to `0.33.31.13` for outbound and infrastructure isolation.
+
+**Model: High Effort** — Stored content written by one public role and rendered to another needs a focused XSS and sanitization proof across existing surfaces.
+
+- [x] Inventory the representative demo-editable plain-text, Markdown, and rich-text fields and their cross-role readers. Exercise the existing validation, Markdown service, escaping, CSP, security headers, URL handling, and preview boundaries; do not add a demo-only renderer.
+- [x] Add seeded-writer/reader regression cases for stored and reflected script payloads, dangerous links/attributes, malformed Markdown/HTML, oversized content at the new budgets, and safe error rendering across the affected modules.
+- [x] Fix only demonstrated gaps in the owning shared sanitizer or module renderer, preserving ordinary rendering behavior and avoiding a broad UI rewrite.
+- [x] Document the reviewed surface inventory and a contribution guardrail so a new public-demo-editable renderer cannot bypass the existing safe-content contract.
+
+Acceptance criteria:
+
+- Content created by any visitor role remains inert and safely rendered to every other role through the ordinary application rendering contracts.
+
+## Version 0.33.31.11 - Server-side demo growth, input, and query budgets
+
+Completed on 2026-08-07. The exact public demo now refuses database growth, oversized input, and amplification-prone queries through persistent server-owned budgets while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.12` for cross-role editable-content safety proof.
+
+
+**Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
+
+- [x] Add one framework-owned demo budget service for per-account/workspace mutable record growth between resets, field/rich-text/body sizes, maximum page sizes, expensive query/search bounds, and safe pre-write/pre-query refusal. The hourly reset is recovery depth, not quota enforcement.
+- [x] Register every current demo-writable create/bulk/import and expensive list/search path through stable IDs; preserve module-owned validation and permission checks, and make undeclared future contributions fail closed in demo mode.
+- [x] Return stable safe limit feedback and presentation hints without making browser counts authoritative. Prove denied work creates no partial rows, jobs, Files metadata, audit-content leakage, or unbounded parsing.
+- [x] Add focused budget regressions for boundary values, concurrent attempts, bulk requests, rollback/no-partial-write behavior, page/query ceilings, restart persistence within the hour, catalog completeness, and normal-mode compatibility.
+
+Acceptance criteria:
+
+- Server-owned budgets prevent record, input, query, and database amplification for the full hour with atomic safe failures and no change to ordinary deployments.
+
+## Version 0.33.31.10 - Public perimeter throttling and correlated security evidence
+
+Completed on 2026-08-07. The exact public demo now has measured request, mutation, Search, and body limits plus cross-layer secret-free evidence, while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.11` for server-side demo growth, input, and query budgets.
+
+**Model: High Effort** — Public shared credentials require limits that coordinate trusted client identity, account contention, edge behavior, and safe diagnostics.
+
+- [x] Recorded the bounded shared-demo threat model for credential stuffing, account contention, request/mutation floods, expensive Search reads, reset interference, and disk/database pressure; added and ran one reproducible actual-threshold load probe.
+- [x] Retained durable authentication throttling and added demo-only global/trusted-client request, hashed-session mutation, and Search buckets with shared-NAT fairness, generic `429` responses, one application declaration ceiling, and a stock-Caddy body ceiling.
+- [x] Made Caddy generate and forward the request UUID, accepted it in Node only from the configured immediate proxy, redacted edge paths/headers/cookies/client addresses, and correlated application, authentication, capability-denial, perimeter, and reset evidence through safe request/operation references.
+- [x] Added focused threshold, recovery, parallel-session, login-cookie, Search, malformed/oversized-body, forwarding-spoof, diagnostic, sanitizer, normal-mode, and real-Caddy regressions; documented retention and incident response.
+- [x] Updated governing decisions, runtime/edge/security/error/reset docs, examples, regression inventory, changelog, version, roadmap, and archive contracts; completed focused proof before canonical verification.
+
+Acceptance criteria:
+
+- Measured perimeter controls bound authentication and request abuse without turning ordinary shared/NAT use into an avoidable lockout, and operators receive correlated secret-free evidence.
+
+## Version 0.33.31.9 - Public-demo Files ingress shutdown
+
+Completed on 2026-08-07. The exact public demo now refuses all Files ingress before bytes or metadata are parsed while authorized seeded attachments remain safely readable. The active cursor advanced to `0.33.31.10` for public perimeter throttling and correlated security evidence.
+
+**Model: High Effort** — Files is one primary module blast radius, and its centralized service boundary made server denial plus the mechanical UI rollout one closeable slice.
+
+- [x] Enforced the existing disabled `files.ingress` capability at buffered, streamed, batch, and attach-existing service boundaries before payload/session inspection, permission work, metadata, quotas, storage objects, scan jobs, audit events, or attachment records.
+- [x] Preflighted JSON and multipart single/batch routes before body parsing, preserved one stable safe `403 public_demo_capability_disabled` response, and kept all `/api/v1` requests under the existing demo-disabled API-key boundary.
+- [x] Exposed one safe app-shell availability hint, filtered the temporary File quick action, and made the shared attachment helper omit chooser, drop, and upload controls across every current consumer while preserving authorized seeded listing, Preview, content, and Download paths.
+- [x] Added exact-demo and normal-mode direct-service/route probes plus static browser, Files ingress, absent-path, registered-contribution, safe-read, and API-v1 inventory coverage; refreshed generated regression contracts and documented the Files boundary.
+- [x] Updated Files Help, runtime, regression, decision, changelog, version, roadmap, and archive contracts; completed focused proof before canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- No demo request or UI path can ingest file bytes or create an upload artifact, while authorized seeded attachments remain safely read-only and non-demo Files behavior is unchanged.
+
+## Version 0.33.31.8 - External hourly scheduler and reset observability
+
+Completed on 2026-08-07. The exact `rt-ltf-demo` public demo now runs the proven Compose reset at the top of every UTC hour through a root-owned external timer, with safe overlap refusal, bounded redacted evidence, and a required failure-alert boundary. The active cursor advanced to `0.33.31.9` for public-demo Files ingress shutdown.
+
+**Model: High Effort** — Automatic destructive scheduling needs an independently testable host boundary, safe overlap behavior, and actionable failure evidence.
+
+- [x] Install one reviewed external host scheduler around the same manual Compose reset entry. Do not add an in-process timer or revive systemd as the application lifecycle; systemd timer/cron may own only host scheduling if that is the selected operator mechanism.
+- [x] Define UTC/local schedule semantics, expected downtime, missed-run/catch-up policy, overlap exit, disable/re-enable, manual invocation, deployment/reset lock coordination, and recovery ownership.
+- [x] Emit redacted structured reset start/end, trigger, operation ID, scheduled boundary, lock outcome, duration, fingerprint, health, failure class, rollback, and recovery status with bounded retention and an actionable failure alert. Never log public passwords, content, session IDs, private paths, or secret-bearing environment values.
+- [x] Add scheduler/alert regressions covering scheduled-equivalent success, manual parity, missed/failing execution, lock contention, alert invocation, log redaction, and safe disable/recovery.
+
+Acceptance criteria:
+
+- The external schedule invokes the same proven manual reset every hour, cannot overlap another lifecycle operation, and produces actionable secret-free success or failure evidence.
+
+## Version 0.33.31.7 - Compose reset activation and automatic recovery
+
+Completed on 2026-08-07. The root-owned `rt-ltf-demo` Compose reset now promotes one verified database-and-Files baseline under a shared lifecycle lock, verifies the restarted release and representative visitor workflow, and automatically reconstructs the retained prior unit on failure. The active cursor advanced to `0.33.31.8` for external hourly scheduling and reset observability.
+
+**Model: High Effort** — This is the single live-state mutation boundary for SQLite, Files, sessions, and last-known-good recovery.
+
+- [x] Add a dedicated root-owned `rt-ltf-demo` reset entry that reuses the supported Compose maintenance, backup, start/stop, health, identity, and recovery primitives rather than extending the retired systemd application helper.
+- [x] Hold one exclusive host lock through cleanup/recovery, assert the maintenance curtain, stop and prove quiescent the Compose app and worker, create and inspect a whole-instance backup, handle database/WAL/SHM only while stopped, and promote the verified database plus Files candidate as one matched same-filesystem unit.
+- [x] Start the prior Compose release, require direct and public health/readiness, exact `/api/app-info`, baseline identity, representative role login/read/write, and rejection of a pre-reset session. On failure, restore the retained prior database-and-Files unit, restart it, verify recovery, and retain evidence if recovery cannot complete.
+- [x] Make retries and interrupted-state handling deterministic; overlapping reset, deploy, rollback, backup, or manual reset operations must fail safely without two promoters or mixed state.
+- [x] Add lifecycle regressions for success, contention, stale/interrupted state, failed stop/start/readiness/identity, WAL/SHM handling, session invalidation, database/Files pairing, automatic recovery, and fail-closed unrecovered state.
+
+Acceptance criteria:
+
+- One guarded Compose operation atomically activates a verified baseline only while every SQLite user is stopped and either returns healthy on that baseline or automatically returns healthy on the retained prior unit.
+
+## Version 0.33.31.6 - Deterministic public baseline candidate
+
+Completed on 2026-08-07. The exact Compose demo profile can now build and revalidate one deterministic, inactive database-and-Files candidate without stopping or replacing the running installation. The active cursor advanced to `0.33.31.7` for Compose reset activation and automatic recovery.
+
+**Model: High Effort** - The baseline builder is a data-integrity boundary, but it is isolated from live activation and scheduling.
+
+- [x] Adapted the existing guarded seed and verification primitives into a root-run one-off Compose candidate command for the exact six-account public profile and canonical data volume. Dry run validates without mutation; build and validation never stop a service or open, rename, or replace the active database/Files.
+- [x] Reconstructed each candidate through normal migrations and reviewed seed definitions in a fresh same-filesystem child, checkpointed it out of WAL mode, and verified exact release migration identity, semantic fingerprint/counts, SQLite integrity, zero foreign-key violations, exact Files inventory/sizes/checksums, the protected candidate marker, zero sessions, fixed public credentials, and separate private operator ownership.
+- [x] Rejected existing or partial candidates, unexpected entries, mismatched anchors/versions/markers/migrations/fingerprints/counts, corrupt Files/roles/scopes/credential hashes, sessions, Secure Notes or analytics/feedback/interest persistence, symlinks/path escapes, plaintext protected values, and database/Files mismatch. One atomic rename publishes only the fully verified inactive candidate.
+- [x] Added candidate-only release-gate coverage for dry-run immutability, repeatable builds, standalone validation, corrupt-state refusals, output redaction, exact-target/profile refusal, preservation of active Compose data, and unchanged private development/sanitized-demo commands and historical host behavior.
+- [x] Updated the demo-data, runtime, regression, decision, changelog, version, roadmap, archive, and generated regression contracts; completed focused proof before canonical final verification and runtime identity proof.
+
+Acceptance criteria:
+
+- A non-activating operator command reproducibly builds and proves one exact public database-and-Files candidate without touching the running installation.
+
+## Version 0.33.31.5 - Accessible demo account chooser and role guidance
+
+Completed on 2026-08-07. The public login now offers one accessible six-account chooser only when the exact demo profile is active, while ordinary login and authentication remain unchanged. The active cursor advanced to `0.33.31.6` for the deterministic public baseline candidate.
+
+**Model: Medium Effort** - This was a bounded login-surface adaptation after the server identity and permission contracts were fixed.
+
+- [x] Added one source-owned, safely shaped public account catalog for the exact six visitor identities, with real role names, readable Northwind Studio, Cedar & Bloom, and Website Refresh scopes, representative records, useful allowed actions, and expected denials. The response contains no internal IDs, private operator identity, directory data, or credential material beyond the intentionally public login contract.
+- [x] Added a demo-only native-select credential helper with explicit labels, keyboard flow, screen-reader announcements, responsive desktop/mobile layout, role guidance, and a concise hourly-reset warning. Disabled, unavailable, or malformed catalog responses leave the ordinary login markup and focus behavior unchanged.
+- [x] Kept `/api/login` as the only session-creating path. Role selection and credential fill perform no authentication request, bypass, account lookup, or session creation; the existing submit, throttling, password verification, and generic failures remain authoritative.
+- [x] Added focused catalog/route security coverage and desktop/mobile Playwright coverage for all six choices, exact role/scope wording, native keyboard operation, accessible labels/status, safe failure, disabled-mode absence, no Super Administrator option, and ordinary login compatibility.
+- [x] Updated the runtime, security, regression, end-to-end, decision, changelog, version, roadmap, archive, and generated regression contracts; completed canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- A visitor can deliberately choose and understand one of six real scoped roles through an accessible login flow, while ordinary login and authentication security remain unchanged.
+
+## Version 0.33.31.4 - Public six-role fixture and permission journey
+
+Completed on 2026-08-07. The exact-bound public fixture now derives six visitor accounts from the shipped role/scope model, keeps the Super Administrator credential private, and proves the complete public permission journey while preserving the private seven-role fixture. The active cursor advanced to `0.33.31.5` for the accessible demo account chooser and role guidance.
+
+**Model: High Effort** - Reusing the shipped role fixture safely requires a distinct public-credential activation boundary and proof that Super Admin stays private.
+
+- [x] Derived the visitor set from the existing `0.33.26.7-.9` fixture definitions: Workspace Administrator, Client Administrator, Project Administrator, Client User, Project User, and Client User (External), with the existing representative Northwind Studio, Cedar & Bloom, and Website Refresh scopes. No role, assignment, or permission model changed.
+- [x] Added deterministic public non-secret visitor credentials under one source-owned catalog valid only through the explicit `public-demo` fixture mode and exact `rt-ltf-demo` target/origin binding. The protected version 2 host file accepts only the separate strong private Super Administrator password; every other mode preserves the private version 1 seven-password contract or fails closed.
+- [x] Adapted the existing authenticated journey to prove six-account login, representative Task reads and Time Tracking writes, cross-scope and cross-workspace denials, immutable credentials, logout, and absence of a public Super Administrator password or delegated role.
+- [x] Preserved the private seven-role development/operator fixture and its authenticated regression, and updated the host-operation proof for six source-defined public visitors plus one private operator.
+- [x] Updated the demo-data, runtime, permissions, regression, marketing, decision, changelog, version, roadmap, archive, and generated regression contracts; completed the canonical local verification and runtime identity proof.
+
+Acceptance criteria:
+
+- The exact six visitor accounts reproducibly demonstrate the shipped role model without permission changes, real email, private credential reuse, or public installation authority.
+
+## Version 0.33.31.3 - Shared-account identity and credential immutability
+
+Completed on 2026-08-06. The protected demo seed marker now owns the exact six public visitor identities and server-side guards make their credential, recovery, session-management, API-key, and account lifecycle immutable. The active cursor advanced to `0.33.31.4` for public six-role credential activation and its permission journey.
+
+**Model: High Effort** — Public credentials require a server-owned identity rule that even normally authorized administrators cannot bypass.
+
+- [x] Marked the deterministic public visitor identities through explicit `publicVisitor` fields in the seeded demo contract and wrote only their six UUID user IDs to the protected marker; usernames, display labels, email domains, and role names are not runtime authority, and the private operator is excluded.
+- [x] Denied password, username/email, alternate-email, recovery, forced-password, managed-session, membership/account retirement, and API-key takeover paths for marked identities through self-service, administrator-on-user, route, and service boundaries. Login, ordinary session expiry, logout, and resettable non-identity preferences remain functional.
+- [x] Kept enforcement exact to the validated demo marker state, skipped marked-credential login rehash, required regenerated candidates to contain zero sessions, and preserved ordinary user lifecycle plus private-operator recovery in development, preview, supported self-hosted, and all other normal-mode installations.
+- [x] Added authentication, Users, session, administrator, API-key, recovery, direct-route, startup-marker, and host-reset regressions for self/cross denial, safe errors, stale-session rejection, login/logout, private-operator exclusion/recovery, and normal-mode non-regression.
+- [x] Updated the security, runtime, permission, settings, demo-data operation, decision, changelog, version, roadmap, archive, and generated regression contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- Shared visitor accounts can authenticate and log out but neither they nor another visitor can change, retire, recover, or take over any public visitor identity.
+## Version 0.33.31.2 - Administrative and persistence escape denials
+
+Completed on 2026-08-06. Public-demo capability classifications now deny durable administrative and persistence escape paths at authoritative server boundaries while preserving ordinary installation behavior. The active cursor advanced to `0.33.31.3` for shared-account identity and credential immutability.
+
+**Model: High Effort** — A shared Workspace Administrator must remain useful without gaining any path to durable or installation-level control.
+
+- [x] Made the capability catalog authoritative before authorization or persistence for installation/workspace administration and deletion, account/workspace creation, role assignment, API keys and `/api/v1`, backup/export, private feeds, Support View, and Secure Notes catalog transitions.
+- [x] Required registered declarative actions, public API endpoints/scopes, and jobs to declare a known capability. Demo catalogs filter disabled entries for presentation while direct server enforcement remains authoritative, and absent integration, invitation, import/export, restore, and extension administration are recorded disabled.
+- [x] Added one safe `public_demo_capability_disabled` denial contract, kept the private Super Admin outside browser contracts, and preserved existing authorization, catalogs, services, jobs, and public API behavior when demo mode is false.
+- [x] Added focused unit and isolated-database regression coverage for classifications, future undeclared contributions, direct middleware/service denial, complete action/API/job inventories, safe error shape, and normal-mode compatibility.
+- [x] Updated the security, architecture, module-contribution, public API, decision, ownership, changelog, version, roadmap, and archive contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- No visitor account can acquire installation authority, new identities/scopes, API credentials, durable exports/backups, Support View, or Secure Notes recovery control, even through direct requests or future undeclared contributions.
+
+## Version 0.33.31.1 - Fail-closed demo runtime identity and capability catalog
+
+Completed on 2026-08-06. The default-off public-demo identity and its framework-owned capability catalog now fail closed before database, storage, scanner, or worker initialization. The active cursor advanced to `0.33.31.2` for server-enforced administrative and persistence denials.
+
+**Model: High Effort** — Startup identity and the catalog become the authority every later demo denial consumes.
+
+- [x] Added typed `DEMO_MODE` and deployment-mode configuration with unchanged ordinary defaults, plus one stable framework catalog classifying permitted, read-only, disabled, and hourly-resettable capabilities without hostname branching.
+- [x] Required the exact production demo origin, Compose identity, main release metadata, self-hosted installation mode, disabled Support View, and a verified demo-owned data-root marker. Public-demo-prefixed controls are rejected while demo mode is off, and startup checks the marker before protected runtime subsystems initialize.
+- [x] Added safe app-info and runtime-diagnostics fields that expose only deployment/profile state and catalog classifications, never credentials, paths, marker contents, or recovery details.
+- [x] Added focused unit and regression coverage for default-off behavior, exact enablement, contradictory configuration, missing or invalid marker state, startup ordering, safe diagnostics, catalog stability, and non-demo compatibility.
+- [x] Updated the runtime, architecture, decision, regression, Compose, environment-example, and documentation-ownership contracts; completed the canonical local verification and restarted runtime identity proof.
+
+Acceptance criteria:
+
+- One default-off runtime profile and catalog fail closed before startup, provide the only supported demo capability decision path, and leave every non-demo runtime unchanged.
 
 ## Version 0.33.30.5 - Markdown-it 15 runtime baseline
 

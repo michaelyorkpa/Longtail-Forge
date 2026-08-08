@@ -17,6 +17,7 @@ import {
   configureSanitizedDemoBootstrap,
   loadSanitizedDemoRoleFixtures,
   LOCAL_ROLE_FIXTURE_MODE,
+  PUBLIC_DEMO_ROLE_FIXTURE_MODE,
   RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
 } from "./lib/sanitized-demo-role-fixtures.mjs";
 import { loadRuntimeEnvFile } from "../src/runtime-env.js";
@@ -95,7 +96,9 @@ async function main() {
     search: searchRepair,
     workbench: result.workbench,
     identities: roleFixtures
-      ? "Seven private role-test identities are enabled from the protected local credential file. Passwords are never printed."
+      ? roleFixtures.mode === PUBLIC_DEMO_ROLE_FIXTURE_MODE
+        ? "Six public visitor identities and one private Super Administrator are enabled for the bound demo installation. Passwords are never printed."
+        : "Seven private role-test identities are enabled from the protected local credential file. Passwords are never printed."
       : "Seeded personas use reserved example domains and disabled login credentials. Use the unique operator password supplied through SUPER_ADMIN_PASSWORD.",
   });
 }
@@ -136,8 +139,8 @@ function parseArgs(args) {
   if (options.roleFixtureBinding && options.roleFixtureBinding !== RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target) {
     throw new Error(`--role-fixture-binding must be exactly ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}.`);
   }
-  if (options.roleFixtureBinding && options.roleFixtures !== LOCAL_ROLE_FIXTURE_MODE) {
-    throw new Error("--role-fixture-binding requires the explicit sanitized-demo role fixture mode.");
+  if (options.roleFixtureBinding && options.roleFixtures !== PUBLIC_DEMO_ROLE_FIXTURE_MODE) {
+    throw new Error("--role-fixture-binding requires --role-fixtures public-demo.");
   }
   return options;
 }
@@ -147,11 +150,11 @@ function printHelp() {
   node scripts/development-data.mjs seed --profile development --environment development --data-dir ./data/development-seed --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}
   node scripts/development-data.mjs reset --profile development --environment development --data-dir ./data/development-seed --confirm development-seed
   node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./data/sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE}
-  node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./sanitized-demo --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} --role-fixture-binding ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}
+  node scripts/development-data.mjs seed --profile sanitized-demo --environment development --data-dir ./sanitized-demo --role-fixtures ${PUBLIC_DEMO_ROLE_FIXTURE_MODE} --role-fixture-binding ${RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target}
 
 Profiles: ${DEVELOPMENT_PROFILE}, ${DEMO_PROFILE}
 
-Development seed requires a unique SUPER_ADMIN_PASSWORD for its existing operator plus --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} for seven additional role accounts; every fictional persona stays login-disabled. Sanitized-demo reuses its bootstrap operator as the role-fixture Super Administrator. Both profiles read the seven unique role passwords from the ignored local credential file. No password is accepted on the command line, printed, or stored in source. The data directory must contain the profile's exact marker segment and must be empty.`);
+Development seed requires a unique SUPER_ADMIN_PASSWORD for its existing operator plus --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} for seven additional private role accounts; every fictional persona stays login-disabled. Local sanitized-demo uses that same seven-secret private fixture. The bound --role-fixtures ${PUBLIC_DEMO_ROLE_FIXTURE_MODE} profile accepts only the private Super Administrator password from its protected version 2 credential file and supplies six deterministic public visitor passwords from source. No password is accepted on the command line or printed. The data directory must contain the profile's exact marker segment and must be empty.`);
 }
 
 function assertOperatorPasswordIsDistinctFromRoleFixtures(roleFixtures, env = process.env) {

@@ -1,4 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
+import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
@@ -67,6 +69,7 @@ async function listWorkspaces(session) {
 }
 
 async function readAddUserOptions(session, requestedWorkspaceId = "") {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace, workspaces } = await resolveAddUserWorkspace(
     session,
     requestedWorkspaceId,
@@ -84,6 +87,7 @@ async function readAddUserOptions(session, requestedWorkspaceId = "") {
 }
 
 async function lookupAddUserAccount(payload, session) {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const username = normalizeCreateUsername(payload.username);
   const { targetSession, workspace } = await resolveAddUserWorkspace(
     session,
@@ -116,6 +120,7 @@ async function lookupAddUserAccount(payload, session) {
 }
 
 async function create(payload, session) {
+  assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace } = await resolveAddUserWorkspace(
     session,
     payload.workspaceId || payload.workspace_id,
@@ -253,6 +258,13 @@ async function update(payload, session, userId) {
   }
 
   const profile = normalizeUserProfilePayload(payload, user);
+  if (
+    profile.username !== normalizeUsername(user.username)
+    || profile.altEmail !== normalizeOptionalEmail(user.alt_email)
+    || Object.hasOwn(payload, "workspaceMemberships")
+  ) {
+    assertPublicDemoVisitorIdentityMutable(userId);
+  }
 
   const existingUser = await usersRepository.readByUsernameExcludingUser(profile.username, userId);
 
@@ -314,6 +326,8 @@ async function resetPassword(session, userId, context = {}) {
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
+
+  assertPublicDemoVisitorIdentityMutable(userId);
 
   const throttleContext = {
     actorUserId: session.user_id,
@@ -386,6 +400,8 @@ async function deactivate(session, userId, context = {}) {
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
+
+  assertPublicDemoVisitorIdentityMutable(userId);
 
   if (normalizeProtectedUserFlag(user.protected_user)) {
     throw new AppError("Protected users cannot be deactivated.", 400);
@@ -468,6 +484,8 @@ async function reactivate(session, userId) {
     throw new AppError("User was not found.", 404);
   }
 
+  assertPublicDemoVisitorIdentityMutable(userId);
+
   await usersRepository.updateStatus(session.workspace_id, userId, "active");
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
   const nextMembership = await userWorkspacesRepository.upsert({
@@ -525,6 +543,8 @@ async function remove(session, userId, context = {}) {
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
+
+  assertPublicDemoVisitorIdentityMutable(userId);
 
   if (normalizeProtectedUserFlag(user.protected_user)) {
     throw new AppError("Protected users cannot be deleted.", 400);
@@ -623,6 +643,7 @@ async function remove(session, userId, context = {}) {
 }
 
 async function retireOwnAccount(session, context = {}) {
+  assertPublicDemoVisitorIdentityMutable(session.user_id);
   const user = await usersRepository.readFirstByUserId(session.user_id);
 
   if (!user || user.user_status !== "active") {
@@ -640,6 +661,7 @@ async function retireOwnAccount(session, context = {}) {
 }
 
 async function retireAccount({ actorSession, context, targetUser, selfService }) {
+  assertPublicDemoVisitorIdentityMutable(targetUser.user_id);
   const memberships = await userWorkspacesRepository.readForUser(targetUser.user_id);
 
   for (const membership of memberships) {
@@ -733,6 +755,7 @@ async function readSettings(session) {
 }
 
 async function createWorkspace(payload, session, sessionId = "") {
+  assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   const workspaceType = normalizeWorkspaceType(payload.workspaceType || payload.workspace_type);
   const options = await readWorkspaceCreationOptions(session);
 
@@ -812,6 +835,7 @@ async function createWorkspace(payload, session, sessionId = "") {
 }
 
 async function removeOwnWorkspaceMembership(session, workspaceId, context = {}) {
+  assertPublicDemoVisitorIdentityMutable(session.user_id);
   const targetWorkspaceId = String(workspaceId || "").trim();
 
   if (!targetWorkspaceId) {
@@ -897,6 +921,16 @@ async function saveSettings(payload, session) {
 
   if (!user) {
     throw new AppError("User was not found.", 404);
+  }
+
+  if (Object.hasOwn(payload, "username") || Object.hasOwn(payload, "altEmail")) {
+    const submittedProfile = normalizeUserProfilePayload(payload, user);
+    if (
+      submittedProfile.username !== normalizeUsername(user.username)
+      || submittedProfile.altEmail !== normalizeOptionalEmail(user.alt_email)
+    ) {
+      assertPublicDemoVisitorIdentityMutable(session.user_id);
+    }
   }
 
   const previousValue = userRowToAppValue(user);

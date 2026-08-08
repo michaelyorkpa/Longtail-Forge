@@ -10,6 +10,7 @@ import { prepareSessionRecord } from "../security/session-records.js";
 import { verifyCurrentPasswordForSensitiveAction } from "../security/current-password-verification.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
+import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
 
 const SUPPORT_VIEW_AUDIT_RETENTION_DAYS = 365;
@@ -18,6 +19,7 @@ const SUPPORT_VIEW_AUDIT_MAX_PAGE_SIZE = 200;
 const SUPPORT_VIEW_AUDIT_EXPORT_LIMIT = 1000;
 
 async function listTargets(session) {
+  assertPublicDemoCapabilityAllowed("support_view");
   await assertOperator(session);
   const rows = await supportSessionsRepository.listEligibleTargets(session.user_id);
   const targets = [];
@@ -56,6 +58,7 @@ async function listTargets(session) {
 }
 
 async function listAudit(session, filters = {}, options = {}) {
+  assertPublicDemoCapabilityAllowed("support_view");
   await assertOperator(session);
   const cutoffIso = retentionCutoff(options.now);
   await supportSessionsRepository.pruneBefore(cutoffIso);
@@ -90,6 +93,7 @@ async function listAudit(session, filters = {}, options = {}) {
 }
 
 async function exportAuditCsv(session, filters = {}) {
+  assertPublicDemoCapabilityAllowed("support_view");
   const result = await listAudit(session, {
     ...filters,
     limit: SUPPORT_VIEW_AUDIT_EXPORT_LIMIT,
@@ -123,6 +127,7 @@ async function exportAuditCsv(session, filters = {}) {
 }
 
 async function start(session, currentSessionId, payload = {}, context = {}) {
+  assertPublicDemoCapabilityAllowed("support_view");
   if (!config.supportView.enabled) {
     throw new AppError("Support View is disabled for this installation.", 403);
   }

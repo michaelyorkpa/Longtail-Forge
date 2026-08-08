@@ -16,7 +16,7 @@ let workspacePurgeHandlerRegistered = false;
 
 function registerWorkspacePurgeJobHandlers(options = {}) {
   if (workspacePurgeHandlerRegistered && !options.replace && getJobHandler(WORKSPACE_PURGE_JOB_TYPE)) return;
-  registerJobHandler(WORKSPACE_PURGE_JOB_TYPE, handleWorkspacePurgeJob, { replace: true });
+  registerJobHandler(WORKSPACE_PURGE_JOB_TYPE, handleWorkspacePurgeJob, { publicDemoCapability: "administration.workspace_lifecycle", replace: true });
   workspacePurgeHandlerRegistered = true;
 }
 

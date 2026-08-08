@@ -115,5 +115,13 @@ jobs:
           gh release create "$TAG" \
             dist/*.tgz dist/*.tgz.sha256 dist/release-metadata.json dist/platform-manifest.json \
             compose.yaml docs/compose.env.example docs/longtail-forge-compose-deploy-helper.env.example \
+            docs/public-demo-compose.env.example docs/public-demo-operator-runbook.md \
             scripts/release/longtail-forge-compose-deploy-host.example \
+            scripts/release/longtail-forge-public-demo-isolation-host.example \
+            scripts/release/longtail-forge-public-demo-reset-host.example \
+            docs/longtail-forge-public-demo-reset-scheduler.env.example \
+            scripts/release/longtail-forge-public-demo-reset-scheduler-host.example \
+            scripts/release/longtail-forge-public-demo-reset-alert.example \
+            scripts/release/longtail-forge-public-demo-reset.service.example \
+            scripts/release/longtail-forge-public-demo-reset.timer.example \
             --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG

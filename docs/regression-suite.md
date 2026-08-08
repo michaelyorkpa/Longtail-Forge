@@ -40,9 +40,19 @@ As of 0.33.21.21.3, `workbench.direct-task-completion` replaces the retired comp
 
 Blocked persistence is also pinned as a Task-timer pause invariant. `task-timer-status-regression.mjs` proves canonical update and automatic blocking-child rollup both pause a running timer, the static Tasks quick-fix contract requires a cross-user source-scoped Time Tracking repository update with no user predicate, and the rendered recovery spec proves the open editor changes from Running to Paused immediately.
 
-As of 0.33.26.9, `database.development-data-seed` proves the seed CLI loads root `.env` before bootstrap configuration while explicit process values retain precedence. The fat development profile preserves that protected operator and adds seven separately credentialed role fixtures; sanitized-demo reuses its bootstrap identity and retains exactly seven active logins. Paired seeds prove deterministic semantic identity across different operator/fixture passwords, exact roles/scopes/memberships, disabled ordinary personas, and the local-only credential boundary. `database.startup-maintenance-lifecycle` proves a later `SUPER_ADMIN_USERNAME` change does not create or rename a user and that a nonempty installation without an administrator does not receive an invented account during startup.
+As of 0.33.31.4, `database.development-data-seed` continues to prove the private local contract: the fat development profile preserves its operator and adds seven separately credentialed fixtures, while local sanitized-demo reuses its bootstrap identity and retains seven private active logins. Paired seeds prove deterministic semantic identity across different private values, exact roles/scopes/memberships, disabled ordinary personas, and local-only activation. `permissions.sanitized-demo-role-journey` retains the original seven-account authenticated proof. The additional `permissions.public-demo-role-journey` requires the exact bound version 2 operator-only credential document, authenticates only the six public visitors, and proves authorized reads/writes, scoped and workspace denials, immutable credentials, logout, and no public Super Administrator credential or delegated role. `database.startup-maintenance-lifecycle` still proves startup cannot invent or rename an administrator.
 
-As of 0.33.26.8, `database.demo-data-host-operation` proves exact `rt-ltf-demo` host/target/origin refusal occurs before either protected credential source is read; the separate root-owned role file has exact mode and binding; only its path enters the minimal candidate environment; and missing, weak, copied, or malformed secrets fail before backup or mutation. The isolated operation then proves non-mutating preflight, backup-first seven-role candidate construction, exact identity/role/scope/membership/no-override verification, fingerprint/domain/Secure Notes/Search/Files rejection, atomic database-and-Files promotion, safe output redaction, retained prior state, and automatic rollback. Normal startup and deployment sources remain unable to invoke it.
+As of 0.33.31.4, `database.demo-data-host-operation` proves exact `rt-ltf-demo` host/target/origin refusal occurs before protected credential reads; the separate root-owned version 2 role file has exact mode and binding and contains only the private operator value; only its path enters the minimal candidate environment; and missing, weak, copied, extra-role, or malformed input fails before backup or mutation. The isolated operation proves non-mutating preflight, backup-first six-public-plus-one-private candidate construction, exact identity/role/scope/membership/no-override verification, public visitor marker and operator exclusion, fingerprint/domain/Secure Notes/Search/Files rejection, atomic database-and-Files promotion, safe output redaction, retained prior state, and automatic rollback. Normal startup and deployment sources remain unable to invoke it.
+
+As of 0.33.31.5, `framework.public-demo-account-catalog` pins the exact six source-aligned public account projections, role/scope wording, nonempty representative/action/denial guidance, intentionally public credential contract, no internal IDs or Super Admin option, no-store enabled response, and generic disabled-mode not-found response without booting a database. `login.spec.mjs` independently renders the helper at desktop and mobile widths, proves the native select's accessible name and keyboard focus order, all six option labels and guidance groups, selection/fill without authentication, ordinary submit as the only login request, generic failure recovery, and complete absence with unchanged focus/autocomplete when the optional catalog is unavailable.
+
+As of 0.33.31.6, `database.public-demo-baseline-candidate` runs as an isolated release gate and proves exact-target/profile refusal, non-mutating dry run, two same-anchor builds with identical semantic and migration identities, standalone validation, fixed public/private credential hashes, exact database-to-Files inventory, and unchanged active database/Files sentinels. Its corruption matrix covers release migration checksums, Files bytes and extra objects, roles, scopes, credential hashes, sessions, Secure Notes, analytics persistence, marker anchors, plaintext protected values, symlinks, existing candidates, and partial build state. The retained `database.demo-data-host-operation` and `database.development-data-seed` regressions independently preserve historical recovery behavior and private local seed contracts.
+
+As of 0.33.31.14, `release.public-demo-release-candidate` freezes the redacted Compose profile, credential-free operator runbook, twelve-script exact-demo contract inventory, artifact/release-asset membership, live disposable-demo health/readiness/app-version checks, normal-mode boundary, and analytics/feedback/interest-persistence rejection. `npm run demo:release-candidate:smoke` runs those existing owners, creates and boots the controlled runtime artifact, and optionally invokes the supported native container lifecycle smoke against the same tarball; it is repository candidate proof, not live-host acceptance.
+
+As of 0.33.31.9, `framework.public-demo-files-ingress` is an isolated release gate. It launches exact demo and standard child probes, requires direct service denials before payload/session access, sends malformed JSON and multipart bodies through every creation route to prove capability refusal wins before parsing, pins the stable safe response, verifies read-only seeded-content classification, and confirms ordinary-mode ingress remains enabled. Static inventory assertions keep the shared attachment helper as the only browser file-input/upload endpoint owner, omit its chooser/drop/upload controls plus the File quick action in demo mode, freeze absent paste/profile/avatar/import and `/api/v1/files` ingress, and retain list/preview/content/download entry points.
+
+As of 0.33.31.11, `framework.public-demo-budgets` is an isolated release gate. It proves exact input/query boundary values, fixed safe error hints, undeclared-route refusal, bulk pre-service atomicity, rollback after failed responses, concurrent account and workspace ceilings, restart persistence, normal-mode bypass, SQLite integrity, and exact catalog coverage for every authenticated framework/module route. The retained HTTP error and Lists regressions independently prove structured expected-error forwarding and unchanged ordinary list duplication behavior.
 
 ## Streamlining Review Policy And Budget
 
@@ -68,7 +78,7 @@ As of 0.33.21.19.4, `views.dashboard-client-bootstrap` pins the warm-first Dashb
 
 As of 0.33.21.19.5, `dashboard.hot-endpoint-budgets` boots the app over HTTP and pins 500 ms timing ceilings, response-size ceilings, and per-request `readSqliteStatementCount()` ceilings for Tasks summary, the bounded active Tasks calendar, and Time Tracking effort summary. Its growth pass adds 400 terminal Tasks and 500 out-of-window time entries, then requires near-constant statements and unchanged payloads apart from bounded summary count digits. The rendered Dashboard sequencing spec also caps the load-event-to-first-fetch gap at one second. `npm run bench:dashboard` is the repeatable fat-seed evidence harness; it measures seven warm HTTP samples and the real browser gap while preserving the `Today()` seed anchor.
 
-The 0.33.19.4 runtime-configuration split is the reference partial-movement contract. The policy's generated `assertionMovements` evidence records the exact pure assertion inventory, existing Vitest target, and still-discovered integration owner without granting retirement or floor credit. The current 123-case defaults/normalization/accepted-value/warning/error matrix calls `createConfig` directly in Vitest, including the default-off and bounded Support View settings added in 0.33.30.1. The legacy-snapshot regression keeps child-process environment/import behavior and its database, module-registry, version, docs/source, and runtime/app-info consumer integration. Pure and integration fixtures remain local to their one responsibility rather than sharing a second maintained source of truth.
+The 0.33.19.4 runtime-configuration split is the reference partial-movement contract. The policy's generated `assertionMovements` evidence records the exact pure assertion inventory, existing Vitest target, and still-discovered integration owner without granting retirement or floor credit. The current 142-case defaults/normalization/accepted-value/warning/error matrix calls `createConfig` directly in Vitest, including the default-off and bounded Support View settings plus the default-off, exact-identity public-demo profile. The legacy-snapshot regression keeps child-process environment/import behavior and its database, module-registry, version, docs/source, and runtime/app-info consumer integration. Pure and integration fixtures remain local to their one responsibility rather than sharing a second maintained source of truth.
 
 As of 0.33.30.1, `framework.support-view-session-contract` is the release-gate owner for default-off Support View configuration, Super-Admin-only permission seeding, current-password throttle behavior, atomic entry/exit rotation, exact expiry, independent concurrent sessions, immutable actor and separate effective identity/workspace request context, no nesting or recovery-mode entry, fixed-workspace behavior, live role/permission/membership/user/workspace revocation, safe cookie posture, safe diagnostic/event storage, and SQLite integrity.
 
@@ -181,18 +191,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 435 |
+| Active discovered regressions | 448 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 126 |
+| Convention-path metadata regressions | 139 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 61 |
+| Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 438 |
-| Release-gate ratchet floor | 63 |
+| Global ratchet floor | 451 |
+| Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 74 | 0 | 74 |
+| `framework` | 81 | 0 | 81 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -204,29 +214,29 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 9 | 0 | 9 |
-| `database` | 41 | 0 | 41 |
-| `permissions` | 11 | 0 | 11 |
+| `database` | 42 | 0 | 42 |
+| `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 31 | 3 | 34 |
+| `release` | 35 | 3 | 38 |
 | `docs` | 10 | 0 | 10 |
 | `licensing` | 1 | 0 | 1 |
 
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 204 |
-| `integration` | 162 |
-| `release-gate` | 61 |
+| `focused` | 205 |
+| `integration` | 165 |
+| `release-gate` | 70 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 221 |
+| `static` | 226 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 180 |
+| `isolated-database` | 188 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

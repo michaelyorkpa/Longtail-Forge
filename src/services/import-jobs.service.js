@@ -11,6 +11,7 @@ function registerFutureImportJobHandlers(options = {}) {
   }
 
   registerJobHandler(FUTURE_IMPORT_JOB_TYPE, handleFutureImportJob, {
+    publicDemoCapability: "imports.workspace",
     replace: true,
   });
   futureImportJobHandlersRegistered = true;
