@@ -364,6 +364,20 @@ async function assertPublicDemoJourney({
     const tasks = await api.get("/api/tasks?limit=10", { cookie });
     assert.equal(tasks.status, 200, `${fixture.roleId} should read authorized tasks`);
 
+    const attachmentList = await api.get("/api/files/attachments?limit=10", { cookie });
+    assert.equal(attachmentList.status, 200, `${fixture.roleId} should list authorized seeded attachments`);
+    const seededAttachment = attachmentList.body.attachments?.[0];
+    assert.ok(seededAttachment?.fileAttachmentId && seededAttachment?.fileId, `${fixture.roleId} should receive a seeded attachment`);
+    const preview = await api.get(`/api/files/attachments/${encodeURIComponent(seededAttachment.fileAttachmentId)}/preview`, { cookie });
+    assert.equal(preview.status, 200, `${fixture.roleId} should read the seeded attachment preview descriptor`);
+    assert.equal(preview.body.preview?.state, "previewable", `${fixture.roleId} should receive a previewable seeded attachment`);
+    const previewContent = await api.get(`/api/files/attachments/${encodeURIComponent(seededAttachment.fileAttachmentId)}/preview/content`, { cookie });
+    assert.equal(previewContent.status, 200, `${fixture.roleId} should read seeded attachment preview content`);
+    const download = await api.get(`/api/files/${encodeURIComponent(seededAttachment.fileId)}/download`, { cookie });
+    assert.equal(download.status, 200, `${fixture.roleId} should download the authorized seeded attachment`);
+    assert.ok(download.body, `${fixture.roleId} should receive nonempty seeded attachment bytes`);
+    checks += 7;
+
     const allowedWrite = await api.post("/api/time-entries", {
       description: `Public demo permission journey: ${fixture.roleId}`,
       end_time: "2026-07-30T15:30:00.000Z",
