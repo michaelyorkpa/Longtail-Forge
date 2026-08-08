@@ -1,3 +1,12 @@
+## Version 0.33.31.14.4 - 2026-08-08
+
+- Completed the live loopback/isolation correction by permitting established/related return traffic in the first-position host-input chain as well as forwarding, while retaining the ClamAV-only new host-input exception and denying every new forwarded connection.
+- Aligned the keys-only host proof with the immutable image contract by admitting exact image-owned `NODE_ENV=production`, skipping only the Docker formatting template's empty terminal line, and continuing to reject provider or undeclared application environment keys.
+- Added release-gate assertions for both stateful chains, exact allowlist handling, and the unchanged default-deny/loopback/container posture.
+- Rotated the inactive public-demo bootstrap and Secure Notes runtime values after diagnostic output exposure; no replacement value entered source, commands, retained evidence, or application output.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/operational-security.md`, and `docs/runtime-configuration.md`.
+- No docs change needed: Help, visitor roles/workflows, permissions, public API, schema/migrations, reset semantics, and ordinary non-demo deployment are unchanged; this remains a contained prerequisite for the active 0.33.31.15 live gate.
+
 ## Version 0.33.31.14.3 - 2026-08-08
 
 - Corrected the live public-demo bridge contract after Docker Engine 29 proved that an external network created with the internal flag records but does not realize the required loopback port publication.
