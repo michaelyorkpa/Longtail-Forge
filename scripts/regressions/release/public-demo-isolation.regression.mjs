@@ -72,6 +72,23 @@ for (const contract of [
 }
 assert.match(deploy, /public_demo_isolation enforce "\$RELEASE_ENV"[\s\S]*verify_candidate_scanner/);
 assert.match(deploy, /public_demo_isolation check "\$release_env"/);
+assert.match(
+  deploy,
+  /prepare_public_demo_data_root\(\)[\s\S]*DEMO_MODE[\s\S]*compose "\$release_env" run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \\\n\s+longtail-forge node -e/,
+  "The stopped exact-demo volume should regain only the two filesystem capabilities needed for its root ownership handoff.",
+);
+assert.match(
+  deploy,
+  /compose "\$release_env" stop longtail-forge\n\s+prepare_public_demo_data_root "\$release_env"[\s\S]*backup\.mjs create/,
+  "The exact-demo volume root handoff should occur only after the SQLite service stops and before backup access.",
+);
+assert.match(deploy, /fs\.chownSync\(root, 0, 0\)[\s\S]*fs\.chmodSync\(root, 0o700\)[\s\S]*fs\.chownSync\(root, 10001, 10001\)/);
+assert.deepEqual(
+  [...deploy.matchAll(/--cap-add\s+([A-Z_]+)/g)].map((match) => match[1]),
+  ["CHOWN", "DAC_OVERRIDE"],
+  "The deploy helper should add only the exact public-demo volume-root capabilities.",
+);
+assert.doesNotMatch(deploy, /--privileged|--cap-add\s+(?!CHOWN(?:\s|\\)|DAC_OVERRIDE(?:\s|\\))/);
 assert.match(reset, /public_demo_isolation enforce/);
 assert.match(reset, /public_demo_isolation check/);
 assert.match(workflow, /scripts\/release\/longtail-forge-public-demo-isolation-host\.example/);
