@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 446,
+    "discoveredScripts": 447,
     "legacyScripts": 309,
-    "releaseGateScripts": 68,
+    "releaseGateScripts": 69,
     "areaCounts": {
       "dashboard": 2,
       "database": 42,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 12,
       "public-api": 3,
-      "release": 33,
+      "release": 34,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 205,
       "integration": 165,
-      "release-gate": 68,
+      "release-gate": 69,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 188,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 224
+      "static": 225
     }
   },
   "coverageFamilies": [
@@ -4221,6 +4221,23 @@
         "recovery",
         "security",
         "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves exact-demo outbound denial, environment and storage allowlists, internal networking, host firewall enforcement, and lifecycle-owned isolation smoke.",
+      "id": "release.public-demo-isolation",
+      "legacy": false,
+      "path": "scripts/regressions/release/public-demo-isolation.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "container",
+        "demo",
+        "jobs",
+        "network",
+        "security"
       ],
       "tier": "release-gate"
     },

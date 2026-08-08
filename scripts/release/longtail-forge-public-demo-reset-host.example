@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
-readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
 readonly DEMO_TARGET='rt-ltf-demo'
 readonly DEMO_ORIGIN='https://demo.longtailforge.com'
 
@@ -74,6 +74,7 @@ DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"
 PUBLIC_URL="${LTF_PUBLIC_URL:-}"
 ROLE_CREDENTIALS="${LTF_DEMO_ROLE_CREDENTIALS:-/etc/longtail-forge/demo-role-credentials.json}"
 SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+PUBLIC_DEMO_ISOLATION_HELPER="${LTF_PUBLIC_DEMO_ISOLATION_HELPER:-/usr/local/sbin/longtail-forge-public-demo-isolation}"
 CURRENT_STATE="$STATE_ROOT/current.json"
 
 for pair in \
@@ -83,6 +84,7 @@ for pair in \
   "$DEPLOY_ROOT:deployment root" \
   "$BACKUP_ROOT:backup root" \
   "$MAINTENANCE_STATE_ROOT:maintenance state root" \
+  "$PUBLIC_DEMO_ISOLATION_HELPER:public-demo isolation helper" \
   "$ROLE_CREDENTIALS:public-demo role credentials"; do
   require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
 done
@@ -92,6 +94,9 @@ test -d "$COMPOSE_DIR" && test ! -L "$COMPOSE_DIR" || fail 'compose directory mu
 test -f "$COMPOSE_FILE" && test ! -L "$COMPOSE_FILE" || fail 'compose file must be a real file'
 require_root_owned_private_file "$COMPOSE_HOST_ENV" 'compose host environment'
 require_root_owned_private_file "$ROLE_CREDENTIALS" 'public-demo role credentials'
+test -f "$PUBLIC_DEMO_ISOLATION_HELPER" && test ! -L "$PUBLIC_DEMO_ISOLATION_HELPER" \
+  && test -x "$PUBLIC_DEMO_ISOLATION_HELPER" && test "$(stat -c '%u' "$PUBLIC_DEMO_ISOLATION_HELPER")" = '0' \
+  || fail 'public-demo isolation helper must be a root-owned executable regular file'
 ROLE_CREDENTIALS_REAL="$(realpath -e -- "$ROLE_CREDENTIALS")"
 case "$ROLE_CREDENTIALS_REAL" in
   "$DEPLOY_ROOT"/*|"$BACKUP_ROOT"/*|"$COMPOSE_DIR"/*) fail 'public-demo role credentials must remain outside deployment, backup, and Compose trees' ;;
@@ -166,6 +171,17 @@ compose() {
     --env-file "$COMPOSE_HOST_ENV" --env-file "$CURRENT_RELEASE_ENV" "$@"
 }
 
+public_demo_isolation() {
+  local mode="$1" container="${2:-}" scanner_host scanner_port network volume
+  scanner_host="$(compose config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_HOST')"
+  scanner_port="$(compose config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_PORT')"
+  network="$(compose config --format json | jq -er '. as $root | (.services["longtail-forge"].networks | keys[0]) as $key | $root.networks[$key].name')"
+  volume="$(compose config --format json | jq -er '. as $root | (.services["longtail-forge"].volumes[] | select(.target == "/var/lib/longtail-forge").source) as $key | $root.volumes[$key].name')"
+  local arguments=("$mode" --network "$network" --scanner-host "$scanner_host" --scanner-port "$scanner_port" --data-volume "$volume" --backup-root "$BACKUP_ROOT")
+  if test -n "$container"; then arguments+=(--container "$container"); fi
+  "$PUBLIC_DEMO_ISOLATION_HELPER" "${arguments[@]}" >/dev/null
+}
+
 compose config --quiet
 compose config --format json | jq -e --arg origin "$DEMO_ORIGIN" '
   .services["longtail-forge"].environment |
@@ -177,6 +193,7 @@ compose config --format json | jq -e --arg origin "$DEMO_ORIGIN" '
     .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db" and
     .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
 ' >/dev/null || fail 'resolved Compose profile is not the exact production public demo'
+public_demo_isolation enforce
 
 mapfile -t SQLITE_SERVICES < <(compose config --services | grep -E '^longtail-forge(-worker)?$')
 printf '%s\n' "${SQLITE_SERVICES[@]}" | grep -Fxq 'longtail-forge' || fail 'Compose application service is missing'
@@ -286,6 +303,7 @@ verify_runtime() {
   commit="$(state_value "$CURRENT_STATE" '.commitSha')"
   artifact="$(state_value "$CURRENT_STATE" '.artifact.sha256')"
   wait_for_health || return 1
+  public_demo_isolation check "$(compose ps -q longtail-forge)" || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
   curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \

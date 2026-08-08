@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.31.13 - Outbound and infrastructure isolation
+
+Completed on 2026-08-08. The exact public demo now fails closed at both application and container boundaries for outbound communication, external-provider environment, private infrastructure, and non-demo storage. The active cursor advanced to `0.33.31.14` for the repository release candidate, runbook, and complete public-demo smoke.
+
+**Model: High Effort** — Application denials and container networking must agree so no visitor action can reach an external or private system.
+
+- [x] Deny outbound email, invitations, webhooks, integrations, arbitrary URL fetches, SSRF-capable features, unreviewed jobs, and future undeclared outbound contributions through the demo capability catalog. Record currently absent surfaces rather than inventing placeholder implementations.
+- [x] Define and prove the Compose network-egress policy, secret/environment allowlist, database/Files/backups/log isolation, and inability to reach customer networks, private services, production credentials, or writable non-demo storage.
+- [x] Keep analytics, feedback, and interest capture disabled; no visitor or security event is sent to a product-analytics provider in this slice. Security/reset logs remain operational evidence, not analytics.
+- [x] Add catalog, direct-request, worker/job, network-policy, environment-leakage, and non-demo compatibility regressions plus a repeatable host/container isolation smoke.
+
+Acceptance criteria:
+
+- Neither application behavior nor container networking gives a public visitor a path to external communication, private infrastructure, real secrets, or non-demo persistent storage.
+
 ## Version 0.33.31.12 - Cross-role editable-content safety proof
 
 Completed on 2026-08-07. The public demo now uses one documented ordinary safe-content contract across cross-role plain-text and Markdown reads, with corrected URL, rich-content budget, and safe validation-error boundaries. The active cursor advanced to `0.33.31.13` for outbound and infrastructure isolation.

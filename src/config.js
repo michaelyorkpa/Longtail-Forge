@@ -65,6 +65,67 @@ const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 const WORKER_MODES = new Set(["inline", "separate", "disabled"]);
 const LOG_LEVELS = new Set(["trace", "debug", "info", "warn", "error"]);
 const PRODUCTION_FILE_SCANNERS = new Set(["clamd", "clamscan"]);
+const PUBLIC_DEMO_ALLOWED_RUNTIME_ENV_KEYS = new Set([
+  "DEMO_MODE",
+  "HOST",
+  "LONGTAIL_AUTH_THROTTLE_ENABLED",
+  "LONGTAIL_AUTH_THROTTLE_FAILURE_LIMIT",
+  "LONGTAIL_AUTH_THROTTLE_LOCKOUT_SECONDS",
+  "LONGTAIL_AUTH_THROTTLE_WINDOW_SECONDS",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_LIMIT",
+  "LONGTAIL_AUTH_VERIFICATION_CONCURRENCY_PER_IP_LIMIT",
+  "LONGTAIL_CLAMD_HOST",
+  "LONGTAIL_CLAMD_PORT",
+  "LONGTAIL_DATA_DIR",
+  "LONGTAIL_DATABASE_FILE",
+  "LONGTAIL_DATABASE_PROVIDER",
+  "LONGTAIL_DEPLOYMENT_MODE",
+  "LONGTAIL_ENV",
+  "LONGTAIL_FILE_SCANNER",
+  "LONGTAIL_HSTS_MAX_AGE_SECONDS",
+  "LONGTAIL_JOB_COMPLETED_RETENTION_DAYS",
+  "LONGTAIL_JOB_DEAD_RETENTION_DAYS",
+  "LONGTAIL_JOB_LOCK_TTL_SECONDS",
+  "LONGTAIL_JOB_POLL_INTERVAL_MS",
+  "LONGTAIL_LOCAL_STORAGE_ROOT",
+  "LONGTAIL_LOG_LEVEL",
+  "LONGTAIL_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_MAX_BODY_BYTES",
+  "LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT",
+  "LONGTAIL_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS",
+  "LONGTAIL_PUBLIC_DEMO_SEARCH_LIMIT",
+  "LONGTAIL_PUBLIC_URL",
+  "LONGTAIL_RELEASE_ARTIFACT_SHA256",
+  "LONGTAIL_RELEASE_BRANCH",
+  "LONGTAIL_RELEASE_COMMIT",
+  "LONGTAIL_SECURE_NOTES_KEY_VERSION",
+  "LONGTAIL_SECURE_NOTES_MASTER_KEY",
+  "LONGTAIL_SESSION_COOKIE_SAMESITE",
+  "LONGTAIL_SESSION_COOKIE_SECURE",
+  "LONGTAIL_SESSION_TTL_SECONDS",
+  "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS",
+  "LONGTAIL_SQLITE_CACHE_SIZE_KIB",
+  "LONGTAIL_SQLITE_FOREIGN_KEYS",
+  "LONGTAIL_SQLITE_JOURNAL_MODE",
+  "LONGTAIL_SQLITE_MMAP_SIZE_BYTES",
+  "LONGTAIL_SQLITE_SYNCHRONOUS",
+  "LONGTAIL_SQLITE_TEMP_STORE",
+  "LONGTAIL_STORAGE_PROVIDER",
+  "LONGTAIL_SUPPORT_VIEW_ENABLED",
+  "LONGTAIL_SUPPORT_VIEW_TTL_SECONDS",
+  "LONGTAIL_WORKER_ID",
+  "LONGTAIL_WORKER_MODE",
+  "LONGTAIL_WORKSPACE_BACKUP_ROOT",
+  "PORT",
+  "SUPER_ADMIN_DISPLAY_NAME",
+  "SUPER_ADMIN_PASSWORD",
+  "SUPER_ADMIN_USERNAME",
+  "TRUST_PROXY",
+  "WORKSPACE_INSTALL_MODE",
+  "WORKSPACE_TYPE_LIMIT",
+]);
+const PUBLIC_DEMO_EXTERNAL_ENV_KEY_PATTERN = /^(?:ANALYTICS_|AWS_|AZURE_|FEEDBACK_|GCP_|GOOGLE_|MAILGUN_|NEWSLETTER_|POSTHOG_|POSTMARK_|SENDGRID_|SENTRY_|SLACK_|SMTP_|STRIPE_|TELEMETRY_|WEBHOOK_)|^(?:ANALYTICS|FEEDBACK)$/;
 const UNSAFE_SECRET_VALUES = new Set([
   "admin",
   "changeme",
@@ -88,6 +149,7 @@ function createConfig(env = process.env) {
   const environment = readEnum(env, "LONGTAIL_ENV", DEFAULT_ENVIRONMENT, ENVIRONMENTS);
   const deploymentMode = readEnum(env, "LONGTAIL_DEPLOYMENT_MODE", DEFAULT_DEPLOYMENT_MODE, DEPLOYMENT_MODES);
   const demoEnabled = readBoolean(env, "DEMO_MODE", false);
+  assertPublicDemoEnvironmentAllowlist(env, demoEnabled);
   const publicUrl = readPublicUrl(env);
   const publicUrlProtocol = publicUrl ? new URL(publicUrl).protocol : "";
   const publicDir = path.join(root, "public");
@@ -494,6 +556,23 @@ function assertPublicDemoOnlySettings(env, demoEnabled) {
   }
 }
 
+function assertPublicDemoEnvironmentAllowlist(env, demoEnabled) {
+  if (!demoEnabled) {
+    return;
+  }
+
+  const configuredKeys = Object.keys(env).filter((key) => hasEnvText(env, key));
+  const undeclaredRuntimeKey = configuredKeys.some((key) => (
+    /^(?:LONGTAIL_|SUPER_ADMIN_|WORKSPACE_)/.test(key)
+      || key === "SECURE_NOTES_MASTER_KEY"
+  ) && !PUBLIC_DEMO_ALLOWED_RUNTIME_ENV_KEYS.has(key));
+  const externalProviderKey = configuredKeys.some((key) => PUBLIC_DEMO_EXTERNAL_ENV_KEY_PATTERN.test(key));
+
+  if (undeclaredRuntimeKey || externalProviderKey) {
+    throw new Error("DEMO_MODE=true accepts only the reviewed public-demo runtime environment.");
+  }
+}
+
 function assertPublicDemoConfiguration(options) {
   if (!options.demoEnabled) {
     return;
@@ -767,4 +846,9 @@ function logRuntimeConfigWarnings(logger = console.warn) {
 
 const config = createConfig();
 
-export { config, createConfig, logRuntimeConfigWarnings, readRuntimeSecret };
+export {
+  config,
+  createConfig,
+  logRuntimeConfigWarnings,
+  readRuntimeSecret,
+};

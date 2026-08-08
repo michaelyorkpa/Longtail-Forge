@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+readonly DEMO_NETWORK='longtail-forge-public-demo-internal'
+readonly DEMO_DATA_VOLUME='longtail-forge-public-demo-data'
+readonly DEMO_BRIDGE='ltf-demo0'
+readonly INPUT_CHAIN='LTF_DEMO_INPUT'
+readonly FORWARD_CHAIN='LTF_DEMO_FORWARD'
+
+fail() { printf 'longtail-forge-public-demo-isolation: %s\n' "$*" >&2; exit 1; }
+require_command() { command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"; }
+
+test "$#" -ge 1 || fail 'command must be enforce or check'
+MODE="$1"
+shift
+NETWORK=''
+SCANNER_HOST=''
+SCANNER_PORT=''
+CONTAINER=''
+DATA_VOLUME=''
+BACKUP_ROOT=''
+while test "$#" -gt 0; do
+  case "$1" in
+    --network) NETWORK="$2"; shift 2 ;;
+    --scanner-host) SCANNER_HOST="$2"; shift 2 ;;
+    --scanner-port) SCANNER_PORT="$2"; shift 2 ;;
+    --container) CONTAINER="$2"; shift 2 ;;
+    --data-volume) DATA_VOLUME="$2"; shift 2 ;;
+    --backup-root) BACKUP_ROOT="$2"; shift 2 ;;
+    *) fail 'unknown argument' ;;
+  esac
+done
+
+case "$MODE" in enforce|check) ;; *) fail 'command must be enforce or check' ;; esac
+test "$(id -u)" = '0' || fail 'helper must run as root'
+for command in cut docker grep head iptables jq wc; do require_command "$command"; done
+test "$NETWORK" = "$DEMO_NETWORK" || fail 'network is not the exact public-demo network'
+test "$DATA_VOLUME" = "$DEMO_DATA_VOLUME" || fail 'data volume is not the exact public-demo volume'
+test "$BACKUP_ROOT" = '/var/backups/longtail-forge/compose' || fail 'backup root is not the dedicated protected Compose destination'
+[[ "$SCANNER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'scanner host must be the reviewed bridge gateway'
+[[ "$SCANNER_PORT" =~ ^[0-9]+$ ]] && test "$SCANNER_PORT" -ge 1 && test "$SCANNER_PORT" -le 65535 || fail 'scanner port is invalid'
+
+network_json="$(docker network inspect "$NETWORK")"
+jq -e --arg bridge "$DEMO_BRIDGE" --arg gateway "$SCANNER_HOST" '
+  length == 1 and .[0].Internal == true and .[0].EnableIPv6 == false and
+  .[0].Driver == "bridge" and
+  .[0].Options["com.docker.network.bridge.name"] == $bridge and
+  (.[0].IPAM.Config | length == 1) and .[0].IPAM.Config[0].Gateway == $gateway
+' <<<"$network_json" >/dev/null || fail 'Docker network is not the reviewed internal IPv4 bridge'
+
+ensure_jump() {
+  while iptables -w -C "$1" -i "$2" -j "$3" >/dev/null 2>&1; do
+    iptables -w -D "$1" -i "$2" -j "$3"
+  done
+  iptables -w -I "$1" 1 -i "$2" -j "$3"
+}
+if test "$MODE" = 'enforce'; then
+  iptables -w -N "$INPUT_CHAIN" >/dev/null 2>&1 || true
+  iptables -w -F "$INPUT_CHAIN"
+  iptables -w -A "$INPUT_CHAIN" -d "$SCANNER_HOST" -p tcp --dport "$SCANNER_PORT" -j ACCEPT
+  iptables -w -A "$INPUT_CHAIN" -j DROP
+  ensure_jump INPUT "$DEMO_BRIDGE" "$INPUT_CHAIN"
+  iptables -w -N "$FORWARD_CHAIN" >/dev/null 2>&1 || true
+  iptables -w -F "$FORWARD_CHAIN"
+  iptables -w -A "$FORWARD_CHAIN" -j DROP
+  ensure_jump DOCKER-USER "$DEMO_BRIDGE" "$FORWARD_CHAIN"
+fi
+iptables -w -C INPUT -i "$DEMO_BRIDGE" -j "$INPUT_CHAIN" >/dev/null 2>&1 || fail 'host-input isolation jump is missing'
+iptables -w -C "$INPUT_CHAIN" -d "$SCANNER_HOST" -p tcp --dport "$SCANNER_PORT" -j ACCEPT >/dev/null 2>&1 || fail 'scanner exception is missing'
+iptables -w -C "$INPUT_CHAIN" -j DROP >/dev/null 2>&1 || fail 'host-input default denial is missing'
+iptables -w -C DOCKER-USER -i "$DEMO_BRIDGE" -j "$FORWARD_CHAIN" >/dev/null 2>&1 || fail 'forwarding isolation jump is missing'
+iptables -w -C "$FORWARD_CHAIN" -j DROP >/dev/null 2>&1 || fail 'forwarding default denial is missing'
+test "$(iptables -w -S "$INPUT_CHAIN" | wc -l)" = '3' || fail 'host-input isolation chain contains an undeclared rule'
+test "$(iptables -w -S "$FORWARD_CHAIN" | wc -l)" = '2' || fail 'forwarding isolation chain contains an undeclared rule'
+test "$(iptables -w -S INPUT | grep '^-A ' | head -n 1)" = "-A INPUT -i $DEMO_BRIDGE -j $INPUT_CHAIN" \
+  || fail 'host-input isolation jump is not first'
+test "$(iptables -w -S DOCKER-USER | grep '^-A ' | head -n 1)" = "-A DOCKER-USER -i $DEMO_BRIDGE -j $FORWARD_CHAIN" \
+  || fail 'forwarding isolation jump is not first'
+
+if test -z "$CONTAINER"; then
+  printf '{"ok":true,"mode":"%s","policy":"public-demo-isolated"}\n' "$MODE"
+  exit 0
+fi
+[[ "$CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || fail 'container identity is invalid'
+container_json="$(docker inspect "$CONTAINER")"
+jq -e --arg backup "$BACKUP_ROOT" --arg network "$NETWORK" --arg volume "$DATA_VOLUME" '
+  length == 1 and (.[0].NetworkSettings.Networks | keys) == [$network] and
+  (.[0].Mounts | length) == 2 and
+  (.[0].Mounts | any(.Type == "volume" and .Name == $volume and .Destination == "/var/lib/longtail-forge" and .RW == true)) and
+  (.[0].Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge" and .RW == true)) and
+  .[0].HostConfig.ReadonlyRootfs == true and .[0].HostConfig.LogConfig.Type == "local" and
+  .[0].HostConfig.Dns == ["127.0.0.1"] and
+  .[0].HostConfig.RestartPolicy.Name == "no" and
+  .[0].HostConfig.LogConfig.Config["max-size"] == "10m" and .[0].HostConfig.LogConfig.Config["max-file"] == "7"
+' <<<"$container_json" >/dev/null || fail 'container storage, network, root filesystem, or log isolation drifted'
+
+is_allowed_environment_key() {
+  case "$1" in
+    DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|HOME|HOSTNAME|NODE_VERSION|PATH|YARN_VERSION) return 0 ;;
+    SUPER_ADMIN_DISPLAY_NAME|SUPER_ADMIN_PASSWORD|SUPER_ADMIN_USERNAME) return 0 ;;
+    LONGTAIL_AUTH_*|LONGTAIL_CLAMD_HOST|LONGTAIL_CLAMD_PORT|LONGTAIL_DATA_DIR|LONGTAIL_DATABASE_FILE|LONGTAIL_DATABASE_PROVIDER|LONGTAIL_DEPLOYMENT_MODE|LONGTAIL_ENV|LONGTAIL_FILE_SCANNER) return 0 ;;
+    LONGTAIL_HSTS_MAX_AGE_SECONDS|LONGTAIL_JOB_*|LONGTAIL_LOCAL_STORAGE_ROOT|LONGTAIL_LOG_LEVEL|LONGTAIL_PUBLIC_URL|LONGTAIL_RELEASE_*) return 0 ;;
+    LONGTAIL_PUBLIC_DEMO_CLIENT_REQUEST_LIMIT|LONGTAIL_PUBLIC_DEMO_GLOBAL_REQUEST_LIMIT|LONGTAIL_PUBLIC_DEMO_MAX_BODY_BYTES|LONGTAIL_PUBLIC_DEMO_MUTATION_LIMIT|LONGTAIL_PUBLIC_DEMO_PERIMETER_WINDOW_SECONDS|LONGTAIL_PUBLIC_DEMO_SEARCH_LIMIT) return 0 ;;
+    LONGTAIL_SECURE_NOTES_KEY_VERSION|LONGTAIL_SECURE_NOTES_MASTER_KEY|LONGTAIL_SESSION_*|LONGTAIL_SQLITE_*|LONGTAIL_STORAGE_PROVIDER|LONGTAIL_SUPPORT_VIEW_ENABLED|LONGTAIL_SUPPORT_VIEW_TTL_SECONDS|LONGTAIL_WORKER_*|LONGTAIL_WORKSPACE_BACKUP_ROOT) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+while IFS= read -r entry; do
+  key="$(printf '%s' "$entry" | cut -d= -f1)"
+  is_allowed_environment_key "$key" || fail 'container environment contains an undeclared key'
+done < <(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CONTAINER")
+
+jq -e --arg gateway "$SCANNER_HOST" --arg port "$SCANNER_PORT" '
+  .[0].Config.Env | map(split("=") | {(.[0]): (.[1:] | join("="))}) | add |
+  .DEMO_MODE == "true" and .LONGTAIL_ENV == "production" and .LONGTAIL_DEPLOYMENT_MODE == "compose" and
+  .LONGTAIL_PUBLIC_URL == "https://demo.longtailforge.com" and .LONGTAIL_DATABASE_PROVIDER == "sqlite" and
+  .LONGTAIL_STORAGE_PROVIDER == "local" and .LONGTAIL_FILE_SCANNER == "clamd" and
+  .LONGTAIL_CLAMD_HOST == $gateway and .LONGTAIL_CLAMD_PORT == $port and .LONGTAIL_WORKER_MODE == "inline" and
+  .LONGTAIL_SUPPORT_VIEW_ENABLED == "false" and .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and
+  .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db" and
+  .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files" and
+  .LONGTAIL_WORKSPACE_BACKUP_ROOT == "/var/backups/longtail-forge/workspaces"
+' <<<"$container_json" >/dev/null || fail 'container environment is not the exact public-demo runtime profile'
+
+test "$(jq -r '.[0].Containers | length' <<<"$network_json")" = '1' || fail 'public-demo network contains an undeclared peer'
+jq -e --arg container "$CONTAINER" '.[0].Containers | has($container)' <<<"$network_json" >/dev/null || fail 'application is not the sole network peer'
+
+docker exec --env PROBE_HOST="$SCANNER_HOST" --env PROBE_PORT="$SCANNER_PORT" "$CONTAINER" node -e '
+  const net = require("node:net");
+  const socket = net.createConnection({ host: process.env.PROBE_HOST, port: Number(process.env.PROBE_PORT) });
+  const timer = setTimeout(() => { socket.destroy(); process.exit(1); }, 3000);
+  socket.on("connect", () => socket.write("zPING\0"));
+  socket.on("data", chunk => { if (chunk.toString().includes("PONG")) { clearTimeout(timer); socket.end(); process.exit(0); } });
+  socket.on("error", () => process.exit(1));
+' || fail 'reviewed scanner handoff is unavailable'
+
+deny_connect_probe() {
+  docker exec --env PROBE_HOST="$1" --env PROBE_PORT="$2" "$CONTAINER" node -e '
+    const net = require("node:net");
+    const socket = net.createConnection({ host: process.env.PROBE_HOST, port: Number(process.env.PROBE_PORT) });
+    const done = status => { socket.destroy(); process.exit(status); };
+    const timer = setTimeout(() => done(0), 1500);
+    socket.on("connect", () => { clearTimeout(timer); done(1); });
+    socket.on("error", () => { clearTimeout(timer); done(0); });
+  '
+}
+deny_connect_probe "$SCANNER_HOST" 22 || fail 'container reached an undeclared host service'
+deny_connect_probe '1.1.1.1' 443 || fail 'container reached the public network'
+docker exec "$CONTAINER" node -e '
+  const dns = require("node:dns");
+  const timer = setTimeout(() => process.exit(1), 3000);
+  dns.lookup("example.com", error => {
+    clearTimeout(timer);
+    process.exit(error ? 0 : 1);
+  });
+' || fail 'container resolved an external hostname'
+printf '{"ok":true,"mode":"%s","policy":"public-demo-isolated","container":"verified"}\n' "$MODE"

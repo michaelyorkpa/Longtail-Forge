@@ -3,7 +3,9 @@ name: longtail-forge
 services:
   longtail-forge:
     image: ${LONGTAIL_IMAGE:-longtail-forge:local}
-    restart: unless-stopped
+    restart: ${LONGTAIL_RESTART_POLICY:-unless-stopped}
+    dns:
+      - ${LONGTAIL_DNS_SERVER:-127.0.0.11}
     init: true
     user: "10001:10001"
     read_only: true
@@ -50,6 +52,11 @@ services:
       start_period: 30s
       retries: 4
     stop_grace_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "7"
     networks:
       preview-internal:
 

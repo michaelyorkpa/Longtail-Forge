@@ -34,6 +34,23 @@ assert.equal(evaluatePublicDemoCapability("future.undeclared", { demoEnabled: tr
 for (const capabilityId of PUBLIC_DEMO_ABSENT_CAPABILITY_IDS) {
   assert.equal(getPublicDemoCapability(capabilityId).classification, "disabled");
 }
+const outboundCapabilityIds = [
+  "outbound.analytics",
+  "outbound.email",
+  "outbound.feedback",
+  "outbound.integrations",
+  "outbound.interest_capture",
+  "outbound.url_fetch",
+  "outbound.webhooks",
+];
+for (const capabilityId of outboundCapabilityIds) {
+  assert.ok(PUBLIC_DEMO_ABSENT_CAPABILITY_IDS.includes(capabilityId));
+  let outboundDenial = null;
+  requirePublicDemoCapability(capabilityId, { demoEnabled: true })({}, {}, (error) => {
+    outboundDenial = error;
+  });
+  assert.equal(outboundDenial?.code, PUBLIC_DEMO_DENIAL_CODE);
+}
 
 const catalogProbe = {
   actions: [
@@ -151,7 +168,6 @@ const demoManifestProbe = spawnSync(process.execPath, [
   cwd: process.cwd(),
   encoding: "utf8",
   env: {
-    ...process.env,
     DEMO_MODE: "true",
     LONGTAIL_DEPLOYMENT_MODE: "compose",
     LONGTAIL_ENV: "production",
@@ -168,6 +184,41 @@ const demoManifestProbe = spawnSync(process.execPath, [
 });
 assert.equal(demoManifestProbe.status, 0, demoManifestProbe.stderr || demoManifestProbe.stdout);
 assert.equal(demoManifestProbe.stdout.trim(), "8");
+
+const outboundJobProbe = spawnSync(process.execPath, [
+  "--input-type=module",
+  "-e",
+  `
+    const handlers = await import("./src/core/jobs/job-handlers.js");
+    handlers.registerJobHandler("outbound-probe", () => {}, { publicDemoCapability: "outbound.email" });
+    try {
+      handlers.assertRegisteredJobPublicDemoCapabilityAllowed("outbound-probe");
+      process.exit(2);
+    } catch (error) {
+      if (error.code !== "public_demo_capability_disabled") process.exit(3);
+      console.log(error.code);
+    }
+  `,
+], {
+  cwd: process.cwd(),
+  encoding: "utf8",
+  env: {
+    DEMO_MODE: "true",
+    LONGTAIL_DEPLOYMENT_MODE: "compose",
+    LONGTAIL_ENV: "production",
+    LONGTAIL_FILE_SCANNER: "clamscan",
+    LONGTAIL_PUBLIC_URL: "https://demo.longtailforge.com",
+    LONGTAIL_RELEASE_ARTIFACT_SHA256: "b".repeat(64),
+    LONGTAIL_RELEASE_BRANCH: "main",
+    LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
+    LONGTAIL_SECURE_NOTES_MASTER_KEY: "demo-regression-secure-notes-master-key-material",
+    LONGTAIL_SESSION_COOKIE_SECURE: "true",
+    SUPER_ADMIN_PASSWORD: "demo-regression-bootstrap-password",
+    TRUST_PROXY: "127.0.0.1/32",
+  },
+});
+assert.equal(outboundJobProbe.status, 0, outboundJobProbe.stderr || outboundJobProbe.stdout);
+assert.equal(outboundJobProbe.stdout.trim(), PUBLIC_DEMO_DENIAL_CODE);
 
 const { closeDatabase } = await import("../../../src/db/provider.js");
 await closeDatabase();
