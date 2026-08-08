@@ -71,6 +71,12 @@ owned by runtime UID/GID 10001. Activation and recovery add only
 The application and backup containers remain capability-free; privileged
 containers are not part of this workflow.
 
+The guarded deploy path also stops the application before an exact-demo-only,
+ephemeral root container prepares the mounted data root as UID/GID 10001 mode
+`0700` with only `CAP_CHOWN` and `CAP_DAC_OVERRIDE`. This makes the first
+Compose backup and SQLite WAL/SHM creation possible without broadening the
+long-running application or applying the handoff to non-demo installations.
+
 The prior unit and failed/recovery units are protected operational evidence.
 Retain only the current policy-approved set after a successful later reset and
 backup inspection; never delete the only verified last-known-good unit. Reset

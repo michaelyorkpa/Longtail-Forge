@@ -1,3 +1,11 @@
+## Version 0.33.31.14.2 - 2026-08-08
+
+- Added an exact-demo-only, idempotent ownership handoff for the mounted Compose data root after the application stops and before backup access, fixing first-cutover SQLite WAL/SHM creation on a newly created root-owned Docker volume.
+- Kept the handoff bounded to one ephemeral root container with `CAP_CHOWN` and `CAP_DAC_OVERRIDE`: it reclaims root ownership, applies mode `0700`, then transfers the directory to UID/GID 10001 without `CAP_FOWNER`; ordinary Compose profiles skip it and the application/backup remain capability-free.
+- Added release-gate coverage for exact ordering, ownership/mode operations, capability bounds, and non-privileged execution.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, and `docs/public-demo-operator-runbook.md`.
+- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, edge policy, and application runtime configuration are unchanged; this completes the host-only initial demo-volume preparation needed by the still-active 0.33.31.15 live gate.
+
 ## Version 0.33.31.14.1 - 2026-08-08
 
 - Corrected the root-only public-demo lifecycle invocations to add back only the required filesystem capabilities: `CAP_CHOWN` plus `CAP_DAC_OVERRIDE` for candidate preparation/validation, and `CAP_DAC_OVERRIDE` alone for activation/recovery of UID-10001-owned `0700` state. Permission modes now finalize before ownership transfer, avoiding `CAP_FOWNER`; the application and backup container retain the Compose-wide capability drop.

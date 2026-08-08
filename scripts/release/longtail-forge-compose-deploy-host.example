@@ -216,6 +216,26 @@ clear_marker() {
   rm -f -- "$DEPLOYMENT_MARKER"
 }
 
+prepare_public_demo_data_root() {
+  local release_env="$1" demo_mode
+  demo_mode="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.DEMO_MODE')"
+  test "$demo_mode" = 'true' || return 0
+  compose "$release_env" run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \
+    longtail-forge node -e '
+      const fs = require("node:fs");
+      const root = "/var/lib/longtail-forge";
+      const before = fs.lstatSync(root);
+      if (!before.isDirectory() || before.isSymbolicLink()) throw new Error("public-demo data root is not a real directory");
+      fs.chownSync(root, 0, 0);
+      fs.chmodSync(root, 0o700);
+      fs.chownSync(root, 10001, 10001);
+      const after = fs.lstatSync(root);
+      if (after.uid !== 10001 || after.gid !== 10001 || (after.mode & 0o777) !== 0o700) {
+        throw new Error("public-demo data root ownership handoff failed");
+      }
+    '
+}
+
 backup_with_state() {
   local state="$1" output="$2" release_env reference output_name container_output
   release_env="$(state_value "$state" '.deployment.releaseEnv')"
@@ -225,6 +245,7 @@ backup_with_state() {
   container_output="$BACKUP_CONTAINER_ROOT/$output_name"
   test "$output" = "$BACKUP_ROOT/$output_name" || fail "backup output escaped the protected Compose backup root"
   compose "$release_env" stop longtail-forge
+  prepare_public_demo_data_root "$release_env"
   local key_args=()
   if test -n "$SECURE_KEY_BACKUP"; then
     test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
