@@ -71,14 +71,15 @@ The credential document is a separate real `root:root` file with mode `0600`, ou
 Before the first public-demo deployment, choose a reviewed non-overlapping subnet and create the dedicated external network and data volume. The exact names and Linux bridge interface are enforced:
 
 ```sh
-docker network create --driver bridge --internal \
+docker network create --driver bridge \
   --subnet 172.30.18.0/24 --gateway 172.30.18.1 \
   --opt com.docker.network.bridge.name=ltf-demo0 \
+  --opt com.docker.network.bridge.enable_ip_masquerade=false \
   longtail-forge-public-demo-internal
 docker volume create longtail-forge-public-demo-data
 ```
 
-Set `LONGTAIL_DOCKER_NETWORK=longtail-forge-public-demo-internal`, `LONGTAIL_DATA_VOLUME=longtail-forge-public-demo-data`, `LONGTAIL_RESTART_POLICY=no`, `LONGTAIL_DNS_SERVER=127.0.0.1`, `LONGTAIL_CLAMD_HOST` to that bridge gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` to the gateway `/32`. Do not attach another container to the network. The loopback-only resolver blocks Docker DNS forwarding; the exact demo uses literal reviewed addresses for its sole ClamAV handoff. The isolation helper installs a ClamAV-only host-input exception and default-deny host/forwarding chains, then verifies the live container's environment, exact database/Files/backup mounts, bounded local logs, scanner access, failed external name resolution, and denied host/public probes. Deploy and reset refuse to proceed when that proof is absent or drifted. After a host reboot, use a protected lifecycle operation to enforce the policy before starting the demo; Docker auto-restart is deliberately disabled for this exact profile.
+Set `LONGTAIL_DOCKER_NETWORK=longtail-forge-public-demo-internal`, `LONGTAIL_DATA_VOLUME=longtail-forge-public-demo-data`, `LONGTAIL_RESTART_POLICY=no`, `LONGTAIL_DNS_SERVER=127.0.0.1`, `LONGTAIL_CLAMD_HOST` to that bridge gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` to the gateway `/32`. Do not attach another container to the network. Docker's internal-network flag is deliberately not used because it suppresses the required loopback port publication on the supported live engine; disabled masquerading plus the first-position firewall chain denies new forwarded connections instead. The chain permits only established return traffic for Caddy's loopback request path, while the separate host-input chain permits only the literal reviewed ClamAV handoff. The loopback-only resolver blocks Docker DNS forwarding. The isolation helper verifies the realized `127.0.0.1:8001` binding, live container environment, exact database/Files/backup mounts, bounded local logs, scanner access, failed external name resolution, and denied host/public probes. Deploy and reset refuse to proceed when that proof is absent or drifted. After a host reboot, use a protected lifecycle operation to enforce the policy before starting the demo; Docker auto-restart is deliberately disabled for this exact profile.
 
 The helper and release workflow carry both host files as reviewed release assets. The runtime image carries the candidate and activation primitives but no role credential document or generated demo data.
 

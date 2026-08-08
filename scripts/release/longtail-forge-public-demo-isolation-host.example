@@ -43,11 +43,12 @@ test "$BACKUP_ROOT" = '/var/backups/longtail-forge/compose' || fail 'backup root
 
 network_json="$(docker network inspect "$NETWORK")"
 jq -e --arg bridge "$DEMO_BRIDGE" --arg gateway "$SCANNER_HOST" '
-  length == 1 and .[0].Internal == true and .[0].EnableIPv6 == false and
+  length == 1 and .[0].Internal == false and .[0].EnableIPv6 == false and
   .[0].Driver == "bridge" and
   .[0].Options["com.docker.network.bridge.name"] == $bridge and
+  .[0].Options["com.docker.network.bridge.enable_ip_masquerade"] == "false" and
   (.[0].IPAM.Config | length == 1) and .[0].IPAM.Config[0].Gateway == $gateway
-' <<<"$network_json" >/dev/null || fail 'Docker network is not the reviewed internal IPv4 bridge'
+' <<<"$network_json" >/dev/null || fail 'Docker network is not the reviewed egress-filtered IPv4 bridge'
 
 ensure_jump() {
   while iptables -w -C "$1" -i "$2" -j "$3" >/dev/null 2>&1; do
@@ -63,6 +64,7 @@ if test "$MODE" = 'enforce'; then
   ensure_jump INPUT "$DEMO_BRIDGE" "$INPUT_CHAIN"
   iptables -w -N "$FORWARD_CHAIN" >/dev/null 2>&1 || true
   iptables -w -F "$FORWARD_CHAIN"
+  iptables -w -A "$FORWARD_CHAIN" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
   iptables -w -A "$FORWARD_CHAIN" -j DROP
   ensure_jump DOCKER-USER "$DEMO_BRIDGE" "$FORWARD_CHAIN"
 fi
@@ -70,13 +72,16 @@ iptables -w -C INPUT -i "$DEMO_BRIDGE" -j "$INPUT_CHAIN" >/dev/null 2>&1 || fail
 iptables -w -C "$INPUT_CHAIN" -d "$SCANNER_HOST" -p tcp --dport "$SCANNER_PORT" -j ACCEPT >/dev/null 2>&1 || fail 'scanner exception is missing'
 iptables -w -C "$INPUT_CHAIN" -j DROP >/dev/null 2>&1 || fail 'host-input default denial is missing'
 iptables -w -C DOCKER-USER -i "$DEMO_BRIDGE" -j "$FORWARD_CHAIN" >/dev/null 2>&1 || fail 'forwarding isolation jump is missing'
+iptables -w -C "$FORWARD_CHAIN" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT >/dev/null 2>&1 || fail 'stateful response exception is missing'
 iptables -w -C "$FORWARD_CHAIN" -j DROP >/dev/null 2>&1 || fail 'forwarding default denial is missing'
 test "$(iptables -w -S "$INPUT_CHAIN" | wc -l)" = '3' || fail 'host-input isolation chain contains an undeclared rule'
-test "$(iptables -w -S "$FORWARD_CHAIN" | wc -l)" = '2' || fail 'forwarding isolation chain contains an undeclared rule'
+test "$(iptables -w -S "$FORWARD_CHAIN" | wc -l)" = '3' || fail 'forwarding isolation chain contains an undeclared rule'
 test "$(iptables -w -S INPUT | grep '^-A ' | head -n 1)" = "-A INPUT -i $DEMO_BRIDGE -j $INPUT_CHAIN" \
   || fail 'host-input isolation jump is not first'
 test "$(iptables -w -S DOCKER-USER | grep '^-A ' | head -n 1)" = "-A DOCKER-USER -i $DEMO_BRIDGE -j $FORWARD_CHAIN" \
   || fail 'forwarding isolation jump is not first'
+test "$(iptables -w -S "$FORWARD_CHAIN" | grep '^-A ' | head -n 1)" = "-A $FORWARD_CHAIN -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT" \
+  || fail 'stateful response exception is not first'
 
 if test -z "$CONTAINER"; then
   printf '{"ok":true,"mode":"%s","policy":"public-demo-isolated"}\n' "$MODE"
@@ -91,6 +96,9 @@ jq -e --arg backup "$BACKUP_ROOT" --arg network "$NETWORK" --arg volume "$DATA_V
   (.[0].Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge" and .RW == true)) and
   .[0].HostConfig.ReadonlyRootfs == true and .[0].HostConfig.LogConfig.Type == "local" and
   .[0].HostConfig.Dns == ["127.0.0.1"] and
+  (.[0].NetworkSettings.Ports["8001/tcp"] | length) == 1 and
+  .[0].NetworkSettings.Ports["8001/tcp"][0].HostIp == "127.0.0.1" and
+  .[0].NetworkSettings.Ports["8001/tcp"][0].HostPort == "8001" and
   .[0].HostConfig.RestartPolicy.Name == "no" and
   .[0].HostConfig.LogConfig.Config["max-size"] == "10m" and .[0].HostConfig.LogConfig.Config["max-file"] == "7"
 ' <<<"$container_json" >/dev/null || fail 'container storage, network, root filesystem, or log isolation drifted'
