@@ -1,3 +1,11 @@
+## Version 0.33.31.14.1 - 2026-08-08
+
+- Corrected the root-only public-demo lifecycle invocations to add back only the required filesystem capabilities: `CAP_CHOWN` plus `CAP_DAC_OVERRIDE` for candidate preparation/validation, and `CAP_DAC_OVERRIDE` alone for activation/recovery of UID-10001-owned `0700` state. Permission modes now finalize before ownership transfer, avoiding `CAP_FOWNER`; the application and backup container retain the Compose-wide capability drop.
+- Added a release regression that requires those exact bounded capability sets and rejects privileged or broader capability escalation.
+- Updated the public-demo data and operator runbooks with the bounded ownership handoff; this patch is the immutable candidate needed to perform the still-active 0.33.31.15 live-host reset, recovery, scheduler, and explicit launch-decision gate before roadmap closeout or URL publication.
+- Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, and `docs/public-demo-operator-runbook.md`.
+- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, edge policy, and application runtime configuration are unchanged; this correction is limited to the root-owned host candidate operation.
+
 ## Version 0.33.31.14 - 2026-08-08
 
 - Added a redacted exact-`rt-ltf-demo` Compose environment showing the immutable release identity, dedicated volume/network, disabled restart and DNS forwarding, local SQLite/Files, inline worker, ClamAV handoff, explicit perimeter limits, disabled Support View, and secret-store placeholders without publishing credentials.

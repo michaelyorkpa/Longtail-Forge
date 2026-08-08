@@ -291,6 +291,22 @@ async function assertHostContract() {
     /provided operation identity is invalid/,
     /"semanticFingerprint":"%s"/,
   ]) assert.match(host, requirement);
+  assert.match(
+    host,
+    /run_candidate\(\)[\s\S]*compose run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \\\n\s+--volume "\$ROLE_CREDENTIALS:\/run\/secrets\/demo-role-credentials\.json:ro"/,
+    "The ephemeral candidate builder should regain only its two filesystem capabilities after the service-wide capability drop.",
+  );
+  assert.match(
+    host,
+    /run_activation\(\)[\s\S]*compose run --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE longtail-forge/,
+    "Activation and recovery should regain only the filesystem traversal capability.",
+  );
+  assert.deepEqual(
+    [...host.matchAll(/--cap-add\s+([A-Z_]+)/g)].map((match) => match[1]),
+    ["CHOWN", "DAC_OVERRIDE", "DAC_OVERRIDE"],
+    "Only candidate construction and activation may add their exact filesystem capabilities.",
+  );
+  assert.doesNotMatch(host, /--privileged|--cap-add\s+(?!CHOWN(?:\s|\\)|DAC_OVERRIDE(?:\s|\\))/);
   assertOrdered(host, [
     "run_candidate build", "run_candidate validate", "capture_old_session", "assert_marker",
     "stop_sqlite_users", "backup_current_unit", "run_activation activate", "run_candidate active",
