@@ -30,6 +30,10 @@ function createPublicDemoBudgetMiddleware(options = {}) {
 
     const method = String(request.method || "").toUpperCase();
     const pathname = requestPath(request);
+    if (pathname !== "/api" && !pathname.startsWith("/api/")) {
+      next();
+      return;
+    }
     const operation = SAFE_METHODS.has(method)
       ? resolvePublicDemoQuery(method, pathname)
       : resolvePublicDemoMutation(method, pathname);
