@@ -102,12 +102,26 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
 
     const shellByRole = new Map();
     for (const fixture of journeyFixtures) {
+      const dashboard = await api.get("/dashboard.html", {
+        cookie: sessions.get(fixture.roleId),
+      });
+      assert.equal(
+        dashboard.status,
+        200,
+        fixture.roleId + " should load the authenticated Dashboard document",
+      );
+      assert.match(
+        dashboard.body,
+        /<main\b/i,
+        fixture.roleId + " should receive the Dashboard HTML",
+      );
+
       const shell = await api.get("/api/app-shell/bootstrap", {
         cookie: sessions.get(fixture.roleId),
       });
       assert.equal(shell.status, 200, `${fixture.roleId} should load the app shell`);
       shellByRole.set(fixture.roleId, shell.body);
-      checks += 1;
+      checks += 3;
     }
 
     const clientAdminShell = shellByRole.get("client_admin");

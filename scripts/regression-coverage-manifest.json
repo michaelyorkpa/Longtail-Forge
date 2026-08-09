@@ -3227,7 +3227,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves persistent atomic public-demo growth, input, and query budgets plus fail-closed route catalog coverage without changing normal mode.",
+      "description": "Proves persistent atomic public-demo growth, input, and query budgets plus protected browser-document access and fail-closed API catalog coverage without changing normal mode.",
       "id": "framework.public-demo-budgets",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-budgets.regression.mjs",
