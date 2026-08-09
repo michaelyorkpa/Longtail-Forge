@@ -2,53 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.31.15`.
+Active cursor: `0.33.32`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.31 - Public Demo Hardening and Hourly Reset
-
-**Model: High Effort** — This public-internet boundary combines authentication, permissions, data integrity, native SQLite lifecycle, deployment recovery, and abuse-resistance risk.
-
-Purpose:
-
-Make `https://demo.longtailforge.com` safe to publish as an August 31, 2026 public-preview release blocker: visitors can explore realistic permission-scoped workflows through shared fictional accounts, while dangerous capabilities are unavailable and all mutable demo state returns to a repository-reproducible known-good baseline every hour.
-
-Decision:
-
-Public-demo behavior is one explicit, fail-closed runtime capability profile enabled by `DEMO_MODE=true`, not hostname checks or scattered UI exceptions. The demo uses no real customer, friends-and-family, development, or operator data. Its private installation Super Admin remains an operator-only recovery identity and is never offered to visitors. An externally scheduled, lock-protected Compose operator operation rebuilds and validates database plus Files from reviewed migrations and deterministic seed definitions, quiesces every SQLite user, promotes the matched candidate as one unit, expires all sessions, and restores the previous known-good unit if restart or health proof fails. The reset limits damage; it never substitutes for server-side capability denial, rate limits, input limits, or infrastructure isolation.
-
-Already-shipped foundation — preserve and reuse it rather than planning it again:
-
-- `0.33.26.7-.9` already provides one deterministic private fixture per shipped role, exact Workspace/Client/Project scopes, reserved fictional identities, a broad authenticated allowed/denied role journey, and a guarded backup-first `rt-ltf-demo` database-and-Files reset. Public-demo work derives the six non-Super-Admin visitor accounts from that contract; it does not create roles, broaden permissions, or publish the private Super Admin fixture.
-- `0.33.28.5` made Docker Compose the sole supported production lifecycle. The earlier demo helper's candidate validation and recovery invariants remain useful, but its systemd-managed Node/worker lifecycle is historical and must not be extended as the public reset path.
-- `0.33.29` Secure Notes catalog security and `0.33.30` Support View have landed. Demo-mode capability review must now explicitly keep Secure Notes recovery/key-management and Support View outside the visitor boundary rather than treating either feature as conditional future work.
-
-Delivery and sizing rule:
-
-- Each numbered sub-slice below has one primary blast radius and is intended to complete, verify, document, version, and close in one working session. Do not merge adjacent slices during implementation merely because they share the rollup version; propose a merge first only if the live seam proves the combined ceremony has real isolation value and still fits one session.
-- `0.33.31` is complete only as one coordinated release after all fifteen numbered sub-slices pass. Completing any individual sub-slice does not authorize publication of the URL.
-
-Non-goals:
-
-- Do not build the `longtailforge.com` WordPress site, select or operate an analytics provider, configure a mailing-list provider, finalize legal/privacy-policy wording, add advertising pixels or behavioral profiling, or design general SaaS telemetry.
-- Do not create a parallel demo-only role system, embed an in-process JavaScript interval as the sole scheduler, revive the retired bare-metal application lifecycle, use a developer-workstation database as the only baseline, or rely on hourly deletion to make an otherwise unsafe mutation acceptable.
-- Do not expose real credentials, API keys, recovery material, personal information, customer data, production secrets, private infrastructure access, or the installation Super Admin to public visitors.
-
-### Version 0.33.31.15 - Live Compose proof and public-demo release gate
-
-**Model: High Effort** — Final acceptance requires retained evidence from the real public host and remains independently stoppable if infrastructure is not ready.
-
-- [ ] Deploy the exact protected `main` SHA by immutable published image digest through the supported root-owned Compose helper; prove direct and public health/readiness plus exact `/api/app-info`, isolated environment identity, safe diagnostics, and no impact on Friends-and-Family or another installation.
-- [ ] Authenticate every public role, exercise representative scoped reads/writes/denials, immutable identity, seeded attachment reads, disabled capabilities, rate/input/growth limits, cross-role content safety, egress denial, visitor messaging, and logout without retaining credentials in evidence.
-- [ ] Mutate representative records to configured caps, retain a pre-reset session, run the scheduled-equivalent reset and observe an actual hourly invocation, then prove the exact database-and-Files baseline, old-session rejection, fresh role logins, scheduler evidence, and no unintended mutation survival.
-- [ ] Exercise a missed/failing reset alert, lock contention, last-known-good automatic recovery, whole-instance backup restore path, and final successful public smoke. Preserve secret-free operation evidence and stop without publication if any recovery or isolation proof is incomplete.
-- [ ] Record the August 31 launch readiness decision, close the final roadmap/archive/version/changelog handoff, and keep 0.33.32 analytics/feedback/interest capture disabled unless its separate review and implementation later authorize them.
-
-Acceptance criteria:
-
-- Retained live evidence proves the public demo is isolated, capability-restricted, permission-accurate, upload-free, abuse-bounded, externally reset every hour to an exact reproducible baseline, recoverable from failure, session-invalidating, and safe to operate without affecting another environment. Publication remains blocked until this gate and the explicit launch decision are complete.
 
 ## Version 0.33.32 - Public Demo Analytics, Privacy, and Interest Capture
 
