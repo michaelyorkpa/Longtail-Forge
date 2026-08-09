@@ -1,10 +1,21 @@
+## Version 0.33.31.15 - 2026-08-09
+
+- Completed the live `rt-ltf-demo` release gate with an immutable protected-`main` image, backup-first Compose deployment, exact direct/public identity, independent isolation proof, and a read-only exact-baseline reset that leaves no verification mutation or budget residue.
+- Proved all six public roles through credential-redacting live-session reads, scoped seeded-file preview/download, logout, and old-session rejection; retained the earlier representative write/denial, immutable identity, disabled-capability, content-safety, egress, input/rate, and exact mutation-cap evidence.
+- Proved the external lifecycle boundary under lock contention and a controlled post-activation failure: bounded alerts were delivered, the prior database-and-Files unit recovered healthy, and a guarded whole-instance rollback round trip restored both the recorded prior release and the clean current release.
+- Enabled the reviewed top-of-hour UTC systemd timer only after the manual gate; its first real scheduled invocation started exactly at `2026-08-09T01:00:00Z`, returned the UTC-date-anchored semantic fingerprint `84058d0eb16eef9229ac26cbc2c0f945283b6914dd8662d17f318429a59daf87`, and left the clean database-and-Files baseline. The expected fingerprint change from the August 8 proof reflects the reviewed `--anchor-date today` UTC rollover rather than baseline drift.
+- Recorded a GO decision for technical readiness for the planned August 31 public-demo window. The operator curtain remains the independent publication control, and `0.33.32` analytics, privacy, feedback, newsletter, and interest-capture work remains disabled and unimplemented.
+- Confirmed the separate Friends-and-Family host remained healthy, ready, and unchanged at `0.33.28.3-main`.
+- Docs updated: `DECISIONS.md`, `ROADMAP.md`, `ROADMAP-ARCHIVE.md`.
+- No docs change needed: the current operator/configuration/security contracts already describe the shipped behavior; this slice records live acceptance, release readiness, and archive handoff rather than changing product or host interfaces.
+
 ## Version 0.33.31.14.6 - 2026-08-08
 
 - Corrected the public-demo reset's post-activation representative-role proof to use authenticated Task, client/project hierarchy, and seeded attachment reads plus logout instead of creating a Time Entry.
 - Preserved CSRF-protected logout and fresh-session proof while ensuring a successful reset leaves no mutation-budget usage or application record outside the validated candidate baseline.
 - Added release regression coverage that requires all three representative reads and rejects any post-activation Time Entry write or retained write evidence.
 - Docs updated: `docs/demo-data-operations.md`, `docs/public-demo-operator-runbook.md`.
-- No docs change needed: visitor roles, ordinary application permissions, schema/migrations, deployment topology, scheduler timing, and non-demo operation are unchanged; this is the exact-baseline correction required by the active `0.33.31.15` live gate.
+- No docs change needed: visitor roles, ordinary application permissions, schema/migrations, deployment topology, scheduler timing, and non-demo operation are unchanged; this was the exact-baseline correction required by the then-active final live gate.
 
 ## Version 0.33.31.14.5 - 2026-08-08
 
@@ -21,7 +32,7 @@
 - Added release-gate assertions for both stateful chains, exact allowlist handling, and the unchanged default-deny/loopback/container posture.
 - Rotated the inactive public-demo bootstrap and Secure Notes runtime values after diagnostic output exposure; no replacement value entered source, commands, retained evidence, or application output.
 - Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, `docs/operational-security.md`, and `docs/runtime-configuration.md`.
-- No docs change needed: Help, visitor roles/workflows, permissions, public API, schema/migrations, reset semantics, and ordinary non-demo deployment are unchanged; this remains a contained prerequisite for the active 0.33.31.15 live gate.
+- No docs change needed: Help, visitor roles/workflows, permissions, public API, schema/migrations, reset semantics, and ordinary non-demo deployment are unchanged; this remained a contained prerequisite for the then-active final live gate.
 
 ## Version 0.33.31.14.3 - 2026-08-08
 
@@ -29,7 +40,7 @@
 - Kept outbound denial fail closed with a dedicated non-masquerading bridge and a first-position forwarding chain that permits only established/related return traffic for Caddy's `127.0.0.1:8001` request path, then rejects every new forwarded connection; the separate host-input chain still permits only the reviewed ClamAV gateway/port.
 - Extended the isolation helper to require the realized loopback binding as live container state, retain sole-peer/storage/runtime checks, and continue proving failed DNS, undeclared host-service, and public-network connection attempts.
 - Docs updated: `DECISIONS.md`, `docs/compose.env.example`, `docs/demo-data-operations.md`, `docs/operational-security.md`, `docs/preview-deployment.md`, `docs/public-demo-operator-runbook.md`, and `docs/runtime-configuration.md`.
-- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, reset semantics, and application configuration are unchanged; this is the contained infrastructure correction needed by the still-active 0.33.31.15 live gate.
+- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, reset semantics, and application configuration are unchanged; this was the contained infrastructure correction needed by the then-active final live gate.
 
 ## Version 0.33.31.14.2 - 2026-08-08
 
@@ -37,20 +48,20 @@
 - Kept the handoff bounded to one ephemeral root container with `CAP_CHOWN` and `CAP_DAC_OVERRIDE`: it reclaims root ownership, applies mode `0700`, then transfers the directory to UID/GID 10001 without `CAP_FOWNER`; ordinary Compose profiles skip it and the application/backup remain capability-free.
 - Added release-gate coverage for exact ordering, ownership/mode operations, capability bounds, and non-privileged execution.
 - Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, and `docs/public-demo-operator-runbook.md`.
-- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, edge policy, and application runtime configuration are unchanged; this completes the host-only initial demo-volume preparation needed by the still-active 0.33.31.15 live gate.
+- No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, edge policy, and application runtime configuration are unchanged; this completed the host-only initial demo-volume preparation needed by the then-active final live gate.
 
 ## Version 0.33.31.14.1 - 2026-08-08
 
 - Corrected the root-only public-demo lifecycle invocations to add back only the required filesystem capabilities: `CAP_CHOWN` plus `CAP_DAC_OVERRIDE` for candidate preparation/validation, and `CAP_DAC_OVERRIDE` alone for activation/recovery of UID-10001-owned `0700` state. Permission modes now finalize before ownership transfer, avoiding `CAP_FOWNER`; the application and backup container retain the Compose-wide capability drop.
 - Added a release regression that requires those exact bounded capability sets and rejects privileged or broader capability escalation.
-- Updated the public-demo data and operator runbooks with the bounded ownership handoff; this patch is the immutable candidate needed to perform the still-active 0.33.31.15 live-host reset, recovery, scheduler, and explicit launch-decision gate before roadmap closeout or URL publication.
+- Updated the public-demo data and operator runbooks with the bounded ownership handoff; this patch was the immutable candidate needed to perform the then-active live-host reset, recovery, scheduler, and explicit launch-decision gate before roadmap closeout or URL publication.
 - Docs updated: `DECISIONS.md`, `docs/demo-data-operations.md`, and `docs/public-demo-operator-runbook.md`.
 - No docs change needed: Help, visitor workflows, permissions, public API, schema/migrations, edge policy, and application runtime configuration are unchanged; this correction is limited to the root-owned host candidate operation.
 
 ## Version 0.33.31.14 - 2026-08-08
 
 - Added a redacted exact-`rt-ltf-demo` Compose environment showing the immutable release identity, dedicated volume/network, disabled restart and DNS forwarding, local SQLite/Files, inline worker, ClamAV handoff, explicit perimeter limits, disabled Support View, and secret-store placeholders without publishing credentials.
-- Added the public-demo operator runbook for account/capability ownership, candidate and scheduler installation, shared lock and maintenance behavior, expected reset downtime, backups/retained states, bounded logs and alerts, rollback/recovery, incident response, and safe visitor messaging; URL publication remains blocked on `0.33.31.15`.
+- Added the public-demo operator runbook for account/capability ownership, candidate and scheduler installation, shared lock and maintenance behavior, expected reset downtime, backups/retained states, bounded logs and alerts, rollback/recovery, incident response, and safe visitor messaging; URL publication remained blocked on the then-active final live gate.
 - Added `npm run demo:release-candidate:smoke` to execute the twelve authoritative public-demo contract owners, build and smoke the same runtime artifact, and optionally run the supported native container lifecycle proof against it.
 - Extended the six-role public-demo permission journey with exact disposable-runtime health, readiness, and app-version assertions, while retaining credential-redaction and logout proof.
 - Shipped the operator profile and runbook inside the runtime artifact and immutable GitHub Release assets, and added `release.public-demo-release-candidate` plus runtime-artifact coverage for the assembled boundary.
