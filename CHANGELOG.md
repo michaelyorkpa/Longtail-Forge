@@ -1,3 +1,11 @@
+## Version 0.33.31.16 - 2026-08-09
+
+- Restored authenticated public-demo browser documents, including Dashboard and the signed-in root landing path, by keeping fixed HTML delivery outside the durable API mutation/query budget catalog.
+- Preserved fail-closed handling for every undeclared `/api` read or mutation used by a marked visitor; ordinary protected-view authentication, authorization, and non-demo behavior remain unchanged.
+- Added focused budget coverage for browser-document access versus undeclared API denial and restored an explicit Dashboard HTML assertion to the exact six-role public-demo journey.
+- Docs updated: `docs/operational-security.md`.
+- No docs change needed: the demo-data journey change only asserts existing Dashboard access, the release-process change is generated regression metadata, and visitor credentials, roles, permissions, reset scheduling, deployment topology, and runtime settings are unchanged.
+
 ## Version 0.33.31.15 - 2026-08-09
 
 - Completed the live `rt-ltf-demo` release gate with an immutable protected-`main` image, backup-first Compose deployment, exact direct/public identity, independent isolation proof, and a read-only exact-baseline reset that leaves no verification mutation or budget residue.

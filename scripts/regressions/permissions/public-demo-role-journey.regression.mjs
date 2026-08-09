@@ -95,6 +95,7 @@ try {
   );
   assert.match(journeySource, /PUBLIC_DEMO_ROLE_FIXTURE_MODE/);
   assert.match(journeySource, /PUBLIC_DEMO_DATA_MARKER_CONTRACT/);
+  assert.match(journeySource, /\/dashboard\.html/);
   assert.match(journeySource, /\/api\/tasks\?limit=10/);
   assert.match(journeySource, /\/api\/time-entries/);
   assert.match(journeySource, /\/api\/session\/workspace/);

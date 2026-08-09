@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["database", "demo", "http", "limits", "routes", "security"],
-  description: "Proves persistent atomic public-demo growth, input, and query budgets plus fail-closed route catalog coverage without changing normal mode.",
+  description: "Proves persistent atomic public-demo growth, input, and query budgets plus protected browser-document access and fail-closed API catalog coverage without changing normal mode.",
   runMode: "isolated-database",
 });
 
@@ -70,6 +70,7 @@ try {
   });
 
   await proveNormalModeBypass(primaryUser.user_id, workspaceId);
+  await proveBrowserDocumentsBypassApiCatalog(primaryUser.user_id, workspaceId);
   await proveInputAndQueryCeilings(primaryUser.user_id, workspaceId);
   await clearUsage();
   await proveAccountBoundaryAndRestart(primaryUser.user_id, workspaceId);
@@ -87,6 +88,32 @@ try {
 } finally {
   await closeDatabase();
   await fixture.cleanup();
+}
+
+async function proveBrowserDocumentsBypassApiCatalog(userId, workspaceId) {
+  const app = createProbeApp({ userIds: [userId], workspaceId });
+  const server = await listen(app);
+  try {
+    const dashboard = await request(server, "/dashboard.html", {
+      headers: visitorHeaders(userId),
+    });
+    assert.equal(dashboard.status, 200, "a marked visitor must reach the authenticated Dashboard document");
+    assert.equal(dashboard.body, "dashboard");
+
+    const root = await request(server, "/", {
+      headers: visitorHeaders(userId),
+    });
+    assert.equal(root.status, 200, "an authenticated marked visitor must reach the root browser document");
+    assert.equal(root.body, "root");
+
+    const undeclaredApiRead = await request(server, "/api/future-read", {
+      headers: visitorHeaders(userId),
+    });
+    assert.equal(undeclaredApiRead.status, 403, "non-API document access must not weaken the API allowlist");
+    assert.equal(undeclaredApiRead.body.error.code, "public_demo_budget_undeclared");
+  } finally {
+    await closeServer(server);
+  }
 }
 
 async function proveNormalModeBypass(userId, workspaceId) {
@@ -322,8 +349,11 @@ function createProbeApp({ enabled = true, onCommit = () => {}, userIds, workspac
   app.post("/api/users", (_request, response) => response.status(403).json({
     error: { code: "public_demo_capability_disabled" },
   }));
+  app.get("/api/future-read", (_request, response) => response.status(200).json({ ok: true }));
   app.post("/api/future-write", (_request, response) => response.status(201).json({ ok: true }));
   app.use("/api", apiRouteBoundary);
+  app.get("/dashboard.html", (_request, response) => response.status(200).type("html").send("dashboard"));
+  app.get("/", (_request, response) => response.status(200).type("html").send("root"));
   app.use(createErrorHandler({ logger: { error() {} } }));
   return app;
 }
@@ -408,7 +438,11 @@ function request(server, requestPath, options = {}) {
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
         const text = Buffer.concat(chunks).toString("utf8");
-        resolve({ body: text ? JSON.parse(text) : null, status: response.statusCode });
+        const contentType = String(response.headers["content-type"] || "");
+        resolve({
+          body: text && contentType.includes("application/json") ? JSON.parse(text) : text,
+          status: response.statusCode,
+        });
       });
     });
     nextRequest.on("error", reject);
