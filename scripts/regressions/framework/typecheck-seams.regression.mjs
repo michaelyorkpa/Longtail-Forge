@@ -67,7 +67,9 @@ const CONTRACT_TYPE_EXPORTS = [
   "JobEnqueueOptions",
   "JobRecord",
   "JobHandler",
+  "DatabaseAdapter",
   "DatabaseSeam",
+  "TransactionClient",
 ];
 const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SessionMode",

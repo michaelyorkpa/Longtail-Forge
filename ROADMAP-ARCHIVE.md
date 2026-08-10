@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.8 - Database adapter and transaction-client contract
+
+Completed on 2026-08-10. Checked database consumers now distinguish the full provider adapter from the callback-scoped transaction client, and the active 0.33.32 work advances to `0.33.32.9` for dialect seams and parameter bindings.
+
+**Model: High Effort** - This was a database-integrity contract bounded to the SQLite driver and its direct injected-client repository proofs.
+
+- [x] Defined distinct `DatabaseAdapter` and `TransactionClient` contracts and opted in the SQLite adapter, provider, driver facade, and SQL literal compatibility helpers with honest nullable module state.
+- [x] Typed injected database parameters in the authentication throttle, private calendar token, and account-export recovery repositories so transaction-opening entry points require the full adapter and callback-safe helpers accept the transaction-only client.
+- [x] Raised the checked-seam inventory and floor from 40 to 47 files, added a compile-time nested-transaction failure regression, and retained green adapter, transaction, throttle, export-recovery, and private-feed behavior proof.
+
+Acceptance criteria:
+
+- Nested transaction misuse is a compile-time failure across the driver and injected repositories, with SQLite behavior unchanged.
+
 ## Version 0.33.32.7 - Billing period and dashboard time boundaries
 
 Completed on 2026-08-10. Time Tracking billing and Dashboard effort windows now share the signed-in session timezone as their calendar authority, with UTC query boundaries derived from local date keys. The active 0.33.32 work advances to `0.33.32.8` for the database adapter and transaction-client contract.

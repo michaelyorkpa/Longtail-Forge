@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.8`.
+Active cursor: `0.33.32.9`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,18 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.8 - Database adapter and transaction-client contract
-
-**Model: High Effort** — The adapter distinction is a database-integrity contract and includes only its direct injected-client proofs.
-
-- [ ] Define distinct `DatabaseAdapter` and `TransactionClient` types; opt in the SQLite adapter, provider, driver facade, and SQL literals while representing nullable module state.
-- [ ] Type injected database parameters in `authentication-throttle.repo.js`, `private-feed-tokens.repo.js`, and `account-export-recovery.repo.js`; fix only misuse the type split proves.
-- [ ] Extend the inventory and run adapter, transaction, and affected repository regressions.
-
-Acceptance criteria:
-
-- Nested transaction misuse is a compile-time failure across the driver and injected repositories, with SQLite behavior unchanged.
 
 ### Version 0.33.32.9 - Dialect seams and parameter bindings
 

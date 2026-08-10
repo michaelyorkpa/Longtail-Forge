@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 40,
+  "minimumOptedInFiles": 47,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -15,6 +15,10 @@
     "src/core/reporting/report-runner-registry.js",
     "src/core/search/indexer-registry.js",
     "src/core/settings/workbench-focus-policy.js",
+    "src/db/adapters/sqlite-adapter.js",
+    "src/db/provider.js",
+    "src/db/sql-literals.js",
+    "src/db/sqlite.js",
     "src/middleware/require-api-key.js",
     "src/middleware/require-auth.js",
     "src/middleware/support-view-request-gate.js",
@@ -28,6 +32,9 @@
     "src/modules/time-tracking/time-tracking-billing.service.js",
     "src/modules/time-tracking/time-tracking-dashboard.service.js",
     "src/modules/time-tracking/time-tracking.contracts.js",
+    "src/repositories/account-export-recovery.repo.js",
+    "src/repositories/authentication-throttle.repo.js",
+    "src/repositories/private-feed-tokens.repo.js",
     "src/routes/support-view.routes.js",
     "src/security/sessions.js",
     "src/services/notifications.service.js",

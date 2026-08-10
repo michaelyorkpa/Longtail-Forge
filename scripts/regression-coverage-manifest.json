@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 452,
+    "discoveredScripts": 453,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
       "dashboard": 2,
-      "database": 42,
+      "database": 43,
       "docs": 10,
       "files": 44,
       "framework": 81,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 205,
+      "focused": 206,
       "integration": 169,
       "release-gate": 70,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 226
+      "static": 227
     }
   },
   "coverageFamilies": [
@@ -2572,6 +2572,23 @@
         "sqlite"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the full database adapter and transaction-only client remain distinct checked contracts across the SQLite driver and injected repositories.",
+      "id": "database.transaction-client-types",
+      "legacy": false,
+      "path": "scripts/regressions/database/database-transaction-client-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "adapter",
+        "contracts",
+        "database",
+        "transactions",
+        "typecheck"
+      ],
+      "tier": "focused"
     },
     {
       "area": "database",

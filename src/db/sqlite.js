@@ -1,3 +1,4 @@
+// @ts-check
 import Database from "better-sqlite3";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -10,11 +11,48 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
+/**
+ * @typedef {Object} SqliteHealth
+ * @property {string} provider
+ * @property {string} databaseFile
+ * @property {boolean} databaseFileWritable
+ * @property {boolean} foreignKeysEnabled
+ * @property {string} journalMode
+ * @property {number} busyTimeoutMs
+ * @property {string} synchronous
+ * @property {number | null} cacheSizeKib
+ * @property {string} tempStore
+ * @property {number} mmapSizeBytes
+ */
+/**
+ * @typedef {Object} SqliteStatement
+ * @property {boolean} reader
+ * @property {(bindings?: any) => unknown} run
+ * @property {(bindings?: any) => Record<string, any>[]} all
+ * @property {(bindings?: any) => Record<string, any> | undefined} get
+ */
+/**
+ * @typedef {Object} SqliteDatabase
+ * @property {boolean} [open]
+ * @property {() => void} close
+ * @property {(sql: string) => void} exec
+ * @property {(sql: string) => SqliteStatement} prepare
+ * @property {(sql: string) => unknown} pragma
+ */
+/**
+ * @typedef {Object} PreparedStatementAnalysis
+ * @property {boolean} hasBindings
+ * @property {number} statementCount
+ */
+
 const STATEMENT_CACHE_LIMIT = 512;
 
+/** @type {SqliteDatabase | null} */
 let sqliteDatabase = null;
+/** @type {SqliteHealth | null} */
 let lastSqliteHealth = null;
 let executedStatementCount = 0;
+/** @type {Map<string, SqliteStatement>} */
 const statementCache = new Map();
 
 // Monotonic count of executed driver calls (multi-statement exec scripts
@@ -23,15 +61,18 @@ function readSqliteStatementCount() {
   return executedStatementCount;
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 async function runSql(sql, params = undefined, analysis = undefined) {
   executeRunSql(sql, normalizeSqliteParameters(params), analysis);
   return "";
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 async function querySql(sql, params = undefined, analysis = undefined) {
   return executeQuerySql(sql, normalizeSqliteParameters(params), analysis);
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 async function getSql(sql, params = undefined, analysis = undefined) {
   return executeGetSql(sql, normalizeSqliteParameters(params), analysis);
 }
@@ -60,6 +101,7 @@ async function initializeSqliteRuntime() {
   return health;
 }
 
+/** @returns {Promise<SqliteHealth>} */
 async function readSqliteHealth() {
   const [
     databaseRows,
@@ -127,6 +169,7 @@ function getLastSqliteHealth() {
   return lastSqliteHealth;
 }
 
+/** @param {SqliteHealth | null} [health] */
 function formatSqliteHealth(health = lastSqliteHealth) {
   if (!health) {
     return "[sqlite-health] unavailable";
@@ -147,17 +190,20 @@ function formatSqliteHealth(health = lastSqliteHealth) {
   ].join(" ");
 }
 
+/** @returns {SqliteDatabase} */
 function getSqliteDatabase() {
   if (sqliteDatabase?.open) {
     return sqliteDatabase;
   }
 
   statementCache.clear();
-  sqliteDatabase = new Database(config.databaseFile);
-  applyConnectionPragmas(sqliteDatabase);
-  return sqliteDatabase;
+  const database = /** @type {SqliteDatabase} */ (new Database(config.databaseFile));
+  sqliteDatabase = database;
+  applyConnectionPragmas(database);
+  return database;
 }
 
+/** @param {string} sql */
 function prepareCachedStatement(sql) {
   const database = getSqliteDatabase();
   const cached = statementCache.get(sql);
@@ -172,12 +218,16 @@ function prepareCachedStatement(sql) {
   statementCache.set(sql, statement);
 
   if (statementCache.size > STATEMENT_CACHE_LIMIT) {
-    statementCache.delete(statementCache.keys().next().value);
+    const oldestSql = statementCache.keys().next().value;
+    if (oldestSql !== undefined) {
+      statementCache.delete(oldestSql);
+    }
   }
 
   return statement;
 }
 
+/** @param {SqliteDatabase} database */
 function applyConnectionPragmas(database) {
   database.pragma(`busy_timeout = ${config.sqlite.busyTimeoutMs}`);
   database.pragma(`foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"}`);
@@ -187,11 +237,13 @@ function applyConnectionPragmas(database) {
   database.pragma(`mmap_size = ${config.sqlite.mmapSizeBytes}`);
 }
 
+/** @param {SqliteDatabase} database */
 function applyStartupPragmas(database) {
   applyConnectionPragmas(database);
   database.pragma(`journal_mode = ${config.sqlite.journalMode}`);
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 function executeRunSql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -220,6 +272,7 @@ function executeRunSql(sql, parameters, analysis = undefined) {
   getSqliteDatabase().exec(text);
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 function executeQuerySql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -252,6 +305,7 @@ function executeQuerySql(sql, parameters, analysis = undefined) {
   return executePreparedQuery(text);
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 function executeGetSql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -373,6 +427,7 @@ function normalizeSqliteParameters(params) {
   };
 }
 
+/** @param {PreparedStatementAnalysis} [analysis] */
 function resolveStatementBindings(sql, parameters, analysis = undefined) {
   if (analysis) {
     return resolvePreparedStatementBindings(parameters, analysis);
@@ -555,7 +610,8 @@ async function ensureDatabaseFileWritable() {
     await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
     await checkDatabaseFileWritable();
   } catch (error) {
-    throw new Error(`SQLite database file is not writable at ${config.databaseFile}: ${error.message || error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`SQLite database file is not writable at ${config.databaseFile}: ${message}`);
   }
 }
 
@@ -565,6 +621,7 @@ async function checkDatabaseFileWritable() {
   return true;
 }
 
+/** @param {SqliteHealth} health */
 function validateSqliteHealth(health) {
   if (!health.databaseFileWritable) {
     throw new Error(`SQLite database file is not writable at ${config.databaseFile}.`);

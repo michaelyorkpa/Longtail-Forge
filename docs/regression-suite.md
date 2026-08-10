@@ -86,6 +86,8 @@ As of 0.33.30.2, `framework.support-view-request-enforcement` is the release-gat
 
 As of 0.33.32.2, `framework.typecheck-seams` also owns the separate HTTP identity declarations, Express request augmentation, the exact Support View outcome/reason unions, and the monotonic 27-file checked-seam floor. The existing remembered-session, auth warning, revocation, account-recovery, Support View session, and Support View request-enforcement regressions remain the behavioral proof that adding the checked contract did not change authentication, rotation/invalidation, or 403/404 outcomes.
 
+As of 0.33.32.8, `database.transaction-client-types` compiles one valid callback-scoped query/get/run probe and requires a nested `transaction.transaction(...)` probe to fail. It also pins the `DatabaseAdapter`/`TransactionClient` declarations, SQLite callback annotation and runtime guard, and full-adapter versus transaction-client injection choices in authentication throttle, private calendar token, and account-export recovery repositories. Existing adapter, transaction-helper, and repository regressions remain the independent SQLite behavior proof.
+
 As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<unknown>`, inventories every checked consumer, requires the Support View route's explicit object narrowing, and raises the monotonic floor to 29 files. `framework.support-view-session-contract` proves JSON `null`, array, string, and number bodies return the existing generic confirmation 400 while a valid object still starts and rotates Support View successfully; the HTTP error and public-demo body regressions retain their independent parser/envelope/admission coverage.
 
 As of 0.33.32.3, `framework.typecheck-seams` also pins the canonical `TimeEntry` string-duration and tri-state billable typedefs, the timezone input/parsed-part/date-edge declarations, and the monotonic 32-file floor. The checked `normalizers-timezones.test.mjs` contract imports those runtime types and proves record coercion, empty-input call-time fallback, explicit offsets, invalid-input fallback, invalid named-timezone failure, DST gap/overlap behavior, and local-date start/end conversion.
@@ -205,13 +207,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 452 |
+| Active discovered regressions | 453 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 143 |
+| Convention-path metadata regressions | 144 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 455 |
+| Global ratchet floor | 456 |
 | Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -228,7 +230,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 13 | 0 | 13 |
-| `database` | 42 | 0 | 42 |
+| `database` | 43 | 0 | 43 |
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
@@ -239,14 +241,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 205 |
+| `focused` | 206 |
 | `integration` | 169 |
 | `release-gate` | 70 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 226 |
+| `static` | 227 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

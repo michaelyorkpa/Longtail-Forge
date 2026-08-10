@@ -1,4 +1,8 @@
+// @ts-check
 import { db } from "../core/database.js";
+
+/** @typedef {import("../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/framework-contracts.js").TransactionClient} TransactionClient */
 
 const CLEANUP_BATCH_SIZE = 500;
 const UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -35,6 +39,11 @@ const UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
   },
 });
 
+/**
+ * @param {any[]} keys
+ * @param {number} now
+ * @param {DatabaseAdapter} [database]
+ */
 async function readEntries(keys, now, database = db) {
   return database.transaction(async (transaction) => {
     await pruneExpired(now, transaction);
@@ -49,6 +58,10 @@ async function readEntries(keys, now, database = db) {
   });
 }
 
+/**
+ * @param {any} options
+ * @param {DatabaseAdapter} [database]
+ */
 async function recordFailures({
   failureLimit,
   keys,
@@ -66,13 +79,13 @@ async function recordFailures({
       const existing = await readEntry(key, transaction);
       const windowActive = Number(existing?.window_expires_at || 0) > now;
       const previousLockActive = Number(existing?.locked_until || 0) > now;
-      const failureCount = windowActive ? Number(existing.failure_count || 0) + 1 : 1;
+      const failureCount = windowActive ? Number(existing?.failure_count || 0) + 1 : 1;
       const windowExpiresAt = windowActive
-        ? Number(existing.window_expires_at)
+        ? Number(existing?.window_expires_at)
         : now + windowMilliseconds;
       const newlyLocked = !previousLockActive && failureCount >= failureLimit;
       const lockedUntil = previousLockActive
-        ? Number(existing.locked_until)
+        ? Number(existing?.locked_until)
         : newlyLocked
           ? now + lockoutMilliseconds
           : 0;
@@ -106,6 +119,10 @@ async function recordFailures({
   });
 }
 
+/**
+ * @param {any[]} keys
+ * @param {DatabaseAdapter} [database]
+ */
 async function removeEntries(keys, database = db) {
   return database.transaction(async (transaction) => {
     for (const key of keys) {
@@ -114,14 +131,23 @@ async function removeEntries(keys, database = db) {
   });
 }
 
+/** @param {TransactionClient} [database] */
 async function clear(database = db) {
   await database.run("DELETE FROM authentication_throttle_entries;");
 }
 
+/**
+ * @param {number} now
+ * @param {DatabaseAdapter} [database]
+ */
 async function cleanup(now, database = db) {
   return database.transaction((transaction) => pruneExpired(now, transaction));
 }
 
+/**
+ * @param {any} key
+ * @param {TransactionClient} database
+ */
 async function readEntry(key, database) {
   return database.get(`
 SELECT
@@ -142,6 +168,10 @@ LIMIT 1;
 `, keyBindings(key));
 }
 
+/**
+ * @param {any} key
+ * @param {TransactionClient} database
+ */
 async function removeEntry(key, database) {
   await database.run(`
 DELETE FROM authentication_throttle_entries
@@ -151,6 +181,10 @@ WHERE scope = :scope
 `, keyBindings(key));
 }
 
+/**
+ * @param {number} now
+ * @param {TransactionClient} database
+ */
 async function pruneExpired(now, database) {
   const expired = await database.query(`
 SELECT scope, dimension, key_hash
@@ -169,6 +203,10 @@ LIMIT :limit;
   return expired.length;
 }
 
+/**
+ * @param {any} options
+ * @param {TransactionClient} database
+ */
 async function enforceTrackedKeyLimit({ currentKeys, now, trackedKeyLimit }, database) {
   const countRow = await database.get(`
 SELECT COUNT(1) AS count

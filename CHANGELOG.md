@@ -1,3 +1,11 @@
+## Version 0.33.32.8 - 2026-08-10
+
+- Defined distinct checked `DatabaseAdapter` and transaction-only `TransactionClient` contracts, then opted the SQLite adapter, provider, driver facade, and SQL literal compatibility helpers into checked JavaScript with honest nullable driver state.
+- Typed injected database parameters in the authentication throttle, private calendar token, and account-export recovery repositories so transaction-opening entry points require the full adapter while callback-safe helpers cannot open a nested transaction.
+- Added compile-time valid-client and nested-transaction-failure proof, retained the SQLite runtime nested-transaction guard, raised the checked-seam floor from 40 to 47 files, and raised the regression floors from 455/42 to 456/43.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: schemas, migrations, permissions, API payloads, Calendar behavior, account-export behavior, deployment, backup/restore, runtime configuration, security posture, and Help are unchanged.
+
 ## Version 0.33.32.7 - 2026-08-10
 
 - Opted the Time Tracking billing and Dashboard services into checked JavaScript and moved their period arithmetic onto shared canonical timezone helpers.
