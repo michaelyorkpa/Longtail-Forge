@@ -1,3 +1,11 @@
+## Version 0.33.32.11 - 2026-08-10
+
+- Opted all eight bundled `src/modules/*/module.js` declarations into checked JavaScript and annotated each manifest against the shared `ModuleManifest` contract.
+- Aligned the type-only contract with runtime-required module identity metadata and existing validated notification, Dashboard, Workbench, and readonly protected-content declaration shapes without changing manifest data, module activation, routes, permissions, or runtime behavior.
+- Raised the checked-seam inventory and floor from 52 to 60 files and extended the bundled-module registry guardrail so every generated catalog entry must retain its checked manifest declaration before the fast gate can pass.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: Tasks, Notes, Clients/Projects, Lists, Tags, and Time Tracking workflow docs and Help, plus API payloads, permissions, settings behavior, database schemas, migrations, lifecycle, deployment, runtime configuration, and security posture are unchanged.
+
 ## Version 0.33.32.10 - 2026-08-10
 
 - Opted the high-fan-in Settings, Users, and Workspaces repositories into checked JavaScript with explicit public input and projected-row contracts.

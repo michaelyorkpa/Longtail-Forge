@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.11 - Bundled module manifest declarations
+
+Completed on 2026-08-10. All eight bundled module declarations now fail the fast typecheck gate on structural drift before runtime validation, with no manifest data or activation behavior change, and the active 0.33.32 work advances to `0.33.32.12` for module registry service fan-out.
+
+**Model: Medium Effort** - Eight small declaration files share one already-validated contract.
+
+- [x] Opted all eight `src/modules/*/module.js` files into checked JavaScript with explicit `ModuleManifest` annotations and aligned the type-only contract to existing validated notification, Dashboard, Workbench, and protected-content shapes.
+- [x] Raised the checked-seam inventory and floor from 52 to 60 files and extended the bundled-module registry guardrail alongside the generated catalog and existing manifest behavior regressions.
+
+Acceptance criteria:
+
+- Every bundled manifest fails the fast gate on structural drift before runtime validation.
+
 ## Version 0.33.32.10 - High-fan-in repository signatures
 
 Completed on 2026-08-10. Settings, Users, and Workspaces now expose checked method inputs, projected rows, and explicit nullable single-row reads without changing their queries or behavior, and the active 0.33.32 work advances to `0.33.32.11` for bundled module manifest declarations.

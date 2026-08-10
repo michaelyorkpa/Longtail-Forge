@@ -47,6 +47,10 @@ const EXPECTED_COMPILER_OPTION_KEYS = [
 
 const CONTRACT_TYPE_EXPORTS = [
   "ModuleManifest",
+  "NotificationEventContribution",
+  "NotificationFollowTargetContribution",
+  "NotificationTemplateContribution",
+  "ProtectedContentConsumerContribution",
   "ViewSurfaceDescriptor",
   "DashboardContribution",
   "WorkbenchContribution",
@@ -76,6 +80,15 @@ const CONTRACT_TYPE_EXPORTS = [
   "NamedBindingEntry",
   "PreparedDatabaseBindings",
   "TransactionClient",
+];
+const REQUIRED_MODULE_MANIFEST_FIELDS = [
+  ["id", "string"],
+  ["name", "string"],
+  ["displayName", "string"],
+  ["description", "string"],
+  ["category", "string"],
+  ["version", "string"],
+  ["enabledByDefault", "boolean"],
 ];
 const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SessionMode",
@@ -175,6 +188,15 @@ for (const typeName of CONTRACT_TYPE_EXPORTS) {
     contractSource,
     new RegExp(`export (interface|type) ${typeName}\\b`),
     `framework-contracts.d.ts must export ${typeName}`,
+  );
+}
+const moduleManifestDeclaration = contractSource.match(/export interface ModuleManifest \{([\s\S]*?)\n\}/);
+assert.ok(moduleManifestDeclaration, "framework-contracts.d.ts must declare ModuleManifest");
+for (const [fieldName, fieldType] of REQUIRED_MODULE_MANIFEST_FIELDS) {
+  assert.match(
+    moduleManifestDeclaration[1],
+    new RegExp(`^  ${fieldName}: ${fieldType};$`, "m"),
+    `ModuleManifest.${fieldName} must remain required before runtime validation`,
   );
 }
 const httpContractSource = readFileSync("src/types/http-contracts.d.ts", "utf8");

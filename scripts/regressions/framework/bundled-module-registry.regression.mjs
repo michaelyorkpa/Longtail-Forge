@@ -47,6 +47,26 @@ check("generated catalog is complete and deterministically ordered", () => {
   assert.deepEqual(entries.map((entry) => entry.directoryName), ids);
 });
 
+check("every bundled manifest is a checked ModuleManifest declaration", () => {
+  for (const { directoryName } of listModuleEntries()) {
+    const modulePath = `src/modules/${directoryName}/module.js`;
+    const source = read(modulePath);
+    assert.match(source, /^\/\/ @ts-check\r?\n/, `${modulePath} must remain opted in to the fast typecheck gate`);
+    assert.match(
+      source,
+      /\/\*\* @type \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleManifest\} \*\//,
+      `${modulePath} must check its declaration against ModuleManifest`,
+    );
+  }
+
+  const packageJson = JSON.parse(read("package.json"));
+  assert.match(
+    packageJson.scripts["check:fast"],
+    /^npm run typecheck\s*&&/,
+    "the fast gate must typecheck bundled declarations before unit and lint work",
+  );
+});
+
 check("module and contribution inventory matches the approved baseline", () => {
   const inventory = stableValue(listModules().map(({ version: _version, ...moduleDefinition }) => moduleDefinition));
   const hash = createHash("sha256").update(JSON.stringify(inventory)).digest("hex");
