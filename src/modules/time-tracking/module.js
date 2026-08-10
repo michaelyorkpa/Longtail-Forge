@@ -1,3 +1,4 @@
+// @ts-check
 import { timeEntriesRoutes } from "./time-entries.routes.js";
 import { timeTrackingReportingRoutes } from "./reporting.routes.js";
 import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js";
@@ -18,6 +19,7 @@ function activateTimeTrackingWorkerRuntime() {
   registerTimeTrackingSearchIndexers();
 }
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const timeTrackingModule = {
   id: "time-tracking",
   name: "Time Tracking",

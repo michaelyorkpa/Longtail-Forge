@@ -1,3 +1,4 @@
+// @ts-check
 import {
   LIST_AUDIT_RECORD_TYPES,
   LIST_EVENT_TYPES,
@@ -150,6 +151,7 @@ const BASIC_LIST_PERMISSION_IDS = [
   LIST_PERMISSIONS.MANAGE_ITEMS,
 ];
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const listsModule = {
   id: LIST_MODULE_ID,
   name: "Lists",

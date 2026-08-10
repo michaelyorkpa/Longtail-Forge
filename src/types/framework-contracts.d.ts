@@ -21,12 +21,12 @@
 export interface ModuleManifest {
   id: string;
   name: string;
-  displayName?: string;
-  description?: string;
+  displayName: string;
+  description: string;
   terminology?: TerminologyMap;
-  category?: string;
-  version?: string;
-  enabledByDefault?: boolean;
+  category: string;
+  version: string;
+  enabledByDefault: boolean;
   canDisable?: boolean;
   historicalReadAccess?: boolean;
   browserApiRoutes?: unknown[];
@@ -74,7 +74,10 @@ export interface ModuleManifest {
   tagPropagation?: unknown;
   searchableTypes?: SearchableTypeContribution[];
   attachableTypes?: AttachableTypeContribution[];
-  protectedContentConsumers?: ProtectedContentConsumerContribution[];
+  protectedContentConsumers?: readonly ProtectedContentConsumerContribution[];
+  notificationEvents?: readonly NotificationEventContribution[];
+  notificationTemplates?: readonly NotificationTemplateContribution[];
+  notificationFollowTargets?: readonly NotificationFollowTargetContribution[];
   help?: {
     sections?: readonly Record<string, unknown>[];
     articles?: readonly Record<string, unknown>[];
@@ -98,6 +101,39 @@ export interface ProtectedContentConsumerContribution {
   surface: string;
   behavior: "authorize" | "exclude";
   assertion: string;
+}
+
+export interface NotificationEventContribution {
+  id: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  defaultEnabled: boolean;
+  defaultPriority: string;
+  recipientResolver?: string;
+  recipientMode?: string;
+  suppressActorSubscriptions?: boolean;
+  terminology?: TerminologyMap;
+}
+
+export interface NotificationTemplateContribution {
+  id: string;
+  moduleId: string;
+  event: string;
+  title: string;
+  body: string;
+  url?: string;
+  recordLinkPattern?: string;
+  terminology?: TerminologyMap;
+}
+
+export interface NotificationFollowTargetContribution {
+  targetType: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  requiredReadPermission: string;
+  eventTypes?: string[];
 }
 
 export interface ModuleStartupTask {
@@ -215,6 +251,8 @@ export interface DashboardContribution {
   moduleId: string;
   description?: string;
   dataRoute?: string;
+  counts?: string[];
+  links?: string[];
   placement?: "pulse" | "attention" | "today" | "main" | "activity" | "secondary" | "reporting" | (string & {});
   requiredPermissions?: string[];
   requiredWorkspaceCapabilities?: string[];
@@ -281,7 +319,7 @@ export interface WorkbenchContribution {
   requiredPermissions?: string[];
   requiredWorkspaceCapabilities?: string[];
   requiresEnabledModules?: string[];
-  actions?: { id: string; label: string; route?: string }[];
+  actions?: { id: string; label: string; route?: string; publicDemoCapability?: string }[];
   defaultCollapsed?: boolean;
   sortOrder?: number;
   terminology?: TerminologyMap;
