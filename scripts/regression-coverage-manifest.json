@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 448,
+    "discoveredScripts": 449,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
@@ -23,18 +23,18 @@
       "search": 12,
       "tags": 12,
       "tasks": 58,
-      "time-tracking": 9,
+      "time-tracking": 10,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
       "focused": 205,
-      "integration": 165,
+      "integration": 166,
       "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 188,
+      "isolated-database": 189,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 226
@@ -4610,6 +4610,21 @@
         "runner"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves public API durations persist one billing-authoritative seconds value with a numerically matching hours projection.",
+      "id": "time-tracking.public-api-duration-persistence",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "public-api",
+        "time-tracking"
+      ],
+      "tier": "integration"
     },
     {
       "area": "time-tracking",

@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.4 - Time-entry duration persistence and public API ingress
+
+Completed on 2026-08-10. Public API time-entry creates now canonicalize duration into billing-authoritative integer seconds before persistence, and the active 0.33.32 work advances to `0.33.32.5` for the sourced time-entry and task-timer bridge.
+
+**Model: High Effort** - This was one revenue-relevant write seam and one confirmed duration defect.
+
+- [x] Opted Time Tracking's `time-entries.service.js`, `time-entries.repo.js`, and `public-api.service.js` into checking against the canonical slice-3 `TimeEntry` contract, including a typed public Zod payload and repository create/update inputs.
+- [x] Reproduced hours-only public API entries persisting `duration_seconds = 0`, then fixed that ingress to derive nearest integer seconds; explicit seconds remain authoritative, and either path stores a matching hours projection.
+- [x] Raised the checked-seam inventory and floor from 32 to 35 files and added isolated real-public-API persistence proof for create, list, raw SQLite integer storage, numeric duration agreement, and database integrity. Billing periods, sourced entries, and timers remain unchanged.
+
+Acceptance criteria:
+
+- Public API and persistence agree on billing-authoritative integer seconds, and the named hours-only zero-duration defect is regression-proven fixed.
+
 ## Version 0.33.32.3 - Canonical record normalizers and timezone math
 
 Completed on 2026-08-10. The canonical time-entry and timezone utility seams now carry checked, importable JSDoc contracts, and the active 0.33.32 work advances to `0.33.32.4` for time-entry duration persistence and public API ingress.

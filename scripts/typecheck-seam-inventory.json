@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 32,
+  "minimumOptedInFiles": 35,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -19,6 +19,9 @@
     "src/middleware/require-auth.js",
     "src/middleware/support-view-request-gate.js",
     "src/modules/tasks/tasks.contracts.js",
+    "src/modules/time-tracking/public-api.service.js",
+    "src/modules/time-tracking/time-entries.repo.js",
+    "src/modules/time-tracking/time-entries.service.js",
     "src/modules/time-tracking/time-tracking.contracts.js",
     "src/routes/support-view.routes.js",
     "src/security/sessions.js",

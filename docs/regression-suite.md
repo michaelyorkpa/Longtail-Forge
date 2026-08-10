@@ -90,6 +90,8 @@ As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<un
 
 As of 0.33.32.3, `framework.typecheck-seams` also pins the canonical `TimeEntry` string-duration and tri-state billable typedefs, the timezone input/parsed-part/date-edge declarations, and the monotonic 32-file floor. The checked `normalizers-timezones.test.mjs` contract imports those runtime types and proves record coercion, empty-input call-time fallback, explicit offsets, invalid-input fallback, invalid named-timezone failure, DST gap/overlap behavior, and local-date start/end conversion.
 
+As of 0.33.32.4, `framework.typecheck-seams` also inventories the Time Tracking time-entry browser/public services and repository at a monotonic 35-file floor, pins the public payload and canonical repository input annotations, and rejects drift back to raw duration passthrough. `time-tracking.public-api-duration-persistence` uses the real public API and an isolated SQLite fixture to prove hours-only and seconds-only creates return, list, and persist billing-authoritative integer seconds with numerically matching hours, followed by `PRAGMA integrity_check`.
+
 As of 0.33.30.3, the same release-gate owner also pins readable target selection, the normal-session-only audit/filter/export contract, 1,000-row export ceiling, 365-day transactional retention, pre-gate CSRF-protected exit rotation, persistent shared-shell banner, dynamic write-control suppression, and safe focus/landing restoration source boundaries. `support-view.spec.mjs` supplies the managed desktop journey and axe scans for entry, active state, authoritative write/sensitive-read denial, exit, focus restoration, and audit review.
 
 ## Current Entry Points
@@ -197,13 +199,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 448 |
+| Active discovered regressions | 449 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 139 |
+| Convention-path metadata regressions | 140 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 451 |
+| Global ratchet floor | 452 |
 | Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -219,7 +221,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `search` | 12 | 0 | 12 |
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
-| `time-tracking` | 9 | 0 | 9 |
+| `time-tracking` | 10 | 0 | 10 |
 | `database` | 42 | 0 | 42 |
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
@@ -232,7 +234,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | --- | ---: |
 | `unit-like` | 0 |
 | `focused` | 205 |
-| `integration` | 165 |
+| `integration` | 166 |
 | `release-gate` | 70 |
 | `slow` | 8 |
 
@@ -242,7 +244,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 188 |
+| `isolated-database` | 189 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

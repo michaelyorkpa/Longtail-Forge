@@ -185,6 +185,8 @@ Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-2
 
 As of 0.33.12.1, public time-entry creates are runtime-validated at the Time Tracking public API service edge. Known fields with the wrong JSON type return the normal 400 error envelope, while unknown and server-managed fields are ignored. This remains a distinct service, response, and audit path from browser time-entry creation.
 
+As of 0.33.32.4, persisted integer `duration_seconds` is authoritative for public time-entry billing and reporting. A create payload may supply `duration_seconds` or `duration_hours`: hours-only input is converted to nearest integer seconds before persistence, while seconds input takes precedence. Either supplied duration produces a matching four-decimal `duration_hours` projection in the stored record and response. Omitting both fields retains the existing zero/empty defaults.
+
 Version 0.31.6 allows `task_id` on public time-entry create payloads. Finalized task timers also write `task_id` automatically so reporting can filter timer-created time by task.
 
 Version 0.30.15 adds adjacency-list nesting metadata to client and project records. Client payloads may include `parent_client_id`; project payloads may include `parent_project_id`. Parent relationships are single-parent trees, and server validation rejects self-parenting, cross-scope project parents, and descendant cycles.

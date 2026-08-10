@@ -1,5 +1,8 @@
+// @ts-check
 import { db } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
+
+/** @typedef {import("../../utils/normalizers.js").TimeEntry} TimeEntry */
 
 async function readAll(workspaceId) {
   const rows = await db.query(`
@@ -182,6 +185,7 @@ ORDER BY end_time;
   return rows.map(timeEntryRowToAppValue);
 }
 
+/** @param {TimeEntry} entry */
 async function create(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -226,6 +230,7 @@ VALUES (
 `, timeEntryWriteParams(entry, now, { includeCreatedAt: true }));
 }
 
+/** @param {TimeEntry} entry */
 async function update(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -335,6 +340,11 @@ function timeEntryRowToAppValue(row) {
   });
 }
 
+/**
+ * @param {TimeEntry} entry
+ * @param {string} now
+ * @param {{ includeCreatedAt?: boolean }} [options]
+ */
 function timeEntryWriteParams(entry, now, options = {}) {
   const params = {
     billable: textParam(entry.billable),

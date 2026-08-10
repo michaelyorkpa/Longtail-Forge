@@ -99,6 +99,15 @@ assert.match(timezonesSource, /@typedef \{"start" \| "end"\} DateBoundEdge/);
 assert.match(timezonesSource, /@typedef \{string \| number \| null \| undefined\} DateTimeInput/);
 assert.match(timezonesSource, /@returns \{DateTimeParts \| null\}/);
 
+const publicTimeEntryServiceSource = readFileSync("src/modules/time-tracking/public-api.service.js", "utf8");
+assert.match(publicTimeEntryServiceSource, /const duration = normalizePublicApiDuration\(payload\)/);
+assert.match(publicTimeEntryServiceSource, /duration_seconds: duration\.durationSeconds/);
+assert.match(publicTimeEntryServiceSource, /duration_hours: duration\.durationHours/);
+assert.match(publicTimeEntryServiceSource, /@typedef \{import\("zod"\)\.infer<typeof PublicApiTimeEntryCreateSchema>\} PublicApiTimeEntryCreatePayload/);
+const timeEntryRepositorySource = readFileSync("src/modules/time-tracking/time-entries.repo.js", "utf8");
+assert.match(timeEntryRepositorySource, /@typedef \{import\("\.\.\/\.\.\/utils\/normalizers\.js"\)\.TimeEntry\} TimeEntry/);
+assert.match(timeEntryRepositorySource, /@param \{TimeEntry\} entry/);
+
 // The checked-in inventory is the complete review surface, not a hand-picked
 // subset. Its floor can rise with later slices but cannot silently fall.
 assert.equal(seamInventory.schemaVersion, 1, "the checked-seam inventory schema must stay explicit");
