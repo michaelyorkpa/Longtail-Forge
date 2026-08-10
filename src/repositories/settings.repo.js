@@ -1,8 +1,35 @@
+// @ts-check
 import { config } from "../config.js";
 import { db } from "../core/database.js";
 import { readRequestScopedCache } from "../core/request-cache.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
+
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {ReturnType<typeof normalizeSettings>} WorkspaceSettings */
+/**
+ * @typedef {Object} WorkspaceSettingsInput
+ * @property {unknown} [workspaceName]
+ * @property {unknown} [workspaceType]
+ * @property {unknown} [workspace_type]
+ * @property {{ loggingEnabled?: unknown, retentionDays?: unknown } | null} [audit]
+ */
+/**
+ * @typedef {Record<string, unknown> & {
+ *   audit_logging_enabled: boolean | number | string | null,
+ *   audit_retention_days: number | string | null,
+ *   audit_settings_updated_at: string | null,
+ *   workspace_name: string,
+ *   workspace_type: string
+ * }} WorkspaceSettingsRow
+ */
+/**
+ * @typedef {Record<string, unknown> & {
+ *   setting_value_json: string,
+ *   created_at: string,
+ *   updated_at: string
+ * }} ModuleSettingRow
+ */
 
 const DEFAULT_WORKSPACE_NAME = config.bootstrap.initialWorkspaceName;
 const MODULE_SETTING_UPSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -29,6 +56,11 @@ const MODULE_SETTING_UPSERT_SQL = `${db.dialect.conflict.buildInsertOnConflictDo
 
 // Pass the request session only from read paths: the memo is not invalidated
 // by saveWorkspaceSettings within the same request.
+/**
+ * @param {string} workspaceId
+ * @param {RequestSession | null} [session]
+ * @returns {Promise<WorkspaceSettings>}
+ */
 async function readWorkspaceSettings(workspaceId, session = null) {
   if (!session) {
     return readWorkspaceSettingsFresh(workspaceId);
@@ -43,8 +75,12 @@ async function readWorkspaceSettings(workspaceId, session = null) {
   return cache.get(workspaceId);
 }
 
+/**
+ * @param {string} workspaceId
+ * @returns {Promise<WorkspaceSettings>}
+ */
 async function readWorkspaceSettingsFresh(workspaceId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<WorkspaceSettingsRow | null>} */ (db.get(`
 SELECT
   workspaces.name AS workspace_name,
   workspaces.workspace_type,
@@ -55,7 +91,7 @@ FROM workspaces
 INNER JOIN workspace_settings ON workspace_settings.workspace_id = workspaces.workspace_id
 WHERE workspaces.workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId });
+`, { workspaceId }));
 
   if (!row) {
     return normalizeSettings({ workspaceName: DEFAULT_WORKSPACE_NAME });
@@ -64,6 +100,11 @@ LIMIT 1;
   return settingsRowToWorkspaceSettings(row);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {WorkspaceSettingsInput} settings
+ * @returns {Promise<void>}
+ */
 async function saveWorkspaceSettings(workspaceId, settings) {
   const workspace = await db.get(`
 SELECT workspace_id, workspace_type
@@ -116,8 +157,14 @@ WHERE workspace_id = :workspaceId;
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @param {string} settingId
+ * @returns {Promise<ModuleSettingRow | null>}
+ */
 async function readModuleSetting(workspaceId, moduleId, settingId) {
-  return db.get(`
+  return /** @type {Promise<ModuleSettingRow | null>} */ (db.get(`
 SELECT
   setting_value_json,
   created_at,
@@ -131,9 +178,16 @@ LIMIT 1;
     moduleId,
     settingId,
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @param {string} settingId
+ * @param {unknown} value
+ * @returns {Promise<void>}
+ */
 async function saveModuleSetting(workspaceId, moduleId, settingId, value) {
   const workspace = await db.get(`
 SELECT workspace_id
@@ -157,6 +211,10 @@ LIMIT 1;
   });
 }
 
+/**
+ * @param {WorkspaceSettingsRow} row
+ * @returns {WorkspaceSettings}
+ */
 function settingsRowToWorkspaceSettings(row) {
   const booleanRow = db.dialect.boolean.readFields(row, [
     "audit_logging_enabled",

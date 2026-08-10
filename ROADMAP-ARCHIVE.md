@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.10 - High-fan-in repository signatures
+
+Completed on 2026-08-10. Settings, Users, and Workspaces now expose checked method inputs, projected rows, and explicit nullable single-row reads without changing their queries or behavior, and the active 0.33.32 work advances to `0.33.32.11` for bundled module manifest declarations.
+
+**Model: High Effort** - Users, workspaces, and settings are broad data and permission dependencies.
+
+- [x] Opted `settings.repo.js`, `users.repo.js`, and `workspaces.repo.js` into checked JavaScript against the settled adapter, dialect, and binding contracts.
+- [x] Declared public method inputs, list projections, and nullable user/workspace/module-setting/owner-transfer reads without changing SQL, transaction ordering, lifecycle, or permissions.
+- [x] Raised the checked-seam inventory and floor from 49 to 52 files, added compile-time invalid-input and nullable-read proof, and retained green settings/users/workspaces database regressions.
+
+Acceptance criteria:
+
+- The three widest repositories expose checked methods and result nullability with no runtime query change.
+
 ## Version 0.33.32.9 - Dialect seams and parameter bindings
 
 Completed on 2026-08-10. The SQLite dialect and parameter-binding implementations now expose exact checked contracts without changing generated SQL or values, and the active 0.33.32 work advances to `0.33.32.10` for high-fan-in repository signatures.

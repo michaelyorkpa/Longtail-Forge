@@ -1,3 +1,4 @@
+// @ts-check
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 import {
@@ -11,6 +12,73 @@ import {
   normalizeUserStatus,
   userRowToAppValue,
 } from "../utils/normalizers.js";
+
+/**
+ * @typedef {Record<string, unknown> & {
+ *   active_workspace_id: string | null,
+ *   alt_email: string | null,
+ *   display_name: string | null,
+ *   home_workspace_id: string | null,
+ *   open_external_links_new_tab: boolean | number | string | null,
+ *   password: string,
+ *   password_change_required: boolean | number | string | null,
+ *   preferred_calendar_view: string | null,
+ *   preferred_login_landing: string | null,
+ *   preferred_workspace_switch_landing: string | null,
+ *   protected_user: boolean | number | string | null,
+ *   theme_auto_source: string | null,
+ *   theme_mode: string | null,
+ *   timezone: string | null,
+ *   user_id: string,
+ *   user_status: string,
+ *   username: string
+ * }} UserRow
+ */
+/**
+ * @typedef {Object} UserListItem
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string} displayName
+ * @property {string | null} altEmail
+ * @property {string} timezone
+ * @property {string} themeMode
+ * @property {string} themeAutoSource
+ * @property {string} preferredLoginLanding
+ * @property {string} preferredWorkspaceSwitchLanding
+ * @property {string | null} preferredCalendarView
+ * @property {boolean} openExternalLinksNewTab
+ * @property {boolean} passwordChangeRequired
+ * @property {string} userStatus
+ * @property {boolean} protectedUser
+ */
+/**
+ * @typedef {Object} ExactActiveMemberRow
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string | null} display_name
+ */
+/**
+ * @typedef {Object} UserProfileInput
+ * @property {string} username
+ * @property {unknown} [displayName]
+ * @property {unknown} [altEmail]
+ * @property {unknown} [timezone]
+ */
+/** @typedef {{ passwordChangeRequired?: boolean }} PasswordUpdateOptions */
+/** @typedef {{ preferredLoginLanding?: unknown, preferredWorkspaceSwitchLanding?: unknown }} UserLandingPreferences */
+/**
+ * @typedef {Object} CreatedUser
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string} displayName
+ * @property {string | null} altEmail
+ * @property {string} timezone
+ * @property {string} themeMode
+ * @property {string} themeAutoSource
+ * @property {boolean} openExternalLinksNewTab
+ * @property {string} userStatus
+ * @property {boolean} protectedUser
+ */
 
 const USER_SELECT_COLUMNS = `
   user_id,
@@ -46,19 +114,21 @@ user_id = :userId
 const USERS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "users" });
 const USER_ROWS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "user_rows" });
 
+/** @param {string} username @returns {Promise<UserRow | null>} */
 async function readByUsername(username) {
-  return db.get(`
+  return /** @type {Promise<UserRow | null>} */ (db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
 WHERE username = :username
 ORDER BY username
 LIMIT 1;
-`, { username });
+`, { username }));
 }
 
+/** @param {string} username @param {string} userId @returns {Promise<UserRow | null>} */
 async function readByUsernameExcludingUser(username, userId) {
-  return db.get(`
+  return /** @type {Promise<UserRow | null>} */ (db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
@@ -66,11 +136,12 @@ WHERE username = :username
   AND user_id != :userId
 ORDER BY username
 LIMIT 1;
-`, { userId, username });
+`, { userId, username }));
 }
 
+/** @param {string} workspaceId @param {string} username @returns {Promise<UserRow | null>} */
 async function readByUsernameForWorkspace(workspaceId, username) {
-  return db.get(`
+  return /** @type {Promise<UserRow | null>} */ (db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
@@ -85,11 +156,12 @@ WHERE username = :username
     )
   )
 LIMIT 1;
-`, { username, workspaceId });
+`, { username, workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} username @returns {Promise<ExactActiveMemberRow | null>} */
 async function readExactActiveMemberByUsername(workspaceId, username) {
-  return db.get(`
+  return /** @type {Promise<ExactActiveMemberRow | null>} */ (db.get(`
 SELECT
   users.user_id,
   users.username,
@@ -105,31 +177,34 @@ INNER JOIN workspaces
 WHERE users.username = :username
   AND users.user_status = 'active'
 LIMIT 1;
-`, { username, workspaceId });
+`, { username, workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} userId @returns {Promise<UserRow | null>} */
 async function readById(workspaceId, userId) {
-  return db.get(`
+  return /** @type {Promise<UserRow | null>} */ (db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
 WHERE ${USER_BELONGS_TO_WORKSPACE_SQL}
 ORDER BY ${USERS_PHYSICAL_ROW_ID}
 LIMIT 1;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
+/** @param {string} userId @returns {Promise<UserRow | null>} */
 async function readFirstByUserId(userId) {
-  return db.get(`
+  return /** @type {Promise<UserRow | null>} */ (db.get(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
 WHERE user_id = :userId
 ORDER BY ${USERS_PHYSICAL_ROW_ID}
 LIMIT 1;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} workspaceId @returns {Promise<UserListItem[]>} */
 async function readAll(workspaceId) {
   const rows = await db.query(`
 SELECT
@@ -151,6 +226,12 @@ ORDER BY username;
   return rows.map(userRowToAppValue);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {UserProfileInput} profile
+ * @param {string} passwordHash
+ * @returns {Promise<CreatedUser>}
+ */
 async function create(workspaceId, profile, passwordHash) {
   const userId = createRecordId();
   const username = profile.username;
@@ -213,6 +294,7 @@ VALUES (
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} passwordHash @param {PasswordUpdateOptions} [options] @returns {Promise<void>} */
 async function updatePassword(workspaceId, userId, passwordHash, options = {}) {
   await db.run(`
 UPDATE users
@@ -228,6 +310,7 @@ WHERE user_id = :userId
   });
 }
 
+/** @param {string} userId @param {string} passwordHash @param {PasswordUpdateOptions} [options] @returns {Promise<void>} */
 async function updatePasswordByUserId(userId, passwordHash, options = {}) {
   await db.run(`
 UPDATE users
@@ -241,6 +324,7 @@ WHERE user_id = :userId;
   });
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<void>} */
 async function clearWorkspaceReferences(userId, workspaceId) {
   await db.run(`
 UPDATE users
@@ -250,6 +334,7 @@ WHERE user_id = :userId;
 `, { userId, workspaceId });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {UserProfileInput} profile @returns {Promise<void>} */
 async function updateProfile(workspaceId, userId, profile) {
   await db.run(`
 UPDATE users
@@ -268,6 +353,7 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {unknown} themeMode @returns {Promise<void>} */
 async function updateThemeMode(workspaceId, userId, themeMode) {
   await db.run(`
 UPDATE users
@@ -276,6 +362,7 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
 `, { themeMode: normalizeThemeMode(themeMode), userId, workspaceId });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {unknown} themeAutoSource @returns {Promise<void>} */
 async function updateThemeAutoSource(workspaceId, userId, themeAutoSource) {
   await db.run(`
 UPDATE users
@@ -284,6 +371,7 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
 `, { themeAutoSource: normalizeThemeAutoSource(themeAutoSource), userId, workspaceId });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {boolean} openExternalLinksNewTab @returns {Promise<void>} */
 async function updateOpenExternalLinksNewTab(workspaceId, userId, openExternalLinksNewTab) {
   await db.run(`
 UPDATE users
@@ -296,6 +384,7 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {UserLandingPreferences} preferences @returns {Promise<void>} */
 async function updateLandingPreferences(workspaceId, userId, preferences) {
   await db.run(`
 UPDATE users
@@ -319,6 +408,7 @@ WHERE user_id = :userId
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {unknown} preferredCalendarView @returns {Promise<void>} */
 async function updateCalendarViewPreference(workspaceId, userId, preferredCalendarView) {
   await db.run(`
 UPDATE users
@@ -340,6 +430,7 @@ WHERE user_id = :userId
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {unknown} userStatus @returns {Promise<void>} */
 async function updateStatus(workspaceId, userId, userStatus) {
   await db.run(`
 UPDATE users
@@ -348,6 +439,7 @@ WHERE ${USER_BELONGS_TO_WORKSPACE_SQL};
 `, { userId, userStatus: normalizeUserStatus(userStatus), workspaceId });
 }
 
+/** @param {string} userId @param {string | null} workspaceId @returns {Promise<void>} */
 async function updateActiveWorkspace(userId, workspaceId) {
   await db.run(`
 UPDATE users
@@ -356,6 +448,7 @@ WHERE user_id = :userId;
 `, { userId, workspaceId });
 }
 
+/** @param {string} userId @param {string} passwordHash @returns {Promise<void>} */
 async function retireAccount(userId, passwordHash) {
   const retiredAt = new Date().toISOString();
 
@@ -390,6 +483,7 @@ WHERE api_key_id IN (
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @returns {Promise<void>} */
 async function remove(workspaceId, userId) {
   const deletable = await db.get(`
 SELECT user_id
