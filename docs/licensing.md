@@ -48,7 +48,7 @@ These gates activate only when their trigger is intentionally reached:
 | --- | --- | --- | --- |
 | Public contribution acceptance | Inactive | The project begins accepting non-trivial outside code contributions | Add `CONTRIBUTING.md`, add a pull-request template, activate the CLA workflow, and link those instructions to the contributor policy. Do not add public-contributor language before that decision. |
 | Public app legal/about notice | Active and satisfied | Public-release preparation began in 0.33.25.2 | Maintain the framework Help legal/about surface with live runtime version identity, version-accurate Corresponding Source and tracked policy links, AGPL warranty language, and notices hydrated from the root `THIRD_PARTY_NOTICES.md`. |
-| Public Terms and Privacy surfaces | Active with neutral operator templates | A hosted instance is exposed to users | Maintain session-less footer-linked pages and neutral downstream-safe defaults. Each hosted operator owns accurate installation-specific content. Before first-party public analytics, feedback, or interest capture is enabled, 0.33.32 must record the review path appropriate to the actual launch scope, including whether professional legal review is warranted. |
+| Public Terms and Privacy surfaces | Active with neutral operator templates | A hosted instance is exposed to users | Maintain session-less footer-linked pages and neutral downstream-safe defaults. Each hosted operator owns accurate installation-specific content. Before first-party public analytics, feedback, or interest capture is enabled, 0.33.33 must record the review path appropriate to the actual launch scope, including whether professional legal review is warranted. |
 | Third-party notices | Active and satisfied | A public release is prepared or dependency/asset notice requirements change | Maintain the reviewed root `THIRD_PARTY_NOTICES.md`; regenerate and hand-review it whenever the production dependency or bundled-asset inventory changes. |
 
 Run `npm run licensing:gates` to see the current gate readout. It confirms the
@@ -64,7 +64,7 @@ bundled documents are deliberately neutral templates. Do not relabel those
 templates as Raymond Tec terms, commit customer- or host-specific legal text,
 or treat the technical surface as evidence of legal approval. Longtail Forge
 does not claim professional legal review occurred in 0.33.25; that review-path
-decision is deferred to the 0.33.32 public-demo privacy gate.
+decision is deferred to the 0.33.33 public-demo privacy gate.
 
 ### Private repository boundary
 

@@ -12,7 +12,7 @@
 - Proved all six public roles through credential-redacting live-session reads, scoped seeded-file preview/download, logout, and old-session rejection; retained the earlier representative write/denial, immutable identity, disabled-capability, content-safety, egress, input/rate, and exact mutation-cap evidence.
 - Proved the external lifecycle boundary under lock contention and a controlled post-activation failure: bounded alerts were delivered, the prior database-and-Files unit recovered healthy, and a guarded whole-instance rollback round trip restored both the recorded prior release and the clean current release.
 - Enabled the reviewed top-of-hour UTC systemd timer only after the manual gate; its first real scheduled invocation started exactly at `2026-08-09T01:00:00Z`, returned the UTC-date-anchored semantic fingerprint `84058d0eb16eef9229ac26cbc2c0f945283b6914dd8662d17f318429a59daf87`, and left the clean database-and-Files baseline. The expected fingerprint change from the August 8 proof reflects the reviewed `--anchor-date today` UTC rollover rather than baseline drift.
-- Recorded a GO decision for technical readiness for the planned August 31 public-demo window. The operator curtain remains the independent publication control, and `0.33.32` analytics, privacy, feedback, newsletter, and interest-capture work remains disabled and unimplemented.
+- Recorded a GO decision for technical readiness for the planned August 31 public-demo window. The operator curtain remains the independent publication control, and `0.33.33` analytics, privacy, feedback, newsletter, and interest-capture work remains disabled and unimplemented.
 - Confirmed the separate Friends-and-Family host remained healthy, ready, and unchanged at `0.33.28.3-main`.
 - Docs updated: `DECISIONS.md`, `ROADMAP.md`, `ROADMAP-ARCHIVE.md`.
 - No docs change needed: the current operator/configuration/security contracts already describe the shipped behavior; this slice records live acceptance, release readiness, and archive handoff rather than changing product or host interfaces.
@@ -131,7 +131,7 @@
 - Added one exact-demo host-only enable switch, scheduler-wrapped manual parity, shared correlation IDs, and distinct no-mutation lock-contention handling while preserving reset-owned automatic recovery and the common deploy/reset lifecycle lock.
 - Added bounded root-private JSONL start/finish evidence with trigger, scheduled boundary, lock result, duration, semantic fingerprint, health, failure class, rollback, recovery, and alert outcome, plus a narrow alert-helper contract that receives no application output, credentials, content, sessions, secrets, or private paths.
 - Added `release.public-demo-reset-scheduler` release-gate coverage and extended the Compose reset contract for scheduler-supplied operation IDs, contention exit 75, and safe semantic-fingerprint output; published every scheduler host asset with LF checkout enforcement.
-- Normalized the later roadmap headings from prose `slice 10` forms to dotted identifiers across the remaining `0.33.31` and `0.33.33` slices.
+- Normalized the later roadmap headings from prose `slice 10` forms to dotted identifiers across the remaining `0.33.31` and `0.33.32` slices.
 - Docs updated: `DECISIONS.md`, `docs/backup-and-restore.md`, `docs/demo-data-operations.md`, `docs/development-and-demo-data.md`, `docs/docs-ownership.json`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `ROADMAP.md`, and `ROADMAP-ARCHIVE.md`.
 - No docs change needed: Help, user/admin UI, permissions, application settings, database schema, module workflows, self-hosting, upgrades, and private-preview policy are unchanged; this is an exact-host release operation.
 
@@ -1043,7 +1043,7 @@
   separate private-preview invitation decision.
 - Recorded that public Terms and Privacy ship as neutral operator templates
   without a professional-legal-approval claim; deferred the launch-specific
-  review-path decision to `0.33.32` before any first-party public analytics,
+  review-path decision to `0.33.33` before any first-party public analytics,
   feedback, or interest capture is enabled.
 - Closed the `0.33.25` branch, bumped package metadata to `0.33.25.6`, archived
   its remaining slices, and advanced the active roadmap cursor to `0.33.26.1`.
@@ -1079,7 +1079,7 @@
   notice plus focused public-route, security-header, override, and data-leak
   regressions.
 - Completed the repository slice without claiming attorney review; future
-  public-hosting review scope is now an explicit `0.33.32` decision gate.
+  public-hosting review scope is now an explicit `0.33.33` decision gate.
 - Docs updated: `docs/docs-ownership.json`, `docs/e2e-testing.md`,
   `docs/licensing.md`, `docs/private-preview-readiness.md`,
   `docs/regression-suite.md`, `docs/runtime-artifact.md`, and

@@ -2,7 +2,7 @@
 
 ## Version 0.33.31.15 - Live Compose proof and public-demo release gate
 
-Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is technically ready for the planned August 31, 2026 publication window. The independent operator curtain remains the publication control; analytics, feedback, newsletter, and interest capture remain disabled pending the separate `0.33.32` review.
+Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is technically ready for the planned August 31, 2026 publication window. The independent operator curtain remains the publication control; analytics, feedback, newsletter, and interest capture remain disabled pending the separate `0.33.33` review.
 
 **Model: High Effort** - Final acceptance required retained secret-free evidence from the real public host across release, isolation, permissions, reset, recovery, restore, scheduling, and a separate installation.
 
@@ -11,7 +11,7 @@ Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is techn
 - [x] Corrected the post-reset verifier so it performs read-only Task, hierarchy, and seeded attachment checks plus authenticated logout. A scheduled-equivalent reset then returned the canonical semantic fingerprint `a191046f48e81b2eb77de35352faf3c811a1e1f452fdf542271bda08afdb1767`, SQLite integrity `ok`, zero foreign-key violations, exact counts of 5 workspaces, 24 users, 400 tasks, 200 notes, 24 lists, 2 Files records, and 624 Search rows, with zero sessions, mutation-budget rows/units, or verification residue.
 - [x] Proved lifecycle lock contention exits 75 before mutation and delivers the bounded `lifecycle-lock-contended` alert. A controlled post-activation container stop produced `reset-failed-recovered`, delivered its alert, restored and verified the prior database-and-Files unit, and returned the exact release healthy. A guarded rollback round trip restored the recorded `0.33.31.14.5` whole-instance archive and then the freshly backed-up clean `0.33.31.14.6` unit, with exact identity and isolation verified in both directions.
 - [x] Enabled the reviewed systemd timer only after manual proof. It remains `Persistent=false`, `AccuracySec=1s`, `RandomizedDelaySec=0`, and scheduled at the top of every UTC hour. The first real top-of-hour invocation started at `2026-08-09T01:00:00Z` and completed through the systemd service in 174,536 ms with a healthy exact-baseline result and the expected new-UTC-anchor fingerprint `84058d0eb16eef9229ac26cbc2c0f945283b6914dd8662d17f318429a59daf87`. The fingerprint changed from the August 8 scheduled-equivalent result because `--anchor-date today` intentionally re-anchors the date-relative fixture at UTC midnight; direct aggregate proof still returned the exact counts, zero sessions, zero budget usage, and zero verification residue before final public smoke.
-- [x] Recorded a GO decision for technical readiness for the planned August 31 publication window. The URL is controlled independently by the operator curtain, and `0.33.32` analytics/privacy/feedback/interest-capture work remains disabled and unimplemented.
+- [x] Recorded a GO decision for technical readiness for the planned August 31 publication window. The URL is controlled independently by the operator curtain, and `0.33.33` analytics/privacy/feedback/interest-capture work remains disabled and unimplemented.
 
 Acceptance criteria:
 
@@ -1675,7 +1675,7 @@ application through the complete `0.33.25` branch, the package is
 `0.33.25.6`, and the active cursor advances to `0.33.26.1`. Professional legal
 review is not claimed or required for this closeout; the decision appropriate
 to a future public analytics/interest-capture launch is deferred explicitly to
-`0.33.32`.
+`0.33.33`.
 
 **Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
 
@@ -1705,7 +1705,7 @@ AGPL/source notice are shipped with neutral operator-scoped templates.
 Raymond Tec does not currently retain an attorney, and professional review is
 not represented as having occurred. Choosing the review path appropriate to
 future first-party public analytics, feedback, or interest capture is deferred
-to the `0.33.32` public-demo privacy gate.
+to the `0.33.33` public-demo privacy gate.
 
 **Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
 
@@ -1715,7 +1715,7 @@ to the `0.33.32` public-demo privacy gate.
 - [x] Kept ownership operator-truthful: the repository ships clearly labeled
   neutral templates, and each operator may supply installation-specific
   content through protected runtime configuration.
-- [x] Deferred the professional-review decision to `0.33.32`, before any
+- [x] Deferred the professional-review decision to `0.33.33`, before any
   first-party public analytics, feedback, or interest capture is enabled;
   `0.33.25` makes no legal-approval claim.
 - [x] Added the version-accurate public `AGPL-3.0-only` and Corresponding Source
@@ -1729,7 +1729,7 @@ Acceptance criteria:
 - Terms and Privacy are publicly reachable and operator-scoped, neutral
   defaults do not impersonate first-party legal documents, the public
   AGPL/source notice is version-accurate, and future launch-specific review is
-  owned explicitly by `0.33.32` rather than blocking this repository slice.
+  owned explicitly by `0.33.33` rather than blocking this repository slice.
 
 ## Version 0.33.25.5 - Help feature and concept coverage, and drift audit
 
