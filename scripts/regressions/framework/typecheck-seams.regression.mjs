@@ -68,7 +68,13 @@ const CONTRACT_TYPE_EXPORTS = [
   "JobRecord",
   "JobHandler",
   "DatabaseAdapter",
+  "DatabaseDialect",
+  "DatabaseInsertOptions",
+  "DatabaseParameterToken",
+  "DatabaseRowIdOptions",
   "DatabaseSeam",
+  "NamedBindingEntry",
+  "PreparedDatabaseBindings",
   "TransactionClient",
 ];
 const HTTP_CONTRACT_TYPE_EXPORTS = [

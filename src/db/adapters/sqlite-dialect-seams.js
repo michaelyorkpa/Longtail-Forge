@@ -1,3 +1,21 @@
+// @ts-check
+/** @typedef {import("../../types/framework-contracts.js").DatabaseDialect} DatabaseDialect */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertOptions} DatabaseInsertOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertConflictNothingOptions} DatabaseInsertConflictNothingOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertConflictUpdateOptions} DatabaseInsertConflictUpdateOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertAnyConflictUpdateOptions} DatabaseInsertAnyConflictUpdateOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertValues} DatabaseInsertValues */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseLikeOptions} DatabaseLikeOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseLikePatternOptions} DatabaseLikePatternOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseSortDirection} DatabaseSortDirection */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanInput} DatabaseBooleanInput */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanStorageValue} DatabaseBooleanStorageValue */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanReadValue} DatabaseBooleanReadValue */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanReadOptions} DatabaseBooleanReadOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanFieldsReadOptions<string>} DatabaseBooleanFieldsReadOptions */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseFtsColumn} DatabaseFtsColumn */
+/** @typedef {import("../../types/framework-contracts.js").DatabaseRowIdOptions} DatabaseRowIdOptions */
+
 const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
   booleanStorage: true,
   caseInsensitiveComparison: true,
@@ -13,6 +31,7 @@ const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
 // This identifies the dialect seam contract, not the current application release.
 const SQLITE_DIALECT_CONTRACT_VERSION = "0.33.6.14a";
 
+/** @returns {DatabaseDialect} */
 function createSqliteDialectSeams() {
   return Object.freeze({
     provider: "sqlite",
@@ -87,7 +106,8 @@ function insertOrIgnoreInto(tableName) {
   return `INSERT OR IGNORE INTO ${normalizeSqlIdentifier(tableName, "table name")}`;
 }
 
-function buildInsertOrIgnore(options = {}) {
+/** @param {DatabaseInsertOptions} options */
+function buildInsertOrIgnore(options) {
   const statement = normalizeInsertStatement(options);
   return composeSqlLines([
     `${insertOrIgnoreInto(statement.tableName)} (${statement.columnsSql})`,
@@ -96,7 +116,8 @@ function buildInsertOrIgnore(options = {}) {
   ]);
 }
 
-function buildInsertOnConflictDoNothing(options = {}) {
+/** @param {DatabaseInsertConflictNothingOptions} options */
+function buildInsertOnConflictDoNothing(options) {
   const statement = normalizeInsertStatement(options);
   return composeSqlLines([
     `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
@@ -106,7 +127,8 @@ function buildInsertOnConflictDoNothing(options = {}) {
   ]);
 }
 
-function buildInsertOnConflictDoUpdate(options = {}) {
+/** @param {DatabaseInsertConflictUpdateOptions} options */
+function buildInsertOnConflictDoUpdate(options) {
   const statement = normalizeInsertStatement(options);
   return composeSqlLines([
     `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
@@ -116,7 +138,8 @@ function buildInsertOnConflictDoUpdate(options = {}) {
   ]);
 }
 
-function buildInsertOnAnyConflictDoUpdate(options = {}) {
+/** @param {DatabaseInsertAnyConflictUpdateOptions} options */
+function buildInsertOnAnyConflictDoUpdate(options) {
   const statement = normalizeInsertStatement(options);
   return composeSqlLines([
     `INSERT INTO ${statement.tableName} (${statement.columnsSql})`,
@@ -159,6 +182,11 @@ function equalsNoCase(leftSql, rightSql) {
   return `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} = ${collateNoCase(rightSql)}`;
 }
 
+/**
+ * @param {string} leftSql
+ * @param {string} rightSql
+ * @param {DatabaseLikeOptions} [options]
+ */
 function likeNoCase(leftSql, rightSql, options = {}) {
   const comparisonSql = `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} LIKE ${collateNoCase(rightSql)}`;
 
@@ -169,6 +197,11 @@ function likeNoCase(leftSql, rightSql, options = {}) {
   return comparisonSql;
 }
 
+/**
+ * @param {string} leftSql
+ * @param {string} rightSql
+ * @param {DatabaseLikeOptions} [options]
+ */
 function containsNoCase(leftSql, rightSql, options = {}) {
   return likeNoCase(leftSql, rightSql, {
     ...options,
@@ -176,6 +209,10 @@ function containsNoCase(leftSql, rightSql, options = {}) {
   });
 }
 
+/**
+ * @param {unknown} value
+ * @param {DatabaseLikePatternOptions} [options]
+ */
 function likePattern(value, options = {}) {
   const escaped = escapeLikePattern(value, options);
   const mode = normalizeLikePatternMode(options.mode || options.match || "contains");
@@ -193,6 +230,10 @@ function likePattern(value, options = {}) {
   return `%${escaped}%`;
 }
 
+/**
+ * @param {unknown} value
+ * @param {Partial<Pick<DatabaseLikePatternOptions, "escapeCharacter">>} [options]
+ */
 function escapeLikePattern(value, options = {}) {
   const escapeCharacter = normalizeLikeEscapeCharacter(options.escapeCharacter);
   let escaped = "";
@@ -207,43 +248,80 @@ function escapeLikePattern(value, options = {}) {
   return escaped;
 }
 
+/**
+ * @param {string} expressionSql
+ * @param {DatabaseSortDirection} [direction]
+ */
 function orderByNoCase(expressionSql, direction = "ASC") {
   return `${collateNoCase(expressionSql)} ${normalizeSortDirection(direction)}`;
 }
 
+/**
+ * @param {DatabaseBooleanInput} value
+ * @returns {DatabaseBooleanStorageValue}
+ */
 function bindSqliteBoolean(value) {
   const normalized = normalizeLogicalBoolean(value);
   return normalized === null ? null : normalized ? 1 : 0;
 }
 
-function bindSqliteBooleanFields(values = {}, fieldNames = []) {
+/**
+ * @template {Record<string, unknown>} RecordType
+ * @template {Extract<keyof RecordType, string>} FieldName
+ * @param {RecordType} values
+ * @param {readonly FieldName[]} fieldNames
+ * @returns {import("../../types/framework-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>}
+ */
+function bindSqliteBooleanFields(values, fieldNames) {
   const nextValues = { ...values };
 
   for (const fieldName of normalizeFieldNameArray(fieldNames, "boolean bind field")) {
     if (Object.hasOwn(nextValues, fieldName)) {
-      nextValues[fieldName] = bindSqliteBoolean(nextValues[fieldName]);
+      /** @type {Record<string, unknown>} */ (nextValues)[fieldName] = bindSqliteBoolean(
+        /** @type {DatabaseBooleanInput} */ (nextValues[fieldName]),
+      );
     }
   }
 
-  return nextValues;
+  return /** @type {import("../../types/framework-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>} */ (nextValues);
 }
 
+/**
+ * @param {DatabaseBooleanInput} value
+ * @returns {DatabaseBooleanReadValue}
+ */
 function readSqliteBoolean(value) {
   return normalizeLogicalBoolean(value);
 }
 
+/**
+ * @param {Record<string, unknown>} row
+ * @param {string} fieldName
+ * @param {DatabaseBooleanReadOptions} [options]
+ * @returns {DatabaseBooleanReadValue}
+ */
 function readSqliteBooleanField(row, fieldName, options = {}) {
   const key = normalizeObjectFieldName(fieldName, "boolean read field");
   const source = row && typeof row === "object" ? row : {};
 
   if (!Object.hasOwn(source, key)) {
-    return Object.hasOwn(options, "fallback") ? options.fallback : null;
+    return Object.hasOwn(options, "fallback")
+      ? /** @type {DatabaseBooleanReadValue} */ (options.fallback)
+      : null;
   }
 
-  return readSqliteBoolean(source[key]);
+  return readSqliteBoolean(/** @type {DatabaseBooleanInput} */ (source[key]));
 }
 
-function readSqliteBooleanFields(row = {}, fieldNames = [], options = {}) {
+/**
+ * @template {Record<string, unknown>} RecordType
+ * @template {Extract<keyof RecordType, string>} FieldName
+ * @param {RecordType} row
+ * @param {readonly FieldName[]} fieldNames
+ * @param {DatabaseBooleanFieldsReadOptions} [options]
+ * @returns {import("../../types/framework-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>}
+ */
+function readSqliteBooleanFields(row, fieldNames, options = {}) {
   const nextRow = { ...(row || {}) };
   const fallbacks = options.fallbacks && typeof options.fallbacks === "object" ? options.fallbacks : {};
 
@@ -251,10 +329,10 @@ function readSqliteBooleanFields(row = {}, fieldNames = [], options = {}) {
     const fieldOptions = Object.hasOwn(fallbacks, fieldName)
       ? { fallback: fallbacks[fieldName] }
       : {};
-    nextRow[fieldName] = readSqliteBooleanField(row, fieldName, fieldOptions);
+    /** @type {Record<string, unknown>} */ (nextRow)[fieldName] = readSqliteBooleanField(row, fieldName, fieldOptions);
   }
 
-  return nextRow;
+  return /** @type {import("../../types/framework-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>} */ (nextRow);
 }
 
 function secondsBetween(laterExpressionSql, earlierExpressionSql) {
@@ -279,6 +357,10 @@ function rank(tableName) {
   return `bm25(${normalizeSqlIdentifier(tableName, "FTS table name")})`;
 }
 
+/**
+ * @param {string} tableName
+ * @param {readonly DatabaseFtsColumn[]} columns
+ */
 function createVirtualTable(tableName, columns) {
   const columnDefinitions = normalizeFtsColumnDefinitions(columns).join(",\n  ");
   return `CREATE VIRTUAL TABLE IF NOT EXISTS ${normalizeSqlIdentifier(tableName, "FTS table name")} USING fts5(\n  ${columnDefinitions}\n)`;
@@ -292,6 +374,7 @@ function columns(returningColumns) {
   return `RETURNING ${normalizeIdentifierList(returningColumns, "returning column")}`;
 }
 
+/** @param {DatabaseRowIdOptions} [options] */
 function rowId(options = "") {
   const rowIdColumn = "rowid";
   const normalizedOptions = options && typeof options === "object" ? options : {};
@@ -364,10 +447,12 @@ function scopedTableRows(tableName, scopeColumn) {
   });
 }
 
+/** @returns {never} */
 function unsupportedJsonAccess() {
   throw new Error("Database JSON access seam is not implemented because runtime SQL does not currently require JSON operators.");
 }
 
+/** @param {DatabaseInsertOptions} options */
 function normalizeInsertStatement(options) {
   const tableName = normalizeSqlIdentifier(options.tableName || options.table, "table name");
   const columnNames = normalizeIdentifierArray(options.columns, "insert column");
@@ -384,6 +469,10 @@ function normalizeInsertStatement(options) {
   };
 }
 
+/**
+ * @param {readonly string[]} columnNames
+ * @param {DatabaseInsertValues | undefined} valueExpressions
+ */
 function normalizeInsertValues(columnNames, valueExpressions) {
   if (!valueExpressions) {
     return columnNames.map((columnName) => `:${columnName}`).join(", ");

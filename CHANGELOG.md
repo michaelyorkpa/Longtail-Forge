@@ -1,3 +1,11 @@
+## Version 0.33.32.9 - 2026-08-10
+
+- Added explicit checked contracts for SQLite dialect capabilities and operations, including exact insert-builder option bags, the current string/object physical-row-ID input, and paired boolean storage/read field transforms.
+- Typed parameter preparation as discriminated no-parameter, positional-array, named-map, scalar-binding, and array-binding states so checked consumers cannot read a placeholder property from the wrong variant.
+- Opted the dialect and binding implementations into checked JavaScript, added compile-time valid/misuse proof, raised the checked-seam floor from 47 to 49 files, and raised the regression floors from 456/43 to 457/44 while preserving the existing generated SQL and normalized values.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database-parameter-binding-audit.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: schemas, migrations, query behavior, permissions, module workflows, runtime configuration, backup/restore, deployment, security posture, and Help are unchanged.
+
 ## Version 0.33.32.8 - 2026-08-10
 
 - Defined distinct checked `DatabaseAdapter` and transaction-only `TransactionClient` contracts, then opted the SQLite adapter, provider, driver facade, and SQL literal compatibility helpers into checked JavaScript with honest nullable driver state.

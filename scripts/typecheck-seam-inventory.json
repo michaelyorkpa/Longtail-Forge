@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 47,
+  "minimumOptedInFiles": 49,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -16,6 +16,8 @@
     "src/core/search/indexer-registry.js",
     "src/core/settings/workbench-focus-policy.js",
     "src/db/adapters/sqlite-adapter.js",
+    "src/db/adapters/sqlite-dialect-seams.js",
+    "src/db/parameter-bindings.js",
     "src/db/provider.js",
     "src/db/sql-literals.js",
     "src/db/sqlite.js",
