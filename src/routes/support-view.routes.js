@@ -1,3 +1,4 @@
+// @ts-check
 import { Router } from "express";
 import { buildSessionCookie } from "../security/cookies.js";
 import { getSessionIdFromRequest } from "../security/sessions.js";
@@ -16,7 +17,7 @@ supportViewRoutes.get("/support-view/targets", asyncRoute(async (request, respon
 
 supportViewRoutes.post("/support-view/start", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
-  if (payload.confirmedReadOnly !== true) {
+  if (!isJsonObject(payload) || payload.confirmedReadOnly !== true) {
     throw new AppError("Confirm the read-only Support View warning before continuing.", 400);
   }
   const context = getRequestContext(request);
@@ -37,6 +38,14 @@ supportViewRoutes.post("/support-view/start", asyncRoute(async (request, respons
   ));
   response.status(200).json({ supportView: result.supportView });
 }));
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isJsonObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 supportViewRoutes.get("/support-view/audit", asyncRoute(async (request, response) => {
   const result = await supportViewService.listAudit(request.session, request.query);

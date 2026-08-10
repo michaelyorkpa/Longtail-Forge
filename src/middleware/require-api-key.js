@@ -1,9 +1,15 @@
+// @ts-check
 import { apiKeysService } from "../services/api-keys.service.js";
 import { assertModuleWriteEnabled } from "../core/modules/module-access.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { sendApiError } from "../core/http-error-contract.js";
 
+/** @typedef {import("../types/http-contracts.js").ActiveApiKey} ActiveApiKey */
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+
+/** @param {string} [requiredScope] */
 function requireApiKey(requiredScope) {
+  /** @param {HttpIdentityRequest} request */
   return async (request, response, next) => {
     try {
       const rawKey = readApiKey(request);
@@ -13,7 +19,9 @@ function requireApiKey(requiredScope) {
         return;
       }
 
-      const apiKey = await apiKeysService.readActiveKey(rawKey);
+      const apiKey = /** @type {ActiveApiKey | null} */ (
+        await apiKeysService.readActiveKey(rawKey)
+      );
 
       if (!apiKey) {
         sendPublicApiError(request, response, 401, "api_key_invalid", "API key is invalid or revoked.");
@@ -52,10 +60,12 @@ function requireApiKey(requiredScope) {
   };
 }
 
+/** @param {HttpIdentityRequest} request */
 function isWriteRequest(request) {
   return !["GET", "HEAD", "OPTIONS"].includes(request.method);
 }
 
+/** @param {HttpIdentityRequest} request */
 function readApiKey(request) {
   const authorization = String(request.headers.authorization || "").trim();
 
@@ -66,6 +76,7 @@ function readApiKey(request) {
   return String(request.headers["x-api-key"] || "").trim();
 }
 
+/** @param {HttpIdentityRequest} request */
 function sendPublicApiError(request, response, statusCode, code, message) {
   sendApiError(request, response, {
     code,

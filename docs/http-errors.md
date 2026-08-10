@@ -80,7 +80,7 @@ throw new AppError("The record changed before it could be saved.", 409, {
 
 Client-error messages are exposed only when they are deliberately approved as safe. A 500-class message is generic unless a dependency-unavailable `503` is deliberately marked both safe and actionable with `expose: true`. Unexpected errors must reach the final framework error middleware; routes must not return an exception message, stack, SQL, path, body, credential, identifier, or hand-built production diagnostic.
 
-Asynchronous route work uses the shared `asyncRoute` boundary unless a reviewed framework change deliberately relies on Express 5 forwarding. A failure reaches the final error middleware exactly once and no route writes a second response afterward.
+Asynchronous route work uses the shared `asyncRoute` boundary unless a reviewed framework change deliberately relies on Express 5 forwarding. A failure reaches the final error middleware exactly once and no route writes a second response afterward. The shared streaming JSON reader returns `unknown`; checked routes must narrow it before property access so malformed JSON and wrong-shape values become deliberate generic 4xx responses rather than TypeError-backed 500s. As of 0.33.32.2.1, Support View start rejects JSON `null` and every other non-object body with its existing confirmation 400 contract.
 
 ## Framework and Module Responsibilities
 

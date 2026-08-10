@@ -1,3 +1,22 @@
+## Version 0.33.32.2.1 - 2026-08-10
+
+- Made the checked streaming JSON reader return `Promise<unknown>` so a checked route must narrow an untrusted parsed value before property access.
+- Opted the reader and Support View start route into checked JavaScript, added explicit non-array object narrowing, and raised the complete checked-seam inventory and floor from 27 to 29 files.
+- Corrected authenticated Support View start with JSON `null` from a TypeError-backed 500 to the existing generic confirmation 400; arrays, strings, and numbers retain that same 400 contract, while valid object payloads retain successful start and session rotation.
+- Extended the typecheck release guardrail to freeze the unknown-return boundary and complete checked-consumer inventory, and added route-level malformed/wrong-shape plus valid-payload regression proof.
+- Docs updated: `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: Support View permissions, actor/effective identity, reauthentication throttling, audit attribution, public-demo admission, schemas, and other currently unchecked JSON consumers are unchanged.
+
+## Version 0.33.32.2 - 2026-08-10
+
+- Added one importable HTTP identity contract for browser request sessions, API-key sessions, Support View actor/effective identity, permission resources, and request rotation/invalidation state, with the application-owned fields declared on `Express.Request`.
+- Opted the request-session resolver, browser and API-key authentication middleware, and central Support View request gate into checked JavaScript, while preserving boolean password-change state and the existing normal/account-export-recovery session modes.
+- Made Support View outcomes and reason classifications exact string unions so misspellings fail typecheck before they can alter allow, deny-403, or deny-404 behavior.
+- Raised the complete checked-seam inventory and monotonic floor from 23 to 27 files and extended the release guardrail to own the separate HTTP declarations and exact gate vocabularies.
+- Preserved existing authentication, remembered-session, revocation, recovery-mode, Support View identity, rotation/invalidation, audit-attribution, 403/404, and permission behavior through focused regressions and canonical local verification.
+- Docs updated: `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: public API behavior, permissions, HTTP error envelopes, operational security, runtime configuration, schemas, module workflows, and untrusted JSON handling are unchanged; raw request-body typing remained explicitly deferred to the numeric follow-on slice.
+
 ## Version 0.33.32.1 - 2026-08-10
 
 - Replaced the partial 12-file checked-seam list with one sorted inventory of all 23 first-party runtime/test JavaScript files carrying a first-line `// @ts-check` pragma, plus a monotonic 23-file floor for later seam slices.

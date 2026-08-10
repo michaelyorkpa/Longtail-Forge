@@ -1,9 +1,14 @@
+// @ts-check
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { supportViewService } from "../services/support-view.service.js";
 import { getRequestContext } from "../core/request-context.js";
 import { normalizeBooleanPreference, normalizeTimezone } from "../utils/normalizers.js";
 import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-records.js";
+
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/http-contracts.js").SessionMode} SessionMode */
 
 async function createSession(user, options = {}) {
   const prepared = prepareSessionRecord(user, options);
@@ -13,6 +18,7 @@ async function createSession(user, options = {}) {
   return prepared.cookie;
 }
 
+/** @param {HttpIdentityRequest} request */
 async function deleteRequestSession(request) {
   const sessionId = getSessionIdFromRequest(request);
 
@@ -27,6 +33,10 @@ async function deleteSession(sessionId) {
   await sessionsRepository.remove(sessionId);
 }
 
+/**
+ * @param {HttpIdentityRequest} request
+ * @returns {Promise<RequestSession | null>}
+ */
 async function getRequestSession(request) {
   const sessionId = getSessionIdFromRequest(request);
 
@@ -64,6 +74,7 @@ async function getRequestSession(request) {
 
   const activeWorkspaceId = session.active_workspace_id ?? session.home_workspace_id ?? null;
 
+  /** @type {RequestSession} */
   const requestSession = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
@@ -73,7 +84,7 @@ async function getRequestSession(request) {
     timezone: normalizeTimezone(session.timezone),
     ip_address: session.ip_address || "",
     password_change_required: normalizeBooleanPreference(session.password_change_required),
-    session_mode: session.session_mode || "normal",
+    session_mode: /** @type {SessionMode} */ (session.session_mode || "normal"),
   };
 
   if (session.support_view) {
@@ -107,6 +118,7 @@ async function getRequestSession(request) {
   return requestSession;
 }
 
+/** @param {HttpIdentityRequest} request */
 function getSessionIdFromRequest(request) {
   if (request.cookies?.[config.cookies.sessionName]) {
     return request.cookies[config.cookies.sessionName];
@@ -116,6 +128,10 @@ function getSessionIdFromRequest(request) {
   return cookies[config.cookies.sessionName] || "";
 }
 
+/**
+ * @param {string} cookieHeader
+ * @returns {Record<string, string>}
+ */
 function parseCookieHeader(cookieHeader) {
   return String(cookieHeader || "")
     .split(";")
@@ -133,7 +149,7 @@ function parseCookieHeader(cookieHeader) {
 
       cookies[name] = decodeURIComponent(value);
       return cookies;
-    }, {});
+    }, /** @type {Record<string, string>} */ ({}));
 }
 
 export {

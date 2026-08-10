@@ -1,3 +1,4 @@
+// @ts-check
 import { getRequestSession } from "../security/sessions.js";
 import { buildExpiredSessionCookie, buildSessionCookie } from "../security/cookies.js";
 import { staticService } from "../services/static.service.js";
@@ -7,7 +8,12 @@ import {
   sendBrowserError,
 } from "../core/http-error-contract.js";
 
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+
+/** @param {HttpIdentityRequest} request */
 async function requireAuth(request, response, next) {
+  /** @type {RequestSession | null} */
   let session = null;
 
   try {
@@ -42,6 +48,7 @@ async function requireAuth(request, response, next) {
   next();
 }
 
+/** @param {HttpIdentityRequest} request */
 function enforceAccountExportRecovery(request, response) {
   const pathname = request.path;
   if (request.method === "GET" && (
@@ -71,6 +78,7 @@ function enforceAccountExportRecovery(request, response) {
   return true;
 }
 
+/** @param {HttpIdentityRequest} request */
 function enforceRequiredPasswordChange(request, response) {
   const pathname = request.path;
 
@@ -108,6 +116,7 @@ function enforceRequiredPasswordChange(request, response) {
   return true;
 }
 
+/** @param {HttpIdentityRequest} request */
 async function handleUnauthenticatedRequest(request, response, pathname) {
   if (request.method === "GET" && isLoginAssetPath(pathname)) {
     const result = await staticService.read(request.url);
