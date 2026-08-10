@@ -1,3 +1,4 @@
+// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -33,6 +34,9 @@ async function createFromActiveTimer(entry, session) {
     resolveTimeEntryScope(session.workspace_id, entry),
     settingsRepository.readWorkspaceSettings(session.workspace_id),
   ]);
+  if (!scope.project) {
+    throw new AppError("Project not found", 404);
+  }
 
   await permissionsService.assertCan(session, "time_entries.create", {
     workspace_id: session.workspace_id,
@@ -113,6 +117,9 @@ async function update(rawPayload, entryId, session) {
     }),
     settingsRepository.readWorkspaceSettings(session.workspace_id),
   ]);
+  if (!scope.project) {
+    throw new AppError("Project not found", 404);
+  }
   const nextScopeResource = {
     client_id: scope.client?.id || "",
     project_id: scope.project.id,

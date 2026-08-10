@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.4`.
+Active cursor: `0.33.32.5`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,18 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.4 - Time-entry duration persistence and public API ingress
-
-**Model: High Effort** — This is one revenue-relevant write seam and one suspected duration defect.
-
-- [ ] Opt in Time Tracking's `time-entries.service.js`, `time-entries.repo.js`, and `public-api.service.js` against the slice-3 contract.
-- [ ] Reproduce whether a public-API entry supplying only `duration_hours` bills as zero because downstream code reads only `duration_seconds`; fix only the confirmed normalization/persistence defect.
-- [ ] Extend the inventory and run focused public-API and persistence regressions; billing periods, sourced entries, and timers remain out of scope.
-
-Acceptance criteria:
-
-- Public API and persistence agree on one duration representation, with the named defect proven fixed or disproven.
 
 ### Version 0.33.32.5 - Sourced time-entry and task-timer bridge
 

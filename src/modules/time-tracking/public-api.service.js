@@ -1,4 +1,6 @@
+// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
+import { AppError } from "../../core/errors.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { auditService } from "../../core/audit.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -11,6 +13,8 @@ import {
   PublicApiTimeEntryCreateSchema,
   parseTimeTrackingEdgePayload,
 } from "./time-tracking.contracts.js";
+
+/** @typedef {import("zod").infer<typeof PublicApiTimeEntryCreateSchema>} PublicApiTimeEntryCreatePayload */
 
 const MODULE_ID = "time-tracking";
 
@@ -37,8 +41,12 @@ async function createTimeEntry(context, rawPayload) {
     }),
     settingsRepository.readWorkspaceSettings(context.workspace_id),
   ]);
+  if (!project) {
+    throw new AppError("Project was not found.", 404);
+  }
 
   const entryId = payload.entry_id || createRecordId();
+  const duration = normalizePublicApiDuration(payload);
   const entry = normalizeTimeEntry({
     entry_id: entryId,
     workspace_id: context.workspace_id,
@@ -51,8 +59,8 @@ async function createTimeEntry(context, rawPayload) {
     description: payload.description,
     start_time: normalizeUtcIso(payload.start_time, context.timezone),
     end_time: normalizeUtcIso(payload.end_time, context.timezone),
-    duration_seconds: payload.duration_seconds,
-    duration_hours: payload.duration_hours,
+    duration_seconds: duration.durationSeconds,
+    duration_hours: duration.durationHours,
     billable: workspaceSupportsBillable(settings.workspaceType)
       ? payload.billable ?? project.billable ?? client?.billable ?? "yes"
       : "no",
@@ -78,6 +86,29 @@ async function createTimeEntry(context, rawPayload) {
   });
 
   return withWorkspaceAlias(entry, context);
+}
+
+/** @param {PublicApiTimeEntryCreatePayload} payload */
+function normalizePublicApiDuration(payload) {
+  const hasDurationSeconds = payload.duration_seconds !== undefined;
+  const hasDurationHours = payload.duration_hours !== undefined;
+
+  if (!hasDurationSeconds && !hasDurationHours) {
+    return {
+      durationHours: payload.duration_hours,
+      durationSeconds: payload.duration_seconds,
+    };
+  }
+
+  const parsedSeconds = hasDurationSeconds
+    ? Number.parseInt(String(payload.duration_seconds), 10)
+    : Math.round(Number(payload.duration_hours) * 3600);
+  const durationSeconds = Number.isFinite(parsedSeconds) ? parsedSeconds : 0;
+
+  return {
+    durationHours: (durationSeconds / 3600).toFixed(4),
+    durationSeconds,
+  };
 }
 
 function withWorkspaceAlias(record, context) {

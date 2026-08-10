@@ -1,3 +1,11 @@
+## Version 0.33.32.4 - 2026-08-10
+
+- Opted the Time Tracking time-entry browser/public services and repository into checked JavaScript against the canonical `TimeEntry` contract, with a typed public Zod payload and typed repository create/update boundary.
+- Corrected public API hours-only time entries that previously persisted zero billing seconds; valid hours now derive nearest integer `duration_seconds`, supplied seconds remain authoritative, and either path stores a matching hours projection.
+- Raised the complete checked-seam inventory and monotonic floor from 32 to 35 files and added isolated real-public-API proof for create/list responses, raw integer persistence, numeric duration agreement, and SQLite integrity.
+- Docs updated: `docs/module-development.md`, `docs/public-api.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`.
+- No docs change needed: browser time-entry workflows, sourced entries, active timers, billing periods, permissions, schemas, Help, deployment, and runtime configuration are unchanged.
+
 ## Version 0.33.32.3 - 2026-08-10
 
 - Added one authoritative checked `TimeEntry` typedef for the canonical application record, preserving string-valued durations, tri-state billable values, and exact invoice-status output.
