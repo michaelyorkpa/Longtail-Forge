@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.1 - Checked-seam inventory and monotonic ratchet
+
+Completed on 2026-08-10. The release gate now owns one complete reviewable inventory and monotonic floor for every first-party JavaScript seam explicitly opted into checking. The active 0.33.32 work advances to `0.33.32.2` for the trusted HTTP identity contract and authentication middleware.
+
+**Model: Medium Effort** - This was a bounded release-gate change with no product behavior.
+
+- [x] Recounted every first-party first-line `// @ts-check` pragma, replaced the partial `CHECKED_SEAM_FILES` list with the complete sorted 23-file inventory, and established a monotonic 23-file opted-in floor.
+- [x] Retained `tests/**/*.mjs` as a nominal per-file opt-in scope and documented that its unchecked files provide no type coverage. Preserved the complete compiler include/exclude scope, checking dials, and escape-hatch prohibitions.
+- [x] Ran the focused seam and documentation-routing regressions plus the fast typecheck and 69-test contract gates before final canonical verification.
+
+Acceptance criteria:
+
+- The one `framework.typecheck-seams` release gate fails if an opted-in seam disappears, the live inventory drifts, its floor falls, or a compiler scope/checking dial weakens, without forcing unrelated clean files into the program.
+
 ## Version 0.33.31.15 - Live Compose proof and public-demo release gate
 
 Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is technically ready for the planned August 31, 2026 publication window. The independent operator curtain remains the publication control; analytics, feedback, newsletter, and interest capture remain disabled pending the separate `0.33.33` review.

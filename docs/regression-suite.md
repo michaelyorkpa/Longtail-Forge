@@ -133,7 +133,7 @@ Current package commands:
 | --- | --- |
 | `npm run check` | Runs independently runnable `check:fast` (typecheck, unit, cached lint) followed by the complete discovered registry. |
 | `npm run check:fast` | Runs typecheck, unit tests, and cached lint without regressions; CI uses it before the prechecked changed-regression command. |
-| `npm run typecheck` | Runs `tsc --noEmit` against the narrow `tsconfig.json` scope; `checkJs` stays off so JavaScript files opt in per file with `// @ts-check`. |
+| `npm run typecheck` | Runs `tsc --noEmit` against the narrow `tsconfig.json` scope; `checkJs` stays off so JavaScript files opt in per file with `// @ts-check`. `framework.typecheck-seams` reconciles the complete opted-in inventory and monotonic floor; the nominal `tests/**/*.mjs` include checks only tests carrying that explicit pragma. |
 | `npm run test:unit` | Runs the Vitest suite (`tests/**/*.test.mjs`) once. |
 | `npm run test:watch` | Runs Vitest in watch mode for local iteration. |
 | `npm run test:contracts` / `test:tasks` | Filtered Vitest passes for contract/schema and Tasks tests; the optional filters retain `--passWithNoTests`. |

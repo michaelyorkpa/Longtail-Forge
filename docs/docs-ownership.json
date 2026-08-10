@@ -342,6 +342,20 @@
       ]
     },
     {
+      "id": "typecheck-seams",
+      "label": "TypeScript checked seams",
+      "sourcePatterns": [
+        "^tsconfig\\.json$",
+        "^scripts/typecheck-seam-inventory\\.json$",
+        "^scripts/regressions/framework/typecheck-seams\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-development.md",
+        "docs/regression-suite.md"
+      ]
+    },
+    {
       "id": "module-contracts",
       "label": "Module contracts",
       "sourcePatterns": [
