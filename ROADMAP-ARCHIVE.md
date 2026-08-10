@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.7 - Billing period and dashboard time boundaries
+
+Completed on 2026-08-10. Time Tracking billing and Dashboard effort windows now share the signed-in session timezone as their calendar authority, with UTC query boundaries derived from local date keys. The active 0.33.32 work advances to `0.33.32.8` for the database adapter and transaction-client contract.
+
+**Model: High Effort** - This was one revenue-calculation and timezone boundary with a confirmed server-local period defect.
+
+- [x] Opted `src/modules/time-tracking/time-tracking-billing.service.js` and `src/modules/time-tracking/time-tracking-dashboard.service.js` into checking against the canonical timezone helpers.
+- [x] Reproduced a Los Angeles month boundary where server-local February omitted a valid UTC-stored entry, then made the authenticated session timezone authoritative for billing, custom-date, chart, and Dashboard effort windows.
+- [x] Raised the checked-seam inventory and floor from 38 to 40 files and added isolated proof for UTC month edges, a New York 23-hour DST day, exact inclusive-start/exclusive-end queries, Dashboard windows, totals, and SQLite integrity.
+
+Acceptance criteria:
+
+- Billing and Dashboard periods use one documented timezone contract and produce regression-backed totals.
+
 ## Version 0.33.32.6 - Active timer duration consistency
 
 Completed on 2026-08-10. Active-timer persistence and finalization now share checked timer and entry contracts, and every finalized entry derives its hours projection from authoritative seconds. The active 0.33.32 work advances to `0.33.32.7` for billing-period and Dashboard time boundaries.

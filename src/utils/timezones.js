@@ -170,6 +170,34 @@ function localDateBoundToUtcIso(dateValue, timezone = DEFAULT_TIMEZONE, edge = "
 }
 
 /**
+ * Return the calendar date containing an absolute instant in the selected
+ * timezone. Calendar-bound report and Dashboard windows use this key before
+ * converting their inclusive start/exclusive end bounds back to UTC.
+ *
+ * @param {Date} date
+ * @param {string} [timezone]
+ * @returns {string}
+ */
+function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
+  const parts = getZonedParts(date, timezone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+/**
+ * Add whole calendar days without allowing the server timezone to influence
+ * the resulting date key.
+ *
+ * @param {string} dateKey
+ * @param {number} days
+ * @returns {string}
+ */
+function addLocalDateDays(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
  * @param {Date} date
  * @param {string} [fallbackIso]
  * @returns {string}
@@ -180,8 +208,10 @@ function toValidIso(date, fallbackIso = new Date().toISOString()) {
 
 export {
   DEFAULT_TIMEZONE,
+  addLocalDateDays,
   hasExplicitTimezone,
   localDateBoundToUtcIso,
+  localDateKey,
   normalizeUtcIso,
   zonedDateTimeToUtc,
 };

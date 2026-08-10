@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { normalizeTimeEntry } from "../../src/utils/normalizers.js";
 import {
+  addLocalDateDays,
   localDateBoundToUtcIso,
+  localDateKey,
   normalizeUtcIso,
 } from "../../src/utils/timezones.js";
 
@@ -98,5 +100,12 @@ describe("timezone normalization", () => {
     expect(normalizeUtcIso("2024-11-03T01:30:00", "America/New_York")).toBe("2024-11-03T05:30:00.000Z");
     expect(localDateBoundToUtcIso("2024-03-10", "America/New_York", edges[0])).toBe("2024-03-10T05:00:00.000Z");
     expect(localDateBoundToUtcIso("2024-03-10", "America/New_York", edges[1])).toBe("2024-03-11T03:59:59.999Z");
+  });
+
+  it("derives and advances local calendar keys independently of the server timezone", () => {
+    expect(localDateKey(new Date("2026-03-01T01:00:00.000Z"), "America/Los_Angeles")).toBe("2026-02-28");
+    expect(localDateKey(new Date("2026-03-01T01:00:00.000Z"), "UTC")).toBe("2026-03-01");
+    expect(addLocalDateDays("2026-02-28", 1)).toBe("2026-03-01");
+    expect(addLocalDateDays("2024-02-28", 1)).toBe("2024-02-29");
   });
 });
