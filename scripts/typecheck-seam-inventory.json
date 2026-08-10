@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 29,
+  "minimumOptedInFiles": 32,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -30,6 +30,9 @@
     "src/services/work-focus-modes.service.js",
     "src/services/work-resume-state-producers.js",
     "src/services/work-resume-state.service.js",
-    "src/utils/http.js"
+    "src/utils/http.js",
+    "src/utils/normalizers.js",
+    "src/utils/timezones.js",
+    "tests/contracts/normalizers-timezones.test.mjs"
   ]
 }

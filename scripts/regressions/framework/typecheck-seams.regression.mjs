@@ -88,6 +88,17 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "HttpIdentityRequest",
 ];
 
+const normalizersSource = readFileSync("src/utils/normalizers.js", "utf8");
+assert.match(normalizersSource, /@typedef \{"yes" \| "no" \| ""\} TimeEntryBillable/);
+assert.match(normalizersSource, /@property \{string\} duration_seconds/);
+assert.match(normalizersSource, /@property \{string\} duration_hours/);
+assert.match(normalizersSource, /@returns \{TimeEntry\}/);
+
+const timezonesSource = readFileSync("src/utils/timezones.js", "utf8");
+assert.match(timezonesSource, /@typedef \{"start" \| "end"\} DateBoundEdge/);
+assert.match(timezonesSource, /@typedef \{string \| number \| null \| undefined\} DateTimeInput/);
+assert.match(timezonesSource, /@returns \{DateTimeParts \| null\}/);
+
 // The checked-in inventory is the complete review surface, not a hand-picked
 // subset. Its floor can rise with later slices but cannot silently fall.
 assert.equal(seamInventory.schemaVersion, 1, "the checked-seam inventory schema must stay explicit");

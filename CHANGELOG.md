@@ -1,3 +1,13 @@
+## Version 0.33.32.3 - 2026-08-10
+
+- Added one authoritative checked `TimeEntry` typedef for the canonical application record, preserving string-valued durations, tri-state billable values, and exact invoice-status output.
+- Made duration number-to-string coercion explicit without changing the existing zero, blank, or decimal-text behavior.
+- Added checked timezone input, fallback, parsed-part, and date-bound edge contracts while preserving the existing runtime conversion algorithm.
+- Proved empty input intentionally uses the call-time fallback and pinned explicit-offset, invalid-input fallback, invalid-timezone failure, DST gap/overlap, and local-date boundary behavior.
+- Raised the complete checked-seam inventory and floor from 29 to 32 files, including one checked utility contract test.
+- Docs updated: `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: Time Tracking persistence, public API ingress, billing calculations, sourced-entry bridges, schemas, permissions, database behavior, and browser workflows are unchanged.
+
 ## Version 0.33.32.2.1 - 2026-08-10
 
 - Made the checked streaming JSON reader return `Promise<unknown>` so a checked route must narrow an untrusted parsed value before property access.
