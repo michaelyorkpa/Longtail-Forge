@@ -107,6 +107,12 @@ assert.match(publicTimeEntryServiceSource, /@typedef \{import\("zod"\)\.infer<ty
 const timeEntryRepositorySource = readFileSync("src/modules/time-tracking/time-entries.repo.js", "utf8");
 assert.match(timeEntryRepositorySource, /@typedef \{import\("\.\.\/\.\.\/utils\/normalizers\.js"\)\.TimeEntry\} TimeEntry/);
 assert.match(timeEntryRepositorySource, /@param \{TimeEntry\} entry/);
+const taskTimersServiceSource = readFileSync("src/modules/tasks/task-timers.service.js", "utf8");
+assert.match(taskTimersServiceSource, /import \{ activeTimersService \} from "\.\.\/time-tracking\/index\.js"/);
+assert.doesNotMatch(taskTimersServiceSource, /time-tracking\/active-timers\.service\.js/);
+assert.match(taskTimersServiceSource, /function taskTimerBillable\(task\)[\s\S]*normalizeTimeEntryBillable\(task\?\.billable\) \|\| "yes"/);
+const activeTimersServiceSource = readFileSync("src/modules/time-tracking/active-timers.service.js", "utf8");
+assert.match(activeTimersServiceSource, /timer\.billable = normalizeTimeEntryBillable\(payload\?\.billable\) \|\| "yes"/);
 
 // The checked-in inventory is the complete review surface, not a hand-picked
 // subset. Its floor can rise with later slices but cannot silently fall.

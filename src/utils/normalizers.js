@@ -421,6 +421,7 @@ export {
   normalizeUserLandingPage,
   normalizeWorkspaceType,
   normalizeTimeEntry,
+  normalizeTimeEntryBillable,
   normalizeTimezone,
   normalizeUserStatus,
   normalizeUsername,

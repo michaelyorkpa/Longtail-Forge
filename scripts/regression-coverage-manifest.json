@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 449,
+    "discoveredScripts": 450,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
@@ -23,18 +23,18 @@
       "search": 12,
       "tags": 12,
       "tasks": 58,
-      "time-tracking": 10,
+      "time-tracking": 11,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
       "focused": 205,
-      "integration": 166,
+      "integration": 167,
       "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 189,
+      "isolated-database": 190,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 226
@@ -4622,6 +4622,21 @@
       "tags": [
         "database",
         "public-api",
+        "time-tracking"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves sourced timer saves and Task Timer finalization preserve non-billable intent and authoritative duration through the public module boundary.",
+      "id": "time-tracking.sourced-task-timer-bridge",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "tasks",
         "time-tracking"
       ],
       "tier": "integration"

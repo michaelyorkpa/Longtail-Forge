@@ -7,6 +7,7 @@ import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import {
@@ -73,6 +74,7 @@ async function saveSourced(source, payload, session) {
     source_url: normalizedSource.source_url,
     sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
   };
+  timer.billable = normalizeTimeEntryBillable(payload?.billable) || "yes";
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   timer.billable = normalizeWorkspaceBillable(settings.workspaceType, timer.billable);
 
