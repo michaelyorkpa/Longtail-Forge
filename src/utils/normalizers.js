@@ -1,7 +1,64 @@
+// @ts-check
+
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "./timezones.js";
 import { getWorkspaceCapabilities, normalizeWorkspaceType } from "./workspaces.js";
 
+/** @typedef {"yes" | "no" | ""} TimeEntryBillable */
+/** @typedef {"unbilled" | "billed" | "paid"} TimeEntryInvoiceStatus */
+/**
+ * @typedef {Object} TimeEntry
+ * @property {string} entry_id
+ * @property {string} workspace_id
+ * @property {string} user_id
+ * @property {string} client_id
+ * @property {string} client_name
+ * @property {string} project_id
+ * @property {string} project_name
+ * @property {string} task_id
+ * @property {string} description
+ * @property {string} start_time
+ * @property {string} end_time
+ * @property {string} duration_seconds
+ * @property {string} duration_hours
+ * @property {TimeEntryBillable} billable
+ * @property {TimeEntryInvoiceStatus} invoice_status
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+/**
+ * @typedef {Object} TimeEntryInput
+ * @property {unknown} [entry_id]
+ * @property {unknown} [workspace_id]
+ * @property {unknown} [user_id]
+ * @property {unknown} [client_id]
+ * @property {unknown} [client_name]
+ * @property {unknown} [project_id]
+ * @property {unknown} [project_name]
+ * @property {unknown} [task_id]
+ * @property {unknown} [description]
+ * @property {string | number | null} [start_time]
+ * @property {string | number | null} [end_time]
+ * @property {string | number | null} [duration_seconds]
+ * @property {string | number | null} [duration_hours]
+ * @property {unknown} [billable]
+ * @property {unknown} [invoice_status]
+ * @property {unknown} [created_at]
+ * @property {unknown} [updated_at]
+ */
+
+/**
+ * Normalize the canonical application-facing time-entry record.
+ *
+ * Duration values intentionally remain decimal strings: persistence and
+ * billing consumers perform their own explicit numeric conversion at the
+ * calculation boundary.
+ *
+ * @param {TimeEntryInput} entry
+ * @returns {TimeEntry}
+ */
 function normalizeTimeEntry(entry) {
+  const invoiceStatus = entry.invoice_status;
+
   return {
     entry_id: String(entry.entry_id || "").trim(),
     workspace_id: String(entry.workspace_id || "").trim(),
@@ -14,17 +71,40 @@ function normalizeTimeEntry(entry) {
     description: String(entry.description || "").trim(),
     start_time: normalizeUtcIso(entry.start_time),
     end_time: normalizeUtcIso(entry.end_time),
-    duration_seconds: String(entry.duration_seconds || "0").trim(),
-    duration_hours: String(entry.duration_hours || "0").trim(),
+    duration_seconds: normalizeTimeEntryDuration(entry.duration_seconds),
+    duration_hours: normalizeTimeEntryDuration(entry.duration_hours),
     billable: normalizeTimeEntryBillable(entry.billable),
-    invoice_status: ["unbilled", "billed", "paid"].includes(entry.invoice_status)
-      ? entry.invoice_status
+    invoice_status: isTimeEntryInvoiceStatus(invoiceStatus)
+      ? invoiceStatus
       : "unbilled",
     created_at: String(entry.created_at || "").trim(),
     updated_at: String(entry.updated_at || "").trim(),
   };
 }
 
+/**
+ * Preserve the existing string-valued duration contract while making the
+ * number-to-string coercion visible to checked consumers.
+ *
+ * @param {string | number | null | undefined} value
+ * @returns {string}
+ */
+function normalizeTimeEntryDuration(value) {
+  return String(value || "0").trim();
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is TimeEntryInvoiceStatus}
+ */
+function isTimeEntryInvoiceStatus(value) {
+  return value === "unbilled" || value === "billed" || value === "paid";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TimeEntryBillable}
+ */
 function normalizeTimeEntryBillable(value) {
   if (value === "yes" || value === true) {
     return "yes";

@@ -88,6 +88,8 @@ As of 0.33.32.2, `framework.typecheck-seams` also owns the separate HTTP identit
 
 As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<unknown>`, inventories every checked consumer, requires the Support View route's explicit object narrowing, and raises the monotonic floor to 29 files. `framework.support-view-session-contract` proves JSON `null`, array, string, and number bodies return the existing generic confirmation 400 while a valid object still starts and rotates Support View successfully; the HTTP error and public-demo body regressions retain their independent parser/envelope/admission coverage.
 
+As of 0.33.32.3, `framework.typecheck-seams` also pins the canonical `TimeEntry` string-duration and tri-state billable typedefs, the timezone input/parsed-part/date-edge declarations, and the monotonic 32-file floor. The checked `normalizers-timezones.test.mjs` contract imports those runtime types and proves record coercion, empty-input call-time fallback, explicit offsets, invalid-input fallback, invalid named-timezone failure, DST gap/overlap behavior, and local-date start/end conversion.
+
 As of 0.33.30.3, the same release-gate owner also pins readable target selection, the normal-session-only audit/filter/export contract, 1,000-row export ceiling, 365-day transactional retention, pre-gate CSRF-protected exit rotation, persistent shared-shell banner, dynamic write-control suppression, and safe focus/landing restoration source boundaries. `support-view.spec.mjs` supplies the managed desktop journey and axe scans for entry, active state, authoritative write/sensitive-read denial, exit, focus restoration, and audit review.
 
 ## Current Entry Points

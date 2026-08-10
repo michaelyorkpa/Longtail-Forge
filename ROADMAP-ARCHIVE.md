@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.3 - Canonical record normalizers and timezone math
+
+Completed on 2026-08-10. The canonical time-entry and timezone utility seams now carry checked, importable JSDoc contracts, and the active 0.33.32 work advances to `0.33.32.4` for time-entry duration persistence and public API ingress.
+
+**Model: High Effort** - The small utility layer defines shared record shapes and DST-sensitive arithmetic.
+
+- [x] Opted `src/utils/normalizers.js` into checking with an authoritative `TimeEntry` typedef that preserves string durations, tri-state billable values, and exact invoice-status output; numeric duration-to-string coercion is now an explicit helper.
+- [x] Opted `src/utils/timezones.js` into checking with accepted date/fallback input unions, a `"start" | "end"` edge union, nullable parse results, and string ISO returns. Proved that empty input intentionally resolves through the call-time fallback without changing it.
+- [x] Raised the complete checked-seam inventory and floor from 29 to 32 files, opted the utility contract test into checking, and covered the canonical record shape plus explicit-offset, invalid-input, invalid-timezone, DST-gap, DST-overlap, and local-date edge behavior.
+
+Acceptance criteria:
+
+- Consumers have one honest typed time-entry shape and timezone utilities retain proven DST and invalid-input behavior.
+
 ## Version 0.33.32.2.1 - Untrusted JSON request-body boundary
 
 Completed on 2026-08-10. The shared streaming JSON reader now preserves `unknown` through checked callers, and the active 0.33.32 work advances to `0.33.32.3` for canonical record normalizers and timezone math.
