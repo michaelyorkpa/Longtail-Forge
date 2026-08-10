@@ -540,23 +540,43 @@ export type JobHandler = (job: JobRecord, context?: Record<string, unknown>) => 
 // ---------------------------------------------------------------------------
 
 export interface DatabaseDialect {
+  conflict: {
+    buildInsertOnConflictDoUpdate(options: Record<string, unknown>): string;
+    [key: string]: unknown;
+  };
   returning: {
     columns(columns: readonly string[]): string;
+    [key: string]: unknown;
+  };
+  time: {
+    elapsedSecondsSince(timestampExpressionSql: string, referenceExpressionSql?: string): string;
     [key: string]: unknown;
   };
   [key: string]: unknown;
 }
 
-export interface DatabaseTransaction {
-  query(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
-  dialect: DatabaseDialect;
-  [key: string]: unknown;
+export type DatabaseParams = Record<string, unknown> | unknown[];
+export type DatabaseRow = Record<string, any>;
+
+export interface TransactionClient {
+  readonly capabilities: Record<string, unknown>;
+  readonly dialect: DatabaseDialect;
+  query(sql: string, params?: DatabaseParams): Promise<DatabaseRow[]>;
+  get(sql: string, params?: DatabaseParams): Promise<DatabaseRow | null>;
+  run(sql: string, params?: DatabaseParams): Promise<unknown>;
 }
 
-export interface DatabaseSeam {
-  run(sql: string, params?: Record<string, unknown>): Promise<unknown>;
-  get(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown> | undefined>;
-  all(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
-  transaction<T>(work: (transaction: DatabaseTransaction) => Promise<T>): Promise<T>;
-  [key: string]: unknown;
+export interface DatabaseAdapter extends TransactionClient {
+  readonly provider: string;
+  close(): Promise<void>;
+  health(): Promise<DatabaseRow>;
+  initializeRuntime?(): Promise<DatabaseRow>;
+  getLastHealth?(): DatabaseRow | null;
+  formatHealth?(health?: any): string;
+  transaction<T>(work: (transaction: TransactionClient) => Promise<T> | T): Promise<T>;
 }
+
+// Compatibility names retained for checked consumers converted before the
+// adapter and transaction-client distinction was made explicit.
+export type DatabaseTransaction = TransactionClient;
+export type DatabaseSeam = DatabaseAdapter;

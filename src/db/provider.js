@@ -1,3 +1,4 @@
+// @ts-check
 import { config } from "../config.js";
 import { createSqliteAdapter } from "./adapters/sqlite-adapter.js";
 import { assertRegressionDatabaseTarget } from "./regression-database-safety.js";
@@ -8,11 +9,17 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
+/** @typedef {import("../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
+
 assertRegressionDatabaseTarget(config.databaseFile);
 
 const db = createDatabaseAdapter(config.databaseProvider);
 const databaseDialect = db.dialect;
 
+/**
+ * @param {string} provider
+ * @returns {DatabaseAdapter}
+ */
 function createDatabaseAdapter(provider) {
   if (provider === "sqlite") {
     return createSqliteAdapter();

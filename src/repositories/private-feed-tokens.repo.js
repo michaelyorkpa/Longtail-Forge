@@ -1,5 +1,9 @@
+// @ts-check
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/framework-contracts.js").TransactionClient} TransactionClient */
 
 const CALENDAR_SELECT = `
 SELECT
@@ -55,6 +59,11 @@ LEFT JOIN clients AS project_clients
   ON project_clients.workspace_id = projects.workspace_id
   AND project_clients.id = projects.client_id`;
 
+/**
+ * @param {string} workspaceId
+ * @param {string} providerId
+ * @param {TransactionClient} [database]
+ */
 async function listForWorkspace(workspaceId, providerId, database = db) {
   return database.query(`${CALENDAR_SELECT}
 WHERE tokens.workspace_id = :workspaceId
@@ -65,6 +74,11 @@ ORDER BY CASE tokens.status WHEN 'active' THEN 0 ELSE 1 END, tokens.created_at D
   });
 }
 
+/**
+ * @param {string} providerId
+ * @param {any} [filters]
+ * @param {TransactionClient} [database]
+ */
 async function listActive(providerId, filters = {}, database = db) {
   const clauses = ["tokens.provider_id = :providerId", "tokens.status = 'active'"];
   const params = { providerId };
@@ -81,6 +95,12 @@ WHERE ${clauses.join("\n  AND ")}
 ORDER BY tokens.created_at, tokens.private_feed_token_id;`, params);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {TransactionClient} [database]
+ */
 async function readById(workspaceId, subscriptionId, providerId, database = db) {
   return database.get(`${CALENDAR_SELECT}
 WHERE tokens.workspace_id = :workspaceId
@@ -89,6 +109,11 @@ WHERE tokens.workspace_id = :workspaceId
 LIMIT 1;`, { providerId, subscriptionId, workspaceId });
 }
 
+/**
+ * @param {string} providerId
+ * @param {string} tokenSelector
+ * @param {TransactionClient} [database]
+ */
 async function readForAuthentication(providerId, tokenSelector, database = db) {
   return database.get(`${CALENDAR_SELECT}
 WHERE tokens.provider_id = :providerId
@@ -108,6 +133,10 @@ WHERE tokens.provider_id = :providerId
 LIMIT 1;`, { providerId, tokenSelector });
 }
 
+/**
+ * @param {any} input
+ * @param {TransactionClient} [database]
+ */
 async function create({ name, providerId, scopeClientId, scopeProjectId, scopeType, tokenHash, tokenSelector, userId, workspaceId }, database = db) {
   const now = new Date().toISOString();
   const subscriptionId = createRecordId();
@@ -136,6 +165,14 @@ INSERT INTO private_feed_tokens (
   return readById(workspaceId, subscriptionId, providerId, database);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {string} tokenSelector
+ * @param {string} tokenHash
+ * @param {DatabaseAdapter} [database]
+ */
 async function rotate(workspaceId, subscriptionId, providerId, tokenSelector, tokenHash, database = db) {
   return database.transaction(async (transaction) => {
     const current = await readById(workspaceId, subscriptionId, providerId, transaction);
@@ -160,6 +197,12 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {DatabaseAdapter} [database]
+ */
 async function remove(workspaceId, subscriptionId, providerId, database = db) {
   return database.transaction(async (transaction) => {
     const current = await readById(workspaceId, subscriptionId, providerId, transaction);
@@ -178,6 +221,11 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string[]} subscriptionIds
+ * @param {string} reason
+ * @param {DatabaseAdapter} [database]
+ */
 async function revokeMany(subscriptionIds, reason, database = db) {
   if (!Array.isArray(subscriptionIds) || subscriptionIds.length === 0) {
     return { changed: 0 };
