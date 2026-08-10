@@ -162,7 +162,7 @@ This register is the **guardrail** for Longtail Forge marketing. For each meanin
 - **Evidence:** root [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES.md); [licensing](../licensing.md); [CHANGELOG](../../CHANGELOG.md) 0.33.25.1-.2.
 - **Verified at:** v0.33.25.6 · 2026-07-30.
 - **Permitted locations:** licensing FAQ, distribution notes, and About/Help descriptions.
-- **Prohibited / risky:** Do not imply these notices are legal advice, a compliance certification, final hosted-instance Terms or Privacy content, professional legal approval, or an activated outside-contributor process. Public Terms/Privacy routes ship with neutral operator templates; the review path appropriate to future public analytics, feedback, or interest capture is deferred to 0.33.32.
+- **Prohibited / risky:** Do not imply these notices are legal advice, a compliance certification, final hosted-instance Terms or Privacy content, professional legal approval, or an activated outside-contributor process. Public Terms/Privacy routes ship with neutral operator templates; the review path appropriate to future public analytics, feedback, or interest capture is deferred to 0.33.33.
 - **Owner:** maintainer. **Refresh trigger:** dependency inventory, bundled assets, license stack, public legal-surface status, or hosted legal approval changes.
 
 ---

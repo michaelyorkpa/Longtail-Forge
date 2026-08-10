@@ -109,6 +109,17 @@ This section is to define a series of human testing goals for different sections
 
 The 2026-07-22 re-audit of the current rendered surfaces produced the concrete near-term tweaks now promoted to **ROADMAP.md 0.33.21.10** (app-shell notification/search relocation, mobile Day-default calendar, Workbench Inspector slide-out, Workbench chip layout). Broader mobile-polish work beyond those items stays deferred to a future pass: re-audit the current rendered surfaces first, and do not revive layout requests written against retired page anatomy.
 
+## TypeScript gap closure after 0.33.32 (module internals and remaining seams)
+
+Context: **ROADMAP.md 0.33.32** deliberately types the framework seams plus the Time Tracking money path and leaves module internals unchecked. The 2026-08-06 typecheck audit's largest remaining error concentrations live in exactly those internals, so close the gap after (or interleaved with) 0.34 using the same ceremony 0.33.32 settles: per-file `// @ts-check` opt-in, reproduce-before-fix for any behavioral finding, and extending the 0.33.32.1 inventory/ratchet.
+
+- Per-module internals conversion in priority order **Notes -> Lists -> Tasks -> Clients/Projects**, permission-adjacent files first: `src/modules/notes/catalog-security.service.js` (Secure Notes authority), `notes/access-policy.js`, and `lists/access-policy.js` before the big services/repos. `notes.service.js` (~4.4k lines) was the audit's single largest error concentration (166 probe errors), followed by `lists.service.js` (92) and the Tasks service/repo/recurrence cluster.
+- Notes and Lists have no `*.contracts.js` Zod edge (only Files, Tasks, and Time Tracking do), so their routes feed unvalidated bodies into the untyped services. Decide per module whether the hardening pass also adds the module-owned Zod edge contract following the settled 0.33.7.3 (strict/Files) or 0.33.7.6 (calibrated/Tasks) templates.
+- `src/services/files.service.js` (~4.5k lines): framework-owned, sits directly behind the already-typed `files.contracts.js` — the widest typed-seam/untyped-implementation gap left after 0.33.32. Include its local/S3 storage and scanner adapters, which the same audit found bare.
+- `src/routes/private-feeds.routes.js`: the unauthenticated token-in-URL calendar feed surface. Small file, real trust boundary; its token repository gets typed in 0.33.32.8 but the route itself has no slice.
+- The deferred client-hardening branch: whole-file conversion of the giant page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) and `navigation.js`/`view-renderer.js`/`view-builder.js` after 0.33.32's boundary adapters (slices 20-22) land. Prerequisite: a checked element-lookup helper, since the ~876 unguarded `querySelector` sites are what make whole-file DOM checking intractable today.
+- Verification note while the 0.33.32 revision is still uncommitted: confirm the final landed section includes `sidebarLabel` in the slice 22 descriptor projection (read at five `view-renderer.js` aria-label sites) and records the module-internals deferral above as an explicit 0.33.32 non-goal; if either dropped out, restore it there rather than tracking it here.
+
 # Near Term Ideas
 
 ## User controls
