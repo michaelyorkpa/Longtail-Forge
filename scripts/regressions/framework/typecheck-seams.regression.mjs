@@ -113,6 +113,12 @@ assert.doesNotMatch(taskTimersServiceSource, /time-tracking\/active-timers\.serv
 assert.match(taskTimersServiceSource, /function taskTimerBillable\(task\)[\s\S]*normalizeTimeEntryBillable\(task\?\.billable\) \|\| "yes"/);
 const activeTimersServiceSource = readFileSync("src/modules/time-tracking/active-timers.service.js", "utf8");
 assert.match(activeTimersServiceSource, /timer\.billable = normalizeTimeEntryBillable\(payload\?\.billable\) \|\| "yes"/);
+assert.match(activeTimersServiceSource, /@typedef \{import\("\.\/active-timers\.repo\.js"\)\.ActiveTimer\} ActiveTimer/);
+assert.match(activeTimersServiceSource, /function finalizedTimerFacts[\s\S]*durationHours: \(durationSeconds \/ 3600\)\.toFixed\(4\)/);
+assert.doesNotMatch(activeTimersServiceSource, /durationHours: payload\?\.duration_hours/);
+const activeTimersRepositorySource = readFileSync("src/modules/time-tracking/active-timers.repo.js", "utf8");
+assert.match(activeTimersRepositorySource, /@typedef \{Object\} ActiveTimer/);
+assert.match(activeTimersRepositorySource, /@param \{ActiveTimer\} timer[\s\S]*async function upsert\(timer\)/);
 
 // The checked-in inventory is the complete review surface, not a hand-picked
 // subset. Its floor can rise with later slices but cannot silently fall.

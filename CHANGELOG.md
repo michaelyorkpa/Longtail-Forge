@@ -1,3 +1,11 @@
+## Version 0.33.32.6 - 2026-08-10
+
+- Opted the active-timer service and repository into checked JavaScript with one repository-owned `ActiveTimer` record contract, Zod-inferred timer payloads, and canonical Time Entry input typing at finalization.
+- Reproduced missing-timer finalization clamping absent seconds to one while persisting caller-supplied hours, then made the clamped seconds authoritative for the matching four-decimal hours projection.
+- Added isolated fallback and stored-timer finalization proof for numeric duration agreement, authoritative accumulated seconds, active-row removal, and SQLite integrity; raised the checked-seam floor from 36 to 38 and the regression floors from 453/11 to 454/12.
+- Docs updated: `docs/module-development.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`.
+- No docs change needed: active-timer UI, Help, permissions, lifecycle events, Tasks behavior, billing periods, schemas, architecture, workflow context, deployment, and runtime configuration are unchanged.
+
 ## Version 0.33.32.5 - 2026-08-10
 
 - Opted the Tasks timer service into checked JavaScript, moved its Time Tracking dependency to the public module entry, and removed the resolved deep-import baseline exception.

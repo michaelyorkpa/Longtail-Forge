@@ -1,4 +1,35 @@
+// @ts-check
 import { db } from "../../core/database.js";
+
+/**
+ * Canonical application-facing active-timer record shared with the checked
+ * service boundary. Source identity is nullable while a manual timer is being
+ * assembled and normalized to empty strings when read back from persistence.
+ *
+ * @typedef {Object} ActiveTimer
+ * @property {string} active_timer_id
+ * @property {string} workspace_id
+ * @property {string} user_id
+ * @property {string} timer_slot
+ * @property {string | null} source_module_id
+ * @property {string} source_type
+ * @property {string | null} source_id
+ * @property {string} source_label
+ * @property {string} source_url
+ * @property {unknown} [source_metadata_json]
+ * @property {Record<string, unknown>} [sourceMetadata]
+ * @property {string} client_id
+ * @property {string} client_name
+ * @property {string} project_id
+ * @property {string} project_name
+ * @property {string} description
+ * @property {"yes" | "no"} billable
+ * @property {number} accumulated_elapsed_seconds
+ * @property {string | null} last_active_start_time
+ * @property {"running" | "paused"} timer_status
+ * @property {string} [created_at]
+ * @property {string} [updated_at]
+ */
 
 const ACTIVE_TIMER_COLUMNS = [
   "active_timer_id",
@@ -145,6 +176,7 @@ LIMIT 1;
   return row ? activeTimerRowToAppValue(row) : null;
 }
 
+/** @param {ActiveTimer} timer */
 async function convertManualToSource(workspaceId, userId, timerSlot, timer) {
   return db.transaction(async (transaction) => {
     const existingSource = await transaction.get(selectSql(`
@@ -235,6 +267,7 @@ LIMIT 1;
   });
 }
 
+/** @param {ActiveTimer} timer */
 async function upsert(timer) {
   const now = new Date().toISOString();
 
@@ -450,6 +483,7 @@ FROM active_work_timers
 ${whereSql}`;
 }
 
+/** @returns {ActiveTimer} */
 function activeTimerRowToAppValue(row) {
   return {
     active_timer_id: row.active_timer_id,
@@ -477,6 +511,7 @@ function activeTimerRowToAppValue(row) {
   };
 }
 
+/** @param {ActiveTimer} timer */
 function activeTimerWriteParams(timer, now) {
   return {
     accumulatedElapsedSeconds: integerParam(timer.accumulated_elapsed_seconds),

@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.6 - Active timer duration consistency
+
+Completed on 2026-08-10. Active-timer persistence and finalization now share checked timer and entry contracts, and every finalized entry derives its hours projection from authoritative seconds. The active 0.33.32 work advances to `0.33.32.7` for billing-period and Dashboard time boundaries.
+
+**Model: High Effort** - This was one data-integrity seam with one confirmed contradictory-duration defect.
+
+- [x] Opted `src/modules/time-tracking/active-timers.service.js` and `src/modules/time-tracking/active-timers.repo.js` into checking with a repository-owned `ActiveTimer` record, Zod-inferred timer payloads, and canonical Time Entry finalization inputs.
+- [x] Reproduced missing-timer finalization clamping absent seconds to one while retaining caller-supplied hours, then made the clamped seconds authoritative for the stored four-decimal hours projection.
+- [x] Raised the checked-seam inventory and floor from 36 to 38 files and added isolated proof for the fallback plus stored paused-timer finalization, authoritative accumulated seconds, matching hours, active-row removal, and SQLite integrity.
+
+Acceptance criteria:
+
+- Finalized timers cannot persist contradictory duration fields, with other lifecycle behavior unchanged.
+
 ## Version 0.33.32.5 - Sourced time-entry and task-timer bridge
 
 Completed on 2026-08-10. Sourced timer saves and Task Timer finalization now preserve canonical non-billable intent and authoritative stored duration through Time Tracking's public module boundary, and the active 0.33.32 work advances to `0.33.32.6` for active-timer duration consistency.
