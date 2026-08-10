@@ -11,6 +11,8 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
+/** @typedef {import("../types/framework-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+
 /**
  * @typedef {Object} SqliteHealth
  * @property {string} provider
@@ -61,18 +63,30 @@ function readSqliteStatementCount() {
   return executedStatementCount;
 }
 
-/** @param {PreparedStatementAnalysis} [analysis] */
+/**
+ * @param {string} sql
+ * @param {DatabaseParameterValue[]} [params]
+ * @param {PreparedStatementAnalysis} [analysis]
+ */
 async function runSql(sql, params = undefined, analysis = undefined) {
   executeRunSql(sql, normalizeSqliteParameters(params), analysis);
   return "";
 }
 
-/** @param {PreparedStatementAnalysis} [analysis] */
+/**
+ * @param {string} sql
+ * @param {DatabaseParameterValue[]} [params]
+ * @param {PreparedStatementAnalysis} [analysis]
+ */
 async function querySql(sql, params = undefined, analysis = undefined) {
   return executeQuerySql(sql, normalizeSqliteParameters(params), analysis);
 }
 
-/** @param {PreparedStatementAnalysis} [analysis] */
+/**
+ * @param {string} sql
+ * @param {DatabaseParameterValue[]} [params]
+ * @param {PreparedStatementAnalysis} [analysis]
+ */
 async function getSql(sql, params = undefined, analysis = undefined) {
   return executeGetSql(sql, normalizeSqliteParameters(params), analysis);
 }

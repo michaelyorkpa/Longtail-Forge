@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.9 - Dialect seams and parameter bindings
+
+Completed on 2026-08-10. The SQLite dialect and parameter-binding implementations now expose exact checked contracts without changing generated SQL or values, and the active 0.33.32 work advances to `0.33.32.10` for high-fan-in repository signatures.
+
+**Model: High Effort** - These helpers shape every query and required exact discriminated unions.
+
+- [x] Typed `sqlite-dialect-seams.js` with explicit builder option bags, the current string/object row-ID union, and paired boolean storage/read field transforms.
+- [x] Typed `parameter-bindings.js` with normalized parameter-state and named scalar/array discriminated unions so checked consumers must narrow before reading variant placeholder properties.
+- [x] Raised the checked-seam inventory and floor from 47 to 49 files, added compile-time misuse proof, and retained green dialect, boolean/time, introspection, binding, and statement-cache runtime regressions. High-fan-in repositories remain slice 10.
+
+Acceptance criteria:
+
+- Malformed options and placeholder misuse fail typecheck while generated SQL and values remain equivalent.
+
 ## Version 0.33.32.8 - Database adapter and transaction-client contract
 
 Completed on 2026-08-10. Checked database consumers now distinguish the full provider adapter from the callback-scoped transaction client, and the active 0.33.32 work advances to `0.33.32.9` for dialect seams and parameter bindings.
