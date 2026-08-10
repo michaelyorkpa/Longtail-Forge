@@ -94,6 +94,8 @@ As of 0.33.32.4, `framework.typecheck-seams` also inventories the Time Tracking 
 
 As of 0.33.32.5, `framework.typecheck-seams` also inventories the Tasks timer service at a monotonic 36-file floor, requires its Time Tracking dependency to use the public module entry, and pins canonical billable normalization at both sides of the sourced save bridge. `time-tracking.sourced-task-timer-bridge` reproduces boolean `false` collapsing to `"yes"`, then proves the corrected direct save plus a non-billable Task Timer's save/finalize lifecycle retain 300 authoritative seconds, a matching hours projection, Task attribution, sourced-row removal, and SQLite integrity.
 
+As of 0.33.32.6, `framework.typecheck-seams` also inventories the active-timer service and repository at a monotonic 38-file floor, pins their shared `ActiveTimer` record and seconds-derived finalization projection, and rejects a return to client-supplied hours at that boundary. `time-tracking.active-timer-duration-consistency` reproduces the missing-timer one-second clamp retaining contradictory hours, then proves both that fallback and stored paused-timer finalization persist matching duration fields, preserve authoritative accumulated seconds, remove the timer row, and pass SQLite integrity.
+
 As of 0.33.30.3, the same release-gate owner also pins readable target selection, the normal-session-only audit/filter/export contract, 1,000-row export ceiling, 365-day transactional retention, pre-gate CSRF-protected exit rotation, persistent shared-shell banner, dynamic write-control suppression, and safe focus/landing restoration source boundaries. `support-view.spec.mjs` supplies the managed desktop journey and axe scans for entry, active state, authoritative write/sensitive-read denial, exit, focus restoration, and audit review.
 
 ## Current Entry Points
@@ -201,13 +203,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 450 |
+| Active discovered regressions | 451 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 141 |
+| Convention-path metadata regressions | 142 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 453 |
+| Global ratchet floor | 454 |
 | Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -223,7 +225,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `search` | 12 | 0 | 12 |
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
-| `time-tracking` | 11 | 0 | 11 |
+| `time-tracking` | 12 | 0 | 12 |
 | `database` | 42 | 0 | 42 |
 | `permissions` | 12 | 0 | 12 |
 | `jobs` | 7 | 0 | 7 |
@@ -236,7 +238,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | --- | ---: |
 | `unit-like` | 0 |
 | `focused` | 205 |
-| `integration` | 167 |
+| `integration` | 168 |
 | `release-gate` | 70 |
 | `slow` | 8 |
 
@@ -246,7 +248,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 190 |
+| `isolated-database` | 191 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

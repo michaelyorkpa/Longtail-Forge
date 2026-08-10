@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 450,
+    "discoveredScripts": 451,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
@@ -23,18 +23,18 @@
       "search": 12,
       "tags": 12,
       "tasks": 58,
-      "time-tracking": 11,
+      "time-tracking": 12,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
       "focused": 205,
-      "integration": 167,
+      "integration": 168,
       "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 190,
+      "isolated-database": 191,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 226
@@ -4573,6 +4573,21 @@
         "permissions",
         "recurrence",
         "tasks",
+        "timers"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves active-timer finalization persists one authoritative seconds value with a matching hours projection, including the missing-timer fallback.",
+      "id": "time-tracking.active-timer-duration-consistency",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "time-tracking",
         "timers"
       ],
       "tier": "integration"
