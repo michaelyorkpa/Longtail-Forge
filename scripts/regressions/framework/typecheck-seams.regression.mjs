@@ -81,6 +81,8 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SessionRotation",
   "SessionRotationState",
   "SessionInvalidationState",
+  "JsonBodyRequest",
+  "ReadJsonBodyOptions",
   "SupportViewGateOutcome",
   "SupportViewGateReasonClass",
   "HttpIdentityRequest",
@@ -148,6 +150,25 @@ assert.match(
   httpContractSource,
   /namespace Express[\s\S]+interface Request extends SessionRotationState, SessionInvalidationState/,
   "the HTTP contract must augment Express.Request with identity and session lifecycle state",
+);
+const httpUtilitySource = readFileSync("src/utils/http.js", "utf8");
+assert.match(
+  httpUtilitySource,
+  /@returns \{Promise<unknown>\}[\s\S]{0,120}function readJsonBody/,
+  "readJsonBody must preserve unknown at the checked request-body boundary",
+);
+const checkedJsonBodyConsumers = CHECKED_SEAM_FILES.filter((filePath) => (
+  filePath !== "src/utils/http.js" && readFileSync(filePath, "utf8").includes("readJsonBody")
+));
+assert.deepEqual(
+  checkedJsonBodyConsumers,
+  ["src/routes/support-view.routes.js"],
+  "every checked readJsonBody consumer must be inventoried for explicit unknown narrowing",
+);
+assert.match(
+  readFileSync("src/routes/support-view.routes.js", "utf8"),
+  /if \(!isJsonObject\(payload\) \|\| payload\.confirmedReadOnly !== true\)/,
+  "the checked Support View route must narrow unknown JSON before property access",
 );
 
 // tsconfig keeps the dev-check dials this checking regime depends on.

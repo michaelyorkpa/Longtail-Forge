@@ -86,6 +86,8 @@ As of 0.33.30.2, `framework.support-view-request-enforcement` is the release-gat
 
 As of 0.33.32.2, `framework.typecheck-seams` also owns the separate HTTP identity declarations, Express request augmentation, the exact Support View outcome/reason unions, and the monotonic 27-file checked-seam floor. The existing remembered-session, auth warning, revocation, account-recovery, Support View session, and Support View request-enforcement regressions remain the behavioral proof that adding the checked contract did not change authentication, rotation/invalidation, or 403/404 outcomes.
 
+As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<unknown>`, inventories every checked consumer, requires the Support View route's explicit object narrowing, and raises the monotonic floor to 29 files. `framework.support-view-session-contract` proves JSON `null`, array, string, and number bodies return the existing generic confirmation 400 while a valid object still starts and rotates Support View successfully; the HTTP error and public-demo body regressions retain their independent parser/envelope/admission coverage.
+
 As of 0.33.30.3, the same release-gate owner also pins readable target selection, the normal-session-only audit/filter/export contract, 1,000-row export ceiling, 365-day transactional retention, pre-gate CSRF-protected exit rotation, persistent shared-shell banner, dynamic write-control suppression, and safe focus/landing restoration source boundaries. `support-view.spec.mjs` supplies the managed desktop journey and axe scans for entry, active state, authoritative write/sensitive-read denial, exit, focus restoration, and audit review.
 
 ## Current Entry Points

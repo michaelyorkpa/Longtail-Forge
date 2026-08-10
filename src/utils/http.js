@@ -1,4 +1,8 @@
+// @ts-check
 import { AppError } from "./app-error.js";
+
+/** @typedef {import("../types/http-contracts.js").JsonBodyRequest} JsonBodyRequest */
+/** @typedef {import("../types/http-contracts.js").ReadJsonBodyOptions} ReadJsonBodyOptions */
 
 function asyncRoute(handler) {
   return (request, response, next) => {
@@ -6,6 +10,11 @@ function asyncRoute(handler) {
   };
 }
 
+/**
+ * @param {JsonBodyRequest} request
+ * @param {ReadJsonBodyOptions} [options]
+ * @returns {Promise<unknown>}
+ */
 function readJsonBody(request, options = {}) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -24,7 +33,7 @@ function readJsonBody(request, options = {}) {
 
     request.on("end", async () => {
       try {
-        const payload = JSON.parse(body);
+        const payload = /** @type {unknown} */ (JSON.parse(body));
         if (typeof request.publicDemoBudgetPayloadValidator === "function") {
           await request.publicDemoBudgetPayloadValidator(payload);
         }

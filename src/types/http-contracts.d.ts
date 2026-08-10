@@ -83,6 +83,17 @@ export interface SessionInvalidationState {
   sessionInvalidated?: true;
 }
 
+export interface JsonBodyRequest {
+  on(event: "data", listener: (chunk: string | Buffer) => void): unknown;
+  on(event: "end", listener: () => void): unknown;
+  destroy(): void;
+  publicDemoBudgetPayloadValidator?: (payload: unknown) => void | Promise<void>;
+}
+
+export interface ReadJsonBodyOptions {
+  maxBytes?: number;
+}
+
 export type SupportViewGateOutcome = "allowed" | "denied";
 export type SupportViewGateReasonClass =
   | "mutation_denied"

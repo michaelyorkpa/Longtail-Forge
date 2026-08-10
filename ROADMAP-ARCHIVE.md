@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.2.1 - Untrusted JSON request-body boundary
+
+Completed on 2026-08-10. The shared streaming JSON reader now preserves `unknown` through checked callers, and the active 0.33.32 work advances to `0.33.32.3` for canonical record normalizers and timezone math.
+
+**Model: High Effort** - Raw request bodies cross every route's trust boundary, and the first runtime proof closed a security-sensitive null-body 500 without mixing unrelated route conversions into this slice.
+
+- [x] Opted in `src/utils/http.js`, declared `readJsonBody()` as `Promise<unknown>`, and inventoried every currently checked consumer so each must narrow through an existing schema or explicit shape guard before property access.
+- [x] Opted in `src/routes/support-view.routes.js`, reproduced JSON `null` returning 500, and added the smallest explicit object guard. Null, array, string, and number bodies now retain the generic confirmation 400; a valid object still starts Support View and rotates its session.
+- [x] Confirmed `src/utils/app-error.js` needed no conversion because the existing error contract was sufficient. Raised the checked-seam inventory and floor to 29 files and ran raw-body, Support View, authentication, HTTP error-contract, public-demo admission, and permission coverage.
+
+Acceptance criteria:
+
+- `readJsonBody()` never grants a trusted payload type, checked consumers must narrow before property access, and malformed or wrong-shape Support View bodies retain generic regression-backed 4xx behavior.
+
 ## Version 0.33.32.2 - HTTP identity contract and authentication middleware
 
 Completed on 2026-08-10. Browser and API-key authentication now share one checked HTTP identity vocabulary, and the active 0.33.32 work advances to `0.33.32.2.1` for the separately bounded untrusted JSON request-body boundary.

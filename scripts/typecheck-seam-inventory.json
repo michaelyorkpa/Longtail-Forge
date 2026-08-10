@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 27,
+  "minimumOptedInFiles": 29,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -20,6 +20,7 @@
     "src/middleware/support-view-request-gate.js",
     "src/modules/tasks/tasks.contracts.js",
     "src/modules/time-tracking/time-tracking.contracts.js",
+    "src/routes/support-view.routes.js",
     "src/security/sessions.js",
     "src/services/notifications.service.js",
     "src/services/search.service.js",
@@ -28,6 +29,7 @@
     "src/services/work-candidate.service.js",
     "src/services/work-focus-modes.service.js",
     "src/services/work-resume-state-producers.js",
-    "src/services/work-resume-state.service.js"
+    "src/services/work-resume-state.service.js",
+    "src/utils/http.js"
   ]
 }
