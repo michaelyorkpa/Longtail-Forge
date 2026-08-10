@@ -1,6 +1,7 @@
+// @ts-check
 import { taskTimersRepository } from "./task-timers.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
-import { activeTimersService } from "../time-tracking/active-timers.service.js";
+import { activeTimersService } from "../time-tracking/index.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
@@ -9,6 +10,7 @@ import { permissionsService } from "../../core/permissions.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
@@ -44,7 +46,7 @@ async function save(taskId, payload, session) {
       project_id: task.project_id,
       project_name: task.project_name,
       description: task.title,
-      billable: task.billable === "no" ? "no" : "yes",
+      billable: taskTimerBillable(task),
       accumulated_elapsed_seconds: elapsedSeconds,
       last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
       sourceMetadata: {
@@ -95,7 +97,7 @@ async function linkManualTimer(taskId, payload, session) {
 
   try {
     result = await activeTimersService.convertManualToSourced(timerSlot, taskTimerSource(task), {
-      billable: task.billable === "no" ? "no" : "yes",
+      billable: taskTimerBillable(task),
       client_id: task.client_id,
       client_name: task.client_name,
       description: task.title,
@@ -182,7 +184,7 @@ async function finalize(taskId, payload, session) {
     project_name: task.project_name,
     task_id: task.task_id,
     description: task.title,
-    billable: task.billable === "no" ? "no" : "yes",
+    billable: taskTimerBillable(task),
     invoice_status: "unbilled",
   });
   await auditService.record({
@@ -439,6 +441,10 @@ function taskTimerSource(task) {
     source_label: task.title,
     source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
   };
+}
+
+function taskTimerBillable(task) {
+  return normalizeTimeEntryBillable(task?.billable) || "yes";
 }
 
 function taskTimerFromUnified(timer, task) {

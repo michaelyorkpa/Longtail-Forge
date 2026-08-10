@@ -36,6 +36,8 @@ As of 0.33.12.1, `src/modules/time-tracking/time-tracking.contracts.js` owns the
 
 As of 0.33.32.4, public API ingress canonicalizes a supplied duration before calling the repository. Persisted integer `duration_seconds` is the billing/reporting authority: hours-only requests derive nearest integer seconds, while any supplied seconds value takes precedence; either path stores a matching four-decimal hours projection. The repository write boundary now accepts the canonical checked `TimeEntry` shape from `src/utils/normalizers.js`; direct browser, sourced-entry, active-timer, and billing-period behavior is unchanged by this ingress-only correction.
 
+As of 0.33.32.5, the sourced active-timer save path applies the canonical checked billable normalizer before workspace capability enforcement. Boolean `false` and string `"no"` both persist as non-billable instead of an internal boolean being collapsed to `"yes"`. The checked Tasks consumer reaches `activeTimersService` through Time Tracking's public `index.js`; Task Timer finalization continues to derive duration from authoritative stored active seconds and creates the normal canonical Time Entry without a new internal cross-module dependency.
+
 Fast proof lives in `tests/contracts/time-tracking-contracts.test.mjs` and `tests/time-tracking/time-tracking-billing.test.mjs`, run together with `npm run test:time-tracking`; `npm run test:regressions:time-tracking` remains the narrow integration/regression area. Billing unit coverage pins normalization, direct leaf-project summaries, billable partitioning, range boundaries, rounding, hierarchy decoration, recursive mixed-rate/mixed-period/mixed-rounding project totals, and parent/child client ownership.
 
 Workspace billing boundary:

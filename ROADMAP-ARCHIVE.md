@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.5 - Sourced time-entry and task-timer bridge
+
+Completed on 2026-08-10. Sourced timer saves and Task Timer finalization now preserve canonical non-billable intent and authoritative stored duration through Time Tracking's public module boundary, and the active 0.33.32 work advances to `0.33.32.6` for active-timer duration consistency.
+
+**Model: High Effort** - This was one cross-module seam with a confirmed billable-meaning defect.
+
+- [x] Opted `src/modules/tasks/task-timers.service.js` into checking, moved its Time Tracking dependency from the internal service path to the public `index.js` entry, and removed that resolved deep-import baseline exception.
+- [x] Reproduced direct sourced saves collapsing boolean `billable: false` to `"yes"`, then applied the canonical checked billable normalizer at the Time Tracking save seam and every Tasks billable handoff.
+- [x] Raised the checked-seam inventory and floor from 35 to 36 files and added isolated proof that direct sourced saves plus Task Timer save/finalize preserve `"no"`, 300 authoritative seconds, the matching hours projection, Task attribution, sourced-row removal, and SQLite integrity.
+
+Acceptance criteria:
+
+- Sourced entries preserve duration and billable intent through the existing public module dependency, with no new internal cross-module dependency.
+
 ## Version 0.33.32.4 - Time-entry duration persistence and public API ingress
 
 Completed on 2026-08-10. Public API time-entry creates now canonicalize duration into billing-authoritative integer seconds before persistence, and the active 0.33.32 work advances to `0.33.32.5` for the sourced time-entry and task-timer bridge.

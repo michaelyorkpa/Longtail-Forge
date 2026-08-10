@@ -1,3 +1,11 @@
+## Version 0.33.32.5 - 2026-08-10
+
+- Opted the Tasks timer service into checked JavaScript, moved its Time Tracking dependency to the public module entry, and removed the resolved deep-import baseline exception.
+- Corrected sourced Time Tracking saves that collapsed boolean `billable: false` to `"yes"`; the sourced save seam and Tasks handoffs now share the canonical billable normalizer.
+- Added isolated direct-save and full Task Timer save/finalize proof for non-billable intent, 300 authoritative seconds, matching hours, Task attribution, sourced-row removal, and SQLite integrity; raised the checked-seam floor from 35 to 36 and the regression floors from 452/10 to 453/11.
+- Docs updated: `docs/module-development.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+- No docs change needed: Task Timer UI, permissions, lifecycle transitions, audit, Search, work evidence, active-timer duration calculation, billing periods, schemas, Help, deployment, and runtime configuration are unchanged.
+
 ## Version 0.33.32.4 - 2026-08-10
 
 - Opted the Time Tracking time-entry browser/public services and repository into checked JavaScript against the canonical `TimeEntry` contract, with a typed public Zod payload and typed repository create/update boundary.
