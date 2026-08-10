@@ -119,6 +119,15 @@ assert.doesNotMatch(activeTimersServiceSource, /durationHours: payload\?\.durati
 const activeTimersRepositorySource = readFileSync("src/modules/time-tracking/active-timers.repo.js", "utf8");
 assert.match(activeTimersRepositorySource, /@typedef \{Object\} ActiveTimer/);
 assert.match(activeTimersRepositorySource, /@param \{ActiveTimer\} timer[\s\S]*async function upsert\(timer\)/);
+const billingServiceSource = readFileSync("src/modules/time-tracking/time-tracking-billing.service.js", "utf8");
+assert.match(billingServiceSource, /timezone: session\.timezone \|\| DEFAULT_TIMEZONE/);
+assert.match(billingServiceSource, /function getBillingPeriodRange[\s\S]*localDateKey\(today, timezone\)[\s\S]*dateKeyRange/);
+assert.match(billingServiceSource, /function getCustomDateRange[\s\S]*addLocalDateDays\(endDateKey, 1\)[\s\S]*timezone/);
+assert.doesNotMatch(billingServiceSource, /new Date\(today\.getFullYear\(\), today\.getMonth\(\)/);
+const dashboardServiceSource = readFileSync("src/modules/time-tracking/time-tracking-dashboard.service.js", "utf8");
+assert.match(dashboardServiceSource, /function dashboardEffortDateWindow[\s\S]*localDateKey\(now, effectiveTimezone\)/);
+assert.match(dashboardServiceSource, /todayStart: localDateBoundToUtcIso\(today, effectiveTimezone\)/);
+assert.doesNotMatch(dashboardServiceSource, /function localDateKey\(/);
 
 // The checked-in inventory is the complete review surface, not a hand-picked
 // subset. Its floor can rise with later slices but cannot silently fall.

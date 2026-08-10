@@ -1,6 +1,12 @@
+// @ts-check
 import { permissionsService } from "../../core/permissions.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
-import { localDateBoundToUtcIso } from "../../utils/timezones.js";
+import {
+  DEFAULT_TIMEZONE,
+  addLocalDateDays,
+  localDateBoundToUtcIso,
+  localDateKey,
+} from "../../utils/timezones.js";
 import { activeTimersService } from "./active-timers.service.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 
@@ -23,9 +29,7 @@ async function readDashboardEffortSummary(session) {
       operation: "read",
     }),
   ]);
-  const today = localDateKey(new Date(), session.timezone);
-  const windowStart = addDaysKey(today, -(RECENT_TIME_WINDOW_DAYS - 1));
-  const windowEnd = addDaysKey(today, 1);
+  const dateWindow = dashboardEffortDateWindow(new Date(), session.timezone);
   const visibility = canViewReporting
     ? await permissionsService.readTimeEntryVisibility(session)
     : null;
@@ -34,10 +38,10 @@ async function readDashboardEffortSummary(session) {
     canViewReporting
       ? timeEntriesRepository.readDashboardEffortSummary(session.workspace_id, {
         limit: RECENT_TIME_ROW_LIMIT,
-        todayStart: localDateBoundToUtcIso(today, session.timezone),
+        todayStart: dateWindow.todayStart,
         visibility,
-        windowEnd: localDateBoundToUtcIso(windowEnd, session.timezone),
-        windowStart: localDateBoundToUtcIso(windowStart, session.timezone),
+        windowEnd: dateWindow.windowEnd,
+        windowStart: dateWindow.windowStart,
       })
       : { entries: [], entriesCount: 0, todaySeconds: 0, totalSeconds: 0 },
   ]);
@@ -140,22 +144,21 @@ function durationLabel(seconds) {
   return `${((Number(seconds) || 0) / 3600).toFixed(2)} hrs`;
 }
 
-function localDateKey(date, timezone = "America/New_York") {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone || "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
+function dashboardEffortDateWindow(now = new Date(), timezone = DEFAULT_TIMEZONE) {
+  const effectiveTimezone = timezone || DEFAULT_TIMEZONE;
+  const today = localDateKey(now, effectiveTimezone);
+  const windowStart = addLocalDateDays(today, -(RECENT_TIME_WINDOW_DAYS - 1));
+  const windowEnd = addLocalDateDays(today, 1);
+
+  return {
+    today,
+    todayStart: localDateBoundToUtcIso(today, effectiveTimezone),
+    windowEnd: localDateBoundToUtcIso(windowEnd, effectiveTimezone),
+    windowStart: localDateBoundToUtcIso(windowStart, effectiveTimezone),
+  };
 }
 
-function addDaysKey(dateKey, days) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+export { dashboardEffortDateWindow };
 
 export const timeTrackingDashboardService = {
   readDashboardEffortSummary,

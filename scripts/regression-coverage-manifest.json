@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 451,
+    "discoveredScripts": 452,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
@@ -23,18 +23,18 @@
       "search": 12,
       "tags": 12,
       "tasks": 58,
-      "time-tracking": 12,
+      "time-tracking": 13,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
       "focused": 205,
-      "integration": 168,
+      "integration": 169,
       "release-gate": 70,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 191,
+      "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
       "static": 226
@@ -4589,6 +4589,23 @@
         "database",
         "time-tracking",
         "timers"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves billing periods and Dashboard effort windows use session-local calendar boundaries converted to UTC across month and DST edges.",
+      "id": "time-tracking.billing-dashboard-timezone-boundaries",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "billing",
+        "dashboard",
+        "database",
+        "time-tracking",
+        "timezone"
       ],
       "tier": "integration"
     },

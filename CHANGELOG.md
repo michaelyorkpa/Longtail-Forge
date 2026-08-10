@@ -1,3 +1,11 @@
+## Version 0.33.32.7 - 2026-08-10
+
+- Opted the Time Tracking billing and Dashboard services into checked JavaScript and moved their period arithmetic onto shared canonical timezone helpers.
+- Reproduced billing month boundaries following the application server's local timezone while entries were stored in UTC, then made the authenticated session timezone authoritative for billing periods, custom ranges, chart months, and Dashboard effort windows.
+- Added isolated UTC and New York/Los Angeles DST-boundary proof for inclusive starts, exclusive ends, exact totals, and SQLite integrity; raised the checked-seam floor from 38 to 40 and the regression floors from 454/12 to 455/13.
+- Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`, `help/framework/time-tracking-basics.md`.
+- No docs change needed: permissions, schemas, persistence, active timers, Tasks behavior, architecture, workflow context, deployment, and runtime configuration are unchanged.
+
 ## Version 0.33.32.6 - 2026-08-10
 
 - Opted the active-timer service and repository into checked JavaScript with one repository-owned `ActiveTimer` record contract, Zod-inferred timer payloads, and canonical Time Entry input typing at finalization.
