@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 23,
+  "minimumOptedInFiles": 27,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -15,8 +15,12 @@
     "src/core/reporting/report-runner-registry.js",
     "src/core/search/indexer-registry.js",
     "src/core/settings/workbench-focus-policy.js",
+    "src/middleware/require-api-key.js",
+    "src/middleware/require-auth.js",
+    "src/middleware/support-view-request-gate.js",
     "src/modules/tasks/tasks.contracts.js",
     "src/modules/time-tracking/time-tracking.contracts.js",
+    "src/security/sessions.js",
     "src/services/notifications.service.js",
     "src/services/search.service.js",
     "src/services/tag-propagation-registry.js",

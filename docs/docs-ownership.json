@@ -346,6 +346,7 @@
       "label": "TypeScript checked seams",
       "sourcePatterns": [
         "^tsconfig\\.json$",
+        "^src/types/(?:framework|http)-contracts\\.d\\.ts$",
         "^scripts/typecheck-seam-inventory\\.json$",
         "^scripts/regressions/framework/typecheck-seams\\.regression\\.mjs$"
       ],

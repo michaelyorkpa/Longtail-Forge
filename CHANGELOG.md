@@ -1,3 +1,13 @@
+## Version 0.33.32.2 - 2026-08-10
+
+- Added one importable HTTP identity contract for browser request sessions, API-key sessions, Support View actor/effective identity, permission resources, and request rotation/invalidation state, with the application-owned fields declared on `Express.Request`.
+- Opted the request-session resolver, browser and API-key authentication middleware, and central Support View request gate into checked JavaScript, while preserving boolean password-change state and the existing normal/account-export-recovery session modes.
+- Made Support View outcomes and reason classifications exact string unions so misspellings fail typecheck before they can alter allow, deny-403, or deny-404 behavior.
+- Raised the complete checked-seam inventory and monotonic floor from 23 to 27 files and extended the release guardrail to own the separate HTTP declarations and exact gate vocabularies.
+- Preserved existing authentication, remembered-session, revocation, recovery-mode, Support View identity, rotation/invalidation, audit-attribution, 403/404, and permission behavior through focused regressions and canonical local verification.
+- Docs updated: `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: public API behavior, permissions, HTTP error envelopes, operational security, runtime configuration, schemas, module workflows, and untrusted JSON handling are unchanged; raw request-body typing remains explicitly deferred to `0.33.32.2.1`.
+
 ## Version 0.33.32.1 - 2026-08-10
 
 - Replaced the partial 12-file checked-seam list with one sorted inventory of all 23 first-party runtime/test JavaScript files carrying a first-line `// @ts-check` pragma, plus a monotonic 23-file floor for later seam slices.

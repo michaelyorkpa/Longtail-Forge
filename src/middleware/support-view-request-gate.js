@@ -1,7 +1,15 @@
+// @ts-check
 import { getRequestContext } from "../core/request-context.js";
 import { sendApiError, sendBrowserError } from "../core/http-error-contract.js";
 import { operationalLogger } from "../core/operational-logger.js";
 import { supportViewService } from "../services/support-view.service.js";
+
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/http-contracts.js").SupportViewGateOutcome} SupportViewGateOutcome */
+/** @typedef {import("../types/http-contracts.js").SupportViewGateReasonClass} SupportViewGateReasonClass */
+/** @typedef {import("../types/http-contracts.js").SupportViewRequestSession} SupportViewRequestSession */
+
+/** @typedef {{ id: string, path: string, pattern: RegExp }} SupportViewRouteDefinition */
 
 const SUPPORT_VIEW_SENSITIVE_READ_ROUTES = Object.freeze([
   route("framework.account-export", "/api/user/portable-account-export"),
@@ -107,6 +115,7 @@ const SUPPORT_VIEW_READ_ROUTES = Object.freeze([
   route("framework.static", "/{*staticPath}"),
 ]);
 
+/** @param {HttpIdentityRequest} request */
 async function supportViewRequestGate(request, response, next) {
   if (!request.session?.support_view) {
     next();
@@ -118,12 +127,16 @@ async function supportViewRequestGate(request, response, next) {
   }
 }
 
+/** @param {HttpIdentityRequest} request */
 async function enforceSupportViewRequest(request, response) {
+  const session = /** @type {SupportViewRequestSession} */ (request.session);
   const method = String(request.method || "").toUpperCase();
   const pathname = requestPath(request);
   let matched = findRoute(SUPPORT_VIEW_SENSITIVE_READ_ROUTES, pathname)
     || findRoute(SUPPORT_VIEW_READ_ROUTES, pathname);
+  /** @type {SupportViewGateOutcome} */
   let outcome = "denied";
+  /** @type {SupportViewGateReasonClass} */
   let reasonClass = "mutation_denied";
 
   if (["GET", "HEAD"].includes(method)) {
@@ -145,7 +158,7 @@ async function enforceSupportViewRequest(request, response) {
   const routeId = matched?.id || "framework.undeclared";
   const actionId = method.toLowerCase() + ":" + routeId;
   const requestId = getRequestContext(request).requestId;
-  await supportViewService.recordAction(request.session, {
+  await supportViewService.recordAction(session, {
     actionId,
     outcome,
     reasonClass,
@@ -153,14 +166,14 @@ async function enforceSupportViewRequest(request, response) {
   }, { requestId });
   operationalLogger.info("support_view.action_attempt", {
     actionId,
-    actorUserId: request.session.actor_user_id,
-    effectiveUserId: request.session.effective_user_id,
+    actorUserId: session.actor_user_id,
+    effectiveUserId: session.effective_user_id,
     outcome,
     reasonClass,
     requestId,
     routeId,
-    supportSessionId: request.session.support_view.supportSessionId,
-    workspaceId: request.session.effective_workspace_id,
+    supportSessionId: session.support_view.supportSessionId,
+    workspaceId: session.effective_workspace_id,
   });
 
   if (outcome === "allowed") {
@@ -188,10 +201,12 @@ function denyNotFound(request, response) {
   sendBrowserError(request, response, { code: "not_found", statusCode: 404 });
 }
 
+/** @param {readonly SupportViewRouteDefinition[]} routes */
 function findRoute(routes, pathname) {
   return routes.find((entry) => entry.pattern.test(pathname)) || null;
 }
 
+/** @returns {Readonly<SupportViewRouteDefinition>} */
 function route(id, path) {
   return Object.freeze({ id, path, pattern: compilePath(path) });
 }
@@ -218,9 +233,12 @@ function escapeRegExp(value) {
 
 function escapeRouteLiteral(value) {
   const special = new Set([92, 94, 36, 46, 42, 43, 63, 40, 41, 91, 93, 123, 125, 124]);
-  return [...String(value)].map((character) => (
-    special.has(character.codePointAt(0)) ? String.fromCharCode(92) + character : character
-  )).join("");
+  return [...String(value)].map((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && special.has(codePoint)
+      ? String.fromCharCode(92) + character
+      : character;
+  }).join("");
 }
 
 function requestPath(request) {

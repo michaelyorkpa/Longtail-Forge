@@ -2,6 +2,7 @@ import { config } from "../config.js";
 import { getRequestContext } from "../core/request-context.js";
 import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 
+/** @param {object | null} [request] */
 function buildSessionCookie(sessionId, maxAgeSeconds, request = null) {
   return buildCookie(config.cookies.sessionName, sessionId, {
     httpOnly: config.cookies.httpOnly,
@@ -13,6 +14,7 @@ function buildSessionCookie(sessionId, maxAgeSeconds, request = null) {
   });
 }
 
+/** @param {object | null} [request] */
 function buildExpiredSessionCookie(request = null) {
   return buildCookie(config.cookies.sessionName, "", {
     httpOnly: config.cookies.httpOnly,

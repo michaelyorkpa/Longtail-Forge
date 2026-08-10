@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.2 - HTTP identity contract and authentication middleware
+
+Completed on 2026-08-10. Browser and API-key authentication now share one checked HTTP identity vocabulary, and the active 0.33.32 work advances to `0.33.32.2.1` for the separately bounded untrusted JSON request-body boundary.
+
+**Model: High Effort** - This typed the trusted identity behind authentication and permission decisions, including Support View impersonation.
+
+- [x] Authored `src/types/http-contracts.d.ts` with distinct request-session, API-session, Support View, permission-resource, rotation, and invalidation shapes plus Express request augmentation.
+- [x] Opted in `src/security/sessions.js`, both auth middleware files, and `support-view-request-gate.js`; reconciled `password_change_required` and `session_mode` shapes without changing behavior.
+- [x] Declared the Support View gate outcome as `"allowed" | "denied"` and its reason class as `"mutation_denied" | "sensitive_read_excluded" | "declared_read_safe" | "undeclared_read_denied"`, with a release guardrail that freezes both vocabularies.
+- [x] Raised the checked-seam inventory and monotonic floor to 27 files, ran the focused auth/session and Support View behavioral regressions, and included the separate permission harness in canonical local verification. Raw request-body typing remains in slice 2.1.
+
+Acceptance criteria:
+
+- One identity contract covers both authentication modes, Support View gate classification typos fail typecheck, and the proven authentication, 403/404, and permission behavior remains green.
+
 ## Version 0.33.32.1 - Checked-seam inventory and monotonic ratchet
 
 Completed on 2026-08-10. The release gate now owns one complete reviewable inventory and monotonic floor for every first-party JavaScript seam explicitly opted into checking. The active 0.33.32 work advances to `0.33.32.2` for the trusted HTTP identity contract and authentication middleware.
