@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 49,
+  "minimumOptedInFiles": 52,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
@@ -37,6 +37,9 @@
     "src/repositories/account-export-recovery.repo.js",
     "src/repositories/authentication-throttle.repo.js",
     "src/repositories/private-feed-tokens.repo.js",
+    "src/repositories/settings.repo.js",
+    "src/repositories/users.repo.js",
+    "src/repositories/workspaces.repo.js",
     "src/routes/support-view.routes.js",
     "src/security/sessions.js",
     "src/services/notifications.service.js",

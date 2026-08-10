@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 457,
+  "minimumActiveScripts": 458,
   "minimumAreaScripts": {
     "dashboard": 2,
-    "database": 44,
+    "database": 45,
     "docs": 10,
     "files": 44,
     "framework": 81,

@@ -1,3 +1,11 @@
+## Version 0.33.32.10 - 2026-08-10
+
+- Opted the high-fan-in Settings, Users, and Workspaces repositories into checked JavaScript with explicit public input and projected-row contracts.
+- Made every single-row user, workspace, module-setting, and owner-transfer read explicitly nullable so checked consumers must prove presence before property access.
+- Added compile-time valid/misuse proof, raised the checked-seam floor from 49 to 52 files, raised the regression floors from 457/44 to 458/45, and kept the historical version-scanner example version-agnostic while preserving all existing SQL, transactions, lifecycle, settings, and permission behavior.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: Settings ownership/control matrices, permission matrices, Help, schemas, migrations, API payloads, workspace/user workflows, backup/deletion behavior, runtime configuration, deployment, and security posture are unchanged.
+
 ## Version 0.33.32.9 - 2026-08-10
 
 - Added explicit checked contracts for SQLite dialect capabilities and operations, including exact insert-builder option bags, the current string/object physical-row-ID input, and paired boolean storage/read field transforms.
@@ -81,7 +89,7 @@
 - Strengthened `framework.typecheck-seams` to reconcile the live opt-in set, preserve the complete compiler include/exclude scope and checking dials, and reject runtime `@ts-nocheck`, `@ts-ignore`, or `.ts` imports.
 - Kept `tests/**/*.mjs` as a nominal per-file opt-in scope rather than claiming unchecked tests provide type coverage; no test file is currently opted in.
 - Added documentation-ownership routing for the checked-seam contract and focused coverage for that route.
-- Corrected the release version-literal scanner to distinguish the exact current version from longer dotted roadmap siblings such as `0.33.32.10`, while continuing to catch qualified current-version literals.
+- Corrected the release version-literal scanner to distinguish the exact current version from longer dotted roadmap siblings such as a two-digit child slice, while continuing to catch qualified current-version literals.
 - Docs updated: `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-development.md`, `docs/regression-suite.md`.
 - No docs change needed: `docs/versioning.md` already defines exact current-literal scanning; application behavior, runtime boot, schemas, permissions, module workflows, and deployment contracts are unchanged.
 

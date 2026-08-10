@@ -1,8 +1,48 @@
+// @ts-check
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { normalizeWorkspaceType } from "../utils/workspaces.js";
+
+/**
+ * @typedef {Object} WorkspaceMembershipRow
+ * @property {string} workspace_id
+ * @property {string} workspace_name
+ * @property {string} workspace_type
+ * @property {string} status
+ */
+/**
+ * @typedef {Object} OwnedWorkspaceRow
+ * @property {string} workspace_id
+ * @property {string} workspace_name
+ * @property {string} workspace_type
+ */
+/**
+ * @typedef {Object} WorkspaceRow
+ * @property {string} workspace_id
+ * @property {string} workspace_name
+ * @property {string} workspace_type
+ * @property {string | null} owner_user_id
+ */
+/**
+ * @typedef {Object} OwnerTransferCandidateRow
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string | null} membership_created_at
+ */
+/**
+ * @typedef {Object} CreateWorkspaceInput
+ * @property {{ user_id: string }} ownerUser
+ * @property {string} workspaceName
+ * @property {string} workspaceType
+ */
+/**
+ * @typedef {Object} CreatedWorkspace
+ * @property {string} workspaceId
+ * @property {string} workspaceName
+ * @property {string} workspaceType
+ */
 
 const USERS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "users" });
 const USER_ROWS_PHYSICAL_ROW_ID = db.dialect.identity.rowId({ tableAlias: "user_rows" });
@@ -21,8 +61,9 @@ const USER_WORKSPACE_REACTIVATE_SQL = db.dialect.conflict.buildInsertOnConflictD
   },
 });
 
+/** @param {string} userId @returns {Promise<WorkspaceMembershipRow[]>} */
 async function readForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<WorkspaceMembershipRow[]>} */ (db.query(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name,
@@ -32,9 +73,10 @@ FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = :userId
 ORDER BY workspaces.name;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} userId @param {string} workspaceType @returns {Promise<number>} */
 async function countUserWorkspacesByType(userId, workspaceType) {
   const row = await db.get(`
 SELECT COUNT(1) AS count
@@ -48,8 +90,9 @@ WHERE user_workspaces.user_id = :userId
   return Number(row?.count) || 0;
 }
 
+/** @param {string} userId @returns {Promise<OwnedWorkspaceRow[]>} */
 async function readOwnedForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<OwnedWorkspaceRow[]>} */ (db.query(`
 SELECT
   workspace_id,
   name AS workspace_name,
@@ -57,11 +100,12 @@ SELECT
 FROM workspaces
 WHERE owner_user_id = :userId
 ORDER BY name;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} workspaceId @returns {Promise<WorkspaceRow | null>} */
 async function readById(workspaceId) {
-  return db.get(`
+  return /** @type {Promise<WorkspaceRow | null>} */ (db.get(`
 SELECT
   workspace_id,
   name AS workspace_name,
@@ -70,11 +114,12 @@ SELECT
 FROM workspaces
 WHERE workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId });
+`, { workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} previousOwnerUserId @returns {Promise<OwnerTransferCandidateRow | null>} */
 async function readOwnerTransferCandidate(workspaceId, previousOwnerUserId) {
-  return db.get(`
+  return /** @type {Promise<OwnerTransferCandidateRow | null>} */ (db.get(`
 SELECT
   users.user_id,
   users.username,
@@ -100,9 +145,10 @@ ORDER BY
   ${USERS_PHYSICAL_ROW_ID},
   lower(users.username)
 LIMIT 1;
-`, { previousOwnerUserId, workspaceId });
+`, { previousOwnerUserId, workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} ownerUserId @returns {Promise<void>} */
 async function updateOwner(workspaceId, ownerUserId) {
   const now = new Date().toISOString();
 
@@ -114,6 +160,7 @@ WHERE workspace_id = :workspaceId;
 `, { ownerUserId, updatedAt: now, workspaceId });
 }
 
+/** @param {CreateWorkspaceInput} input @returns {Promise<CreatedWorkspace>} */
 async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
   const workspaceId = createRecordId();
   const membershipId = createRecordId();

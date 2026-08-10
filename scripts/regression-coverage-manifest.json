@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 454,
+    "discoveredScripts": 455,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
       "dashboard": 2,
-      "database": 44,
+      "database": 45,
       "docs": 10,
       "files": 44,
       "framework": 81,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 207,
+      "focused": 208,
       "integration": 169,
       "release-gate": 70,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 228
+      "static": 229
     }
   },
   "coverageFamilies": [
@@ -2586,6 +2586,22 @@
         "contracts",
         "database",
         "dialect",
+        "typecheck"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves Settings, Users, and Workspaces expose checked method inputs, projected rows, and nullable single-row results without changing runtime queries.",
+      "id": "database.repository-signature-types",
+      "legacy": false,
+      "path": "scripts/regressions/database/database-repository-signature-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "database",
+        "repositories",
         "typecheck"
       ],
       "tier": "focused"
