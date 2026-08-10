@@ -1,3 +1,13 @@
+## Version 0.33.32.1 - 2026-08-10
+
+- Replaced the partial 12-file checked-seam list with one sorted inventory of all 23 first-party runtime/test JavaScript files carrying a first-line `// @ts-check` pragma, plus a monotonic 23-file floor for later seam slices.
+- Strengthened `framework.typecheck-seams` to reconcile the live opt-in set, preserve the complete compiler include/exclude scope and checking dials, and reject runtime `@ts-nocheck`, `@ts-ignore`, or `.ts` imports.
+- Kept `tests/**/*.mjs` as a nominal per-file opt-in scope rather than claiming unchecked tests provide type coverage; no test file is currently opted in.
+- Added documentation-ownership routing for the checked-seam contract and focused coverage for that route.
+- Corrected the release version-literal scanner to distinguish the exact current version from longer dotted roadmap siblings such as `0.33.32.10`, while continuing to catch qualified current-version literals.
+- Docs updated: `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: `docs/versioning.md` already defines exact current-literal scanning; application behavior, runtime boot, schemas, permissions, module workflows, and deployment contracts are unchanged.
+
 ## Version 0.33.31.16 - 2026-08-09
 
 - Restored authenticated public-demo browser documents, including Dashboard and the signed-in root landing path, by keeping fixed HTML delivery outside the durable API mutation/query budget catalog.

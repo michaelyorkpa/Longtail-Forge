@@ -69,19 +69,27 @@ function scanEntriesForCurrentVersion(entries, version, allowlist) {
     const source = String(entry.source || "");
     let index = source.indexOf(currentVersion);
     while (index !== -1) {
-      const location = sourceLocation(source, index);
-      if (!isAllowedCurrentVersionLine(filePath, source, location.line, normalizedAllowlist)) {
-        violations.push({
-          column: location.column,
-          line: location.line,
-          path: filePath,
-        });
+      if (isExactDottedVersionToken(source, index, currentVersion.length)) {
+        const location = sourceLocation(source, index);
+        if (!isAllowedCurrentVersionLine(filePath, source, location.line, normalizedAllowlist)) {
+          violations.push({
+            column: location.column,
+            line: location.line,
+            path: filePath,
+          });
+        }
       }
       index = source.indexOf(currentVersion, index + currentVersion.length);
     }
   }
 
   return violations;
+}
+
+function isExactDottedVersionToken(source, index, length) {
+  const precedingCharacter = source[index - 1] || "";
+  const followingCharacter = source[index + length] || "";
+  return !/[0-9.]/.test(precedingCharacter) && !/[0-9.]/.test(followingCharacter);
 }
 
 function isHistoricalLabelPath(filePath, allowlist) {

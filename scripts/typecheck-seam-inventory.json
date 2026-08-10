@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "minimumOptedInFiles": 23,
+  "checkedFiles": [
+    "src/core/files/files.contracts.js",
+    "src/core/modules/manifest-contract.js",
+    "src/core/modules/module-entry.js",
+    "src/core/modules/module-runtime.js",
+    "src/core/modules/registry.js",
+    "src/core/public-demo-capabilities.js",
+    "src/core/public-demo-enforcement.js",
+    "src/core/public-demo-identities.js",
+    "src/core/public-demo-runtime.js",
+    "src/core/public-demo-visitor-accounts.js",
+    "src/core/reporting/report-runner-registry.js",
+    "src/core/search/indexer-registry.js",
+    "src/core/settings/workbench-focus-policy.js",
+    "src/modules/tasks/tasks.contracts.js",
+    "src/modules/time-tracking/time-tracking.contracts.js",
+    "src/services/notifications.service.js",
+    "src/services/search.service.js",
+    "src/services/tag-propagation-registry.js",
+    "src/services/tags.service.js",
+    "src/services/work-candidate.service.js",
+    "src/services/work-focus-modes.service.js",
+    "src/services/work-resume-state-producers.js",
+    "src/services/work-resume-state.service.js"
+  ]
+}

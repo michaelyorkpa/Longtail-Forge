@@ -49,6 +49,20 @@ assert.deepEqual(
 );
 assert.deepEqual(
   scanEntriesForCurrentVersion([
+    { path: "ROADMAP.md", source: `Future child versions ${appVersion}0 and ${appVersion}.1 remain distinct.` },
+  ], appVersion, allowlist),
+  [],
+  "longer dotted versions must not be mistaken for the exact current version token",
+);
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "src/example.js", source: `const displayVersion = "${appVersion}-nightly";` },
+  ], appVersion, allowlist).map(({ path }) => path),
+  ["src/example.js"],
+  "a qualified display version must still expose an exact current-version literal",
+);
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
     { path: "ROADMAP.md", source: `Completed ${appVersion} planning label` },
   ], appVersion, allowlist).map(({ path }) => path),
   ["ROADMAP.md"],

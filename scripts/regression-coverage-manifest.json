@@ -3625,7 +3625,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves the high-value framework seams stay @ts-check opted-in against the shared contract types, without ts-nocheck/ts-ignore escapes or runtime .ts imports.",
+      "description": "Proves the complete first-party checked-seam inventory and compiler settings stay monotonic without checker escapes or runtime TypeScript imports.",
       "id": "framework.typecheck-seams",
       "legacy": false,
       "path": "scripts/regressions/framework/typecheck-seams.regression.mjs",

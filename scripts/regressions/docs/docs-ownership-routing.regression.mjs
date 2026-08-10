@@ -42,6 +42,7 @@ assert.deepEqual(
     "security-audit",
     "database",
     "identifiers",
+    "typecheck-seams",
     "module-contracts",
     "view-building",
     "public-api",
@@ -80,6 +81,14 @@ assert.ok(securityAudit.docs.includes("docs/longtail_forge_permissions_matrix.md
 const identifiers = suggestDocsForPaths(["src/core/identifiers.js"], { index: rawIndex });
 assert.deepEqual(identifiers.matchedAreas.map((area) => area.id), ["identifiers"]);
 assert.deepEqual(identifiers.docs, ["DECISIONS.md", "docs/architecture.md", "docs/database.md"]);
+
+const typecheckSeams = suggestDocsForPaths(["scripts/typecheck-seam-inventory.json"], { index: rawIndex });
+assert.deepEqual(typecheckSeams.matchedAreas.map((area) => area.id), ["typecheck-seams"]);
+assert.deepEqual(typecheckSeams.docs, [
+  "docs/architecture.md",
+  "docs/module-development.md",
+  "docs/regression-suite.md",
+]);
 
 const workbench = suggestDocsForPaths(["public/js/workbench.js"], { index: rawIndex });
 assert.deepEqual(workbench.matchedAreas.map((area) => area.id), ["workbench"]);

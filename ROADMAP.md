@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32`.
+Active cursor: `0.33.32.2`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,18 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.1 - Checked-seam inventory and monotonic ratchet
-
-**Model: Medium Effort** — This is a bounded release-gate change with no product behavior.
-
-- [ ] Recount all first-party `// @ts-check` files, reconcile `CHECKED_SEAM_FILES` with the live set, and store one reviewable inventory plus a monotonic opted-in floor.
-- [ ] Decide the nominal `tests/**/*.mjs` include explicitly; do not imply unchecked tests provide type coverage. Preserve every checking dial and escape-hatch prohibition.
-- [ ] Run the focused seam regression and fast typecheck/contract gates.
-
-Acceptance criteria:
-
-- One release gate fails if an opted-in seam disappears or a checking dial weakens, without forcing unrelated clean files into the program.
 
 ### Version 0.33.32.2 - HTTP identity contract and authentication middleware
 
