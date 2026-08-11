@@ -1,8 +1,11 @@
+// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
+
+/** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
 
 const TASKS_SEARCH_INDEXER_ID = "tasks.records";
 
@@ -10,6 +13,7 @@ function registerTasksSearchIndexers() {
   return registerSearchIndexer(TASKS_SEARCH_INDEXER_ID, indexTaskRecord);
 }
 
+/** @param {SearchReference} reference */
 async function indexTaskRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const tasks = await tasksRepository.readAll(workspaceId);

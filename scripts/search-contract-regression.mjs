@@ -673,15 +673,19 @@ WHERE search_index_id = ${sqlText(firstDocument.search_index_id)};
     assert.deepEqual(removedFtsRows, []);
   }
 
-  const unregister = registerSearchIndexer("developer-example.records", async ({ recordId }) => ({
-    workspace_id: workspaceId,
-    example_id: recordId,
-    title: "Re-indexed title",
-    summary: "Re-indexed summary",
-    body: "Re-indexed body",
-    tags_text: "reindexed",
-    indexed_at: "2026-06-08T14:02:00.000Z",
-  }));
+  let receivedSearchReference = null;
+  const unregister = registerSearchIndexer("developer-example.records", async (reference) => {
+    receivedSearchReference = reference;
+    return {
+      workspace_id: workspaceId,
+      example_id: reference.recordId,
+      title: "Re-indexed title",
+      summary: "Re-indexed summary",
+      body: "Re-indexed body",
+      tags_text: "reindexed",
+      indexed_at: "2026-06-08T14:02:00.000Z",
+    };
+  });
   const reindexResult = await searchService.reindexSearchRecord({
     searchableType,
     workspaceId,
@@ -699,6 +703,17 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(reindexResult.ok, true);
   assert.equal(reindexResult.operation, "reindex_one");
   assert.equal(reindexResult.indexedCount, 1);
+  assert.deepEqual({
+    workspaceId: receivedSearchReference?.workspaceId,
+    moduleId: receivedSearchReference?.moduleId,
+    recordType: receivedSearchReference?.recordType,
+    recordId: receivedSearchReference?.recordId,
+  }, {
+    workspaceId,
+    moduleId: "developer-example",
+    recordType: "example_record",
+    recordId: "write-record-1",
+  }, "registered indexers must receive the canonical camelCase SearchReference payload");
   assert.deepEqual(reindexedRows, [{
     title: "Re-indexed title",
     summary: "Re-indexed summary",

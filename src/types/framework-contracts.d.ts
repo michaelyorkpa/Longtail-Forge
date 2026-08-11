@@ -447,9 +447,14 @@ export interface SearchRecord {
 }
 
 export interface SearchReference {
-  record_type: string;
-  record_id: string;
-  [key: string]: unknown;
+  workspaceId: string;
+  moduleId?: string;
+  recordType?: string;
+  recordId?: string;
+  declaration?: SearchableTypeContribution;
+  rebuild?: boolean;
+  record?: unknown;
+  searchService?: Record<string, unknown>;
 }
 
 export interface SearchResult {
