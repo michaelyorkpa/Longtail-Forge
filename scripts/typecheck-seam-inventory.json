@@ -1,7 +1,13 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 89,
+  "minimumOptedInFiles": 95,
   "checkedFiles": [
+    "public/js/shared/api-client.js",
+    "public/js/shared/cached-fetch.js",
+    "public/js/shared/error-contract.js",
+    "public/js/shared/formatters.js",
+    "public/js/shared/page-controller.js",
+    "public/js/shared/records.js",
     "src/core/asset-version.js",
     "src/core/bounded-pagination.js",
     "src/core/corresponding-source.js",

@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.32.18",
+  "version": "0.33.32.19",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -33,7 +33,7 @@
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",
     "check": "npm run check:fast && npm run test:regressions",
     "check:fast": "npm run typecheck && npm run test:unit && npm run lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.public.json",
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:contracts": "vitest run --passWithNoTests contracts",

@@ -1,6 +1,16 @@
+// @ts-check
+
+/** @typedef {import("../../../src/types/browser-contracts.js").BrowserApiError} ClientBrowserApiError */
+/** @typedef {import("../../../src/types/browser-contracts.js").BrowserJsonRequestOptions} BrowserJsonRequestOptions */
+
 (function () {
   const namespace = window.LongtailForge || {};
 
+  /**
+   * @param {string} url
+   * @param {BrowserJsonRequestOptions} [options]
+   * @returns {Promise<unknown>}
+   */
   async function requestJson(url, options = {}) {
     const method = options.method || "GET";
     const headers = {
@@ -24,25 +34,29 @@
     return body;
   }
 
+  /**
+   * @param {unknown} body
+   * @param {string} fallback
+   * @param {number} status
+   * @returns {ClientBrowserApiError}
+   */
   function createApiError(body, fallback, status) {
     if (namespace.errors?.createError) {
       return namespace.errors.createError(body, fallback, status);
     }
 
-    const envelope = body?.error && typeof body.error === "object" ? body.error : null;
-    const error = new Error(
-      envelope?.message
-      || (typeof body?.error === "string" ? body.error : "")
-      || body?.message
-      || fallback,
-    );
+    const error = /** @type {ClientBrowserApiError} */ (new Error(fallback));
     error.body = body;
-    error.code = envelope?.code || "";
-    error.requestId = envelope?.requestId || "";
+    error.code = "";
+    error.requestId = "";
     error.status = status;
     return error;
   }
 
+  /**
+   * @param {Response} response
+   * @returns {Promise<unknown>}
+   */
   async function parseJsonResponse(response) {
     if (response.status === 204) {
       return null;
@@ -61,7 +75,8 @@
         return { error: text || response.statusText };
       }
 
-      throw new Error(`Expected JSON response from ${response.url}: ${error.message}`);
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Expected JSON response from ${response.url}: ${detail}`);
     }
   }
 

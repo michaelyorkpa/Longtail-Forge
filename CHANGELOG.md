@@ -1,3 +1,12 @@
+## Version 0.33.32.19 - 2026-08-11
+
+- Added a separate DOM-only browser typecheck program with the established strict, per-file opt-in regime and no Node ambient types, runtime build step, module conversion, or script-load-order change.
+- Opted the six shared browser API, error, record, formatter, cached-fetch, and page-controller utilities into checked JavaScript against one declared `window.LongtailForge` vocabulary.
+- Made the browser contracts reuse the framework-owned API error envelope, retained `error-contract.js` as the sole shared envelope parser, and kept the API client's missing-boundary fallback generic.
+- Raised the checked-seam inventory and monotonic floor from 89 to 95 files, and extended the release guardrail for the exact browser program, contract reuse, parser ownership, and package-script wiring.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: operational security, public API payloads, runtime configuration, permissions, database schema/migrations, deployment, and user-facing Help are unchanged.
+
 ## Version 0.33.32.18 - 2026-08-11
 
 - Recorded one exact 12-file `framework-core-leaf-utilities` checking pass before source opt-in, keeping the mechanical rollout within one ownership tier and well below the 40-file ceiling.

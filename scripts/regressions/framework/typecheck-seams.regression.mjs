@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["contracts", "framework", "typecheck"],
-  description: "Proves bounded clean-file passes, the complete first-party checked-seam inventory, and compiler settings stay monotonic without checker escapes or runtime TypeScript imports.",
+  description: "Proves the server and browser typecheck programs, bounded clean-file passes, complete checked-seam inventory, and escape-hatch prohibitions stay intact.",
   runMode: "static",
 });
 
@@ -14,6 +14,14 @@ import path from "node:path";
 const seamInventory = JSON.parse(readFileSync("scripts/typecheck-seam-inventory.json", "utf8"));
 const cleanFilePassInventory = JSON.parse(readFileSync("scripts/typecheck-clean-file-passes.json", "utf8"));
 const CHECKED_SEAM_FILES = seamInventory.checkedFiles;
+const BROWSER_CHECKED_FILES = [
+  "public/js/shared/api-client.js",
+  "public/js/shared/cached-fetch.js",
+  "public/js/shared/error-contract.js",
+  "public/js/shared/formatters.js",
+  "public/js/shared/page-controller.js",
+  "public/js/shared/records.js",
+];
 const RESERVED_CLEAN_FILE_PATHS = new Set([
   "src/routes/private-feeds.routes.js",
   "src/routes/search.routes.js",
@@ -35,6 +43,17 @@ const EXPECTED_TYPECHECK_EXCLUDES = [
   "styles",
   "views",
 ];
+const EXPECTED_BROWSER_TYPECHECK_INCLUDES = [
+  "public/js/shared/api-client.js",
+  "public/js/shared/cached-fetch.js",
+  "public/js/shared/error-contract.js",
+  "public/js/shared/formatters.js",
+  "public/js/shared/page-controller.js",
+  "public/js/shared/records.js",
+  "src/types/browser-contracts.d.ts",
+  "src/types/framework-contracts.d.ts",
+];
+const EXPECTED_BROWSER_TYPECHECK_EXCLUDES = ["node_modules"];
 const EXPECTED_COMPILER_OPTION_KEYS = [
   "allowJs",
   "checkJs",
@@ -49,8 +68,25 @@ const EXPECTED_COMPILER_OPTION_KEYS = [
   "target",
   "types",
 ];
+const EXPECTED_BROWSER_COMPILER_OPTION_KEYS = [
+  "allowJs",
+  "checkJs",
+  "forceConsistentCasingInFileNames",
+  "lib",
+  "module",
+  "moduleResolution",
+  "noEmit",
+  "noImplicitAny",
+  "resolveJsonModule",
+  "skipLibCheck",
+  "strict",
+  "target",
+  "types",
+];
 
 const CONTRACT_TYPE_EXPORTS = [
+  "ApiErrorDetails",
+  "ApiErrorEnvelope",
   "ModuleManifest",
   "NotificationEventContribution",
   "NotificationFollowTargetContribution",
@@ -105,6 +141,26 @@ const CONTRACT_TYPE_EXPORTS = [
   "NamedBindingEntry",
   "PreparedDatabaseBindings",
   "TransactionClient",
+];
+const BROWSER_CONTRACT_TYPE_EXPORTS = [
+  "BrowserApi",
+  "BrowserApiError",
+  "BrowserApiErrorDetails",
+  "BrowserCachedFetch",
+  "BrowserErrorContract",
+  "BrowserErrorEnvelope",
+  "BrowserFormatters",
+  "BrowserJsonRequestOptions",
+  "BrowserPageController",
+  "BrowserRecord",
+  "BrowserRecords",
+  "CachedFetchOptions",
+  "CachedFetchResult",
+  "LongtailForgeBrowserNamespace",
+  "PageControllerDefinition",
+  "PageControllerRegistry",
+  "PageSmokeResult",
+  "RegisteredPageController",
 ];
 const REQUIRED_MODULE_MANIFEST_FIELDS = [
   ["id", "string"],
@@ -255,6 +311,7 @@ assert.equal(
 const discoveredCheckedFiles = [
   "server.js",
   "worker.js",
+  ...walkScriptFiles("public", new Set([".js", ".mjs"])),
   ...walkScriptFiles("src", new Set([".js"])),
   ...walkScriptFiles("tests", new Set([".mjs"])),
 ]
@@ -264,6 +321,11 @@ assert.deepEqual(
   discoveredCheckedFiles,
   CHECKED_SEAM_FILES,
   "every first-party // @ts-check file must appear in the checked-seam inventory, and every inventoried file must keep its pragma",
+);
+assert.deepEqual(
+  CHECKED_SEAM_FILES.filter((filePath) => filePath.startsWith("public/")),
+  BROWSER_CHECKED_FILES,
+  "the browser program must retain exactly the first reviewed shared-utility tier",
 );
 
 // The shared contract definitions exist and export the expected shapes.
@@ -275,6 +337,32 @@ for (const typeName of CONTRACT_TYPE_EXPORTS) {
     `framework-contracts.d.ts must export ${typeName}`,
   );
 }
+const browserContractSource = readFileSync("src/types/browser-contracts.d.ts", "utf8");
+for (const typeName of BROWSER_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    browserContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `browser-contracts.d.ts must export ${typeName}`,
+  );
+}
+assert.match(
+  browserContractSource,
+  /import type \{ ApiErrorEnvelope \} from "\.\/framework-contracts\.js";/,
+  "the browser error boundary must reuse the framework-owned envelope instead of restating it",
+);
+assert.match(
+  browserContractSource,
+  /export type BrowserErrorEnvelope = ApiErrorEnvelope;/,
+  "the browser parser must expose the framework-owned error envelope through one alias",
+);
+const browserErrorSource = readFileSync("public/js/shared/error-contract.js", "utf8");
+const browserApiSource = readFileSync("public/js/shared/api-client.js", "utf8");
+assert.match(browserErrorSource, /@typedef \{import\("\.\.\/\.\.\/\.\.\/src\/types\/browser-contracts\.js"\)\.BrowserErrorEnvelope\}/);
+assert.doesNotMatch(
+  browserApiSource,
+  /body\?\.error|body\.error|envelope\?\.message/,
+  "api-client must delegate framework error-envelope parsing to error-contract",
+);
 const moduleManifestDeclaration = contractSource.match(/export interface ModuleManifest \{([\s\S]*?)\n\}/);
 assert.ok(moduleManifestDeclaration, "framework-contracts.d.ts must declare ModuleManifest");
 for (const [fieldName, fieldType] of REQUIRED_MODULE_MANIFEST_FIELDS) {
@@ -497,6 +585,34 @@ assert.equal(tsconfig.compilerOptions.forceConsistentCasingInFileNames, true);
 assert.deepEqual(tsconfig.include, EXPECTED_TYPECHECK_INCLUDES, "the complete checked source and declaration scope must stay explicit");
 assert.deepEqual(tsconfig.exclude, EXPECTED_TYPECHECK_EXCLUDES, "the typecheck scope must not gain an unreviewed exclusion");
 
+const browserTsconfig = JSON.parse(readFileSync("tsconfig.public.json", "utf8"));
+assert.deepEqual(
+  Object.keys(browserTsconfig.compilerOptions).sort(),
+  EXPECTED_BROWSER_COMPILER_OPTION_KEYS,
+  "browser compiler options must keep every reviewed checking dial explicit",
+);
+assert.equal(browserTsconfig.compilerOptions.target, "es2023");
+assert.equal(browserTsconfig.compilerOptions.module, "esnext");
+assert.equal(browserTsconfig.compilerOptions.moduleResolution, "bundler");
+assert.equal(browserTsconfig.compilerOptions.noEmit, true);
+assert.equal(browserTsconfig.compilerOptions.allowJs, true);
+assert.equal(browserTsconfig.compilerOptions.checkJs, false, "browser checkJs stays per-file opt-in");
+assert.equal(browserTsconfig.compilerOptions.strict, true);
+assert.equal(browserTsconfig.compilerOptions.noImplicitAny, false);
+assert.equal(browserTsconfig.compilerOptions.skipLibCheck, true);
+assert.equal(browserTsconfig.compilerOptions.resolveJsonModule, true);
+assert.deepEqual(browserTsconfig.compilerOptions.lib, ["DOM", "DOM.Iterable", "ES2023"]);
+assert.deepEqual(browserTsconfig.compilerOptions.types, [], "browser checking must not inherit Node globals");
+assert.equal(browserTsconfig.compilerOptions.forceConsistentCasingInFileNames, true);
+assert.deepEqual(browserTsconfig.include, EXPECTED_BROWSER_TYPECHECK_INCLUDES);
+assert.deepEqual(browserTsconfig.exclude, EXPECTED_BROWSER_TYPECHECK_EXCLUDES);
+const packageManifest = JSON.parse(readFileSync("package.json", "utf8"));
+assert.equal(
+  packageManifest.scripts.typecheck,
+  "tsc --noEmit && tsc --noEmit -p tsconfig.public.json",
+  "the fast typecheck command must run both the server and browser programs",
+);
+
 const checkedTestFiles = CHECKED_SEAM_FILES.filter((filePath) => filePath.startsWith("tests/"));
 assert.ok(
   tsconfig.include.includes("tests/**/*.mjs") && tsconfig.compilerOptions.checkJs === false,
@@ -529,7 +645,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: ${cleanFilePassInventory.passes.length} bounded clean-file pass recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file pass recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {

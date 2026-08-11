@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.19 - Browser typecheck program and shared utilities
+
+Completed on 2026-08-11. A separate DOM-only browser program now checks the first six shared classic-script utilities against one declared browser namespace and the framework-owned API error envelope, while runtime imports and script load order remain unchanged. The active 0.33.32 work advances to `0.33.32.20` for the app-shell bootstrap boundary adapter.
+
+**Model: High Effort** - A new browser program is shared build-time infrastructure, but the first utility tier is intentionally small.
+
+- [x] Added `tsconfig.public.json` with browser libraries and the settled opt-in dials, wired it into typecheck, and reused framework contract types.
+- [x] Opted in `api-client.js`, `error-contract.js`, `records.js`, `formatters.js`, `cached-fetch.js`, and `page-controller.js` with `error-contract.js` as the single shared error-envelope parser.
+- [x] Raised the checked inventory floor from 89 to 95 files and retained green shared-browser utility, HTTP-error, cached-fetch, release-owner, and full framework-view regressions.
+
+Acceptance criteria:
+
+- The small shared browser tier typechecks against one contract vocabulary with runtime load order unchanged.
+
 ## Version 0.33.32.18 - Bounded server clean-file rollout
 
 Completed on 2026-08-11. One exact 12-file framework core leaf-utility tier now participates in checked JavaScript, the retained pass inventory keeps future repeatable tiers bounded and reviewable, and runtime statements remain unchanged. The active 0.33.32 work advances to `0.33.32.19` for the browser typecheck program and shared utilities.
