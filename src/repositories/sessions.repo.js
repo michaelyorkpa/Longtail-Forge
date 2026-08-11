@@ -1,5 +1,22 @@
 import { db } from "../core/database.js";
 
+/**
+ * @typedef {Object} StoredSession
+ * @property {string} session_id
+ * @property {string | null} home_workspace_id
+ * @property {string | null} active_workspace_id
+ * @property {string} user_id
+ * @property {string | undefined} [username]
+ * @property {string | undefined} [timezone]
+ * @property {string | null | undefined} [ip_address]
+ * @property {string | undefined} [session_mode]
+ * @property {string | null | undefined} [support_session_id]
+ * @property {string} expires_at
+ * @property {string | undefined} [created_at]
+ * @property {string | undefined} [updated_at]
+ * @property {boolean | number | string | undefined} [password_change_required]
+ */
+
 async function create(session, database = db) {
   const now = new Date().toISOString();
 
@@ -70,8 +87,9 @@ LIMIT 1;
 `, { sessionId });
 }
 
+/** @param {string} userId @returns {Promise<StoredSession[]>} */
 async function listForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<StoredSession[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,
@@ -84,11 +102,12 @@ SELECT
 FROM sessions
 WHERE user_id = :userId
 ORDER BY created_at DESC, session_id;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<StoredSession[]>} */
 async function listForUserInWorkspace(userId, workspaceId) {
-  return db.query(`
+  return /** @type {Promise<StoredSession[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,
@@ -105,7 +124,7 @@ WHERE user_id = :userId
     OR active_workspace_id = :workspaceId
   )
 ORDER BY created_at DESC, session_id;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
 async function remove(sessionId, database = db) {

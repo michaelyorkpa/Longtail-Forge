@@ -27,6 +27,21 @@ const { createApp } = await import("../../../src/core/app.js");
 const { closeDatabase, initializeDatabase } = await import("../../../src/db/index.js");
 const { db } = await import("../../../src/core/database.js");
 const { internalEventBus } = await import("../../../src/core/events/event-bus.js");
+const { sessionsService } = await import("../../../src/services/sessions.service.js");
+
+await assert.rejects(
+  sessionsService.revokeAllForUserExcept({
+    actorSession: null,
+    reason: "password_changed",
+    targetUser: {
+      home_workspace_id: null,
+      user_id: "missing-current-session",
+      username: "missing-current-session@example.test",
+    },
+  }),
+  (error) => error?.statusCode === 409 && error?.message === "The current session changed. Sign in and try again.",
+  "exception-scoped revocation must fail safely instead of broadening to all sessions when no preserved session is identified",
+);
 
 let server;
 let unsubscribe;

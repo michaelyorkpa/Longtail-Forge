@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.25`.
+Active cursor: `0.33.32.26`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -57,18 +57,6 @@ Completion-review evidence:
 - The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.25 - Auth/session revocation signature authority
-
-**Model: High Effort** — Password-change session revocation is a credential-security boundary and must consume the real session-service signature rather than an invented double-cast shape.
-
-- [ ] Define the canonical `revokeAllForUserExcept` input/result at its owning sessions service and remove the `unknown` double cast from `auth.service.js`.
-- [ ] Prove password change preserves only the explicitly identified current session, revokes the intended remaining sessions, and retains audit, generic-error, Support View, and public-demo behavior.
-- [ ] Deepen wildcard auth/session and permission-assignment parameters touched by this boundary without widening grants, ceilings, workspace scope, or effective-user decisions.
-
-Acceptance criteria:
-
-- Password-change revocation typechecks against its real implementation and the current-session exception is executable and unambiguous.
 
 ## Version 0.33.32.26 - Job-worker shutdown rejection safety
 
