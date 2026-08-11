@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.33`.
+Active cursor: `0.33.32.25`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -35,21 +35,293 @@ Delivery and sizing rule:
 
 - Every numbered slice has one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
 - A slice may type one large file, one small cohesive cluster, or adjudicate one behavior risk. It must not absorb another listed slice because nearby checker errors look convenient.
-- Dependencies: slice 1 precedes all others; slice 2 precedes slices 2.1 and 16-17; slice 3 precedes slices 4-7; slice 8 precedes slices 9-10; slice 11 precedes slice 12; slice 13 and slice 17 precede slice 23; slice 19 precedes slices 20-22; and slice 21 precedes slice 22. Other slices may be reordered or deferred independently.
+- Dependencies: slice 1 precedes all others; slice 2 precedes slices 2.1 and 16-17; slice 3 precedes slices 4-7; slice 8 precedes slices 9-10; slice 11 precedes slice 12; slice 13 and slice 17 precede slice 23; slice 19 precedes slices 20-24 and 30; and slice 21 precedes slices 22 and 24. Slice 24 is the immediate promotion/deployment blocker. Slices 25-43 may be reordered where their stated dependencies permit; slice 44 follows the named corrective and checked-seam passes; slice 45 is the final branch audit and archive handoff.
 
 Priority guidance:
 
 - The minimum worthwhile audit-remediation tranche is slices 1-8, including numeric follow-on slice 2.1, plus slice 13: the ratchet, trusted HTTP identity and raw-body boundary, canonical time-entry shapes, four isolated money-path adjudications, the transaction-client distinction, and the proven Search casing drift.
-- Before `0.34` begins declarative Support Tickets UI work, also complete slices 19, 21, and 22 so the browser checking program, declared response envelope, and descriptor-field boundary are standing contracts. Slice 20 remains valuable but is not a Support Tickets start gate.
-- Slices 9-12, 14-18, 20, and 23 are beneficial expansion work that may be reordered or deferred after their listed dependencies. Repeat slice 18 only for coherent ownership tiers whose clean opt-in still provides reviewable contract value.
+- Slice 24 has cleared the immediate promotion/deployment blocker by making permission-restricted Clients/Projects descriptor delivery executable and checked.
+- Before `0.34` begins declarative Support Tickets UI work, complete slice 30; slice 24 already established executable delivered-descriptor variants, and slice 30 must do the same for the shared browser failure boundary.
+- Slices 25-44 are branch-completion work grounded by the 2026-08-11 independent review. They may be reordered only within the dependency rule above; none may be silently dropped from the final slice-45 inventory.
 
 Non-goals:
 
 - Do not flip `checkJs` or `noImplicitAny` globally, convert runtime files to `.ts`, add a runtime build step, duplicate Zod validation, weaken a runtime schema, or rewrite tests for checker satisfaction.
 - Do not pursue majority-of-files coverage or spend release ceremony on low-value clean-file counts. Slice 18 is repeatable to preserve worthwhile clean ownership tiers, not to manufacture a percentage target.
-- Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
-- Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
+- Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-24 introduce and harden checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
+- Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not absorb `src/routes/private-feeds.routes.js` into a generic slice-18/38 clean-file pass: slice 37 is its explicit Calendar/security-owned exception and must reconcile the reserved-path guardrail before opt-in. Slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
+
+Completion-review evidence:
+
+- The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
+- The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
+- Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
+
+## Version 0.33.32.25 - Auth/session revocation signature authority
+
+**Model: High Effort** — Password-change session revocation is a credential-security boundary and must consume the real session-service signature rather than an invented double-cast shape.
+
+- [ ] Define the canonical `revokeAllForUserExcept` input/result at its owning sessions service and remove the `unknown` double cast from `auth.service.js`.
+- [ ] Prove password change preserves only the explicitly identified current session, revokes the intended remaining sessions, and retains audit, generic-error, Support View, and public-demo behavior.
+- [ ] Deepen wildcard auth/session and permission-assignment parameters touched by this boundary without widening grants, ceilings, workspace scope, or effective-user decisions.
+
+Acceptance criteria:
+
+- Password-change revocation typechecks against its real implementation and the current-session exception is executable and unambiguous.
+
+## Version 0.33.32.26 - Job-worker shutdown rejection safety
+
+**Model: High Effort** — Shutdown is a framework-wide jobs lifecycle boundary where a non-`Error` rejection must not trigger a second exception or leave state misleadingly active.
+
+- [ ] Replace direct `.message` reads on unknown shutdown/poll failures with one checked safe error-summary authority.
+- [ ] Prove `Error`, string, object, `null`, and `undefined` active-run rejection during shutdown; the worker must stop, clear timer/running state, and log only bounded safe text.
+- [ ] Preserve claim, retry, dead-letter, public-demo capability, and handler execution semantics.
+
+Acceptance criteria:
+
+- Graceful shutdown cannot throw while reporting an arbitrary rejection and always reaches a truthful stopped state without payload leakage.
+
+## Version 0.33.32.27 - Database contract environment and row-shape honesty
+
+**Model: High Effort** — Shared database types reach many checked consumers; ambient Node-only values and open `any` rows can erase the provider boundary's guarantees.
+
+- [ ] Replace unqualified `Buffer` references with explicitly Node-owned types and guard that no browser-consumed export reaches Node-only database contracts.
+- [ ] Replace `DatabaseRow = Record<string, any>` with an unknown-valued base and add named row projections at touched consumers.
+- [ ] Type the public `src/db/provider.js` surface while preserving full-adapter versus transaction-client authority, parameter kinds, nullable reads, and runtime exports.
+- [ ] Add compile failures for browser reachability, unknown row-field access, and transaction-only use of full-adapter operations.
+
+Acceptance criteria:
+
+- Database contracts remain Node-scoped, generic rows require narrowing, and provider consumers cannot regain `any` or nested-transaction authority.
+
+## Version 0.33.32.28 - Time Tracking sourced-edge and boolean fidelity
+
+**Model: High Effort** — Active timers feed billable time and task-linked work, so unvalidated sourced payloads and false-to-yes coercion are revenue-path risks.
+
+- [ ] Make `parseTimeTrackingEdgePayload` generic over its Zod schema so callers receive inferred payloads instead of `any`.
+- [ ] Adjudicate and implement the missing `saveSourced` edge-schema half: parse untrusted module-action input once without reparsing trusted internal objects.
+- [ ] Prove and fix `normalizeTimerPayload` so boolean `false` cannot become `"yes"`; retain Personal/Family forced-nonbillable and string compatibility.
+- [ ] Deepen only the active-timer, time-entry, billing, and task-timer annotations needed to enforce this money-path contract; cover manual, sourced, task-linked, finalize, and workspace-type variants.
+
+Acceptance criteria:
+
+- Every untrusted timer write is parsed at its real edge and no supported false/nonbillable value can be persisted as billable.
+
+## Version 0.33.32.29 - Billing timezone compatibility and DST-period proof
+
+**Model: High Effort** — Billing-period boundaries affect historical money views, and timezone fallback changes can move entries between invoices around DST transitions.
+
+- [ ] Record the governing `normalizeUtcIso` behavior in `DECISIONS.md`: explicit-zone precedence, source-timezone interpretation, invalid/missing fallback, and DST ambiguity/nonexistence policy.
+- [ ] Determine and document compatibility for historical invoices/time entries created before session-timezone billing authority; never reinterpret stored absolute instants silently.
+- [ ] Validate or canonically normalize `session.timezone` before it reaches `Intl.DateTimeFormat`; prove malformed/unsupported session values fail safely or use the documented fallback instead of producing an uncaught billing/report error.
+- [ ] Add billing-period proof for spring-forward and the 25-hour fall-back day across current/last/custom periods and inclusive-start/exclusive-end bounds in a non-default timezone.
+- [ ] Fix only reproduced drift and preserve per-project period, rounding, rate, and hierarchy ownership.
+
+Acceptance criteria:
+
+- Historical instants remain stable, session-timezone billing follows a documented rule, and both DST transitions are proven at report-period level.
+
+## Version 0.33.32.30 - Shared browser API failure fallback
+
+**Model: Medium Effort** — The shared fallback is small and well specified, but it must fail visibly when its canonical error parser is unavailable.
+
+- [ ] Decide whether `api-client.js` retains a standalone fallback or fails fast without `error-contract.js`; encode the result in the checked browser contract and preamble-order guardrail.
+- [ ] If compatibility remains, preserve safe envelope `code`/`requestId` values rather than forcing empty strings; never expose raw response bodies or server details.
+- [ ] Add executable load-order, missing-parser, and envelope proof while keeping the canonical parser path unchanged.
+
+Acceptance criteria:
+
+- Missing shared error infrastructure cannot silently erase safe diagnostic identity and normal errors retain message/code/request-ID/status.
+
+## Version 0.33.32.31 - Search parser provenance and session deepening
+
+**Model: High Effort** — Search query and session shapes participate in authorization; their assumptions must be explicit at the Express edge and service boundary.
+
+- [ ] Document at `isPlainObject` that accepted nested/repeated shapes depend on application-owned Express `extended` parsing, and guard that setting with the Search route contract.
+- [ ] Replace `session?: any` and adjacent Search service dead ends with the shared request-session/permission-safe contracts from slice 23.
+- [ ] Give `normalizeSearchRecordReference` an explicit canonical camelCase return contract and compile/runtime proof; this producer is the single authority that must keep the slice-13 indexer guarantee from depending only on a live regression.
+- [ ] Add configuration-drift proof without changing scalar/repeated/nested/bounded-cursor behavior, ranking, or permission pruning.
+
+Acceptance criteria:
+
+- Parser mode and Search query guards form one enforced contract and Search session typing reaches the service boundary without `any`.
+
+## Version 0.33.32.32 - Cross-shell backup-drill archive operands
+
+**Model: Medium Effort** — This is a contained release-tooling portability fix following an already proven production archive pattern.
+
+- [ ] Reproduce the Git Bash/GNU tar drive-letter failure without changing the production backup format.
+- [ ] Use basename/working-directory operands following the settled production backup pattern, or an equivalently portable local-archive flag.
+- [ ] Prove equivalent PowerShell/Windows tar, Git Bash/GNU tar, and Linux results while retaining traversal, checksum, manifest, and restore-safety checks.
+
+Acceptance criteria:
+
+- `npm run backup:drill` succeeds from supported Windows shells and Linux without weakening archive validation.
+
+## Version 0.33.32.33 - Support View checked service boundary
+
+**Model: High Effort** — Support View changes effective identity and intersects permissions, making its untyped service the highest-risk uncovered mid-tier seam.
+
+- [ ] Check `src/services/support-view.service.js` against explicit operator, target-user, support-session, workspace, audit, and effective-permission contracts.
+- [ ] Refactor `SupportViewRequestSession` from a permissive refinement interface into the real discriminated request-session union so Support View narrowing removes the gate's remaining assertion cast rather than relocating it.
+- [ ] Narrow nullable rows and parsed payloads without casts that bypass enumeration resistance or target eligibility.
+- [ ] Retain start/end/expiry, invalidation, generic denial, security event, audit, proxy, and public-demo behavior with permission proof.
+
+Acceptance criteria:
+
+- Support View identity lifecycle is checked end to end and every authorization, privacy, expiry, and audit invariant remains green.
+
+## Version 0.33.32.34 - Users service checked boundary
+
+**Model: High Effort** — Users service owns identity lifecycle, workspace membership, role assignment, and credential-adjacent state.
+
+- [ ] Check `src/services/users.service.js` with explicit input, nullable-row, membership, role, workspace, and response projections.
+- [ ] Reproduce any suspected lifecycle/permission/data drift before runtime changes; retain creation/update/deactivation, protected-user, owner-transfer, workspace-switch, password, audit, and demo rules.
+
+Acceptance criteria:
+
+- Users service consumes named contracts without suppressions and the identity/membership/role permission matrix is unchanged.
+
+## Version 0.33.32.35 - Help and static-delivery checked services
+
+**Model: Medium Effort** — These are cohesive read/delivery services with low mutation risk, but protected paths and contribution filtering remain exact security contracts.
+
+- [ ] Check `help.service.js` and `static.service.js` as one read-only tier with explicit Help contribution, protected-page, asset, response, and nullable lookup shapes.
+- [ ] Preserve module/permission/capability filtering, safe local resolution, public/protected separation, content safety, caching, and not-found behavior.
+- [ ] Record the exact tier in the bounded-pass inventory before raising the floor.
+
+Acceptance criteria:
+
+- Help/static delivery typechecks without changing visible content, eligibility, protected paths, or asset resolution.
+
+## Version 0.33.32.36 - Search-index rebuild checked service
+
+**Model: High Effort** — Rebuild mutates a workspace-wide recovery index and must preserve module eligibility, permissions, batching, and stale cleanup.
+
+- [ ] Check `search-index-rebuild.service.js` against the slice-13/23 declaration, reference, job, progress, and result contracts.
+- [ ] Retain full/incremental rebuild, disabled-module filtering, stale deletion, job progress, failure recovery, FTS/LIKE parity, and workspace isolation.
+
+Acceptance criteria:
+
+- Search rebuild consumes canonical checked Search contracts and produces the same permission-safe index.
+
+## Version 0.33.32.37 - Private calendar-feed service and route trust boundary
+
+**Model: High Effort** — An unauthenticated token-in-URL calendar surface combines bearer credentials, task visibility, recurrence, and serialization.
+
+- [ ] Check `private-feeds.service.js` and `private-feeds.routes.js` against explicit token, feed-scope, task-calendar, request, and response contracts.
+- [ ] Reconcile the promoted scope before opt-in: amend the branch non-goal, remove `src/routes/private-feeds.routes.js` from `RESERVED_CLEAN_FILE_PATHS` using the same claimed-owner mechanism as slice 23, and confirm the former TODO deferral remains removed.
+- [ ] Preserve generic invalid/revoked/expired behavior, token secrecy, workspace/module/status filtering, recurrence bounds, timezone formatting, escaping, cache headers, and audit/security behavior.
+- [ ] Prove malformed input and inaccessible records cannot leak token, task, workspace, or user details.
+
+Acceptance criteria:
+
+- The complete public feed edge is checked without weakening bearer-token secrecy or valid calendar output.
+
+## Version 0.33.32.38 - Bounded framework route and error-middleware passes
+
+**Model: High Effort** — Thin route adapters are mechanically similar, but collectively expose authentication, validation, response, and error boundaries.
+
+- [ ] Recount unchecked `src/routes/*.js` and partition remaining sub-150-line framework adapters into exact ownership-coherent passes of at most 20 files; exclude Search, private feeds, Files, and large module-owned routes.
+- [ ] Check each pass against shared request/session/body/query/params/response contracts without changing middleware order or service authority.
+- [ ] Deepen the already-checked authentication middleware's `response` and `next` parameters to the same shared HTTP contracts so the route pass does not leave its immediate middleware boundary as `any`.
+- [ ] Check `error-handler.js`, including unknown thrown values, headers-already-sent, request IDs, safe production messages, and API/browser classification.
+- [ ] Create a separate owner slice if a route reveals non-mechanical permission, destructive, schema, or cross-module drift.
+
+Acceptance criteria:
+
+- Recorded thin-route tiers and final error middleware typecheck without suppression or HTTP behavior drift.
+
+## Version 0.33.32.39 - Files route checked boundary
+
+**Model: High Effort** — The largest uncovered route owns uploads, downloads, previews, lifecycle actions, scanner state, storage safety, and file permissions.
+
+- [ ] Check `files.routes.js` against existing Files Zod, session, permission, upload, attachment, preview, download, scan, storage, and response contracts.
+- [ ] Narrow multipart/route values at the real edge without duplicating service policy or exposing storage keys, paths, hashes, scanner internals, signed URLs, or hidden labels.
+- [ ] Retain staged delete/restore, quarantine/report, partial success, attachment scope, download-only behavior, and direct-static-download prohibition.
+
+Acceptance criteria:
+
+- Every Files route handler is checked and preserves existing Files security, lifecycle, permission, and response contracts.
+
+## Version 0.33.32.40 - Bounded framework repository passes
+
+**Model: High Effort** — Repository annotations can expose nullable-row and binding drift across security, permissions, audit, notifications, tags, sessions, and workspace lifecycle.
+
+- [ ] Recount unchecked `src/repositories/*.js` and record exact non-overlapping passes by owner: credential/session, permission/audit/activity, and workspace lifecycle.
+- [ ] Use named row projections over the slice-27 unknown-valued base, explicit nullable reads, named parameters, and correct adapter/transaction authority.
+- [ ] Reproduce query/nullability/uniqueness/scope/lifecycle drift before runtime or SQL changes; do not combine typing with schema migrations.
+- [ ] Retain focused repository, permission, fresh-database, and SQLite integrity proof.
+
+Acceptance criteria:
+
+- Recorded repository tiers typecheck with explicit rows/nullability and no unproven SQL, scope, or lifecycle behavior change.
+
+## Version 0.33.32.41 - Password and application-startup checked core
+
+**Model: High Effort** — Password primitives and startup/shutdown orchestration are security- and availability-critical framework boundaries.
+
+- [ ] Check `src/security/passwords.js` against explicit hash, verification, rehash, policy, and unknown-error contracts without algorithm/parameter/dummy-hash/timing changes.
+- [ ] Check `src/core/app.js` against Express server, startup phase, worker lifecycle, database close, signal, timer, and unknown-error contracts.
+- [ ] Preserve middleware/router order, readiness timing, startup jobs, graceful shutdown, safe logging, and exit behavior; slice 26 remains the worker rejection authority.
+
+Acceptance criteria:
+
+- Password/app lifecycle core typechecks without suppression and credential/startup/readiness/shutdown behavior remains green.
+
+## Version 0.33.32.42 - Markdown checked core boundary
+
+**Model: High Effort** — Shared Markdown rendering is a content-safety boundary consumed by Notes, Help, Files preview, and future Support Tickets.
+
+- [ ] Check `src/core/markdown/markdown.service.js` with explicit renderer, token, link, preference, and sanitized output contracts.
+- [ ] Preserve HTML policy, safe schemes, link preferences, current integrations, empty/error behavior, and protected-data safety.
+
+Acceptance criteria:
+
+- Shared Markdown is checked and produces the same safe output across current consumers.
+
+## Version 0.33.32.43 - Migration-runner checked boundary
+
+**Model: High Effort** — Migration ordering, locking, checksums, baselines, and transactions are database-integrity contracts.
+
+- [ ] Check `src/db/migrations.js` against explicit migration-file, version, lock, checksum, adapter, transaction, and result contracts.
+- [ ] Narrow filesystem/database state without editing applied migrations, changing checksums, or adding schema solely for checker satisfaction.
+- [ ] Retain fresh/repeat startup, adoption, contention, checksum mismatch, rollback, snapshot, foreign-key, and integrity proof.
+
+Acceptance criteria:
+
+- Migration runner typechecks and every ordering, lock, checksum, rollback, and schema-integrity behavior remains unchanged.
+
+## Version 0.33.32.44 - Checked-program honesty and residual inventory
+
+**Model: High Effort** — The branch must distinguish meaningful contracts from pragma-only or `any`-terminated coverage without making percentage the goal.
+
+- [ ] Re-run source/test probes after slices 24-43 and publish exact residuals by owner, including checked files ending in `any`, wildcard parameters, double casts, or unannotated exports.
+- [ ] Remove named production honesty debt not already owned above: pragma-only billing/time-entry/task-timer exports, permission assignment wildcards, dead-end session types, and assertion-only casts.
+- [ ] Replace `modules.service.js`'s `CatalogContribution`/`ModuleEventHook` `Record<string, any>` plus optional-everything intersections with explicit catalog projection and event-hook contracts that Support Tickets can author against without erasing contribution vocabulary.
+- [ ] Remove the open `[key: string]: unknown` signatures from `PermissionResource` and `ActiveApiKey`, or replace them with explicit extension points proven to retain excess-property typo detection; add compile fixtures for misspelled permission/API-key fields.
+- [ ] Either convert one coherent high-value e2e helper/spec tier or explicitly record remaining test-only errors as non-production test hardening; do not inflate production coverage nominally.
+- [ ] Align checked inventory, bounded passes, guardrail fixtures, `docs/module-development.md`, and `DECISIONS.md` with exact achieved coverage and remaining owner-scoped work.
+
+Acceptance criteria:
+
+- Claimed production seams enforce their contracts, inventories match reality, and every remaining probe error has an explicit future owner without weaker checking dials.
+
+## Version 0.33.32.45 - Branch completion audit and archive handoff
+
+**Model: High Effort** — Final closeout must reconcile a previously integrated branch, independent-review findings, protected verification, version records, and the next cursor.
+
+- [ ] Re-run the independent-review matrix over slices 1-44: suppressions/runtime TS imports, checked floor, raw/delivered descriptors, restricted-role browser paths, behavior ledger, residual probes, backup shells, permissions, and release gates.
+- [ ] Make reproduce-before-fix auditable for every runtime correction: retain the pre-fix failing command/output in the slice closeout record or use an inspectable red-then-green commit pair, and have this audit reject fixes supported only by post-fix green proof.
+- [ ] Confirm no finding was lost, duplicated, or closed only by source matching; record every intentional deferral in `TODO.md`.
+- [ ] Complete version/changelog/decisions/owning docs/generated inventories/runtime identity; run `npm run verify:slice` once plus exceptional browser/permission/backup proof required above.
+- [ ] Publish through protected PR/checks/exact-head merge to `nightly`, then require exact-SHA Nightly integration before any promotion/deployment decision.
+- [ ] Move the complete 0.33.32 plan to `ROADMAP-ARCHIVE.md`, advance the cursor to `0.33.33`, and prove local/running identity matches.
+
+Acceptance criteria:
+
+- Every accepted review item is executable-proof complete, no type-contract honesty debt is unrecorded, exact-SHA Nightly proof is green, and 0.33.32 is archived with 0.33.33 active.
 
 ## Version 0.33.33 - Public Demo Analytics, Privacy, and Interest Capture
 

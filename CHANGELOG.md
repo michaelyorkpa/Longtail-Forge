@@ -1,3 +1,13 @@
+## Version 0.33.32.24 - 2026-08-11
+
+- Fixed restricted Clients/Projects page delivery by omitting the optional top-level primary action when server-shaped capabilities deny top-level Client or Project creation; malformed action values remain rejected and super-admin actions are unchanged.
+- Removed the descriptor projection's double return assertion in favor of an executable root identity/layout narrowing check.
+- Extended declarative guardrails to execute and normalize the real page-mutated Clients and Projects descriptors, preserve declared response envelope keys, and prevent response-key guessing from spreading beyond the checked compatibility adapter.
+- Added focused permission assertions plus rendered desktop/mobile proof for restricted no-action pages and unchanged super-admin Add Client/Add Project behavior.
+- Corrected the 0.33.32.22 record: permission policy was intended to remain unchanged, but restricted-role rendering was broken until this fix.
+- Docs updated: `DECISIONS.md`, `docs/clients-projects-strict-guardrail-inventory.md`, `docs/declarative-view-surfaces.md`, `docs/e2e-testing.md`, `docs/view-building-contract.md`.
+- No docs change needed: user-facing Help, route/service authorization, Client/Project workflow semantics, API payload contracts, database schema/migrations, runtime configuration, deployment, and accessibility guidance are unchanged.
+
 ## Version 0.33.32.23 - 2026-08-11
 
 - Checked the protected Search route against explicit permission-safe request, canonical raw-result, browser-result, and active workspace-session contracts, raising the complete checked inventory floor from 99 to 100 files.
@@ -14,7 +24,7 @@
 - Closed two pre-existing server/browser contract gaps by explicitly validating the renderer-backed summary-panel `messageField`/`items` shape and string-or-object action confirmations.
 - Added path-specific renamed/malformed field failures, checked every bundled descriptor through the projection, raised the browser program to nine scripts and the complete checked inventory floor from 98 to 99 files, and retained full Views-area plus rendered-browser coverage.
 - Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/view-building-contract.md`.
-- No docs change needed: user-facing Help, module workflow behavior, HTTP error envelopes, permissions, paging semantics, database schema/migrations, runtime configuration, deployment, and public API contracts are unchanged.
+- No docs change needed: user-facing Help, module workflow behavior, HTTP error envelopes, intended permission policy, paging semantics, database schema/migrations, runtime configuration, deployment, and public API contracts are unchanged. Restricted Clients/Projects rendering was not preserved and is corrected in 0.33.32.24.
 
 ## Version 0.33.32.21 - 2026-08-11
 

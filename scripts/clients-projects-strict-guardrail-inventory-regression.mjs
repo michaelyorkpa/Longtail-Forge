@@ -22,7 +22,7 @@ const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 
 
-assert.match(inventoryDoc, /Current as of 0\.33\.27\.5/, "Clients/Projects inventory should report the current strict boundary");
+assert.match(inventoryDoc, /Current as of 0\.33\.32\.24/, "Clients/Projects inventory should report the current strict boundary");
 assert.match(inventoryDoc, /strict enforcement is active/, "Inventory should mark Clients/Projects guardrails as active");
 assert.ok(sourceContainsInOrder(inventoryDoc, ["Framework-Owned Guardrail Candidates", "page-header/status shells", "Inline top filter panels", "Hierarchy index/list shells", "Related table/list shells", "Bulk-toolbar shell", "row-selection checkbox shell", "Empty/loading/error/status shells"]), "Inventory should map framework-owned anatomy");
 assert.ok(sourceContainsInOrder(inventoryDoc, ["Allowed Clients/Projects Escape Hatches", "/api/clients", "/api/projects", "/api/client-projects", "hierarchy rules", "Billing metadata/default editors", "Tag assignment", "Query-param openers", "Business-only Client availability", "Bulk selected-ID collection", "Save payload construction"]), "Inventory should map Clients/Projects-owned escape hatches");

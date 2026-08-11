@@ -252,7 +252,28 @@
   /** @type {BrowserViewSurfaceDescriptorAdapterContract["normalize"]} */
   function normalize(value) {
     const projected = projectValue(value ?? {}, descriptorSpec, "viewSurface");
-    return /** @type {BrowserViewSurfaceDescriptorContract} */ (/** @type {unknown} */ (projected));
+    if (!isBrowserViewSurfaceDescriptor(projected)) {
+      throw contractError("viewSurface", "must include its required identity and layout fields");
+    }
+    return projected;
+  }
+
+  /**
+   * The projection validates every admitted field above; this final root check
+   * narrows its unknown result to the required browser descriptor identity.
+   * @param {unknown} value
+   * @returns {value is BrowserViewSurfaceDescriptorContract}
+   */
+  function isBrowserViewSurfaceDescriptor(value) {
+    if (Object.prototype.toString.call(value) !== "[object Object]") {
+      return false;
+    }
+    const descriptor = /** @type {Record<string, unknown>} */ (value);
+    return typeof descriptor.id === "string"
+      && typeof descriptor.moduleId === "string"
+      && typeof descriptor.viewId === "string"
+      && typeof descriptor.layout === "string"
+      && ["single-column", "stacked", "sidebar-detail", "slide-out-sidebar", "table-page"].includes(descriptor.layout);
   }
 
   /**
