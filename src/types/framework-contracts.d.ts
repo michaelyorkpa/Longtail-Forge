@@ -633,9 +633,24 @@ export interface PublicApiListEnvelope<Item = unknown> {
   [key: string]: unknown;
 }
 
-export interface PublicApiErrorEnvelope {
-  error: string;
+export interface ApiErrorDetails {
+  code: string;
+  fields?: unknown[];
+  message: string;
+  requestId: string;
   [key: string]: unknown;
+}
+
+export interface ApiErrorEnvelope {
+  apiVersion?: string;
+  error?: ApiErrorDetails | string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface PublicApiErrorEnvelope extends ApiErrorEnvelope {
+  apiVersion: "v1";
+  error: ApiErrorDetails;
 }
 
 // ---------------------------------------------------------------------------

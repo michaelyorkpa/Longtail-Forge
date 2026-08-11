@@ -3675,7 +3675,7 @@
     },
     {
       "area": "framework",
-      "description": "Proves bounded clean-file passes, the complete first-party checked-seam inventory, and compiler settings stay monotonic without checker escapes or runtime TypeScript imports.",
+      "description": "Proves the server and browser typecheck programs, bounded clean-file passes, complete checked-seam inventory, and escape-hatch prohibitions stay intact.",
       "id": "framework.typecheck-seams",
       "legacy": false,
       "path": "scripts/regressions/framework/typecheck-seams.regression.mjs",

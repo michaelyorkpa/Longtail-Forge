@@ -131,6 +131,8 @@ A route-specific permission contract may retain a deliberate `403`; this shared 
 
 Every repository-owned browser entry lives under `views/`, contains a `<head>` element, and is served through `staticService`. The service injects the shared error parser and recovery boundary before page-owned scripts.
 
+`public/js/shared/error-contract.js` is the single browser owner for parsing the framework `ApiErrorEnvelope`. The shared API client delegates response bodies to that parser and uses only generic fallback copy if the boundary is unexpectedly unavailable; it must not duplicate envelope-field interpretation. The browser type contract reuses the framework-owned envelope vocabulary, while `staticService` injection preserves the established parser-before-page-assets runtime order.
+
 The boundary provides one accessible recovery action, assertive announcement, heading focus, saved Light/Dark theme continuity, and Auto-only system theme selection. It may replace failed rendering or present a generic mutation-permission dialog, but it must not automatically replay a write. New browser entries must use this path rather than bypassing the shared document service.
 
 ## Request-ID Support Workflow
