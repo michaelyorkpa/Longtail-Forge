@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.27 - Database contract environment and row-shape honesty
+
+Completed on 2026-08-11. Database contracts are now explicitly Node-scoped and unknown-valued at generic row boundaries, and the active roadmap advances to `0.33.32.28` for Time Tracking sourced-edge and boolean fidelity.
+
+**Model: High Effort** - Shared database types reach many checked consumers; ambient Node-only values and open `any` rows can erase the provider boundary's guarantees.
+
+- [x] Moved adapter, transaction, dialect, binding, row, parameter, and health declarations into the server-only `database-contracts.d.ts`; imported `NodeBuffer` from `node:buffer` and removed database exports from browser-consumed framework declarations.
+- [x] Replaced `DatabaseRow = Record<string, any>` with `Record<string, unknown>`, removed generic row `any` from the checked SQLite/provider cluster, and added named projections at every surfaced consumer exposed by the change.
+- [x] Typed every public `src/db/provider.js` function while retaining the full-adapter/transaction-client split, supported parameter kinds, nullable `get`, health/dialect surfaces, compatibility aliases, and runtime exports.
+- [x] Added server and browser negative compile fixtures for unknown row-field access, nested transaction attempts, and browser reachability; extended the standing typecheck guardrail and updated both focused database contract regression owners.
+- [x] Raised the complete checked inventory floor from 101 to 103 files and passed the 45-script Database regression area before canonical closeout.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, database schema/migrations, SQL/runtime behavior, permissions, Tags, Time Tracking workflows, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Database contracts remain Node-scoped, generic rows require narrowing, and provider consumers cannot regain `any` or nested-transaction authority.
+
 ## Version 0.33.32.26 - Job-worker shutdown rejection safety
 
 Completed on 2026-08-11. Scheduled-poll and shutdown failures now share one checked, bounded safe-summary authority, and the active roadmap advances to `0.33.32.27` for database contract environment and row-shape honesty.

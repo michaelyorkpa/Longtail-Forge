@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.27`.
+Active cursor: `0.33.32.28`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -57,19 +57,6 @@ Completion-review evidence:
 - The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.27 - Database contract environment and row-shape honesty
-
-**Model: High Effort** — Shared database types reach many checked consumers; ambient Node-only values and open `any` rows can erase the provider boundary's guarantees.
-
-- [ ] Replace unqualified `Buffer` references with explicitly Node-owned types and guard that no browser-consumed export reaches Node-only database contracts.
-- [ ] Replace `DatabaseRow = Record<string, any>` with an unknown-valued base and add named row projections at touched consumers.
-- [ ] Type the public `src/db/provider.js` surface while preserving full-adapter versus transaction-client authority, parameter kinds, nullable reads, and runtime exports.
-- [ ] Add compile failures for browser reachability, unknown row-field access, and transaction-only use of full-adapter operations.
-
-Acceptance criteria:
-
-- Database contracts remain Node-scoped, generic rows require narrowing, and provider consumers cannot regain `any` or nested-transaction authority.
 
 ## Version 0.33.32.28 - Time Tracking sourced-edge and boolean fidelity
 

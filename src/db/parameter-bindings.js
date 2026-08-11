@@ -1,15 +1,17 @@
 // @ts-check
-/** @typedef {import("../types/framework-contracts.js").DatabaseParams} DatabaseParams */
-/** @typedef {import("../types/framework-contracts.js").DatabaseParameterInput} DatabaseParameterInput */
-/** @typedef {import("../types/framework-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
-/** @typedef {import("../types/framework-contracts.js").DatabasePlaceholderStyle} DatabasePlaceholderStyle */
-/** @typedef {import("../types/framework-contracts.js").NormalizedDatabaseParameters} NormalizedDatabaseParameters */
-/** @typedef {import("../types/framework-contracts.js").NamedDatabaseParameterToken} NamedDatabaseParameterToken */
-/** @typedef {import("../types/framework-contracts.js").PositionalDatabaseParameterToken} PositionalDatabaseParameterToken */
-/** @typedef {import("../types/framework-contracts.js").DatabaseParameterToken} DatabaseParameterToken */
-/** @typedef {import("../types/framework-contracts.js").NamedBindingEntry} NamedBindingEntry */
-/** @typedef {import("../types/framework-contracts.js").PreparedDatabaseBindings} PreparedDatabaseBindings */
-/** @typedef {import("../types/framework-contracts.js").PrepareDatabaseBindingsOptions} PrepareDatabaseBindingsOptions */
+import { Buffer } from "node:buffer";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseParams} DatabaseParams */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterInput} DatabaseParameterInput */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").DatabasePlaceholderStyle} DatabasePlaceholderStyle */
+/** @typedef {import("../types/database-contracts.js").NormalizedDatabaseParameters} NormalizedDatabaseParameters */
+/** @typedef {import("../types/database-contracts.js").NamedDatabaseParameterToken} NamedDatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").PositionalDatabaseParameterToken} PositionalDatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterToken} DatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").NamedBindingEntry} NamedBindingEntry */
+/** @typedef {import("../types/database-contracts.js").PreparedDatabaseBindings} PreparedDatabaseBindings */
+/** @typedef {import("../types/database-contracts.js").PrepareDatabaseBindingsOptions} PrepareDatabaseBindingsOptions */
 
 const DOLLAR_PLACEHOLDERS = "dollar";
 const QUESTION_PLACEHOLDERS = "question";
@@ -60,7 +62,7 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
  * @template {Record<string, unknown>} RowType
  * @param {RowType[]} rows
  * @param {string[]} columns
- * @param {import("../types/framework-contracts.js").BulkValuesBindingOptions<RowType>} [options]
+ * @param {import("../types/database-contracts.js").BulkValuesBindingOptions<RowType>} [options]
  * @returns {{ params: Record<string, DatabaseParameterValue>; sql: string }}
  */
 function createBulkValuesBindings(rows, columns, options = {}) {
@@ -351,7 +353,7 @@ function normalizeDatabaseParameters(params) {
 }
 
 /**
- * @param {import("../types/framework-contracts.js").DatabaseNamedParameterInput} value
+ * @param {import("../types/database-contracts.js").DatabaseNamedParameterInput} value
  * @returns {DatabaseParameterValue | DatabaseParameterValue[]}
  */
 function normalizeNamedDatabaseParameterValue(value) {

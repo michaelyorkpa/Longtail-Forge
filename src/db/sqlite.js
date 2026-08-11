@@ -1,5 +1,6 @@
 // @ts-check
 import Database from "better-sqlite3";
+import { Buffer } from "node:buffer";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
@@ -11,7 +12,8 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
-/** @typedef {import("../types/framework-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
 
 /**
  * @typedef {Object} SqliteHealth
@@ -29,9 +31,9 @@ import {
 /**
  * @typedef {Object} SqliteStatement
  * @property {boolean} reader
- * @property {(bindings?: any) => unknown} run
- * @property {(bindings?: any) => Record<string, any>[]} all
- * @property {(bindings?: any) => Record<string, any> | undefined} get
+ * @property {(bindings?: DatabaseParameterValue[]) => unknown} run
+ * @property {(bindings?: DatabaseParameterValue[]) => DatabaseRow[]} all
+ * @property {(bindings?: DatabaseParameterValue[]) => DatabaseRow | undefined} get
  */
 /**
  * @typedef {Object} SqliteDatabase

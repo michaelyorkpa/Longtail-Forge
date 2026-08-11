@@ -44,6 +44,7 @@ const EXPECTED_TYPECHECK_EXCLUDES = [
   "public",
   "styles",
   "views",
+  "tests/typecheck/browser-database-boundary.fixture.mjs",
 ];
 const EXPECTED_BROWSER_TYPECHECK_INCLUDES = [
   "public/js/shared/api-client.js",
@@ -57,6 +58,7 @@ const EXPECTED_BROWSER_TYPECHECK_INCLUDES = [
   "public/js/shared/view-surface-descriptor.js",
   "src/types/browser-contracts.d.ts",
   "src/types/framework-contracts.d.ts",
+  "tests/typecheck/browser-database-boundary.fixture.mjs",
 ];
 const EXPECTED_BROWSER_TYPECHECK_EXCLUDES = ["node_modules"];
 const EXPECTED_COMPILER_OPTION_KEYS = [
@@ -155,10 +157,15 @@ const CONTRACT_TYPE_EXPORTS = [
   "JobWorkerOptions",
   "JobRunSummary",
   "JobWorkerStatus",
+];
+const DATABASE_CONTRACT_TYPE_EXPORTS = [
+  "BulkValuesBindingOptions",
   "DatabaseAdapter",
   "DatabaseDialect",
+  "DatabaseHealth",
   "DatabaseInsertOptions",
   "DatabaseParameterToken",
+  "DatabaseRow",
   "DatabaseRowIdOptions",
   "DatabaseSeam",
   "NamedBindingEntry",
@@ -364,6 +371,34 @@ for (const typeName of CONTRACT_TYPE_EXPORTS) {
     `framework-contracts.d.ts must export ${typeName}`,
   );
 }
+const databaseContractSource = readFileSync("src/types/database-contracts.d.ts", "utf8");
+for (const typeName of DATABASE_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    databaseContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `database-contracts.d.ts must export ${typeName}`,
+  );
+}
+assert.match(
+  databaseContractSource,
+  /^import type \{ Buffer as NodeBuffer \} from "node:buffer";/,
+  "the Node-only database contract must name its Buffer authority explicitly",
+);
+assert.match(
+  databaseContractSource,
+  /export type DatabaseRow = Record<string, unknown>;/,
+  "generic database rows must require checked narrowing",
+);
+assert.doesNotMatch(
+  databaseContractSource,
+  /Record<string, any>|\bBuffer\b(?! as NodeBuffer)/,
+  "database contracts must not regain open any rows or ambient Buffer types",
+);
+assert.doesNotMatch(
+  contractSource,
+  /database-contracts|DatabaseAdapter|TransactionClient|DatabaseRow/,
+  "browser-consumed framework exports must not reach the Node-only database contract",
+);
 const browserContractSource = readFileSync("src/types/browser-contracts.d.ts", "utf8");
 for (const typeName of BROWSER_CONTRACT_TYPE_EXPORTS) {
   assert.match(
@@ -371,6 +406,72 @@ for (const typeName of BROWSER_CONTRACT_TYPE_EXPORTS) {
     new RegExp(`export (interface|type) ${typeName}\\b`),
     `browser-contracts.d.ts must export ${typeName}`,
   );
+}
+assert.doesNotMatch(
+  browserContractSource,
+  /database-contracts|DatabaseAdapter|TransactionClient|DatabaseRow/,
+  "browser aliases must remain independent of Node-only database contracts",
+);
+const databaseTypeFixtureSource = readFileSync("tests/typecheck/database-contracts.fixture.mjs", "utf8");
+assert.match(databaseTypeFixtureSource, /@ts-expect-error Generic database fields must be narrowed or projected before use\./);
+assert.match(databaseTypeFixtureSource, /@ts-expect-error A callback-scoped transaction client cannot open another transaction\./);
+const browserDatabaseFixtureSource = readFileSync("tests/typecheck/browser-database-boundary.fixture.mjs", "utf8");
+assert.match(browserDatabaseFixtureSource, /@ts-expect-error Browser-consumed framework contracts must not export the Node-only database adapter\./);
+const providerSource = readFileSync("src/db/provider.js", "utf8");
+for (const contractName of ["DatabaseAdapter", "DatabaseDialect", "DatabaseHealth", "DatabaseParams", "DatabaseRow"]) {
+  assert.match(
+    providerSource,
+    new RegExp(`@typedef \\{import\\("\\.\\.\\/types\\/database-contracts\\.js"\\)\\.${contractName}\\} ${contractName}`),
+    `the public database provider must consume ${contractName}`,
+  );
+}
+for (const returnContract of [
+  "Promise<DatabaseRow\\[\\]>",
+  "Promise<DatabaseRow \\| null>",
+  "Promise<DatabaseHealth>",
+  "DatabaseHealth \\| null",
+  "DatabaseDialect",
+]) {
+  assert.match(providerSource, new RegExp(`@returns \\{${returnContract}\\}`), `the public database provider must expose ${returnContract}`);
+}
+const providerExportBlock = providerSource.match(/export \{([\s\S]*?)\n\};/);
+assert.ok(providerExportBlock, "the public database provider must retain an explicit runtime export block");
+for (const exportName of [
+  "closeDatabase",
+  "createDatabaseAdapter",
+  "databaseAdapter",
+  "databaseDialect",
+  "formatDatabaseHealth",
+  "getDatabaseDialect",
+  "getLastDatabaseHealth",
+  "getSql",
+  "initializeDatabaseRuntime",
+  "querySql",
+  "readDatabaseHealth",
+  "resolveDatabaseDialect",
+  "runSql",
+  "sqlInteger",
+  "sqlNullableInteger",
+  "sqlNullableText",
+  "sqlText",
+]) {
+  assert.match(providerExportBlock[1], new RegExp(`\\b${exportName}\\b`), `src/db/provider.js must retain the ${exportName} runtime export`);
+}
+for (const filePath of BROWSER_CHECKED_FILES) {
+  assert.doesNotMatch(
+    readFileSync(filePath, "utf8"),
+    /database-contracts\.js/,
+    `${filePath} must not import the Node-only database contract`,
+  );
+}
+for (const filePath of [
+  "src/db/adapters/sqlite-adapter.js",
+  "src/db/parameter-bindings.js",
+  "src/db/provider.js",
+  "src/db/sqlite.js",
+]) {
+  const source = readFileSync(filePath, "utf8");
+  assert.doesNotMatch(source, /Record<string, any>/, `${filePath} must not reopen generic database rows to any`);
 }
 assert.match(
   browserContractSource,
@@ -565,7 +666,7 @@ assert.match(
 );
 assert.match(
   modulesServiceSource,
-  /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.TransactionClient\} TransactionClient/,
+  /@typedef \{import\("\.\.\/\.\.\/types\/database-contracts\.js"\)\.TransactionClient\} TransactionClient/,
   "registry synchronization helpers must accept the callback-scoped database contract",
 );
 assert.match(

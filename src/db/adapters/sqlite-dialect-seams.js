@@ -1,20 +1,20 @@
 // @ts-check
-/** @typedef {import("../../types/framework-contracts.js").DatabaseDialect} DatabaseDialect */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertOptions} DatabaseInsertOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertConflictNothingOptions} DatabaseInsertConflictNothingOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertConflictUpdateOptions} DatabaseInsertConflictUpdateOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertAnyConflictUpdateOptions} DatabaseInsertAnyConflictUpdateOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseInsertValues} DatabaseInsertValues */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseLikeOptions} DatabaseLikeOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseLikePatternOptions} DatabaseLikePatternOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseSortDirection} DatabaseSortDirection */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanInput} DatabaseBooleanInput */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanStorageValue} DatabaseBooleanStorageValue */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanReadValue} DatabaseBooleanReadValue */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanReadOptions} DatabaseBooleanReadOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseBooleanFieldsReadOptions<string>} DatabaseBooleanFieldsReadOptions */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseFtsColumn} DatabaseFtsColumn */
-/** @typedef {import("../../types/framework-contracts.js").DatabaseRowIdOptions} DatabaseRowIdOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseDialect} DatabaseDialect */
+/** @typedef {import("../../types/database-contracts.js").DatabaseInsertOptions} DatabaseInsertOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseInsertConflictNothingOptions} DatabaseInsertConflictNothingOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseInsertConflictUpdateOptions} DatabaseInsertConflictUpdateOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseInsertAnyConflictUpdateOptions} DatabaseInsertAnyConflictUpdateOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseInsertValues} DatabaseInsertValues */
+/** @typedef {import("../../types/database-contracts.js").DatabaseLikeOptions} DatabaseLikeOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseLikePatternOptions} DatabaseLikePatternOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseSortDirection} DatabaseSortDirection */
+/** @typedef {import("../../types/database-contracts.js").DatabaseBooleanInput} DatabaseBooleanInput */
+/** @typedef {import("../../types/database-contracts.js").DatabaseBooleanStorageValue} DatabaseBooleanStorageValue */
+/** @typedef {import("../../types/database-contracts.js").DatabaseBooleanReadValue} DatabaseBooleanReadValue */
+/** @typedef {import("../../types/database-contracts.js").DatabaseBooleanReadOptions} DatabaseBooleanReadOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseBooleanFieldsReadOptions<string>} DatabaseBooleanFieldsReadOptions */
+/** @typedef {import("../../types/database-contracts.js").DatabaseFtsColumn} DatabaseFtsColumn */
+/** @typedef {import("../../types/database-contracts.js").DatabaseRowIdOptions} DatabaseRowIdOptions */
 
 const SQLITE_DIALECT_SEAM_CAPABILITIES = Object.freeze({
   booleanStorage: true,
@@ -270,7 +270,7 @@ function bindSqliteBoolean(value) {
  * @template {Extract<keyof RecordType, string>} FieldName
  * @param {RecordType} values
  * @param {readonly FieldName[]} fieldNames
- * @returns {import("../../types/framework-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>}
+ * @returns {import("../../types/database-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>}
  */
 function bindSqliteBooleanFields(values, fieldNames) {
   const nextValues = { ...values };
@@ -283,7 +283,7 @@ function bindSqliteBooleanFields(values, fieldNames) {
     }
   }
 
-  return /** @type {import("../../types/framework-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>} */ (nextValues);
+  return /** @type {import("../../types/database-contracts.js").DatabaseBooleanBoundFields<RecordType, FieldName>} */ (nextValues);
 }
 
 /**
@@ -319,7 +319,7 @@ function readSqliteBooleanField(row, fieldName, options = {}) {
  * @param {RecordType} row
  * @param {readonly FieldName[]} fieldNames
  * @param {DatabaseBooleanFieldsReadOptions} [options]
- * @returns {import("../../types/framework-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>}
+ * @returns {import("../../types/database-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>}
  */
 function readSqliteBooleanFields(row, fieldNames, options = {}) {
   const nextRow = { ...(row || {}) };
@@ -332,7 +332,7 @@ function readSqliteBooleanFields(row, fieldNames, options = {}) {
     /** @type {Record<string, unknown>} */ (nextRow)[fieldName] = readSqliteBooleanField(row, fieldName, fieldOptions);
   }
 
-  return /** @type {import("../../types/framework-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>} */ (nextRow);
+  return /** @type {import("../../types/database-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>} */ (nextRow);
 }
 
 function secondsBetween(laterExpressionSql, earlierExpressionSql) {

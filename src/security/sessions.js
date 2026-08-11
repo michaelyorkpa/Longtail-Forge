@@ -9,6 +9,36 @@ import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-
 /** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {import("../types/http-contracts.js").SessionMode} SessionMode */
+/**
+ * @typedef {Object} StoredSupportViewRow
+ * @property {string} support_session_id
+ * @property {string} actor_user_id
+ * @property {string} actor_username
+ * @property {string | null} actor_display_name
+ * @property {string} effective_user_id
+ * @property {string} effective_username
+ * @property {string | null} effective_display_name
+ * @property {string} workspace_id
+ * @property {string | null} workspace_name
+ * @property {string} started_at
+ * @property {string} expires_at
+ * @property {string | null} effective_home_workspace_id
+ * @property {unknown} effective_timezone
+ */
+/**
+ * @typedef {Object} StoredSessionRow
+ * @property {string | null} active_workspace_id
+ * @property {string | null} home_workspace_id
+ * @property {string} user_id
+ * @property {string} username
+ * @property {unknown} timezone
+ * @property {string | null} ip_address
+ * @property {unknown} password_change_required
+ * @property {string | null} session_mode
+ * @property {string} expires_at
+ * @property {string | null} support_session_id
+ * @property {StoredSupportViewRow} [support_view]
+ */
 
 async function createSession(user, options = {}) {
   const prepared = prepareSessionRecord(user, options);
@@ -44,7 +74,7 @@ async function getRequestSession(request) {
     return null;
   }
 
-  let session = await sessionsRepository.readById(sessionId);
+  let session = /** @type {StoredSessionRow | null} */ (await sessionsRepository.readById(sessionId));
 
   if (!session) {
     return null;
@@ -54,7 +84,7 @@ async function getRequestSession(request) {
     const resolution = await supportViewService.resolveForRequest(session, {
       requestId: getRequestContext(request).requestId,
     });
-    session = resolution.storedSession;
+    session = /** @type {StoredSessionRow | null} */ (resolution.storedSession);
     if (resolution.session) {
       request.sessionRotation = resolution.session;
     }

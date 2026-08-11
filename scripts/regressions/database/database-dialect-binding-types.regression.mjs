@@ -13,7 +13,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const contractSource = await fs.readFile("src/types/framework-contracts.d.ts", "utf8");
+const contractSource = await fs.readFile("src/types/database-contracts.d.ts", "utf8");
 const dialectSource = await fs.readFile("src/db/adapters/sqlite-dialect-seams.js", "utf8");
 const bindingSource = await fs.readFile("src/db/parameter-bindings.js", "utf8");
 
@@ -27,10 +27,10 @@ assert.match(contractSource, /export type DatabaseRowIdOptions = string \|/);
 
 const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-dialect-binding-types-"));
 try {
-  await fs.writeFile(path.join(tempDirectory, "framework-contracts.d.ts"), contractSource);
+  await fs.writeFile(path.join(tempDirectory, "database-contracts.d.ts"), contractSource);
   await fs.writeFile(path.join(tempDirectory, "valid.js"), `// @ts-check
-/** @typedef {import("./framework-contracts.js").DatabaseDialect} DatabaseDialect */
-/** @typedef {import("./framework-contracts.js").NamedBindingEntry} NamedBindingEntry */
+/** @typedef {import("./database-contracts.js").DatabaseDialect} DatabaseDialect */
+/** @typedef {import("./database-contracts.js").NamedBindingEntry} NamedBindingEntry */
 /** @param {DatabaseDialect} dialect @param {NamedBindingEntry} binding */
 function useContracts(dialect, binding) {
   const sql = dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -47,8 +47,8 @@ function useContracts(dialect, binding) {
 void useContracts;
 `);
   await fs.writeFile(path.join(tempDirectory, "invalid.js"), `// @ts-check
-/** @typedef {import("./framework-contracts.js").DatabaseDialect} DatabaseDialect */
-/** @typedef {import("./framework-contracts.js").NamedBindingEntry} NamedBindingEntry */
+/** @typedef {import("./database-contracts.js").DatabaseDialect} DatabaseDialect */
+/** @typedef {import("./database-contracts.js").NamedBindingEntry} NamedBindingEntry */
 /** @param {DatabaseDialect} dialect @param {NamedBindingEntry} binding */
 function misuseContracts(dialect, binding) {
   dialect.conflict.buildInsertOnConflictDoUpdate({

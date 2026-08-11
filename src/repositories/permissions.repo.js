@@ -1,6 +1,9 @@
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
+/** @typedef {{ permission_id: string }} PermissionIdRow */
+/** @typedef {{ permission_id: string, role_id: string }} RolePermissionRow */
+
 const PERMISSION_INSERT_SQL = db.dialect.conflict.buildInsertOrIgnore({
   columns: ["permission_id", "permission_name", "description"],
   tableName: "permissions",
@@ -20,20 +23,22 @@ ORDER BY sort_order, role_name;
 `);
 }
 
+/** @returns {Promise<RolePermissionRow[]>} */
 async function readRolePermissions() {
-  return db.query(`
+  return /** @type {Promise<RolePermissionRow[]>} */ (db.query(`
 SELECT role_id, permission_id
 FROM role_permissions
 ORDER BY role_id, permission_id;
-`);
+`));
 }
 
+/** @returns {Promise<string[]>} */
 async function readPermissionIds() {
-  const rows = await db.query(`
+  const rows = /** @type {PermissionIdRow[]} */ (await db.query(`
 SELECT permission_id
 FROM permissions
 ORDER BY permission_id;
-`);
+`));
 
   return rows.map((row) => row.permission_id);
 }
