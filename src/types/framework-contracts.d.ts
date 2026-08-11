@@ -514,6 +514,58 @@ export interface SearchResult {
 export type SearchIndexer = (reference: SearchReference, context?: Record<string, unknown>) => unknown;
 
 // ---------------------------------------------------------------------------
+// Internal event summaries seam
+// ---------------------------------------------------------------------------
+
+export interface InternalEvent {
+  name: string;
+  event?: string;
+  workspace_id?: string;
+  workspaceId?: string;
+  actor_user_id?: string;
+  actorUserId?: string;
+  actor_user_name?: string;
+  actorUserName?: string;
+  module_id?: string;
+  moduleId?: string;
+  record_type?: string;
+  recordType?: string;
+  record_id?: string;
+  recordId?: string;
+  record_label?: string;
+  recordLabel?: string;
+  previous_value?: Record<string, any> | null;
+  new_value?: Record<string, any> | null;
+  source?: string;
+  metadata?: Record<string, any>;
+  session?: Record<string, any> | null;
+  emitted_at?: string;
+}
+
+export interface EventSummaryResolverContext {
+  event: InternalEvent;
+}
+
+export type EventSummaryText = string | ((context: EventSummaryResolverContext) => unknown);
+export type EventSummaryRecipientHints = string[] | ((context: EventSummaryResolverContext) => unknown);
+
+export interface EventSummarySection {
+  label?: EventSummaryText;
+  summary?: EventSummaryText;
+  title?: EventSummaryText;
+  body?: EventSummaryText;
+  url?: EventSummaryText;
+  recipientHints?: EventSummaryRecipientHints;
+}
+
+export interface EventSummaryDeclaration {
+  event: string;
+  moduleId?: string;
+  activity?: EventSummarySection;
+  notification?: EventSummarySection;
+}
+
+// ---------------------------------------------------------------------------
 // Notifications seam
 // ---------------------------------------------------------------------------
 
@@ -596,6 +648,8 @@ export interface JobEnqueueOptions {
   workspace_id?: string;
   jobType?: string;
   job_type?: string;
+  jobId?: string;
+  job_id?: string;
   dedupeKey?: string | null;
   dedupe_key?: string | null;
   payload?: Record<string, unknown>;
@@ -611,15 +665,91 @@ export interface JobRecord {
   workspace_id: string;
   job_type: string;
   status: string;
+  dedupe_key?: string | null;
   payload_json?: string;
   priority?: number;
-  attempts?: number;
+  attempt_count?: number;
   max_attempts?: number;
   available_at?: string;
+  locked_at?: string | null;
+  locked_by?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+  dead_at?: string | null;
   [key: string]: unknown;
 }
 
-export type JobHandler = (job: JobRecord, context?: Record<string, unknown>) => Promise<unknown> | unknown;
+export interface JobExecutionRecord {
+  attemptCount: number;
+  dedupeKey: string | null;
+  id: string;
+  jobId: string;
+  jobType: string;
+  maxAttempts: number;
+  payload: Record<string, any>;
+  priority: number;
+  type: string;
+  workspaceId: string;
+}
+
+export interface JobHandlerContext {
+  job: JobExecutionRecord;
+  payload: Record<string, any>;
+}
+
+export type JobHandler = (context: JobHandlerContext) => Promise<unknown> | unknown;
+
+export interface JobHandlerOptions {
+  publicDemoCapability?: string;
+  replace?: boolean;
+}
+
+export type JobWorkerMode = "inline" | "separate" | "disabled";
+
+export interface JobWorkerLogger {
+  warn?: (...values: any[]) => void;
+}
+
+export interface JobWorkerOptions {
+  mode?: unknown;
+  workerId?: unknown;
+  pollIntervalMs?: unknown;
+  claimLimit?: unknown;
+  lockTtlSeconds?: unknown;
+  logger?: JobWorkerLogger;
+}
+
+export interface JobRunSummary {
+  claimed: number;
+  completed: number;
+  dead: number;
+  failed: number;
+  skipped: boolean;
+}
+
+export interface JobWorkerStatus {
+  mode: JobWorkerMode;
+  workerId: string;
+  state: "disabled" | "stopped" | "idle" | "running";
+  running: boolean;
+  timerActive: boolean;
+  pollIntervalMs: number;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  lastPollAt: string | null;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastClaimedCount: number;
+  lockTtlSeconds: number;
+  claimedCount: number;
+  completedCount: number;
+  failedCount: number;
+  deadCount: number;
+  registeredJobTypes?: string[];
+}
 
 // ---------------------------------------------------------------------------
 // Database adapter/dialect seam

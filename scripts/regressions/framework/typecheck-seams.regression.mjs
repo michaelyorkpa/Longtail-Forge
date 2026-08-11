@@ -68,6 +68,12 @@ const CONTRACT_TYPE_EXPORTS = [
   "SearchReference",
   "SearchResult",
   "SearchIndexer",
+  "InternalEvent",
+  "EventSummaryResolverContext",
+  "EventSummaryText",
+  "EventSummaryRecipientHints",
+  "EventSummarySection",
+  "EventSummaryDeclaration",
   "NotificationEventPayload",
   "TaggableTypeContribution",
   "SearchableTypeContribution",
@@ -76,7 +82,15 @@ const CONTRACT_TYPE_EXPORTS = [
   "PublicApiErrorEnvelope",
   "JobEnqueueOptions",
   "JobRecord",
+  "JobExecutionRecord",
+  "JobHandlerContext",
   "JobHandler",
+  "JobHandlerOptions",
+  "JobWorkerMode",
+  "JobWorkerLogger",
+  "JobWorkerOptions",
+  "JobRunSummary",
+  "JobWorkerStatus",
   "DatabaseAdapter",
   "DatabaseDialect",
   "DatabaseInsertOptions",
@@ -274,6 +288,29 @@ assert.match(
   /@returns \{Promise<Map<string, ResumeStateReadCheck>>\}/,
   "first-party Resume State batch resolvers must retain the shared read-check contract",
 );
+const jobHandlerSource = readFileSync("src/core/jobs/job-handlers.js", "utf8");
+const jobQueueSource = readFileSync("src/core/jobs/job-queue.js", "utf8");
+const jobRunnerSource = readFileSync("src/core/jobs/job-runner.js", "utf8");
+const eventSummariesSource = readFileSync("src/core/events/event-summaries.js", "utf8");
+for (const [filePath, source] of [
+  ["src/core/jobs/job-handlers.js", jobHandlerSource],
+  ["src/core/jobs/job-queue.js", jobQueueSource],
+  ["src/core/jobs/job-runner.js", jobRunnerSource],
+  ["src/core/events/event-summaries.js", eventSummariesSource],
+]) {
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain in the checked Jobs/event-summary seam`);
+}
+assert.match(jobHandlerSource, /@type \{Map<string, JobHandler>\}/, "the job registry must retain the shared handler callback contract");
+assert.match(jobQueueSource, /@param \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.JobEnqueueOptions\}/, "the job queue must retain the dual-cased enqueue contract");
+assert.match(jobRunnerSource, /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.JobRecord\} JobRecord/, "the runner must consume the shared persisted job-row contract");
+assert.match(jobRunnerSource, /await handler\(\{[\s\S]*?job: \{[\s\S]*?payload,[\s\S]*?\},[\s\S]*?payload,[\s\S]*?\}\)/, "the runner must deliver the established job and payload handler envelope");
+assert.match(eventSummariesSource, /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.InternalEvent\} InternalEvent/, "event summaries must consume the shared internal-event payload contract");
+assert.match(eventSummariesSource, /Raw record ids are identifiers, not labels/, "event summary fallbacks must retain the raw-ID redaction boundary");
+const jobEnqueueDeclaration = contractSource.match(/export interface JobEnqueueOptions \{([\s\S]*?)\n\}/);
+assert.ok(jobEnqueueDeclaration, "framework-contracts.d.ts must declare JobEnqueueOptions");
+assert.match(jobEnqueueDeclaration[1], /^  jobId\?: string;$/m, "enqueue must retain its camelCase caller-supplied job ID");
+assert.match(jobEnqueueDeclaration[1], /^  job_id\?: string;$/m, "enqueue must retain its snake_case caller-supplied job ID");
+assert.match(contractSource, /export type JobHandler = \(context: JobHandlerContext\)/, "registered job handlers must receive the live context envelope rather than a raw database row");
 const modulesServiceSource = readFileSync("src/core/modules/modules.service.js", "utf8");
 assert.match(
   modulesServiceSource,

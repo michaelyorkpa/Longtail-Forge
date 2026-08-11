@@ -1,9 +1,13 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 69,
+  "minimumOptedInFiles": 73,
   "checkedFiles": [
+    "src/core/events/event-summaries.js",
     "src/core/files/files.contracts.js",
     "src/core/help/search-indexers.js",
+    "src/core/jobs/job-handlers.js",
+    "src/core/jobs/job-queue.js",
+    "src/core/jobs/job-runner.js",
     "src/core/modules/manifest-contract.js",
     "src/core/modules/module-entry.js",
     "src/core/modules/module-runtime.js",
