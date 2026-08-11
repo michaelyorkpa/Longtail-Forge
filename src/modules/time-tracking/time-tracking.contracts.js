@@ -83,6 +83,16 @@ const ActiveTimerSaveSchema = z.object({
   timer_status: optionalText("Timer status"),
 });
 
+const optionalSourceMetadata = z.record(z.string(), z.unknown(), {
+  error: "Source metadata must be an object.",
+}).optional();
+
+/** Sourced active-timer save payload crossing a module action boundary. */
+const ActiveTimerSourcedSaveSchema = ActiveTimerSaveSchema.extend({
+  sourceMetadata: optionalSourceMetadata,
+  source_metadata: optionalSourceMetadata,
+});
+
 /** Active-timer start, pause, and Workbench status mutation body. */
 const ActiveTimerStatusSchema = z.object({
   accumulated_elapsed_seconds: optionalNumberOrText("Accumulated elapsed seconds"),
@@ -99,9 +109,10 @@ const ActiveTimerFinalizeSchema = z.object(browserTimeEntryFields);
  * Zod object parsing strips unknown fields. The first validation issue is
  * surfaced through the application's existing error envelope.
  *
- * @param {import("zod").ZodType} schema
+ * @template {import("zod").ZodType} Schema
+ * @param {Schema} schema
  * @param {unknown} payload
- * @returns {any}
+ * @returns {import("zod").output<Schema>}
  */
 function parseTimeTrackingEdgePayload(schema, payload) {
   const result = schema.safeParse(payload ?? {});
@@ -116,6 +127,7 @@ function parseTimeTrackingEdgePayload(schema, payload) {
 export {
   ActiveTimerFinalizeSchema,
   ActiveTimerSaveSchema,
+  ActiveTimerSourcedSaveSchema,
   ActiveTimerStatusSchema,
   BrowserTimeEntryCreateSchema,
   BrowserTimeEntryUpdateSchema,

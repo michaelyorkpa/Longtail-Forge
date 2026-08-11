@@ -1,3 +1,13 @@
+## Version 0.33.32.28 - 2026-08-11
+
+- Made the shared Time Tracking edge parser return each Zod schema's inferred output instead of `any`, with a checked negative fixture for sourced-only fields.
+- Added a sourced active-timer save schema so malformed billable values and source metadata fail through the existing 400 envelope before persistence.
+- Corrected the underlying timer payload normalizer so boolean `false` remains `"no"`; canonical `"yes"`/`"no"` compatibility and Personal/Family forced-nonbillable behavior remain intact.
+- Deepened only the active-timer, time-entry, billing-session, and Task Timer annotations needed by this money path and raised the checked inventory floor from 103 to 104 files.
+- Extended contract and isolated SQLite proof across manual, sourced, Task-linked, finalize, Business, Personal, and Family variants while preserving authoritative duration and database integrity.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`.
+- No docs change needed: user-facing Help, Task workflow behavior, billing calculations/periods, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
 ## Version 0.33.32.27 - 2026-08-11
 
 - Split Node-only database declarations from browser-consumed framework contracts and replaced ambient `Buffer` typing with an explicit `node:buffer` `NodeBuffer` authority.

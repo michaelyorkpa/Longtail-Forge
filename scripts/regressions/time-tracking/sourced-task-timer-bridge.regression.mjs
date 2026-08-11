@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "time-tracking",
   tier: "integration",
   tags: ["database", "tasks", "time-tracking"],
-  description: "Proves sourced timer saves and Task Timer finalization preserve non-billable intent and authoritative duration through the public module boundary.",
+  description: "Proves manual and sourced timer edges preserve non-billable intent across workspace types while Task Timer finalization retains authoritative duration.",
   runMode: "isolated-database",
 });
 
@@ -22,6 +22,30 @@ try {
   const session = await readProtectedSession();
   const projectId = await createProject(session.workspace_id);
 
+  const manual = await activeTimersService.save("1", {
+    accumulated_elapsed_seconds: 60,
+    billable: false,
+    description: "Boolean manual timer",
+    project_id: projectId,
+    timer_status: "paused",
+  }, session);
+  assert.equal(
+    manual.timer.billable,
+    "no",
+    "manual Time Tracking saves must not collapse boolean false to billable yes",
+  );
+  await activeTimersService.remove("1", session);
+
+  await setWorkspaceType(session.workspace_id, "personal");
+  const personalTimer = await activeTimersService.save("1", {
+    billable: "yes",
+    description: "Personal timer",
+    project_id: projectId,
+    timer_status: "paused",
+  }, session);
+  assert.equal(personalTimer.timer.billable, "no", "Personal workspaces must force manual timers non-billable");
+  await activeTimersService.remove("1", session);
+
   const directSource = {
     source_id: createRecordId(),
     source_label: "Boolean billable source",
@@ -29,6 +53,34 @@ try {
     source_type: "task",
     source_url: "tasks.html",
   };
+  await setWorkspaceType(session.workspace_id, "family");
+  const familySource = {
+    ...directSource,
+    source_id: createRecordId(),
+    source_label: "Family sourced timer",
+  };
+  const familyTimer = await activeTimersService.saveSourced(familySource, {
+    billable: true,
+    project_id: projectId,
+    timer_status: "paused",
+  }, session);
+  assert.equal(familyTimer.timer.billable, "no", "Family workspaces must force sourced timers non-billable");
+  await activeTimersService.removeSourced(familySource, session);
+
+  await setWorkspaceType(session.workspace_id, "business");
+  await assert.rejects(
+    () => activeTimersService.saveSourced({
+      ...directSource,
+      source_id: createRecordId(),
+      source_label: "Invalid sourced payload",
+    }, {
+      billable: "sometimes",
+      project_id: projectId,
+      timer_status: "paused",
+    }, session),
+    (error) => error?.statusCode === 400 && /Billable must be/.test(error.message),
+    "sourced Time Tracking saves must validate their payload at the module edge",
+  );
   const sourced = await activeTimersService.saveSourced(directSource, {
     accumulated_elapsed_seconds: 120,
     billable: false,
@@ -143,6 +195,17 @@ VALUES (
     workspaceId,
   });
   return projectId;
+}
+
+async function setWorkspaceType(workspaceId, workspaceType) {
+  await db.run(`
+UPDATE workspaces
+SET workspace_type = :workspaceType
+WHERE workspace_id = :workspaceId;
+`, {
+    workspaceId,
+    workspaceType,
+  });
 }
 
 async function readProtectedSession() {

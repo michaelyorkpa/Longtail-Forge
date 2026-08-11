@@ -14,17 +14,20 @@ import { settingsRepository } from "../../repositories/settings.repo.js";
 import {
   ActiveTimerFinalizeSchema,
   ActiveTimerSaveSchema,
+  ActiveTimerSourcedSaveSchema,
   ActiveTimerStatusSchema,
   parseTimeTrackingEdgePayload,
 } from "./time-tracking.contracts.js";
 
 /** @typedef {import("./active-timers.repo.js").ActiveTimer} ActiveTimer */
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
 /** @typedef {import("zod").infer<typeof ActiveTimerFinalizeSchema>} ActiveTimerFinalizePayload */
 /** @typedef {import("zod").infer<typeof ActiveTimerSaveSchema>} ActiveTimerSavePayload */
+/** @typedef {import("zod").infer<typeof ActiveTimerSourcedSaveSchema>} SourcedActiveTimerPayload */
 /** @typedef {import("zod").infer<typeof ActiveTimerStatusSchema>} ActiveTimerStatusPayload */
-/** @typedef {ActiveTimerSavePayload & { sourceMetadata?: Record<string, unknown>, source_metadata?: Record<string, unknown> }} SourcedActiveTimerPayload */
 /** @typedef {TimeEntryInput & { tagIds?: unknown[], tag_ids?: unknown[] }} FinalizedTimeEntryInput */
+/** @typedef {{ source_id?: unknown, sourceId?: unknown, source_label?: unknown, sourceLabel?: unknown, source_module_id?: unknown, sourceModuleId?: unknown, source_type?: unknown, sourceType?: unknown, source_url?: unknown, sourceUrl?: unknown }} ActiveTimerSourceInput */
 
 const MODULE_ID = "time-tracking";
 
@@ -42,6 +45,7 @@ async function listAll(session) {
   };
 }
 
+/** @param {string} timerSlot @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function save(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerSaveSchema, rawPayload);
@@ -72,9 +76,10 @@ async function save(timerSlot, rawPayload, session) {
   };
 }
 
-/** @param {SourcedActiveTimerPayload} payload */
-async function saveSourced(source, payload, session) {
+/** @param {ActiveTimerSourceInput} source @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function saveSourced(source, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerSourcedSaveSchema, rawPayload);
   const normalizedSource = normalizeSource(source);
   const timer = {
     ...normalizeTimerPayload(payload, `source:${normalizedSource.source_module_id}:${normalizedSource.source_type}:${normalizedSource.source_id}`, session),
@@ -85,7 +90,6 @@ async function saveSourced(source, payload, session) {
     source_url: normalizedSource.source_url,
     sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
   };
-  timer.billable = normalizeTimeEntryBillable(payload?.billable) || "yes";
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   timer.billable = normalizeWorkspaceBillable(settings.workspaceType, timer.billable);
 
@@ -194,7 +198,7 @@ async function updateStatus(timerSlot, rawPayload, session) {
   const timerStatus = payload?.timer_status === "running" ? "running" : "paused";
   const accumulatedElapsedSeconds = Math.max(
     0,
-    Number.parseInt(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds, 10) || 0,
+    Number.parseInt(String(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds), 10) || 0,
   );
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
@@ -259,6 +263,7 @@ async function removeSourced(source, session) {
   };
 }
 
+/** @param {string} timerSlot @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function finalize(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
@@ -311,7 +316,7 @@ async function finalize(timerSlot, rawPayload, session) {
   };
 }
 
-/** @param {Partial<FinalizedTimeEntryInput>} entryOverrides */
+/** @param {ActiveTimerSourceInput} source @param {unknown} rawPayload @param {WorkspaceRequestSession} session @param {Partial<FinalizedTimeEntryInput>} entryOverrides */
 async function finalizeSourced(source, rawPayload, session, entryOverrides = {}) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
@@ -533,6 +538,8 @@ function activeTimerElapsedSecondsAt(activeTimer, endTime) {
 
 /**
  * @param {ActiveTimerSavePayload | SourcedActiveTimerPayload} payload
+ * @param {string} timerSlot
+ * @param {WorkspaceRequestSession} session
  * @returns {ActiveTimer}
  */
 function normalizeTimerPayload(payload, timerSlot, session) {
@@ -558,7 +565,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
     project_id: stringOrEmpty(payload?.project_id),
     project_name: stringOrEmpty(payload?.project_name),
     description: stringOrEmpty(payload?.description),
-    billable: payload?.billable === "no" ? "no" : "yes",
+    billable: normalizeTimeEntryBillable(payload?.billable) || "yes",
     accumulated_elapsed_seconds: elapsedSeconds,
     last_active_start_time: timerStatus === "running"
       ? normalizeIsoDate(payload?.last_active_start_time)
@@ -567,6 +574,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
   };
 }
 
+/** @param {ActiveTimerSourceInput} source */
 function normalizeSource(source) {
   const normalized = {
     source_module_id: stringOrEmpty(source?.source_module_id || source?.sourceModuleId),
@@ -619,7 +627,7 @@ function stringOrEmpty(value) {
   return String(value || "").trim();
 }
 
-/** @returns {"yes" | "no"} */
+/** @param {unknown} workspaceType @param {unknown} value @returns {"yes" | "no"} */
 function normalizeWorkspaceBillable(workspaceType, value) {
   if (!workspaceSupportsBillable(workspaceType)) {
     return "no";

@@ -12,6 +12,10 @@ import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{ task_id: string, title: string }} TaskTimerSourceTask */
+/** @typedef {{ billable?: unknown }} TaskTimerBillableTask */
+
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
@@ -171,6 +175,7 @@ async function remove(taskId, session) {
   };
 }
 
+/** @param {string} taskId @param {unknown} payload @param {WorkspaceRequestSession} session */
 async function finalize(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -433,6 +438,7 @@ function taskResource(task) {
   };
 }
 
+/** @param {TaskTimerSourceTask} task */
 function taskTimerSource(task) {
   return {
     source_module_id: TASKS_MODULE_ID,
@@ -443,10 +449,17 @@ function taskTimerSource(task) {
   };
 }
 
+/** @param {TaskTimerBillableTask} task @returns {"yes" | "no"} */
 function taskTimerBillable(task) {
   return normalizeTimeEntryBillable(task?.billable) || "yes";
 }
 
+/**
+ * @template {{ active_timer_id: string }} Timer
+ * @param {Timer} timer
+ * @param {TaskTimerSourceTask} task
+ * @returns {Timer & { active_task_timer_id: string, task_id: string }}
+ */
 function taskTimerFromUnified(timer, task) {
   return {
     ...timer,

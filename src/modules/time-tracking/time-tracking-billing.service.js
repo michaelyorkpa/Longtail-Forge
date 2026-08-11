@@ -12,8 +12,11 @@ import {
 import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
 
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
 
+/** @param {WorkspaceRequestSession} session */
 async function readDashboardBillingSummary(session) {
   await permissionsService.assertCanInAnyScope(session, "reporting.view", {
     workspace_id: session.workspace_id,
@@ -58,6 +61,7 @@ async function readDashboardBillingSummary(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readReportingBootstrap(session) {
   const { settings, scopes, moduleContext } = await readProjectTimeBillingContext(session, {
     includeModuleContext: true,
@@ -73,6 +77,7 @@ async function readReportingBootstrap(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readProjectSummary(session, query = {}) {
   const { settings, scopes } = await readProjectTimeBillingContext(session);
   const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
@@ -113,6 +118,7 @@ async function runProjectTimeBillingReport({ filters, session }) {
   return readProjectSummary(session, filters);
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readProjectTimeBillingContext(session, options = {}) {
   await permissionsService.assertCanInAnyScope(session, "reporting.view", {
     workspace_id: session.workspace_id,
@@ -137,6 +143,7 @@ async function readProjectTimeBillingContext(session, options = {}) {
   return { settings, scopes, moduleContext };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readBillingSettings(session) {
   const [workspaceSettings, clientProjectSettings, timeTrackingSettings] = await Promise.all([
     settingsService.read(session),
