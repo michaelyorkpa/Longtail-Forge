@@ -1,3 +1,12 @@
+## Version 0.33.32.26 - 2026-08-11
+
+- Routed scheduled-poll and shutdown failures through one checked job-error summarizer instead of dereferencing unknown rejection values directly.
+- Made warning summaries string-only, whitespace-normalized, and capped at 1,000 characters, with a generic fallback for non-error objects, `null`, `undefined`, and unsafe message accessors.
+- Added executable poll proof and an active-run shutdown matrix for `Error`, string, object, `null`, and `undefined`; every case reaches truthful stopped state without leaking object payloads.
+- Retained all eight Jobs-area regressions covering claim/locking, retry/dead-letter, idempotency, retention, handler execution, public-demo admission, and separate-worker behavior; advanced the generated regression coverage floors.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: user-facing Help, job payloads, database schema/migrations, worker configuration, deployment topology, and public API contracts are unchanged.
+
 ## Version 0.33.32.25 - 2026-08-11
 
 - Moved exception-scoped session revocation signature authority into the checked sessions service and removed the authentication service's invented callable typedef and `unknown` double cast.

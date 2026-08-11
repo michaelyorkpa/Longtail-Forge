@@ -519,6 +519,10 @@ assert.match(jobHandlerSource, /@type \{Map<string, JobHandler>\}/, "the job reg
 assert.match(jobQueueSource, /@param \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.JobEnqueueOptions\}/, "the job queue must retain the dual-cased enqueue contract");
 assert.match(jobRunnerSource, /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.JobRecord\} JobRecord/, "the runner must consume the shared persisted job-row contract");
 assert.match(jobRunnerSource, /await handler\(\{[\s\S]*?job: \{[\s\S]*?payload,[\s\S]*?\},[\s\S]*?payload,[\s\S]*?\}\)/, "the runner must deliver the established job and payload handler envelope");
+assert.match(jobRunnerSource, /Active run failed during shutdown\.[\s\S]*?summarizeJobError\(error\)/, "shutdown failures must use the checked safe error summary");
+assert.match(jobRunnerSource, /Poll failed\.[\s\S]*?summarizeJobError\(error\)/, "poll failures must use the checked safe error summary");
+assert.doesNotMatch(jobRunnerSource, /@type \{any\}[\s\S]{0,80}(?:error|summarizeJobError)/, "job failure summaries must not regain an any escape");
+assert.match(contractSource, /export interface JobWorkerLogger \{\s*warn\?: \(message: string\) => void;\s*\}/, "job worker warnings must accept only safe string summaries");
 assert.match(eventSummariesSource, /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.InternalEvent\} InternalEvent/, "event summaries must consume the shared internal-event payload contract");
 assert.match(eventSummariesSource, /Raw record ids are identifiers, not labels/, "event summary fallbacks must retain the raw-ID redaction boundary");
 const jobEnqueueDeclaration = contractSource.match(/export interface JobEnqueueOptions \{([\s\S]*?)\n\}/);

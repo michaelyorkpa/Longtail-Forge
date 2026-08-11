@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.26 - Job-worker shutdown rejection safety
+
+Completed on 2026-08-11. Scheduled-poll and shutdown failures now share one checked, bounded safe-summary authority, and the active roadmap advances to `0.33.32.27` for database contract environment and row-shape honesty.
+
+**Model: High Effort** - Shutdown is a framework-wide jobs lifecycle boundary where a non-`Error` rejection must not trigger a second exception or leave state misleadingly active.
+
+- [x] Replaced both direct unknown-rejection `.message` reads with `summarizeJobError`, removed the remaining error-summary `any` escape, and narrowed `JobWorkerLogger.warn` to one string message.
+- [x] Hardened summarization to accept string and error-like string messages, collapse whitespace, cap output at 1,000 characters, and return the generic `Job failed.` fallback for objects without a safe message, `null`, `undefined`, throwing accessors, and other unsupported values.
+- [x] Added executable scheduled-poll proof plus an active-run shutdown matrix for `Error`, long multiline string, object payload, `null`, and `undefined`; every case reaches stopped state with running/timer state cleared and bounded string-only warnings without object payload leakage.
+- [x] Retained all eight Jobs regressions for claim/locking, retry/dead-letter, idempotency, retention, handler execution, public-demo admission, and separate-worker behavior; added the new script to the generated inventory and raised active/jobs coverage floors.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, job payloads, database schema/migrations, worker configuration, deployment topology, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Graceful shutdown cannot throw while reporting an arbitrary rejection and always reaches a truthful stopped state without payload leakage.
+
 ## Version 0.33.32.25 - Auth/session revocation signature authority
 
 Completed on 2026-08-11. Password-change revocation now consumes the checked sessions service's canonical exception-scoped contract; the active roadmap advances to `0.33.32.26` for job-worker shutdown rejection safety.

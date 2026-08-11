@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 457,
+    "discoveredScripts": 458,
     "legacyScripts": 309,
     "releaseGateScripts": 71,
     "areaCounts": {
@@ -12,7 +12,7 @@
       "docs": 10,
       "files": 44,
       "framework": 82,
-      "jobs": 7,
+      "jobs": 8,
       "licensing": 1,
       "lists": 12,
       "notes": 40,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 209,
+      "focused": 210,
       "integration": 169,
       "release-gate": 71,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 231
+      "static": 232
     }
   },
   "coverageFamilies": [
@@ -3737,6 +3737,22 @@
         "permissions",
         "settings",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "jobs",
+      "description": "Proves arbitrary active-run rejections cannot break worker shutdown or leak unbounded payloads through warning logs.",
+      "id": "jobs.job-worker-shutdown-rejection",
+      "legacy": false,
+      "path": "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "jobs",
+        "logging",
+        "shutdown",
+        "typecheck"
       ],
       "tier": "focused"
     },

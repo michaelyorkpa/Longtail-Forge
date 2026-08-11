@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 460,
+  "minimumActiveScripts": 461,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 45,
     "docs": 10,
     "files": 44,
     "framework": 82,
-    "jobs": 7,
+    "jobs": 8,
     "licensing": 1,
     "lists": 12,
     "notes": 40,
