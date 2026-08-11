@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.12`.
+Active cursor: `0.33.32.13`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,17 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.12 - Module registry service fan-out
-
-**Model: High Effort** — The roughly 1,600-line module service is framework-wide and earns its own session.
-
-- [ ] Opt in `src/core/modules/modules.service.js` with types derived from `ModuleManifest` and catalog projections.
-- [ ] Preserve permission filtering, enablement, ordering, caching, and envelopes; extend the inventory and run module catalog/permission regressions.
-
-Acceptance criteria:
-
-- The widest registry consumer typechecks while its public catalog behavior remains unchanged.
 
 ### Version 0.33.32.13 - Search reference contract and indexers
 

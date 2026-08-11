@@ -1,3 +1,4 @@
+// @ts-check
 import {
   getModule as getRegisteredModule,
   listModuleBrowserAssets as listRegisteredModuleBrowserAssets,
@@ -48,6 +49,13 @@ import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
+
+/** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
+/** @typedef {import("../../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
+/** @typedef {Record<string, any> & {id?: string, moduleId?: string, requiredPermissions?: string[], requiredWorkspaceCapabilities?: string[], requiresEnabledModules?: string[], requiredModules?: string[], workspaceTypes?: string[]}} CatalogContribution */
+/** @typedef {CatalogContribution & {event: string, handler: (context: Record<string, any>) => unknown | Promise<unknown>}} ModuleEventHook */
+/** @typedef {CatalogContribution & {scope: string, moduleId: string, label: string, description: string, access: string, publicDemoCapability?: string}} ApiScopeCatalogEntry */
 
 const MODULE_INSERT_COLUMNS = [
   "module_id",
@@ -116,12 +124,23 @@ const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
   "workspace-settings",
 ]);
 
+/** @returns {ModuleManifest[]} */
 function listModules() {
   return listRegisteredModules();
 }
 
+/** @returns {ModuleManifest | null} */
 function getModule(moduleId) {
   return getRegisteredModule(moduleId);
+}
+
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {string} workspaceType
+ * @returns {ResolvedModuleManifest}
+ */
+function resolveModuleTerminology(moduleDefinition, workspaceType) {
+  return resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
 }
 
 function listModuleRoutes(type) {
@@ -207,8 +226,9 @@ function listModuleApiScopes() {
   return listRegisteredModuleApiScopes();
 }
 
+/** @returns {ApiScopeCatalogEntry[]} */
 function listModuleApiScopeEntries() {
-  return listRegisteredModuleApiScopeEntries();
+  return /** @type {ApiScopeCatalogEntry[]} */ (listRegisteredModuleApiScopeEntries());
 }
 
 function listModuleAuditRecordTypes() {
@@ -216,7 +236,12 @@ function listModuleAuditRecordTypes() {
 }
 
 function listModuleEventHooks() {
-  return listRegisteredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+  return registeredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+}
+
+/** @returns {ModuleEventHook[]} */
+function registeredModuleEventHooks() {
+  return /** @type {ModuleEventHook[]} */ (listRegisteredModuleEventHooks());
 }
 
 function listModuleEventSummaries() {
@@ -352,7 +377,7 @@ function listModuleSettingsForWorkspaceType(workspaceType = "business") {
   const workspaceCapabilities = getWorkspaceCapabilities(workspaceType);
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
   const moduleDefinitions = listModules()
-    .map((rawModuleDefinition) => resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
+    .map((rawModuleDefinition) => resolveModuleTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
     .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools));
   const moduleStatusById = Object.fromEntries(moduleDefinitions.map((moduleDefinition) => [
     moduleDefinition.id,
@@ -506,6 +531,7 @@ ORDER BY module_id;
   return workspaceModuleContextCache.get(cacheKey).contextPromise;
 }
 
+/** @param {unknown | null} [workspaceId] */
 function invalidateWorkspaceModuleContext(workspaceId = null) {
   if (workspaceId === null) {
     workspaceModuleContextCache.clear();
@@ -525,7 +551,7 @@ async function loadWorkspaceModuleContext(workspaceId, rows) {
   }, {});
   const hasModuleRows = rows.length > 0;
   const modules = installedModules.map((rawModuleDefinition) => {
-    const moduleDefinition = resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceType);
+    const moduleDefinition = resolveModuleTerminology(rawModuleDefinition, workspaceType);
     const status = workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows);
 
     return {
@@ -688,6 +714,12 @@ async function ensureAllWorkspaceModuleRows() {
   }
 }
 
+/**
+ * @param {TransactionClient} database
+ * @param {unknown} workspaceId
+ * @param {ModuleManifest[]} modules
+ * @param {unknown} now
+ */
 async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
   for (const moduleDefinition of modules) {
     const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
@@ -703,6 +735,12 @@ async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
   }
 }
 
+/**
+ * @param {unknown} workspaceId
+ * @param {ModuleManifest[]} modules
+ * @param {unknown} now
+ * @param {TransactionClient} [database]
+ */
 async function repairRequiredWorkspaceModules(workspaceId, modules, now, database = db) {
   const requiredModuleIds = modules
     .filter((moduleDefinition) => moduleDefinition.canDisable === false)
@@ -892,7 +930,7 @@ function registerModuleEventHooks(options = {}) {
 
   moduleEventHookUnsubscribers = [];
 
-  for (const hook of listRegisteredModuleEventHooks()) {
+  for (const hook of registeredModuleEventHooks()) {
     moduleEventHookUnsubscribers.push(internalEventBus.on(hook.event, async (event) => {
       const moduleDefinition = getModule(hook.moduleId);
       await hook.handler({
@@ -1016,7 +1054,7 @@ async function listModuleSettingsNavigation(workspaceId, session = null) {
       continue;
     }
 
-    const resolvedModule = resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
+    const resolvedModule = resolveModuleTerminology(moduleDefinition, workspaceType);
 
     items.push({
       id: view.id,
@@ -1450,6 +1488,10 @@ function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
   };
 }
 
+/**
+ * @param {CatalogContribution} view
+ * @param {ModuleManifest | null} [moduleDefinition]
+ */
 function isModuleSettingsView(view, moduleDefinition = null) {
   if (String(view.id || "").endsWith("-settings") || String(view.path || "").endsWith("-settings.html")) {
     return true;

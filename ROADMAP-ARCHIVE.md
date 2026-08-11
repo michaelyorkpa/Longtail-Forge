@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.12 - Module registry service fan-out
+
+Completed on 2026-08-10. The framework-facing module registry service now typechecks across manifest, workspace catalog, terminology, event-hook, API-scope, and transaction-client boundaries without changing public catalog behavior, and the active 0.33.32 work advances to `0.33.32.13` for Search reference contract and indexers.
+
+**Model: High Effort** - The roughly 1,600-line module service is framework-wide and earns its own session.
+
+- [x] Opted `src/core/modules/modules.service.js` into checked JavaScript with types derived from `ModuleManifest` and explicit catalog projections.
+- [x] Preserved permission filtering, enablement, ordering, caching, and envelopes; raised the checked inventory floor from 60 to 61 files and retained focused module catalog and permission regressions.
+
+Acceptance criteria:
+
+- The widest registry consumer typechecks while its public catalog behavior remains unchanged.
+
 ## Version 0.33.32.11 - Bundled module manifest declarations
 
 Completed on 2026-08-10. All eight bundled module declarations now fail the fast typecheck gate on structural drift before runtime validation, with no manifest data or activation behavior change, and the active 0.33.32 work advances to `0.33.32.12` for module registry service fan-out.

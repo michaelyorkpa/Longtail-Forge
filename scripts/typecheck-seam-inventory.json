@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 60,
+  "minimumOptedInFiles": 61,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/modules/manifest-contract.js",
     "src/core/modules/module-entry.js",
     "src/core/modules/module-runtime.js",
+    "src/core/modules/modules.service.js",
     "src/core/modules/registry.js",
     "src/core/public-demo-capabilities.js",
     "src/core/public-demo-enforcement.js",
