@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.25 - Auth/session revocation signature authority
+
+Completed on 2026-08-11. Password-change revocation now consumes the checked sessions service's canonical exception-scoped contract; the active roadmap advances to `0.33.32.26` for job-worker shutdown rejection safety.
+
+**Model: High Effort** - Password-change session revocation is a credential-security boundary and must consume the real session-service signature rather than an invented double-cast shape.
+
+- [x] Defined the owning sessions service's `SessionRevocationInput`, required `preservedSessionId` exception input, and `SessionRevocationResult`; opted the service into checking and removed the auth-side invented function typedef and `unknown` double cast.
+- [x] Made a missing preservation target fail with the existing safe current-session conflict instead of broadening into all-session revocation, while password change passes one normalized current-session ID as both the audit context and the sole preserved credential.
+- [x] Retained executing two-cookie proof that password change preserves the identified current session, revokes the other session, records safe events/audit, and exposes no bearer IDs; retained the existing generic-error, Support View, public-demo, permission, and account-lifecycle gates.
+- [x] Replaced the touched permission-assignment wildcard parameters with explicit assignment/override shapes, added a stored-session list projection, and raised the complete checked inventory floor from 100 to 101 without changing grants, role ceilings, workspace scope, or effective-user decisions.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, permission matrix semantics, HTTP error envelopes, database schema/migrations, deployment, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Password-change revocation typechecks against its real implementation and the current-session exception is executable and unambiguous.
+
 ## Version 0.33.32.24 - Permission-restricted descriptor delivery blocker
 
 Completed on 2026-08-11. Permission-restricted Clients and Projects pages now omit unavailable top-level actions before checked descriptor normalization; the active roadmap advances to `0.33.32.25` for auth/session revocation signature authority.

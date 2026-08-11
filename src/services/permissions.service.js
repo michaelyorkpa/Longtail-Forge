@@ -21,6 +21,20 @@ import {
 /** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/**
+ * @typedef {Object} PermissionAssignment
+ * @property {string} role_id
+ * @property {string} scope_type
+ * @property {string | null} scope_id
+ * @property {string | null | undefined} permission_overrides_json
+ */
+/**
+ * @typedef {Object} PermissionOverrides
+ * @property {Record<string, Record<string, boolean>>} [operationAccess]
+ * @property {boolean} [restrictBilling]
+ * @property {boolean} [allowManualTime]
+ * @property {boolean} [allowEditTime]
+ */
 
 const ROLE_LIMITS = {
   super_admin: new Set([
@@ -1179,7 +1193,7 @@ function decorateAssignment(assignment) {
 }
 
 /**
- * @param {*} assignment
+ * @param {PermissionAssignment} assignment
  * @param {PermissionResource} resource
  * @param {{ workspace_id: string }} session
  */
@@ -1209,7 +1223,7 @@ function assignmentMatchesResource(assignment, resource, session) {
 }
 
 /**
- * @param {*} assignment
+ * @param {PermissionAssignment} assignment
  * @param {string} action
  * @param {PermissionResource} resource
  */
@@ -1218,7 +1232,7 @@ function assignmentAllowsAction(assignment, action, resource) {
 }
 
 /**
- * @param {*} overrides
+ * @param {PermissionOverrides} overrides
  * @param {string} action
  * @param {PermissionResource} resource
  */

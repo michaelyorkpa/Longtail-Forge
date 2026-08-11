@@ -45,7 +45,6 @@ import {
 /** @typedef {NonNullable<Awaited<ReturnType<typeof usersRepository.readByUsername>>>} UserRecord */
 /** @typedef {Awaited<ReturnType<typeof verifyPassword>>} PasswordVerification */
 /** @typedef {{ newAlgorithm: string, previousAlgorithm: string, rehashReason: string | null }} PasswordRehash */
-/** @typedef {(input: { actorSession: WorkspaceRequestSession, currentSessionId?: string, excludedSessionId?: string, reason: string, targetUser: UserRecord, workspaceId: string }) => Promise<{ revokedCount: number }>} RevokeAllForUserExcept */
 
 const INVALID_LOGIN_MESSAGE = "These credentials do not have access to this installation.";
 
@@ -461,6 +460,10 @@ async function switchWorkspace(sessionId, session, payload) {
 /** @param {WorkspaceRequestSession} session @param {{ currentSessionId?: string, ipAddress?: unknown }} [context] */
 async function changePassword(payload, session, context = {}) {
   assertPublicDemoVisitorIdentityMutable(session.user_id);
+  const currentSessionId = String(context.currentSessionId || "").trim();
+  if (!currentSessionId) {
+    throw new AppError("The current session changed. Sign in and try again.", 409);
+  }
   const currentPassword = String(payload.currentPassword || "");
   const newPassword = String(payload.newPassword || "");
 
@@ -513,13 +516,10 @@ async function changePassword(payload, session, context = {}) {
   await usersRepository.updatePassword(session.workspace_id, authenticatedUser.user_id, await hashPassword(newPassword), {
     passwordChangeRequired: false,
   });
-  const revokeAllForUserExcept = /** @type {RevokeAllForUserExcept} */ (
-    /** @type {unknown} */ (sessionsService.revokeAllForUserExcept)
-  );
-  const revocation = await revokeAllForUserExcept({
+  const revocation = await sessionsService.revokeAllForUserExcept({
     actorSession: session,
-    currentSessionId: context.currentSessionId,
-    excludedSessionId: context.currentSessionId,
+    currentSessionId,
+    preservedSessionId: currentSessionId,
     reason: "password_changed",
     targetUser: authenticatedUser,
     workspaceId: session.workspace_id,

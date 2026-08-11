@@ -1,3 +1,12 @@
+## Version 0.33.32.25 - 2026-08-11
+
+- Moved exception-scoped session revocation signature authority into the checked sessions service and removed the authentication service's invented callable typedef and `unknown` double cast.
+- Required an explicit `preservedSessionId`; missing current-session identity now fails with the safe conflict before password or revocation writes instead of broadening into full-user revocation.
+- Kept full-user password-reset/deactivation revocation separate, retained two-cookie password-change, safe event/audit, Support View, public-demo, and permission behavior, and raised the checked inventory floor from 100 to 101 files.
+- Replaced touched permission-assignment wildcard parameters with named assignment/override projections and declared the stored session-list row consumed by revocation.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: user-facing Help, permission matrix semantics, HTTP error envelopes, database schema/migrations, deployment, and public API contracts are unchanged.
+
 ## Version 0.33.32.24 - 2026-08-11
 
 - Fixed restricted Clients/Projects page delivery by omitting the optional top-level primary action when server-shaped capabilities deny top-level Client or Project creation; malformed action values remain rejected and super-admin actions are unchanged.

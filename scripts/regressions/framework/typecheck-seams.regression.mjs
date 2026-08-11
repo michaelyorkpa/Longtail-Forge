@@ -528,13 +528,20 @@ assert.match(jobEnqueueDeclaration[1], /^  job_id\?: string;$/m, "enqueue must r
 assert.match(contractSource, /export type JobHandler = \(context: JobHandlerContext\)/, "registered job handlers must receive the live context envelope rather than a raw database row");
 const authServiceSource = readFileSync("src/services/auth.service.js", "utf8");
 const apiKeysServiceSource = readFileSync("src/services/api-keys.service.js", "utf8");
+const sessionsServiceSource = readFileSync("src/services/sessions.service.js", "utf8");
 for (const [filePath, source] of [
   ["src/services/auth.service.js", authServiceSource],
   ["src/services/api-keys.service.js", apiKeysServiceSource],
+  ["src/services/sessions.service.js", sessionsServiceSource],
 ]) {
   assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain in the checked authentication seam`);
   assert.doesNotMatch(source, /@ts-(?:ignore|nocheck)/, `${filePath} must not suppress authentication type failures`);
 }
+assert.match(sessionsServiceSource, /@typedef \{SessionRevocationInput & \{ preservedSessionId: string \}\} RevokeAllForUserExceptInput/);
+assert.match(sessionsServiceSource, /if \(!preservedSessionId\)[\s\S]*The current session changed\. Sign in and try again\./);
+assert.doesNotMatch(sessionsServiceSource, /return revokeAllForUser\(\{ actorSession, currentSessionId, reason, targetUser, workspaceId \}\)/);
+assert.match(authServiceSource, /preservedSessionId: currentSessionId/);
+assert.doesNotMatch(authServiceSource, /@type \{unknown\}[\s\S]*revokeAllForUserExcept/);
 assert.match(authServiceSource, /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.RequestSession\} RequestSession/, "authentication services must consume the shared request-session identity contract");
 assert.match(authServiceSource, /const authenticatedUser = \/\*\* @type \{UserRecord\} \*\//, "successful credential verification must narrow the nullable user before session issuance");
 assert.match(authServiceSource, /@param \{RequestSession \| null\} session[\s\S]*?async function readSession/, "session reads must retain the recovery-aware nullable request-session contract");
@@ -592,6 +599,7 @@ for (const [filePath, source] of [
   assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain in the checked permission-resource seam`);
   assert.doesNotMatch(source, /@ts-(?:ignore|nocheck)/, `${filePath} must not suppress permission-resource type failures`);
 }
+assert.doesNotMatch(permissionsServiceSource, /@param \{\*\} (?:assignment|overrides)/, "permission assignment decisions must not accept wildcard inputs");
 assert.match(permissionResourceSource, /@returns \{PermissionResource\}/, "permission-resource constructors must return the shared contract");
 assert.match(permissionsServiceSource, /@param \{PermissionResource\} resource[\s\S]*?async function can/, "permission checks must consume a workspace-scoped resource");
 assert.deepEqual(

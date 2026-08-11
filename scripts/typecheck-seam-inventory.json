@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 100,
+  "minimumOptedInFiles": 101,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -90,6 +90,7 @@
     "src/services/notifications.service.js",
     "src/services/permissions.service.js",
     "src/services/search.service.js",
+    "src/services/sessions.service.js",
     "src/services/tag-propagation-registry.js",
     "src/services/tags.service.js",
     "src/services/work-candidate.service.js",
