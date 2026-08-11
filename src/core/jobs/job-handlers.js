@@ -1,10 +1,17 @@
+// @ts-check
 import { config } from "../../config.js";
 import { getPublicDemoCapability } from "../public-demo-capabilities.js";
 import { assertPublicDemoCapabilityAllowed } from "../public-demo-enforcement.js";
 
+/** @typedef {import("../../types/framework-contracts.js").JobHandler} JobHandler */
+/** @typedef {import("../../types/framework-contracts.js").JobHandlerOptions} JobHandlerOptions */
+
+/** @type {Map<string, JobHandler>} */
 const handlersByType = new Map();
+/** @type {Map<string, string | null>} */
 const publicDemoCapabilitiesByType = new Map();
 
+/** @param {unknown} jobType */
 function normalizeJobType(jobType) {
   const text = String(jobType || "").trim();
 
@@ -15,6 +22,11 @@ function normalizeJobType(jobType) {
   return text;
 }
 
+/**
+ * @param {unknown} jobType
+ * @param {JobHandler} handler
+ * @param {JobHandlerOptions} [options]
+ */
 function registerJobHandler(jobType, handler, options = {}) {
   const normalizedJobType = normalizeJobType(jobType);
   const publicDemoCapability = String(options.publicDemoCapability || "").trim();
@@ -43,10 +55,12 @@ function registerJobHandler(jobType, handler, options = {}) {
   };
 }
 
+/** @param {unknown} jobType */
 function getJobHandler(jobType) {
   return handlersByType.get(normalizeJobType(jobType)) || null;
 }
 
+/** @param {unknown} jobType */
 function assertRegisteredJobPublicDemoCapabilityAllowed(jobType) {
   const normalizedJobType = normalizeJobType(jobType);
   const capabilityId = publicDemoCapabilitiesByType.get(normalizedJobType) || `jobs.${normalizedJobType}`;

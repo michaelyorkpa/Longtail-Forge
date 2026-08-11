@@ -1,3 +1,4 @@
+// @ts-check
 import { db } from "../database.js";
 import { createRecordId } from "../identifiers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";

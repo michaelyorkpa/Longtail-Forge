@@ -1,3 +1,12 @@
+## Version 0.33.32.15 - 2026-08-10
+
+- Opted the durable job queue, handler registry, runner, and safe event-summary implementation into checked JavaScript against shared trusted contracts.
+- Aligned the type-only job contract with the live dual-cased caller-supplied job ID and `{ job, payload }` handler envelope, while retaining the persisted snake_case job row and existing worker status/run summary shapes.
+- Preserved job claims, workspace/public-demo gates, completion/dead-letter transitions, exponential retry timing, handler execution, notification delivery, event resolver lookup, safe URLs, raw-record-ID redaction, and fallback copy.
+- Raised the checked-seam inventory and floor from 69 to 73 files, extended release-gate assertions, and retained green Jobs, event bus, audit-summary, and Notifications regressions.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: `SECURITY.md`, internet deployment, operational security, private-preview readiness, runtime artifact/configuration, licensing, module workflow docs, Help, API payloads, permissions, database schema/migrations, and deployment behavior are unchanged.
+
 ## Version 0.33.32.14 - 2026-08-10
 
 - Opted the first-party Work Resume State producer and read-resolver assembly into checked JavaScript with shared payload, resolver-context, batch-resolver, and lifecycle-result contracts.

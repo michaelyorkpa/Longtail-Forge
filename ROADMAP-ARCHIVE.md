@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.15 - Jobs and event-summary implementation closure
+
+Completed on 2026-08-10. The durable job queue, handler registry, runner, and safe event-summary implementation now typecheck against their live trusted contracts without changing execution, retry, notification, redaction, or fallback behavior, and the active 0.33.32 work advances to `0.33.32.16` for Authentication and API-key services.
+
+**Model: High Effort** - These related infrastructure contracts are bounded to existing implementations.
+
+- [x] Opted the job queue, runner, and handlers into checked JavaScript against aligned enqueue, persisted-row, execution-envelope, and worker-state contracts; opted `event-summaries.js` in against internal-event and summary resolver contracts.
+- [x] Preserved workflow execution, claims, retry timing, public-demo enforcement, notification delivery, safe URL/record-label redaction, and fallback copy; raised the checked inventory floor from 69 to 73 files and retained focused Jobs, events, audit-summary, and Notifications coverage.
+
+Acceptance criteria:
+
+- Existing job and event-summary implementations typecheck with execution, retry, and redaction unchanged.
+
 ## Version 0.33.32.14 - Work Resume State implementation closure
 
 Completed on 2026-08-10. The first-party Resume State producer and read-check assembly now typechecks against explicit shared payload, resolver, and lifecycle-result contracts without changing recovery behavior, and the active 0.33.32 work advances to `0.33.32.15` for Jobs and event-summary implementation closure.

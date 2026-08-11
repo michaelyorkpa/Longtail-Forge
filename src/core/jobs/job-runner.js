@@ -1,8 +1,15 @@
+// @ts-check
 import { clearInterval, setInterval } from "node:timers";
 import { config } from "../../config.js";
 import { db } from "../database.js";
 import { assertRegisteredJobPublicDemoCapabilityAllowed, getJobHandler, listRegisteredJobTypes } from "./job-handlers.js";
 import { WORKSPACE_PURGE_JOB_TYPE } from "./job-types.js";
+
+/** @typedef {import("../../types/framework-contracts.js").JobRecord} JobRecord */
+/** @typedef {import("../../types/framework-contracts.js").JobRunSummary} JobRunSummary */
+/** @typedef {import("../../types/framework-contracts.js").JobWorkerMode} JobWorkerMode */
+/** @typedef {import("../../types/framework-contracts.js").JobWorkerOptions} JobWorkerOptions */
+/** @typedef {import("../../types/framework-contracts.js").JobWorkerStatus} JobWorkerStatus */
 
 const ACTIVE_JOB_STATUSES = Object.freeze(["pending", "failed"]);
 const DEFAULT_CLAIM_LIMIT = 1;
@@ -31,14 +38,18 @@ const CLAIMED_JOB_RETURN_COLUMNS = Object.freeze([
   "dead_at",
 ]);
 
+/** @type {ReturnType<typeof setInterval> | null} */
 let pollTimer = null;
+/** @type {Promise<JobRunSummary | void> | null} */
 let activeRun = null;
 let shutdownRequested = false;
+/** @type {JobWorkerStatus} */
 let workerStatus = createInitialStatus();
 
+/** @returns {JobWorkerStatus} */
 function createInitialStatus() {
   return {
-    mode: config.worker.mode,
+    mode: /** @type {JobWorkerMode} */ (config.worker.mode),
     workerId: config.worker.id,
     state: config.worker.mode === "disabled" ? "disabled" : "stopped",
     running: false,
@@ -59,6 +70,7 @@ function createInitialStatus() {
   };
 }
 
+/** @param {JobWorkerOptions} [options] @returns {Promise<JobWorkerStatus>} */
 async function startJobWorker(options = {}) {
   const mode = normalizeWorkerMode(options.mode ?? config.worker.mode);
   const logger = options.logger || console;
@@ -111,6 +123,7 @@ async function startJobWorker(options = {}) {
   return getJobWorkerStatus();
 }
 
+/** @param {JobWorkerOptions} [options] @returns {Promise<JobWorkerStatus>} */
 async function stopJobWorker(options = {}) {
   const logger = options.logger || console;
   shutdownRequested = true;
@@ -125,7 +138,7 @@ async function stopJobWorker(options = {}) {
       await activeRun;
     } catch (error) {
       logger.warn?.("[job-worker] Active run failed during shutdown.");
-      logger.warn?.(error.message || error);
+      logger.warn?.(/** @type {any} */ (error).message || error);
     }
   }
 
@@ -140,6 +153,9 @@ async function stopJobWorker(options = {}) {
   return getJobWorkerStatus();
 }
 
+/**
+ * @param {{ claimLimit: number, lockTtlSeconds: number, logger: import("../../types/framework-contracts.js").JobWorkerLogger, mode: JobWorkerMode, workerId: string }} context
+ */
 function scheduleWorkerPoll(context) {
   if (shutdownRequested || activeRun) {
     return;
@@ -161,6 +177,7 @@ function scheduleWorkerPoll(context) {
     });
 }
 
+/** @param {JobWorkerOptions} [options] @returns {Promise<JobRunSummary>} */
 async function runJobWorkerOnce(options = {}) {
   const mode = normalizeWorkerMode(options.mode ?? workerStatus.mode ?? config.worker.mode);
 
@@ -245,6 +262,7 @@ async function runJobWorkerOnce(options = {}) {
   return summary;
 }
 
+/** @param {{ workerId?: unknown, limit?: unknown, lockTtlSeconds?: unknown, now?: unknown }} [options] @returns {Promise<JobRecord[]>} */
 async function claimAvailableJobs(options = {}) {
   const workerId = normalizeWorkerId(options.workerId ?? config.worker.id);
   const limit = normalizeClaimLimit(options.limit ?? DEFAULT_CLAIM_LIMIT);
@@ -253,6 +271,7 @@ async function claimAvailableJobs(options = {}) {
   const expiredBefore = subtractSeconds(now, lockTtlSeconds);
 
   return db.transaction(async (transaction) => {
+    /** @type {JobRecord[]} */
     const claimedJobs = [];
 
     for (let index = 0; index < limit; index += 1) {
@@ -295,13 +314,14 @@ ${transaction.dialect.returning.columns(CLAIMED_JOB_RETURN_COLUMNS)};
         break;
       }
 
-      claimedJobs.push(claimedRows[0]);
+      claimedJobs.push(/** @type {JobRecord} */ (claimedRows[0]));
     }
 
     return claimedJobs;
   });
 }
 
+/** @param {JobRecord} job */
 async function runClaimedJob(job) {
   if (job.job_type !== WORKSPACE_PURGE_JOB_TYPE && !await workspaceCanRunClaimedJob(job.workspace_id)) {
     await markJobCompleted(job.job_id);
@@ -333,6 +353,7 @@ async function runClaimedJob(job) {
   await markJobCompleted(job.job_id);
 }
 
+/** @param {string} workspaceId */
 async function workspaceCanRunClaimedJob(workspaceId) {
   const workspace = await db.get(`
 SELECT status
@@ -343,6 +364,7 @@ LIMIT 1;
   return Boolean(workspace && String(workspace.status || "").toLowerCase() !== "purging");
 }
 
+/** @param {string} jobId */
 async function markJobCompleted(jobId) {
   const now = new Date().toISOString();
   await db.run(`
@@ -361,6 +383,7 @@ WHERE job_id = :jobId;
   });
 }
 
+/** @param {JobRecord} job @param {unknown} error @returns {Promise<"dead" | "failed">} */
 async function markJobFailed(job, error) {
   const now = new Date();
   const nowIso = now.toISOString();
@@ -407,6 +430,7 @@ WHERE job_id = :jobId;
   return "failed";
 }
 
+/** @returns {JobWorkerStatus} */
 function getJobWorkerStatus() {
   return {
     ...workerStatus,
@@ -414,6 +438,7 @@ function getJobWorkerStatus() {
   };
 }
 
+/** @param {JobWorkerStatus} [status] */
 function formatJobWorkerStatus(status = getJobWorkerStatus()) {
   return [
     "[job-worker]",
@@ -441,6 +466,7 @@ function resetJobWorkerStatusForTests() {
   workerStatus = createInitialStatus();
 }
 
+/** @param {JobRecord} job @returns {Record<string, any>} */
 function parseJobPayload(job) {
   try {
     return JSON.parse(job.payload_json || "{}");
@@ -449,16 +475,19 @@ function parseJobPayload(job) {
   }
 }
 
+/** @param {unknown} error */
 function summarizeJobError(error) {
-  const message = String(error?.message || error || "Job failed.").replace(/\s+/g, " ").trim();
+  const message = String(/** @type {any} */ (error)?.message || error || "Job failed.").replace(/\s+/g, " ").trim();
   return message.slice(0, MAX_ERROR_LENGTH) || "Job failed.";
 }
 
+/** @param {unknown} attemptCount */
 function calculateRetryDelayMs(attemptCount) {
   const exponent = Math.max(0, Number(attemptCount || 0) - 1);
   return Math.min(MAX_RETRY_DELAY_MS, MIN_RETRY_DELAY_MS * (2 ** exponent));
 }
 
+/** @param {unknown} value @returns {JobWorkerMode} */
 function normalizeWorkerMode(value) {
   const mode = String(value || "").trim();
 
@@ -466,13 +495,15 @@ function normalizeWorkerMode(value) {
     throw new Error("Worker mode must be inline, separate, or disabled.");
   }
 
-  return mode;
+  return /** @type {JobWorkerMode} */ (mode);
 }
 
+/** @param {unknown} value */
 function normalizeWorkerId(value) {
   return String(value || "").trim() || "default";
 }
 
+/** @param {unknown} value */
 function normalizePollInterval(value) {
   const interval = Number(value);
 
@@ -483,6 +514,7 @@ function normalizePollInterval(value) {
   return interval;
 }
 
+/** @param {unknown} value */
 function normalizeClaimLimit(value) {
   const limit = Number(value);
 
@@ -493,6 +525,7 @@ function normalizeClaimLimit(value) {
   return Math.min(limit, MAX_CLAIM_LIMIT);
 }
 
+/** @param {unknown} value */
 function normalizeLockTtlSeconds(value) {
   const seconds = Number(value);
 
@@ -503,6 +536,7 @@ function normalizeLockTtlSeconds(value) {
   return seconds;
 }
 
+/** @param {unknown} value */
 function normalizeIso(value) {
   if (value instanceof Date) {
     return value.toISOString();
@@ -512,6 +546,7 @@ function normalizeIso(value) {
   return text || new Date().toISOString();
 }
 
+/** @param {string} isoValue @param {number} seconds */
 function subtractSeconds(isoValue, seconds) {
   const timestamp = Date.parse(isoValue);
   const baseTimestamp = Number.isFinite(timestamp) ? timestamp : Date.now();
