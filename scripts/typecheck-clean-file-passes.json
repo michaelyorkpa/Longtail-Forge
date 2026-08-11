@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "passes": [
+    {
+      "version": "0.33.32.18",
+      "ownershipTier": "framework-core-leaf-utilities",
+      "files": [
+        "src/core/asset-version.js",
+        "src/core/bounded-pagination.js",
+        "src/core/corresponding-source.js",
+        "src/core/errors.js",
+        "src/core/identifiers.js",
+        "src/core/list-enrichment.js",
+        "src/core/operational-logger.js",
+        "src/core/request-cache.js",
+        "src/core/request-context.js",
+        "src/core/runtime-readiness.js",
+        "src/core/transport-security.js",
+        "src/core/version.js"
+      ]
+    }
+  ]
+}
