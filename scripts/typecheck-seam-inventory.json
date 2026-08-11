@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 67,
+  "minimumOptedInFiles": 69,
   "checkedFiles": [
     "src/core/files/files.contracts.js",
     "src/core/help/search-indexers.js",
@@ -63,7 +63,9 @@
     "src/services/tags.service.js",
     "src/services/work-candidate.service.js",
     "src/services/work-focus-modes.service.js",
+    "src/services/work-resume-state-initial-producers.js",
     "src/services/work-resume-state-producers.js",
+    "src/services/work-resume-state-read-checks.js",
     "src/services/work-resume-state.service.js",
     "src/utils/http.js",
     "src/utils/normalizers.js",

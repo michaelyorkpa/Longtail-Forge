@@ -235,6 +235,9 @@ async function listCodeFiles(rootPath) {
   for (const entry of entries) {
     const entryPath = path.posix.join(rootPath, entry.name);
     if (entry.isDirectory()) {
+      if (entry.name.startsWith(".")) {
+        continue;
+      }
       files.push(...await listCodeFiles(entryPath));
     } else if (/\.(?:js|mjs)$/.test(entry.name) || entry.name.endsWith(".example")) {
       files.push(entryPath);

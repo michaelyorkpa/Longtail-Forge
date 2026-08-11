@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.14 - Work Resume State implementation closure
+
+Completed on 2026-08-10. The first-party Resume State producer and read-check assembly now typechecks against explicit shared payload, resolver, and lifecycle-result contracts without changing recovery behavior, and the active 0.33.32 work advances to `0.33.32.15` for Jobs and event-summary implementation closure.
+
+**Model: Medium Effort** - Two files close one otherwise-typed recovery chain.
+
+- [x] Opted `work-resume-state-initial-producers.js` and `work-resume-state-read-checks.js` into checked JavaScript against shared Resume State contracts.
+- [x] Preserved registration, permission pruning, unavailable states, ranking, and payloads; raised the checked inventory floor from 67 to 69 files and retained focused producer, service, and conversion coverage.
+
+Acceptance criteria:
+
+- The first-party resume-state chain is checked without changing recovery behavior or ownership.
+
 ## Version 0.33.32.13 - Search reference contract and indexers
 
 Completed on 2026-08-10. The live registered-indexer boundary now has one checked camelCase `SearchReference` consumed by every first-party module and Help indexer, while compatibility aliases remain at queue/service normalization inputs and Search indexing/rebuild behavior is unchanged. The active 0.33.32 work advances to `0.33.32.14` for Work Resume State implementation closure.
