@@ -276,7 +276,13 @@ assert.match(activeTimersRepositorySource, /@typedef \{Object\} ActiveTimer/);
 assert.match(activeTimersRepositorySource, /@param \{ActiveTimer\} timer[\s\S]*async function upsert\(timer\)/);
 const billingServiceSource = readFileSync("src/modules/time-tracking/time-tracking-billing.service.js", "utf8");
 assert.match(billingServiceSource, /@param \{WorkspaceRequestSession\} session[\s\S]*async function readDashboardBillingSummary/);
-assert.match(billingServiceSource, /timezone: session\.timezone \|\| DEFAULT_TIMEZONE/);
+assert.match(billingServiceSource, /function normalizeBillingSessionTimezone[\s\S]*normalizeTimezone\(session\?\.timezone\)/);
+assert.equal(
+  (billingServiceSource.match(/(?:const timezone =|timezone:)\s*normalizeBillingSessionTimezone\(session\)/g) || []).length,
+  2,
+  "both billing session-timezone consumers must use the canonical validated boundary",
+);
+assert.doesNotMatch(billingServiceSource, /session\.timezone \|\| DEFAULT_TIMEZONE/);
 assert.match(billingServiceSource, /function getBillingPeriodRange[\s\S]*localDateKey\(today, timezone\)[\s\S]*dateKeyRange/);
 assert.match(billingServiceSource, /function getCustomDateRange[\s\S]*addLocalDateDays\(endDateKey, 1\)[\s\S]*timezone/);
 assert.doesNotMatch(billingServiceSource, /new Date\(today\.getFullYear\(\), today\.getMonth\(\)/);

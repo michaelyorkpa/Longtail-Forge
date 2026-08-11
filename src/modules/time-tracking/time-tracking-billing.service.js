@@ -3,6 +3,7 @@ import { clientProjectSettingsService, clientsService } from "../client-projects
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { settingsService } from "../../services/settings.service.js";
+import { normalizeTimezone } from "../../utils/normalizers.js";
 import {
   DEFAULT_TIMEZONE,
   addLocalDateDays,
@@ -32,7 +33,7 @@ async function readDashboardBillingSummary(session) {
   const activeScopes = buildBillingScopes(clientProjectData, settings, { includeInactive: true })
     .filter((scope) => scope.status === "Active");
   const now = new Date();
-  const timezone = session.timezone || DEFAULT_TIMEZONE;
+  const timezone = normalizeBillingSessionTimezone(session);
   const currentMonthRows = summarizeBillingScopesForRange(settings, activeScopes, entries, getMonthRange(now, timezone))
     .filter((row) => row.billableSeconds > 0);
   const currentMonthTotals = filterRollupScopeSummaries(currentMonthRows).reduce((summary, row) => ({
@@ -104,7 +105,7 @@ async function readProjectSummary(session, query = {}) {
     .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
   const summary = summarizeProjectBillingRows(settings, scope, projects, scopeEntries, query, {
     includeDescendants,
-    timezone: session.timezone || DEFAULT_TIMEZONE,
+    timezone: normalizeBillingSessionTimezone(session),
   });
 
   return {
@@ -155,6 +156,16 @@ async function readBillingSettings(session) {
     ...clientProjectSettings,
     ...timeTrackingSettings,
   };
+}
+
+/**
+ * Normalize persisted session data before billing calendar helpers reach Intl.
+ *
+ * @param {{ timezone?: unknown } | null | undefined} session
+ * @returns {string}
+ */
+function normalizeBillingSessionTimezone(session) {
+  return normalizeTimezone(session?.timezone);
 }
 
 function buildBillingScopes(data, settings, options = {}) {
@@ -862,6 +873,7 @@ function workspaceSummary(session, settings) {
 
 export {
   buildBillingScopes,
+  normalizeBillingSessionTimezone,
   normalizeTimeEntries,
   summarizeBillingScopesForRange,
   summarizeProjectBillingRows,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBillingScopes,
+  normalizeBillingSessionTimezone,
   normalizeTimeEntries,
   summarizeBillingScopesForRange,
   summarizeProjectBillingRows,
@@ -40,6 +41,17 @@ function project(id, overrides = {}) {
 }
 
 describe("Time Tracking billing pure helpers", () => {
+  it("normalizes billing session timezones through the canonical fallback", () => {
+    expect(normalizeBillingSessionTimezone({ timezone: "America/Los_Angeles" }))
+      .toBe("America/Los_Angeles");
+    expect(normalizeBillingSessionTimezone({ timezone: "Not/A_Timezone" }))
+      .toBe("America/New_York");
+    expect(normalizeBillingSessionTimezone({ timezone: "" }))
+      .toBe("America/New_York");
+    expect(normalizeBillingSessionTimezone(null))
+      .toBe("America/New_York");
+  });
+
   it("normalizes stored entries without changing billable split semantics", () => {
     const entries = normalizeTimeEntries([
       {

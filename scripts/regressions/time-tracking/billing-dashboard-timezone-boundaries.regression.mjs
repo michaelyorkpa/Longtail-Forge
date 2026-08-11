@@ -16,12 +16,21 @@ const {
   buildBillingScopes,
   normalizeTimeEntries,
   summarizeProjectBillingRows,
+  timeTrackingBillingService,
 } = await import("../../../src/modules/time-tracking/time-tracking-billing.service.js");
 const { dashboardEffortDateWindow } = await import("../../../src/modules/time-tracking/time-tracking-dashboard.service.js");
 
 const TIMEZONE = "America/Los_Angeles";
 try {
   await initializeDatabase();
+  const invalidTimezoneSession = await readProtectedSession();
+  invalidTimezoneSession.timezone = "Not/A_Timezone";
+  const invalidTimezoneDashboard = await timeTrackingBillingService.readDashboardBillingSummary(invalidTimezoneSession);
+  assert.ok(
+    Array.isArray(invalidTimezoneDashboard.chartPoints),
+    "an unsupported persisted session timezone must use the canonical fallback instead of crashing billing",
+  );
+
   const settings = {
     billingPeriod: { type: "calendarMonth", startDay: 1 },
     billingRounding: { enabled: false, increment: "nearestQuarterHour" },
@@ -67,23 +76,57 @@ try {
     "the current billing month must follow the session-local February boundary rather than the server timezone",
   );
 
-  const dstSummary = summarizeProjectBillingRows(settings, scope, scope.projects, normalizeTimeEntries([
-    entry("2026-03-08T04:59:59.999Z", 10),
-    entry("2026-03-08T05:00:00.000Z", 20),
-    entry("2026-03-09T03:59:59.999Z", 30),
-    entry("2026-03-09T04:00:00.000Z", 40),
-  ]), {
-    endDate: "2026-03-08",
-    period: "custom",
-    startDate: "2026-03-08",
-  }, {
-    timezone: "America/New_York",
+  const billingBoundaryCases = [
+    {
+      end: "2026-04-01T04:00:00.000Z",
+      expectedHours: 743,
+      label: "spring-forward current month",
+      query: { period: "current" },
+      start: "2026-03-01T05:00:00.000Z",
+      today: new Date("2026-03-15T12:00:00.000Z"),
+    },
+    {
+      end: "2026-04-01T04:00:00.000Z",
+      expectedHours: 743,
+      label: "spring-forward last month",
+      query: { period: "last" },
+      start: "2026-03-01T05:00:00.000Z",
+      today: new Date("2026-04-15T12:00:00.000Z"),
+    },
+    {
+      end: "2026-03-09T04:00:00.000Z",
+      expectedHours: 23,
+      label: "spring-forward custom day",
+      query: { endDate: "2026-03-08", period: "custom", startDate: "2026-03-08" },
+      start: "2026-03-08T05:00:00.000Z",
+    },
+    {
+      end: "2026-12-01T05:00:00.000Z",
+      expectedHours: 721,
+      label: "fall-back current month",
+      query: { period: "current" },
+      start: "2026-11-01T04:00:00.000Z",
+      today: new Date("2026-11-15T12:00:00.000Z"),
+    },
+    {
+      end: "2026-12-01T05:00:00.000Z",
+      expectedHours: 721,
+      label: "fall-back last month",
+      query: { period: "last" },
+      start: "2026-11-01T04:00:00.000Z",
+      today: new Date("2026-12-15T12:00:00.000Z"),
+    },
+    {
+      end: "2026-11-02T05:00:00.000Z",
+      expectedHours: 25,
+      label: "fall-back custom day",
+      query: { endDate: "2026-11-01", period: "custom", startDate: "2026-11-01" },
+      start: "2026-11-01T04:00:00.000Z",
+    },
+  ];
+  billingBoundaryCases.forEach((boundaryCase) => {
+    assertBillingBoundaryCase(settings, scope, boundaryCase);
   });
-  assert.equal(
-    dstSummary.totals.seconds,
-    50,
-    "a custom billing day must use local midnights even when the DST transition makes it 23 hours long",
-  );
 
   assert.deepEqual(
     dashboardEffortDateWindow(new Date("2026-03-01T00:30:00.000Z"), "UTC"),
@@ -122,5 +165,55 @@ function entry(endTime, durationSeconds) {
     duration_seconds: durationSeconds,
     end_time: endTime,
     project_id: "project-1",
+  };
+}
+
+function assertBillingBoundaryCase(settings, scope, boundaryCase) {
+  const start = new Date(boundaryCase.start);
+  const end = new Date(boundaryCase.end);
+  const entries = normalizeTimeEntries([
+    entry(new Date(start.getTime() - 1).toISOString(), 10),
+    entry(boundaryCase.start, 20),
+    entry(new Date(end.getTime() - 1).toISOString(), 30),
+    entry(boundaryCase.end, 40),
+  ]);
+  assert.equal(
+    entries[1].endTime.toISOString(),
+    boundaryCase.start,
+    `${boundaryCase.label} must preserve the stored absolute instant`,
+  );
+  const summary = summarizeProjectBillingRows(settings, scope, scope.projects, entries, boundaryCase.query, {
+    timezone: "America/New_York",
+    ...(boundaryCase.today ? { today: boundaryCase.today } : {}),
+  });
+  assert.equal(
+    (end.getTime() - start.getTime()) / 3_600_000,
+    boundaryCase.expectedHours,
+    `${boundaryCase.label} must span the expected UTC hours`,
+  );
+  assert.equal(
+    summary.totals.seconds,
+    50,
+    `${boundaryCase.label} must include its start and exclude its end`,
+  );
+}
+
+async function readProtectedSession() {
+  const user = await db.get(`
+SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
+FROM users
+WHERE users.protected_user = 'yes'
+ORDER BY users.user_id
+LIMIT 1;
+`);
+  assert.ok(user?.user_id, "protected user fixture is required");
+  return {
+    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
+    home_workspace_id: user.home_workspace_id,
+    ip: "127.0.0.1",
+    timezone: user.timezone || "America/New_York",
+    user_id: user.user_id,
+    username: user.username,
+    workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
 }
