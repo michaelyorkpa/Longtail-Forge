@@ -1,3 +1,4 @@
+// @ts-check
 import { config } from "../config.js";
 
 function correspondingSourceRef(runtimeConfig = config) {

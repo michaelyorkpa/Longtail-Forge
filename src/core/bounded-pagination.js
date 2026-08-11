@@ -1,3 +1,4 @@
+// @ts-check
 const DEFAULT_MAX_OFFSET = Number.MAX_SAFE_INTEGER;
 
 function normalizeBoundedPagination(source = {}, options = {}) {

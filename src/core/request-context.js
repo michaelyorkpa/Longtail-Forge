@@ -1,3 +1,4 @@
+// @ts-check
 import { createOpaqueId } from "./identifiers.js";
 
 function configureTrustedProxy(app, trustedProxies = []) {

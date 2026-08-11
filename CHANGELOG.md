@@ -1,3 +1,12 @@
+## Version 0.33.32.18 - 2026-08-11
+
+- Recorded one exact 12-file `framework-core-leaf-utilities` checking pass before source opt-in, keeping the mechanical rollout within one ownership tier and well below the 40-file ceiling.
+- Opted the selected asset/version, bounded-pagination, source-correlation, error-export, identifier, list-enrichment, operational-logging, request-cache/context, readiness, and transport-security utilities into checked JavaScript without changing runtime statements.
+- Deferred `record-scope.js` and `tar-archive-command.js` after the isolated audit exposed nullable-record and subprocess-error typing fallout that requires separately reasoned work.
+- Raised the checked-seam inventory and monotonic floor from 77 to 89 files, and extended the release guardrail to enforce bounded pass metadata, sorted unique paths, ownership-tier scope, non-overlap, reserved-slice exclusions, and complete inventory membership.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: HTTP error behavior, identifier generation, runtime and transport security, readiness, backup/archive behavior, public API, permissions, database schema/migrations, browser workflows, deployment, and user-facing Help are unchanged.
+
 ## Version 0.33.32.17 - 2026-08-10
 
 - Made `PermissionResource.workspace_id` required and opted the permission service into checked JavaScript against shared request-session and resource contracts.
