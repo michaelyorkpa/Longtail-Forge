@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
+const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const css = readText("public/css/longtail-forge.css");
 const footerScript = readText("public/js/footer.js");
 const changelog = readText("CHANGELOG.md");
@@ -32,6 +33,7 @@ for (const helperName of [
 }
 
 const context = createBrowserContext();
+vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });

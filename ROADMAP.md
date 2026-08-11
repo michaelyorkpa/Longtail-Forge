@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.22`.
+Active cursor: `0.33.32.23`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,19 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.22 - Declarative descriptor-field boundary adapter
-
-**Model: High Effort** — Support Tickets will author declarative views against this framework, so silent descriptor-field drift must be closed without turning two giant DOM runtimes into one unbounded conversion.
-
-- [ ] Define one precise checked browser-facing descriptor projection for the currently supported `layout`, `filterPlacement`, `pageHeader`, `sidebarLabel`, `sidebarPanels`, `filters`, `indexPanel`, `table`, `detail`, `modals`, `dataSource`, `actions`, and `regions` contracts; preserve explicit forward-compatible extension points only where current validation allows them.
-- [ ] Add a small checked adapter that accepts the delivered descriptor as `unknown`, narrows or normalizes those fields once, and gives `view-renderer.js` and `view-builder.js` a typed boundary without opting either whole file into checking.
-- [ ] Route existing descriptor-field reads through the adapter without refactoring DOM anatomy, behaviors, data fetching, permissions, or module-owned workflow meaning. Add a guardrail proving a renamed or malformed supported field cannot silently degrade rendering.
-- [ ] Extend the inventory and run the full views area plus rendered browser smoke across bundled declarative surfaces, including layout, page headers, sidebar accessibility labels, filters, tables, details, modal shells, empty/error states, actions, and permissions.
-
-Acceptance criteria:
-
-- Server/browser descriptor drift fails at one checked boundary before Support Tickets depends on it, while whole-file renderer/builder conversion remains consciously deferred to the separately audited client-hardening branch.
 
 ### Version 0.33.32.23 - Permission-safe Search route and query boundary
 

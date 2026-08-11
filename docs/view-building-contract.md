@@ -12,6 +12,8 @@ The helper file may be `public/js/shared/view-builder.js`, but the browser API s
 
 `LongtailForge.view` is implemented in `public/js/shared/view-builder.js` as a small DOM factory. It is intentionally framework-owned layout code rather than a component system.
 
+As of 0.33.32.22, `LongtailForge.view.normalizeSurfaceDescriptor(value)` is the builder-owned handoff to the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` adapter. `view-renderer.js` calls it once before reading any delivered descriptor field. The adapter and shared declaration family own the supported descriptor projection and path-specific malformed-field failures; the builder and renderer remain classic DOM runtimes and must not grow their own validators, casts, envelope guessing, or whole-file checking as part of this boundary.
+
 `LongtailForge.view.createSlideOutSidebarController(elements, options)` is the shared imperative lifecycle adapter for an existing trigger, backdrop, close control, and drawer. It exposes `open()`, `close()`, `toggle()`, `sync()`, and `isOpen`; the framework owns synchronized ARIA state, body-scroll lock, Escape/backdrop/close behavior, Tab containment, initial drawer focus, and focus return. Descriptor-rendered `slide-out-sidebar` surfaces and framework-owned imperative surfaces such as the phone Workbench Inspector use this same controller instead of duplicating drawer lifecycle code.
 
 ## First Primitives

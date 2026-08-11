@@ -23,6 +23,7 @@
     "public/js/shared/page-controller.js",
     "public/js/shared/records.js",
     "public/js/shared/view-response-records.js",
+    "public/js/shared/view-surface-descriptor.js",
     "src/types/browser-contracts.d.ts",
     "src/types/framework-contracts.d.ts"
   ],

@@ -1,5 +1,7 @@
 import type { ApiErrorEnvelope } from "./framework-contracts.js";
 import type { AppShellBootstrap } from "./framework-contracts.js";
+import type { ViewSurfaceDescriptor } from "./framework-contracts.js";
+import type { ViewSurfaceDataSource } from "./framework-contracts.js";
 
 export interface BrowserAppShellBootstrapAdapter {
   normalize(value: unknown): AppShellBootstrap;
@@ -61,6 +63,15 @@ export interface BrowserRecords {
 
 export interface BrowserViewResponseRecords {
   read(body: unknown, recordsKey?: unknown): unknown[];
+}
+
+export interface BrowserViewSurfaceDescriptorAdapter {
+  normalize(value: unknown): BrowserViewSurfaceDescriptor;
+}
+
+export interface BrowserViewSurfaceDescriptor extends Omit<ViewSurfaceDescriptor, "dataSource"> {
+  dataSource?: ViewSurfaceDataSource | null;
+  viewPath?: string;
 }
 
 export interface BrowserFormatters {
@@ -128,6 +139,7 @@ export interface LongtailForgeBrowserNamespace {
   formatters?: BrowserFormatters;
   pageController?: BrowserPageController;
   records?: BrowserRecords;
+  viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
   [key: string]: unknown;
 }

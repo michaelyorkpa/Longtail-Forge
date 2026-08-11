@@ -1,3 +1,12 @@
+## Version 0.33.32.22 - 2026-08-11
+
+- Added a precise shared declarative-view descriptor family plus the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` classic-script adapter for supported layout, header, sidebar, filter, index, table, detail, modal, data-source, action, and region fields.
+- Routed every `view-renderer.js` surface through the builder-owned normalization handoff before descriptor reads, while leaving both large DOM runtimes outside whole-file checking and preserving existing anatomy, data loading, behaviors, permissions, and module workflow ownership.
+- Closed two pre-existing server/browser contract gaps by explicitly validating the renderer-backed summary-panel `messageField`/`items` shape and string-or-object action confirmations.
+- Added path-specific renamed/malformed field failures, checked every bundled descriptor through the projection, raised the browser program to nine scripts and the complete checked inventory floor from 98 to 99 files, and retained full Views-area plus rendered-browser coverage.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/view-building-contract.md`.
+- No docs change needed: user-facing Help, module workflow behavior, HTTP error envelopes, permissions, paging semantics, database schema/migrations, runtime configuration, deployment, and public API contracts are unchanged.
+
 ## Version 0.33.32.21 - 2026-08-11
 
 - Added optional `dataSource.recordsKey` to the shared view-surface data-source contract and declared the real response envelope for all eight bundled declarative lists plus their page-local compatibility descriptors.

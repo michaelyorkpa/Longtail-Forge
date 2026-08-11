@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.22 - Declarative descriptor-field boundary adapter
+
+Completed on 2026-08-11. Declarative surfaces now cross one checked browser projection before renderer field reads, server and browser descriptor vocabulary is aligned, and the active 0.33.32 work advances to `0.33.32.23` for the permission-safe Search route and query boundary.
+
+**Model: High Effort** - Support Tickets depends on this framework contract, while the two large DOM runtimes remain consciously outside whole-file checking.
+
+- [x] Defined precise shared contracts for supported layout, header, sidebar, filter, index, table, detail, modal, data-source, action, and region fields, retaining open records only where manifest validation already permits them.
+- [x] Added the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` classic-script adapter and exposed its single handoff through `LongtailForge.view.normalizeSurfaceDescriptor(...)`.
+- [x] Routed renderer field reads through the projection without refactoring DOM anatomy, data fetching, behaviors, permissions, or module-owned workflow meaning; aligned existing summary-panel items and action-confirmation shapes across validator, types, and browser runtime.
+- [x] Added path-specific renamed/malformed field failures, projected every bundled descriptor in the declarative inventory, raised the browser program to nine scripts and the complete checked inventory floor from 98 to 99 files, and retained the full Views area plus rendered browser smoke.
+
+Acceptance criteria:
+
+- Server/browser descriptor drift fails at one checked boundary before Support Tickets depends on it, while whole-file renderer/builder conversion remains deferred to the separately audited client-hardening branch.
+
 ## Version 0.33.32.21 - Descriptor-declared response record adapter
 
 Completed on 2026-08-11. All bundled declarative lists now declare their real response-array envelope and the renderer reads unknown response JSON through one checked adapter, while the giant renderer and builder remain outside whole-file checking. The active 0.33.32 work advances to `0.33.32.22` for the declarative descriptor-field boundary adapter.
