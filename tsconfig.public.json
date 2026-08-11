@@ -16,6 +16,7 @@
   },
   "include": [
     "public/js/shared/api-client.js",
+    "public/js/shared/app-shell-bootstrap.js",
     "public/js/shared/cached-fetch.js",
     "public/js/shared/error-contract.js",
     "public/js/shared/formatters.js",

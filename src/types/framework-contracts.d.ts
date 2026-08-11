@@ -648,6 +648,36 @@ export interface ApiErrorEnvelope {
   [key: string]: unknown;
 }
 
+export interface AppShellBootstrapUser {
+  preferredCalendarView: string;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user_id: string;
+  username: string;
+}
+
+export interface AppShellBootstrap {
+  activeWorkspaceId: string;
+  app: Record<string, unknown>;
+  enabledModules: string[];
+  moduleNavigation: unknown[];
+  moduleSettingsNavigation: unknown[];
+  navigation: unknown[];
+  notificationSummary: Record<string, unknown>;
+  permissionHints: Record<string, unknown>;
+  quickActions: unknown[];
+  searchTargets: unknown[];
+  supportView: Record<string, unknown> | null;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user: AppShellBootstrapUser;
+  viewSurfaces: unknown[];
+  workspaceContext: Record<string, unknown>;
+  workspaces: unknown[];
+}
+
 export interface PublicApiErrorEnvelope extends ApiErrorEnvelope {
   apiVersion: "v1";
   error: ApiErrorDetails;

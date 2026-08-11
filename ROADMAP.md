@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.20`.
+Active cursor: `0.33.32.21`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,18 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.20 - App-shell bootstrap boundary adapter
-
-**Model: High Effort** — The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
-
-- [ ] Author `AppShellBootstrap` at the producing service and add one small checked browser bootstrap adapter/normalizer that accepts `unknown` and exposes the safe current envelope to navigation.
-- [ ] Route `public/js/navigation.js` through that adapter without opting the whole navigation file into checking or refactoring unrelated navigation behavior.
-- [ ] Preserve safe defaults, workspace switching, module visibility, caching, responsive navigation, and script load order; extend the inventory and run app-shell/browser regressions.
-
-Acceptance criteria:
-
-- Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
 
 ### Version 0.33.32.21 - Descriptor-declared response record adapter
 

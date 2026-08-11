@@ -16,6 +16,7 @@ const cleanFilePassInventory = JSON.parse(readFileSync("scripts/typecheck-clean-
 const CHECKED_SEAM_FILES = seamInventory.checkedFiles;
 const BROWSER_CHECKED_FILES = [
   "public/js/shared/api-client.js",
+  "public/js/shared/app-shell-bootstrap.js",
   "public/js/shared/cached-fetch.js",
   "public/js/shared/error-contract.js",
   "public/js/shared/formatters.js",
@@ -45,6 +46,7 @@ const EXPECTED_TYPECHECK_EXCLUDES = [
 ];
 const EXPECTED_BROWSER_TYPECHECK_INCLUDES = [
   "public/js/shared/api-client.js",
+  "public/js/shared/app-shell-bootstrap.js",
   "public/js/shared/cached-fetch.js",
   "public/js/shared/error-contract.js",
   "public/js/shared/formatters.js",
@@ -87,6 +89,8 @@ const EXPECTED_BROWSER_COMPILER_OPTION_KEYS = [
 const CONTRACT_TYPE_EXPORTS = [
   "ApiErrorDetails",
   "ApiErrorEnvelope",
+  "AppShellBootstrap",
+  "AppShellBootstrapUser",
   "ModuleManifest",
   "NotificationEventContribution",
   "NotificationFollowTargetContribution",
@@ -146,6 +150,7 @@ const BROWSER_CONTRACT_TYPE_EXPORTS = [
   "BrowserApi",
   "BrowserApiError",
   "BrowserApiErrorDetails",
+  "BrowserAppShellBootstrapAdapter",
   "BrowserCachedFetch",
   "BrowserErrorContract",
   "BrowserErrorEnvelope",
@@ -357,11 +362,29 @@ assert.match(
 );
 const browserErrorSource = readFileSync("public/js/shared/error-contract.js", "utf8");
 const browserApiSource = readFileSync("public/js/shared/api-client.js", "utf8");
+const appShellBootstrapSource = readFileSync("public/js/shared/app-shell-bootstrap.js", "utf8");
+const appShellServiceSource = readFileSync("src/services/app-shell.service.js", "utf8");
+const navigationSource = readFileSync("public/js/navigation.js", "utf8");
 assert.match(browserErrorSource, /@typedef \{import\("\.\.\/\.\.\/\.\.\/src\/types\/browser-contracts\.js"\)\.BrowserErrorEnvelope\}/);
 assert.doesNotMatch(
   browserApiSource,
   /body\?\.error|body\.error|envelope\?\.message/,
   "api-client must delegate framework error-envelope parsing to error-contract",
+);
+assert.match(
+  appShellBootstrapSource,
+  /@typedef \{import\("\.\.\/\.\.\/\.\.\/src\/types\/framework-contracts\.js"\)\.AppShellBootstrap\}/,
+  "the browser bootstrap adapter must consume the framework-owned app-shell envelope",
+);
+assert.match(
+  appShellServiceSource,
+  /^\/\/ @ts-check\r?\n[\s\S]*@returns \{Promise<AppShellBootstrap>\}[\s\S]*async function bootstrap/,
+  "the app-shell producing service must return the shared checked envelope",
+);
+assert.doesNotMatch(
+  navigationSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the giant navigation runtime must remain outside whole-file checking",
 );
 const moduleManifestDeclaration = contractSource.match(/export interface ModuleManifest \{([\s\S]*?)\n\}/);
 assert.ok(moduleManifestDeclaration, "framework-contracts.d.ts must declare ModuleManifest");

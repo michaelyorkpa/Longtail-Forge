@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.20 - App-shell bootstrap boundary adapter
+
+Completed on 2026-08-11. The app-shell bootstrap now has one shared checked producer contract and one small checked unknown-input browser adapter, while the giant navigation runtime remains outside whole-file checking and the active 0.33.32 work advances to `0.33.32.21` for the descriptor-declared response record adapter.
+
+**Model: High Effort** - The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
+
+- [x] Authored `AppShellBootstrap` at the checked producing service and added a checked classic-script adapter that normalizes unknown JSON to the safe current envelope.
+- [x] Routed `public/js/navigation.js` through the adapter without opting the full navigation runtime into checking or refactoring unrelated behavior.
+- [x] Preserved safe defaults, workspace switching, module visibility, caching, responsive navigation, recovery behavior, and framework-preamble order; raised the checked inventory floor from 95 to 97 files and retained focused app-shell/browser proof.
+
+Acceptance criteria:
+
+- Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
+
 ## Version 0.33.32.19 - Browser typecheck program and shared utilities
 
 Completed on 2026-08-11. A separate DOM-only browser program now checks the first six shared classic-script utilities against one declared browser namespace and the framework-owned API error envelope, while runtime imports and script load order remain unchanged. The active 0.33.32 work advances to `0.33.32.20` for the app-shell bootstrap boundary adapter.

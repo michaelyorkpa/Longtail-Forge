@@ -110,6 +110,8 @@ As of 0.33.32.18, `framework.typecheck-seams` also owns the retained bounded-pas
 
 As of 0.33.32.19, `framework.typecheck-seams` also pins the separate DOM-only `tsconfig.public.json` program, its exact six shared classic-script inputs, browser contract exports, and reuse of the framework-owned `ApiErrorEnvelope`. The guardrail requires `error-contract.js` to remain the shared envelope parser, rejects duplicate parsing in `api-client.js`, and raises the complete inventory floor from 89 to 95 files. HTTP-error, cached-fetch, framework-view, validation-ownership, and fast-pipeline regressions retain independent runtime and release behavior proof.
 
+As of 0.33.32.20, `framework.typecheck-seams` adds the checked app-shell producer and browser adapter, pins `AppShellBootstrap` and the browser adapter contract, keeps `navigation.js` outside whole-file checking, and raises the complete inventory floor from 95 to 97 files. `framework.app-shell-bootstrap-boundary` executes the adapter against absent and malformed input, proves safe defaults and workspace-context fallbacks, and pins its framework-preamble order before navigation. The existing app-shell navigation, browser-recovery, workspace-switching, module-visibility, and rendered browser coverage retain independent behavior proof.
+
 As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<unknown>`, inventories every checked consumer, requires the Support View route's explicit object narrowing, and raises the monotonic floor to 29 files. `framework.support-view-session-contract` proves JSON `null`, array, string, and number bodies return the existing generic confirmation 400 while a valid object still starts and rotates Support View successfully; the HTTP error and public-demo body regressions retain their independent parser/envelope/admission coverage.
 
 As of 0.33.32.3, `framework.typecheck-seams` also pins the canonical `TimeEntry` string-duration and tri-state billable typedefs, the timezone input/parsed-part/date-edge declarations, and the monotonic 32-file floor. The checked `normalizers-timezones.test.mjs` contract imports those runtime types and proves record coercion, empty-input call-time fallback, explicit offsets, invalid-input fallback, invalid named-timezone failure, DST gap/overlap behavior, and local-date start/end conversion.
@@ -229,18 +231,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 456 |
+| Active discovered regressions | 457 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 147 |
+| Convention-path metadata regressions | 148 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 70 |
+| Active release-gate regressions | 71 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 459 |
-| Release-gate ratchet floor | 72 |
+| Global ratchet floor | 460 |
+| Release-gate ratchet floor | 73 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 81 | 0 | 81 |
+| `framework` | 82 | 0 | 82 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -265,12 +267,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 209 |
 | `integration` | 169 |
-| `release-gate` | 70 |
+| `release-gate` | 71 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 230 |
+| `static` | 231 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

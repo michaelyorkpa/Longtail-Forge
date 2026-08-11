@@ -1,3 +1,10 @@
+// @ts-check
+
+/** @typedef {import("../types/framework-contracts.js").AppShellBootstrap} AppShellBootstrap */
+/** @typedef {{ href?: string, id: string, items?: AppShellNavigationItem[], label: string, moduleId?: string }} AppShellNavigationItem */
+/** @typedef {{ id: string, items: AppShellNavigationItem[], label: string }} AppShellNavigationMenu */
+/** @typedef {{ actionType: string, description: string, href?: string, icon: string, id: string, label: string, moduleActionId?: string, moduleId: string, publicDemoCapability?: string, requiredModules?: string[], requiredPermissions?: string[], requiredReportingReports?: boolean, requiredSearchTargets?: boolean, requiredWorkspaceCapabilities?: string[], temporaryFallback?: boolean, temporaryLabel?: string }} QuickActionDefinition */
+
 import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
@@ -9,6 +16,7 @@ import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
 import { evaluatePublicDemoCapability } from "../core/public-demo-enforcement.js";
 
+/** @type {readonly Readonly<QuickActionDefinition>[]} */
 const QUICK_ACTION_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: "timer",
@@ -96,6 +104,7 @@ const QUICK_ACTION_DEFINITIONS = Object.freeze([
   }),
 ]);
 
+/** @returns {Promise<AppShellBootstrap>} */
 async function bootstrap(session) {
   const [
     workspaceContext,
@@ -400,21 +409,25 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     !item.parent &&
     !frameworkOwnedTopLevelHrefs.has(item.href)
   ));
+  /** @type {AppShellNavigationMenu} */
   const actionsMenu = {
     id: "actions",
     label: "Actions",
     items: [],
   };
+  /** @type {AppShellNavigationMenu} */
   const reportingMenu = {
     id: "reporting",
     label: "Reporting",
     items: [],
   };
+  /** @type {AppShellNavigationMenu} */
   const adminSettingsMenu = {
     id: "admin-settings-group",
     label: "Admin",
     items: [],
   };
+  /** @type {AppShellNavigationMenu} */
   const modulesSettingsMenu = {
     id: "module-settings-group",
     label: "Modules",
@@ -529,7 +542,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   const settingsMenu = {
     id: "settings",
     label: "Settings",
-    items: [
+    items: /** @type {AppShellNavigationItem[]} */ ([
       adminSettingsMenu,
       {
         id: "user-settings",
@@ -541,7 +554,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
         label: "Help",
         href: "help.html",
       },
-    ].filter((item) => item.href || item.items?.length > 0),
+    ]).filter((item) => item.href || Boolean(item.items?.length)),
   };
 
   return [
