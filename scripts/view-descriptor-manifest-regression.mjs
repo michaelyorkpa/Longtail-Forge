@@ -121,6 +121,7 @@ const nestedShapeErrors = validateModuleManifest(createModule({
       },
       dataSource: {
         route: "/api/sample-records",
+        recordsKey: 123,
         fieldBindings: {
           id: 123,
         },
@@ -128,6 +129,11 @@ const nestedShapeErrors = validateModuleManifest(createModule({
     },
   ],
 }));
+assert.match(
+  nestedShapeErrors.join("\n"),
+  /viewSurfaces\[0\]\.dataSource\.recordsKey must be a string/,
+  "Response record keys should be non-empty strings when declared",
+);
 assert.match(
   nestedShapeErrors.join("\n"),
   /viewSurfaces\[0\]\.table\.columns\[0\]\.surprise is not a supported field/,

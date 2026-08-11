@@ -29,6 +29,8 @@ const clientsProjectsJs = readText("public/js/clients-projects.js");
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsInventoryDoc = readText("docs/clients-projects-strict-guardrail-inventory.md");
+const responseRecordsAdapter = readText("public/js/shared/view-response-records.js");
+const viewRenderer = readText("public/js/shared/view-renderer.js");
 
 const modules = listModules();
 const protectedViews = [
@@ -62,6 +64,26 @@ for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
   surfacesByView.set(key, [...(surfacesByView.get(key) || []), surface]);
 }
+
+assert.deepEqual(
+  surfaces
+    .filter((surface) => surface.dataSource?.route)
+    .map((surface) => [surface.id, surface.dataSource.recordsKey])
+    .sort(([left], [right]) => left.localeCompare(right)),
+  [
+    ["client-projects.clients", "clients"],
+    ["client-projects.projects", "projects"],
+    ["developer-example.surface", "records"],
+    ["files.browse", "attachments"],
+    ["lists.workspace", "lists"],
+    ["notes.workspace", "notes"],
+    ["tags.management", "tags"],
+    ["tasks.workspace", "tasks"],
+  ],
+  "Every bundled declarative list should declare its real response envelope key",
+);
+assert.match(responseRecordsAdapter, /const COMPATIBILITY_RECORD_KEYS = Object\.freeze/, "Legacy response-key guessing should stay explicit in the checked compatibility adapter");
+assert.doesNotMatch(viewRenderer, /COMPATIBILITY_RECORD_KEYS|extractRecords|Object\.values\(body\)/, "The descriptor renderer should not own response-key guessing");
 const strictDeclarativeSurfaceIds = new Set([
   "client-projects.clients",
   "client-projects.projects",

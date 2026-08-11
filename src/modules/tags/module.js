@@ -70,6 +70,7 @@ const tagsModule = {
       dataSource: {
         route: "/api/tags",
         method: "GET",
+        recordsKey: "tags",
         fieldBindings: {
           id: "tag_id",
           label: "label",

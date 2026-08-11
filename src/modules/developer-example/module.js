@@ -70,6 +70,7 @@ const developerExampleModule = {
       dataSource: {
         route: "/api/developer-example",
         method: "GET",
+        recordsKey: "records",
         fieldBindings: {
           id: "id",
           title: "title",

@@ -485,6 +485,7 @@ const listsModule = {
       dataSource: {
         route: "/api/lists",
         method: "GET",
+        recordsKey: "lists",
         fieldBindings: {
           id: "list_id",
           title: "title",

@@ -267,6 +267,7 @@ const notesModule = {
       dataSource: {
         route: "/api/notes",
         method: "GET",
+        recordsKey: "notes",
         fieldBindings: {
           id: "note_id",
           title: "title",

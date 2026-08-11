@@ -151,6 +151,7 @@ function fallbackFilesViewSurfaceDescriptor() {
     dataSource: {
       route: "/api/files/attachments",
       method: "GET",
+      recordsKey: "attachments",
       fieldBindings: {
         id: "fileAttachmentId",
         fileId: "fileId",

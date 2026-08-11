@@ -221,6 +221,13 @@ export interface BrowserAssetContribution {
 // Declarative view surfaces
 // ---------------------------------------------------------------------------
 
+export interface ViewSurfaceDataSource {
+  route: string;
+  method?: string;
+  recordsKey?: string;
+  fieldBindings: Record<string, string>;
+}
+
 export interface ViewSurfaceDescriptor {
   id: string;
   moduleId: string;
@@ -235,7 +242,7 @@ export interface ViewSurfaceDescriptor {
   table?: Record<string, unknown>;
   detail?: Record<string, unknown>;
   modals?: Record<string, unknown>[];
-  dataSource?: Record<string, unknown>;
+  dataSource?: ViewSurfaceDataSource;
   actions?: Record<string, unknown>[];
   regions?: Record<string, unknown>[];
 }

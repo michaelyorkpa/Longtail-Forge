@@ -13,7 +13,7 @@ As of 0.33.5.28.2, declarative view surfaces are also downstream of the complete
 1. Declare a protected view in `protectedViews`.
 2. Add a `viewSurfaces` descriptor bound to that view by `moduleId` and `viewId`.
 3. Keep the protected HTML view as a minimal host that loads `view-builder.js`, `view-renderer.js`, and the module adapter script.
-4. Expose a normalized data route and map response fields through `dataSource.fieldBindings`.
+4. Expose a normalized data route, declare its array envelope through `dataSource.recordsKey`, and map response fields through `dataSource.fieldBindings`.
 5. Put common anatomy in the descriptor: header, filters, index, table, detail, item rows, linked records, modals, and actions.
 6. Register module-owned behavior handlers with `LongtailForge.view.registerBehavior(id, handler)` for actions that are not simple route actions.
 7. Keep module-specific field binding, task pickers, catalog suggestions, payload construction, and permission-shaped workflow calls in the module adapter.

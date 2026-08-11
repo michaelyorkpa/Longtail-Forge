@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.21 - Descriptor-declared response record adapter
+
+Completed on 2026-08-11. All bundled declarative lists now declare their real response-array envelope and the renderer reads unknown response JSON through one checked adapter, while the giant renderer and builder remain outside whole-file checking. The active 0.33.32 work advances to `0.33.32.22` for the declarative descriptor-field boundary adapter.
+
+**Model: High Effort** - One extracted checked helper replaces response-key guessing without attempting whole-file conversion of either 2,000-line declarative runtime.
+
+- [x] Added optional `dataSource.recordsKey` to the shared descriptor contract and extracted record-envelope selection into the checked `LongtailForge.viewResponseRecords` classic-script adapter with declared-key precedence and explicit compatibility behavior.
+- [x] Routed `view-renderer.js` through the adapter without opting the renderer or builder into checking; declared `attachments`, `clients`, `projects`, `tags`, `records`, `tasks`, `lists`, and `notes` across the bundled surface inventory.
+- [x] Removed renderer-owned key guessing, pinned adapter load order and first-party declarations, and retained list result, empty/error, selection, paging, action, and permission coverage.
+- [x] Raised the browser program to eight scripts and the complete checked inventory floor from 97 to 98 files; retained the full Views area and rendered browser smoke.
+
+Acceptance criteria:
+
+- Bundled declarative views read records through one checked declared-key boundary, with compatibility explicit and the giant renderer/builder conversions safely deferred.
+
 ## Version 0.33.32.20 - App-shell bootstrap boundary adapter
 
 Completed on 2026-08-11. The app-shell bootstrap now has one shared checked producer contract and one small checked unknown-input browser adapter, while the giant navigation runtime remains outside whole-file checking and the active 0.33.32 work advances to `0.33.32.21` for the descriptor-declared response record adapter.

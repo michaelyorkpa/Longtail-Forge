@@ -214,6 +214,7 @@ const clientProjectsModule = {
       dataSource: {
         route: "/api/clients?include_depth=true",
         method: "GET",
+        recordsKey: "clients",
         fieldBindings: {
           id: "id",
           name: "name",
@@ -378,6 +379,7 @@ const clientProjectsModule = {
       dataSource: {
         route: "/api/projects?include_depth=true",
         method: "GET",
+        recordsKey: "projects",
         fieldBindings: {
           id: "id",
           name: "name",

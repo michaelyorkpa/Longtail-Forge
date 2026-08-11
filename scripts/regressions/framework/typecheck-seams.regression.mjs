@@ -22,6 +22,7 @@ const BROWSER_CHECKED_FILES = [
   "public/js/shared/formatters.js",
   "public/js/shared/page-controller.js",
   "public/js/shared/records.js",
+  "public/js/shared/view-response-records.js",
 ];
 const RESERVED_CLEAN_FILE_PATHS = new Set([
   "src/routes/private-feeds.routes.js",
@@ -52,6 +53,7 @@ const EXPECTED_BROWSER_TYPECHECK_INCLUDES = [
   "public/js/shared/formatters.js",
   "public/js/shared/page-controller.js",
   "public/js/shared/records.js",
+  "public/js/shared/view-response-records.js",
   "src/types/browser-contracts.d.ts",
   "src/types/framework-contracts.d.ts",
 ];
@@ -97,6 +99,7 @@ const CONTRACT_TYPE_EXPORTS = [
   "NotificationTemplateContribution",
   "ProtectedContentConsumerContribution",
   "ViewSurfaceDescriptor",
+  "ViewSurfaceDataSource",
   "DashboardContribution",
   "WorkbenchContribution",
   "WorkCandidate",
@@ -159,6 +162,7 @@ const BROWSER_CONTRACT_TYPE_EXPORTS = [
   "BrowserPageController",
   "BrowserRecord",
   "BrowserRecords",
+  "BrowserViewResponseRecords",
   "CachedFetchOptions",
   "CachedFetchResult",
   "LongtailForgeBrowserNamespace",
