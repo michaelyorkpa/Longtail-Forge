@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
+import vm from "node:vm";
 import { listModules } from "../src/core/modules/registry.js";
 import {
   listFrameworkProtectedViews,
@@ -30,7 +31,10 @@ const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const clientsProjectsInventoryDoc = readText("docs/clients-projects-strict-guardrail-inventory.md");
 const responseRecordsAdapter = readText("public/js/shared/view-response-records.js");
+const surfaceDescriptorAdapter = readText("public/js/shared/view-surface-descriptor.js");
+const viewBuilder = readText("public/js/shared/view-builder.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
+const staticService = readText("src/services/static.service.js");
 
 const modules = listModules();
 const protectedViews = [
@@ -59,6 +63,45 @@ const surfaces = [
   }))),
   ...listFrameworkViewSurfaces(),
 ];
+const descriptorContext = vm.createContext({ window: { LongtailForge: {} } });
+vm.runInContext(surfaceDescriptorAdapter, descriptorContext, { filename: "view-surface-descriptor.js" });
+const normalizeSurfaceDescriptor = descriptorContext.window.LongtailForge.viewSurfaceDescriptor.normalize;
+for (const surface of surfaces) {
+  assert.doesNotThrow(
+    () => normalizeSurfaceDescriptor(surface),
+    `Bundled declarative surface ${surface.id} should pass the checked browser projection`,
+  );
+}
+for (const fieldName of [
+  "layout",
+  "filterPlacement",
+  "pageHeader",
+  "sidebarLabel",
+  "sidebarPanels",
+  "filters",
+  "indexPanel",
+  "table",
+  "detail",
+  "modals",
+  "dataSource",
+  "actions",
+  "regions",
+]) {
+  assert.ok(surfaces.some((surface) => objectTreeHasKey(surface, fieldName)), `Bundled descriptor inventory should exercise ${fieldName}`);
+}
+assert.throws(
+  () => normalizeSurfaceDescriptor({ ...surfaces[0], pageHeading: surfaces[0].pageHeader, pageHeader: undefined }),
+  /viewSurface\.pageHeading is not a supported descriptor field/,
+  "A renamed supported field should fail at the checked browser boundary",
+);
+assert.throws(
+  () => normalizeSurfaceDescriptor({ ...surfaces[0], layout: "split-list-detail" }),
+  /viewSurface\.layout must be one of/,
+  "A malformed supported field should fail at the checked browser boundary",
+);
+assert.match(viewBuilder, /function normalizeSurfaceDescriptor\(descriptor\)[\s\S]*viewSurfaceDescriptor[\s\S]*adapter\.normalize\(descriptor\)/, "The view builder should expose the checked descriptor projection to renderer consumers");
+assert.match(viewRenderer, /const descriptor = view\.normalizeSurfaceDescriptor\(deliveredDescriptor\)/, "The renderer should project unknown delivered descriptors before reading supported fields");
+assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-surface-descriptor\.js[\s\S]*view-response-records\.js/, "The descriptor adapter should load in the framework preamble before view page assets");
 const surfacesByView = new Map();
 for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
@@ -433,6 +476,16 @@ function readText(relativePath) {
 
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
+}
+
+function objectTreeHasKey(value, fieldName) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  if (Object.hasOwn(value, fieldName)) {
+    return true;
+  }
+  return Object.values(value).some((entry) => objectTreeHasKey(entry, fieldName));
 }
 
 function functionBlock(source, functionName) {

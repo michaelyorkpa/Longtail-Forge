@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
+const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const staticService = readText("src/services/static.service.js");
 const changelog = readText("CHANGELOG.md");
 
@@ -16,7 +17,7 @@ assert.match(renderer, /bindRecord\(record, descriptor\.dataSource\.fieldBinding
 assert.match(renderer, /responseRecords\.read\(body, descriptor\.dataSource\.recordsKey\)/, "Renderer should select response records through the checked declared-key adapter");
 assert.doesNotMatch(renderer, /extractRecords|Object\.values\(body\)|\["records", "items", "data"/, "Renderer should not guess response envelope keys");
 assert.match(renderer, /Object\.defineProperty\(surface, "refresh"/, "Rendered surfaces should expose a descriptor-driven refresh path");
-assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-response-records\.js/, "The checked response adapter should load before page assets");
+assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-surface-descriptor\.js[\s\S]*view-response-records\.js/, "The checked descriptor and response adapters should load before page assets");
 
 const adapterContext = vm.createContext({ window: { LongtailForge: {} } });
 vm.runInContext(responseRecords, adapterContext, { filename: "view-response-records.js" });
@@ -48,6 +49,7 @@ const context = createBrowserContext([
   },
   { records: [{ record_id: "compatibility-decoy" }], samples: [] },
 ]);
+vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
@@ -71,6 +73,7 @@ await surface.refresh();
 assert.match(surface.textContent, /No sample records/, "Empty responses should render descriptor empty states");
 
 const errorContext = createBrowserContext([new Error("Data unavailable")]);
+vm.runInNewContext(surfaceDescriptor, errorContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, errorContext, { filename: "view-renderer.js" });
@@ -90,6 +93,7 @@ const noSelectionContext = createBrowserContext([
     ],
   },
 ]);
+vm.runInNewContext(surfaceDescriptor, noSelectionContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, noSelectionContext, { filename: "view-renderer.js" });

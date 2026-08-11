@@ -221,6 +221,272 @@ export interface BrowserAssetContribution {
 // Declarative view surfaces
 // ---------------------------------------------------------------------------
 
+export interface ViewLabelDescriptor {
+  label?: string;
+  labelKey?: string;
+  title?: string;
+  titleKey?: string;
+  description?: string;
+  descriptionKey?: string;
+}
+
+export interface ViewVisibleWhenDescriptor {
+  field: string;
+  equals?: unknown;
+  in?: unknown[];
+  truthy?: boolean;
+  falsy?: boolean;
+}
+
+export interface ViewActionDescriptor extends ViewLabelDescriptor {
+  publicDemoCapability?: string;
+  id: string;
+  role?: "primary" | "secondary" | "destructive" | "utility";
+  icon?: string;
+  iconOnly?: boolean;
+  title?: string;
+  route?: string;
+  method?: string;
+  confirm?: string | Record<string, unknown>;
+  requiredPermissions?: string[];
+  behavior?: string;
+  visibleWhen?: ViewVisibleWhenDescriptor;
+}
+
+export interface ViewPageHeaderDescriptor extends ViewLabelDescriptor {
+  primaryAction?: ViewActionDescriptor;
+}
+
+export interface ViewFilterDescriptor {
+  id?: string;
+  field: string;
+  type: string;
+  label?: string;
+  labelKey?: string;
+  options?: unknown[];
+  optionsSource?: string;
+  default?: unknown;
+  queryKey?: string;
+}
+
+export interface ViewRegionDescriptor extends ViewLabelDescriptor {
+  id: string;
+  behavior: string;
+  placement?: string;
+  className?: string;
+  ariaLabel?: string;
+}
+
+export interface ViewSidebarPanelFooterDescriptor extends ViewLabelDescriptor {
+  id?: string;
+  behavior?: string;
+  className?: string;
+  ariaLabel?: string;
+}
+
+export interface ViewSidebarPanelDescriptor extends ViewLabelDescriptor {
+  id: string;
+  type: "filters" | "navigation" | "index";
+  behavior?: string;
+  collapsible?: boolean;
+  open?: boolean;
+  emptyState?: Record<string, unknown>;
+  className?: string;
+  ariaLabel?: string;
+  footer?: ViewSidebarPanelFooterDescriptor;
+}
+
+export interface ViewIndexPanelDescriptor extends ViewLabelDescriptor {
+  items?: string;
+  itemTitleField?: string;
+  itemSubtitleField?: string;
+  itemMetaFields?: string[];
+  itemDepthField?: string;
+  itemParentField?: string;
+  itemPathField?: string;
+  emptyState?: Record<string, unknown>;
+  initialSelection?: "first" | "none";
+  collapseOnSelect?: boolean;
+}
+
+export interface ViewTableHierarchyDescriptor {
+  depthField?: string;
+  parentField?: string;
+  pathField?: string;
+}
+
+export interface ViewTableSelectionDescriptor {
+  enabled?: boolean;
+  label?: string;
+  labelKey?: string;
+  headerLabel?: string;
+  recordType?: string;
+  labelField?: string;
+}
+
+export interface ViewTableColumnDescriptor {
+  id?: string;
+  field: string;
+  label?: string;
+  labelKey?: string;
+  formatter?: "text" | "hierarchy-label" | "chip-list";
+  width?: string;
+  widthHint?: string;
+  align?: string;
+  depthField?: string;
+  chipsField?: string;
+  chipLabelField?: string;
+}
+
+export interface ViewTableSecondaryRowDescriptor extends ViewLabelDescriptor {
+  id: string;
+  field?: string;
+  formatter?: "text" | "hierarchy-label" | "chip-list";
+  chipsField?: string;
+  chipLabelField?: string;
+  startColumn?: string;
+  endBeforeColumn?: string;
+  hideWhenEmpty?: boolean;
+  className?: string;
+}
+
+export interface ViewTableDescriptor {
+  columns?: ViewTableColumnDescriptor[];
+  secondaryRows?: ViewTableSecondaryRowDescriptor[];
+  rowActions?: ViewActionDescriptor[];
+  rowActionsHeaderLabel?: string;
+  emptyState?: Record<string, unknown>;
+  overflow?: boolean;
+  hierarchy?: ViewTableHierarchyDescriptor;
+  selection?: ViewTableSelectionDescriptor;
+}
+
+export type ViewFieldType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "boolean"
+  | "checkbox"
+  | "toggle"
+  | "switch"
+  | "radio"
+  | "textarea"
+  | "date"
+  | "time"
+  | "hidden"
+  | "search"
+  | "url";
+
+export interface ViewFieldDescriptor {
+  id?: string;
+  field: string;
+  type: ViewFieldType;
+  label?: string;
+  labelKey?: string;
+  required?: boolean;
+  options?: unknown[];
+  optionsSource?: string;
+  default?: unknown;
+  placeholder?: string;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+  inputmode?: string;
+  rows?: number | string;
+  autocomplete?: string;
+  placement?: string;
+  behavior?: string;
+  hidden?: boolean;
+  width?: string;
+}
+
+export interface ViewLinkedRecordsDescriptor {
+  title?: string;
+  label?: string;
+  recordsField?: string;
+  targetTypeField?: string;
+  targetLabelField?: string;
+  targetUrlField?: string;
+  targetIdField?: string;
+  emptyState?: Record<string, unknown>;
+  fields?: ViewFieldDescriptor[];
+  actions?: ViewActionDescriptor[];
+}
+
+export interface ViewItemFormDescriptor {
+  title?: string;
+  label?: string;
+  fields?: ViewFieldDescriptor[];
+  actions?: ViewActionDescriptor[];
+  emptyState?: Record<string, unknown>;
+  editable?: boolean;
+}
+
+export interface ViewChipDescriptor {
+  field: string;
+  label?: string;
+  labelKey?: string;
+}
+
+export interface ViewItemRowColumnDescriptor {
+  id: string;
+  field?: string;
+  label?: string;
+  labelKey?: string;
+  type?: string;
+  formatter?: string;
+}
+
+export interface ViewItemRowsDescriptor {
+  itemsField?: string;
+  columns?: ViewItemRowColumnDescriptor[];
+  actions?: ViewActionDescriptor[];
+  emptyState?: Record<string, unknown>;
+  itemTitleField?: string;
+  itemSubtitleField?: string;
+  chips?: ViewChipDescriptor[];
+  metaFields?: string[];
+  rowActions?: ViewActionDescriptor[];
+  actionsLabel?: string;
+}
+
+export interface ViewSummaryPanelItemDescriptor {
+  label?: string;
+  field?: string;
+  value?: unknown;
+}
+
+export interface ViewSummaryPanelDescriptor extends ViewLabelDescriptor {
+  messageField?: string;
+  items?: ViewSummaryPanelItemDescriptor[];
+}
+
+export interface ViewDetailDescriptor {
+  header?: Record<string, unknown>;
+  badgeRow?: Record<string, unknown>;
+  metadataRow?: Record<string, unknown>;
+  actionStrip?: Record<string, unknown> & { actions?: ViewActionDescriptor[] };
+  summaryPanels?: ViewSummaryPanelDescriptor[];
+  linkedRecords?: ViewLinkedRecordsDescriptor;
+  itemForm?: ViewItemFormDescriptor;
+  itemRows?: ViewItemRowsDescriptor;
+  emptyState?: Record<string, unknown>;
+  regions?: ViewRegionDescriptor[];
+}
+
+export interface ViewModalDescriptor {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  title?: string;
+  titleKey?: string;
+  size?: "wide";
+  fields?: ViewFieldDescriptor[];
+  footerActions?: ViewActionDescriptor[];
+  actions?: ViewActionDescriptor[];
+}
+
 export interface ViewSurfaceDataSource {
   route: string;
   method?: string;
@@ -232,19 +498,19 @@ export interface ViewSurfaceDescriptor {
   id: string;
   moduleId: string;
   viewId: string;
-  layout: "single-column" | "stacked" | "sidebar-detail" | "slide-out-sidebar" | "table-page" | (string & {});
-  filterPlacement?: "inline" | "slide-out-sidebar" | (string & {});
-  pageHeader?: Record<string, unknown>;
+  layout: "single-column" | "stacked" | "sidebar-detail" | "slide-out-sidebar" | "table-page";
+  filterPlacement?: "inline" | "slide-out-sidebar";
+  pageHeader?: ViewPageHeaderDescriptor;
   sidebarLabel?: string;
-  sidebarPanels?: Record<string, unknown>[];
-  filters?: Record<string, unknown>[];
-  indexPanel?: Record<string, unknown>;
-  table?: Record<string, unknown>;
-  detail?: Record<string, unknown>;
-  modals?: Record<string, unknown>[];
+  sidebarPanels?: ViewSidebarPanelDescriptor[];
+  filters?: ViewFilterDescriptor[];
+  indexPanel?: ViewIndexPanelDescriptor;
+  table?: ViewTableDescriptor;
+  detail?: ViewDetailDescriptor;
+  modals?: ViewModalDescriptor[];
   dataSource?: ViewSurfaceDataSource;
-  actions?: Record<string, unknown>[];
-  regions?: Record<string, unknown>[];
+  actions?: ViewActionDescriptor[];
+  regions?: ViewRegionDescriptor[];
 }
 
 // ---------------------------------------------------------------------------

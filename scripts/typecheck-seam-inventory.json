@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 98,
+  "minimumOptedInFiles": 99,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -10,6 +10,7 @@
     "public/js/shared/page-controller.js",
     "public/js/shared/records.js",
     "public/js/shared/view-response-records.js",
+    "public/js/shared/view-surface-descriptor.js",
     "src/core/asset-version.js",
     "src/core/bounded-pagination.js",
     "src/core/corresponding-source.js",

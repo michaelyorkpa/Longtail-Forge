@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
+const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const changelog = readText("CHANGELOG.md");
 
 
@@ -15,6 +16,7 @@ assert.match(renderer, /Missing view behavior handler/, "Missing behavior handle
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
 
 const context = createBrowserContext();
+vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });

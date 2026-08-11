@@ -19,6 +19,12 @@ As of 0.33.5.28.2, declarative view surfaces are also downstream of the complete
 7. Keep module-specific field binding, task pickers, catalog suggestions, payload construction, and permission-shaped workflow calls in the module adapter.
 8. Add a focused regression before enabling strict guardrails for the surface.
 
+## Checked Descriptor Boundary (0.33.32.22)
+
+The app-shell still delivers view surfaces as untrusted browser JSON. Before `view-renderer.js` reads a field, `LongtailForge.view.normalizeSurfaceDescriptor(...)` delegates to the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` adapter. That projection owns the supported `layout`, `filterPlacement`, `pageHeader`, `sidebarLabel`, `sidebarPanels`, `filters`, `indexPanel`, `table`, `detail`, `modals`, `dataSource`, `actions`, and `regions` shapes plus the service-supplied `viewPath`; page-local renderer adapters may keep the existing `dataSource: null` opt-out when module code owns data loading. Unknown or wrong-typed supported fields fail with their descriptor path instead of quietly selecting fallback anatomy. `view-builder.js` and `view-renderer.js` remain classic unchecked DOM runtimes; do not duplicate descriptor parsing in either file or in a module adapter.
+
+The shared declarations in `src/types/framework-contracts.d.ts`, the manifest validator, and this browser projection describe the same authoring vocabulary. Open objects remain open only where manifest validation already treats them as module/framework-owned extension content, such as empty-state and detail-header payloads. Existing renderer-backed summary-panel `messageField`/`items` metadata and string-or-object action confirmation copy are now admitted explicitly by the manifest contract rather than existing as browser-only shapes.
+
 ## Layouts (0.33.5.18.2)
 
 Supported `layout` values: `single-column`, `stacked`, `sidebar-detail`, `slide-out-sidebar`, and `table-page`. The `split-list-detail` layout is **retired** (the `createSplitListDetail` primitive and `.view-split-list-detail` CSS remain only as deprecated compatibility shims).

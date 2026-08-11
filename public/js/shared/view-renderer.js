@@ -15,11 +15,12 @@
     return () => behaviors.delete(behaviorId);
   }
 
-  function renderSurface(descriptor = {}, host) {
+  function renderSurface(deliveredDescriptor = {}, host) {
     const view = requireViewPrimitives();
     if (!host || typeof host.appendChild !== "function") {
       throw new Error("View surface rendering requires a host element.");
     }
+    const descriptor = view.normalizeSurfaceDescriptor(deliveredDescriptor);
 
     clearHost(host);
 
@@ -2040,6 +2041,7 @@
       "createInfoPanel",
       "createInlineActionRow",
       "createModalForm",
+      "normalizeSurfaceDescriptor",
       "createPageHeader",
       "createSplitListDetail",
     ]) {
