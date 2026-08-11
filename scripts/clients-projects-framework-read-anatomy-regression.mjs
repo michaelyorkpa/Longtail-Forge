@@ -7,6 +7,7 @@ import { createDisposableDatabaseFixture } from "./test-support/disposable-datab
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+const responseRecords = readText("public/js/shared/view-response-records.js");
 const css = readText("public/css/longtail-forge.css");
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
@@ -86,6 +87,7 @@ const clientsContext = createBrowserContext({
   permissions: ["clients.manage"],
 });
 vm.runInNewContext(builder, clientsContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, clientsContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
 
 const clientActionCalls = [];
@@ -126,6 +128,7 @@ const projectsContext = createBrowserContext({
   permissions: ["projects.manage"],
 });
 vm.runInNewContext(builder, projectsContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, projectsContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
 const projectActionCalls = [];

@@ -242,6 +242,12 @@ The descriptor renderer now owns the first data-binding pass. When a descriptor 
 
 Rendered data-bound surfaces expose `surface.refresh()`, which re-fetches the descriptor data source and redraws the same framework-owned containers without requiring modules to rebuild the layout by hand. Loading, empty, and error states are framework-owned defaults. This slice still does not register declarative behaviors, wire action routes, interpret save payloads, or convert Lists.
 
+## Implementation Notes For 0.33.32.21
+
+Bundled data-bound descriptors declare their route's exact array envelope through `dataSource.recordsKey`; Files uses `attachments`, Clients/Projects use `clients` and `projects`, Tags uses `tags`, Tasks uses `tasks`, Lists uses `lists`, Notes uses `notes`, and the disabled Developer Example fixture uses `records`. The renderer passes unknown response JSON and that declaration to the checked `LongtailForge.viewResponseRecords` adapter before applying `fieldBindings`.
+
+The declared key always wins when an envelope contains multiple arrays. Direct arrays, the historical known response-key set, first-array selection, and single-object wrapping remain explicit compatibility inside the adapter for older or external descriptors. Do not add response-key candidate lists or object-array scanning to `view-renderer.js`, `view-builder.js`, or module adapters. The adapter is loaded in the framework preamble before page assets; this slice does not opt either large view runtime into whole-file checking.
+
 ## Implementation Notes For 0.33.5.16.7
 
 This slice corrects a framework view defect surfaced by the live Lists pilot: a split-layout selector/index was built as a multi-column `createDataTable` crammed into the narrow index track, so cells wrapped one word per line. `LongtailForge.view` now exposes `createIndexList`, a single-column, keyboard-selectable selector primitive with a primary label, optional chip row, optional secondary meta lines, and a selected/`aria-current` state. Split-layout selectors should use this primitive; data tables are reserved for tabular detail content.

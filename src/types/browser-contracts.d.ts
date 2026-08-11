@@ -59,6 +59,10 @@ export interface BrowserRecords {
   sortByName<Item extends BrowserRecord>(items: Item[]): Item[];
 }
 
+export interface BrowserViewResponseRecords {
+  read(body: unknown, recordsKey?: unknown): unknown[];
+}
+
 export interface BrowserFormatters {
   currency(amount: unknown): string;
   dateInput(date: Date): string;
@@ -124,6 +128,7 @@ export interface LongtailForgeBrowserNamespace {
   formatters?: BrowserFormatters;
   pageController?: BrowserPageController;
   records?: BrowserRecords;
+  viewResponseRecords?: BrowserViewResponseRecords;
   [key: string]: unknown;
 }
 

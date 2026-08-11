@@ -22,6 +22,7 @@
     "public/js/shared/formatters.js",
     "public/js/shared/page-controller.js",
     "public/js/shared/records.js",
+    "public/js/shared/view-response-records.js",
     "src/types/browser-contracts.d.ts",
     "src/types/framework-contracts.d.ts"
   ],

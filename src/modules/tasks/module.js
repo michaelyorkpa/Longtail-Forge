@@ -152,6 +152,7 @@ const tasksModule = {
       dataSource: {
         route: "/api/tasks",
         method: "GET",
+        recordsKey: "tasks",
         fieldBindings: {
           id: "task_id",
           title: "title",

@@ -257,7 +257,7 @@ const VIEW_LINKED_RECORDS_FIELDS = new Set([
   "fields",
   "actions",
 ]);
-const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
+const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "recordsKey", "fieldBindings"]);
 const VIEW_ACTION_FIELDS = new Set([
   "publicDemoCapability",
   "id",
@@ -1075,6 +1075,7 @@ function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) 
   validateKnownObjectFields(dataSource, VIEW_DATA_SOURCE_FIELDS, prefix, errors);
   requireString(dataSource, "route", errors, { prefix });
   optionalString(dataSource, "method", errors, { prefix });
+  optionalString(dataSource, "recordsKey", errors, { prefix });
   if (!isPlainObject(dataSource.fieldBindings)) {
     errors.push(`${prefix}.fieldBindings is required and must be an object.`);
     return;

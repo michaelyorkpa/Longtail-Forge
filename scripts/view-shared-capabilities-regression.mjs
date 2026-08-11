@@ -8,6 +8,7 @@ const { validateModuleManifest } = await import("../src/core/modules/manifest-co
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+const responseRecords = readText("public/js/shared/view-response-records.js");
 const contract = readText("src/core/modules/manifest-contract.js");
 
 // --- Source guards: the three shared capabilities live in the framework, not modules. ---
@@ -58,6 +59,7 @@ const context = createBrowserContext([
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
 ]);
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
 const view = context.window.LongtailForge.view;
@@ -112,6 +114,7 @@ assert.doesNotMatch(surface.textContent, /Reopen/, "Row actions failing visibleW
 // Region-only detail surfaces should not invent an item collection placeholder.
 const regionOnlyContext = createBrowserContext([]);
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
 regionOnlyContext.window.LongtailForge.view.registerBehavior("caps.regionOnly", (ctx) => {
   ctx.container.appendChild(regionOnlyContext.document.createElement("p")).textContent = "REGION_ONLY_MOUNT";
@@ -130,6 +133,7 @@ assert.doesNotMatch(regionOnlySurface.textContent, /Items|No records loaded/, "R
 // Missing mount behavior fails visibly without breaking the surface.
 const missingContext = createBrowserContext([{ records: [{ record_id: "r1", name: "Record One" }] }]);
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, missingContext, { filename: "view-renderer.js" });
 const missingHost = missingContext.document.createElement("main");
 const missingSurface = missingContext.window.LongtailForge.view.renderSurface({

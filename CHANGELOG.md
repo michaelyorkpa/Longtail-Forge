@@ -1,3 +1,12 @@
+## Version 0.33.32.21 - 2026-08-11
+
+- Added optional `dataSource.recordsKey` to the shared view-surface data-source contract and declared the real response envelope for all eight bundled declarative lists plus their page-local compatibility descriptors.
+- Extracted unknown response-record selection into the checked `LongtailForge.viewResponseRecords` classic-script adapter, with declared-key precedence and the existing direct-array, known-key, first-array, and single-object compatibility behavior isolated in one boundary.
+- Routed the unchecked `view-renderer.js` data-binding path through the adapter, removed renderer-owned key guessing, and loaded the adapter in the framework preamble before page assets without converting the large renderer or builder.
+- Extended manifest validation, declarative inventory, typecheck-seam, data-binding, empty/error/selection, full Views-area, and rendered-browser proof; raised the checked browser program to eight scripts and the complete inventory floor from 97 to 98 files.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/declarative-view-surfaces.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/view-building-contract.md`.
+- No docs change needed: Tasks, Notes, Lists, Files, Tags, and Clients/Projects workflow behavior; user-facing Help; HTTP error envelopes; permissions; paging semantics; database schema/migrations; runtime configuration; deployment; and public API contracts are unchanged.
+
 ## Version 0.33.32.20 - 2026-08-11
 
 - Added the framework-owned `AppShellBootstrap` contract and checked the producing app-shell service against the current response envelope.
