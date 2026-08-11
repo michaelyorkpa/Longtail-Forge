@@ -43,6 +43,7 @@ assert.deepEqual(
     "database",
     "identifiers",
     "typecheck-seams",
+    "app-shell-bootstrap",
     "module-contracts",
     "view-building",
     "public-api",
@@ -86,6 +87,15 @@ const typecheckSeams = suggestDocsForPaths(["scripts/typecheck-seam-inventory.js
 assert.deepEqual(typecheckSeams.matchedAreas.map((area) => area.id), ["typecheck-seams"]);
 assert.deepEqual(typecheckSeams.docs, [
   "docs/architecture.md",
+  "docs/module-development.md",
+  "docs/regression-suite.md",
+]);
+
+const appShellBootstrap = suggestDocsForPaths(["public/js/shared/app-shell-bootstrap.js"], { index: rawIndex });
+assert.deepEqual(appShellBootstrap.matchedAreas.map((area) => area.id), ["app-shell-bootstrap"]);
+assert.deepEqual(appShellBootstrap.docs, [
+  "docs/architecture.md",
+  "docs/module-contract.md",
   "docs/module-development.md",
   "docs/regression-suite.md",
 ]);

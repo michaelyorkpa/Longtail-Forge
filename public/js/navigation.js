@@ -692,7 +692,11 @@ async function loadAppShellBootstrap() {
       throw new Error("App shell bootstrap was unavailable.");
     }
 
-    const shell = await response.json();
+    const bootstrapAdapter = window.LongtailForge.appShellBootstrap;
+    if (!bootstrapAdapter?.normalize) {
+      throw new Error("App shell bootstrap adapter was unavailable.");
+    }
+    const shell = bootstrapAdapter.normalize(await response.json());
     applySupportViewState(shell.supportView || null);
     window.LongtailForge.userPreferences = Object.freeze({
       preferredCalendarView: shell.user?.preferredCalendarView || null,

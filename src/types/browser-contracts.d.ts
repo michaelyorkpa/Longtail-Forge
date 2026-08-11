@@ -1,4 +1,9 @@
 import type { ApiErrorEnvelope } from "./framework-contracts.js";
+import type { AppShellBootstrap } from "./framework-contracts.js";
+
+export interface BrowserAppShellBootstrapAdapter {
+  normalize(value: unknown): AppShellBootstrap;
+}
 
 export interface BrowserApiErrorDetails {
   code: string;
@@ -112,6 +117,7 @@ export interface BrowserPageController {
 
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
+  appShellBootstrap?: BrowserAppShellBootstrapAdapter;
   cachedFetch?: BrowserCachedFetch;
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;

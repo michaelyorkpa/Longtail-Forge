@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 456,
+    "discoveredScripts": 457,
     "legacyScripts": 309,
-    "releaseGateScripts": 70,
+    "releaseGateScripts": 71,
     "areaCounts": {
       "dashboard": 2,
       "database": 45,
       "docs": 10,
       "files": 44,
-      "framework": 81,
+      "framework": 82,
       "jobs": 7,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 209,
       "integration": 169,
-      "release-gate": 70,
+      "release-gate": 71,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 230
+      "static": 231
     }
   },
   "coverageFamilies": [
@@ -2935,6 +2935,24 @@
         "security",
         "sessions",
         "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the checked app-shell producer and unknown-input browser adapter preserve safe defaults, nested fallbacks, and pre-navigation load order.",
+      "id": "framework.app-shell-bootstrap-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "bootstrap",
+        "browser",
+        "contracts",
+        "navigation",
+        "typecheck"
       ],
       "tier": "release-gate"
     },

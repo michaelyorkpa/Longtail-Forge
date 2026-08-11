@@ -214,13 +214,14 @@ function injectErrorBoundaryScripts(contents) {
   if (
     contents.includes('src="/js/shared/error-contract.js"')
     && contents.includes('src="/js/shared/browser-recovery.js"')
+    && contents.includes('src="/js/shared/app-shell-bootstrap.js"')
   ) {
     return contents;
   }
 
   return contents.replace(
     /(<head\b[^>]*>)/i,
-    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>',
+    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>\n    <script src="/js/shared/app-shell-bootstrap.js"></script>',
   );
 }
 

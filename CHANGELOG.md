@@ -1,3 +1,12 @@
+## Version 0.33.32.20 - 2026-08-11
+
+- Added the framework-owned `AppShellBootstrap` contract and checked the producing app-shell service against the current response envelope.
+- Added a small checked classic-script adapter that accepts unknown browser JSON, exposes safe strings/records/filtered arrays, and retains workspace-context fallbacks for enabled modules, quick actions, and view surfaces.
+- Routed `navigation.js` through the adapter while keeping the 1,700-line runtime outside whole-file checking and preserving workspace switching, module visibility, caching, responsive navigation, and fetch-failure recovery.
+- Injected the adapter in the framework preamble after error/recovery handling and before page assets; raised the checked inventory floor from 95 to 97 files and added focused producer/adapter/default/fallback/load-order coverage.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/docs-ownership.json`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: Runtime and trusted-edge security, HTTP error behavior, permissions, public API payloads, database schema/migrations, deployment, and user-facing Help are unchanged.
+
 ## Version 0.33.32.19 - 2026-08-11
 
 - Added a separate DOM-only browser typecheck program with the established strict, per-file opt-in regime and no Node ambient types, runtime build step, module conversion, or script-load-order change.
