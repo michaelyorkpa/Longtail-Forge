@@ -1,3 +1,4 @@
+// @ts-check
 import { usersRepository } from "../repositories/users.repo.js";
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { isPublicDemoVisitorIdentity } from "../core/public-demo-runtime.js";
@@ -39,7 +40,16 @@ import {
   normalizeUsername,
 } from "../utils/normalizers.js";
 
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof usersRepository.readByUsername>>>} UserRecord */
+/** @typedef {Awaited<ReturnType<typeof verifyPassword>>} PasswordVerification */
+/** @typedef {{ newAlgorithm: string, previousAlgorithm: string, rehashReason: string | null }} PasswordRehash */
+/** @typedef {(input: { actorSession: WorkspaceRequestSession, currentSessionId?: string, excludedSessionId?: string, reason: string, targetUser: UserRecord, workspaceId: string }) => Promise<{ revokedCount: number }>} RevokeAllForUserExcept */
+
 const INVALID_LOGIN_MESSAGE = "These credentials do not have access to this installation.";
+
+/** @param {{ ipAddress?: unknown, requestId?: unknown }} [context] */
 async function login(payload, context = {}) {
   const rememberMe = readRememberMe(payload);
   const username = normalizeUsername(payload.username);
@@ -99,16 +109,18 @@ async function login(payload, context = {}) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
-  const passwordVerification = verificationAttempt.value;
-  const publicDemoVisitor = isPublicDemoVisitorIdentity(user.user_id);
-  const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
-  const activeWorkspaceId = resolveActiveWorkspaceId(user, workspaceMemberships);
+  const authenticatedUser = /** @type {UserRecord} */ (user);
+  const passwordVerification = /** @type {PasswordVerification} */ (verificationAttempt.value);
+  const publicDemoVisitor = isPublicDemoVisitorIdentity(authenticatedUser.user_id);
+  const workspaceMemberships = await userWorkspacesRepository.readForUser(authenticatedUser.user_id);
+  const activeWorkspaceId = resolveActiveWorkspaceId(authenticatedUser, workspaceMemberships);
   if (!activeWorkspaceId) {
-    const qualification = await accountExportRecoveryRepository.readForUser(user.user_id);
-    if (qualification && !publicDemoVisitor && !normalizeBooleanPreference(user.password_change_required)) {
+    const qualification = await accountExportRecoveryRepository.readForUser(authenticatedUser.user_id);
+    if (qualification && !publicDemoVisitor && !normalizeBooleanPreference(authenticatedUser.password_change_required)) {
+      /** @type {PasswordRehash | null} */
       let passwordRehash = null;
       if (passwordVerification.needsRehash && !publicDemoVisitor) {
-        await usersRepository.updatePasswordByUserId(user.user_id, await hashPassword(password), {
+        await usersRepository.updatePasswordByUserId(authenticatedUser.user_id, await hashPassword(password), {
           passwordChangeRequired: false,
         });
         passwordRehash = {
@@ -117,9 +129,9 @@ async function login(payload, context = {}) {
           rehashReason: passwordVerification.rehashReason,
         };
       }
-      await accountExportRecoveryService.assertEligible(user.user_id);
+      await accountExportRecoveryService.assertEligible(authenticatedUser.user_id);
       const session = await createSession({
-        ...user,
+        ...authenticatedUser,
         active_workspace_id: null,
         home_workspace_id: null,
         ip_address: normalizeIpAddress(context.ipAddress),
@@ -129,31 +141,31 @@ async function login(payload, context = {}) {
         context,
         outcome: "success",
         reasonClass: "account_export_recovery",
-        user,
+        user: authenticatedUser,
         username,
       });
       if (passwordRehash) {
         await emitPasswordRehashedSecurityEvent({
           ...passwordRehash,
           session: {
-            user_id: user.user_id,
-            username: user.username,
-            timezone: normalizeTimezone(user.timezone),
+            user_id: authenticatedUser.user_id,
+            username: authenticatedUser.username,
+            timezone: normalizeTimezone(authenticatedUser.timezone),
             ip_address: normalizeIpAddress(context.ipAddress),
           },
-          targetUser: user,
+          targetUser: authenticatedUser,
         });
       }
       return {
         session,
-        themeMode: normalizeThemeMode(user.theme_mode),
-        themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+        themeMode: normalizeThemeMode(authenticatedUser.theme_mode),
+        themeAutoSource: normalizeThemeAutoSource(authenticatedUser.theme_auto_source),
         user: {
-          displayName: user.display_name || user.username,
-          username: user.username,
-          timezone: normalizeTimezone(user.timezone),
-          themeMode: normalizeThemeMode(user.theme_mode),
-          themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+          displayName: authenticatedUser.display_name || authenticatedUser.username,
+          username: authenticatedUser.username,
+          timezone: normalizeTimezone(authenticatedUser.timezone),
+          themeMode: normalizeThemeMode(authenticatedUser.theme_mode),
+          themeAutoSource: normalizeThemeAutoSource(authenticatedUser.theme_auto_source),
           recoveryMode: "account_export",
           loginLandingPath: "/account-recovery.html",
         },
@@ -163,17 +175,18 @@ async function login(payload, context = {}) {
       context,
       outcome: "failure",
       reasonClass: "no_active_workspace",
-      user,
+      user: authenticatedUser,
       username,
     });
     throw new AppError(INVALID_LOGIN_MESSAGE, 401);
   }
-  await accountExportRecoveryRepository.clear(user.user_id);
+  await accountExportRecoveryRepository.clear(authenticatedUser.user_id);
+  /** @type {PasswordRehash | null} */
   let passwordRehash = null;
 
   if (passwordVerification.needsRehash && !publicDemoVisitor) {
-    await usersRepository.updatePassword(activeWorkspaceId, user.user_id, await hashPassword(password), {
-      passwordChangeRequired: normalizeBooleanPreference(user.password_change_required),
+    await usersRepository.updatePassword(activeWorkspaceId, authenticatedUser.user_id, await hashPassword(password), {
+      passwordChangeRequired: normalizeBooleanPreference(authenticatedUser.password_change_required),
     });
     passwordRehash = {
       newAlgorithm: CURRENT_PASSWORD_HASH_POLICY.algorithm,
@@ -183,27 +196,27 @@ async function login(payload, context = {}) {
   }
 
   const session = await createSession({
-    ...user,
+    ...authenticatedUser,
     active_workspace_id: activeWorkspaceId,
     ip_address: normalizeIpAddress(context.ipAddress),
   }, { rememberMe });
   const sessionContext = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
-    user_id: user.user_id,
-    username: user.username,
-    timezone: normalizeTimezone(user.timezone),
+    user_id: authenticatedUser.user_id,
+    username: authenticatedUser.username,
+    timezone: normalizeTimezone(authenticatedUser.timezone),
     ip_address: normalizeIpAddress(context.ipAddress),
   };
   await recordAuditWithoutBlocking({
     workspaceId: activeWorkspaceId,
-    actorUserId: user.user_id,
-    actorUserName: user.username,
+    actorUserId: authenticatedUser.user_id,
+    actorUserName: authenticatedUser.username,
     action: "user_login",
     changeType: "login",
     recordType: "user",
-    recordId: user.user_id,
-    recordLabel: user.username,
+    recordId: authenticatedUser.user_id,
+    recordLabel: authenticatedUser.username,
     recordUrl: "user-settings.html",
     previousValue: null,
     newValue: { logged_in: true },
@@ -216,7 +229,7 @@ async function login(payload, context = {}) {
     context,
     outcome: "success",
     reasonClass: "authenticated",
-    user,
+    user: authenticatedUser,
     username,
     workspaceId: activeWorkspaceId,
   });
@@ -224,36 +237,37 @@ async function login(payload, context = {}) {
     await emitPasswordRehashedSecurityEvent({
       ...passwordRehash,
       session: sessionContext,
-      targetUser: user,
+      targetUser: authenticatedUser,
     });
   }
 
   return {
     session,
-    themeMode: normalizeThemeMode(user.theme_mode),
-    themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
+    themeMode: normalizeThemeMode(authenticatedUser.theme_mode),
+    themeAutoSource: normalizeThemeAutoSource(authenticatedUser.theme_auto_source),
     user: {
       workspace_id: activeWorkspaceId,
       active_workspace_id: activeWorkspaceId,
       isSuperAdmin: await permissionsService.isSuperAdmin(sessionContext),
       workspaceContext: await settingsService.readWorkspaceBootstrap(sessionContext),
       workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
-      user_id: user.user_id,
-      username: user.username,
-      displayName: user.display_name || user.username,
-      altEmail: normalizeOptionalEmail(user.alt_email),
-      timezone: normalizeTimezone(user.timezone),
-      themeMode: normalizeThemeMode(user.theme_mode),
-      themeAutoSource: normalizeThemeAutoSource(user.theme_auto_source),
-      passwordChangeRequired: normalizeBooleanPreference(user.password_change_required),
+      user_id: authenticatedUser.user_id,
+      username: authenticatedUser.username,
+      displayName: authenticatedUser.display_name || authenticatedUser.username,
+      altEmail: normalizeOptionalEmail(authenticatedUser.alt_email),
+      timezone: normalizeTimezone(authenticatedUser.timezone),
+      themeMode: normalizeThemeMode(authenticatedUser.theme_mode),
+      themeAutoSource: normalizeThemeAutoSource(authenticatedUser.theme_auto_source),
+      passwordChangeRequired: normalizeBooleanPreference(authenticatedUser.password_change_required),
       loginLandingPath: await userLandingService.resolvePreferredLanding(
         sessionContext,
-        user.preferred_login_landing,
+        authenticatedUser.preferred_login_landing,
       ),
     },
   };
 }
 
+/** @param {string} sessionId @param {RequestSession | null} [session] */
 async function logout(sessionId, session = null) {
   await deleteSession(sessionId);
 
@@ -290,6 +304,9 @@ async function logout(sessionId, session = null) {
   return { ok: true };
 }
 
+/**
+ * @param {{ context: { ipAddress?: unknown, requestId?: unknown }, outcome: string, reasonClass: string, user: UserRecord | null, username: string, workspaceId?: string | null }} input
+ */
 async function recordLoginSecurityEvent({ context, outcome, reasonClass, user, username, workspaceId }) {
   await securityEventsService.record({
     actorUserId: outcome === "success" ? user?.user_id : null,
@@ -316,6 +333,7 @@ async function recordAuditWithoutBlocking(event) {
   }
 }
 
+/** @param {RequestSession | null} session */
 async function readSession(session) {
   if (!session) {
     throw new AppError("Not logged in.", 401);
@@ -348,31 +366,36 @@ async function readSession(session) {
     };
   }
 
-  const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
-  const workspaceContext = await settingsService.readWorkspaceBootstrap(session);
-  const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  const workspaceMemberships = await userWorkspacesRepository.readForUser(workspaceSession.user_id);
+  const workspaceContext = await settingsService.readWorkspaceBootstrap(workspaceSession);
+  const user = await usersRepository.readById(
+    workspaceSession.home_workspace_id || workspaceSession.workspace_id,
+    workspaceSession.user_id,
+  );
 
   return {
     user: {
-      workspace_id: session.workspace_id,
-      active_workspace_id: session.active_workspace_id || session.workspace_id,
-      isSuperAdmin: await permissionsService.isSuperAdmin(session),
+      workspace_id: workspaceSession.workspace_id,
+      active_workspace_id: workspaceSession.active_workspace_id || workspaceSession.workspace_id,
+      isSuperAdmin: await permissionsService.isSuperAdmin(workspaceSession),
       workspaceContext,
       workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
-      user_id: session.user_id,
-      username: session.username,
-      timezone: normalizeTimezone(session.timezone),
+      user_id: workspaceSession.user_id,
+      username: workspaceSession.username,
+      timezone: normalizeTimezone(workspaceSession.timezone),
       themeMode: normalizeThemeMode(user?.theme_mode),
       themeAutoSource: normalizeThemeAutoSource(user?.theme_auto_source),
-      passwordChangeRequired: normalizeBooleanPreference(session.password_change_required),
+      passwordChangeRequired: normalizeBooleanPreference(workspaceSession.password_change_required),
       loginLandingPath: await userLandingService.resolvePreferredLanding(
-        session,
+        workspaceSession,
         user?.preferred_login_landing,
       ),
     },
   };
 }
 
+/** @param {string} sessionId @param {RequestSession | null} session */
 async function switchWorkspace(sessionId, session, payload) {
   if (!session) {
     throw new AppError("Not logged in.", 401);
@@ -435,6 +458,7 @@ async function switchWorkspace(sessionId, session, payload) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {{ currentSessionId?: string, ipAddress?: unknown }} [context] */
 async function changePassword(payload, session, context = {}) {
   assertPublicDemoVisitorIdentityMutable(session.user_id);
   const currentPassword = String(payload.currentPassword || "");
@@ -474,26 +498,30 @@ async function changePassword(payload, session, context = {}) {
   }
 
   await authenticationThrottle.reset(throttleContext);
+  const authenticatedUser = /** @type {UserRecord} */ (user);
 
-  if ((await verifyPassword(newPassword, user.password)).matches) {
+  if ((await verifyPassword(newPassword, authenticatedUser.password)).matches) {
     throw new AppError("New password must be different from the current password.", 400);
   }
 
-  const validation = validatePassword(newPassword, user.username);
+  const validation = validatePassword(newPassword, authenticatedUser.username);
 
   if (!validation.valid) {
     throw new AppError(`New password must ${validation.errors.join(", ")}.`, 400);
   }
 
-  await usersRepository.updatePassword(session.workspace_id, user.user_id, await hashPassword(newPassword), {
+  await usersRepository.updatePassword(session.workspace_id, authenticatedUser.user_id, await hashPassword(newPassword), {
     passwordChangeRequired: false,
   });
-  const revocation = await sessionsService.revokeAllForUserExcept({
+  const revokeAllForUserExcept = /** @type {RevokeAllForUserExcept} */ (
+    /** @type {unknown} */ (sessionsService.revokeAllForUserExcept)
+  );
+  const revocation = await revokeAllForUserExcept({
     actorSession: session,
     currentSessionId: context.currentSessionId,
     excludedSessionId: context.currentSessionId,
     reason: "password_changed",
-    targetUser: user,
+    targetUser: authenticatedUser,
     workspaceId: session.workspace_id,
   });
   await auditService.record({
@@ -501,8 +529,8 @@ async function changePassword(payload, session, context = {}) {
     action: "user_password_changed",
     changeType: "update",
     recordType: "user",
-    recordId: user.user_id,
-    recordLabel: user.username,
+    recordId: authenticatedUser.user_id,
+    recordLabel: authenticatedUser.username,
     recordUrl: "user-settings.html",
     previousValue: { password_changed_at: null },
     newValue: { password_changed_at: new Date().toISOString() },
@@ -516,7 +544,7 @@ async function changePassword(payload, session, context = {}) {
   await emitPasswordChangedSecurityEvent({
     revokedSessionCount: revocation.revokedCount,
     session,
-    targetUser: user,
+    targetUser: authenticatedUser,
   });
 
   return { ok: true, passwordChangeRequired: false, revokedSessions: revocation.revokedCount };

@@ -1,3 +1,12 @@
+## Version 0.33.32.16 - 2026-08-10
+
+- Opted the authentication and API-key services into checked JavaScript against shared request-session and active API-key identity contracts.
+- Made the already-proven post-verification user, normal workspace session, management-row, and nullable active-key boundaries explicit without adding runtime branches or changing request/response shapes.
+- Preserved generic credential failures, real/dummy password verification, password rehashing, durable and process-local throttling, recovery sessions, workspace switching, password-change session revocation, API-key hashing/scopes/audits, and public-demo denials.
+- Raised the checked-seam inventory and floor from 73 to 75 files, extended release-gate assertions, and retained green authentication, hashing, remembered-session, recovery, API-scope, Support View, and public-demo regressions.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: `SECURITY.md`, operational security, internet deployment, private-preview readiness, runtime artifact/configuration, licensing, module workflow docs, Help, API payloads, permissions, database schema/migrations, and deployment behavior are unchanged.
+
 ## Version 0.33.32.15 - 2026-08-10
 
 - Opted the durable job queue, handler registry, runner, and safe event-summary implementation into checked JavaScript against shared trusted contracts.

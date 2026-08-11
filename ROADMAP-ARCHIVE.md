@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.16 - Authentication and API-key services
+
+Completed on 2026-08-10. Authentication and API-key services now typecheck against the established request-session and active-key identity contracts without changing credential verification, generic errors, throttling, session issuance/rotation, scope filtering, audit payloads, or public-demo protections, and the active 0.33.32 work advances to `0.33.32.17` for Permission resources and route call sites.
+
+**Model: High Effort** - Credential/session issuance is isolated from permission-resource work.
+
+- [x] Opted `auth.service.js` and `api-keys.service.js` into checked JavaScript against the shared request-session and active API-key identity contracts.
+- [x] Narrowed successful credential/user, workspace-session, API-key row, and nullable active-key flows without changing runtime branches; raised the checked inventory floor from 73 to 75 files and retained focused authentication, hashing, session, recovery, API-scope, Support View, and public-demo coverage.
+
+Acceptance criteria:
+
+- Both services typecheck without weakening credential, enumeration, or session semantics.
+
 ## Version 0.33.32.15 - Jobs and event-summary implementation closure
 
 Completed on 2026-08-10. The durable job queue, handler registry, runner, and safe event-summary implementation now typecheck against their live trusted contracts without changing execution, retry, notification, redaction, or fallback behavior, and the active 0.33.32 work advances to `0.33.32.16` for Authentication and API-key services.

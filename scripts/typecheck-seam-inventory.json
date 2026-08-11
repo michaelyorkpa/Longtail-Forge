@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 73,
+  "minimumOptedInFiles": 75,
   "checkedFiles": [
     "src/core/events/event-summaries.js",
     "src/core/files/files.contracts.js",
@@ -61,6 +61,8 @@
     "src/repositories/workspaces.repo.js",
     "src/routes/support-view.routes.js",
     "src/security/sessions.js",
+    "src/services/api-keys.service.js",
+    "src/services/auth.service.js",
     "src/services/notifications.service.js",
     "src/services/search.service.js",
     "src/services/tag-propagation-registry.js",

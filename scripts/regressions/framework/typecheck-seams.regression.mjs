@@ -311,6 +311,21 @@ assert.ok(jobEnqueueDeclaration, "framework-contracts.d.ts must declare JobEnque
 assert.match(jobEnqueueDeclaration[1], /^  jobId\?: string;$/m, "enqueue must retain its camelCase caller-supplied job ID");
 assert.match(jobEnqueueDeclaration[1], /^  job_id\?: string;$/m, "enqueue must retain its snake_case caller-supplied job ID");
 assert.match(contractSource, /export type JobHandler = \(context: JobHandlerContext\)/, "registered job handlers must receive the live context envelope rather than a raw database row");
+const authServiceSource = readFileSync("src/services/auth.service.js", "utf8");
+const apiKeysServiceSource = readFileSync("src/services/api-keys.service.js", "utf8");
+for (const [filePath, source] of [
+  ["src/services/auth.service.js", authServiceSource],
+  ["src/services/api-keys.service.js", apiKeysServiceSource],
+]) {
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain in the checked authentication seam`);
+  assert.doesNotMatch(source, /@ts-(?:ignore|nocheck)/, `${filePath} must not suppress authentication type failures`);
+}
+assert.match(authServiceSource, /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.RequestSession\} RequestSession/, "authentication services must consume the shared request-session identity contract");
+assert.match(authServiceSource, /const authenticatedUser = \/\*\* @type \{UserRecord\} \*\//, "successful credential verification must narrow the nullable user before session issuance");
+assert.match(authServiceSource, /@param \{RequestSession \| null\} session[\s\S]*?async function readSession/, "session reads must retain the recovery-aware nullable request-session contract");
+assert.match(apiKeysServiceSource, /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.ActiveApiKey\} ActiveApiKey/, "API-key authentication must consume the shared active-key identity contract");
+assert.match(apiKeysServiceSource, /@returns \{Promise<ActiveApiKey \| null>\}[\s\S]*?async function readActiveKey/, "API-key lookup must retain the nullable active-key boundary");
+assert.match(apiKeysServiceSource, /RequestSession & \{ workspace_id: string \}/, "API-key management must require a workspace-bound request session");
 const modulesServiceSource = readFileSync("src/core/modules/modules.service.js", "utf8");
 assert.match(
   modulesServiceSource,
