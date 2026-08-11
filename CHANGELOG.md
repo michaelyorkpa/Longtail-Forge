@@ -1,3 +1,13 @@
+## Version 0.33.32.27 - 2026-08-11
+
+- Split Node-only database declarations from browser-consumed framework contracts and replaced ambient `Buffer` typing with an explicit `node:buffer` `NodeBuffer` authority.
+- Changed generic database rows from `Record<string, any>` to `Record<string, unknown>` and added named projections for the surfaced Time Tracking, authentication-throttle, private-feed, permission, session, Tags, and Resume State consumers.
+- Typed the complete public database-provider surface while preserving parameter kinds, nullable reads, adapter/transaction authority, compatibility aliases, health/dialect access, and runtime exports.
+- Added negative server/browser compile fixtures for unchecked generic row access, nested transaction attempts, and browser reachability; updated the focused database contract regressions and raised the checked inventory floor from 101 to 103 files.
+- Retained all 45 Database-area regressions without schema, SQL, transaction-ordering, permission, or workflow changes.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, database schema/migrations, SQL/runtime behavior, permissions, Tags, Time Tracking workflows, deployment, runtime configuration, and public API contracts are unchanged.
+
 ## Version 0.33.32.26 - 2026-08-11
 
 - Routed scheduled-poll and shutdown failures through one checked job-error summarizer instead of dereferencing unknown rejection values directly.

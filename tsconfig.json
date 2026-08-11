@@ -28,6 +28,7 @@
     "images",
     "public",
     "styles",
-    "views"
+    "views",
+    "tests/typecheck/browser-database-boundary.fixture.mjs"
   ]
 }

@@ -1,8 +1,20 @@
 // @ts-check
 import { db } from "../core/database.js";
 
-/** @typedef {import("../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
-/** @typedef {import("../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/**
+ * @typedef {Object} AuthenticationThrottleRow
+ * @property {string} scope
+ * @property {string} dimension
+ * @property {string} key_hash
+ * @property {number} failure_count
+ * @property {number} window_expires_at
+ * @property {number} locked_until
+ * @property {number} expires_at
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
 
 const CLEANUP_BATCH_SIZE = 500;
 const UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -147,9 +159,10 @@ async function cleanup(now, database = db) {
 /**
  * @param {any} key
  * @param {TransactionClient} database
+ * @returns {Promise<AuthenticationThrottleRow | null>}
  */
 async function readEntry(key, database) {
-  return database.get(`
+  return /** @type {Promise<AuthenticationThrottleRow | null>} */ (database.get(`
 SELECT
   scope,
   dimension,
@@ -165,7 +178,7 @@ WHERE scope = :scope
   AND dimension = :dimension
   AND key_hash = :keyHash
 LIMIT 1;
-`, keyBindings(key));
+`, keyBindings(key)));
 }
 
 /**

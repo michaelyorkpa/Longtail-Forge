@@ -16,8 +16,9 @@ import {
 } from "../parameter-bindings.js";
 import { createSqliteDialectSeams } from "./sqlite-dialect-seams.js";
 
-/** @typedef {import("../../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
-/** @typedef {import("../../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
 
 const SQLITE_CAPABILITIES = Object.freeze({
   provider: "sqlite",
@@ -59,7 +60,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<Record<string, any>[]>} result rows
+   * @returns {Promise<DatabaseRow[]>} result rows
    */
   async function executeQuery(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
@@ -69,7 +70,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<Record<string, any> | null>} first result row, if any
+   * @returns {Promise<DatabaseRow | null>} first result row, if any
    */
   async function executeGet(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
@@ -79,7 +80,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<any>} driver run result
+   * @returns {Promise<unknown>} driver run result
    */
   async function executeRun(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);

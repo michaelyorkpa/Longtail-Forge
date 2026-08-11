@@ -5,6 +5,14 @@ import { createRecordId } from "../core/identifiers.js";
 import { AppError } from "../utils/app-error.js";
 import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
+/**
+ * @typedef {Object} ResumeStateTimestampRow
+ * @property {string | null} last_worked_at
+ * @property {string} updated_at
+ * @property {string | null} [dismissed_at]
+ * @property {string | null} [dismissed_source_updated_at]
+ */
+
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 const TEXT_LIMITS = Object.freeze({
@@ -505,7 +513,7 @@ LIMIT 1;
 }
 
 async function readById(workspaceId, userId, resumeStateId) {
-  return db.get(`
+  return /** @type {Promise<ResumeStateTimestampRow | null>} */ (db.get(`
 SELECT *
 FROM work_resume_state
 WHERE workspace_id = :workspaceId
@@ -516,7 +524,7 @@ LIMIT 1;
     resumeStateId: textParam(resumeStateId),
     userId: textParam(userId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
 function resolveContextLookup(tableName, idColumn) {

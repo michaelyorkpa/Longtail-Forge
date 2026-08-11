@@ -1,7 +1,7 @@
 // @ts-check
 import { db } from "../core/database.js";
 
-/** @typedef {import("../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
 
 const QUALIFICATION_BASIS = "former_workspace_administrator";
 const QUALIFICATION_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({

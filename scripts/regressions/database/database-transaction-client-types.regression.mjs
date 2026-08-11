@@ -13,7 +13,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const contractSource = await fs.readFile("src/types/framework-contracts.d.ts", "utf8");
+const contractSource = await fs.readFile("src/types/database-contracts.d.ts", "utf8");
 const sqliteAdapterSource = await fs.readFile("src/db/adapters/sqlite-adapter.js", "utf8");
 const authenticationThrottleSource = await fs.readFile("src/repositories/authentication-throttle.repo.js", "utf8");
 const privateFeedTokenSource = await fs.readFile("src/repositories/private-feed-tokens.repo.js", "utf8");
@@ -41,9 +41,9 @@ assert.match(accountExportRecoverySource, /@param \{TransactionClient\} \[databa
 
 const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-database-contract-types-"));
 try {
-  await fs.writeFile(path.join(tempDirectory, "framework-contracts.d.ts"), contractSource);
+  await fs.writeFile(path.join(tempDirectory, "database-contracts.d.ts"), contractSource);
   await fs.writeFile(path.join(tempDirectory, "valid.js"), `// @ts-check
-/** @typedef {import("./framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("./database-contracts.js").TransactionClient} TransactionClient */
 /** @param {TransactionClient} transaction */
 async function useTransaction(transaction) {
   await transaction.run("UPDATE example SET value = :value", { value: 1 });
@@ -53,7 +53,7 @@ async function useTransaction(transaction) {
 void useTransaction;
 `);
   await fs.writeFile(path.join(tempDirectory, "invalid.js"), `// @ts-check
-/** @typedef {import("./framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("./database-contracts.js").TransactionClient} TransactionClient */
 /** @param {TransactionClient} transaction */
 async function openNestedTransaction(transaction) {
   return transaction.transaction(async () => undefined);

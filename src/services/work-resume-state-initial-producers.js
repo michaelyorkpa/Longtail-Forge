@@ -19,11 +19,19 @@ import {
   registerResumeStateReadResolver,
 } from "./work-resume-state-read-checks.js";
 
-/** @typedef {import("../types/framework-contracts.js").DatabaseRow} DatabaseRow */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolverContext} ResumeStateBatchReadResolverContext */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolverContext} ResumeStateReadResolverContext */
+/**
+ * @typedef {Object} SafeNoteLifecycleRow
+ * @property {string} note_id
+ * @property {string} library_bucket
+ * @property {string} status
+ * @property {string} visibility
+ * @property {string} security_mode
+ * @property {string} [effective_security_mode]
+ */
 
 const TASK_EVENTS = [
   "task.created",
@@ -480,7 +488,7 @@ function timerFromEvent(event) {
   };
 }
 
-/** @param {DatabaseRow | null | undefined} note */
+/** @param {SafeNoteLifecycleRow | null | undefined} note */
 function isResumeEligibleNote(note = null) {
   if (!note) {
     return false;
@@ -506,7 +514,7 @@ function safeNoteLinkedContext(metadata = {}) {
 }
 
 async function readSafeNoteLifecycle(workspaceId, noteId) {
-  return db.get(`
+  return /** @type {Promise<SafeNoteLifecycleRow | null>} */ (db.get(`
 SELECT note_id, library_bucket, status, visibility, security_mode
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -515,7 +523,7 @@ LIMIT 1;
 `, {
     noteId: textParam(noteId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
 async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
@@ -527,7 +535,7 @@ async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
     return [];
   }
 
-  return db.query(`
+  return /** @type {Promise<SafeNoteLifecycleRow[]>} */ (db.query(`
 SELECT note_id, library_bucket, status, visibility, security_mode
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -535,7 +543,7 @@ WHERE workspace_id = :workspaceId
 `, {
     noteIds: ids,
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
 function textParam(value) {

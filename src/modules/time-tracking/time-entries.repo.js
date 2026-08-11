@@ -3,6 +3,7 @@ import { db } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 
 /** @typedef {import("../../utils/normalizers.js").TimeEntry} TimeEntry */
+/** @typedef {{ total: number | string }} CountRow */
 
 async function readAll(workspaceId) {
   const rows = await db.query(`
@@ -257,7 +258,7 @@ WHERE workspace_id = :workspaceId
 }
 
 async function countByProjectId(workspaceId, projectId) {
-  const row = await db.get(`
+  const row = /** @type {CountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS total
 FROM time_entries
 WHERE workspace_id = :workspaceId
@@ -265,9 +266,9 @@ WHERE workspace_id = :workspaceId
 `, {
     projectId: textParam(projectId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
-  return Number.parseInt(row?.total, 10) || 0;
+  return Number.parseInt(String(row?.total ?? ""), 10) || 0;
 }
 
 async function hasForTask(workspaceId, taskId) {

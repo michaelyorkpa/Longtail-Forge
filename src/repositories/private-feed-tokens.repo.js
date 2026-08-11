@@ -2,8 +2,9 @@
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
-/** @typedef {import("../types/framework-contracts.js").DatabaseAdapter} DatabaseAdapter */
-/** @typedef {import("../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {{ private_feed_token_id: string }} PrivateFeedTokenIdRow */
 
 const CALENDAR_SELECT = `
 SELECT
@@ -231,11 +232,11 @@ async function revokeMany(subscriptionIds, reason, database = db) {
     return { changed: 0 };
   }
   return database.transaction(async (transaction) => {
-    const current = await transaction.query(`
+    const current = /** @type {PrivateFeedTokenIdRow[]} */ (await transaction.query(`
 SELECT private_feed_token_id
 FROM private_feed_tokens
 WHERE private_feed_token_id IN (:subscriptionIds)
-  AND status = 'active';`, { subscriptionIds });
+  AND status = 'active';`, { subscriptionIds }));
     if (current.length === 0) return { changed: 0 };
     const now = new Date().toISOString();
     await transaction.run(`

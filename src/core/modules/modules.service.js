@@ -51,7 +51,7 @@ import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
 
 /** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
-/** @typedef {import("../../types/framework-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
 /** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
 /** @typedef {Record<string, any> & {id?: string, moduleId?: string, requiredPermissions?: string[], requiredWorkspaceCapabilities?: string[], requiresEnabledModules?: string[], requiredModules?: string[], workspaceTypes?: string[]}} CatalogContribution */
 /** @typedef {CatalogContribution & {event: string, handler: (context: Record<string, any>) => unknown | Promise<unknown>}} ModuleEventHook */
