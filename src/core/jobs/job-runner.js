@@ -138,7 +138,7 @@ async function stopJobWorker(options = {}) {
       await activeRun;
     } catch (error) {
       logger.warn?.("[job-worker] Active run failed during shutdown.");
-      logger.warn?.(/** @type {any} */ (error).message || error);
+      logger.warn?.(summarizeJobError(error));
     }
   }
 
@@ -170,7 +170,7 @@ function scheduleWorkerPoll(context) {
         running: false,
       };
       context.logger.warn?.("[job-worker] Poll failed.");
-      context.logger.warn?.(error.message || error);
+      context.logger.warn?.(summarizeJobError(error));
     })
     .finally(() => {
       activeRun = null;
@@ -477,7 +477,20 @@ function parseJobPayload(job) {
 
 /** @param {unknown} error */
 function summarizeJobError(error) {
-  const message = String(/** @type {any} */ (error)?.message || error || "Job failed.").replace(/\s+/g, " ").trim();
+  let sourceMessage = "";
+
+  if (typeof error === "string") {
+    sourceMessage = error;
+  } else if (error && typeof error === "object") {
+    try {
+      const candidate = Reflect.get(error, "message");
+      sourceMessage = typeof candidate === "string" ? candidate : "";
+    } catch {
+      sourceMessage = "";
+    }
+  }
+
+  const message = sourceMessage.replace(/\s+/g, " ").trim();
   return message.slice(0, MAX_ERROR_LENGTH) || "Job failed.";
 }
 

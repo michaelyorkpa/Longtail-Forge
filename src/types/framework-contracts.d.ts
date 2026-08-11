@@ -1118,7 +1118,7 @@ export interface JobHandlerOptions {
 export type JobWorkerMode = "inline" | "separate" | "disabled";
 
 export interface JobWorkerLogger {
-  warn?: (...values: any[]) => void;
+  warn?: (message: string) => void;
 }
 
 export interface JobWorkerOptions {
