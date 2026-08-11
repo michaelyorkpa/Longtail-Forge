@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.18 - Bounded server clean-file rollout
+
+Completed on 2026-08-11. One exact 12-file framework core leaf-utility tier now participates in checked JavaScript, the retained pass inventory keeps future repeatable tiers bounded and reviewable, and runtime statements remain unchanged. The active 0.33.32 work advances to `0.33.32.19` for the browser typecheck program and shared utilities.
+
+**Model: High Effort** - Mechanical rollout is useful only when its size and ownership are reviewable.
+
+- [x] Re-audited the current compiler state, selected 12 already-clean direct `src/core` leaf utilities, and committed their exact sorted path list before adding any source pragma.
+- [x] Added the first-line checking pragma only to those 12 files; deferred `record-scope.js` and `tar-archive-command.js` after the audit exposed nullable-record and subprocess-error fallout outside this mechanical pass.
+- [x] Added a retained bounded-pass inventory and release-gate assertions for the 40-file ceiling, coherent tier boundary, unique/non-overlapping paths, reserved-slice exclusions, and complete checked-inventory membership.
+- [x] Raised the checked-seam inventory and monotonic floor from 77 to 89 files and retained the full fast and changed-area verification contract.
+
+Acceptance criteria:
+
+- The explicit framework core leaf-utility cluster gains checked coverage in one bounded session, while additional coherent tiers remain eligible as separately closable numeric sub-passes without a percentage target forcing unrelated edits.
+
 ## Version 0.33.32.17 - Permission resources and route call sites
 
 Completed on 2026-08-10. Permission resources now require an explicit workspace scope at the checked boundary, the permission service and shared Audit/Search resource constructors typecheck against that contract, and existing role, override, Support View, module-catalog, Search, audit, and denial behavior remains unchanged. The active 0.33.32 work advances to `0.33.32.18` for the bounded server clean-file rollout.

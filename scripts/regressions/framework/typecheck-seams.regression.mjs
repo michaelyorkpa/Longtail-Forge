@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["contracts", "framework", "typecheck"],
-  description: "Proves the complete first-party checked-seam inventory and compiler settings stay monotonic without checker escapes or runtime TypeScript imports.",
+  description: "Proves bounded clean-file passes, the complete first-party checked-seam inventory, and compiler settings stay monotonic without checker escapes or runtime TypeScript imports.",
   runMode: "static",
 });
 
@@ -12,7 +12,12 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const seamInventory = JSON.parse(readFileSync("scripts/typecheck-seam-inventory.json", "utf8"));
+const cleanFilePassInventory = JSON.parse(readFileSync("scripts/typecheck-clean-file-passes.json", "utf8"));
 const CHECKED_SEAM_FILES = seamInventory.checkedFiles;
+const RESERVED_CLEAN_FILE_PATHS = new Set([
+  "src/routes/private-feeds.routes.js",
+  "src/routes/search.routes.js",
+]);
 const EXPECTED_TYPECHECK_INCLUDES = [
   "server.js",
   "worker.js",
@@ -193,6 +198,58 @@ assert.deepEqual(
 assert.ok(
   CHECKED_SEAM_FILES.length >= seamInventory.minimumOptedInFiles,
   `checked-seam inventory fell below its monotonic floor of ${seamInventory.minimumOptedInFiles}`,
+);
+
+assert.equal(cleanFilePassInventory.schemaVersion, 1, "the clean-file pass inventory schema must stay explicit");
+assert.ok(
+  Array.isArray(cleanFilePassInventory.passes) && cleanFilePassInventory.passes.length > 0,
+  "at least one bounded clean-file pass must remain recorded",
+);
+const cleanFilePassPaths = [];
+for (const pass of cleanFilePassInventory.passes) {
+  assert.match(
+    pass.slice,
+    /^18(?:\.\d+)?$/,
+    "bounded clean-file pass IDs must remain under the slice 18 family",
+  );
+  assert.ok(
+    typeof pass.ownershipTier === "string" && pass.ownershipTier.length > 0,
+    `slice ${pass.slice} must name one coherent ownership tier`,
+  );
+  assert.ok(
+    Array.isArray(pass.files) && pass.files.length > 0 && pass.files.length <= 40,
+    `slice ${pass.slice} must retain an explicit path list of at most 40 files`,
+  );
+  assert.deepEqual(
+    pass.files,
+    [...new Set(pass.files)].sort(),
+    `slice ${pass.slice} clean-file paths must stay unique and sorted`,
+  );
+  if (pass.ownershipTier === "framework-core-leaf-utilities") {
+    for (const filePath of pass.files) {
+      assert.match(
+        filePath,
+        /^src\/core\/[^/]+\.js$/,
+        `slice ${pass.slice} must not cross the framework core leaf-utility ownership tier`,
+      );
+    }
+  }
+  for (const filePath of pass.files) {
+    assert.ok(
+      !RESERVED_CLEAN_FILE_PATHS.has(filePath),
+      `${filePath} is reserved for a separately scoped roadmap slice`,
+    );
+    assert.ok(
+      CHECKED_SEAM_FILES.includes(filePath),
+      `${filePath} must remain in the complete checked-seam inventory`,
+    );
+    cleanFilePassPaths.push(filePath);
+  }
+}
+assert.equal(
+  cleanFilePassPaths.length,
+  new Set(cleanFilePassPaths).size,
+  "a checked file may belong to only one bounded clean-file pass",
 );
 
 const discoveredCheckedFiles = [
@@ -472,7 +529,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: ${cleanFilePassInventory.passes.length} bounded clean-file pass recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {

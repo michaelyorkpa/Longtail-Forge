@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.18`.
+Active cursor: `0.33.32.19`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,19 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.18 - Bounded server clean-file rollout
-
-**Model: High Effort** — Mechanical rollout is useful only when its size and ownership are reviewable.
-
-- [ ] From slice 1, select at most 40 already-clean server files from one coherent ownership tier, excluding every file named by another slice.
-- [ ] Treat this slice as repeatable per ownership tier. If another tier still has worthwhile clean coverage, instantiate a separately closable numeric sub-pass such as `0.33.32.18.1` or `0.33.32.18.2` with the same 40-file ceiling rather than expanding one review.
-- [ ] Commit the exact path list before each pass; defer any file with non-trivial fallout rather than turning mechanical coverage into behavior work.
-- [ ] Extend the inventory and run the full fast check plus the changed-area plan for each pass.
-
-Acceptance criteria:
-
-- Each explicit server ownership cluster gains coverage in one bounded session, and additional coherent tiers remain eligible without a percentage target forcing unrelated edits.
 
 ### Version 0.33.32.19 - Browser typecheck program and shared utilities
 

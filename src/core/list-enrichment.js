@@ -1,3 +1,4 @@
+// @ts-check
 function createVisibleRecordBatch(records = [], options = {}) {
   const idField = options.idField || "id";
   const normalizedRecords = Array.isArray(records) ? records : [];
