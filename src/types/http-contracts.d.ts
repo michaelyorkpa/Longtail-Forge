@@ -53,7 +53,7 @@ export interface ApiSession extends AuthenticatedIdentity {
 }
 
 export interface PermissionResource {
-  workspace_id?: string | null;
+  workspace_id: string;
   client_id?: string | null;
   project_id?: string | null;
   operation?: string;

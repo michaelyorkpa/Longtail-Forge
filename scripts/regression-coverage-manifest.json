@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 455,
+    "discoveredScripts": 456,
     "legacyScripts": 309,
     "releaseGateScripts": 70,
     "areaCounts": {
@@ -17,7 +17,7 @@
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 12,
+      "permissions": 13,
       "public-api": 3,
       "release": 35,
       "search": 12,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 208,
+      "focused": 209,
       "integration": 169,
       "release-gate": 70,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 229
+      "static": 230
     }
   },
   "coverageFamilies": [
@@ -3893,6 +3893,23 @@
         "modules",
         "permissions",
         "users"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves permission resources require workspace scope and the Audit/Search route call sites construct that shared checked contract.",
+      "id": "permissions.permission-resource-types",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/permission-resource-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "audit",
+        "contracts",
+        "permissions",
+        "search",
+        "typecheck"
       ],
       "tier": "focused"
     },

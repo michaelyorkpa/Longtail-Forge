@@ -104,6 +104,8 @@ As of 0.33.32.15, `framework.typecheck-seams` raises the complete checked invent
 
 As of 0.33.32.16, `framework.typecheck-seams` raises the complete checked inventory to 75 files and pins Authentication request-session, post-verification user, workspace-bound session, and API-key active/null contracts without checker suppression. Authentication throttle, password hashing, remembered sessions, account recovery, API scopes, Support View sessions, public-demo capability enforcement, and visitor-identity immutability independently prove the credential, enumeration, session, scope, audit, and demo-protection behavior remains unchanged.
 
+As of 0.33.32.17, `framework.typecheck-seams` raises the complete checked inventory to 77 files and pins the permission service plus shared resource constructors to a workspace-required `PermissionResource`. `permissions.permission-resource-types` compiles a valid resource, requires a workspace-less resource to fail, and pins the Audit, Search-result, and Search-index construction call sites. The permission harness, resource-catalog, Audit, Search lifecycle/rebuild/index jobs, and Support View regressions independently prove allowed/denied decisions and surrounding behavior remain unchanged.
+
 As of 0.33.32.2.1, the same typecheck owner pins `readJsonBody()` to `Promise<unknown>`, inventories every checked consumer, requires the Support View route's explicit object narrowing, and raises the monotonic floor to 29 files. `framework.support-view-session-contract` proves JSON `null`, array, string, and number bodies return the existing generic confirmation 400 while a valid object still starts and rotates Support View successfully; the HTTP error and public-demo body regressions retain their independent parser/envelope/admission coverage.
 
 As of 0.33.32.3, `framework.typecheck-seams` also pins the canonical `TimeEntry` string-duration and tri-state billable typedefs, the timezone input/parsed-part/date-edge declarations, and the monotonic 32-file floor. The checked `normalizers-timezones.test.mjs` contract imports those runtime types and proves record coercion, empty-input call-time fallback, explicit offsets, invalid-input fallback, invalid named-timezone failure, DST gap/overlap behavior, and local-date start/end conversion.
@@ -223,13 +225,13 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 455 |
+| Active discovered regressions | 456 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 146 |
+| Convention-path metadata regressions | 147 |
 | Credited retirements | 3 |
 | Active release-gate regressions | 70 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 458 |
+| Global ratchet floor | 459 |
 | Release-gate ratchet floor | 72 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -247,7 +249,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 13 | 0 | 13 |
 | `database` | 45 | 0 | 45 |
-| `permissions` | 12 | 0 | 12 |
+| `permissions` | 13 | 0 | 13 |
 | `jobs` | 7 | 0 | 7 |
 | `public-api` | 3 | 0 | 3 |
 | `release` | 35 | 3 | 38 |
@@ -257,14 +259,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 208 |
+| `focused` | 209 |
 | `integration` | 169 |
 | `release-gate` | 70 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 229 |
+| `static` | 230 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createScopedPermissionResource } from "../core/permission-resource.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { tagsRepository } from "../repositories/tags.repo.js";
@@ -136,12 +137,14 @@ async function canReadSearchResult(session, result, target) {
     return helpService.canReadIndexedArticle(session, result.record_id);
   }
 
-  return permissionsService.can(session, target.requiredReadPermission, {
-    workspace_id: session.workspace_id,
-    client_id: resolvePermissionClientId(result),
-    project_id: resolvePermissionProjectId(result),
-    operation: "read",
-  });
+  return permissionsService.can(
+    session,
+    target.requiredReadPermission,
+    createScopedPermissionResource(session.workspace_id, "read", {
+      clientId: resolvePermissionClientId(result),
+      projectId: resolvePermissionProjectId(result),
+    }),
+  );
 }
 
 function resolvePermissionClientId(result) {

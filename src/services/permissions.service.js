@@ -1,3 +1,5 @@
+// @ts-check
+
 import { createHmac, randomBytes } from "node:crypto";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { permissionsRepository } from "../repositories/permissions.repo.js";
@@ -15,6 +17,10 @@ import {
   normalizeProtectedUserFlag,
   normalizeUsername,
 } from "../utils/normalizers.js";
+
+/** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 
 const ROLE_LIMITS = {
   super_admin: new Set([
@@ -52,6 +58,7 @@ const FAMILY_ROLE_LIMITS = new Set(["workspace_admin", "project_user"]);
 const PERSONAL_ROLE_LIMITS = new Set(["workspace_admin"]);
 const DELEGATED_ASSIGNMENT_REVISION_SECRET = randomBytes(32);
 
+/** @type {Map<string, Set<string>> | null} */
 let rolePermissionsCache = null;
 
 async function listRoleOptions(session) {
@@ -237,6 +244,7 @@ async function replaceUserAssignments(session, userId, payload) {
       ),
       assignments: nextAssignments,
     };
+  const mutationTargetUser = /** @type {NonNullable<typeof mutation.targetUser>} */ (mutation.targetUser);
 
   const { privateFeedsService } = await import("./private-feeds.service.js");
   await privateFeedsService.reconcileCalendarSubscriptions({
@@ -251,13 +259,13 @@ async function replaceUserAssignments(session, userId, payload) {
     changeType: "update",
     recordType: "user_role_assignment",
     recordId: userId,
-    recordLabel: mutation.targetUser.username,
+    recordLabel: mutationTargetUser.username,
     recordUrl: mutation.plan.fullAdministrator ? "user-admin.html" : "",
     previousValue: previousAssignments,
     newValue: nextAssignments,
     metadata: {
       assigned_user_id: userId,
-      assigned_username: mutation.targetUser.username,
+      assigned_username: mutationTargetUser.username,
       assignment_count: nextAssignments.length,
       delegation_mode: mutation.plan.fullAdministrator ? "full" : "scoped",
     },
@@ -400,7 +408,10 @@ function actorHasDelegatedAssignmentAuthority({
   return actorAssignments.some((assignment) => (
     ROLE_LIMITS[assignment.role_id]?.size > 0
     && workspaceTypeAllowsRole(workspace.workspace_type, assignment.role_id)
-    && assignmentAllowsAction(assignment, "roles.assign", { operation: "update" })
+    && assignmentAllowsAction(assignment, "roles.assign", {
+      operation: "update",
+      workspace_id: workspace.workspace_id,
+    })
     && Boolean(freshAssignmentResource(
       assignment,
       clientsById,
@@ -452,7 +463,10 @@ function actorHasFullAssignmentAuthority(actor, actorAssignments, workspaceId) {
       && assignment.scope_type === "workspace"
       && assignment.scope_id === workspaceId
     )
-  ) && assignmentAllowsAction(assignment, "roles.assign", { operation: "update" }));
+  ) && assignmentAllowsAction(assignment, "roles.assign", {
+    operation: "update",
+    workspace_id: workspaceId,
+  }));
 }
 
 function canAssignRoleFromFreshState({
@@ -481,7 +495,10 @@ function canAssignRoleFromFreshState({
       return false;
     }
 
-    if (!assignmentAllowsAction(actorAssignment, "roles.assign", { operation: "update" })) {
+    if (!assignmentAllowsAction(actorAssignment, "roles.assign", {
+      operation: "update",
+      workspace_id: workspace.workspace_id,
+    })) {
       return false;
     }
 
@@ -620,10 +637,18 @@ function decorateDelegatedAssignment(assignment) {
   };
 }
 
-async function can(session, action, resource = {}) {
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} action
+ * @param {PermissionResource} resource
+ */
+async function can(session, action, resource) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
   }
+
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  const evaluatedResource = resource || { workspace_id: workspaceSession.workspace_id };
 
   if (await isInstallationSuperAdmin(session)) {
     return true;
@@ -642,12 +667,17 @@ async function can(session, action, resource = {}) {
     const permissions = permissionsByRole.get(assignment.role_id) || new Set();
 
     return permissions.has(action) &&
-      assignmentMatchesResource(assignment, resource, session) &&
-      assignmentAllowsAction(assignment, action, resource);
+      assignmentMatchesResource(assignment, evaluatedResource, workspaceSession) &&
+      assignmentAllowsAction(assignment, action, evaluatedResource);
   });
 }
 
-async function assertCan(session, action, resource = {}) {
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} action
+ * @param {PermissionResource} resource
+ */
+async function assertCan(session, action, resource) {
   if (await can(session, action, resource)) {
     return;
   }
@@ -656,7 +686,12 @@ async function assertCan(session, action, resource = {}) {
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
-async function assertCanInAnyScope(session, action, resource = {}) {
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} action
+ * @param {PermissionResource} [resource]
+ */
+async function assertCanInAnyScope(session, action, resource) {
   if (await canInAnyScope(session, action, resource)) {
     return;
   }
@@ -665,6 +700,11 @@ async function assertCanInAnyScope(session, action, resource = {}) {
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} action
+ * @param {PermissionResource | undefined} resource
+ */
 async function recordAuthorizationDenied(session, action, resource) {
   const { securityEventsService } = await import("../security/security-events.js");
   await securityEventsService.record({
@@ -684,10 +724,17 @@ async function recordAuthorizationDenied(session, action, resource) {
   });
 }
 
-async function canInAnyScope(session, action, resource = {}) {
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} action
+ * @param {PermissionResource} [resource]
+ */
+async function canInAnyScope(session, action, resource) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
   }
+
+  const evaluatedResource = resource || { workspace_id: session.workspace_id };
 
   if (await isInstallationSuperAdmin(session)) {
     return true;
@@ -704,7 +751,7 @@ async function canInAnyScope(session, action, resource = {}) {
 
   return assignments.some((assignment) => (
     (permissionsByRole.get(assignment.role_id) || new Set()).has(action) &&
-    assignmentAllowsAction(assignment, action, resource)
+    assignmentAllowsAction(assignment, action, evaluatedResource)
   ));
 }
 
@@ -767,7 +814,7 @@ async function createPermissionEvaluator(session, action, { operation = "read" }
       overrides: parseJsonObject(assignment.permission_overrides_json),
     }));
 
-  return (resource = {}) => {
+  return (resource = { workspace_id: session.workspace_id }) => {
     const evaluatedResource = { operation, ...resource };
 
     return preparedAssignments.some(({ assignment, overrides }) => (
@@ -948,7 +995,10 @@ async function hasAssignableRoleScope(session) {
 
   return assignments.some((assignment) => (
     (permissionsByRole.get(assignment.role_id) || new Set()).has("roles.assign") &&
-    assignmentAllowsAction(assignment, "roles.assign", { operation: "update" })
+    assignmentAllowsAction(assignment, "roles.assign", {
+      operation: "update",
+      workspace_id: session.workspace_id,
+    })
   ));
 }
 
@@ -1128,6 +1178,11 @@ function decorateAssignment(assignment) {
   };
 }
 
+/**
+ * @param {*} assignment
+ * @param {PermissionResource} resource
+ * @param {{ workspace_id: string }} session
+ */
 function assignmentMatchesResource(assignment, resource, session) {
   if (assignment.role_id === "super_admin") {
     return true;
@@ -1153,11 +1208,21 @@ function assignmentMatchesResource(assignment, resource, session) {
   return false;
 }
 
-function assignmentAllowsAction(assignment, action, resource = {}) {
+/**
+ * @param {*} assignment
+ * @param {string} action
+ * @param {PermissionResource} resource
+ */
+function assignmentAllowsAction(assignment, action, resource) {
   return overridesAllowAction(parseJsonObject(assignment.permission_overrides_json), action, resource);
 }
 
-function overridesAllowAction(overrides, action, resource = {}) {
+/**
+ * @param {*} overrides
+ * @param {string} action
+ * @param {PermissionResource} resource
+ */
+function overridesAllowAction(overrides, action, resource) {
   const operationAccess = overrides.operationAccess || {};
   const operation = resource.operation || actionToOperation(action);
   const resourceKey = actionToResourceKey(action);
@@ -1248,20 +1313,26 @@ function actionToResourceKey(action) {
   return "";
 }
 
+/** @returns {Promise<Map<string, Set<string>>>} */
 async function readPermissionsByRole() {
   if (rolePermissionsCache) {
     return rolePermissionsCache;
   }
 
   const rows = await permissionsRepository.readRolePermissions();
-  rolePermissionsCache = rows.reduce((permissionsByRole, row) => {
+  /** @type {Map<string, Set<string>>} */
+  const permissionsByRole = new Map();
+  rows.forEach((row) => {
     if (!permissionsByRole.has(row.role_id)) {
       permissionsByRole.set(row.role_id, new Set());
     }
 
-    permissionsByRole.get(row.role_id).add(row.permission_id);
-    return permissionsByRole;
-  }, new Map());
+    const permissionSet = permissionsByRole.get(row.role_id);
+    if (permissionSet) {
+      permissionSet.add(row.permission_id);
+    }
+  });
+  rolePermissionsCache = permissionsByRole;
 
   return rolePermissionsCache;
 }

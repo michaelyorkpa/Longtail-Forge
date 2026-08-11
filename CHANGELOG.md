@@ -1,3 +1,12 @@
+## Version 0.33.32.17 - 2026-08-10
+
+- Made `PermissionResource.workspace_id` required and opted the permission service into checked JavaScript against shared request-session and resource contracts.
+- Added one checked permission-resource constructor boundary and routed only Audit, Search-result, and Search-index permission checks through it without changing their runtime resource fields or response shapes.
+- Preserved role ceilings and scopes, operation overrides, full and delegated assignment behavior, Support View effective-user intersection, module enablement and hidden-resource intent, generic authorization errors, and safe denial events.
+- Raised the checked-seam inventory and floor from 75 to 77 files, added valid and missing-workspace compile proof, and retained green permission, resource-catalog, Audit, Search, Search-index, and Support View regressions.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: HTTP error, operational security, public API, runtime configuration, settings-control, module-contract, Help, database schema/migration, deployment, and user-facing Search behavior are unchanged.
+
 ## Version 0.33.32.16 - 2026-08-10
 
 - Opted the authentication and API-key services into checked JavaScript against shared request-session and active API-key identity contracts.

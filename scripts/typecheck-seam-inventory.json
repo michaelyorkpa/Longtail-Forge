@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 75,
+  "minimumOptedInFiles": 77,
   "checkedFiles": [
     "src/core/events/event-summaries.js",
     "src/core/files/files.contracts.js",
@@ -13,6 +13,7 @@
     "src/core/modules/module-runtime.js",
     "src/core/modules/modules.service.js",
     "src/core/modules/registry.js",
+    "src/core/permission-resource.js",
     "src/core/public-demo-capabilities.js",
     "src/core/public-demo-enforcement.js",
     "src/core/public-demo-identities.js",
@@ -64,6 +65,7 @@
     "src/services/api-keys.service.js",
     "src/services/auth.service.js",
     "src/services/notifications.service.js",
+    "src/services/permissions.service.js",
     "src/services/search.service.js",
     "src/services/tag-propagation-registry.js",
     "src/services/tags.service.js",
