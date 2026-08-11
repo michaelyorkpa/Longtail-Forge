@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.13 - Search reference contract and indexers
+
+Completed on 2026-08-10. The live registered-indexer boundary now has one checked camelCase `SearchReference` consumed by every first-party module and Help indexer, while compatibility aliases remain at queue/service normalization inputs and Search indexing/rebuild behavior is unchanged. The active 0.33.32 work advances to `0.33.32.14` for Work Resume State implementation closure.
+
+**Model: High Effort** - The audit found a concrete casing disagreement at a recovery seam.
+
+- [x] Proved the live Search reference payload casing, aligned `SearchReference`, and opted the six first-party module/Help indexer owners into checked JavaScript.
+- [x] Preserved intentional compatibility at queue/service inputs, raised the checked inventory floor from 61 to 67 files, and retained Search contract, lifecycle, rebuild, and Help indexing regressions.
+
+Acceptance criteria:
+
+- Every first-party indexer consumes one proven shape without losing indexed records.
+
 ## Version 0.33.32.12 - Module registry service fan-out
 
 Completed on 2026-08-10. The framework-facing module registry service now typechecks across manifest, workspace catalog, terminology, event-hook, API-scope, and transaction-client boundaries without changing public catalog behavior, and the active 0.33.32 work advances to `0.33.32.13` for Search reference contract and indexers.

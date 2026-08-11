@@ -1,3 +1,11 @@
+## Version 0.33.32.13 - 2026-08-10
+
+- Aligned the shared `SearchReference` type with the proven camelCase payload delivered to registered indexers while retaining established camelCase/snake_case compatibility at queue and Search service normalization inputs.
+- Opted the framework Help and Tasks, Time Tracking, Clients/Projects, Notes, and Lists indexer owners into checked JavaScript without changing registration, rebuild mode, document content, normalization, stale-row removal, or permission behavior.
+- Raised the checked-seam inventory and floor from 61 to 67 files, added live callback-casing proof, and retained green Search contract, lifecycle, rebuild, and Help indexing regressions.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: module workflow docs and Help content, browser Search behavior, API response payloads, permissions, database schemas, migrations, jobs, deployment, runtime configuration, and security posture are unchanged.
+
 ## Version 0.33.32.12 - 2026-08-10
 
 - Opted the framework-facing module registry service into checked JavaScript with module/workspace shapes derived from `ModuleManifest`, callback-scoped synchronization through `TransactionClient`, and explicit API-scope and executable event-hook catalog projections.

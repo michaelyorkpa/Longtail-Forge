@@ -90,6 +90,14 @@ const REQUIRED_MODULE_MANIFEST_FIELDS = [
   ["version", "string"],
   ["enabledByDefault", "boolean"],
 ];
+const SEARCH_INDEXER_FILES = [
+  "src/core/help/search-indexers.js",
+  "src/modules/client-projects/search-indexers.js",
+  "src/modules/lists/search-indexers.js",
+  "src/modules/notes/search-indexers.js",
+  "src/modules/tasks/search-indexers.js",
+  "src/modules/time-tracking/search-indexers.js",
+];
 const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SessionMode",
   "AuthenticatedIdentity",
@@ -197,6 +205,35 @@ for (const [fieldName, fieldType] of REQUIRED_MODULE_MANIFEST_FIELDS) {
     moduleManifestDeclaration[1],
     new RegExp(`^  ${fieldName}: ${fieldType};$`, "m"),
     `ModuleManifest.${fieldName} must remain required before runtime validation`,
+  );
+}
+const searchReferenceDeclaration = contractSource.match(/export interface SearchReference \{([\s\S]*?)\n\}/);
+assert.ok(searchReferenceDeclaration, "framework-contracts.d.ts must declare SearchReference");
+assert.match(
+  searchReferenceDeclaration[1],
+  /^  workspaceId: string;$/m,
+  "SearchReference must require the live camelCase workspace identifier",
+);
+for (const fieldName of ["moduleId", "recordType", "recordId"]) {
+  assert.match(
+    searchReferenceDeclaration[1],
+    new RegExp(`^  ${fieldName}\\?: string;$`, "m"),
+    `SearchReference.${fieldName} must preserve the optional rebuild-compatible camelCase shape`,
+  );
+}
+assert.doesNotMatch(
+  searchReferenceDeclaration[1],
+  /\b(?:workspace_id|module_id|record_type|record_id)\b/,
+  "first-party indexers must not consume compatibility snake_case reference fields",
+);
+for (const filePath of SEARCH_INDEXER_FILES) {
+  const source = readFileSync(filePath, "utf8");
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain opted in to the checked Search reference seam`);
+  assert.match(source, /@param \{SearchReference\}/, `${filePath} must consume the shared SearchReference contract`);
+  assert.doesNotMatch(
+    source,
+    /function index\w+\(\{[^}]*\b(?:workspace_id|module_id|record_type|record_id)\b/,
+    `${filePath} must consume the canonical camelCase indexer payload`,
   );
 }
 const modulesServiceSource = readFileSync("src/core/modules/modules.service.js", "utf8");
