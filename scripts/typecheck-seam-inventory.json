@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 103,
+  "minimumOptedInFiles": 104,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -104,6 +104,7 @@
     "src/utils/timezones.js",
     "tests/contracts/normalizers-timezones.test.mjs",
     "tests/typecheck/browser-database-boundary.fixture.mjs",
-    "tests/typecheck/database-contracts.fixture.mjs"
+    "tests/typecheck/database-contracts.fixture.mjs",
+    "tests/typecheck/time-tracking-edge-contracts.fixture.mjs"
   ]
 }

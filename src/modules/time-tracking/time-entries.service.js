@@ -18,8 +18,14 @@ import {
   parseTimeTrackingEdgePayload,
 } from "./time-tracking.contracts.js";
 
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
+/** @typedef {import("zod").infer<typeof BrowserTimeEntryCreateSchema>} BrowserTimeEntryCreatePayload */
+/** @typedef {(TimeEntryInput | BrowserTimeEntryCreatePayload) & { tagIds?: unknown[], tag_ids?: unknown[] }} TimeEntryCreateInput */
+
 const MODULE_ID = "time-tracking";
 
+/** @param {unknown} rawEntry @param {WorkspaceRequestSession} session */
 async function create(rawEntry, session) {
   const entry = parseTimeTrackingEdgePayload(BrowserTimeEntryCreateSchema, rawEntry);
   return createFromActiveTimer(entry, session);
@@ -28,6 +34,7 @@ async function create(rawEntry, session) {
 // Active timer finalization constructs this object from an already-validated
 // finalize payload plus the authoritative stored timer. It is intentionally
 // not parsed again as an untrusted browser create payload.
+/** @param {TimeEntryCreateInput} entry @param {WorkspaceRequestSession} session */
 async function createFromActiveTimer(entry, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const [scope, settings] = await Promise.all([
@@ -97,6 +104,7 @@ async function createFromActiveTimer(entry, session) {
   };
 }
 
+/** @param {unknown} rawPayload @param {string} entryId @param {WorkspaceRequestSession} session */
 async function update(rawPayload, entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(BrowserTimeEntryUpdateSchema, rawPayload);

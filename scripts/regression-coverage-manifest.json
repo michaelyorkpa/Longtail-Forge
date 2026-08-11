@@ -4761,7 +4761,7 @@
     },
     {
       "area": "time-tracking",
-      "description": "Proves sourced timer saves and Task Timer finalization preserve non-billable intent and authoritative duration through the public module boundary.",
+      "description": "Proves manual and sourced timer edges preserve non-billable intent across workspace types while Task Timer finalization retains authoritative duration.",
       "id": "time-tracking.sourced-task-timer-bridge",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs",

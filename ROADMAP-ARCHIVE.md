@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.28 - Time Tracking sourced-edge and boolean fidelity
+
+Completed on 2026-08-11. Time Tracking's checked payload parser now preserves each Zod schema's inferred output, sourced timer saves validate at the module boundary, and the active roadmap advances to `0.33.32.29` for billing timezone compatibility and DST-period proof.
+
+**Model: High Effort** - Active timers feed billable time and task-linked work, so unvalidated sourced payloads and false-to-yes coercion are revenue-path risks.
+
+- [x] Made `parseTimeTrackingEdgePayload` generic over its Zod schema and added a negative compile fixture proving manual payloads cannot expose sourced-only metadata.
+- [x] Added the `ActiveTimerSourcedSaveSchema` boundary for sourced timer fields and opaque object metadata; malformed billable values and source metadata now fail through the existing 400 `AppError` envelope before persistence.
+- [x] Made `normalizeTimerPayload` use the canonical boolean/string billable normalizer and removed the redundant sourced override so direct sourced proof exercises that primitive.
+- [x] Deepened the active-timer, time-entry, billing-session, and Task Timer annotations needed by the money path without broad service conversion or a new runtime/build model.
+- [x] Extended contract and isolated SQLite proof across manual and sourced saves, Business boolean false, Personal/Family forced non-billable writes, Task-linked save/finalize, authoritative duration, row removal, and database integrity.
+- [x] Raised the complete checked inventory floor from 103 to 104 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`. No docs change needed: user-facing Help, Task workflow behavior, billing calculations/periods, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Every untrusted timer write is parsed at its real edge and no supported false/nonbillable value can be persisted as billable.
+
 ## Version 0.33.32.27 - Database contract environment and row-shape honesty
 
 Completed on 2026-08-11. Database contracts are now explicitly Node-scoped and unknown-valued at generic row boundaries, and the active roadmap advances to `0.33.32.28` for Time Tracking sourced-edge and boolean fidelity.

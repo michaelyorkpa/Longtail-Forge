@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ActiveTimerFinalizeSchema,
   ActiveTimerSaveSchema,
+  ActiveTimerSourcedSaveSchema,
   ActiveTimerStatusSchema,
   BrowserTimeEntryCreateSchema,
   BrowserTimeEntryUpdateSchema,
@@ -153,6 +154,30 @@ describe("active timer contracts", () => {
 
     expect(running.accumulated_elapsed_seconds).toBe("42");
     expect(paused.last_active_start_time).toBeNull();
+  });
+
+  it("accepts sourced metadata while rejecting invalid sourced values", () => {
+    const parsed = parseTimeTrackingEdgePayload(ActiveTimerSourcedSaveSchema, {
+      billable: false,
+      project_id: "project-1",
+      sourceMetadata: {
+        taskTimerStatusTransition: { movedTaskToInProgress: true },
+      },
+      timer_status: "paused",
+    });
+
+    expect(parsed.billable).toBe(false);
+    expect(parsed.sourceMetadata).toEqual({
+      taskTimerStatusTransition: { movedTaskToInProgress: true },
+    });
+    expect(() => parseTimeTrackingEdgePayload(ActiveTimerSourcedSaveSchema, {
+      billable: "sometimes",
+      project_id: "project-1",
+    })).toThrow("Billable must be a boolean or 'yes'/'no'.");
+    expect(() => parseTimeTrackingEdgePayload(ActiveTimerSourcedSaveSchema, {
+      project_id: "project-1",
+      sourceMetadata: "not-an-object",
+    })).toThrow("Source metadata must be an object.");
   });
 
   it("accepts finalize fields while stripping unrelated timer state", () => {
