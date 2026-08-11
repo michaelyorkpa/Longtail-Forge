@@ -58,7 +58,7 @@ assert.match(
 );
 assert.match(
   clientProjectsBrowser,
-  /withoutUnavailableTopLevelActions[\s\S]*canCreateTopLevelClient\(\)[\s\S]*primaryAction: null/,
+  /withoutUnavailableTopLevelActions[\s\S]*canCreateTopLevelClient\(\)[\s\S]*delete pageHeader\.primaryAction/,
   "A Client Administrator's any-scope grant must not restore the workspace-level Add Client action",
 );
 

@@ -1,8 +1,23 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.24 - Permission-restricted descriptor delivery blocker
+
+Completed on 2026-08-11. Permission-restricted Clients and Projects pages now omit unavailable top-level actions before checked descriptor normalization; the active roadmap advances to `0.33.32.25` for auth/session revocation signature authority.
+
+**Model: High Effort** - A one-field nullability mismatch prevented an entire protected workflow from rendering for restricted users, and the durable fix had to cover delivered module mutations rather than only raw manifests.
+
+- [x] Aligned delivered descriptors with the established optional-action contract by omitting permission-unavailable `pageHeader.primaryAction` keys without restoring the action or weakening malformed-field rejection.
+- [x] Removed the checked projection adapter's double return assertion and narrowed its unknown result through an executable root identity/layout check.
+- [x] Executed the real Clients/Projects descriptor-delivery mutation for unavailable and available top-level actions, normalized both delivered surfaces, preserved declared response envelope keys, and broadened anti-guessing enforcement across the checked adapter, builder, renderer, and page mutation.
+- [x] Corrected the 0.33.32.22 decision/changelog record and added focused permission, desktop/mobile restricted delivery, unchanged super-admin action, and canonical verification proof.
+
+Acceptance criteria:
+
+- Permission-restricted Clients/Projects capability paths render without unavailable primary actions, malformed descriptors still fail at the checked boundary, and super-admin behavior is unchanged.
+
 ## Version 0.33.32.23 - Permission-safe Search route and query boundary
 
-Completed on 2026-08-11. The protected Search route now checks its query, permission-safe request, canonical result, and browser projection seams while preserving Search and permission ownership; the active roadmap advances to `0.33.33`.
+Completed on 2026-08-11. The protected Search route now checks its query, permission-safe request, canonical result, and browser projection seams while preserving Search and permission ownership; the active roadmap advanced to `0.33.32.24` for the permission-restricted descriptor delivery blocker.
 
 **Model: High Effort** - Express query coercion, bounded pagination, cross-module result shaping, and result-by-result authorization meet at this protected recovery boundary.
 

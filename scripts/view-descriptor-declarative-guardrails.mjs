@@ -126,7 +126,14 @@ assert.deepEqual(
   "Every bundled declarative list should declare its real response envelope key",
 );
 assert.match(responseRecordsAdapter, /const COMPATIBILITY_RECORD_KEYS = Object\.freeze/, "Legacy response-key guessing should stay explicit in the checked compatibility adapter");
-assert.doesNotMatch(viewRenderer, /COMPATIBILITY_RECORD_KEYS|extractRecords|Object\.values\(body\)/, "The descriptor renderer should not own response-key guessing");
+for (const [source, owner] of [
+  [surfaceDescriptorAdapter, "checked descriptor adapter"],
+  [viewBuilder, "view builder"],
+  [viewRenderer, "descriptor renderer"],
+  [clientsProjectsJs, "delivered Clients/Projects descriptor mutation"],
+]) {
+  assert.doesNotMatch(source, /COMPATIBILITY_RECORD_KEYS|extractRecords|Object\.values\(body\)/, `${owner} should not own response-key guessing`);
+}
 const strictDeclarativeSurfaceIds = new Set([
   "client-projects.clients",
   "client-projects.projects",
@@ -346,6 +353,26 @@ const clientsSurface = surfaces.find((surface) => surface.id === "client-project
 const projectsSurface = surfaces.find((surface) => surface.id === "client-projects.projects");
 assertClientProjectsStrictDescriptor(clientsSurface, "Clients", ["Add Child Client", "Edit Client"]);
 assertClientProjectsStrictDescriptor(projectsSurface, "Projects", ["Edit Project"]);
+const unavailableActionDelivery = loadUnavailableTopLevelActionDelivery(false);
+const availableActionDelivery = loadUnavailableTopLevelActionDelivery(true);
+for (const [surface, label] of [
+  [clientsSurface, "Clients"],
+  [projectsSurface, "Projects"],
+]) {
+  const delivered = unavailableActionDelivery(surface);
+  assert.notStrictEqual(delivered, surface, `${label} should project a new delivered descriptor when its primary action is unavailable`);
+  assert.equal(Object.hasOwn(delivered.pageHeader, "primaryAction"), false, `${label} should omit its unavailable delivered primary action`);
+  assert.equal(delivered.dataSource.recordsKey, surface.dataSource.recordsKey, `${label} delivery should preserve its declared response envelope key`);
+  assert.doesNotThrow(
+    () => normalizeSurfaceDescriptor(delivered),
+    `${label} delivered descriptor without an unavailable primary action should pass the checked browser projection`,
+  );
+  assert.strictEqual(availableActionDelivery(surface), surface, `${label} should preserve the raw descriptor when its primary action is available`);
+  assert.doesNotThrow(
+    () => normalizeSurfaceDescriptor(availableActionDelivery(surface)),
+    `${label} available-action descriptor should keep passing the checked browser projection`,
+  );
+}
 assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Strict declarative Clients HTML should stay a minimal host");
 assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Strict declarative Projects HTML should stay a minimal host");
 assertNoProtectedAnatomy(clientsHtml, "views/protected/clients.html", /\b(data-client-list|data-client-status-filter|data-client-dialog|data-client-table-select|data-client-project-status)\b/, "Clients");
@@ -395,7 +422,7 @@ assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*cre
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.27\.5[\s\S]*strict enforcement is active/,
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.32\.24[\s\S]*strict enforcement is active/,
   "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
@@ -493,6 +520,18 @@ function functionBlock(source, functionName) {
   assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n\s*(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
+}
+
+function loadUnavailableTopLevelActionDelivery(actionAvailable) {
+  const source = functionBlock(clientsProjectsJs, "withoutUnavailableTopLevelActions");
+  const context = vm.createContext({
+    canCreateAnyProject: () => actionAvailable,
+    canCreateTopLevelClient: () => actionAvailable,
+  });
+  vm.runInContext(`${source}\nthis.deliver = withoutUnavailableTopLevelActions;`, context, {
+    filename: "clients-projects-delivered-descriptor.js",
+  });
+  return context.deliver;
 }
 
 function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog)\b/, surfaceName = "Lists") {

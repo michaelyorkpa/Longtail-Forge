@@ -1,6 +1,6 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.27.5. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned.
+Current as of 0.33.32.24. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path. Client-aware Project descriptor/modal fields are contributed only in Business workspaces; project-only workspace enforcement stays module- and service-owned. Permission-unavailable top-level actions are omitted from the delivered descriptor before checked normalization.
 
 This inventory records the active strict boundary for the Clients and Projects
 page conversion. Later sections identify the deliberately authorized behavior
@@ -62,6 +62,22 @@ record-specific half of the contract:
   the row's server-shaped `can_manage`.
 - Browser hints never authorize a request; the canonical create/update
   services retain their workspace, Client, and Project resource checks.
+
+## 0.33.32.24 Permission-Restricted Descriptor Delivery
+
+The Clients/Projects page adapter owns the final capability-shaped descriptor
+delivery step after `/api/client-projects` is loaded. If top-level Client or
+Project creation is unavailable, it clones the page header and omits the
+optional `primaryAction` key before passing the descriptor to the shared
+renderer. It does not assign `null`, restore the action from coarse any-scope
+permission hints, or move permission authority into the descriptor adapter.
+
+The strict guardrail executes this real mutation for both surfaces and checks
+the resulting descriptor through `LongtailForge.viewSurfaceDescriptor` while
+retaining the declared `dataSource.recordsKey`. It also proves the available
+action path returns the original descriptor. The rendered smoke uses the real
+desktop/mobile pages with a permission-restricted Client/Project capability
+response and separately pins the seeded super-admin primary actions.
 
 ## 0.33.5.18.13.3 Framework-Rendered Read Anatomy
 

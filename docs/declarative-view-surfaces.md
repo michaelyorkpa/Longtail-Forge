@@ -25,6 +25,8 @@ The app-shell still delivers view surfaces as untrusted browser JSON. Before `vi
 
 The shared declarations in `src/types/framework-contracts.d.ts`, the manifest validator, and this browser projection describe the same authoring vocabulary. Open objects remain open only where manifest validation already treats them as module/framework-owned extension content, such as empty-state and detail-header payloads. Existing renderer-backed summary-panel `messageField`/`items` metadata and string-or-object action confirmation copy are now admitted explicitly by the manifest contract rather than existing as browser-only shapes.
 
+As of 0.33.32.24, page-local delivery mutations must preserve that vocabulary too. When a module determines that `pageHeader.primaryAction` is unavailable, it omits the optional key before delivery rather than assigning `null`; the checked projection continues rejecting malformed action values. The declarative guardrail executes the real Clients/Projects delivery mutation for both unavailable and available action paths, normalizes those delivered descriptors, preserves their declared response envelope keys, and keeps response-key compatibility guessing confined to `view-response-records.js`. Restricted desktop/mobile rendering and unchanged super-admin actions are also covered in the rendered smoke suite.
+
 ## Layouts (0.33.5.18.2)
 
 Supported `layout` values: `single-column`, `stacked`, `sidebar-detail`, `slide-out-sidebar`, and `table-page`. The `split-list-detail` layout is **retired** (the `createSplitListDetail` primitive and `.view-split-list-detail` CSS remain only as deprecated compatibility shims).
