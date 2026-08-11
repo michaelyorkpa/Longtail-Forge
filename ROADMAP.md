@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.23`.
+Active cursor: `0.33.33`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -50,19 +50,6 @@ Non-goals:
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-22 introduce checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
 - Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not use slice 18 to absorb `src/routes/private-feeds.routes.js`; its public token-in-URL calendar-feed boundary requires separately scoped Calendar/security-owned work, while slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
-
-### Version 0.33.32.23 - Permission-safe Search route and query boundary
-
-**Model: High Effort** — The protected Search route combines Express query coercion, bounded pagination, result-by-result permission checks, and cross-module browser shaping at one high-value recovery boundary.
-
-- [ ] Opt in `src/routes/search.routes.js` against the settled Search reference and permission-resource contracts; define explicit input and result shapes without moving canonical filtering, visibility, or permission ownership into the route.
-- [ ] Type the Express 5 query boundary so string, repeated, absent, and unsupported nested values normalize deliberately. Reproduce whether any accepted/defaulted `page`, `limit`, cursor, or offset path can become non-finite through `parsePositiveInteger()` or cursor fallback; fix only a confirmed pagination defect.
-- [ ] Preserve per-result workspace and permission pruning before offset accounting, browser shaping, and enrichment. Prove unauthorized or unavailable records neither leak nor distort the visible page contract.
-- [ ] Extend the inventory and run focused Search query/pagination regressions, Search lifecycle/rebuild coverage, and the permission harness.
-
-Acceptance criteria:
-
-- Search query coercion and pagination are finite and bounded, malformed filters retain the generic 400 contract, and every returned result remains permission-safe without changing Search ranking, fallback, or enrichment behavior.
 
 ## Version 0.33.33 - Public Demo Analytics, Privacy, and Interest Capture
 

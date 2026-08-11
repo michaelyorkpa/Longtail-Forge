@@ -1,3 +1,12 @@
+## Version 0.33.32.23 - 2026-08-11
+
+- Checked the protected Search route against explicit permission-safe request, canonical raw-result, browser-result, and active workspace-session contracts, raising the complete checked inventory floor from 99 to 100 files.
+- Normalized absent, scalar, and repeated-string Express query values and rejected unsupported nested query shapes through the existing generic `invalid_search_filters` 400 envelope.
+- Confirmed page/limit arithmetic was already finite and fixed the cursor path that could bypass the route's established 10,000-page offset bound.
+- Proved workspace and declared read-permission pruning happens before visible-offset accounting, browser shaping, tag reads, and Client/Project enrichment, including hidden rows before and between readable pages.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`.
+- No docs change needed: user-facing Search behavior, Help guidance, Search ranking/backend fallback, permission semantics, HTTP error envelopes, database schema/migrations, runtime configuration, deployment, and public API contracts are unchanged.
+
 ## Version 0.33.32.22 - 2026-08-11
 
 - Added a precise shared declarative-view descriptor family plus the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` classic-script adapter for supported layout, header, sidebar, filter, index, table, detail, modal, data-source, action, and region fields.

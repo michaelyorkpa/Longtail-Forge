@@ -14,6 +14,9 @@ import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 
+/** @typedef {import("../types/framework-contracts.js").PermissionSafeSearchRequest} PermissionSafeSearchRequest */
+/** @typedef {import("../types/framework-contracts.js").SearchExecutionResult} SearchExecutionResult */
+
 const SEARCH_SERVICE_VERSION = "0.33.5.6.1";
 
 const SEARCH_CAPABILITIES = Object.freeze({
@@ -306,7 +309,10 @@ async function composePermissionSafeSearchFilters({ session, searchableType, fil
   };
 }
 
-/** @param {{ session?: any, filters?: SearchFilterInput }} [request] */
+/**
+ * @param {{ session?: any, filters?: SearchFilterInput }} [request]
+ * @returns {Promise<PermissionSafeSearchRequest>}
+ */
 async function composePermissionSafeSearchRequest({ session, filters = {} } = {}) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
@@ -510,6 +516,11 @@ async function reindexSearchRecord(recordReference = {}, options = {}) {
   }
 }
 
+/**
+ * @param {PermissionSafeSearchRequest & { limit?: number, offset?: number }} request
+ * @param {{ adapterId?: string, forceFallback?: boolean }} [options]
+ * @returns {Promise<SearchExecutionResult>}
+ */
 async function executeSearch(request, options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);

@@ -774,13 +774,104 @@ export interface SearchReference {
 }
 
 export interface SearchResult {
+  search_index_id: string;
+  workspace_id: string;
+  module_id: string;
   record_type: string;
   record_id: string;
-  module_id?: string;
-  title?: string;
-  snippet?: string;
-  url?: string;
+  title: string | null;
+  summary: string | null;
+  client_id: string | null;
+  project_id: string | null;
+  library_bucket: string | null;
+  note_collection_id: string | null;
+  collection_path: string | null;
+  visibility: string | null;
+  record_status: string | null;
+  source: string | null;
+  record_created_at: string | null;
+  record_updated_at: string | null;
+  indexed_at: string | null;
+  search_score: string | number | null;
+  search_backend: string;
   [key: string]: unknown;
+}
+
+export interface SearchPermissionTarget {
+  moduleId: string;
+  recordType: string;
+  requiredReadPermission: string;
+  sourceLabel: string;
+  [key: string]: unknown;
+}
+
+export interface PermissionSafeSearchRequest {
+  workspaceId: string;
+  targets: SearchPermissionTarget[];
+  [key: string]: unknown;
+}
+
+export interface SearchExecutionResult {
+  backend: string;
+  fallbackMode: string;
+  fts5Supported: boolean;
+  ftsTableReady: boolean;
+  results: SearchResult[];
+}
+
+export interface BrowserSearchResultTarget {
+  url: string;
+  actionId: string;
+  params: Record<string, string>;
+}
+
+export interface BrowserSearchContextRecord {
+  id: string;
+  name: string;
+  status: string;
+  clientId?: string;
+  clientName?: string;
+}
+
+export interface BrowserSearchTag {
+  tagId: string;
+  name: string;
+  slug: string;
+  color: string;
+  status: string;
+}
+
+export interface BrowserSearchResult {
+  searchIndexId: string;
+  workspaceId: string;
+  moduleId: string;
+  recordType: string;
+  recordId: string;
+  title: string;
+  snippet: string;
+  summary: string;
+  clientId: string;
+  projectId: string;
+  libraryBucket: string;
+  noteCollectionId: string;
+  collectionPath: string;
+  visibility: string;
+  status: string;
+  recordStatus: string;
+  sourceLabel: string;
+  source: string;
+  score: number | null;
+  recordCreatedAt: string;
+  recordUpdatedAt: string;
+  updatedAt: string;
+  indexedAt: string;
+  searchBackend: string;
+  context: {
+    client: BrowserSearchContextRecord | null;
+    project: BrowserSearchContextRecord | null;
+  };
+  tags: BrowserSearchTag[];
+  target: BrowserSearchResultTarget;
 }
 
 /** A registered indexer receives a reference and re-reads canonical state. */

@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.23 - Permission-safe Search route and query boundary
+
+Completed on 2026-08-11. The protected Search route now checks its query, permission-safe request, canonical result, and browser projection seams while preserving Search and permission ownership; the active roadmap advances to `0.33.33`.
+
+**Model: High Effort** - Express query coercion, bounded pagination, cross-module result shaping, and result-by-result authorization meet at this protected recovery boundary.
+
+- [x] Opted `src/routes/search.routes.js` into checking against explicit permission-safe request, raw Search result, browser result, and active workspace-session contracts; raised the checked inventory floor from 99 to 100 files.
+- [x] Normalized absent, scalar, and repeated string query values; rejected unsupported nested shapes through the existing generic 400 envelope; confirmed page/limit arithmetic was finite and fixed the real cursor path that could bypass the 10,000-page offset bound.
+- [x] Preserved workspace and declared-read-permission pruning before visible-offset accounting, browser shaping, tag reads, and Client/Project enrichment.
+- [x] Added repeated/nested/cursor query proof plus two-page permission-pruning coverage, and retained the Search API, lifecycle, rebuild, FTS, workflow, full permission, and release guardrails.
+
+Acceptance criteria:
+
+- Search query coercion and pagination are finite and bounded, malformed filters retain the generic 400 contract, and every returned result remains permission-safe without changing Search ranking, fallback, or enrichment behavior.
+
 ## Version 0.33.32.22 - Declarative descriptor-field boundary adapter
 
 Completed on 2026-08-11. Declarative surfaces now cross one checked browser projection before renderer field reads, server and browser descriptor vocabulary is aligned, and the active 0.33.32 work advances to `0.33.32.23` for the permission-safe Search route and query boundary.

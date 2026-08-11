@@ -12,6 +12,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-a
 process.env.SUPER_ADMIN_PASSWORD = "Search-Api-Test-Password-123!";
 
 const { createApp } = await import("../src/core/app.js");
+const { encodeOffsetCursor } = await import("../src/core/bounded-pagination.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 const { searchService } = await import("../src/services/search.service.js");
@@ -129,6 +130,39 @@ try {
     );
   });
 
+  await checkAsync("GET /api/search normalizes repeated scalar query values deliberately", async () => {
+    const response = await api.get("/api/search?text=route-contract&limit=2&limit=3&page=1&page=2", {
+      cookie: fixtures.sessionId,
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.pagination.limit, 2);
+    assert.equal(response.body.pagination.page, 1);
+    assert.equal(response.body.pagination.returned, 2);
+  });
+
+  await checkAsync("GET /api/search rejects unsupported nested query values", async () => {
+    const response = await api.get("/api/search?module%5Bnested%5D=tasks&limit%5Bnested%5D=2", {
+      cookie: fixtures.sessionId,
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "invalid_search_filters");
+    assert.ok(response.body.error.fields.some((field) => field.field === "module"));
+    assert.ok(response.body.error.fields.some((field) => field.field === "limit"));
+  });
+
+  await checkAsync("GET /api/search rejects cursors that bypass the bounded page range", async () => {
+    const cursor = encodeOffsetCursor(1000000);
+    const response = await api.get(`/api/search?cursor=${encodeURIComponent(cursor)}`, {
+      cookie: fixtures.sessionId,
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, "invalid_search_filters");
+    assert.ok(response.body.error.fields.some((field) => field.field === "cursor"));
+  });
+
   await checkAsync("GET /api/search returns structured validation errors", async () => {
     const response = await api.get("/api/search?limit=banana&module=%5Bbad%5D", { cookie: fixtures.sessionId });
 
@@ -143,10 +177,28 @@ try {
     const unscoped = await api.get("/api/search?text=permission-scope", { cookie: fixtures.unscopedSessionId });
 
     assert.equal(scoped.status, 200);
-    assert.deepEqual(scoped.body.results.map((result) => result.recordId), ["search-api-visible-task"]);
+    assert.deepEqual(scoped.body.results.map((result) => result.recordId), [
+      "search-api-visible-task",
+      "search-api-visible-task-2",
+    ]);
     assert.equal(scoped.body.pagination.hasMore, false);
     assert.equal(unscoped.status, 200);
     assert.deepEqual(unscoped.body.results, []);
+  });
+
+  await checkAsync("GET /api/search counts only permission-visible rows toward the requested offset", async () => {
+    const query = "module=tasks&recordType=task&source=permission-paging&limit=1";
+    const firstPage = await api.get(`/api/search?${query}&page=1`, { cookie: fixtures.projectUserSessionId });
+    const secondPage = await api.get(`/api/search?${query}&page=2`, { cookie: fixtures.projectUserSessionId });
+
+    assert.equal(firstPage.status, 200);
+    assert.deepEqual(firstPage.body.results.map((result) => result.recordId), ["search-api-visible-task"]);
+    assert.equal(firstPage.body.pagination.offset, 0);
+    assert.equal(firstPage.body.pagination.hasMore, true);
+    assert.equal(secondPage.status, 200);
+    assert.deepEqual(secondPage.body.results.map((result) => result.recordId), ["search-api-visible-task-2"]);
+    assert.equal(secondPage.body.pagination.offset, 1);
+    assert.equal(secondPage.body.pagination.hasMore, false);
   });
 
   await checkAsync("GET /api/search hides disabled-module records through active search", async () => {
@@ -272,6 +324,7 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(workspace.workspace_id)}, ${sqlText(
     client_id: clientId,
     project_id: projectId,
     search_status: "active",
+    source: "permission-paging",
     indexed_at: "2026-06-08T20:00:00.000Z",
   });
   await indexDocument(taskType, {
@@ -283,6 +336,19 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(workspace.workspace_id)}, ${sqlText(
     client_id: otherClientId,
     project_id: otherProjectId,
     search_status: "active",
+    source: "permission-paging",
+    indexed_at: "2026-06-08T20:01:00.000Z",
+  });
+  await indexDocument(taskType, {
+    workspace_id: workspace.workspace_id,
+    task_id: "search-api-visible-task-2",
+    title: "Permission Scope Visible Task Two",
+    summary: "permission-scope visible second",
+    body: "permission-scope visible second private body",
+    client_id: clientId,
+    project_id: projectId,
+    search_status: "active",
+    source: "permission-paging",
     indexed_at: "2026-06-08T19:59:00.000Z",
   });
 

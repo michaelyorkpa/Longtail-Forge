@@ -27,7 +27,6 @@ const BROWSER_CHECKED_FILES = [
 ];
 const RESERVED_CLEAN_FILE_PATHS = new Set([
   "src/routes/private-feeds.routes.js",
-  "src/routes/search.routes.js",
 ]);
 const EXPECTED_TYPECHECK_INCLUDES = [
   "server.js",
@@ -128,6 +127,10 @@ const CONTRACT_TYPE_EXPORTS = [
   "SearchRecord",
   "SearchReference",
   "SearchResult",
+  "SearchPermissionTarget",
+  "PermissionSafeSearchRequest",
+  "SearchExecutionResult",
+  "BrowserSearchResult",
   "SearchIndexer",
   "InternalEvent",
   "EventSummaryResolverContext",
@@ -443,6 +446,31 @@ for (const filePath of SEARCH_INDEXER_FILES) {
     `${filePath} must consume the canonical camelCase indexer payload`,
   );
 }
+const searchRouteSource = readFileSync("src/routes/search.routes.js", "utf8");
+assert.match(searchRouteSource, /^\/\/ @ts-check\r?\n/, "Search route must remain opted in to the checked permission-safe query seam");
+for (const contractName of [
+  "BrowserSearchResult",
+  "PermissionSafeSearchRequest",
+  "SearchPermissionTarget",
+  "SearchResult",
+  "RequestSession",
+]) {
+  assert.match(
+    searchRouteSource,
+    new RegExp(`@typedef \\{import\\([^\\n]+\\)\\.${contractName}\\} ${contractName}`),
+    `Search route must consume the shared ${contractName} contract`,
+  );
+}
+assert.match(
+  searchRouteSource,
+  /Number\.isSafeInteger\(cursorOffset\)[\s\S]*cursorOffset <= MAX_VISIBLE_OFFSET/,
+  "Search cursor paging must stay safe and bounded",
+);
+assert.match(
+  searchRouteSource,
+  /canReadSearchResult\(session, rawResult, target\)[\s\S]*skippedVisible < requestedOffset[\s\S]*toBrowserSearchResult/,
+  "Search route must prune permissions before visible offset accounting and browser shaping",
+);
 const resumeStateReadChecksSource = readFileSync("src/services/work-resume-state-read-checks.js", "utf8");
 assert.match(
   resumeStateReadChecksSource,
