@@ -199,6 +199,33 @@ for (const [fieldName, fieldType] of REQUIRED_MODULE_MANIFEST_FIELDS) {
     `ModuleManifest.${fieldName} must remain required before runtime validation`,
   );
 }
+const modulesServiceSource = readFileSync("src/core/modules/modules.service.js", "utf8");
+assert.match(
+  modulesServiceSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the framework-facing module registry service must remain in the checked seam inventory",
+);
+assert.match(
+  modulesServiceSource,
+  /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleManifest\} ModuleManifest/,
+  "the registry service must derive module definitions from the shared ModuleManifest contract",
+);
+assert.match(
+  modulesServiceSource,
+  /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.TransactionClient\} TransactionClient/,
+  "registry synchronization helpers must accept the callback-scoped database contract",
+);
+assert.match(
+  modulesServiceSource,
+  /function registeredModuleEventHooks\(\)[\s\S]*?@type \{ModuleEventHook\[\]\}/,
+  "event hook execution must retain its checked private catalog projection",
+);
+const terminologySource = readFileSync("src/core/modules/terminology.js", "utf8");
+assert.match(
+  terminologySource,
+  /@template \{Record<string, any>\} Definition[\s\S]*?@returns \{Definition\}[\s\S]*?function resolveModuleDefinitionTerminology/,
+  "workspace terminology resolution must preserve the checked manifest projection it decorates",
+);
 const httpContractSource = readFileSync("src/types/http-contracts.d.ts", "utf8");
 for (const typeName of HTTP_CONTRACT_TYPE_EXPORTS) {
   assert.match(

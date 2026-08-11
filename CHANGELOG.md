@@ -1,3 +1,11 @@
+## Version 0.33.32.12 - 2026-08-10
+
+- Opted the framework-facing module registry service into checked JavaScript with module/workspace shapes derived from `ModuleManifest`, callback-scoped synchronization through `TransactionClient`, and explicit API-scope and executable event-hook catalog projections.
+- Preserved validated contribution shapes through workspace terminology resolution without changing module data, enablement, dependency/capability/permission filtering, deterministic ordering, workspace cache semantics, response envelopes, or lifecycle execution.
+- Raised the checked-seam inventory and floor from 60 to 61 files and extended its release-gate assertions, with the bundled-module registry and permission-resource catalog regressions retaining behavioral proof.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: module-specific workflow docs and Help, API payloads, permissions, settings behavior, database schemas, migrations, deployment, runtime configuration, and security posture are unchanged.
+
 ## Version 0.33.32.11 - 2026-08-10
 
 - Opted all eight bundled `src/modules/*/module.js` declarations into checked JavaScript and annotated each manifest against the shared `ModuleManifest` contract.
