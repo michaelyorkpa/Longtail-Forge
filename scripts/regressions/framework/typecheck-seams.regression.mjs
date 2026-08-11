@@ -361,6 +361,24 @@ for (const typeName of HTTP_CONTRACT_TYPE_EXPORTS) {
     `http-contracts.d.ts must export ${typeName}`,
   );
 }
+const permissionResourceDeclaration = httpContractSource.match(/export interface PermissionResource \{([\s\S]*?)\n\}/);
+assert.ok(permissionResourceDeclaration, "http-contracts.d.ts must declare PermissionResource");
+assert.match(
+  permissionResourceDeclaration[1],
+  /^  workspace_id: string;$/m,
+  "PermissionResource must require a non-null workspace scope",
+);
+const permissionResourceSource = readFileSync("src/core/permission-resource.js", "utf8");
+const permissionsServiceSource = readFileSync("src/services/permissions.service.js", "utf8");
+for (const [filePath, source] of [
+  ["src/core/permission-resource.js", permissionResourceSource],
+  ["src/services/permissions.service.js", permissionsServiceSource],
+]) {
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain in the checked permission-resource seam`);
+  assert.doesNotMatch(source, /@ts-(?:ignore|nocheck)/, `${filePath} must not suppress permission-resource type failures`);
+}
+assert.match(permissionResourceSource, /@returns \{PermissionResource\}/, "permission-resource constructors must return the shared contract");
+assert.match(permissionsServiceSource, /@param \{PermissionResource\} resource[\s\S]*?async function can/, "permission checks must consume a workspace-scoped resource");
 assert.deepEqual(
   readStringUnion(httpContractSource, "SupportViewGateOutcome"),
   ["allowed", "denied"],

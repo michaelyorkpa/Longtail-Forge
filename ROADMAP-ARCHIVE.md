@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.17 - Permission resources and route call sites
+
+Completed on 2026-08-10. Permission resources now require an explicit workspace scope at the checked boundary, the permission service and shared Audit/Search resource constructors typecheck against that contract, and existing role, override, Support View, module-catalog, Search, audit, and denial behavior remains unchanged. The active 0.33.32 work advances to `0.33.32.18` for the bounded server clean-file rollout.
+
+**Model: High Effort** - Permission scoping is a separate security boundary with a large service.
+
+- [x] Opted `permissions.service.js` into checked JavaScript against the shared `RequestSession` and workspace-required `PermissionResource` contracts.
+- [x] Routed only Audit, Search-result, and Search-index permission-resource construction through a small checked helper, preserving roles, Support View intersection, module enablement, hidden resources, denial events, and response behavior.
+- [x] Raised the checked inventory floor from 75 to 77 files, added valid/missing-workspace compile proof, and retained the permission harness plus focused Audit, Search, Search-index, Support View, and resource-catalog regressions.
+
+Acceptance criteria:
+
+- Missing workspace scope is a compile error and all existing allowed/denied decisions remain green.
+
 ## Version 0.33.32.16 - Authentication and API-key services
 
 Completed on 2026-08-10. Authentication and API-key services now typecheck against the established request-session and active-key identity contracts without changing credential verification, generic errors, throttling, session issuance/rotation, scope filtering, audit payloads, or public-demo protections, and the active 0.33.32 work advances to `0.33.32.17` for Permission resources and route call sites.

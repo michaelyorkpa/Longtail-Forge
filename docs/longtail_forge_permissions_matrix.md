@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-08-05 for version 0.33.30.3
+Updated: 2026-08-10 for version 0.33.32.17
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
@@ -67,6 +67,15 @@ shape record-specific capabilities and services recheck every request. A
 Client Administrator therefore sees Add Child Client only on an administered
 parent and never receives workspace-level Add Client from the coarse
 `clients.manage` hint alone.
+
+The checked internal `PermissionResource` contract always requires the active
+workspace ID. Audit, Search-result, and Search-index route checks construct
+their existing workspace/Client/Project and operation fields through the
+shared framework helper, while module services retain ownership of their
+record-specific resources. This compile-time boundary does not change role
+grants, scoped assignment matching, operation overrides, Support View
+intersection, hidden module-resource overrides, generic denial responses, or
+security-event recording.
 
 ## Role Assignment Rules
 

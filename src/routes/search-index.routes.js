@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createWorkspacePermissionResource } from "../core/permission-resource.js";
 import { permissionsService } from "../services/permissions.service.js";
 import { queueSearchIndexRebuild } from "../services/search-index-jobs.service.js";
 import { asyncRoute, readJsonBody } from "../utils/http.js";
@@ -6,10 +7,11 @@ import { asyncRoute, readJsonBody } from "../utils/http.js";
 const searchIndexRoutes = Router();
 
 searchIndexRoutes.post("/search-index/rebuild", asyncRoute(async (request, response) => {
-  await permissionsService.assertCan(request.session, "workspace_settings.manage", {
-    workspace_id: request.session.workspace_id,
-    operation: "update",
-  });
+  await permissionsService.assertCan(
+    request.session,
+    "workspace_settings.manage",
+    createWorkspacePermissionResource(request.session.workspace_id, "update"),
+  );
 
   const payload = await readJsonBody(request);
   const moduleId = String(payload.moduleId || payload.module_id || "").trim();
