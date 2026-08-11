@@ -429,6 +429,49 @@ export interface ResumeStatePayload {
   metadataJson?: string;
 }
 
+export interface ResumeStateProducerResult extends ResumeStatePayload {
+  action?: string;
+  title?: string;
+}
+
+export interface ResumeStateReadCheck {
+  archived?: boolean;
+  canRead?: boolean;
+  completed?: boolean;
+  deleted?: boolean;
+  finalized?: boolean;
+  readable?: boolean;
+  source_url?: boolean;
+  status?: string;
+  title?: boolean;
+  [key: string]: unknown;
+}
+
+export interface ResumeStateReadResolverContext {
+  moduleId: string;
+  recordId: string;
+  recordType: string;
+  row: DatabaseRow;
+  session: Record<string, any>;
+  userId: string;
+  workspaceId: string;
+}
+
+export interface ResumeStateBatchReadResolverContext {
+  recordIds: string[];
+  rows: DatabaseRow[];
+  session: Record<string, any>;
+  workspaceId: string;
+}
+
+export type ResumeStateReadResolver = (
+  context: ResumeStateReadResolverContext,
+) => ResumeStateReadCheck | boolean | Promise<ResumeStateReadCheck | boolean>;
+
+export type ResumeStateBatchReadResolver = (
+  context: ResumeStateBatchReadResolverContext,
+) => Map<string, ResumeStateReadCheck> | Promise<Map<string, ResumeStateReadCheck>>;
+
 // ---------------------------------------------------------------------------
 // Search seam
 // ---------------------------------------------------------------------------

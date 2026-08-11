@@ -1,3 +1,12 @@
+## Version 0.33.32.14 - 2026-08-10
+
+- Opted the first-party Work Resume State producer and read-resolver assembly into checked JavaScript with shared payload, resolver-context, batch-resolver, and lifecycle-result contracts.
+- Preserved producer registration, module permission pruning, unavailable/deleted/archived/completed/finalized handling, active/history filtering, ranking, and emitted payloads; the only source adjustment is an equivalent explicit false return for a missing Notes lifecycle row.
+- Raised the checked-seam inventory and floor from 67 to 69 files, extended the release-gate assertions, and retained green Resume State initial-producer, producer, service, and conversion regressions.
+- Made the identifier-authority package scan ignore dot-prefixed transient regression workspaces after canonical verification reproduced a concurrent fixture-cleanup race twice; tracked source scanning remains unchanged.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: `docs/database.md` identifier-generation policy, Workbench and module workflow docs, Help content, browser behavior, API response payloads, permissions, database schemas, migrations, jobs, deployment, runtime configuration, and security posture are unchanged.
+
 ## Version 0.33.32.13 - 2026-08-10
 
 - Aligned the shared `SearchReference` type with the proven camelCase payload delivered to registered indexers while retaining established camelCase/snake_case compatibility at queue and Search service normalization inputs.

@@ -1,6 +1,17 @@
+// @ts-check
+/** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolver} ResumeStateBatchReadResolver */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolver} ResumeStateReadResolver */
+
+/** @type {Map<string, ResumeStateReadResolver>} */
 const resolvers = new Map();
+/** @type {Map<string, ResumeStateBatchReadResolver>} */
 const batchResolvers = new Map();
 
+/**
+ * @param {string} moduleId
+ * @param {string} recordType
+ * @param {ResumeStateReadResolver} resolver
+ */
 function registerResumeStateReadResolver(moduleId, recordType, resolver) {
   const key = resolverKey(moduleId, recordType);
 
@@ -20,6 +31,11 @@ function registerResumeStateReadResolver(moduleId, recordType, resolver) {
 // ({ recordIds, rows, session, workspaceId } → Map<recordId, readCheck>), so
 // list scans issue one IN-query per record type instead of one read per row.
 // Modules without a batch resolver fall back to their per-row resolver.
+/**
+ * @param {string} moduleId
+ * @param {string} recordType
+ * @param {ResumeStateBatchReadResolver} batchResolver
+ */
 function registerResumeStateBatchReadResolver(moduleId, recordType, batchResolver) {
   const key = resolverKey(moduleId, recordType);
 
@@ -31,10 +47,12 @@ function registerResumeStateBatchReadResolver(moduleId, recordType, batchResolve
   return key;
 }
 
+/** @param {string} moduleId @param {string} recordType */
 function readResumeStateReadResolver(moduleId, recordType) {
   return resolvers.get(resolverKey(moduleId, recordType)) || null;
 }
 
+/** @param {string} moduleId @param {string} recordType */
 function readResumeStateBatchReadResolver(moduleId, recordType) {
   return batchResolvers.get(resolverKey(moduleId, recordType)) || null;
 }
@@ -48,6 +66,7 @@ function resetResumeStateReadResolvers() {
   batchResolvers.clear();
 }
 
+/** @param {string} moduleId @param {string} recordType */
 function resolverKey(moduleId, recordType) {
   const normalizedModuleId = normalizeKeyPart(moduleId, "module ID");
   const normalizedRecordType = normalizeKeyPart(recordType, "record type");
@@ -55,6 +74,7 @@ function resolverKey(moduleId, recordType) {
   return `${normalizedModuleId}:${normalizedRecordType}`;
 }
 
+/** @param {unknown} value @param {string} label */
 function normalizeKeyPart(value, label) {
   const normalizedValue = String(value || "").trim();
 

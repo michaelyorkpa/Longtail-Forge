@@ -58,6 +58,12 @@ const CONTRACT_TYPE_EXPORTS = [
   "FocusModeDefinition",
   "FocusModeContext",
   "ResumeStatePayload",
+  "ResumeStateProducerResult",
+  "ResumeStateReadCheck",
+  "ResumeStateReadResolverContext",
+  "ResumeStateBatchReadResolverContext",
+  "ResumeStateReadResolver",
+  "ResumeStateBatchReadResolver",
   "SearchRecord",
   "SearchReference",
   "SearchResult",
@@ -236,6 +242,38 @@ for (const filePath of SEARCH_INDEXER_FILES) {
     `${filePath} must consume the canonical camelCase indexer payload`,
   );
 }
+const resumeStateReadChecksSource = readFileSync("src/services/work-resume-state-read-checks.js", "utf8");
+assert.match(
+  resumeStateReadChecksSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the Resume State read-resolver registry must remain in the checked seam inventory",
+);
+assert.match(
+  resumeStateReadChecksSource,
+  /@type \{Map<string, ResumeStateReadResolver>\}/,
+  "per-record Resume State resolvers must retain their shared callback contract",
+);
+assert.match(
+  resumeStateReadChecksSource,
+  /@type \{Map<string, ResumeStateBatchReadResolver>\}/,
+  "batch Resume State resolvers must retain their shared callback contract",
+);
+const resumeStateInitialProducersSource = readFileSync("src/services/work-resume-state-initial-producers.js", "utf8");
+assert.match(
+  resumeStateInitialProducersSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the first-party Resume State producer assembly must remain in the checked seam inventory",
+);
+assert.match(
+  resumeStateInitialProducersSource,
+  /@returns \{ResumeStateProducerResult \| null\}/,
+  "first-party Resume State builders must retain the shared producer payload contract",
+);
+assert.match(
+  resumeStateInitialProducersSource,
+  /@returns \{Promise<Map<string, ResumeStateReadCheck>>\}/,
+  "first-party Resume State batch resolvers must retain the shared read-check contract",
+);
 const modulesServiceSource = readFileSync("src/core/modules/modules.service.js", "utf8");
 assert.match(
   modulesServiceSource,
