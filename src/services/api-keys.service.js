@@ -1,3 +1,4 @@
+// @ts-check
 import { createHash, randomBytes } from "node:crypto";
 import { apiKeysRepository } from "../repositories/api-keys.repo.js";
 import { auditService } from "./audit.service.js";
@@ -8,8 +9,14 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { isPublicDemoVisitorIdentity } from "../core/public-demo-runtime.js";
 
+/** @typedef {import("../types/http-contracts.js").ActiveApiKey} ActiveApiKey */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {ActiveApiKey & { name: string, created_at: string, last_used_at: string | null, revoked_at: string | null }} ApiKeyRecord */
+
 const API_KEY_PREFIX = "ltf_live";
 
+/** @param {WorkspaceRequestSession} session */
 async function list(session) {
   assertPublicDemoCapabilityAllowed("api_keys");
   await permissionsService.assertCan(session, "workspace_settings.manage", {
@@ -23,6 +30,7 @@ async function list(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function create(payload, session) {
   assertPublicDemoCapabilityAllowed("api_keys");
   assertPublicDemoVisitorIdentityMutable(session.user_id);
@@ -44,14 +52,14 @@ async function create(payload, session) {
   }
 
   const rawKey = createRawApiKey();
-  const apiKey = await apiKeysRepository.create({
+  const apiKey = /** @type {ApiKeyRecord} */ (await apiKeysRepository.create({
     workspaceId: session.workspace_id,
     createdByUserId: session.user_id,
     name,
     keyHash: hashApiKey(rawKey),
     keyPrefix: createKeyPrefix(rawKey),
     scopes,
-  });
+  }));
 
   await auditService.record({
     session,
@@ -78,6 +86,7 @@ async function create(payload, session) {
   };
 }
 
+/** @param {string} apiKeyId @param {WorkspaceRequestSession} session */
 async function revoke(apiKeyId, session) {
   assertPublicDemoCapabilityAllowed("api_keys");
   await permissionsService.assertCan(session, "workspace_settings.manage", {
@@ -85,14 +94,18 @@ async function revoke(apiKeyId, session) {
     operation: "update",
   });
 
-  const previousKey = await apiKeysRepository.readById(session.workspace_id, apiKeyId);
+  const previousKey = /** @type {ApiKeyRecord | null} */ (
+    await apiKeysRepository.readById(session.workspace_id, apiKeyId)
+  );
 
   if (!previousKey) {
     throw new AppError("API key was not found.", 404);
   }
   assertPublicDemoVisitorIdentityMutable(previousKey.created_by_user_id);
 
-  const apiKey = await apiKeysRepository.revoke(session.workspace_id, apiKeyId);
+  const apiKey = /** @type {ApiKeyRecord} */ (
+    await apiKeysRepository.revoke(session.workspace_id, apiKeyId)
+  );
   await auditService.record({
     session,
     action: "api_key_revoked",
@@ -116,9 +129,10 @@ async function revoke(apiKeyId, session) {
   };
 }
 
+/** @param {string} rawKey @returns {Promise<ActiveApiKey | null>} */
 async function readActiveKey(rawKey) {
   assertPublicDemoCapabilityAllowed("api_keys");
-  const apiKey = await apiKeysRepository.readByHash(hashApiKey(rawKey));
+  const apiKey = /** @type {ApiKeyRecord | null} */ (await apiKeysRepository.readByHash(hashApiKey(rawKey)));
 
   if (!apiKey || apiKey.status !== "active" || isPublicDemoVisitorIdentity(apiKey.created_by_user_id)) {
     return null;
@@ -127,10 +141,12 @@ async function readActiveKey(rawKey) {
   return apiKey;
 }
 
+/** @param {ActiveApiKey} apiKey @param {string} requiredScope */
 function hasScope(apiKey, requiredScope) {
   return apiKey.scopes.includes(requiredScope);
 }
 
+/** @param {ActiveApiKey} apiKey */
 async function markUsed(apiKey) {
   assertPublicDemoCapabilityAllowed("api_keys");
   assertPublicDemoVisitorIdentityMutable(apiKey.created_by_user_id);
@@ -159,6 +175,7 @@ function hashApiKey(rawKey) {
   return createHash("sha256").update(String(rawKey || "")).digest("hex");
 }
 
+/** @param {ApiKeyRecord} apiKey */
 function toPublicApiKey(apiKey) {
   return {
     api_key_id: apiKey.api_key_id,
