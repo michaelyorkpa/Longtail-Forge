@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 99,
+  "minimumOptedInFiles": 100,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -81,6 +81,7 @@
     "src/repositories/settings.repo.js",
     "src/repositories/users.repo.js",
     "src/repositories/workspaces.repo.js",
+    "src/routes/search.routes.js",
     "src/routes/support-view.routes.js",
     "src/security/sessions.js",
     "src/services/api-keys.service.js",
