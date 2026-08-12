@@ -26,7 +26,7 @@ Confirmed planning baseline:
 
 Branch delivery contract:
 
-- [ ] Open one version-wide `0.33.33` topic branch and umbrella pull request before implementation. Keep it open through 0.33.33.48; internal numbered slices are reviewable checkpoints on that branch, not separately packaged releases.
+- [ ] Open one version-wide `0.33.33` topic branch before implementation and retain it through 0.33.33.48. Publish each internal numbered checkpoint through a focused protected pull request from that branch into `nightly`; checkpoints are reviewable integration units, not separately packaged application releases.
 - [ ] Land ceremony and verification-infrastructure savings first so later checkpoints use the cheaper rules. Each checkpoint still runs one canonical `npm run verify:slice` against its final tree and protected CI still supplies clean-Linux proof.
 - [ ] Use checked JavaScript, JSDoc, runtime Zod schemas, and `.d.ts` contracts. Do not mass-rename existing runtime files to `.ts`, introduce a compile/serve step, change `npm start`, add browser bundling, or convert classic browser delivery to ES modules in this branch.
 - [ ] Finish all three programs under unqualified `strict: true` with `checkJs: true` and `noImplicitAny` enabled inside `0.33.33`. There is no `0.33.34.1` TypeScript overflow; Public Demo Analytics now owns `0.33.34`.
