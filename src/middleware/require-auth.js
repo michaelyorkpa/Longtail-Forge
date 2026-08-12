@@ -10,8 +10,10 @@ import {
 
 /** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/route-contracts.js").RouteNext} RouteNext */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
 
-/** @param {HttpIdentityRequest} request */
+/** @param {HttpIdentityRequest} request @param {RouteResponse} response @param {RouteNext} next */
 async function requireAuth(request, response, next) {
   /** @type {RequestSession | null} */
   let session = null;
@@ -48,7 +50,7 @@ async function requireAuth(request, response, next) {
   next();
 }
 
-/** @param {HttpIdentityRequest} request */
+/** @param {HttpIdentityRequest} request @param {RouteResponse} response @returns {boolean} */
 function enforceAccountExportRecovery(request, response) {
   const pathname = request.path;
   if (request.method === "GET" && (
@@ -78,7 +80,7 @@ function enforceAccountExportRecovery(request, response) {
   return true;
 }
 
-/** @param {HttpIdentityRequest} request */
+/** @param {HttpIdentityRequest} request @param {RouteResponse} response @returns {boolean} */
 function enforceRequiredPasswordChange(request, response) {
   const pathname = request.path;
 
@@ -116,7 +118,7 @@ function enforceRequiredPasswordChange(request, response) {
   return true;
 }
 
-/** @param {HttpIdentityRequest} request */
+/** @param {HttpIdentityRequest} request @param {RouteResponse} response @param {string} pathname */
 async function handleUnauthenticatedRequest(request, response, pathname) {
   if (request.method === "GET" && isLoginAssetPath(pathname)) {
     const result = await staticService.read(request.url);
@@ -151,6 +153,7 @@ async function handleUnauthenticatedRequest(request, response, pathname) {
   });
 }
 
+/** @param {string} pathname @returns {boolean} */
 function isLoginAssetPath(pathname) {
   return (
     pathname === "/" ||

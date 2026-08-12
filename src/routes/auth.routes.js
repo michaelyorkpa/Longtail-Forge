@@ -1,3 +1,5 @@
+// @ts-check
+
 import { Router } from "express";
 import {
   buildCsrfCookie,
@@ -17,6 +19,8 @@ import { asyncRoute, readJsonBody } from "../utils/http.js";
 import { getRequestContext } from "../core/request-context.js";
 import { enforceSupportViewRequest } from "../middleware/support-view-request-gate.js";
 import { AppError } from "../utils/app-error.js";
+
+/** @typedef {import("../types/http-contracts.js").LogoutSession} LogoutSession */
 
 const authRoutes = Router();
 
@@ -73,6 +77,7 @@ authRoutes.post("/logout", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
   request.session = session;
   const currentSessionId = request.sessionRotation?.sessionId || getSessionIdFromRequest(request);
+  /** @type {LogoutSession | null} */
   let logoutSession = session;
   if (session?.support_view) {
     const ended = await supportViewService.endForLogout(session, currentSessionId, {

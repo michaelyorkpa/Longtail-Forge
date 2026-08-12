@@ -65,6 +65,13 @@ export interface PrivateFeedAuthorizationSession extends AuthenticatedIdentity {
 
 export type PermissionSession = RequestSession | PrivateFeedAuthorizationSession;
 
+export interface LogoutSession {
+  ip_address: string | null;
+  user_id: string;
+  username: string;
+  workspace_id: string | null;
+}
+
 export interface ApiSession extends AuthenticatedIdentity {
   workspace_id: string;
   api_key_id: string;

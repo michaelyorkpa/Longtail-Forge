@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { helpService } from "../services/help.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const helpRoutes = Router();
 

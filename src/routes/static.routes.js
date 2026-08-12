@@ -1,10 +1,12 @@
+// @ts-check
+
 import { Router } from "express";
 import {
   isBrowserDocumentRequest,
   sendBrowserError,
 } from "../core/http-error-contract.js";
 import { staticService } from "../services/static.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { authenticatedAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const staticRoutes = Router();
 
@@ -18,7 +20,6 @@ staticRoutes.get("/{*staticPath}", asyncRoute(async (request, response, next) =>
 
   if (result.statusCode >= 400 && isBrowserDocumentRequest(request)) {
     sendBrowserError(request, response, {
-      message: result.message,
       statusCode: result.statusCode,
     });
     return;

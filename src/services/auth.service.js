@@ -266,7 +266,7 @@ async function login(payload, context = {}) {
   };
 }
 
-/** @param {string} sessionId @param {RequestSession | null} [session] */
+/** @param {string} sessionId @param {import("../types/http-contracts.js").LogoutSession | null} [session] */
 async function logout(sessionId, session = null) {
   await deleteSession(sessionId);
 

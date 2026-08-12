@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.38 - Bounded framework route and error-middleware passes
+
+Completed on 2026-08-11. Three exact framework route tiers now check 20 sub-150-line adapters plus the final error middleware against shared structural HTTP contracts, and the active roadmap advances to `0.33.32.38.1` for the Work Resume persistence-result boundary exposed by this pass.
+
+**Model: High Effort** - Thin route adapters are mechanically similar, but collectively expose authentication, validation, response, and error boundaries.
+
+- [x] Recounted 23 unchecked sub-150-line routes; excluded Search's index route and the large module-owned Users adapter, then stopped at Work Resume's non-mechanical nullable result, leaving 20 framework adapters in three exact ownership tiers of 5 public/operational, 7 protected administration, and 8 protected work-surface routes.
+- [x] Added structural request, response, next, and async-handler contracts plus defensive authenticated, active-workspace, and API-key refinements without changing route mounts, middleware order, or service authority.
+- [x] Deepened the checked authentication and API-key middleware response/next boundaries and checked the final error middleware's unknown thrown values, headers-already-sent delegation, request correlation, safe production messages/diagnostics, and API/browser classification.
+- [x] Added the minimum shared object-body guard for existing open-object routes so JSON `null`, arrays, and scalars receive a fixed safe 400 while valid objects still reach service-owned policy unchanged.
+- [x] Created slice `0.33.32.38.1` rather than casting over Work Resume's nullable post-dismiss persistence/result mismatch; Search, private feeds, Files, the large Users adapter, and Work Resume remain outside the generic pass.
+- [x] Raised the checked inventory floor from 111 to 132 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help and module workflows, valid route payloads/responses, permissions, schema/migrations, runtime configuration, deployment, and public API fields are unchanged.
+
+Acceptance criteria:
+
+- Recorded thin-route tiers and final error middleware typecheck without suppression or HTTP behavior drift.
+
 ## Version 0.33.32.37 - Private calendar-feed service and route trust boundary
 
 Completed on 2026-08-11. The complete framework-owned private calendar-feed service and route edge now consumes explicit bearer, scope, provider, repository, permission-session, request, and response contracts, and the active roadmap advances to `0.33.32.38` for bounded framework route and error-middleware passes.
