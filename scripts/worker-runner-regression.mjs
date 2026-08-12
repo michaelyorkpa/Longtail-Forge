@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-worker-runner-"));
@@ -351,8 +353,4 @@ function functionBlock(source, name) {
   assert.notEqual(start, -1, `expected ${name} function`);
   const nextFunction = source.indexOf("\nasync function ", start + 1);
   return source.slice(start, nextFunction === -1 ? undefined : nextFunction);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

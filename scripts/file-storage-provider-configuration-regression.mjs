@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-provider-config-"));
 
@@ -105,10 +107,6 @@ async function assertStaticContracts() {
 
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
-}
-
-async function readText(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
 async function readSeedSession() {

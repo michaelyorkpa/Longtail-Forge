@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -8,14 +11,42 @@ const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const changelog = readText("CHANGELOG.md");
 
-
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
 assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
 assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
 
-const context = createBrowserContext();
+const actionApi = {
+  deleteCalls: [],
+  getCalls: [],
+  postCalls: [],
+  async getJson(url) {
+    this.getCalls.push(url);
+    return { records: [{ id: "alpha", title: "Alpha" }] };
+  },
+  async deleteJson(url) {
+    this.deleteCalls.push(url);
+    return { ok: true };
+  },
+  async postJson(url, body) {
+    this.postCalls.push({ url, body });
+    return { ok: true };
+  },
+};
+const context = createFakeBrowserContext({
+  api: actionApi,
+  confirm(message) {
+    this.confirmMessages.push(message);
+    return true;
+  },
+  iconButton: { iconClass: false, iconOnlyText: true },
+  window: { confirmMessages: [] },
+  workspaceContext: {
+    permissionIds: ["sample.view"],
+    workspaceId: "actions-workspace",
+  },
+});
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
@@ -133,158 +164,6 @@ function descriptor() {
   };
 }
 
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    confirmMessages: [],
-    confirm(message) {
-      this.confirmMessages.push(message);
-      return true;
-    },
-    document,
-    LongtailForge: {
-      workspaceContext: {
-        permissionIds: ["sample.view"],
-        workspaceId: "actions-workspace",
-      },
-      api: {
-        deleteCalls: [],
-        getCalls: [],
-        postCalls: [],
-        async getJson(url) {
-          this.getCalls.push(url);
-          return { records: [{ id: "alpha", title: "Alpha" }] };
-        },
-        async deleteJson(url) {
-          this.deleteCalls.push(url);
-          return { ok: true };
-        },
-        async postJson(url, body) {
-          this.postCalls.push({ url, body });
-          return { ok: true };
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          button.textContent = options.text || options.label || "";
-          return button;
-        },
-      },
-    },
-  };
-  document.body = document.createElement("body");
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.listeners = {};
-  this._textContent = "";
-  this.disabled = false;
-  this.open = false;
-  this.type = "";
-  this.colSpan = 1;
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = (eventName, handler) => {
-    this.listeners[eventName] = handler;
-  };
-
-  this.click = async () => {
-    if (!this.disabled && this.listeners.click) {
-      await this.listeners.click({ currentTarget: this, preventDefault() {} });
-    }
-  };
-
-  this.showModal = () => {
-    this.open = true;
-  };
-
-  this.querySelector = (selector) => findElement(this, selector);
-  this.querySelectorAll = (selector) => findElements(this, selector);
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => this._textContent || this.children.map((child) => child.textContent).join(""),
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
 function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
@@ -293,32 +172,4 @@ function findButtonByText(root, text) {
 
 function hasButtonByText(root, text) {
   return root.querySelectorAll("button").some((candidate) => candidate.textContent === text);
-}
-
-function findElement(root, selector) {
-  return findElements(root, selector)[0] || null;
-}
-
-function findElements(root, selector) {
-  const queue = [...root.children];
-  const matches = [];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

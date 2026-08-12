@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { get } from "node:http";
@@ -191,8 +192,4 @@ function formatViolations(violations) {
   return `Unapproved current-version literals:\n${violations
     .map((violation) => `- ${violation.path}:${violation.line}:${violation.column}`)
     .join("\n")}`;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

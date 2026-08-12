@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("view-shared-capabilities-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
@@ -54,11 +57,11 @@ const badVisibleWhenErrors = validateModuleManifest(createModule({
 assert.match(badVisibleWhenErrors.join("\n"), /visibleWhen\.field is required/, "Row-action visibleWhen must declare a field");
 
 // --- Renderer capability execution via a fake DOM. ---
-const context = createBrowserContext([
+const context = createFakeBrowserContext({ responses: [
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
-]);
+], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
@@ -114,7 +117,7 @@ assert.match(surface.textContent, /Complete/, "Row actions matching visibleWhen 
 assert.doesNotMatch(surface.textContent, /Reopen/, "Row actions failing visibleWhen should not render");
 
 // Region-only detail surfaces should not invent an item collection placeholder.
-const regionOnlyContext = createBrowserContext([]);
+const regionOnlyContext = createFakeBrowserContext({ responses: [], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
@@ -134,7 +137,7 @@ assert.match(regionOnlySurface.textContent, /REGION_ONLY_MOUNT/, "Region-only de
 assert.doesNotMatch(regionOnlySurface.textContent, /Items|No records loaded/, "Region-only detail surfaces should not render the generic item placeholder");
 
 // Missing mount behavior fails visibly without breaking the surface.
-const missingContext = createBrowserContext([{ records: [{ record_id: "r1", name: "Record One" }] }]);
+const missingContext = createFakeBrowserContext({ responses: [{ records: [{ record_id: "r1", name: "Record One" }] }], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, missingContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
@@ -258,168 +261,4 @@ function validSurface() {
       fieldBindings: { id: "record_id", title: "title", depth: "depth", parentId: "parent_id", path: "path", tags: "tags", items: "children" },
     },
   };
-}
-
-function createBrowserContext(responses) {
-  const document = new FakeDocument();
-  const queue = [...responses];
-  const calls = [];
-  const window = {
-    document,
-    LongtailForge: {
-      api: {
-        calls,
-        async getJson(url) {
-          calls.push(url);
-          const next = queue.length > 0 ? queue.shift() : responses[responses.length - 1];
-          if (next instanceof Error) {
-            throw next;
-          }
-          return next;
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.textContent = options.text || options.label || "";
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.checked = false;
-  this.colSpan = 1;
-  this.type = "";
-  this.value = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.replaceChildren = (...children) => {
-    this.children = [];
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-  this.removeAttribute = (name) => this.attributes.delete(name);
-  this.addEventListener = () => {};
-  this.showModal = () => {};
-
-  this.querySelector = (selector) => collectMatches(this, selector)[0] || null;
-  this.querySelectorAll = (selector) => collectMatches(this, selector);
-
-  Object.defineProperty(this, "firstChild", { get: () => this.children[0] || null });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function collectMatches(root, selector) {
-  const matches = [];
-  const queue = [...root.children];
-  while (queue.length > 0) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  const attrMatch = selector.match(/^\[([\w-]+)="([^"]*)"\]$/);
-  if (attrMatch) {
-    return element.getAttribute(attrMatch[1]) === attrMatch[2];
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

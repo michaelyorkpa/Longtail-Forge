@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FILE_LIFECYCLE_EVENTS } from "../src/core/files/file-lifecycle.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("module-file-closeout-regression", { reuseExisting: true });
 const { modulesService } = await import("../src/core/modules/modules.service.js");
@@ -12,10 +14,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const modules = modulesService.listModules();
 let checks = 0;
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
 
 function check(name, assertion) {
   assertion();

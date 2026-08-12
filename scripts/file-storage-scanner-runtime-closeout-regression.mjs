@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const packageJson = JSON.parse(readText("package.json"));
 const roadmap = readText("ROADMAP.md");
@@ -70,7 +71,3 @@ assert.match(envExample, /LONGTAIL_CLAMSCAN_PATH/, ".env.example should document
 assert.doesNotMatch(envExample, /LONGTAIL_CLAMD_SOCKET/, ".env.example should not expose an inactive clamd socket setting");
 
 console.log("File storage/scanner runtime closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

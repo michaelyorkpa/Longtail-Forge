@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-client-scope-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-client-scope.db");
@@ -15,7 +17,6 @@ const { listsService } = await import("../src/modules/lists/lists.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
-
 
 try {
   await initializeDatabase();
@@ -39,7 +40,6 @@ async function assertStaticContract() {
   const notesJs = await readText("public/js/notes.js");
   const notesServiceSource = await readText("src/modules/notes/notes.service.js");
   const pickerContract = await readText("docs/linked-context-picker-contract.md");
-
 
   assert.match(pickerShell, /clientContextSelect/, "Picker shell should expose an optional client-context select");
   assert.match(pickerShell, /setClientContexts/, "Picker shell should expose a client-context update hook");
@@ -320,8 +320,4 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-async function readText(filePath) {
-  return fs.readFile(path.join(process.cwd(), filePath), "utf8");
 }

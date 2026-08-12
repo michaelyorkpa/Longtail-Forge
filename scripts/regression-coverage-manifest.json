@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18316,
+    "activeAssertionCount": 18325,
     "creditedAssertionReduction": 133,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -98,7 +98,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18561,
+    "effectiveAssertionCount": 18570,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -4843,7 +4843,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 36,
+      "assertionCount": 45,
       "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
       "id": "release.validation-single-ownership",
       "legacy": false,

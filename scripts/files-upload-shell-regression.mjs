@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/file-attachments.js");
 const filesScript = readText("public/js/files.js");
@@ -9,7 +11,6 @@ const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 const viewContract = readText("docs/view-building-contract.md");
-
 
 const uploadControls = functionBlock(helper, "uploadControls");
 assert.match(uploadControls, /const view = global\.LongtailForge\?\.view/, "Attachment helper should lazily read the view helper because host pages load it later");
@@ -88,10 +89,6 @@ assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
 
 console.log("Files upload shell regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}(`);

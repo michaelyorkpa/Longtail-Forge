@@ -8,11 +8,12 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const readText = (path) => readFileSync(new URL(path, new URL("../../../", import.meta.url)), "utf8");
 const reportingHtml = readText("views/protected/reporting.html");
 const reportingHost = readText("public/js/reporting.js");
 const timeTrackingRenderer = readText("public/js/time-tracking-reporting.js");

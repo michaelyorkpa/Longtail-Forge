@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const files = {
   appShell: readText("src/services/app-shell.service.js"),
@@ -154,10 +156,6 @@ assert.doesNotMatch(
 );
 
 console.log("UI contract regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function readFunctionBody(source, functionName) {
   const marker = `function ${functionName}`;

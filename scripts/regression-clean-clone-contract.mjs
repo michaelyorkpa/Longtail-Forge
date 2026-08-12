@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { REGRESSION_SCRIPTS } from "./regression-suite.mjs";
@@ -76,8 +77,4 @@ function assertNoForbiddenLocalDocs(filePath, source) {
       `${filePath} should not depend on gitignored local bookkeeping file ${fileName}`,
     );
   }
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const notesCss = readText("public/css/longtail-forge.css");
-
 
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the stacked Files modal browser wiring");
@@ -36,7 +37,3 @@ assert.match(notesJs, /function resetNoteEditorPanels\(\)[\s\S]*closeTagsDialog\
 assert.match(notesCss, /\.notes-files-save-first-warning\s*\{[\s\S]*border:\s*1px solid var\(--color-danger-border\);[\s\S]*background:\s*var\(--color-danger-bg\);[\s\S]*color:\s*var\(--color-danger\);/, "The unsaved-note Files warning should use danger styling");
 
 console.log("Notes Files stacked modal regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

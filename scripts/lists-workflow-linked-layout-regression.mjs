@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
@@ -8,7 +11,6 @@ const listsService = readText("src/modules/lists/lists.service.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-
 
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should report the current app version");
 assert.match(listsModule, /actionStrip:\s*\{[\s\S]*id:\s*"duplicate-list"[\s\S]*behavior:\s*"lists\.workflow\.duplicate"[\s\S]*id:\s*"edit-list"[\s\S]*id:\s*"complete-list"[\s\S]*id:\s*"finalize-list"[\s\S]*id:\s*"reopen-list"[\s\S]*id:\s*"mark-reusable-list"[\s\S]*id:\s*"unmark-reusable-list"[\s\S]*id:\s*"archive-list"[\s\S]*id:\s*"delete-list"[\s\S]*id:\s*"restore-list"/, "Lists descriptor should declare workflow actions and behavior IDs");
@@ -78,14 +80,6 @@ assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Per
 assert.match(changelog, /## Version 0\.33\.5\.16\.11 - /, "Changelog should include the Lists workflow/link descriptor version");
 
 console.log("Lists workflow, linked records, and layout descriptor regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

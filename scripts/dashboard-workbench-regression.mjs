@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("dashboard-workbench-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
@@ -708,10 +710,6 @@ console.log("Dashboard and Workbench regression passed.");
 const { closeDatabase } = await import("../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function scanUnexpectedFrameworkCoupling() {
   const allowedFiles = new Set([

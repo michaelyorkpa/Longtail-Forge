@@ -7,10 +7,12 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import {
   createProjectTextReader,
   extractFunctionBlock,
+  readRuntimeSourceEntries,
   sourceContainsInOrder,
 } from "../../test-support/source-scan.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
@@ -32,6 +34,17 @@ assert.deepEqual(
 assert.equal(ownershipEvidence.schemaVersion, 1);
 assert.equal(ownershipEvidence.consolidation, "validation-single-ownership");
 assert.equal(scanEvidence.measurement, "source-scan-consolidation");
+assert.equal(scanEvidence.checkpoint, "0.33.33.5");
+assert.deepEqual(scanEvidence.migration, {
+  plannedEscapeRegExpBaseline: 81,
+  escapeRegExpDefinitionsAtCheckpointStart: 79,
+  escapeRegExpConsumersMigrated: 78,
+  localProjectReadersMigrated: 242,
+  createBrowserContextDefinitionsMigrated: 11,
+});
+assert.equal(scanEvidence.sharedOwner, "scripts/test-support/source-scan.mjs");
+assert.equal(scanEvidence.fakeDomOwner, "scripts/test-support/fake-dom.mjs");
+assert.equal(scanEvidence.contractOwner, "tests/unit/test-support-harnesses.test.mjs");
 assert.equal(ownershipEvidence.processMeasurements.parameterBindingRegression.removedChildProcesses, 1);
 assert.equal(ownershipEvidence.processMeasurements.licensingRegression.removedChildProcesses, 1);
 assert.ok(
@@ -93,6 +106,27 @@ assert.deepEqual(
   `regressions must execute behavioral owners instead of reading executable test source:\n${executableTestProxyErrors.join("\n")}`,
 );
 
+const testSupportDuplicateErrors = [];
+const scriptSources = readRuntimeSourceEntries({ sourceDir: "scripts" });
+for (const entry of scriptSources) {
+  if (entry.file !== scanEvidence.sharedOwner && /^function escapeRegExp\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local escapeRegExp implementation`);
+  }
+  if (entry.file !== scanEvidence.sharedOwner && /^(?:async\s+)?function (?:readText|readProjectFile)\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local project text reader`);
+  }
+  if (entry.file !== scanEvidence.sharedOwner && /^const readText\s*=.*readFile/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local project text reader`);
+  }
+  if (entry.file !== scanEvidence.fakeDomOwner && /^function (?:createBrowserContext|FakeDocument|FakeElement|FakeClassList)\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local fake-DOM harness`);
+  }
+}
+assert.deepEqual(testSupportDuplicateErrors, [], `shared test-support implementations must remain single-owner:\n${testSupportDuplicateErrors.join("\n")}`);
+assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.sharedOwner && /import\s*\{[^}]*\bcreateProjectTextReader\b[^}]*\}\s*from/.test(entry.source)).length, 246);
+assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.sharedOwner && /import\s*\{[^}]*\bescapeRegExp\b[^}]*\}\s*from/.test(entry.source)).length, 78);
+assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.fakeDomOwner && /import\s*\{[^}]*\bcreateFakeBrowserContext\b[^}]*\}\s*from/.test(entry.source)).length, 11);
+
 const closeoutSource = reader.readText("scripts/lib/closeout-gates.mjs");
 for (const command of [
   "version:guard",
@@ -153,8 +187,4 @@ console.log("Validation single-ownership regression passed.");
 
 function countGreedyPatterns(source) {
   return [...source.matchAll(/\[\\s\\S\]\*|\[\^\]\*/g)].length;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

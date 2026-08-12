@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const styles = readText("public/css/longtail-forge.css");
 const rendererShellRegression = readText("scripts/view-renderer-shell-regression.mjs");
-
 
 const sidebarPanels = sourceSlice(tasksModule, "sidebarPanels: [", "      ],");
 assert.match(sidebarPanels, /id:\s*"tasks-view-selector"[\s\S]*title:\s*"Saved Task Views"[\s\S]*behavior:\s*"tasks\.sidebar\.view-selector"[\s\S]*collapsible:\s*false/, "Tasks descriptor should put a non-collapsible Saved Task Views selector first");
@@ -51,10 +52,6 @@ assert.match(rendererShellRegression, /Backdrop click should close the drawer/, 
 assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared renderer regression should cover slide-out Escape close behavior");
 
 console.log("Tasks filter sidebar anatomy regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

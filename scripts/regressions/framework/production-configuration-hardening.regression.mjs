@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -302,10 +303,6 @@ try {
   assert.equal(isPublicDemoVisitorIdentity("00000000-0000-4000-8000-999999999999"), false);
 } finally {
   await fs.rm(tempRoot, { force: true, recursive: true });
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 console.log("Production configuration hardening regression passed.");

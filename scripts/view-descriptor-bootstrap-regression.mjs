@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { readFileSync } from "node:fs";
+
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-view-descriptor-bootstrap-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-view-descriptor-bootstrap.db");
@@ -20,7 +22,6 @@ const deniedSession = sessionFor(deniedUserId);
 const navigationScript = readText("public/js/navigation.js");
 const appShellServiceSource = readText("src/services/app-shell.service.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-
 
 assert.match(appShellServiceSource, /modulesService\.listActiveViewSurfaces\(session\.workspace_id, session\)/, "App shell should deliver view descriptors through the existing bootstrap path");
 assert.doesNotMatch(appShellServiceSource, /view-surfaces|viewSurfaces\/bootstrap|descriptor\/bootstrap/, "Descriptors should not get a separate bootstrap transport");
@@ -132,8 +133,4 @@ function sessionFor(userId) {
     user_id: userId,
     username: userId,
   };
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

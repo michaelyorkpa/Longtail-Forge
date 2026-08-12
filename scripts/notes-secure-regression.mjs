@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -537,10 +538,6 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     new_value: event.new_value,
     metadata: event.metadata,
   }))), false);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function assertIntegrity() {

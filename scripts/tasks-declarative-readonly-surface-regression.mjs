@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksView = readText("views/protected/tasks.html");
 const tasksScript = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
-
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /viewSurfaces:\s*\[/, "Tasks module should declare viewSurfaces");
@@ -56,11 +57,6 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should inventory Tasks as a strict descriptor surface");
 
 console.log("Tasks declarative read-only surface regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));

@@ -2,13 +2,14 @@
 
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -57,7 +58,6 @@ function assertStaticContracts() {
   const notesHtml = readText("views/protected/notes.html");
   const tasksHtml = readText("views/protected/tasks.html");
   const workbenchHtml = readText("views/protected/workbench.html");
-
 
   assert.match(filesRoutes, /filesRoutes\.post\("\/files\/upload\/batch"/, "Files routes should expose the streamed multipart batch route");
   assert.match(filesRoutes, /MAX_MULTIPART_BATCH_FILES = 50/, "Multipart batch uploads should keep a bounded file count");
@@ -430,10 +430,6 @@ function closeServer(serverInstance) {
       resolve();
     });
   });
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }
 
 function functionBlock(source, functionName) {

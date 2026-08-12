@@ -13,8 +13,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-estimate-minutes-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "task-estimate-minutes.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -280,8 +281,4 @@ LIMIT 1;
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
-}
-
-function readText(filePath) {
-  return fs.readFile(path.join(root, filePath), "utf8");
 }

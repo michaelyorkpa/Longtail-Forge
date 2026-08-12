@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
@@ -76,11 +79,3 @@ assert.match(changelog, /Finalized the cross-module converted modal action stand
 assert.match(changelog, /strict converted-surface guardrails protect the standardized footer\/heading pattern/, "Changelog should summarize the guardrail closeout");
 
 console.log("Modal action standardization contract regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

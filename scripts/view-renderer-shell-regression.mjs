@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -9,7 +12,6 @@ const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js"
 const css = readText("public/css/longtail-forge.css");
 const footerScript = readText("public/js/footer.js");
 const changelog = readText("CHANGELOG.md");
-
 
 assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");
@@ -32,7 +34,7 @@ for (const helperName of [
   assert.match(renderer, new RegExp(`view\\.${helperName}`), `Renderer should use LongtailForge.view.${helperName}`);
 }
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext();
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
@@ -356,227 +358,4 @@ function createDescriptor({ layout, sidebarPanels }) {
       { id: "refresh-samples", label: "Refresh", role: "secondary", behavior: "sample.refresh" },
     ],
   };
-}
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          if (options.text) {
-            button.textContent = options.text;
-          } else {
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.activeElement = null;
-  this.body = new FakeElement("body", this);
-  this.createElement = (tagName) => new FakeElement(tagName, this);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text", this);
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName, ownerDocument) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.ownerDocument = ownerDocument;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.listeners = new Map();
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.colSpan = 1;
-  this.type = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "hidden") {
-      this.hidden = false;
-    }
-  };
-
-  this.addEventListener = (eventName, handler) => {
-    const handlers = this.listeners.get(eventName) || [];
-    handlers.push(handler);
-    this.listeners.set(eventName, handlers);
-  };
-
-  this.dispatchEvent = (event) => {
-    const eventObject = event || {};
-    eventObject.type = eventObject.type || "";
-    eventObject.target = eventObject.target || this;
-    for (const handler of this.listeners.get(eventObject.type) || []) {
-      handler.call(this, eventObject);
-    }
-    return true;
-  };
-
-  this.focus = () => {
-    if (this.ownerDocument) {
-      this.ownerDocument.activeElement = this;
-    }
-  };
-
-  this.querySelector = (selector) => findElement(this, selector);
-  this.querySelectorAll = (selector) => findElements(this, selector);
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.remove = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      this.values.delete(String(name));
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.toggle = (name, force) => {
-    const token = String(name);
-    const shouldAdd = force === undefined ? !this.values.has(token) : Boolean(force);
-    if (shouldAdd) {
-      this.values.add(token);
-    } else {
-      this.values.delete(token);
-    }
-    this.element.attributes.set("class", this.toString());
-    return shouldAdd;
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function findElement(root, selector) {
-  const queue = [...root.children];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      return element;
-    }
-    queue.push(...element.children);
-  }
-  return null;
-}
-
-function findElements(root, selector) {
-  const matches = [];
-  const queue = [...root.children];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  return String(selector).split(",").some((entry) => {
-    const candidate = entry.trim();
-    if (candidate.startsWith(".")) {
-      return element.classList.contains(candidate.slice(1));
-    }
-    if (candidate === "[href]") {
-      return element.getAttribute("href") !== null;
-    }
-    if (candidate.startsWith("[tabindex]")) {
-      return element.getAttribute("tabindex") !== null && element.getAttribute("tabindex") !== "-1";
-    }
-    const tagName = candidate.match(/^[a-z]+/i)?.[0] || candidate;
-    return element.tagName.toLowerCase() === tagName.toLowerCase();
-  });
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

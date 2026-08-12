@@ -8,11 +8,10 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const [serviceSource, browserRouteSource, publicApiSource, publicApiRouteSource, moduleSource, browserSource] = await Promise.all([
   readText("src/modules/client-projects/clients.service.js"),
   readText("src/modules/client-projects/clients.routes.js"),
@@ -96,7 +95,3 @@ assert.match(
 );
 
 console.log("Client child-create scope regression passed.");
-
-function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}

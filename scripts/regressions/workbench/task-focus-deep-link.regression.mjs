@@ -8,11 +8,9 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const workbenchJs = await readText("public/js/workbench.js");
 const tasksDashboardJs = await readText("public/js/tasks-dashboard.js");
@@ -91,10 +89,6 @@ assert.match(
 checks += 4;
 
 console.log(`Workbench task-focus deep-link guardrail passed ${checks} checks.`);
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}
 
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0

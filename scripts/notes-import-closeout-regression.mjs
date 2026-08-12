@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -52,7 +53,3 @@ for (const metadataField of [
 assert.doesNotMatch(importPlanning, /Knowledge Base publishing controls are implemented|import automatically publishes/i);
 
 console.log("Notes import closeout regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

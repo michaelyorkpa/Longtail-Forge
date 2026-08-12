@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -114,7 +116,3 @@ assert.match(
 );
 
 console.log("Tasks recurrence/reminder escape-hatch regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

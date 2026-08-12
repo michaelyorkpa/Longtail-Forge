@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const styles = readText("public/css/longtail-forge.css");
 const notificationsView = readText("views/protected/notifications.html");
@@ -99,7 +101,3 @@ assert.match(
 );
 
 console.log("Surface adoption pass regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

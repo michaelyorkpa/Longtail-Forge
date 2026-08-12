@@ -1,5 +1,9 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const PROJECT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 export function readRuntimeSourceEntries({ root = process.cwd(), sourceDir = "src" } = {}) {
   return listRuntimeSourceFiles({ root, sourceDir }).map((absolutePath) => {
@@ -27,17 +31,22 @@ export function lineNumber(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
-export function createProjectTextReader({ root = process.cwd() } = {}) {
+export function createProjectTextReader({ root = PROJECT_ROOT } = {}) {
   const cache = new Map();
+  const asyncCache = new Map();
   const readText = (relativePath) => {
-    const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
-    if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {
-      throw new Error(`Project source reads require an explicit repository-relative path: ${relativePath}`);
-    }
+    const normalizedPath = normalizeReaderPath(relativePath);
     if (!cache.has(normalizedPath)) {
       cache.set(normalizedPath, readFileSync(path.join(root, normalizedPath), "utf8"));
     }
     return cache.get(normalizedPath);
+  };
+  const readTextAsync = (relativePath) => {
+    const normalizedPath = normalizeReaderPath(relativePath);
+    if (!asyncCache.has(normalizedPath)) {
+      asyncCache.set(normalizedPath, readFile(path.join(root, normalizedPath), "utf8"));
+    }
+    return asyncCache.get(normalizedPath);
   };
   return Object.freeze({
     readJson: (relativePath) => JSON.parse(readText(relativePath)),
@@ -48,6 +57,7 @@ export function createProjectTextReader({ root = process.cwd() } = {}) {
       return readText(relativePath);
     },
     readText,
+    readTextAsync,
   });
 }
 
@@ -238,6 +248,14 @@ function findBalancedClose(source, openIndex) {
   throw new Error("Balanced source block is missing its closing brace.");
 }
 
-function escapeRegExp(value) {
+export function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeReaderPath(relativePath) {
+  const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+  if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {
+    throw new Error(`Project source reads require an explicit repository-relative path: ${relativePath}`);
+  }
+  return normalizedPath;
 }

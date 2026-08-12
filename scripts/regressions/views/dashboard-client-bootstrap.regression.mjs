@@ -8,7 +8,8 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const [
   dashboardEntry,
@@ -112,7 +113,3 @@ assert.match(taskDialogAsset, /views: \["tasks", "workbench"\]/);
 assert.doesNotMatch(taskDialogAsset, /"dashboard"/);
 
 console.log("Dashboard client bootstrap regression passed.");
-
-async function readText(relativePath) {
-  return fs.readFile(new URL(`../../../${relativePath}`, import.meta.url), "utf8");
-}

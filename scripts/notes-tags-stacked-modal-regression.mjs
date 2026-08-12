@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const notesServiceJs = readText("src/modules/notes/notes.service.js");
-
 
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the stacked Tags and Files modal browser wiring");
@@ -31,7 +32,3 @@ assert.match(notesJs, /tagIds: state\.tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/
 assert.match(notesServiceJs, /await tagsService\.replaceAssignments\(session, \{[\s\S]*targetType: "note"[\s\S]*tagIds: payload\.tagIds \|\| payload\.tag_ids \|\| \[\]/, "Notes service should keep tag persistence on create/update payloads");
 
 console.log("Notes Tags stacked modal regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

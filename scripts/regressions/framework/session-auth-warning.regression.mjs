@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
+import { createFakeBrowserContext, createFakeEvent } from "../../test-support/fake-dom.mjs";
 
 const navigationSource = await fs.readFile("public/js/navigation.js", "utf8");
 const stylesheet = await fs.readFile("public/css/longtail-forge.css", "utf8");
@@ -44,7 +45,17 @@ assert.match(
   "The non-top-layer fallback should still stay above existing app overlays.",
 );
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext({ iconButton: false, globals: { URL }, window: { URL } });
+context.responseStatus = 401;
+context.replacedLocations = [];
+context.window.location = {
+  href: "http://longtail.test/tasks.html",
+  origin: "http://longtail.test",
+  replace(path) {
+    context.replacedLocations.push(path);
+  },
+};
+context.window.fetch = async () => ({ status: context.responseStatus });
 const executableSource = [
   'const SESSION_LOGIN_PATH = "/login.html";',
   "let sessionAuthWarningPromise = null;",
@@ -76,13 +87,13 @@ await settleMicrotasks();
 warnings = context.document.body.children.filter((child) => child.dataset.frameworkSessionWarning !== undefined);
 assert.equal(warnings.length, 1, "Simultaneous API 401s should not create duplicate warnings.");
 
-const cancelEvent = createEvent("cancel");
+const cancelEvent = createFakeEvent("cancel");
 warnings[0].dispatchEvent(cancelEvent);
 assert.equal(cancelEvent.defaultPrevented, true, "Escape/cancel should not hide a required sign-in warning.");
 assert.equal(warnings[0].open, true, "The required warning should remain open after cancel.");
 
 const signInButton = warnings[0].children[0].children[2].children[0];
-signInButton.dispatchEvent(createEvent("click"));
+signInButton.dispatchEvent(createFakeEvent("click"));
 await Promise.all([firstRequest, secondRequest]);
 
 assert.deepEqual(context.replacedLocations, ["/login.html"], "The framework recovery action should route to sign in once.");
@@ -134,109 +145,4 @@ function extractFunction(source, name) {
 async function settleMicrotasks() {
   await Promise.resolve();
   await Promise.resolve();
-}
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const context = {
-    document,
-    responseStatus: 401,
-    replacedLocations: [],
-    URL,
-  };
-  context.window = {
-    document,
-    URL,
-    location: {
-      href: "http://longtail.test/tasks.html",
-      origin: "http://longtail.test",
-      replace(path) {
-        context.replacedLocations.push(path);
-      },
-    },
-    async fetch() {
-      return { status: context.responseStatus };
-    },
-  };
-  return context;
-}
-
-function FakeDocument() {
-  this.activeElement = null;
-  this.body = new FakeElement("body", this);
-  this.createElement = (tagName) => new FakeElement(tagName, this);
-}
-
-function FakeElement(tagName, document) {
-  this.tagName = String(tagName).toUpperCase();
-  this.ownerDocument = document;
-  this.children = [];
-  this.dataset = {};
-  this.attributes = new Map();
-  this.listeners = new Map();
-  this.open = false;
-  this.parentNode = null;
-  this.textContent = "";
-
-  this.append = (...children) => children.forEach((child) => this.appendChild(child));
-  this.appendChild = (child) => {
-    child.parentNode = this;
-    this.children.push(child);
-    return child;
-  };
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "open") {
-      this.open = true;
-    }
-  };
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "open") {
-      this.open = false;
-    }
-  };
-  this.addEventListener = (type, listener, options = {}) => {
-    const listeners = this.listeners.get(type) || [];
-    listeners.push({ listener, once: Boolean(options.once) });
-    this.listeners.set(type, listeners);
-  };
-  this.dispatchEvent = (event) => {
-    event.target = this;
-    const listeners = [...(this.listeners.get(event.type) || [])];
-    listeners.forEach((entry) => {
-      entry.listener(event);
-      if (entry.once) {
-        this.listeners.set(event.type, (this.listeners.get(event.type) || []).filter((candidate) => candidate !== entry));
-      }
-    });
-    return !event.defaultPrevented;
-  };
-  this.showModal = () => {
-    this.open = true;
-  };
-  this.close = () => {
-    this.open = false;
-    this.dispatchEvent(createEvent("close"));
-  };
-  this.remove = () => {
-    if (!this.parentNode) {
-      return;
-    }
-    this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
-    this.parentNode = null;
-  };
-  this.focus = () => {
-    document.activeElement = this;
-  };
-}
-
-function createEvent(type) {
-  return {
-    type,
-    defaultPrevented: false,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-  };
 }

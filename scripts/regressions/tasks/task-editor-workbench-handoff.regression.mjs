@@ -11,6 +11,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -99,10 +101,6 @@ assert.doesNotMatch(taskDialogJs, /workbench\.html\?/, "the handoff must build i
 checks += 5;
 
 console.log(`Task editor Workbench handoff guardrail passed ${checks} checks.`);
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}
 
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0

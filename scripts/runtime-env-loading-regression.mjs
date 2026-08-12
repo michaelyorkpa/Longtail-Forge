@@ -4,6 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadRuntimeEnvFile, parseRuntimeEnvText } from "../src/runtime-env.js";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const serverSource = readText("server.js");
@@ -11,7 +13,6 @@ const runtimeEnvSource = readText("src/runtime-env.js");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const roadmap = readText("ROADMAP.md");
 const gitignore = readText(".gitignore");
-
 
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(serverSource, /loadRuntimeEnvFile\(\);[\s\S]*await import\("\.\/src\/core\/app\.js"\)/, "server startup should load .env before importing app/config");
@@ -151,8 +152,4 @@ function listFiles(dir) {
     const entryPath = path.join(dir, entry.name);
     return entry.isDirectory() ? listFiles(entryPath) : [entryPath];
   });
-}
-
-function readText(filePath) {
-  return fs.readFileSync(path.join(root, filePath), "utf8");
 }

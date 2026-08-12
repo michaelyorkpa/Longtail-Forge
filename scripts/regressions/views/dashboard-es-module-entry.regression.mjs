@@ -11,6 +11,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: read } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const dashboardHtml = await read("views/protected/dashboard.html");
@@ -102,7 +104,3 @@ assert.match(workbenchHtml, /js\/navigation\.js[\s\S]*js\/workbench\.js[\s\S]*js
 checks += 2;
 
 console.log(`Dashboard ES-module entry guardrail passed ${checks} checks.`);
-
-async function read(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const viewBuilder = readText("public/js/shared/view-builder.js");
 const styles = readText("public/css/longtail-forge.css");
-
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(viewBuilder, /function createBulkActionToolbar\(options = \{\}\)[\s\S]*className:\s*\["view-bulk-action-toolbar", "surface-main-panel"/, "Framework should own the bulk action toolbar shell helper");
@@ -44,11 +45,6 @@ assert.match(styles, /\.task-bulk-grid \.checkbox-line\s*\{[\s\S]*display:\s*inl
 assert.match(styles, /\.task-bulk-grid \.checkbox-line input\[type="checkbox"\]\s*\{[\s\S]*width:\s*auto;[\s\S]*margin:\s*0;/, "Tasks bulk clear checkboxes should not inherit full-width input styling");
 
 console.log("Tasks bulk toolbar shell regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

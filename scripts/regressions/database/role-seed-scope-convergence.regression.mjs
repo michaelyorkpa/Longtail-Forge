@@ -12,6 +12,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 process.env.LONGTAIL_DATA_DIR = path.join(os.tmpdir(), "ltf-role-seed-scope-convergence");
 process.env.LONGTAIL_DATABASE_FILE = path.join(process.env.LONGTAIL_DATA_DIR, "role-seed-scope-convergence.db");
@@ -479,8 +481,4 @@ function assignmentRow({
 function assertDatabaseHealth(database, label) {
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok", `${label} should pass SQLite integrity_check`);
   assert.deepEqual(database.pragma("foreign_key_check"), [], `${label} should have zero foreign-key violations`);
-}
-
-function readText(filePath) {
-  return fs.readFileSync(filePath, "utf8");
 }

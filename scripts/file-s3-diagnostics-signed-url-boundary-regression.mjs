@@ -7,6 +7,8 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-s3-diagnostics-boundary-"));
 const privateBucket = "private-diagnostics-bucket";
@@ -385,8 +387,4 @@ function closeServer(server) {
 
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
-}
-
-async function readText(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }

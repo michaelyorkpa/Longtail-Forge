@@ -8,12 +8,11 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const fixture = await createDisposableDatabaseFixture("client-project-business-boundary");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../../../src/db/index.js");
 const { clientsService } = await import("../../../src/modules/client-projects/clients.service.js");
@@ -151,8 +150,4 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
 }

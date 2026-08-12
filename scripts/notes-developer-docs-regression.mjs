@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -88,7 +89,3 @@ assert.match(importPlanning, /future OneNote import workflow/i, "Import planning
 assert.doesNotMatch(docs, /Knowledge Base publishing controls are implemented|user-authored Knowledge Base content is stored in Notes/i);
 
 console.log("Notes developer docs regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

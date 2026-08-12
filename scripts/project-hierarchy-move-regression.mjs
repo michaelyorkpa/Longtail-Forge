@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientsProjects = readText("public/js/clients-projects.js");
 const clientProjectsService = readText("src/modules/client-projects/clients.service.js");
@@ -67,7 +69,3 @@ assert.match(
 );
 
 console.log("Project hierarchy move regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

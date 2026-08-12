@@ -1,8 +1,11 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const listsModule = readText("src/modules/lists/module.js");
 const notesModule = readText("src/modules/notes/module.js");
@@ -112,7 +115,6 @@ assert.match(clientsProjectsInventory, /Current as of 0\.33\.32\.24/, "Clients/P
 assert.match(clientsProjectsInventory, /0\.33\.5\.18\.15 Cross-Surface Closeout[\s\S]*Notes-style searchable tag filters with service-side tag text resolution/, "Clients/Projects inventory should preserve the accepted tag-search outcome");
 assert.match(clientsProjectsInventory, /Admin\/Settings, Reporting, Dashboard, Workbench, pagination\/server-side paging, Inspector behavior, drag\/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout/, "Clients/Projects inventory should keep deferred work explicit");
 
-
 console.log("View conversion branch closeout regression passed.");
 
 function strictSurfaceRegex(prefix) {
@@ -134,12 +136,4 @@ function assertHostScripts(path, patterns) {
     assert.ok(match, `${path} should load ${pattern} after prior required scripts`);
     cursor += match.index + match[0].length;
   }
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

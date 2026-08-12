@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -142,8 +143,4 @@ function extractLocalAssets(source) {
       return { pathname: url.pathname, version: url.searchParams.get("v") };
     })
     .filter((asset) => /\.(?:css|js)$/i.test(asset.pathname));
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const version = "0.33.5.15.6";
 const changelog = readText("CHANGELOG.md");
@@ -98,10 +101,6 @@ assert.match(helper, /className:\s*\["view-inline-action-row",\s*"surface-dense-
 
 console.log("View builder converted-surface guardrails passed.");
 
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -115,8 +114,4 @@ function assertNoHardcodedLightBackgrounds(source, label) {
     /(?:background(?:Color)?|background-color)\s*(?::|=)\s*["'`]?#(?:fff|f[0-9a-fA-F]{2}|e[0-9a-fA-F]{2}|d[0-9a-fA-F]{2})\b/i,
     `${label} should not introduce hard-coded light backgrounds`,
   );
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
@@ -49,7 +51,3 @@ assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following,[\s\S]
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should consume the canonical app version");
 
 console.log("Task modal follow-up regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

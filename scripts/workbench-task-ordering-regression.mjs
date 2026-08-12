@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const workbenchScript = readText("public/js/workbench.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
@@ -37,7 +39,3 @@ assert.match(
 );
 
 console.log("Workbench task options regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

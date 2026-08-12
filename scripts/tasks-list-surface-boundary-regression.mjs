@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
@@ -55,11 +57,6 @@ assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell own
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the list-shell cache keys");
 
 console.log("Tasks list surface boundary regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

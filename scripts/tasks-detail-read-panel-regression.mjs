@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
@@ -52,11 +54,6 @@ assert.match(tasksDocs, /0\.33\.5\.18\.10\.3[\s\S]*detail badge row/, "Tasks doc
 assert.match(viewContract, /createDetailBadgeRow/, "View-building contract should document the detail badge row primitive");
 
 console.log("Tasks detail/read panel regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

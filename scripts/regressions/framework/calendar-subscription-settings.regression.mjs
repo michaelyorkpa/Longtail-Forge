@@ -7,13 +7,13 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
+
 const [
   settingsHost,
   calendarSettings,
@@ -144,11 +144,3 @@ assert.match(roadmapArchive, /^## Version 0\.33\.22\.9\.3 - Calendar client meta
 assert.match(changelog, /^## Version 0\.33\.22\.9\.3 - 2026-07-27/m, "the completed refinement should be recorded in the changelog");
 
 console.log("Calendar subscription settings regression passed.");
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, ...relativePath.split("/")), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

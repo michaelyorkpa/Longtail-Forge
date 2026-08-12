@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
@@ -56,11 +57,6 @@ assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\
 assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the updated Clients/Projects adapter for module-triggered actions");
 
 console.log("Clients/Projects bulk toolbar regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function readFunctionBody(source, functionName) {
   const markers = [`function ${functionName}(`, `async function ${functionName}(`];

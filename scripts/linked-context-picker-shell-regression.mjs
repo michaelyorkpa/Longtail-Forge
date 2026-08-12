@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
@@ -9,14 +12,13 @@ const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 
-
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
 assert.match(helper, /function createLinkedContextList/, "view builder should implement the shared Linked Context read-list shell");
 assert.match(helper, /createLinkedContextPicker,/, "view builder should expose the picker shell on LongtailForge.view");
 assert.match(helper, /createLinkedContextList,/, "view builder should expose the read-list shell on LongtailForge.view");
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext();
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
@@ -163,144 +165,12 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Lin
 
 console.log("Linked Context picker shell regression passed.");
 
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          if (options.iconOnly !== false && !options.text) {
-            button.classList.add("icon-button");
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          if (options.text) {
-            button.textContent = options.text;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.selected = false;
-  this.value = "";
-  this.type = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "value") {
-      this.value = String(value);
-    }
-    if (name === "type") {
-      this.type = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = () => {};
-
-  this.querySelector = (selector) => findElement(this, selector);
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.remove = (...names) => {
-    names.filter(Boolean).forEach((name) => this.values.delete(String(name)));
-    this.element.attributes.set("class", this.toString());
-  };
-  this.toString = () => [...this.values].join(" ");
-}
-
 function findByClass(root, className) {
-  return findElement(root, `.${className}`);
+  return root.querySelector(`.${className}`);
 }
 
 function findByDatasetValue(root, name, value) {
   return findDescendants(root).find((element) => element.dataset?.[name] === value) || null;
-}
-
-function findElement(root, selector) {
-  return findDescendants(root).find((element) => matchesSelector(element, selector)) || null;
 }
 
 function findDescendants(root) {
@@ -312,15 +182,4 @@ function findDescendants(root) {
     queue.push(...element.children);
   }
   return results;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

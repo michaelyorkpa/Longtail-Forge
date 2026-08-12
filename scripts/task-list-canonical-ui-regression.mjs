@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
@@ -31,7 +33,3 @@ assert.match(tasksScript, /\["context", "Project \/ Client"\]/, "Tasks sort cont
 assert.match(taskDensityRegression, /task-density-row/, "Dense task row regression should remain active");
 
 console.log("Task list canonical UI regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

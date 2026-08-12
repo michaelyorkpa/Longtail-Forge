@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
@@ -87,11 +89,6 @@ assert.match(viewContract, /createLinkedContextList/, "View-building contract sh
 assert.match(declarativeGuide, /0\.33\.5\.18\.10\.4[\s\S]*createLinkedContextList/, "Declarative guide should document the 10.4 linked-context helper boundary");
 
 console.log("Tasks relationship and linked context regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

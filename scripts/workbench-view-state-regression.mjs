@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
-
 
 assert.match(
   workbenchHtml,
@@ -145,10 +146,6 @@ assert.match(
 );
 
 console.log("Workbench view-state regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const css = readText("public/css/longtail-forge.css");
 const routes = readText("src/routes/workbench.routes.js");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
-
 
 assert.match(
   workbenchHtml,
@@ -127,7 +128,3 @@ assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workben
 assertRoadmapCursorAtLeast("0.33.8", "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice");
 
 console.log("Workbench guided UI regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

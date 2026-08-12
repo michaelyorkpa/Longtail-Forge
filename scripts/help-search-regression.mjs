@@ -1,5 +1,6 @@
 /* global fetch */
 
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -267,8 +268,4 @@ function closeServer(server) {
       resolve();
     });
   });
-}
-
-function escapeRegExp(value = "") {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

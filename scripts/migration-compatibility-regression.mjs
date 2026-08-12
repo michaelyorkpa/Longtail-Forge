@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-migration-compatibility-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-migration-compatibility.db");
@@ -222,8 +223,4 @@ function assertNoLiteralHelperCalls(label, source) {
     .filter((match) => !/function\s+$/.test(source.slice(Math.max(0, match.index - 16), match.index)))
     .map((match) => match[0]);
   assert.deepEqual(helperCalls, [], `${label} should not call literal SQL helpers`);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
@@ -8,7 +10,6 @@ const manifestContract = readText("src/core/modules/manifest-contract.js");
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
-
 
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should report the current app version");
 assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"item_name"[\s\S]*behavior:\s*"lists\.catalog-suggestions"[\s\S]*field:\s*"save_to_catalog"/, "Lists descriptor should declare item entry fields and catalog behavior hook");
@@ -56,7 +57,3 @@ assert.doesNotMatch(stylesheet, /\.lists-item-form\s*\{[\s\S]*grid-template-colu
 assert.match(changelog, /## Version 0\.33\.5\.16\.10 - /, "Changelog should include the Lists item/modal descriptor version");
 
 console.log("Lists items and modals descriptor regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

@@ -12,9 +12,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-timer-task-linking-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-timer-task-linking.db");
 process.env.SUPER_ADMIN_PASSWORD = "Timer-Task-Linking-Test-Password-123!";
@@ -302,10 +303,6 @@ async function auditCount(workspaceId, action, taskId) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
 }
 
 function functionBlock(source, functionName) {

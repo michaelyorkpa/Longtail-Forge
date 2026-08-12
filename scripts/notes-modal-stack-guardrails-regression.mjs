@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext, createFakeEvent } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
-
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should reference the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should reference the shared view renderer modal opener");
@@ -30,7 +32,7 @@ assert.match(viewBuilderJs, /event\.target === dialog && !isTopModal\(dialog\)/,
 assert.match(viewBuilderJs, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\(\)/, "Escape/cancel on non-top dialogs should be guarded");
 assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor modal opening should route through the shared stack helper");
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext({ globals: { WeakMap } });
 vm.runInNewContext(viewBuilderJs, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
@@ -55,11 +57,11 @@ assert.equal(childDialog.dataset.viewModalStackTop, "true", "Child should become
 assert.equal(view.isTopModal(parentDialog), false, "Parent should not be top while child is open");
 assert.equal(view.isTopModal(childDialog), true, "Child should be top while open");
 
-const parentCancel = createEvent("cancel", parentDialog);
+const parentCancel = createFakeEvent("cancel", { target: parentDialog });
 parentDialog.dispatchEvent(parentCancel);
 assert.equal(parentCancel.defaultPrevented, true, "Non-top parent cancel should be prevented");
 
-const childCancel = createEvent("cancel", childDialog);
+const childCancel = createFakeEvent("cancel", { target: childDialog });
 childDialog.dispatchEvent(childCancel);
 assert.equal(childCancel.defaultPrevented, false, "Top child cancel should not be prevented by the stack guard");
 
@@ -75,164 +77,3 @@ assert.equal(parentDialog.open, true, "closeModal without a dialog should not cl
 view.closeModal(parentDialog);
 
 console.log("Notes modal stack guardrails regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          if (options.iconOnly !== false && !options.text) {
-            button.classList.add("icon-button");
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          if (options.text) {
-            button.textContent = options.text;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document, WeakMap };
-}
-
-function FakeDocument() {
-  this.body = new FakeElement("body");
-  this.activeElement = null;
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.eventListeners = new Map();
-  this._textContent = "";
-  this.open = false;
-  this.returnValue = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "open") {
-      this.open = true;
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-  this.hasAttribute = (name) => this.attributes.has(name);
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "open") {
-      this.open = false;
-    }
-  };
-
-  this.addEventListener = (type, listener) => {
-    const listeners = this.eventListeners.get(type) || [];
-    listeners.push(listener);
-    this.eventListeners.set(type, listeners);
-  };
-
-  this.dispatchEvent = (event) => {
-    event.target = event.target || this;
-    for (const listener of this.eventListeners.get(event.type) || []) {
-      listener(event);
-    }
-    return !event.defaultPrevented;
-  };
-
-  this.showModal = () => {
-    this.setAttribute("open", "");
-  };
-
-  this.close = (value = "") => {
-    this.returnValue = String(value);
-    this.removeAttribute("open");
-    this.dispatchEvent(createEvent("close", this));
-  };
-
-  this.focus = () => {};
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => this.values.add(String(name)));
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function createEvent(type, target) {
-  return {
-    defaultPrevented: false,
-    propagationStopped: false,
-    target,
-    type,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-    stopPropagation() {
-      this.propagationStopped = true;
-    },
-  };
-}

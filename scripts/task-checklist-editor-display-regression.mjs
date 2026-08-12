@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const icons = readText("public/js/shared/icons.js");
 const taskDialog = readText("public/js/task-dialog.js");
@@ -106,14 +109,6 @@ assert.match(
 );
 
 console.log("Task checklist editor display regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function assertPatterns(source, patterns, message) {
   for (const pattern of patterns) {

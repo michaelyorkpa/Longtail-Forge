@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-descriptor-host-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-descriptor-host.db");
@@ -22,7 +24,6 @@ const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
-
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should be a minimal descriptor host");
 assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load client/project helpers plus the view builder, renderer, and shared preview before the Files adapter");
@@ -171,8 +172,4 @@ function sessionFor(userId) {
     user_id: userId,
     username: userId,
   };
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
