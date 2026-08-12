@@ -12,17 +12,14 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 
 const paths = Object.freeze({
-  archive: "ROADMAP-ARCHIVE.md",
   artifact: "scripts/build-runtime-artifact.mjs",
   candidate: "scripts/release/public-demo-release-candidate-smoke.mjs",
   candidateLibrary: "scripts/lib/public-demo-baseline-candidate.mjs",
-  changelog: "CHANGELOG.md",
   composeExample: "docs/public-demo-compose.env.example",
   decisions: "DECISIONS.md",
   manualRelease: ".github/workflows/manual-release.yml",
   package: "package.json",
   roleJourney: "scripts/sanitized-demo-role-journey.mjs",
-  roadmap: "ROADMAP.md",
   runbook: "docs/public-demo-operator-runbook.md",
 });
 const source = Object.fromEntries(await Promise.all(
@@ -109,9 +106,4 @@ for (const releaseAsset of [paths.composeExample, paths.runbook]) {
 }
 assert.match(source.candidateLibrary, /PROTECTED_TABLE_PATTERN = \/\(analytics\|feedback\|interest\)\/i/);
 assert.match(source.candidateLibrary, /contains analytics, feedback, or interest-capture persistence/);
-assert.match(source.decisions, /As of 0\.33\.31\.14/);
-assert.doesNotMatch(source.roadmap, /^### Version 0\.33\.31\.14\b/m);
-assert.match(source.archive, /^## Version 0\.33\.31\.14 - Repository release candidate, runbook, and public-demo smoke$/m);
-assert.match(source.changelog, /^## Version 0\.33\.31\.14 - \d{4}-\d{2}-\d{2}$/m);
-
 console.log("Public-demo repository release candidate regression passed.");

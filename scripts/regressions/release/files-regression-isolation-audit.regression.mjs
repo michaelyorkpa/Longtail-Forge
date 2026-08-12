@@ -19,8 +19,6 @@ const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapsh
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
 const staticExecution = readFileSync("scripts/lib/static-regression-execution.mjs", "utf8");
 const scheduler = readFileSync("scripts/test-support/regression-runner-scheduler.mjs", "utf8");
-const roadmap = readFileSync("ROADMAP.md", "utf8");
-const roadmapArchive = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
 const dimensions = [
   "database",
   "fileStorageRoot",
@@ -163,8 +161,6 @@ for (const entry of staticAudit.execution.entries) {
   assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
 }
 assert.equal(staticAudit.execution.entries.filter((entry) => entry.decision === "worker-sequential").length, 1);
-assert.equal(staticAudit.execution.measurements.scripts, REGRESSION_ENTRIES.length);
-assert.equal(staticAudit.execution.measurements.staticScripts, REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static").length);
 assert.equal(staticAudit.execution.measurements.certifiedWorkers, staticAudit.execution.entries.length);
 assert.equal(staticAudit.execution.measurements.fullRuns.length, 3);
 for (const measurement of staticAudit.execution.measurements.fullRuns) {
@@ -194,7 +190,5 @@ assert.match(scheduler, /LTF_ISOLATED_FILES_PARALLELISM/);
 assert.match(runner, /bucket\.name === ISOLATED_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "only isolated database regressions may use the retry scheduler");
 assert.doesNotMatch(runner, /bucket\.name === ISOLATED_FILES_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "Files regressions must not gain retry masking");
 assertRoadmapCursorAtLeast("0.33.20", "the completed branch must advance to the Workbench/API performance branch");
-assert.doesNotMatch(roadmap, /^### Version 0\.33\.19\.5\b/m, "the completed slice must leave the live roadmap");
-assert.match(roadmapArchive, /^## Version 0\.33\.19\.5 - Files regression isolation and scheduling audit$/m);
 
 console.log("Files regression isolation audit passed.");

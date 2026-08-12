@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.8 - Consolidate release, roadmap, and documentation static owners
+
+**Model: High Effort** - Many historical assertions moved at once without erasing a current release contract.
+
+- [x] Folded four pure release/docs source checks into `docs.current-static-contracts` and `release.current-static-contracts`, preserving all 60 moved assertions through the shared source reader and explicit retirement inventory.
+- [x] Removed 45 reviewed true duplicates covering historical headings, changelog dates, completed-plan absence, frozen source-shape counts, and obsolete-file/test-title pins while retaining live cursor, package identity, documentation ownership, workflow, runtime, and executable behavior rules.
+- [x] Generated the checked before/after inventory: 458 to 456 discovered scripts and 36 to 34 release/docs static owners, with shrink-only coverage guardrails and named continuing owners for every retirement.
+- [x] Replaced every active release-gate read of `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` product evidence with current sources or synthetic helper fixtures, and added a standing scan that rejects a reintroduced history reader.
+
 ## Version 0.33.33.7 - Add audit-gated in-process static execution
 
 **Model: High Effort** - Runner changes affected global state, output isolation, failure propagation, and every static owner.

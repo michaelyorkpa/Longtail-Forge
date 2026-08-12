@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.8 - Consolidate release, roadmap, and documentation static owners
-
-**Model: High Effort** - Many historical assertions move at once and must not erase a current release contract.
-
-- [ ] Fold pure release/docs source checks into table-driven current-contract owners on the shared harness.
-- [ ] Remove historical heading, archived SHA, test-title-string, and obsolete-file pins while retaining live cursor, version, documentation-ownership, and workflow rules.
-- [ ] Prove every moved assertion through the generated before/after inventory and reviewed true-duplicate list.
-- [ ] End with no active release gate reading archived roadmap or changelog history as product evidence.
-
 ### 0.33.33.9 - Consolidate framework and view static owners
 
 **Model: High Effort** - Framework/view assertions span shared anatomy, accessibility, security headers, and browser contracts.

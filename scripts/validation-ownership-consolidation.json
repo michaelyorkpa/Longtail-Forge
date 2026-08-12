@@ -424,7 +424,7 @@
         "scripts/regressions/release/closeout-conductor.regression.mjs",
         "scripts/regressions/release/dependency-baseline.regression.mjs",
         "scripts/regressions/release/developer-verification-throughput.regression.mjs",
-        "scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "scripts/regressions/release/current-static-contracts.regression.mjs",
         "scripts/regressions/release/github-release-operations.regression.mjs",
         "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs",
         "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
@@ -439,7 +439,7 @@
     "tsconfigFacts": {
       "assertionCount": 5,
       "sourcePaths": [
-        "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+        "scripts/regressions/framework/typecheck-seams.regression.mjs"
       ],
       "retainedOwner": "scripts/regressions/framework/typecheck-seams.regression.mjs"
     },

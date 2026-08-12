@@ -26,8 +26,6 @@ const [
   runtimeConfiguration,
   internetDeployment,
   decisions,
-  roadmapArchive,
-  changelog,
 ] = await Promise.all([
   fs.readFile(helperPath, "utf8"),
   fs.readFile(pagePath, "utf8"),
@@ -37,8 +35,6 @@ const [
   fs.readFile("docs/runtime-configuration.md", "utf8"),
   fs.readFile("docs/internet-deployment.md", "utf8"),
   fs.readFile("DECISIONS.md", "utf8"),
-  fs.readFile("ROADMAP-ARCHIVE.md", "utf8"),
-  fs.readFile("CHANGELOG.md", "utf8"),
 ]);
 
 assert.match(helper, /^#!\/usr\/bin\/env bash\n/);
@@ -112,18 +108,12 @@ for (const requirement of [
   /not application runtime configuration/i,
 ]) assert.match(runtimeConfiguration, requirement);
 
-for (const document of [previewDeployment, internetDeployment, decisions, changelog]) {
+for (const document of [previewDeployment, internetDeployment, decisions]) {
   assert.match(document, /operator[\s\S]{0,160}`0?664`|`0?664`[\s\S]{0,160}operator/i);
   assert.match(document, /deployment[\s\S]{0,160}`0?644`|`0?644`[\s\S]{0,160}deployment/i);
 }
 
 assertRoadmapCursorAtLeast("0.33.24.9", "maintenance branch closeout");
-assert.match(roadmapArchive, /^## Version 0\.33\.24\.1 - Root-owned maintenance asset and marker helper$/m);
-assert.match(roadmapArchive, /0\.33\.24\.1[\s\S]*root-owned\/operator-group-controlled marker directory/);
-assert.match(roadmapArchive, /0\.33\.24\.1[\s\S]*- \[x\] Added the required release-gate regression/);
-assert.match(changelog, /^## Version 0\.33\.24\.1 - 2026-07-28$/m);
-assert.match(roadmapArchive, /^## Version 0\.33\.24\.8 - Demo canary rollout and recovery exercise$/m);
-assert.match(changelog, /^## Version 0\.33\.24\.8 - 2026-07-30$/m);
 
 if (process.platform !== "win32") {
   await runExecutableBoundary();

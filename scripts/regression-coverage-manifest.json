@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 458,
+    "discoveredScripts": 456,
     "legacyScripts": 307,
-    "releaseGateScripts": 75,
+    "releaseGateScripts": 73,
     "areaCounts": {
       "dashboard": 2,
       "database": 47,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 11,
       "public-api": 3,
-      "release": 34,
+      "release": 32,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 206,
       "integration": 169,
-      "release-gate": 75,
+      "release-gate": 73,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 193,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 231
+      "static": 229
     }
   },
   "coverageFamilies": [
@@ -85,8 +85,8 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18324,
-    "creditedAssertionReduction": 133,
+    "activeAssertionCount": 18264,
+    "creditedAssertionReduction": 193,
     "directOwnerAssertionCount": 72,
     "directOwners": [
       {
@@ -202,22 +202,6 @@
       "verificationPerformed": [
         "npm exec vitest run tests/unit/asset-version.test.mjs",
         "node scripts/regressions/framework/asset-cache-version.regression.mjs",
-        "npm run verify:slice"
-      ]
-    },
-    {
-      "sourceRegression": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
-      "movedInVersion": "0.33.27.7.5",
-      "movementType": "duplicate-contract-to-regression",
-      "assertionCount": 5,
-      "rationale": "The fast-check regression repeated TypeScript compiler scope facts already enforced by the framework typecheck-seams release gate.",
-      "assertionDisposition": "framework.typecheck-seams remains the single regression owner for noEmit, allowJs, selective checkJs, strict compiler settings, and included type contracts; fast-check still owns command ordering and dependency boundaries.",
-      "movedTo": "scripts/regressions/framework/typecheck-seams.regression.mjs",
-      "retainedIntegrationOwner": "scripts/regressions/framework/typecheck-seams.regression.mjs",
-      "sourceInventory": "scripts/validation-ownership-consolidation.json",
-      "verificationPerformed": [
-        "node scripts/regressions/framework/typecheck-seams.regression.mjs",
-        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
         "npm run verify:slice"
       ]
     },
@@ -3014,7 +2998,7 @@
     },
     {
       "area": "database",
-      "assertionCount": 59,
+      "assertionCount": 56,
       "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
       "id": "database.public-demo-baseline-candidate",
       "legacy": false,
@@ -3204,6 +3188,23 @@
     },
     {
       "area": "docs",
+      "assertionCount": 2,
+      "description": "Keeps current marketing status, proof, and preview-invitation boundaries aligned through a table-driven source owner.",
+      "id": "docs.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/docs/current-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "claims",
+        "licensing",
+        "marketing",
+        "preview"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "docs",
       "assertionCount": 83,
       "description": "Proves changed source areas suggest owning documentation while the closeout gate remains explicit and warning-only.",
       "id": "docs.ownership-routing",
@@ -3217,23 +3218,6 @@
         "routing"
       ],
       "tier": "release-gate"
-    },
-    {
-      "area": "docs",
-      "assertionCount": 12,
-      "description": "Keeps marketing status, proof, and preview-invitation boundaries aligned with the shipped baseline.",
-      "id": "docs.marketing-claims-baseline",
-      "legacy": false,
-      "path": "scripts/regressions/docs/marketing-claims-baseline.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "claims",
-        "licensing",
-        "marketing",
-        "preview"
-      ],
-      "tier": "focused"
     },
     {
       "area": "framework",
@@ -3363,7 +3347,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 72,
+      "assertionCount": 69,
       "description": "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
       "id": "framework.calendar-subscription-settings",
       "legacy": false,
@@ -3803,7 +3787,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 50,
+      "assertionCount": 44,
       "description": "Proves the supported direct-Caddy and bounded Nginx/WireGuard/Caddy topologies, operator controls, and executable proxy smokes stay aligned.",
       "id": "framework.reference-internet-deployment",
       "legacy": false,
@@ -4445,6 +4429,25 @@
     },
     {
       "area": "release",
+      "assertionCount": 37,
+      "description": "Proves current release command, Compose deployment, maintenance-curtain, and retired-path contracts through one table-driven source owner.",
+      "id": "release.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/release/current-static-contracts.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "commands",
+        "compose",
+        "deployment",
+        "release",
+        "security",
+        "tooling"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
       "assertionCount": 38,
       "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
       "id": "release.dependency-baseline",
@@ -4457,24 +4460,6 @@
         "markdown",
         "release",
         "tooling"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "release",
-      "assertionCount": 13,
-      "description": "Proves Compose deploy and rollback keep the reviewed maintenance curtain active, retain whole-state recovery evidence, and reopen only after exact immutable verification.",
-      "id": "release.deploy-maintenance-curtain",
-      "legacy": false,
-      "path": "scripts/regressions/release/deploy-maintenance-curtain.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "compose",
-        "deployment",
-        "maintenance",
-        "recovery",
-        "security"
       ],
       "tier": "release-gate"
     },
@@ -4498,23 +4483,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 18,
-      "description": "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
-      "id": "release.fast-check-pipeline",
-      "legacy": false,
-      "path": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "commands",
-        "release",
-        "tooling"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "release",
-      "assertionCount": 100,
+      "assertionCount": 96,
       "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
       "id": "release.files-regression-isolation-audit",
       "legacy": false,
@@ -4599,25 +4568,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 17,
-      "description": "Proves the completed live Compose cutover retired bare-metal production support without weakening the immutable digest deployment and recovery contract.",
-      "id": "release.live-compose-cutover",
-      "legacy": false,
-      "path": "scripts/regressions/release/live-compose-cutover.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "compose",
-        "deployment",
-        "recovery",
-        "retirement",
-        "security"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "release",
-      "assertionCount": 64,
+      "assertionCount": 58,
       "description": "Proves maintenance assets and independent operator/deployment markers install with a least-privilege, host-neutral boundary.",
       "id": "release.maintenance-host-assets",
       "legacy": false,
@@ -4634,8 +4585,8 @@
     },
     {
       "area": "release",
-      "assertionCount": 29,
-      "description": "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, documentation ownership, and historical staging retirement.",
+      "assertionCount": 25,
+      "description": "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, and current documentation ownership.",
       "id": "release.maintenance-release-rehearsal",
       "legacy": false,
       "path": "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs",
@@ -4704,7 +4655,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 60,
+      "assertionCount": 58,
       "description": "Proves the guarded Compose public-demo reset promotes one verified database-and-Files unit under a shared lock and automatically reconstructs prior state after failures or interruption.",
       "id": "release.public-demo-compose-reset",
       "legacy": false,
@@ -4740,7 +4691,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 25,
+      "assertionCount": 21,
       "description": "Proves the redacted exact-demo deployment profile, complete operator runbook, aggregate candidate smoke, and non-demo/interest-capture boundaries.",
       "id": "release.public-demo-release-candidate",
       "legacy": false,
@@ -4758,7 +4709,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 60,
+      "assertionCount": 56,
       "description": "Proves the external UTC hourly public-demo reset trigger, shared-lock behavior, bounded redacted evidence, alert invocation, and safe disable/recovery contract.",
       "id": "release.public-demo-reset-scheduler",
       "legacy": false,
@@ -4892,7 +4843,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 45,
+      "assertionCount": 42,
       "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
       "id": "release.validation-single-ownership",
       "legacy": false,
@@ -7203,13 +7154,13 @@
       "retiredInVersion": "0.33.18.7",
       "retirementType": "assertions-moved",
       "rationale": "The formal streamlining review proved that cached ESLint covers the same 793 JavaScript and module files as the legacy per-file node --check subprocess fan-out, so keeping both syntax parsers in the full release gate duplicated coverage and cost.",
-      "assertionDisposition": "JavaScript and module parsing plus lint failures are owned by the cached ESLint stage in npm run check, which now runs before the stateful regression suite. The retained fast-check pipeline release gate proves the ESLint source roots, fail-fast order, and removal from the frozen legacy snapshot.",
+      "assertionDisposition": "JavaScript and module parsing plus lint failures are owned by the cached ESLint stage in npm run check, which now runs before the stateful regression suite. The current release static-contract gate proves the ESLint source roots, fail-fast order, and removal from the frozen legacy snapshot.",
       "retainedCoverageOwners": [
-        "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+        "scripts/regressions/release/current-static-contracts.regression.mjs"
       ],
       "verificationPerformed": [
         "793-file check-js versus ESLint inventory comparison",
-        "node scripts/regressions/release/fast-check-pipeline.regression.mjs",
+        "node scripts/regressions/release/current-static-contracts.regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
         "npm run lint",
         "npm run verify:slice"
@@ -7219,7 +7170,7 @@
         "sourceAssertionCount": 0,
         "creditedAssertionReduction": 0,
         "ownerPaths": [
-          "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+          "scripts/regressions/release/current-static-contracts.regression.mjs"
         ]
       },
       "id": "legacy.check.js",
@@ -7448,6 +7399,39 @@
       "legacy": true
     },
     {
+      "script": "scripts/regressions/docs/marketing-claims-baseline.regression.mjs",
+      "retiredInVersion": "0.33.33.8",
+      "retirementType": "assertions-moved",
+      "rationale": "The marketing baseline was a pure static source scan that can share one table-driven current documentation contract owner without losing any assertion.",
+      "assertionDisposition": "docs.current-static-contracts retains every marketing claim, proof, invitation, licensing, and stale-copy assertion recorded in scripts/current-static-contract-consolidation.json.",
+      "retainedCoverageOwners": [
+        "docs.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/docs/current-contracts.regression.mjs",
+        "node scripts/regressions/release/current-static-contracts.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 12,
+        "creditedAssertionReduction": 12,
+        "ownerPaths": [
+          "scripts/regressions/docs/current-contracts.regression.mjs"
+        ]
+      },
+      "id": "docs.marketing-claims-baseline",
+      "area": "docs",
+      "tier": "focused",
+      "tags": [
+        "claims",
+        "licensing",
+        "marketing",
+        "preview"
+      ],
+      "legacy": false
+    },
+    {
       "script": "scripts/regressions/docs/short-term-cleanup-closeout.regression.mjs",
       "retiredInVersion": "0.33.33.2",
       "retirementType": "dead-target",
@@ -7591,6 +7575,106 @@
         "permissions",
         "scope",
         "views"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/release/deploy-maintenance-curtain.regression.mjs",
+      "retiredInVersion": "0.33.33.8",
+      "retirementType": "assertions-moved",
+      "rationale": "The maintenance-curtain gate was a pure static source scan of the same Compose release surface now owned by the table-driven current release contract gate.",
+      "assertionDisposition": "release.current-static-contracts retains all 13 maintenance marker, backup, restore, runtime proof, and curtain-order assertions recorded in scripts/current-static-contract-consolidation.json.",
+      "retainedCoverageOwners": [
+        "release.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 13,
+        "ownerPaths": [
+          "scripts/regressions/release/current-static-contracts.regression.mjs"
+        ]
+      },
+      "id": "release.deploy-maintenance-curtain",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "compose",
+        "deployment",
+        "maintenance",
+        "recovery",
+        "security"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/release/fast-check-pipeline.regression.mjs",
+      "retiredInVersion": "0.33.33.8",
+      "retirementType": "assertions-moved",
+      "rationale": "The fast-check pipeline was a pure static source scan that can share one table-driven current release contract owner without losing any assertion.",
+      "assertionDisposition": "release.current-static-contracts retains all 18 remaining command-order, exact Vitest owner, lint-scope, dependency-placement, and retired syntax-gate assertions recorded in scripts/current-static-contract-consolidation.json.",
+      "retainedCoverageOwners": [
+        "release.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 18,
+        "ownerPaths": [
+          "scripts/regressions/release/current-static-contracts.regression.mjs"
+        ]
+      },
+      "id": "release.fast-check-pipeline",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "commands",
+        "release",
+        "tooling"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/release/live-compose-cutover.regression.mjs",
+      "retiredInVersion": "0.33.33.8",
+      "retirementType": "assertions-moved",
+      "rationale": "The cutover gate was a pure static source scan of the same Compose-only release surface now owned by the table-driven current release contract gate.",
+      "assertionDisposition": "release.current-static-contracts retains all 17 workflow, transport, helper, documentation, attribute, and retired-path assertions recorded in scripts/current-static-contract-consolidation.json.",
+      "retainedCoverageOwners": [
+        "release.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 17,
+        "creditedAssertionReduction": 17,
+        "ownerPaths": [
+          "scripts/regressions/release/current-static-contracts.regression.mjs"
+        ]
+      },
+      "id": "release.live-compose-cutover",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "compose",
+        "deployment",
+        "recovery",
+        "retirement",
+        "security"
       ],
       "legacy": false
     },
