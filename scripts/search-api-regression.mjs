@@ -23,7 +23,13 @@ let server;
 try {
   await initializeDatabase();
   const fixtures = await seedSearchFixtures();
-  server = await listen(createApp());
+  const app = createApp();
+  assert.equal(
+    app.get("query parser"),
+    "extended",
+    "the Search scalar/repeated/nested query contract requires the application-owned extended parser",
+  );
+  server = await listen(app);
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const api = createApi(baseUrl);
 

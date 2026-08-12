@@ -619,6 +619,9 @@ function isSupportedQueryValue(value) {
  * @returns {value is Record<string, unknown>}
  */
 function isPlainObject(value) {
+  // Express supplies this value through the application-owned extended query parser:
+  // repeated keys become arrays and bracketed nested shapes become objects. Keep
+  // this guard aligned with src/core/app.js and the Search route regression.
   return Boolean(value)
     && typeof value === "object"
     && !Array.isArray(value)

@@ -1,3 +1,13 @@
+## Version 0.33.32.31 - 2026-08-11
+
+- Made the Search route's plain-object guard explicitly depend on the application-owned Express `extended` parser and pinned that setting beside the live scalar, repeated, nested, and bounded-cursor route contract.
+- Replaced permission-safe Search composer session/declaration `any` boundaries with the shared request-session shape, active-workspace refinement, validated Search contribution contract, and named filter-presence flags.
+- Gave `normalizeSearchRecordReference` an explicit required camelCase result contract while preserving the established snake_case adapter and result-envelope aliases.
+- Added checked and runtime proof for parser provenance, canonical record identity, compatibility aliases, ranking, active-module filtering, workspace isolation, and permission pruning.
+- Preserved Search query responses, indexing behavior, database schema, public API behavior, and module-owned indexers.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`.
+- No docs change needed: user-facing Help, HTTP error envelopes, operational security procedures, public API behavior, database schema/migrations, deployment, and module-owned Search behavior are unchanged.
+
 ## Version 0.33.32.30 - 2026-08-11
 
 - Reproduced the shared API client silently installing a degraded fallback when `error-contract.js` was unavailable, erasing safe error code and request-ID identity.
