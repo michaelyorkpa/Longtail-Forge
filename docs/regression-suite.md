@@ -277,14 +277,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 464 |
-| Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 155 |
-| Credited retirements | 3 |
-| Active release-gate regressions | 76 |
-| Required release-gate IDs | 47 |
-| Global ratchet floor | 467 |
-| Release-gate ratchet floor | 78 |
+| Active discovered regressions | 461 |
+| Legacy-snapshot regressions | 308 |
+| Convention-path metadata regressions | 153 |
+| Credited retirements | 7 |
+| Active release-gate regressions | 75 |
+| Required release-gate IDs | 48 |
+| Global ratchet floor | 468 |
+| Release-gate ratchet floor | 79 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -304,21 +304,21 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `permissions` | 13 | 0 | 13 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 36 | 3 | 39 |
-| `docs` | 10 | 0 | 10 |
+| `release` | 34 | 6 | 40 |
+| `docs` | 9 | 1 | 10 |
 | `licensing` | 1 | 0 | 1 |
 
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 211 |
+| `focused` | 209 |
 | `integration` | 169 |
-| `release-gate` | 76 |
+| `release-gate` | 75 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 238 |
+| `static` | 235 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
@@ -326,7 +326,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `closeout-regressions` | 17 | 0 | 17 |
+| `closeout-regressions` | 13 | 4 | 17 |
 <!-- GENERATED REGRESSION INVENTORY END -->
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
