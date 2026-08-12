@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.3 - Reform coverage floors around behavior and assertion ownership
-
-**Model: High Effort** - The ratchet is a release authority; changing its unit can silently weaken coverage if implemented incorrectly.
-
-- [ ] Replace the legacy exact-equality file count with a shrink-only ceiling and make consolidation credit depend on generated assertion inventories plus named behavior owners.
-- [ ] Permit a pure-contract source regression to retire only when its Vitest owner exists, `check:fast` runs it earlier, and integration coverage remains named where needed.
-- [ ] Keep global, area, release-gate, protected-family, and required-ID protection without requiring dead entry-point IDs to remain active forever.
-- [ ] Add synthetic positive/negative proof for assertion loss, stale inventories, floor decreases, malformed retirements, and protected-owner removal.
-
 ### 0.33.33.4 - Register the permission harness and retire text proxies
 
 **Model: High Effort** - The strongest authorization proof must enter discovery without duplicating its expensive run or changing isolation.
