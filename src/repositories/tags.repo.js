@@ -1,5 +1,12 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {DatabaseRow & { tag_id: string, workspace_id: string, name: string, slug: string, description: string | null, color: string | null, status: string, usage_count?: unknown, direct_usage_count?: unknown, propagated_usage_count?: unknown, system_usage_count?: unknown, created_by_user_id: string | null, created_at: string, updated_at: string }} TagRow */
+/** @typedef {DatabaseRow & { tag_assignment_id: string, workspace_id: string, tag_id: string, target_type: string, target_id: string, created_by_user_id: string | null, source: string, source_assignment_id: string | null, source_target_type: string | null, source_target_id: string | null, propagation_rule_id: string | null, created_at: string, name: string, slug: string, description: string | null, color: string | null, status: string }} TagAssignmentRow */
+/** @typedef {DatabaseRow & { tag_assignment_suppression_id: string, workspace_id: string, tag_id: string, target_type: string, target_id: string, source_target_type: string, source_target_id: string, propagation_rule_id: string | null, suppressed_by_user_id: string | null, created_at: string }} TagSuppressionRow */
 
 const ASSIGNMENT_SOURCES = new Set(["manual", "propagated", "system"]);
 
@@ -581,7 +588,9 @@ function normalizeIdList(ids = []) {
     .filter(Boolean))];
 }
 
-function tagRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function tagRowToAppValue(databaseRow) {
+  const row = /** @type {TagRow} */ (databaseRow);
   return {
     tag_id: row.tag_id,
     workspace_id: row.workspace_id,
@@ -600,7 +609,9 @@ function tagRowToAppValue(row) {
   };
 }
 
-function assignmentRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function assignmentRowToAppValue(databaseRow) {
+  const row = /** @type {TagAssignmentRow} */ (databaseRow);
   return {
     tag_assignment_id: row.tag_assignment_id,
     workspace_id: row.workspace_id,
@@ -626,7 +637,9 @@ function assignmentRowToAppValue(row) {
   };
 }
 
-function suppressionRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function suppressionRowToAppValue(databaseRow) {
+  const row = /** @type {TagSuppressionRow} */ (databaseRow);
   return {
     tag_assignment_suppression_id: row.tag_assignment_suppression_id,
     workspace_id: row.workspace_id,

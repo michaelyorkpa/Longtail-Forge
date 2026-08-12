@@ -1,5 +1,25 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/**
+ * @typedef {Object} WorkspaceBackupExportCreateInput
+ * @property {string} backupId
+ * @property {string} workspaceId
+ * @property {string} archiveFilename
+ * @property {string} archiveSha256
+ * @property {string} appVersion
+ * @property {string | null | undefined} [createdByUserId]
+ * @property {boolean} secureNotesRecoveryRequired
+ * @property {number} fileObjectCount
+ * @property {number} fileObjectBytes
+ * @property {string} createdAt
+ */
+/** @typedef {DatabaseRow & { backup_id: string, workspace_id: string, archive_filename: string, archive_sha256: string, app_version: string, created_by_user_id: string | null, status: string, secure_notes_recovery_required: unknown, file_object_count: unknown, file_object_bytes: unknown, created_at: string, created_by_name: string }} WorkspaceBackupExportRow */
+/** @typedef {{ backupId: string, workspaceId: string, archiveFilename: string, archiveSha256: string, appVersion: string, createdByUserId: string | null, createdByName: string, status: string, secureNotesRecoveryRequired: boolean, fileObjectCount: number, fileObjectBytes: number, createdAt: string }} WorkspaceBackupExport */
+
+/** @param {WorkspaceBackupExportCreateInput} value @returns {Promise<void>} */
 async function create(value) {
   await db.run(`
 INSERT INTO workspace_backup_exports (
@@ -42,8 +62,9 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<WorkspaceBackupExport | null>} */
 async function readLatest(workspaceId) {
-  const row = await db.get(`
+  const row = /** @type {WorkspaceBackupExportRow | null} */ (await db.get(`
 SELECT
   workspace_backup_exports.backup_id,
   workspace_backup_exports.workspace_id,
@@ -63,7 +84,7 @@ WHERE workspace_backup_exports.workspace_id = :workspaceId
   AND workspace_backup_exports.status = 'created'
 ORDER BY workspace_backup_exports.created_at DESC, workspace_backup_exports.backup_id DESC
 LIMIT 1;
-`, { workspaceId });
+`, { workspaceId }));
 
   return row ? {
     appVersion: row.app_version,

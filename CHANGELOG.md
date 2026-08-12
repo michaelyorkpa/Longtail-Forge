@@ -1,3 +1,14 @@
+## Version 0.33.32.40 - 2026-08-12
+
+- Completed the framework repository tier by checking the final 12 files in three exact credential/session, permission/audit/activity, and workspace-lifecycle passes, raising the checked inventory floor from 133 to 145 files.
+- Added named unknown-valued row projections, explicit nullable reads, typed input/binding shapes, and callback-scoped transaction authority without changing SQL, schema, uniqueness, scope, permissions, or lifecycle behavior.
+- Recorded and resolved checker-visible unknown query fields, count/nullability projections, Support View parameter bags, opaque mutation results, and workspace-purge lifecycle rows without assertion chains or suppressions.
+- Added `database.repository-checked-passes` to freeze pass ownership, checked-inventory membership, named projection use, transaction authority, and the prohibition on schema DDL or checker escapes in these repositories.
+- Retained focused repository-signature, fresh-database, 409-check permission, workspace final-purge, and SQLite integrity proof.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, permission grants, database schema/migrations, SQL behavior, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.39 - 2026-08-12
 
 - Checked the complete Files route adapter against explicit active-workspace, raw-body, multipart, streaming-response, and ordered partial-result contracts, raising the checked inventory floor from 132 to 133 files.

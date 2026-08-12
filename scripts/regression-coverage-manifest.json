@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 458,
+    "discoveredScripts": 459,
     "legacyScripts": 309,
     "releaseGateScripts": 71,
     "areaCounts": {
       "dashboard": 2,
-      "database": 45,
+      "database": 46,
       "docs": 10,
       "files": 44,
       "framework": 82,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 210,
+      "focused": 211,
       "integration": 169,
       "release-gate": 71,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 232
+      "static": 233
     }
   },
   "coverageFamilies": [
@@ -2728,6 +2728,23 @@
         "sqlite"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the bounded credential/session, permission/audit/activity, and workspace-lifecycle repository passes remain exact, checked, projected, and migration-free.",
+      "id": "database.repository-checked-passes",
+      "legacy": false,
+      "path": "scripts/regressions/database/repository-checked-passes.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "database",
+        "permissions",
+        "repositories",
+        "typecheck"
+      ],
+      "tier": "focused"
     },
     {
       "area": "database",

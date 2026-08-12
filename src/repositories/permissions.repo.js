@@ -1,8 +1,13 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
-/** @typedef {{ permission_id: string }} PermissionIdRow */
-/** @typedef {{ permission_id: string, role_id: string }} RolePermissionRow */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {DatabaseRow & { permission_id: string }} PermissionIdRow */
+/** @typedef {DatabaseRow & { permission_id: string, role_id: string }} RolePermissionRow */
+/** @typedef {DatabaseRow & { role_id: string, role_name: string, description: string, assignable_scope_type: string }} PermissionRoleRow */
+/** @typedef {DatabaseRow & { assignment_id: string, workspace_id: string, user_id: string, role_id: string, scope_type: string, scope_id: string | null, client_id: string | null, project_id: string | null, permission_overrides_json: string | null, created_at: string, updated_at: string }} PermissionAssignmentRow */
 
 const PERMISSION_INSERT_SQL = db.dialect.conflict.buildInsertOrIgnore({
   columns: ["permission_id", "permission_name", "description"],
@@ -15,12 +20,13 @@ const PERMISSION_INSERT_SQL = db.dialect.conflict.buildInsertOrIgnore({
 });
 const ROLE_PERMISSION_INSERT_PREFIX = db.dialect.conflict.insertOrIgnoreInto("role_permissions");
 
+/** @returns {Promise<PermissionRoleRow[]>} */
 async function readRoles() {
-  return db.query(`
+  return /** @type {Promise<PermissionRoleRow[]>} */ (db.query(`
 SELECT role_id, role_name, description, assignable_scope_type
 FROM roles
 ORDER BY sort_order, role_name;
-`);
+`));
 }
 
 /** @returns {Promise<RolePermissionRow[]>} */
@@ -90,8 +96,9 @@ WHERE EXISTS (SELECT 1 FROM roles WHERE role_id = :roleId)
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<PermissionAssignmentRow[]>} */
 async function readAssignmentsForWorkspace(workspaceId) {
-  return db.query(`
+  return /** @type {Promise<PermissionAssignmentRow[]>} */ (db.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -107,11 +114,12 @@ SELECT
 FROM user_role_assignments
 WHERE workspace_id = :workspaceId
 ORDER BY updated_at DESC, assignment_id;
-`, { workspaceId });
+`, { workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} userId @returns {Promise<PermissionAssignmentRow[]>} */
 async function readAssignmentsForUser(workspaceId, userId) {
-  return db.query(`
+  return /** @type {Promise<PermissionAssignmentRow[]>} */ (db.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -128,7 +136,7 @@ FROM user_role_assignments
 WHERE workspace_id = :workspaceId
   AND user_id = :userId
 ORDER BY updated_at DESC, assignment_id;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
 async function readOldestActiveUserForRoleScope(workspaceId, roleId, scopeType, scopeId) {
