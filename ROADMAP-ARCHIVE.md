@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.3 - Reform coverage floors around behavior and assertion ownership
+
+**Model: High Effort** - The ratchet is a release authority; changing its unit can silently weaken coverage if implemented incorrectly.
+
+- [x] Replace the legacy exact-equality file count with a shrink-only ceiling and make consolidation credit depend on generated assertion inventories plus named behavior owners.
+- [x] Permit a pure-contract source regression to retire only when its Vitest owner exists, `check:fast` runs it earlier, and integration coverage remains named where needed.
+- [x] Keep global, area, release-gate, protected-family, and required-ID protection without requiring dead entry-point IDs to remain active forever.
+- [x] Add synthetic positive/negative proof for assertion loss, stale inventories, floor decreases, malformed retirements, and protected-owner removal.
+
 ## Version 0.33.33.2 - Archive historical closeout evidence and retire paperwork gates
 
 **Model: High Effort** - A large careful retirement must separate inert historical assertions from live protections embedded in the same files.

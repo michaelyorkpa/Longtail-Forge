@@ -1,6 +1,7 @@
 {
-  "schemaVersion": 1,
-  "minimumActiveScripts": 468,
+  "schemaVersion": 2,
+  "maximumActiveScripts": 461,
+  "minimumAssertionCount": 18178,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 47,
@@ -27,7 +28,6 @@
     "legacy.bump.version",
     "legacy.legacy.cleanup",
     "legacy.regression.clean.clone.contract",
-    "legacy.regression.coverage.ratchet",
     "legacy.regression.runner",
     "legacy.regression.suite.inventory",
     "licensing.public-release-gates",
@@ -50,7 +50,6 @@
     "framework.http-error-contract",
     "framework.http-error-development-guardrails",
     "framework.bundled-module-registry",
-    "legacy.version.literal.guardrail",
     "release.regression-discovery-runner",
     "release.changed-regression-auto-run",
     "release.github-only-docs-workflow-routing",
@@ -67,7 +66,6 @@
     "release.runtime-artifact-boundary",
     "release.preview-deployment-boundary",
     "release.github-release-operations",
-    "release.maintainability-closeout",
     "release.developer-verification-throughput",
     "release.historical-evidence-retirement",
     "release.files-regression-isolation-audit",
@@ -105,7 +103,7 @@
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "expectedScripts": 312,
+    "maximumScripts": 308,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "assertionMovements": [
@@ -476,6 +474,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+        ]
+      },
       "id": "legacy.check.js",
       "area": "release",
       "tier": "slow",
@@ -500,6 +505,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/version-literal-guardrail-regression.mjs"
+        ]
+      },
       "id": "legacy.version.literal.guardrail",
       "area": "release",
       "tier": "release-gate",
@@ -524,6 +536,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "legacy.regression.coverage.ratchet",
       "area": "release",
       "tier": "release-gate",
@@ -548,6 +567,14 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 21,
+        "creditedAssertionReduction": 21,
+        "ownerPaths": [
+          "scripts/regressions/docs/docs-ownership-routing.regression.mjs",
+          "scripts/regressions/release/roadmap-cursor-floor.regression.mjs"
+        ]
+      },
       "id": "docs.short-term-cleanup-closeout",
       "area": "docs",
       "tier": "focused",
@@ -574,6 +601,14 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "legacy.static.contract.closeout",
       "area": "release",
       "tier": "focused",
@@ -602,6 +637,16 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+          "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+          "scripts/regressions/views/dashboard-es-module-entry.regression.mjs"
+        ]
+      },
       "id": "release.maintainability-closeout",
       "area": "release",
       "tier": "release-gate",
@@ -633,6 +678,15 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
+          "scripts/regressions/framework/typecheck-seams.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "release.typescript-seam-branch-closeout",
       "area": "release",
       "tier": "release-gate",
