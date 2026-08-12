@@ -23,8 +23,6 @@ const files = Object.freeze({
   settingsControlDocs: readText("docs/settings-control-matrix.md"),
   settingsOwnershipDocs: readText("docs/settings-ownership.md"),
   viewContractDocs: readText("docs/view-building-contract.md"),
-  decisions: readText("DECISIONS.md"),
-  changelog: readText("CHANGELOG.md"),
 });
 
 for (const [label, path] of [
@@ -87,9 +85,6 @@ assert.match(files.viewContractDocs, /Admin and Settings[\s\S]*minimal `data-set
 assert.match(files.viewContractDocs, /No first-party module setting ID belongs in `settings-host\.js`, `settings-renderer\.js`, `settings\.service\.js`, or `settings-catalog\.service\.js`/);
 assert.match(files.settingsControlDocs, /A new ordinary module setting requires a manifest contribution/);
 assert.match(files.moduleContractDocs, /A new ordinary module setting should require only this manifest contribution/);
-assert.match(files.decisions, /As of 0\.33\.15\.8/);
-assert.match(files.changelog, /Version 0\.33\.15\.8/);
-
 console.log("Settings branch closeout regression passed.");
 
 function readText(path) {

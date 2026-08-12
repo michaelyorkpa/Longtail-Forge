@@ -306,7 +306,7 @@ No direct static file downloads. Downloads go through permission-checked routes.
 
 ### Version-wide internal checkpoints
 
-When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, archive roadmap sections, or perform runtime identity proof. The branch-closeout checkpoint rolls those deferred items up once.
+When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, or perform runtime identity proof. Completed numbered checkpoints move from `ROADMAP.md` to `ROADMAP-ARCHIVE.md` after their protected merge; the branch-closeout checkpoint rolls the remaining deferred identity and durable-documentation items up once.
 
 Every non-merge implementation commit on that branch must end with exactly one machine-readable trailer of each form:
 

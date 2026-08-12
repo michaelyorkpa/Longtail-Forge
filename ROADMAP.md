@@ -43,26 +43,8 @@ Release-wide measurable acceptance:
 - [ ] No active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content. Fewer than 40 surviving programs read planning/history documents, and each survivor owns a current live contract.
 - [ ] The static estate uses one shared source reader, one `escapeRegExp`, and one fake-DOM harness. The permission harness is discovered and floor-counted.
 - [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees.
-- [ ] Internal checkpoints normally touch no more than two ceremony files; release version, changelog rollup, durable decision/docs updates, roadmap archival, and runtime identity proof batch at branch closeout.
+- [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
-
-### 0.33.33.1 - Rebase internal checkpoint ceremony
-
-**Model: High Effort** - Release-policy and validation-owner changes must preserve traceability and package identity exactly.
-
-- [x] Define structured checkpoint trailers carrying slice ID, summary, and documentation disposition.
-- [x] Move package/lock version bump, rolled-up changelog, durable decision/docs prose, roadmap archive handoff, and runtime identity proof to branch closeout while retaining `verify:slice` per checkpoint.
-- [x] Adjust only the version/changelog owners that assume per-checkpoint release identity; keep exact-SHA CI, Nightly, promotion, artifact, and deployment contracts unchanged.
-- [x] Prove the next checkpoint can complete with no more than two ceremony-file changes and a machine-readable trailer.
-
-### 0.33.33.2 - Archive historical closeout evidence and retire paperwork gates
-
-**Model: High Effort** - A large careful retirement must separate inert historical assertions from live protections embedded in the same files.
-
-- [ ] Inventory every branch-closeout/history-pinned regression and extract its live fragments to retained owners before retirement.
-- [ ] Preserve cursor-floor behavior, anti-current-pin scanning, manifest registration, and other live safeguards; archive only evidence that can fail solely when history is tidied.
-- [ ] Replace verbatim package-script mirrors and stale cross-file hashes with targeted single-ownership checks.
-- [ ] Record credited retirements and one evidence index without rewriting historical changelog or roadmap archive content.
 
 ### 0.33.33.3 - Reform coverage floors around behavior and assertion ownership
 

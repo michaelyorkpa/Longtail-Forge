@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 467,
+  "minimumActiveScripts": 468,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 47,
@@ -14,7 +14,7 @@
     "notifications": 3,
     "permissions": 13,
     "public-api": 3,
-    "release": 39,
+    "release": 40,
     "search": 12,
     "tags": 12,
     "tasks": 58,
@@ -22,7 +22,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 78,
+  "minimumReleaseGateScripts": 79,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -69,6 +69,7 @@
     "release.github-release-operations",
     "release.maintainability-closeout",
     "release.developer-verification-throughput",
+    "release.historical-evidence-retirement",
     "release.files-regression-isolation-audit",
     "views.dashboard-es-module-entry"
   ],
@@ -224,15 +225,16 @@
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -240,15 +242,16 @@
       "script": "scripts/database-agnostic-contract-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -256,15 +259,16 @@
       "script": "scripts/module-file-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -272,15 +276,16 @@
       "script": "scripts/notes-import-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -288,15 +293,16 @@
       "script": "scripts/surface-standardization-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -304,15 +310,16 @@
       "script": "scripts/view-builder-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -320,15 +327,16 @@
       "script": "scripts/view-conversion-branch-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -336,15 +344,16 @@
       "script": "scripts/files-browse-edit-preview-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -352,15 +361,16 @@
       "script": "scripts/files-conversion-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -368,15 +378,16 @@
       "script": "scripts/notes-slideout-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -384,15 +395,16 @@
       "script": "scripts/markdown-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -400,15 +412,16 @@
       "script": "scripts/tasks-conversion-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -416,15 +429,16 @@
       "script": "scripts/clients-projects-strict-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -432,15 +446,16 @@
       "script": "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
-      "rationale": "Static closeout assertions now run through scripts/static-contract-closeout-regression.mjs to reduce closeout process starts without dropping branch-boundary checks.",
-      "assertionDisposition": "The script remains on disk as an imported assertion module; scripts/static-contract-closeout-regression.mjs imports it in-process, and any self-suite assertion now points to the consolidated owner where applicable.",
+      "rationale": "Historical closeout assertions are archived in scripts/historical-closeout-evidence.json; current behavior and retirement registration stay with targeted live owners.",
+      "assertionDisposition": "The historical assertion module remains recoverable in Git, while release.historical-evidence-retirement records the archived inventory and release.regression-manifest-generation checks the retirement contract.",
       "retainedCoverageOwners": [
-        "scripts/static-contract-closeout-regression.mjs"
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
-        "node scripts/static-contract-closeout-regression.mjs",
-        "node scripts/regression-coverage-ratchet.mjs",
-        "npm run check"
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
       ],
       "floorCredit": false
     },
@@ -516,6 +531,119 @@
         "release"
       ],
       "legacy": true
+    },
+    {
+      "script": "scripts/regressions/docs/short-term-cleanup-closeout.regression.mjs",
+      "retiredInVersion": "0.33.33.2",
+      "retirementType": "dead-target",
+      "rationale": "Recovered planning prose and TODO headings are not shipped behavior and should not fail when planning history is reorganized.",
+      "assertionDisposition": "Documentation ownership remains with docs.ownership-routing; live cursor floors and anti-current-pin scanning remain with release.roadmap-cursor-floor; historical phrases are recorded only in Git history and scripts/historical-closeout-evidence.json.",
+      "retainedCoverageOwners": [
+        "docs.ownership-routing",
+        "release.roadmap-cursor-floor"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "docs.short-term-cleanup-closeout",
+      "area": "docs",
+      "tier": "focused",
+      "tags": [
+        "closeout",
+        "roadmap",
+        "todo"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/static-contract-closeout-regression.mjs",
+      "retiredInVersion": "0.33.33.2",
+      "retirementType": "assertions-moved",
+      "rationale": "The aggregator executed fourteen already-retired historical closeout modules and made archive maintenance fail as if it changed live product behavior.",
+      "assertionDisposition": "scripts/historical-closeout-evidence.json records the fourteen imported modules; release.historical-evidence-retirement checks that inventory and the continuing live owners without executing archived assertions.",
+      "retainedCoverageOwners": [
+        "release.historical-evidence-retirement",
+        "release.regression-manifest-generation"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "legacy.static.contract.closeout",
+      "area": "release",
+      "tier": "focused",
+      "tags": [
+        "baseline-fixture",
+        "closeout",
+        "contract"
+      ],
+      "legacy": true
+    },
+    {
+      "script": "scripts/regressions/release/maintainability-closeout.regression.mjs",
+      "retiredInVersion": "0.33.33.2",
+      "retirementType": "assertions-moved",
+      "rationale": "The gate mixed archive and changelog pins with mirrors of live regression source, including a stale cross-file SHA.",
+      "assertionDisposition": "Bundled modules, startup lifecycle, Dashboard loading, and manifest behavior stay with their targeted owners; the historical prose and SHA pins are archived in scripts/historical-closeout-evidence.json.",
+      "retainedCoverageOwners": [
+        "database.startup-maintenance-lifecycle",
+        "framework.bundled-module-registry",
+        "release.regression-manifest-generation",
+        "views.dashboard-es-module-entry"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "release.maintainability-closeout",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "architecture",
+        "closeout",
+        "database",
+        "docs",
+        "modules",
+        "startup",
+        "views"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
+      "retiredInVersion": "0.33.33.2",
+      "retirementType": "assertions-moved",
+      "rationale": "The branch gate pinned archived headings, changelog text, correction tokens, and durable-doc version labels after dedicated type and behavior owners had shipped.",
+      "assertionDisposition": "Checked-file membership, strict probes, compiler seams, manifest registration, and descriptor rendering remain with named live owners; historical evidence is indexed once without remaining executable paperwork.",
+      "retainedCoverageOwners": [
+        "framework.typecheck-honesty-inventory",
+        "framework.typecheck-seams",
+        "release.regression-manifest-generation"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "id": "release.typescript-seam-branch-closeout",
+      "area": "release",
+      "tier": "release-gate",
+      "tags": [
+        "closeout",
+        "contracts",
+        "docs",
+        "release",
+        "typecheck"
+      ],
+      "legacy": false
     }
   ]
 }

@@ -64,7 +64,6 @@ function assertStaticContracts() {
     "scripts/search-index-sync-regression.mjs",
     "scripts/search-lifecycle-regression.mjs",
     "scripts/search-rebuild-regression.mjs",
-    "scripts/static-contract-closeout-regression.mjs",
     "scripts/version-literal-guardrail-regression.mjs",
     "scripts/view-descriptor-manifest-regression.mjs",
     "scripts/view-descriptor-reference-regression.mjs",
