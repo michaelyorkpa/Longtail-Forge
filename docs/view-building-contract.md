@@ -12,6 +12,8 @@ The helper file may be `public/js/shared/view-builder.js`, but the browser API s
 
 `LongtailForge.view` is implemented in `public/js/shared/view-builder.js` as a small DOM factory. It is intentionally framework-owned layout code rather than a component system.
 
+As of 0.33.32.22, `LongtailForge.view.normalizeSurfaceDescriptor(value)` is the builder-owned handoff to the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` adapter. `view-renderer.js` calls it once before reading any delivered descriptor field. The adapter and shared declaration family own the supported descriptor projection and path-specific malformed-field failures; the builder and renderer remain classic DOM runtimes and must not grow their own validators, casts, envelope guessing, or whole-file checking as part of this boundary. As of 0.33.32.24, the adapter narrows its projected result through a runtime root-identity check instead of a double assertion, and delivered module mutations are part of the enforced contract. Optional unavailable actions are omitted before normalization; `null` and other malformed action values still fail.
+
 `LongtailForge.view.createSlideOutSidebarController(elements, options)` is the shared imperative lifecycle adapter for an existing trigger, backdrop, close control, and drawer. It exposes `open()`, `close()`, `toggle()`, `sync()`, and `isOpen`; the framework owns synchronized ARIA state, body-scroll lock, Escape/backdrop/close behavior, Tab containment, initial drawer focus, and focus return. Descriptor-rendered `slide-out-sidebar` surfaces and framework-owned imperative surfaces such as the phone Workbench Inspector use this same controller instead of duplicating drawer lifecycle code.
 
 ## First Primitives
@@ -241,6 +243,12 @@ Descriptor delivery stays permission-safe. The backend only includes descriptors
 The descriptor renderer now owns the first data-binding pass. When a descriptor includes `dataSource.route`, `LongtailForge.view.renderSurface(descriptor, host)` renders a loading state, fetches the route through `LongtailForge.api.getJson`, maps response records through `dataSource.fieldBindings`, and redraws framework-owned table, detail, index, summary, field, and item-collection anatomy from the mapped descriptor fields.
 
 Rendered data-bound surfaces expose `surface.refresh()`, which re-fetches the descriptor data source and redraws the same framework-owned containers without requiring modules to rebuild the layout by hand. Loading, empty, and error states are framework-owned defaults. This slice still does not register declarative behaviors, wire action routes, interpret save payloads, or convert Lists.
+
+## Implementation Notes For 0.33.32.21
+
+Bundled data-bound descriptors declare their route's exact array envelope through `dataSource.recordsKey`; Files uses `attachments`, Clients/Projects use `clients` and `projects`, Tags uses `tags`, Tasks uses `tasks`, Lists uses `lists`, Notes uses `notes`, and the disabled Developer Example fixture uses `records`. The renderer passes unknown response JSON and that declaration to the checked `LongtailForge.viewResponseRecords` adapter before applying `fieldBindings`.
+
+The declared key always wins when an envelope contains multiple arrays. Direct arrays, the historical known response-key set, first-array selection, and single-object wrapping remain explicit compatibility inside the adapter for older or external descriptors. Do not add response-key candidate lists or object-array scanning to `view-renderer.js`, `view-builder.js`, or module adapters. The adapter is loaded in the framework preamble before page assets; this slice does not opt either large view runtime into whole-file checking.
 
 ## Implementation Notes For 0.33.5.16.7
 

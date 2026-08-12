@@ -1,3 +1,4 @@
+// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
@@ -7,14 +8,26 @@ import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import {
   ActiveTimerFinalizeSchema,
   ActiveTimerSaveSchema,
+  ActiveTimerSourcedSaveSchema,
   ActiveTimerStatusSchema,
   parseTimeTrackingEdgePayload,
 } from "./time-tracking.contracts.js";
+
+/** @typedef {import("./active-timers.repo.js").ActiveTimer} ActiveTimer */
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
+/** @typedef {import("zod").infer<typeof ActiveTimerFinalizeSchema>} ActiveTimerFinalizePayload */
+/** @typedef {import("zod").infer<typeof ActiveTimerSaveSchema>} ActiveTimerSavePayload */
+/** @typedef {import("zod").infer<typeof ActiveTimerSourcedSaveSchema>} SourcedActiveTimerPayload */
+/** @typedef {import("zod").infer<typeof ActiveTimerStatusSchema>} ActiveTimerStatusPayload */
+/** @typedef {TimeEntryInput & { tagIds?: unknown[], tag_ids?: unknown[] }} FinalizedTimeEntryInput */
+/** @typedef {{ source_id?: unknown, sourceId?: unknown, source_label?: unknown, sourceLabel?: unknown, source_module_id?: unknown, sourceModuleId?: unknown, source_type?: unknown, sourceType?: unknown, source_url?: unknown, sourceUrl?: unknown }} ActiveTimerSourceInput */
 
 const MODULE_ID = "time-tracking";
 
@@ -32,6 +45,7 @@ async function listAll(session) {
   };
 }
 
+/** @param {string} timerSlot @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function save(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerSaveSchema, rawPayload);
@@ -41,13 +55,14 @@ async function save(timerSlot, rawPayload, session) {
     resolveTimerScope(session.workspace_id, timer),
     settingsRepository.readWorkspaceSettings(session.workspace_id),
   ]);
+  const project = /** @type {NonNullable<typeof scope.project>} */ (scope.project);
   timer.client_id = scope.client?.id || "";
   timer.client_name = scope.client?.name || "";
-  timer.project_id = scope.project.id;
-  timer.project_name = scope.project.name;
+  timer.project_id = project.id;
+  timer.project_name = project.name;
   timer.billable = normalizeWorkspaceBillable(
     settings.workspaceType,
-    payload?.billable ?? scope.project.billable ?? scope.client?.billable,
+    payload?.billable ?? project.billable ?? scope.client?.billable,
   );
 
   await assertCanUseProjectTimer(session, timer, "save");
@@ -61,8 +76,10 @@ async function save(timerSlot, rawPayload, session) {
   };
 }
 
-async function saveSourced(source, payload, session) {
+/** @param {ActiveTimerSourceInput} source @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function saveSourced(source, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
+  const payload = parseTimeTrackingEdgePayload(ActiveTimerSourcedSaveSchema, rawPayload);
   const normalizedSource = normalizeSource(source);
   const timer = {
     ...normalizeTimerPayload(payload, `source:${normalizedSource.source_module_id}:${normalizedSource.source_type}:${normalizedSource.source_id}`, session),
@@ -181,7 +198,7 @@ async function updateStatus(timerSlot, rawPayload, session) {
   const timerStatus = payload?.timer_status === "running" ? "running" : "paused";
   const accumulatedElapsedSeconds = Math.max(
     0,
-    Number.parseInt(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds, 10) || 0,
+    Number.parseInt(String(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds), 10) || 0,
   );
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
@@ -246,6 +263,7 @@ async function removeSourced(source, session) {
   };
 }
 
+/** @param {string} timerSlot @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function finalize(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
@@ -256,6 +274,7 @@ async function finalize(timerSlot, rawPayload, session) {
     normalizedTimerSlot,
   );
   const timerFacts = finalizedTimerFacts(activeTimer, payload);
+  /** @type {FinalizedTimeEntryInput} */
   const entry = {
     client_id: payload?.client_id ?? activeTimer?.client_id ?? "",
     client_name: payload?.client_name ?? activeTimer?.client_name ?? "",
@@ -297,6 +316,7 @@ async function finalize(timerSlot, rawPayload, session) {
   };
 }
 
+/** @param {ActiveTimerSourceInput} source @param {unknown} rawPayload @param {WorkspaceRequestSession} session @param {Partial<FinalizedTimeEntryInput>} entryOverrides */
 async function finalizeSourced(source, rawPayload, session, entryOverrides = {}) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerFinalizeSchema, rawPayload);
@@ -312,6 +332,7 @@ async function finalizeSourced(source, rawPayload, session, entryOverrides = {})
     sourceLookup,
   );
   const timerFacts = finalizedTimerFacts(activeTimer, payload);
+  /** @type {FinalizedTimeEntryInput} */
   const entry = {
     client_id: payload?.client_id ?? activeTimer?.client_id ?? "",
     client_name: payload?.client_name ?? activeTimer?.client_name ?? "",
@@ -464,14 +485,18 @@ function safeUrl(value) {
   return url;
 }
 
+/**
+ * @param {ActiveTimer | null | undefined} activeTimer
+ * @param {ActiveTimerFinalizePayload} payload
+ */
 function finalizedTimerFacts(activeTimer, payload = {}) {
   if (!activeTimer) {
-    const durationSeconds = Math.max(1, Number.parseInt(payload?.duration_seconds, 10) || 0);
+    const durationSeconds = Math.max(1, Number.parseInt(String(payload?.duration_seconds ?? ""), 10) || 0);
     const endTime = normalizeIsoDate(payload?.end_time || new Date().toISOString());
     const startTime = normalizeIsoDate(payload?.start_time || new Date(new Date(endTime).getTime() - durationSeconds * 1000).toISOString());
 
     return {
-      durationHours: payload?.duration_hours ?? (durationSeconds / 3600).toFixed(4),
+      durationHours: (durationSeconds / 3600).toFixed(4),
       durationSeconds,
       endTime,
       startTime,
@@ -494,8 +519,9 @@ function finalizedTimerFacts(activeTimer, payload = {}) {
   };
 }
 
+/** @param {ActiveTimer} activeTimer */
 function activeTimerElapsedSecondsAt(activeTimer, endTime) {
-  const accumulatedSeconds = Math.max(0, Number.parseInt(activeTimer?.accumulated_elapsed_seconds, 10) || 0);
+  const accumulatedSeconds = Math.max(0, Number.parseInt(String(activeTimer.accumulated_elapsed_seconds), 10) || 0);
 
   if (activeTimer?.timer_status !== "running" || !activeTimer?.last_active_start_time) {
     return accumulatedSeconds;
@@ -510,9 +536,15 @@ function activeTimerElapsedSecondsAt(activeTimer, endTime) {
   return accumulatedSeconds + runningSeconds;
 }
 
+/**
+ * @param {ActiveTimerSavePayload | SourcedActiveTimerPayload} payload
+ * @param {string} timerSlot
+ * @param {WorkspaceRequestSession} session
+ * @returns {ActiveTimer}
+ */
 function normalizeTimerPayload(payload, timerSlot, session) {
   const timerStatus = payload?.timer_status === "running" ? "running" : "paused";
-  const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
+  const elapsedSeconds = Math.max(0, Number.parseInt(String(payload?.accumulated_elapsed_seconds ?? ""), 10) || 0);
 
   if (!payload?.project_id) {
     throw new AppError("Project is required before persisting a timer.", 400);
@@ -533,7 +565,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
     project_id: stringOrEmpty(payload?.project_id),
     project_name: stringOrEmpty(payload?.project_name),
     description: stringOrEmpty(payload?.description),
-    billable: payload?.billable === "no" ? "no" : "yes",
+    billable: normalizeTimeEntryBillable(payload?.billable) || "yes",
     accumulated_elapsed_seconds: elapsedSeconds,
     last_active_start_time: timerStatus === "running"
       ? normalizeIsoDate(payload?.last_active_start_time)
@@ -542,6 +574,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
   };
 }
 
+/** @param {ActiveTimerSourceInput} source */
 function normalizeSource(source) {
   const normalized = {
     source_module_id: stringOrEmpty(source?.source_module_id || source?.sourceModuleId),
@@ -594,6 +627,7 @@ function stringOrEmpty(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} workspaceType @param {unknown} value @returns {"yes" | "no"} */
 function normalizeWorkspaceBillable(workspaceType, value) {
   if (!workspaceSupportsBillable(workspaceType)) {
     return "no";

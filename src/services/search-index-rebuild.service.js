@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getSearchIndexer } from "../core/search/indexer-registry.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";
@@ -6,6 +8,23 @@ import { AppError } from "../utils/app-error.js";
 import { auditService } from "./audit.service.js";
 import { searchService } from "./search.service.js";
 
+/** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
+/** @typedef {import("../types/search-rebuild-contracts.js").InactiveSearchRowsInput} InactiveSearchRowsInput */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchIndexerDocument} SearchIndexerDocument */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchIndexerDocumentEnvelope} SearchIndexerDocumentEnvelope */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildOptions} SearchRebuildOptions */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildReference} SearchRebuildReference */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildSession} SearchRebuildSession */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildSummary} SearchRebuildSummary */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildSummaryInput} SearchRebuildSummaryInput */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildTargetSummary} SearchRebuildTargetSummary */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildTypeInput} SearchRebuildTypeInput */
+/** @typedef {import("../types/search-rebuild-contracts.js").StaleSearchRecordIdsInput} StaleSearchRecordIdsInput */
+
+/**
+ * @param {SearchRebuildOptions} [options]
+ * @returns {Promise<SearchRebuildSummary>}
+ */
 async function rebuildWorkspace(options = {}) {
   const workspaceId = normalizeId(options.workspaceId || options.workspace_id);
   const moduleId = normalizeId(options.moduleId || options.module_id);
@@ -45,6 +64,10 @@ async function rebuildWorkspace(options = {}) {
   return summary;
 }
 
+/**
+ * @param {InactiveSearchRowsInput} input
+ * @returns {Promise<SearchRebuildSummary>}
+ */
 async function removeInactiveSearchRows({ activeSearchableTypes, dryRun, moduleId, workspaceId }) {
   const summary = createSummary({
     scope: "inactive_record_types",
@@ -52,6 +75,7 @@ async function removeInactiveSearchRows({ activeSearchableTypes, dryRun, moduleI
     moduleId,
     dryRun,
   });
+  /** @type {SearchRebuildTargetSummary} */
   const targetSummary = {
     moduleId: moduleId || "",
     recordType: "inactive_search_rows",
@@ -64,17 +88,23 @@ async function removeInactiveSearchRows({ activeSearchableTypes, dryRun, moduleI
     errors: [],
   };
   const activeKeys = new Set(activeSearchableTypes.map((type) => `${type.moduleId}:${type.recordType}`));
+  /** @type {Record<string, string>} */
   const params = { workspaceId };
   const moduleFilter = moduleId ? "  AND module_id = :moduleId\n" : "";
   if (moduleId) {
     params.moduleId = moduleId;
   }
-  const rows = await db.query(`
+  const rows = (await db.query(`
 SELECT workspace_id, module_id, record_type, record_id
 FROM search_index
 WHERE workspace_id = :workspaceId
 ${moduleFilter}ORDER BY module_id, record_type, record_id;
-`, params);
+`, params)).map((row) => ({
+    workspace_id: normalizeId(row.workspace_id),
+    module_id: normalizeId(row.module_id),
+    record_type: normalizeId(row.record_type),
+    record_id: normalizeId(row.record_id),
+  }));
   const inactiveRows = rows.filter((row) => !activeKeys.has(`${row.module_id}:${row.record_type}`));
 
   targetSummary.scanned = inactiveRows.length;
@@ -111,6 +141,10 @@ ${moduleFilter}ORDER BY module_id, record_type, record_id;
   return summary;
 }
 
+/**
+ * @param {SearchRebuildOptions} [options]
+ * @returns {Promise<SearchRebuildSummary>}
+ */
 async function rebuildModule(options = {}) {
   const moduleId = normalizeId(options.moduleId || options.module_id);
 
@@ -124,6 +158,10 @@ async function rebuildModule(options = {}) {
   });
 }
 
+/**
+ * @param {SearchRebuildOptions} [options]
+ * @returns {Promise<SearchRebuildSummary>}
+ */
 async function rebuildApp(options = {}) {
   const dryRun = options.dryRun === true || options.dry_run === true;
   const moduleId = normalizeId(options.moduleId || options.module_id);
@@ -147,6 +185,10 @@ async function rebuildApp(options = {}) {
   return summary;
 }
 
+/**
+ * @param {SearchRebuildTypeInput} input
+ * @returns {Promise<SearchRebuildSummary>}
+ */
 async function rebuildSearchableType({ dryRun, searchableType, workspaceId }) {
   const summary = createSummary({
     scope: "record_type",
@@ -154,6 +196,7 @@ async function rebuildSearchableType({ dryRun, searchableType, workspaceId }) {
     moduleId: searchableType.moduleId,
     dryRun,
   });
+  /** @type {SearchRebuildTargetSummary} */
   const targetSummary = {
     moduleId: searchableType.moduleId,
     recordType: searchableType.recordType,
@@ -174,12 +217,14 @@ async function rebuildSearchableType({ dryRun, searchableType, workspaceId }) {
       throw new AppError(`Search indexer '${searchableType.indexer}' is not registered.`, 500);
     }
 
-    const result = await indexer({
+    /** @type {SearchRebuildReference} */
+    const reference = {
       declaration: searchableType,
       rebuild: true,
       searchService,
       workspaceId,
-    });
+    };
+    const result = await indexer(reference);
     const documents = extractDocuments(result)
       .map((document) => searchService.normalizeSearchDocument(searchableType, document));
     const documentRecordIds = new Set(documents.map((document) => document.record_id));
@@ -259,13 +304,18 @@ async function rebuildSearchableType({ dryRun, searchableType, workspaceId }) {
     summary.counts.failed += 1;
     targetSummary.errors.push({
       code: error instanceof AppError ? `search_rebuild_${error.statusCode || 500}` : "search_rebuild_error",
-      message: error?.message || String(error),
+      message: getErrorMessage(error),
     });
   }
 
   return summary;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @returns {Promise<ActiveSearchableTypeDeclaration[]>}
+ */
 async function resolveWorkspaceSearchableTypes(workspaceId, moduleId) {
   if (moduleId && !modulesService.getModule(moduleId)) {
     throw new AppError(`Module '${moduleId}' is not registered.`, 400);
@@ -283,6 +333,10 @@ async function resolveWorkspaceSearchableTypes(workspaceId, moduleId) {
   return filteredTypes;
 }
 
+/**
+ * @param {StaleSearchRecordIdsInput} input
+ * @returns {Promise<string[]>}
+ */
 async function readStaleSearchRecordIds({ indexedRecordIds, moduleId, recordType, workspaceId }) {
   const rows = await db.query(`
 SELECT record_id
@@ -298,10 +352,16 @@ ORDER BY record_id;
   });
 
   return rows
-    .map((row) => row.record_id)
+    .map((row) => normalizeId(row.record_id))
     .filter((recordId) => !indexedRecordIds.has(recordId));
 }
 
+/**
+ * @param {SearchRebuildSession} session
+ * @param {SearchRebuildSummary} summary
+ * @param {unknown} source
+ * @returns {Promise<void>}
+ */
 async function recordRebuildAudit(session, summary, source) {
   await auditService.record({
     session,
@@ -334,6 +394,10 @@ async function recordRebuildAudit(session, summary, source) {
   });
 }
 
+/**
+ * @param {SearchRebuildSummaryInput} input
+ * @returns {SearchRebuildSummary}
+ */
 function createSummary({ scope, workspaceId = "", moduleId = "", dryRun = false }) {
   return {
     scope,
@@ -352,30 +416,78 @@ function createSummary({ scope, workspaceId = "", moduleId = "", dryRun = false 
   };
 }
 
+/**
+ * @param {SearchRebuildSummary} target
+ * @param {SearchRebuildSummary} source
+ */
 function mergeSummary(target, source) {
-  for (const countName of Object.keys(target.counts)) {
+  for (const countName of /** @type {(keyof SearchRebuildSummary["counts"])[]} */ (Object.keys(target.counts))) {
     target.counts[countName] += source.counts[countName] || 0;
   }
   target.targets.push(...(source.targets || []));
 }
 
+/**
+ * @param {unknown} result
+ * @returns {SearchIndexerDocument[]}
+ */
 function extractDocuments(result) {
-  if (!result || result.searchable === false) {
+  if (!result) {
     return [];
   }
   if (Array.isArray(result)) {
-    return result;
+    return result.map(asSearchIndexerDocument);
   }
-  if (Array.isArray(result.documents)) {
-    return result.documents;
+  if (!isObjectRecord(result)) {
+    return [{}];
   }
-  if (result.document) {
-    return [result.document];
+
+  const envelope = /** @type {SearchIndexerDocumentEnvelope} */ (result);
+  if (envelope.searchable === false) {
+    return [];
+  }
+  if (Array.isArray(envelope.documents)) {
+    return envelope.documents.map(asSearchIndexerDocument);
+  }
+  if (isObjectRecord(envelope.document)) {
+    return [envelope.document];
   }
 
   return [result];
 }
 
+/**
+ * Keep malformed registered-indexer results on the existing failure path.
+ * @param {unknown} value
+ * @returns {SearchIndexerDocument}
+ */
+function asSearchIndexerDocument(value) {
+  return isObjectRecord(value) ? value : {};
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isObjectRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function getErrorMessage(error) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return String(error);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeId(value) {
   return String(value || "").trim();
 }

@@ -1,6 +1,9 @@
+// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
+
+/** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
 
 const TIME_ENTRIES_SEARCH_INDEXER_ID = "time-tracking.time-entries";
 
@@ -8,6 +11,7 @@ function registerTimeTrackingSearchIndexers() {
   return registerSearchIndexer(TIME_ENTRIES_SEARCH_INDEXER_ID, indexTimeEntryRecord);
 }
 
+/** @param {SearchReference} reference */
 async function indexTimeEntryRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const entries = await timeEntriesRepository.readAll(workspaceId);

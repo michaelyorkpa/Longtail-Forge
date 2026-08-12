@@ -27,7 +27,7 @@ Do not use a repository-wide find/replace for an application version bump. Roadm
 After the helper runs:
 
 1. Add the release entry to `CHANGELOG.md` and update only the documentation that owns changed behavior.
-2. Complete the active `ROADMAP.md` checklist, move the finished slice to `ROADMAP-ARCHIVE.md`, and advance the `Active cursor`; preserve historical version labels.
+2. Complete the active `ROADMAP.md` checklist, move the finished slice to `ROADMAP-ARCHIVE.md`, and advance the `Active cursor`; preserve historical version labels. If the roadmap explicitly permits reordering and the operator requests a later slice first, remove only that completed slice from the live roadmap and keep the true lower pending slice active. Its archive entry must say `Completed on YYYY-MM-DD out of numeric order at the operator's request.` and ``The active roadmap cursor remains `<version>`;`` so the exception is reviewable rather than inferred.
 3. Run `npm run docs:suggest` and record either the owning documents updated or why no documentation change is needed.
 4. If regression discovery or its policy changed, review and run the explicit floor advance plus generated documentation update:
 
@@ -57,5 +57,7 @@ After the helper runs:
 ## Literal Guardrail
 
 `scripts/version-literal-guardrail-regression.mjs` reads the current package version and rejects that exact literal in unapproved runtime, regression, or repository files. Its narrow allowlist lives in `scripts/version-literal-allowlist.json`.
+
+The normal closeout rule requires the active roadmap cursor to compare greater than the package version. The sole lower-cursor exception is an explicitly documented out-of-order closeout: the completed current version must be absent from `ROADMAP.md`, the retained cursor must still have its live version section, and that current version's archive section must contain both the exact operator-requested out-of-order marker and the exact preserved-cursor statement. The version guard and shared closeout-regression cursor-floor helper consume the same evidence. Synthetic positive and negative cases prevent an undocumented lower cursor or a still-live completed section from passing.
 
 Package metadata and narrowly approved release metadata may contain the current literal. Whole-file exemptions remain limited to canonical package metadata and historical/planning surfaces. Structured release metadata that needs the current version uses path-specific, anchored line rules; the regression retirement policy and its generated manifest currently allow the literal only as the value of `retiredInVersion`, not in rationales, descriptions, or arbitrary fields. `DECISIONS.md`, `ROADMAP.md`, `CHANGELOG.md`, `TODO.md`, roadmap archives, `docs/`, and archived release/history directories are governing/planning/historical-label surfaces and are ignored by the guardrail. `TODO.md` remains scratchpad only; this exemption does not promote its items into implementation scope. Older version labels elsewhere are also unaffected because the guardrail searches only for the exact current package version.

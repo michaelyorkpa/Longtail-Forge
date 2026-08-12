@@ -209,6 +209,8 @@ const VIEW_DETAIL_FIELDS = new Set([
   "emptyState",
   "regions",
 ]);
+const VIEW_SUMMARY_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "messageField", "items"]);
+const VIEW_SUMMARY_PANEL_ITEM_FIELDS = new Set(["label", "field", "value"]);
 const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "size", "fields", "footerActions", "actions"]);
 const VIEW_FIELD_FIELDS = new Set([
   "id",
@@ -257,7 +259,7 @@ const VIEW_LINKED_RECORDS_FIELDS = new Set([
   "fields",
   "actions",
 ]);
-const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
+const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "recordsKey", "fieldBindings"]);
 const VIEW_ACTION_FIELDS = new Set([
   "publicDemoCapability",
   "id",
@@ -931,8 +933,15 @@ function validateDetailDescriptor(detail, prefix, errors) {
   validateRegionsDescriptor(detail.regions, `${prefix}.regions`, errors);
   optionalArrayOfObjects(detail.summaryPanels, `${prefix}.summaryPanels`, errors, (panel, panelIndex) => {
     const panelPrefix = `${prefix}.summaryPanels[${panelIndex}]`;
-    validateKnownObjectFields(panel, VIEW_LABEL_FIELDS, panelPrefix, errors);
+    validateKnownObjectFields(panel, VIEW_SUMMARY_PANEL_FIELDS, panelPrefix, errors);
     validateLabelDescriptor(panel, panelPrefix, errors);
+    optionalString(panel, "messageField", errors, { prefix: panelPrefix });
+    optionalArrayOfObjects(panel.items, `${panelPrefix}.items`, errors, (item, itemIndex) => {
+      const itemPrefix = `${panelPrefix}.items[${itemIndex}]`;
+      validateKnownObjectFields(item, VIEW_SUMMARY_PANEL_ITEM_FIELDS, itemPrefix, errors);
+      optionalString(item, "label", errors, { prefix: itemPrefix });
+      optionalString(item, "field", errors, { prefix: itemPrefix });
+    });
   });
 }
 
@@ -1075,6 +1084,7 @@ function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) 
   validateKnownObjectFields(dataSource, VIEW_DATA_SOURCE_FIELDS, prefix, errors);
   requireString(dataSource, "route", errors, { prefix });
   optionalString(dataSource, "method", errors, { prefix });
+  optionalString(dataSource, "recordsKey", errors, { prefix });
   if (!isPlainObject(dataSource.fieldBindings)) {
     errors.push(`${prefix}.fieldBindings is required and must be an object.`);
     return;
@@ -1109,7 +1119,9 @@ function validateActionDescriptor(action, prefix, errors) {
   optionalString(action, "method", errors, { prefix });
   optionalString(action, "behavior", errors, { prefix });
   optionalStringArray(action, "requiredPermissions", errors, { prefix });
-  optionalPlainObject(action, "confirm", errors, { prefix });
+  if (action.confirm !== undefined && typeof action.confirm !== "string" && !isPlainObject(action.confirm)) {
+    errors.push(`${prefix}.confirm must be a string or object.`);
+  }
   if (action.visibleWhen !== undefined) {
     if (!isPlainObject(action.visibleWhen)) {
       errors.push(`${prefix}.visibleWhen must be an object.`);

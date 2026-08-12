@@ -61,6 +61,28 @@ try {
   const workspaceId = actorSession.workspace_id;
   const target = await createTargetUser(workspaceId);
 
+  server = await listen(createApp());
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const csrfResponse = await globalThis.fetch(`${origin}/api/csrf-token`);
+  const csrfPayload = await csrfResponse.json();
+  const csrfCookie = (csrfResponse.headers.get("set-cookie") || "").split(";", 1)[0];
+  for (const body of ["null", "[]", '"not an object"', "1"]) {
+    const response = await globalThis.fetch(`${origin}/api/support-view/start`, {
+      body,
+      headers: {
+        Cookie: `longtail_forge_session=${firstLogin.sessionId}; ${csrfCookie}`,
+        "Content-Type": "application/json",
+        "Sec-Fetch-Site": "same-origin",
+        "User-Agent": "Mozilla/5.0 Support View Body Regression",
+        "X-CSRF-Token": csrfPayload.csrfToken,
+      },
+      method: "POST",
+    });
+    assert.equal(response.status, 400, `Support View must reject the non-object JSON body ${body} with a deliberate client error`);
+    const responsePayload = await response.json();
+    assert.equal(responsePayload.error.code, "bad_request");
+    assert.equal(responsePayload.error.message, "Confirm the read-only Support View warning before continuing.");
+  }
   const supportPermissionRows = await db.query(`
 SELECT role_id
 FROM role_permissions
@@ -79,6 +101,35 @@ ORDER BY role_id;
   assert.equal(Number((await db.get("SELECT COUNT(1) AS count FROM support_sessions;")).count), 0);
   assert.ok(await sessionsRepository.readById(firstLogin.sessionId), "failed reauthentication must not rotate the session");
   await authenticationThrottle.clear();
+
+  const validRouteLogin = await loginAdmin();
+  const validRouteResponse = await globalThis.fetch(`${origin}/api/support-view/start`, {
+    body: JSON.stringify({
+      confirmedReadOnly: true,
+      currentPassword: ADMIN_PASSWORD,
+      effectiveUserId: target.user_id,
+      reasonReference: "Valid route regression",
+      workspaceId,
+    }),
+    headers: {
+      Cookie: `longtail_forge_session=${validRouteLogin.sessionId}; ${csrfCookie}`,
+      "Content-Type": "application/json",
+      "Sec-Fetch-Site": "same-origin",
+      "User-Agent": "Mozilla/5.0 Support View Body Regression",
+      "X-CSRF-Token": csrfPayload.csrfToken,
+    },
+    method: "POST",
+  });
+  const validRouteText = await validRouteResponse.text();
+  assert.equal(validRouteResponse.status, 200, validRouteText);
+  const validRoutePayload = JSON.parse(validRouteText);
+  assert.equal(validRoutePayload.supportView.effectiveUserId, target.user_id);
+  const validRouteSessionId = readSessionCookie(validRouteResponse);
+  const validRouteSession = await readRequestSession(validRouteSessionId);
+  const validRouteExit = await supportViewService.exit(validRouteSession, validRouteSessionId, requestContext());
+  await sessionsRepository.remove(validRouteExit.session.sessionId);
+  await closeServer(server);
+  server = null;
 
   await assertRejectsStatus(() => supportViewService.start(actorSession, firstLogin.sessionId, {
     currentPassword: ADMIN_PASSWORD,

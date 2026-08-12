@@ -1,8 +1,23 @@
+// @ts-check
+
 import Busboy from "busboy";
 import { Router } from "express";
 import { filesService } from "../services/files.service.js";
 import { AppError } from "../utils/app-error.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import {
+  readJsonBody,
+  readJsonObjectBody,
+  workspaceAsyncRoute as asyncRoute,
+} from "../utils/http.js";
+
+/** @typedef {Awaited<ReturnType<typeof filesService.uploadStreamAndAttach>>} FileUploadResult */
+/** @typedef {import("node:stream").Readable} MultipartFileStream */
+/** @typedef {{ filename?: string, mimeType?: string, valueTruncated?: boolean }} MultipartPartInfo */
+/** @typedef {{ destroyParser?: boolean }} MultipartFailureOptions */
+/** @typedef {Map<string, string>} MultipartFields */
+/** @typedef {{ attachmentMetadata: Record<string, unknown>, attachmentRole: string, caption: string, displayName: string, fileStream: MultipartFileStream, filename: string, mimeType: string, moduleId: string, originalFilename: string, sortOrder: string, targetId: string, targetType: string, visibility: string }} MultipartUploadPayload */
+/** @typedef {{ attachment: FileUploadResult["attachment"], file: FileUploadResult["file"], index: number, ok: true, originalFilename: string } | { error: string, index: number, ok: false, originalFilename: string, status: number }} MultipartBatchEntry */
+/** @typedef {{ failed: number, ok: boolean, results: MultipartBatchEntry[], succeeded: number, total: number }} MultipartBatchResult */
 
 const filesRoutes = Router();
 const MAX_FILE_JSON_BODY_BYTES = 8 * 1024 * 1024;
@@ -81,7 +96,7 @@ filesRoutes.get("/files/settings", asyncRoute(async (request, response) => {
 }));
 
 filesRoutes.put("/files/settings", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await filesService.saveWorkspaceFileSettings(request.session, payload);
   response.status(200).json(result);
 }));
@@ -138,17 +153,21 @@ filesRoutes.post("/files/:fileId/restore", asyncRoute(async (request, response) 
 }));
 
 filesRoutes.post("/files/:fileId/report", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await filesService.reportFile(request.session, request.params.fileId, payload);
   response.status(200).json(result);
 }));
 
 filesRoutes.post("/files/:fileId/quarantine", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await filesService.quarantineFile(request.session, request.params.fileId, payload);
   response.status(200).json(result);
 }));
 
+/**
+ * @param {import("../types/route-contracts.js").WorkspaceRouteRequest} request
+ * @returns {Promise<FileUploadResult>}
+ */
 function readMultipartUpload(request) {
   const contentType = String(request.headers["content-type"] || "").toLowerCase();
 
@@ -157,6 +176,7 @@ function readMultipartUpload(request) {
   }
 
   return new Promise((resolve, reject) => {
+    /** @type {import("node:stream").Writable} */
     let parser;
 
     try {
@@ -173,11 +193,16 @@ function readMultipartUpload(request) {
       return;
     }
 
+    /** @type {MultipartFields} */
     const fields = new Map();
+    /** @type {Set<MultipartFileStream>} */
     const activeFileStreams = new Set();
     let fileSeen = false;
+    /** @type {unknown} */
     let uploadError = null;
+    /** @type {Promise<void> | null} */
     let uploadPromise = null;
+    /** @type {FileUploadResult | null} */
     let uploadResult = null;
     let settled = false;
 
@@ -185,6 +210,7 @@ function readMultipartUpload(request) {
       request.off("aborted", handleRequestAborted);
       request.off("error", handleRequestError);
     };
+    /** @param {unknown} error @param {MultipartFailureOptions} [options] */
     const fail = (error, options = {}) => {
       if (settled) {
         return;
@@ -281,6 +307,10 @@ function readMultipartUpload(request) {
         return;
       }
 
+      if (!uploadResult) {
+        fail(new AppError("Multipart upload could not be completed.", 400), { destroyParser: false });
+        return;
+      }
       settled = true;
       cleanupRequestListeners();
       resolve(uploadResult);
@@ -290,6 +320,10 @@ function readMultipartUpload(request) {
   });
 }
 
+/**
+ * @param {import("../types/route-contracts.js").WorkspaceRouteRequest} request
+ * @returns {Promise<MultipartBatchResult>}
+ */
 function readMultipartBatchUpload(request) {
   const contentType = String(request.headers["content-type"] || "").toLowerCase();
 
@@ -298,6 +332,7 @@ function readMultipartBatchUpload(request) {
   }
 
   return new Promise((resolve, reject) => {
+    /** @type {import("node:stream").Writable} */
     let parser;
 
     try {
@@ -314,8 +349,11 @@ function readMultipartBatchUpload(request) {
       return;
     }
 
+    /** @type {MultipartFields} */
     const fields = new Map();
+    /** @type {Set<MultipartFileStream>} */
     const activeFileStreams = new Set();
+    /** @type {Promise<MultipartBatchEntry>[]} */
     const uploadPromises = [];
     let settled = false;
     let uploadCount = 0;
@@ -324,6 +362,7 @@ function readMultipartBatchUpload(request) {
       request.off("aborted", handleRequestAborted);
       request.off("error", handleRequestError);
     };
+    /** @param {unknown} error @param {MultipartFailureOptions} [options] */
     const fail = (error, options = {}) => {
       if (settled) {
         return;
@@ -393,22 +432,28 @@ function readMultipartBatchUpload(request) {
 
       uploadPromises.push(
         filesService.uploadStreamAndAttach(request.session, payload)
-          .then((result) => ({
-            attachment: result.attachment,
-            file: result.file,
-            index,
-            ok: true,
-            originalFilename: payload.originalFilename || payload.filename || "",
-          }))
+          .then((result) => {
+            /** @type {MultipartBatchEntry} */
+            const entry = {
+              attachment: result.attachment,
+              file: result.file,
+              index,
+              ok: true,
+              originalFilename: payload.originalFilename || payload.filename || "",
+            };
+            return entry;
+          })
           .catch((error) => {
-            file.resume();
-            return {
-              error: error?.message || "Upload failed.",
+            /** @type {MultipartBatchEntry} */
+            const entry = {
+              error: multipartBatchErrorMessage(error),
               index,
               ok: false,
               originalFilename: payload.originalFilename || payload.filename || "",
-              status: error?.status || error?.statusCode || 400,
+              status: multipartBatchErrorStatus(error),
             };
+            file.resume();
+            return entry;
           }),
       );
     });
@@ -450,16 +495,31 @@ function readMultipartBatchUpload(request) {
   });
 }
 
+/**
+ * @param {{ error: unknown, index: number, info?: MultipartPartInfo }} options
+ * @returns {MultipartBatchEntry}
+ */
 function multipartBatchFailureResult({ error, index, info = {} }) {
   return {
-    error: error?.message || "Upload failed.",
+    error: multipartBatchErrorMessage(error),
     index,
     ok: false,
     originalFilename: info.filename || "",
-    status: error?.status || error?.statusCode || 400,
+    status: multipartBatchErrorStatus(error),
   };
 }
 
+/** @param {unknown} error @returns {string} */
+function multipartBatchErrorMessage(error) {
+  return error instanceof AppError ? error.message : "Upload failed.";
+}
+
+/** @param {unknown} error @returns {number} */
+function multipartBatchErrorStatus(error) {
+  return error instanceof AppError ? error.statusCode : 400;
+}
+
+/** @param {MultipartFileStream} file @param {Set<MultipartFileStream>} activeFileStreams */
 function trackMultipartFileStream(file, activeFileStreams) {
   activeFileStreams.add(file);
   const untrack = () => {
@@ -471,6 +531,7 @@ function trackMultipartFileStream(file, activeFileStreams) {
   file.once("error", untrack);
 }
 
+/** @param {Set<MultipartFileStream>} activeFileStreams @param {Error} error */
 function destroyMultipartFileStreams(activeFileStreams, error) {
   for (const file of activeFileStreams) {
     if (typeof file.destroy === "function" && !file.destroyed) {
@@ -480,12 +541,14 @@ function destroyMultipartFileStreams(activeFileStreams, error) {
   activeFileStreams.clear();
 }
 
+/** @param {import("node:stream").Writable | null} parser @param {Error} error */
 function destroyMultipartParser(parser, error) {
   if (parser && typeof parser.destroy === "function" && !parser.destroyed) {
     parser.destroy(error);
   }
 }
 
+/** @param {unknown} error @returns {AppError} */
 function normalizeMultipartUploadError(error) {
   if (error instanceof AppError) {
     return error;
@@ -493,6 +556,13 @@ function normalizeMultipartUploadError(error) {
   return new AppError("Multipart upload could not be parsed.", 400);
 }
 
+/**
+ * @param {MultipartFields} fields
+ * @param {MultipartFileStream} fileStream
+ * @param {MultipartPartInfo} [info]
+ * @param {number | null} [batchIndex]
+ * @returns {MultipartUploadPayload}
+ */
 function buildMultipartUploadPayload(fields, fileStream, info = {}, batchIndex = null) {
   for (const fieldName of ["moduleId", "targetType", "targetId"]) {
     if (!fieldValue(fields, fieldName)) {
@@ -522,11 +592,13 @@ function buildMultipartUploadPayload(fields, fileStream, info = {}, batchIndex =
   };
 }
 
+/** @param {MultipartFields} fields @param {string} camelName @returns {string} */
 function fieldValue(fields, camelName) {
   const snakeName = camelName.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
   return fields.get(camelName) || fields.get(snakeName) || "";
 }
 
+/** @param {unknown} value @returns {Record<string, unknown>} */
 function parseOptionalJsonObject(value) {
   const text = String(value || "").trim();
 

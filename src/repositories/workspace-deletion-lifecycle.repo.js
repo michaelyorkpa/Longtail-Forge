@@ -1,5 +1,13 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {{ workspaceId: string, requestedByUserId?: string | null, requestedAt: string, purgeAfter: string, backupId?: string | null, noCurrentBackupAcknowledged: boolean }} WorkspaceDeletionLifecycleCreateInput */
+/** @typedef {DatabaseRow & { workspace_id: string, requested_by_user_id: string | null, requested_at: string, purge_after: string, backup_id: string | null, no_current_backup_acknowledged: unknown, status: string, purge_started_at: string | null, purge_token: string | null, requested_by_name: string }} WorkspaceDeletionLifecycleRow */
+/** @typedef {{ workspaceId: string, requestedByUserId: string | null, requestedByName: string, requestedAt: string, purgeAfter: string, backupId: string | null, noCurrentBackupAcknowledged: boolean, status: string, purgeStartedAt: string | null, purgeToken: string | null }} WorkspaceDeletionLifecycle */
+
+/** @param {WorkspaceDeletionLifecycleCreateInput} value @returns {Promise<void>} */
 async function create(value) {
   await db.run(`
 INSERT INTO workspace_deletion_lifecycle (
@@ -28,8 +36,9 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<WorkspaceDeletionLifecycle | null>} */
 async function read(workspaceId) {
-  const row = await db.get(`
+  const row = /** @type {WorkspaceDeletionLifecycleRow | null} */ (await db.get(`
 SELECT
   workspace_deletion_lifecycle.workspace_id,
   workspace_deletion_lifecycle.requested_by_user_id,
@@ -45,7 +54,7 @@ FROM workspace_deletion_lifecycle
 LEFT JOIN users ON users.user_id = workspace_deletion_lifecycle.requested_by_user_id
 WHERE workspace_deletion_lifecycle.workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId });
+`, { workspaceId }));
 
   return row ? {
     backupId: row.backup_id,
@@ -61,6 +70,7 @@ LIMIT 1;
   } : null;
 }
 
+/** @param {string} workspaceId @returns {Promise<void>} */
 async function remove(workspaceId) {
   await db.run(`
 DELETE FROM workspace_deletion_lifecycle

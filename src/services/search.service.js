@@ -14,6 +14,28 @@ import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 
+/** @typedef {import("../types/framework-contracts.js").PermissionSafeSearchRequest} PermissionSafeSearchRequest */
+/** @typedef {import("../types/framework-contracts.js").SearchExecutionResult} SearchExecutionResult */
+/** @typedef {import("../types/framework-contracts.js").SearchableTypeContribution} SearchableTypeContribution */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/**
+ * Canonical camelCase Search record reference plus the live persistence aliases
+ * retained for adapters and result envelopes.
+ * @typedef {Object} NormalizedSearchRecordReference
+ * @property {string} searchIndexId
+ * @property {string} workspaceId
+ * @property {string} moduleId
+ * @property {string} recordType
+ * @property {string} recordId
+ * @property {string} search_index_id
+ * @property {string} workspace_id
+ * @property {string} module_id
+ * @property {string} record_type
+ * @property {string} record_id
+ */
+
 const SEARCH_SERVICE_VERSION = "0.33.5.6.1";
 
 const SEARCH_CAPABILITIES = Object.freeze({
@@ -105,6 +127,7 @@ async function repairSearchBackendIndex(scope = {}, options = {}) {
   });
 }
 
+/** @returns {ActiveSearchableTypeDeclaration[]} */
 function listSearchableTypes() {
   return [
     ...modulesService.listSearchableTypes(),
@@ -112,6 +135,10 @@ function listSearchableTypes() {
   ].map(normalizeSearchableType);
 }
 
+/**
+ * @param {string} workspaceId
+ * @returns {Promise<ActiveSearchableTypeDeclaration[]>}
+ */
 async function listActiveSearchableTypes(workspaceId) {
   return [
     ...(await modulesService.listActiveSearchableTypes(workspaceId)),
@@ -243,10 +270,11 @@ function validateSearchableTypeDeclarations(declarations = [], options = {}) {
  * @property {string | string[]} [record_types]
  * @property {string} [recordType]
  * @property {string} [record_type]
- * @property {any} [key] catch-all for boolean has*Filter flags read dynamically
+ * @property {boolean} [hasClientFilter]
+ * @property {boolean} [hasProjectFilter]
  */
 
-/** @param {{ session: any, searchableType: any, filters?: SearchFilterInput }} request */
+/** @param {{ session: WorkspaceRequestSession, searchableType: SearchableTypeContribution, filters?: SearchFilterInput }} request */
 async function composePermissionSafeSearchFilters({ session, searchableType, filters = {} }) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
@@ -306,15 +334,19 @@ async function composePermissionSafeSearchFilters({ session, searchableType, fil
   };
 }
 
-/** @param {{ session?: any, filters?: SearchFilterInput }} [request] */
+/**
+ * @param {{ session?: RequestSession | null, filters?: SearchFilterInput }} [request]
+ * @returns {Promise<PermissionSafeSearchRequest>}
+ */
 async function composePermissionSafeSearchRequest({ session, filters = {} } = {}) {
   if (!session?.workspace_id) {
     throw new AppError("Search requires an active workspace session.", 400);
   }
 
-  const workspaceId = filters.workspaceId || filters.workspace_id || session.workspace_id;
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  const workspaceId = filters.workspaceId || filters.workspace_id || workspaceSession.workspace_id;
 
-  if (workspaceId !== session.workspace_id) {
+  if (workspaceId !== workspaceSession.workspace_id) {
     throw new AppError("Search filters must stay inside the active workspace.", 403);
   }
 
@@ -323,7 +355,7 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     filters.recordTypes || filters.record_types || filters.recordType || filters.record_type,
   ));
   const tagFilters = normalizeSearchTagFilters(filters.tagIds || filters.tag_ids);
-  const scope = await resolveClientProjectFilterScope(session, {
+  const scope = await resolveClientProjectFilterScope(workspaceSession, {
     clientId: normalizeString(filters.clientId || filters.client_id),
     hasClientFilter: resolveHasSearchFilter(filters, "hasClientFilter", ["clientId", "client_id"]),
     hasProjectFilter: resolveHasSearchFilter(filters, "hasProjectFilter", ["projectId", "project_id"]),
@@ -334,7 +366,7 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     .filter((declaration) => allowedModuleIds.size === 0 || allowedModuleIds.has(declaration.moduleId))
     .filter((declaration) => allowedRecordTypes.size === 0 || allowedRecordTypes.has(declaration.recordType))
     .map((declaration) => composePermissionSafeSearchFilters({
-      session,
+      session: workspaceSession,
       searchableType: declaration,
       filters,
     }))))
@@ -510,6 +542,11 @@ async function reindexSearchRecord(recordReference = {}, options = {}) {
   }
 }
 
+/**
+ * @param {PermissionSafeSearchRequest & { limit?: number, offset?: number }} request
+ * @param {{ adapterId?: string, forceFallback?: boolean }} [options]
+ * @returns {Promise<SearchExecutionResult>}
+ */
 async function executeSearch(request, options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -538,6 +575,10 @@ function resolveSearchableType(recordReference = {}) {
   return declaration;
 }
 
+/**
+ * @param {SearchableTypeContribution} [declaration]
+ * @returns {ActiveSearchableTypeDeclaration}
+ */
 function normalizeSearchableType(declaration = {}) {
   return {
     recordType: normalizeString(declaration.recordType),
@@ -643,6 +684,10 @@ function validateNormalizedSearchDocument(document = {}) {
   }
 }
 
+/**
+ * @param {Record<string, unknown>} [recordReference]
+ * @returns {NormalizedSearchRecordReference}
+ */
 function normalizeSearchRecordReference(recordReference = {}) {
   const workspaceId = normalizeString(recordReference.workspaceId || recordReference.workspace_id);
   const moduleId = normalizeString(recordReference.moduleId || recordReference.module_id);

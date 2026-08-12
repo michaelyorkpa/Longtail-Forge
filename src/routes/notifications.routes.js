@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { notificationsService } from "../services/notifications.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { readJsonObjectBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const notificationsRoutes = Router();
 
@@ -20,13 +22,13 @@ notificationsRoutes.get("/notifications/preferences", asyncRoute(async (request,
 }));
 
 notificationsRoutes.put("/notifications/preferences", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await notificationsService.savePreferences(request.session, payload);
   response.status(200).json(result);
 }));
 
 notificationsRoutes.put("/notifications/workspace-defaults", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await notificationsService.saveWorkspaceDefaults(request.session, payload);
   response.status(200).json(result);
 }));
@@ -37,7 +39,7 @@ notificationsRoutes.get("/notifications/subscriptions", asyncRoute(async (reques
 }));
 
 notificationsRoutes.post("/notifications/subscriptions", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await notificationsService.followTarget(request.session, payload);
   response.status(200).json(result);
 }));

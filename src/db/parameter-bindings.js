@@ -1,7 +1,28 @@
+// @ts-check
+import { Buffer } from "node:buffer";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseParams} DatabaseParams */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterInput} DatabaseParameterInput */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").DatabasePlaceholderStyle} DatabasePlaceholderStyle */
+/** @typedef {import("../types/database-contracts.js").NormalizedDatabaseParameters} NormalizedDatabaseParameters */
+/** @typedef {import("../types/database-contracts.js").NamedDatabaseParameterToken} NamedDatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").PositionalDatabaseParameterToken} PositionalDatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterToken} DatabaseParameterToken */
+/** @typedef {import("../types/database-contracts.js").NamedBindingEntry} NamedBindingEntry */
+/** @typedef {import("../types/database-contracts.js").PreparedDatabaseBindings} PreparedDatabaseBindings */
+/** @typedef {import("../types/database-contracts.js").PrepareDatabaseBindingsOptions} PrepareDatabaseBindingsOptions */
+
 const DOLLAR_PLACEHOLDERS = "dollar";
 const QUESTION_PLACEHOLDERS = "question";
 const BULK_VALUES_SAFE_PLACEHOLDER_BUDGET = 32766;
 
+/**
+ * @param {string} sql
+ * @param {DatabaseParams} [params]
+ * @param {PrepareDatabaseBindingsOptions} [options]
+ * @returns {PreparedDatabaseBindings}
+ */
 function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   const text = String(sql || "").trim();
   const placeholderStyle = normalizePlaceholderStyle(options.placeholderStyle || DOLLAR_PLACEHOLDERS);
@@ -37,6 +58,13 @@ function prepareDatabaseBindings(sql, params = undefined, options = {}) {
   };
 }
 
+/**
+ * @template {Record<string, unknown>} RowType
+ * @param {RowType[]} rows
+ * @param {string[]} columns
+ * @param {import("../types/database-contracts.js").BulkValuesBindingOptions<RowType>} [options]
+ * @returns {{ params: Record<string, DatabaseParameterValue>; sql: string }}
+ */
 function createBulkValuesBindings(rows, columns, options = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
     throw new Error("Bulk VALUES binding requires at least one row.");
@@ -52,6 +80,7 @@ function createBulkValuesBindings(rows, columns, options = {}) {
   const valueForColumn = typeof options.valueForColumn === "function"
     ? options.valueForColumn
     : defaultBulkValuesColumnValue;
+  /** @type {Record<string, DatabaseParameterValue>} */
   const params = {};
   const sql = rows.map((row, rowIndex) => {
     const placeholders = normalizedColumns.map((columnName, columnIndex) => {
@@ -82,6 +111,12 @@ function assertBulkValuesPlaceholderBudget(rowCount, columnCount) {
   );
 }
 
+/**
+ * @param {string} sql
+ * @param {NamedDatabaseParameterToken[]} tokens
+ * @param {NormalizedDatabaseParameters} parameters
+ * @param {DatabasePlaceholderStyle} placeholderStyle
+ */
 function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
   const expectedNames = uniqueTokenNames(tokens);
   const expectedNameSet = new Set(expectedNames);
@@ -105,10 +140,10 @@ function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle)
 
   const bindingsByName = createNamedBindingEntries(expectedNames, parameters.values, placeholderStyle);
   const positionalParams = placeholderStyle === DOLLAR_PLACEHOLDERS
-    ? expectedNames.flatMap((name) => bindingsByName.get(name).values)
+    ? expectedNames.flatMap((name) => requireNamedBinding(bindingsByName, name).values)
     : [];
   const rewrittenSql = rewriteSqlTokens(sql, tokens, (token) => {
-    const binding = bindingsByName.get(token.name);
+    const binding = requireNamedBinding(bindingsByName, token.name);
 
     if (binding.isArray) {
       if (binding.placeholders.length === 0) {
@@ -129,19 +164,30 @@ function resolveNamedDatabaseBindings(sql, tokens, parameters, placeholderStyle)
     return binding.placeholder;
   });
 
-  return {
+  return /** @type {const} */ ({
     hasBindings: true,
     params: positionalParams,
     sql: rewrittenSql,
-  };
+  });
 }
 
+/**
+ * @param {string[]} expectedNames
+ * @param {Map<string, DatabaseParameterValue | DatabaseParameterValue[]>} values
+ * @param {DatabasePlaceholderStyle} placeholderStyle
+ * @returns {Map<string, NamedBindingEntry>}
+ */
 function createNamedBindingEntries(expectedNames, values, placeholderStyle) {
+  /** @type {Map<string, NamedBindingEntry>} */
   const bindingsByName = new Map();
   let nextPosition = 1;
 
   for (const name of expectedNames) {
     const value = values.get(name);
+
+    if (value === undefined) {
+      throw new Error(`Missing internal database parameter value: :${name}.`);
+    }
 
     if (Array.isArray(value)) {
       const placeholders = value.map(() => {
@@ -170,6 +216,25 @@ function createNamedBindingEntries(expectedNames, values, placeholderStyle) {
   return bindingsByName;
 }
 
+/**
+ * @param {Map<string, NamedBindingEntry>} bindingsByName
+ * @param {string} name
+ * @returns {NamedBindingEntry}
+ */
+function requireNamedBinding(bindingsByName, name) {
+  const binding = bindingsByName.get(name);
+  if (!binding) {
+    throw new Error(`Missing internal database binding entry: :${name}.`);
+  }
+  return binding;
+}
+
+/**
+ * @param {string} sql
+ * @param {PositionalDatabaseParameterToken[]} tokens
+ * @param {NormalizedDatabaseParameters} parameters
+ * @param {DatabasePlaceholderStyle} placeholderStyle
+ */
 function resolvePositionalDatabaseBindings(sql, tokens, parameters, placeholderStyle) {
   const expectedCount = tokens.reduce((count, token) => Math.max(count, token.position), 0);
 
@@ -192,14 +257,19 @@ function resolvePositionalDatabaseBindings(sql, tokens, parameters, placeholderS
     placeholderStyle === DOLLAR_PLACEHOLDERS ? `$${token.position}` : "?"
   ));
 
-  return {
+  return /** @type {const} */ ({
     hasBindings: true,
     params: positionalParams,
     sql: rewrittenSql,
-  };
+  });
 }
 
+/**
+ * @param {NamedDatabaseParameterToken[]} tokens
+ * @returns {string[]}
+ */
 function uniqueTokenNames(tokens) {
+  /** @type {string[]} */
   const names = [];
   const seen = new Set();
 
@@ -215,6 +285,12 @@ function uniqueTokenNames(tokens) {
   return names;
 }
 
+/**
+ * @template {DatabaseParameterToken} TokenType
+ * @param {string} sql
+ * @param {TokenType[]} tokens
+ * @param {(token: TokenType) => string} replacementForToken
+ */
 function rewriteSqlTokens(sql, tokens, replacementForToken) {
   let rewritten = "";
   let lastIndex = 0;
@@ -228,14 +304,22 @@ function rewriteSqlTokens(sql, tokens, replacementForToken) {
   return rewritten + sql.slice(lastIndex);
 }
 
+/**
+ * @param {string} style
+ * @returns {DatabasePlaceholderStyle}
+ */
 function normalizePlaceholderStyle(style) {
-  if ([DOLLAR_PLACEHOLDERS, QUESTION_PLACEHOLDERS].includes(style)) {
+  if (style === DOLLAR_PLACEHOLDERS || style === QUESTION_PLACEHOLDERS) {
     return style;
   }
 
   throw new Error(`Unsupported database placeholder style: ${style}.`);
 }
 
+/**
+ * @param {DatabaseParams | null | undefined} params
+ * @returns {NormalizedDatabaseParameters}
+ */
 function normalizeDatabaseParameters(params) {
   if (params === undefined || params === null) {
     return {
@@ -255,6 +339,7 @@ function normalizeDatabaseParameters(params) {
     throw new Error("Database query parameters must be an array or object.");
   }
 
+  /** @type {Map<string, DatabaseParameterValue | DatabaseParameterValue[]>} */
   const values = new Map();
 
   for (const [name, value] of Object.entries(params)) {
@@ -267,6 +352,10 @@ function normalizeDatabaseParameters(params) {
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseNamedParameterInput} value
+ * @returns {DatabaseParameterValue | DatabaseParameterValue[]}
+ */
 function normalizeNamedDatabaseParameterValue(value) {
   if (Array.isArray(value)) {
     return value.map(normalizeDatabaseParameterValue);
@@ -275,6 +364,7 @@ function normalizeNamedDatabaseParameterValue(value) {
   return normalizeDatabaseParameterValue(value);
 }
 
+/** @param {NormalizedDatabaseParameters} parameters */
 function assertNoProvidedParameters(parameters) {
   if (parameters.kind === "object" && parameters.values.size > 0) {
     throw new Error(`Unknown database query parameter: ${parameters.values.keys().next().value}.`);
@@ -306,10 +396,19 @@ function normalizeBulkValuesColumnName(name) {
   return text;
 }
 
+/**
+ * @param {Record<string, unknown>} row
+ * @param {string} columnName
+ * @returns {DatabaseParameterInput}
+ */
 function defaultBulkValuesColumnValue(row, columnName) {
-  return row?.[columnName];
+  return /** @type {DatabaseParameterInput} */ (row?.[columnName]);
 }
 
+/**
+ * @param {DatabaseParameterInput} value
+ * @returns {DatabaseParameterValue}
+ */
 function normalizeDatabaseParameterValue(value) {
   if (value === undefined || value === null) {
     return null;
@@ -346,7 +445,12 @@ function normalizeDatabaseParameterValue(value) {
   throw new Error("Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined.");
 }
 
+/**
+ * @param {string} sql
+ * @returns {{ statementCount: number; tokens: DatabaseParameterToken[] }}
+ */
 function analyzeSqlStatement(sql) {
+  /** @type {DatabaseParameterToken[]} */
   const tokens = [];
   let anonymousIndex = 0;
   let statementCount = 0;

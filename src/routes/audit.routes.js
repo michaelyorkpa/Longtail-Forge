@@ -1,24 +1,29 @@
+// @ts-check
+
 import { Router } from "express";
+import { createWorkspacePermissionResource } from "../core/permission-resource.js";
 import { auditService } from "../services/audit.service.js";
 import { permissionsService } from "../services/permissions.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const auditRoutes = Router();
 
 auditRoutes.get("/audit-logs", asyncRoute(async (request, response) => {
-  await permissionsService.assertCan(request.session, "audit_logs.view", {
-    workspace_id: request.session.workspace_id,
-    operation: "read",
-  });
+  await permissionsService.assertCan(
+    request.session,
+    "audit_logs.view",
+    createWorkspacePermissionResource(request.session.workspace_id, "read"),
+  );
   const result = await auditService.list(request.session, request.query);
   response.status(200).json(result);
 }));
 
 auditRoutes.get("/audit-logs/export.csv", asyncRoute(async (request, response) => {
-  await permissionsService.assertCan(request.session, "audit_logs.view", {
-    workspace_id: request.session.workspace_id,
-    operation: "read",
-  });
+  await permissionsService.assertCan(
+    request.session,
+    "audit_logs.view",
+    createWorkspacePermissionResource(request.session.workspace_id, "read"),
+  );
   const csv = await auditService.exportCsv(request.session, request.query);
 
   response.writeHead(200, {
@@ -46,10 +51,7 @@ auditRoutes.get("/security-events/export.csv", asyncRoute(async (request, respon
 }));
 
 async function assertCanViewSecurityEvents(session) {
-  const resource = {
-    workspace_id: session.workspace_id,
-    operation: "read",
-  };
+  const resource = createWorkspacePermissionResource(session.workspace_id, "read");
   await permissionsService.assertCan(session, "audit_logs.view", resource);
   await permissionsService.assertCan(session, "workspace_settings.manage", resource);
 }

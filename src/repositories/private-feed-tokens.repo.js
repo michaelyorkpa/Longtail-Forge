@@ -1,5 +1,16 @@
+// @ts-check
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/database-contracts.js").DatabaseParams} DatabaseParams */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenCreateInput} PrivateFeedTokenCreateInput */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenListFilters} PrivateFeedTokenListFilters */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenMutationResult} PrivateFeedTokenMutationResult */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenRevokeResult} PrivateFeedTokenRevokeResult */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenRow} PrivateFeedTokenRow */
+/** @typedef {{ private_feed_token_id: string }} PrivateFeedTokenIdRow */
 
 const CALENDAR_SELECT = `
 SELECT
@@ -55,18 +66,31 @@ LEFT JOIN clients AS project_clients
   ON project_clients.workspace_id = projects.workspace_id
   AND project_clients.id = projects.client_id`;
 
+/**
+ * @param {string} workspaceId
+ * @param {string} providerId
+ * @param {TransactionClient} [database]
+ * @returns {Promise<PrivateFeedTokenRow[]>}
+ */
 async function listForWorkspace(workspaceId, providerId, database = db) {
-  return database.query(`${CALENDAR_SELECT}
+  return /** @type {Promise<PrivateFeedTokenRow[]>} */ (database.query(`${CALENDAR_SELECT}
 WHERE tokens.workspace_id = :workspaceId
   AND tokens.provider_id = :providerId
 ORDER BY CASE tokens.status WHEN 'active' THEN 0 ELSE 1 END, tokens.created_at DESC, tokens.private_feed_token_id;`, {
     providerId,
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {string} providerId
+ * @param {PrivateFeedTokenListFilters} [filters]
+ * @param {TransactionClient} [database]
+ * @returns {Promise<PrivateFeedTokenRow[]>}
+ */
 async function listActive(providerId, filters = {}, database = db) {
   const clauses = ["tokens.provider_id = :providerId", "tokens.status = 'active'"];
+  /** @type {DatabaseParams} */
   const params = { providerId };
   if (filters.workspaceId) {
     clauses.push("tokens.workspace_id = :workspaceId");
@@ -76,21 +100,34 @@ async function listActive(providerId, filters = {}, database = db) {
     clauses.push("tokens.user_id = :userId");
     params.userId = filters.userId;
   }
-  return database.query(`${CALENDAR_SELECT}
+  return /** @type {Promise<PrivateFeedTokenRow[]>} */ (database.query(`${CALENDAR_SELECT}
 WHERE ${clauses.join("\n  AND ")}
-ORDER BY tokens.created_at, tokens.private_feed_token_id;`, params);
+ORDER BY tokens.created_at, tokens.private_feed_token_id;`, params));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {TransactionClient} [database]
+ * @returns {Promise<PrivateFeedTokenRow | null>}
+ */
 async function readById(workspaceId, subscriptionId, providerId, database = db) {
-  return database.get(`${CALENDAR_SELECT}
+  return /** @type {Promise<PrivateFeedTokenRow | null>} */ (database.get(`${CALENDAR_SELECT}
 WHERE tokens.workspace_id = :workspaceId
   AND tokens.private_feed_token_id = :subscriptionId
   AND tokens.provider_id = :providerId
-LIMIT 1;`, { providerId, subscriptionId, workspaceId });
+LIMIT 1;`, { providerId, subscriptionId, workspaceId }));
 }
 
+/**
+ * @param {string} providerId
+ * @param {string} tokenSelector
+ * @param {TransactionClient} [database]
+ * @returns {Promise<PrivateFeedTokenRow | null>}
+ */
 async function readForAuthentication(providerId, tokenSelector, database = db) {
-  return database.get(`${CALENDAR_SELECT}
+  return /** @type {Promise<PrivateFeedTokenRow | null>} */ (database.get(`${CALENDAR_SELECT}
 WHERE tokens.provider_id = :providerId
   AND tokens.token_selector = :tokenSelector
   AND tokens.status = 'active'
@@ -105,9 +142,14 @@ WHERE tokens.provider_id = :providerId
     OR projects.client_id IS NULL
     OR project_clients.status <> 'Inactive'
   )
-LIMIT 1;`, { providerId, tokenSelector });
+LIMIT 1;`, { providerId, tokenSelector }));
 }
 
+/**
+ * @param {PrivateFeedTokenCreateInput} input
+ * @param {TransactionClient} [database]
+ * @returns {Promise<PrivateFeedTokenRow | null>}
+ */
 async function create({ name, providerId, scopeClientId, scopeProjectId, scopeType, tokenHash, tokenSelector, userId, workspaceId }, database = db) {
   const now = new Date().toISOString();
   const subscriptionId = createRecordId();
@@ -136,6 +178,15 @@ INSERT INTO private_feed_tokens (
   return readById(workspaceId, subscriptionId, providerId, database);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {string} tokenSelector
+ * @param {string} tokenHash
+ * @param {DatabaseAdapter} [database]
+ * @returns {Promise<PrivateFeedTokenMutationResult>}
+ */
 async function rotate(workspaceId, subscriptionId, providerId, tokenSelector, tokenHash, database = db) {
   return database.transaction(async (transaction) => {
     const current = await readById(workspaceId, subscriptionId, providerId, transaction);
@@ -160,6 +211,13 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} subscriptionId
+ * @param {string} providerId
+ * @param {DatabaseAdapter} [database]
+ * @returns {Promise<PrivateFeedTokenMutationResult>}
+ */
 async function remove(workspaceId, subscriptionId, providerId, database = db) {
   return database.transaction(async (transaction) => {
     const current = await readById(workspaceId, subscriptionId, providerId, transaction);
@@ -178,16 +236,22 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string[]} subscriptionIds
+ * @param {string} reason
+ * @param {DatabaseAdapter} [database]
+ * @returns {Promise<PrivateFeedTokenRevokeResult>}
+ */
 async function revokeMany(subscriptionIds, reason, database = db) {
   if (!Array.isArray(subscriptionIds) || subscriptionIds.length === 0) {
     return { changed: 0 };
   }
   return database.transaction(async (transaction) => {
-    const current = await transaction.query(`
+    const current = /** @type {PrivateFeedTokenIdRow[]} */ (await transaction.query(`
 SELECT private_feed_token_id
 FROM private_feed_tokens
 WHERE private_feed_token_id IN (:subscriptionIds)
-  AND status = 'active';`, { subscriptionIds });
+  AND status = 'active';`, { subscriptionIds }));
     if (current.length === 0) return { changed: 0 };
     const now = new Date().toISOString();
     await transaction.run(`

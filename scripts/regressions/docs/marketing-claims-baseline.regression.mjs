@@ -37,7 +37,7 @@ assert.match(claims, /C-016 — Tasks calendar subscriptions/);
 assert.match(claims, /C-017 — Legal, licensing, and third-party notices/);
 assert.match(claims, /THIRD_PARTY_NOTICES\.md/);
 assert.match(claims, /Public Terms\/Privacy routes ship with neutral operator templates/);
-assert.match(claims, /review path appropriate to future public analytics, feedback, or interest capture is deferred to 0\.33\.32/);
+assert.match(claims, /review path appropriate to future public analytics, feedback, or interest capture is deferred to 0\.33\.33/);
 assert.match(marketing, /private signed readiness record/);
 assert.match(marketing, /explicit invite\/no-invite decision/);
 assert.match(marketing, /read-only Tasks calendar/);

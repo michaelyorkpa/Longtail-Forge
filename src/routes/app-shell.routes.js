@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { appShellService } from "../services/app-shell.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const appShellRoutes = Router();
 

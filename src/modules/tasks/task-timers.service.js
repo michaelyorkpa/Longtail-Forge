@@ -1,6 +1,7 @@
+// @ts-check
 import { taskTimersRepository } from "./task-timers.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
-import { activeTimersService } from "../time-tracking/active-timers.service.js";
+import { activeTimersService } from "../time-tracking/index.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
@@ -9,20 +10,31 @@ import { permissionsService } from "../../core/permissions.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
+
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{ task_id: string, title: string }} TaskTimerSourceTask */
+/** @typedef {{ billable?: unknown }} TaskTimerBillableTask */
+/** @typedef {{ accumulated_elapsed_seconds?: string | number | null, active_timer_id?: string | null, active_task_timer_id?: string | null, last_active_start_time?: import("../../utils/timezones.js").DateTimeInput, timer_status?: string | null }} TaskTimerSavePayload */
+/** @typedef {{ timer_slot?: unknown, timerSlot?: unknown }} TaskTimerLinkPayload */
+/** @typedef {{ finalize: typeof finalize, hasActiveTaskTimers: typeof hasActiveTaskTimers, linkManualTimer: typeof linkManualTimer, list: typeof list, pauseRunningForBlockedTask: typeof pauseRunningForBlockedTask, remove: typeof remove, save: typeof save }} TaskTimersService */
 
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
+/** @param {WorkspaceRequestSession} session */
 async function list(session) {
   return {
     timers: await taskTimersRepository.readAllForUser(session.workspace_id, session.user_id),
   };
 }
 
+/** @param {TaskTimerSourceTask} task @param {WorkspaceRequestSession} session */
 async function pauseRunningForBlockedTask(task, session) {
   return activeTimersService.pauseRunningSourced(taskTimerSource(task), session);
 }
 
+/** @param {string} taskId @param {TaskTimerSavePayload} payload @param {WorkspaceRequestSession} session */
 async function save(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -33,7 +45,7 @@ async function save(taskId, payload, session) {
   const transition = timerStatus === "running"
     ? await transitionTaskToInProgressForTimerStart(task, existingTimer, session)
     : taskTimerTransitionMetadata(existingTimer);
-  const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
+  const elapsedSeconds = Math.max(0, Number.parseInt(String(payload?.accumulated_elapsed_seconds ?? ""), 10) || 0);
   let result;
 
   try {
@@ -44,7 +56,7 @@ async function save(taskId, payload, session) {
       project_id: task.project_id,
       project_name: task.project_name,
       description: task.title,
-      billable: task.billable === "no" ? "no" : "yes",
+      billable: taskTimerBillable(task),
       accumulated_elapsed_seconds: elapsedSeconds,
       last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
       sourceMetadata: {
@@ -70,6 +82,7 @@ async function save(taskId, payload, session) {
   };
 }
 
+/** @param {string} taskId @param {TaskTimerLinkPayload} payload @param {WorkspaceRequestSession} session */
 async function linkManualTimer(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -95,7 +108,7 @@ async function linkManualTimer(taskId, payload, session) {
 
   try {
     result = await activeTimersService.convertManualToSourced(timerSlot, taskTimerSource(task), {
-      billable: task.billable === "no" ? "no" : "yes",
+      billable: taskTimerBillable(task),
       client_id: task.client_id,
       client_name: task.client_name,
       description: task.title,
@@ -153,6 +166,7 @@ async function linkManualTimer(taskId, payload, session) {
   };
 }
 
+/** @param {string} taskId @param {WorkspaceRequestSession} session */
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
@@ -169,6 +183,7 @@ async function remove(taskId, session) {
   };
 }
 
+/** @param {string} taskId @param {unknown} payload @param {WorkspaceRequestSession} session */
 async function finalize(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -182,7 +197,7 @@ async function finalize(taskId, payload, session) {
     project_name: task.project_name,
     task_id: task.task_id,
     description: task.title,
-    billable: task.billable === "no" ? "no" : "yes",
+    billable: taskTimerBillable(task),
     invoice_status: "unbilled",
   });
   await auditService.record({
@@ -217,6 +232,7 @@ async function finalize(taskId, payload, session) {
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasActiveTaskTimers(workspaceId, taskId) {
   return taskTimersRepository.hasActiveForTask(workspaceId, taskId);
 }
@@ -431,6 +447,7 @@ function taskResource(task) {
   };
 }
 
+/** @param {TaskTimerSourceTask} task */
 function taskTimerSource(task) {
   return {
     source_module_id: TASKS_MODULE_ID,
@@ -441,6 +458,17 @@ function taskTimerSource(task) {
   };
 }
 
+/** @param {TaskTimerBillableTask} task @returns {"yes" | "no"} */
+function taskTimerBillable(task) {
+  return normalizeTimeEntryBillable(task?.billable) || "yes";
+}
+
+/**
+ * @template {{ active_timer_id: string }} Timer
+ * @param {Timer} timer
+ * @param {TaskTimerSourceTask} task
+ * @returns {Timer & { active_task_timer_id: string, task_id: string }}
+ */
 function taskTimerFromUnified(timer, task) {
   return {
     ...timer,
@@ -449,6 +477,7 @@ function taskTimerFromUnified(timer, task) {
   };
 }
 
+/** @type {TaskTimersService} */
 export const taskTimersService = {
   finalize,
   hasActiveTaskTimers,

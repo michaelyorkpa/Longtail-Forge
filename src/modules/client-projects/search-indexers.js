@@ -1,7 +1,10 @@
+// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
+
+/** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
 
 const CLIENTS_SEARCH_INDEXER_ID = "client-projects.clients";
 const PROJECTS_SEARCH_INDEXER_ID = "client-projects.projects";
@@ -16,6 +19,7 @@ function registerClientProjectsSearchIndexers() {
   };
 }
 
+/** @param {SearchReference} reference */
 async function indexClientRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const clients = await clientsRepository.readAll(workspaceId);
@@ -68,6 +72,7 @@ async function clientToSearchDocument(client) {
   };
 }
 
+/** @param {SearchReference} reference */
 async function indexProjectRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const projects = await projectsRepository.readAll(workspaceId);

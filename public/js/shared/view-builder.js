@@ -1960,6 +1960,14 @@
     return `${count} selected`;
   }
 
+  function normalizeSurfaceDescriptor(descriptor) {
+    const adapter = root.viewSurfaceDescriptor || {};
+    if (typeof adapter.normalize !== "function") {
+      throw new Error("View primitives require LongtailForge.viewSurfaceDescriptor.normalize.");
+    }
+    return adapter.normalize(descriptor);
+  }
+
   function assignViewParts(element, parts) {
     Object.defineProperty(element, "viewParts", {
       configurable: true,
@@ -1997,6 +2005,7 @@
     createSplitListDetail,
     createStatusMessage,
     isTopModal,
+    normalizeSurfaceDescriptor,
     showModal,
   });
 

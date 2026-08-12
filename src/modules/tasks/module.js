@@ -1,3 +1,4 @@
+// @ts-check
 import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
 import { registerTasksSearchIndexers } from "./search-indexers.js";
@@ -44,6 +45,7 @@ function registerTasksStartupSweeps({ registerStartupTask }, sourcePrefix) {
   });
 }
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const tasksModule = {
   id: "tasks",
   name: "Tasks",
@@ -150,6 +152,7 @@ const tasksModule = {
       dataSource: {
         route: "/api/tasks",
         method: "GET",
+        recordsKey: "tasks",
         fieldBindings: {
           id: "task_id",
           title: "title",

@@ -1,3 +1,5 @@
+import type { RequestSession } from "./http-contracts.js";
+
 /**
  * Framework contract shapes (type-only).
  *
@@ -21,12 +23,12 @@
 export interface ModuleManifest {
   id: string;
   name: string;
-  displayName?: string;
-  description?: string;
+  displayName: string;
+  description: string;
   terminology?: TerminologyMap;
-  category?: string;
-  version?: string;
-  enabledByDefault?: boolean;
+  category: string;
+  version: string;
+  enabledByDefault: boolean;
   canDisable?: boolean;
   historicalReadAccess?: boolean;
   browserApiRoutes?: unknown[];
@@ -47,25 +49,11 @@ export interface ModuleManifest {
   permissions?: unknown[];
   requiredPermissions?: string[];
   defaultRolePermissions?: { roleId: string; permissions: string[] }[];
-  resourceDefinitions?: unknown[];
+  resourceDefinitions?: ResourceDefinitionContribution[];
   publicApiEndpoints?: unknown[];
-  apiScopes?: unknown[];
-  auditRecordTypes?: readonly {
-    recordType: string;
-    moduleId: string;
-    label: string;
-    description: string;
-    terminology?: TerminologyMap;
-    [key: string]: unknown;
-  }[];
-  eventTypes?: readonly {
-    event: string;
-    moduleId: string;
-    label: string;
-    description: string;
-    recordType?: string;
-    [key: string]: unknown;
-  }[];
+  apiScopes?: readonly (string | ApiScopeContribution)[];
+  auditRecordTypes?: readonly AuditRecordTypeContribution[];
+  eventTypes?: readonly EventTypeContribution[];
   eventSummaries?: Record<string, unknown> | readonly unknown[];
   timerSources?: unknown[];
   workItemSources?: unknown[];
@@ -74,21 +62,93 @@ export interface ModuleManifest {
   tagPropagation?: unknown;
   searchableTypes?: SearchableTypeContribution[];
   attachableTypes?: AttachableTypeContribution[];
-  protectedContentConsumers?: ProtectedContentConsumerContribution[];
+  protectedContentConsumers?: readonly ProtectedContentConsumerContribution[];
+  notificationEvents?: readonly NotificationEventContribution[];
+  notificationTemplates?: readonly NotificationTemplateContribution[];
+  notificationFollowTargets?: readonly NotificationFollowTargetContribution[];
   help?: {
     sections?: readonly Record<string, unknown>[];
     articles?: readonly Record<string, unknown>[];
     [key: string]: unknown;
   };
   hooks?: {
-    events?: readonly Record<string, any>[];
-    [key: string]: unknown;
+    events?: readonly ModuleEventHookContribution[];
   };
   frameworkDependencies?: string[];
   moduleDependencies?: string[];
   seedHooks?: unknown[];
   repairHooks?: unknown[];
   workspaceCapabilityRequirements?: string[];
+}
+
+export interface CatalogContribution {
+  id?: string;
+  moduleId?: string;
+  label?: string;
+  description?: string;
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+  requiresEnabledModules?: string[];
+  requiredModules?: string[];
+  workspaceTypes?: string[];
+  publicDemoCapability?: string;
+  path?: string;
+  terminology?: TerminologyMap;
+}
+
+export interface ResourceDefinitionContribution extends CatalogContribution {
+  key: string;
+  operations: string[];
+}
+
+export interface ApiScopeContribution extends CatalogContribution {
+  id: string;
+  access?: string;
+}
+
+export interface ApiScopeCatalogEntry extends ApiScopeContribution {
+  moduleId: string;
+  scope: string;
+  label: string;
+  description: string;
+  access: string;
+}
+
+export interface AuditRecordTypeContribution extends CatalogContribution {
+  recordType: string;
+  moduleId: string;
+  label: string;
+  description: string;
+}
+
+export interface EventTypeContribution extends CatalogContribution {
+  event: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  recordType?: string;
+}
+
+export interface ModuleEventHookContext {
+  event: InternalEvent;
+  module: ModuleManifest;
+  modulesService: ModuleEventHookModulesService;
+}
+
+export interface ModuleEventHookModulesService {
+  canReadModule(workspaceId: string, moduleId: string): Promise<boolean>;
+  canWriteModule(workspaceId: string, moduleId: string): Promise<boolean>;
+  getModule(moduleId: string): ModuleManifest | null;
+}
+
+export interface ModuleEventHookContribution extends CatalogContribution {
+  event: string;
+  handler: (context: ModuleEventHookContext) => unknown | Promise<unknown>;
+}
+
+export interface ModuleEventHook extends ModuleEventHookContribution {
+  id: string;
+  moduleId: string;
 }
 
 export interface ProtectedContentConsumerContribution {
@@ -98,6 +158,39 @@ export interface ProtectedContentConsumerContribution {
   surface: string;
   behavior: "authorize" | "exclude";
   assertion: string;
+}
+
+export interface NotificationEventContribution {
+  id: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  defaultEnabled: boolean;
+  defaultPriority: string;
+  recipientResolver?: string;
+  recipientMode?: string;
+  suppressActorSubscriptions?: boolean;
+  terminology?: TerminologyMap;
+}
+
+export interface NotificationTemplateContribution {
+  id: string;
+  moduleId: string;
+  event: string;
+  title: string;
+  body: string;
+  url?: string;
+  recordLinkPattern?: string;
+  terminology?: TerminologyMap;
+}
+
+export interface NotificationFollowTargetContribution {
+  targetType: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  requiredReadPermission: string;
+  eventTypes?: string[];
 }
 
 export interface ModuleStartupTask {
@@ -185,23 +278,296 @@ export interface BrowserAssetContribution {
 // Declarative view surfaces
 // ---------------------------------------------------------------------------
 
+export interface ViewLabelDescriptor {
+  label?: string;
+  labelKey?: string;
+  title?: string;
+  titleKey?: string;
+  description?: string;
+  descriptionKey?: string;
+}
+
+export interface ViewVisibleWhenDescriptor {
+  field: string;
+  equals?: unknown;
+  in?: unknown[];
+  truthy?: boolean;
+  falsy?: boolean;
+}
+
+export interface ViewActionDescriptor extends ViewLabelDescriptor {
+  publicDemoCapability?: string;
+  id: string;
+  role?: "primary" | "secondary" | "destructive" | "utility";
+  icon?: string;
+  iconOnly?: boolean;
+  title?: string;
+  route?: string;
+  method?: string;
+  confirm?: string | Record<string, unknown>;
+  requiredPermissions?: string[];
+  behavior?: string;
+  visibleWhen?: ViewVisibleWhenDescriptor;
+}
+
+export interface ViewPageHeaderDescriptor extends ViewLabelDescriptor {
+  primaryAction?: ViewActionDescriptor;
+}
+
+export interface ViewFilterDescriptor {
+  id?: string;
+  field: string;
+  type: string;
+  label?: string;
+  labelKey?: string;
+  options?: unknown[];
+  optionsSource?: string;
+  default?: unknown;
+  queryKey?: string;
+}
+
+export interface ViewRegionDescriptor extends ViewLabelDescriptor {
+  id: string;
+  behavior: string;
+  placement?: string;
+  className?: string;
+  ariaLabel?: string;
+}
+
+export interface ViewSidebarPanelFooterDescriptor extends ViewLabelDescriptor {
+  id?: string;
+  behavior?: string;
+  className?: string;
+  ariaLabel?: string;
+}
+
+export interface ViewSidebarPanelDescriptor extends ViewLabelDescriptor {
+  id: string;
+  type: "filters" | "navigation" | "index";
+  behavior?: string;
+  collapsible?: boolean;
+  open?: boolean;
+  emptyState?: Record<string, unknown>;
+  className?: string;
+  ariaLabel?: string;
+  footer?: ViewSidebarPanelFooterDescriptor;
+}
+
+export interface ViewIndexPanelDescriptor extends ViewLabelDescriptor {
+  items?: string;
+  itemTitleField?: string;
+  itemSubtitleField?: string;
+  itemMetaFields?: string[];
+  itemDepthField?: string;
+  itemParentField?: string;
+  itemPathField?: string;
+  emptyState?: Record<string, unknown>;
+  initialSelection?: "first" | "none";
+  collapseOnSelect?: boolean;
+}
+
+export interface ViewTableHierarchyDescriptor {
+  depthField?: string;
+  parentField?: string;
+  pathField?: string;
+}
+
+export interface ViewTableSelectionDescriptor {
+  enabled?: boolean;
+  label?: string;
+  labelKey?: string;
+  headerLabel?: string;
+  recordType?: string;
+  labelField?: string;
+}
+
+export interface ViewTableColumnDescriptor {
+  id?: string;
+  field: string;
+  label?: string;
+  labelKey?: string;
+  formatter?: "text" | "hierarchy-label" | "chip-list";
+  width?: string;
+  widthHint?: string;
+  align?: string;
+  depthField?: string;
+  chipsField?: string;
+  chipLabelField?: string;
+}
+
+export interface ViewTableSecondaryRowDescriptor extends ViewLabelDescriptor {
+  id: string;
+  field?: string;
+  formatter?: "text" | "hierarchy-label" | "chip-list";
+  chipsField?: string;
+  chipLabelField?: string;
+  startColumn?: string;
+  endBeforeColumn?: string;
+  hideWhenEmpty?: boolean;
+  className?: string;
+}
+
+export interface ViewTableDescriptor {
+  columns?: ViewTableColumnDescriptor[];
+  secondaryRows?: ViewTableSecondaryRowDescriptor[];
+  rowActions?: ViewActionDescriptor[];
+  rowActionsHeaderLabel?: string;
+  emptyState?: Record<string, unknown>;
+  overflow?: boolean;
+  hierarchy?: ViewTableHierarchyDescriptor;
+  selection?: ViewTableSelectionDescriptor;
+}
+
+export type ViewFieldType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "boolean"
+  | "checkbox"
+  | "toggle"
+  | "switch"
+  | "radio"
+  | "textarea"
+  | "date"
+  | "time"
+  | "hidden"
+  | "search"
+  | "url";
+
+export interface ViewFieldDescriptor {
+  id?: string;
+  field: string;
+  type: ViewFieldType;
+  label?: string;
+  labelKey?: string;
+  required?: boolean;
+  options?: unknown[];
+  optionsSource?: string;
+  default?: unknown;
+  placeholder?: string;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+  inputmode?: string;
+  rows?: number | string;
+  autocomplete?: string;
+  placement?: string;
+  behavior?: string;
+  hidden?: boolean;
+  width?: string;
+}
+
+export interface ViewLinkedRecordsDescriptor {
+  title?: string;
+  label?: string;
+  recordsField?: string;
+  targetTypeField?: string;
+  targetLabelField?: string;
+  targetUrlField?: string;
+  targetIdField?: string;
+  emptyState?: Record<string, unknown>;
+  fields?: ViewFieldDescriptor[];
+  actions?: ViewActionDescriptor[];
+}
+
+export interface ViewItemFormDescriptor {
+  title?: string;
+  label?: string;
+  fields?: ViewFieldDescriptor[];
+  actions?: ViewActionDescriptor[];
+  emptyState?: Record<string, unknown>;
+  editable?: boolean;
+}
+
+export interface ViewChipDescriptor {
+  field: string;
+  label?: string;
+  labelKey?: string;
+}
+
+export interface ViewItemRowColumnDescriptor {
+  id: string;
+  field?: string;
+  label?: string;
+  labelKey?: string;
+  type?: string;
+  formatter?: string;
+}
+
+export interface ViewItemRowsDescriptor {
+  itemsField?: string;
+  columns?: ViewItemRowColumnDescriptor[];
+  actions?: ViewActionDescriptor[];
+  emptyState?: Record<string, unknown>;
+  itemTitleField?: string;
+  itemSubtitleField?: string;
+  chips?: ViewChipDescriptor[];
+  metaFields?: string[];
+  rowActions?: ViewActionDescriptor[];
+  actionsLabel?: string;
+}
+
+export interface ViewSummaryPanelItemDescriptor {
+  label?: string;
+  field?: string;
+  value?: unknown;
+}
+
+export interface ViewSummaryPanelDescriptor extends ViewLabelDescriptor {
+  messageField?: string;
+  items?: ViewSummaryPanelItemDescriptor[];
+}
+
+export interface ViewDetailDescriptor {
+  header?: Record<string, unknown>;
+  badgeRow?: Record<string, unknown>;
+  metadataRow?: Record<string, unknown>;
+  actionStrip?: Record<string, unknown> & { actions?: ViewActionDescriptor[] };
+  summaryPanels?: ViewSummaryPanelDescriptor[];
+  linkedRecords?: ViewLinkedRecordsDescriptor;
+  itemForm?: ViewItemFormDescriptor;
+  itemRows?: ViewItemRowsDescriptor;
+  emptyState?: Record<string, unknown>;
+  regions?: ViewRegionDescriptor[];
+}
+
+export interface ViewModalDescriptor {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  title?: string;
+  titleKey?: string;
+  size?: "wide";
+  fields?: ViewFieldDescriptor[];
+  footerActions?: ViewActionDescriptor[];
+  actions?: ViewActionDescriptor[];
+}
+
+export interface ViewSurfaceDataSource {
+  route: string;
+  method?: string;
+  recordsKey?: string;
+  fieldBindings: Record<string, string>;
+}
+
 export interface ViewSurfaceDescriptor {
   id: string;
   moduleId: string;
   viewId: string;
-  layout: "single-column" | "stacked" | "sidebar-detail" | "slide-out-sidebar" | "table-page" | (string & {});
-  filterPlacement?: "inline" | "slide-out-sidebar" | (string & {});
-  pageHeader?: Record<string, unknown>;
+  layout: "single-column" | "stacked" | "sidebar-detail" | "slide-out-sidebar" | "table-page";
+  filterPlacement?: "inline" | "slide-out-sidebar";
+  pageHeader?: ViewPageHeaderDescriptor;
   sidebarLabel?: string;
-  sidebarPanels?: Record<string, unknown>[];
-  filters?: Record<string, unknown>[];
-  indexPanel?: Record<string, unknown>;
-  table?: Record<string, unknown>;
-  detail?: Record<string, unknown>;
-  modals?: Record<string, unknown>[];
-  dataSource?: Record<string, unknown>;
-  actions?: Record<string, unknown>[];
-  regions?: Record<string, unknown>[];
+  sidebarPanels?: ViewSidebarPanelDescriptor[];
+  filters?: ViewFilterDescriptor[];
+  indexPanel?: ViewIndexPanelDescriptor;
+  table?: ViewTableDescriptor;
+  detail?: ViewDetailDescriptor;
+  modals?: ViewModalDescriptor[];
+  dataSource?: ViewSurfaceDataSource;
+  actions?: ViewActionDescriptor[];
+  regions?: ViewRegionDescriptor[];
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +581,8 @@ export interface DashboardContribution {
   moduleId: string;
   description?: string;
   dataRoute?: string;
+  counts?: string[];
+  links?: string[];
   placement?: "pulse" | "attention" | "today" | "main" | "activity" | "secondary" | "reporting" | (string & {});
   requiredPermissions?: string[];
   requiredWorkspaceCapabilities?: string[];
@@ -281,7 +649,7 @@ export interface WorkbenchContribution {
   requiredPermissions?: string[];
   requiredWorkspaceCapabilities?: string[];
   requiresEnabledModules?: string[];
-  actions?: { id: string; label: string; route?: string }[];
+  actions?: { id: string; label: string; route?: string; publicDemoCapability?: string }[];
   defaultCollapsed?: boolean;
   sortOrder?: number;
   terminology?: TerminologyMap;
@@ -391,6 +759,49 @@ export interface ResumeStatePayload {
   metadataJson?: string;
 }
 
+export interface ResumeStateProducerResult extends ResumeStatePayload {
+  action?: string;
+  title?: string;
+}
+
+export interface ResumeStateReadCheck {
+  archived?: boolean;
+  canRead?: boolean;
+  completed?: boolean;
+  deleted?: boolean;
+  finalized?: boolean;
+  readable?: boolean;
+  source_url?: boolean;
+  status?: string;
+  title?: boolean;
+  [key: string]: unknown;
+}
+
+export interface ResumeStateReadResolverContext {
+  moduleId: string;
+  recordId: string;
+  recordType: string;
+  row: Record<string, unknown>;
+  session: RequestSession;
+  userId: string;
+  workspaceId: string;
+}
+
+export interface ResumeStateBatchReadResolverContext {
+  recordIds: string[];
+  rows: Array<Record<string, unknown>>;
+  session: RequestSession;
+  workspaceId: string;
+}
+
+export type ResumeStateReadResolver = (
+  context: ResumeStateReadResolverContext,
+) => ResumeStateReadCheck | boolean | Promise<ResumeStateReadCheck | boolean>;
+
+export type ResumeStateBatchReadResolver = (
+  context: ResumeStateBatchReadResolverContext,
+) => Map<string, ResumeStateReadCheck> | Promise<Map<string, ResumeStateReadCheck>>;
+
 // ---------------------------------------------------------------------------
 // Search seam
 // ---------------------------------------------------------------------------
@@ -409,23 +820,171 @@ export interface SearchRecord {
 }
 
 export interface SearchReference {
-  record_type: string;
-  record_id: string;
-  [key: string]: unknown;
+  workspaceId: string;
+  moduleId?: string;
+  recordType?: string;
+  recordId?: string;
+  declaration?: SearchableTypeContribution;
+  rebuild?: boolean;
+  record?: unknown;
+  searchService?: Record<string, unknown>;
 }
 
 export interface SearchResult {
+  search_index_id: string;
+  workspace_id: string;
+  module_id: string;
   record_type: string;
   record_id: string;
-  module_id?: string;
-  title?: string;
-  snippet?: string;
-  url?: string;
+  title: string | null;
+  summary: string | null;
+  client_id: string | null;
+  project_id: string | null;
+  library_bucket: string | null;
+  note_collection_id: string | null;
+  collection_path: string | null;
+  visibility: string | null;
+  record_status: string | null;
+  source: string | null;
+  record_created_at: string | null;
+  record_updated_at: string | null;
+  indexed_at: string | null;
+  search_score: string | number | null;
+  search_backend: string;
   [key: string]: unknown;
+}
+
+export interface SearchPermissionTarget {
+  moduleId: string;
+  recordType: string;
+  requiredReadPermission: string;
+  sourceLabel: string;
+  [key: string]: unknown;
+}
+
+export interface PermissionSafeSearchRequest {
+  workspaceId: string;
+  targets: SearchPermissionTarget[];
+  [key: string]: unknown;
+}
+
+export interface SearchExecutionResult {
+  backend: string;
+  fallbackMode: string;
+  fts5Supported: boolean;
+  ftsTableReady: boolean;
+  results: SearchResult[];
+}
+
+export interface BrowserSearchResultTarget {
+  url: string;
+  actionId: string;
+  params: Record<string, string>;
+}
+
+export interface BrowserSearchContextRecord {
+  id: string;
+  name: string;
+  status: string;
+  clientId?: string;
+  clientName?: string;
+}
+
+export interface BrowserSearchTag {
+  tagId: string;
+  name: string;
+  slug: string;
+  color: string;
+  status: string;
+}
+
+export interface BrowserSearchResult {
+  searchIndexId: string;
+  workspaceId: string;
+  moduleId: string;
+  recordType: string;
+  recordId: string;
+  title: string;
+  snippet: string;
+  summary: string;
+  clientId: string;
+  projectId: string;
+  libraryBucket: string;
+  noteCollectionId: string;
+  collectionPath: string;
+  visibility: string;
+  status: string;
+  recordStatus: string;
+  sourceLabel: string;
+  source: string;
+  score: number | null;
+  recordCreatedAt: string;
+  recordUpdatedAt: string;
+  updatedAt: string;
+  indexedAt: string;
+  searchBackend: string;
+  context: {
+    client: BrowserSearchContextRecord | null;
+    project: BrowserSearchContextRecord | null;
+  };
+  tags: BrowserSearchTag[];
+  target: BrowserSearchResultTarget;
 }
 
 /** A registered indexer receives a reference and re-reads canonical state. */
 export type SearchIndexer = (reference: SearchReference, context?: Record<string, unknown>) => unknown;
+
+// ---------------------------------------------------------------------------
+// Internal event summaries seam
+// ---------------------------------------------------------------------------
+
+export interface InternalEvent {
+  name: string;
+  event?: string;
+  workspace_id?: string;
+  workspaceId?: string;
+  actor_user_id?: string;
+  actorUserId?: string;
+  actor_user_name?: string;
+  actorUserName?: string;
+  module_id?: string;
+  moduleId?: string;
+  record_type?: string;
+  recordType?: string;
+  record_id?: string;
+  recordId?: string;
+  record_label?: string;
+  recordLabel?: string;
+  previous_value?: Record<string, unknown> | null;
+  new_value?: Record<string, unknown> | null;
+  source?: string;
+  metadata?: Record<string, unknown>;
+  session?: RequestSession | null;
+  emitted_at?: string;
+}
+
+export interface EventSummaryResolverContext {
+  event: InternalEvent;
+}
+
+export type EventSummaryText = string | ((context: EventSummaryResolverContext) => unknown);
+export type EventSummaryRecipientHints = string[] | ((context: EventSummaryResolverContext) => unknown);
+
+export interface EventSummarySection {
+  label?: EventSummaryText;
+  summary?: EventSummaryText;
+  title?: EventSummaryText;
+  body?: EventSummaryText;
+  url?: EventSummaryText;
+  recipientHints?: EventSummaryRecipientHints;
+}
+
+export interface EventSummaryDeclaration {
+  event: string;
+  moduleId?: string;
+  activity?: EventSummarySection;
+  notification?: EventSummarySection;
+}
 
 // ---------------------------------------------------------------------------
 // Notifications seam
@@ -495,9 +1054,54 @@ export interface PublicApiListEnvelope<Item = unknown> {
   [key: string]: unknown;
 }
 
-export interface PublicApiErrorEnvelope {
-  error: string;
+export interface ApiErrorDetails {
+  code: string;
+  fields?: unknown[];
+  message: string;
+  requestId: string;
   [key: string]: unknown;
+}
+
+export interface ApiErrorEnvelope {
+  apiVersion?: string;
+  error?: ApiErrorDetails | string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface AppShellBootstrapUser {
+  preferredCalendarView: string;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user_id: string;
+  username: string;
+}
+
+export interface AppShellBootstrap {
+  activeWorkspaceId: string;
+  app: Record<string, unknown>;
+  enabledModules: string[];
+  moduleNavigation: unknown[];
+  moduleSettingsNavigation: unknown[];
+  navigation: unknown[];
+  notificationSummary: Record<string, unknown>;
+  permissionHints: Record<string, unknown>;
+  quickActions: unknown[];
+  searchTargets: unknown[];
+  supportView: Record<string, unknown> | null;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user: AppShellBootstrapUser;
+  viewSurfaces: unknown[];
+  workspaceContext: Record<string, unknown>;
+  workspaces: unknown[];
+}
+
+export interface PublicApiErrorEnvelope extends ApiErrorEnvelope {
+  apiVersion: "v1";
+  error: ApiErrorDetails;
 }
 
 // ---------------------------------------------------------------------------
@@ -510,6 +1114,8 @@ export interface JobEnqueueOptions {
   workspace_id?: string;
   jobType?: string;
   job_type?: string;
+  jobId?: string;
+  job_id?: string;
   dedupeKey?: string | null;
   dedupe_key?: string | null;
   payload?: Record<string, unknown>;
@@ -525,38 +1131,88 @@ export interface JobRecord {
   workspace_id: string;
   job_type: string;
   status: string;
+  dedupe_key?: string | null;
   payload_json?: string;
   priority?: number;
-  attempts?: number;
+  attempt_count?: number;
   max_attempts?: number;
   available_at?: string;
+  locked_at?: string | null;
+  locked_by?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+  dead_at?: string | null;
   [key: string]: unknown;
 }
 
-export type JobHandler = (job: JobRecord, context?: Record<string, unknown>) => Promise<unknown> | unknown;
-
-// ---------------------------------------------------------------------------
-// Database adapter/dialect seam
-// ---------------------------------------------------------------------------
-
-export interface DatabaseDialect {
-  returning: {
-    columns(columns: readonly string[]): string;
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
+export interface JobExecutionRecord {
+  attemptCount: number;
+  dedupeKey: string | null;
+  id: string;
+  jobId: string;
+  jobType: string;
+  maxAttempts: number;
+  payload: Record<string, any>;
+  priority: number;
+  type: string;
+  workspaceId: string;
 }
 
-export interface DatabaseTransaction {
-  query(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
-  dialect: DatabaseDialect;
-  [key: string]: unknown;
+export interface JobHandlerContext {
+  job: JobExecutionRecord;
+  payload: Record<string, any>;
 }
 
-export interface DatabaseSeam {
-  run(sql: string, params?: Record<string, unknown>): Promise<unknown>;
-  get(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown> | undefined>;
-  all(sql: string, params?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
-  transaction<T>(work: (transaction: DatabaseTransaction) => Promise<T>): Promise<T>;
-  [key: string]: unknown;
+export type JobHandler = (context: JobHandlerContext) => Promise<unknown> | unknown;
+
+export interface JobHandlerOptions {
+  publicDemoCapability?: string;
+  replace?: boolean;
+}
+
+export type JobWorkerMode = "inline" | "separate" | "disabled";
+
+export interface JobWorkerLogger {
+  warn?: (message: string) => void;
+}
+
+export interface JobWorkerOptions {
+  mode?: unknown;
+  workerId?: unknown;
+  pollIntervalMs?: unknown;
+  claimLimit?: unknown;
+  lockTtlSeconds?: unknown;
+  logger?: JobWorkerLogger;
+}
+
+export interface JobRunSummary {
+  claimed: number;
+  completed: number;
+  dead: number;
+  failed: number;
+  skipped: boolean;
+}
+
+export interface JobWorkerStatus {
+  mode: JobWorkerMode;
+  workerId: string;
+  state: "disabled" | "stopped" | "idle" | "running";
+  running: boolean;
+  timerActive: boolean;
+  pollIntervalMs: number;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  lastPollAt: string | null;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastClaimedCount: number;
+  lockTtlSeconds: number;
+  claimedCount: number;
+  completedCount: number;
+  failedCount: number;
+  deadCount: number;
+  registeredJobTypes?: string[];
 }

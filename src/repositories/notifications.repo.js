@@ -1,5 +1,12 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {DatabaseRow & { notification_id: string, workspace_id: string, module_id: string | null, event_type: string, recipient_user_id: string, actor_user_id: string | null, record_type: string | null, record_id: string | null, title: string, body: string | null, url: string | null, status: string, priority: string, created_at: string, read_at: string | null, dismissed_at: string | null, metadata_json: string | null }} NotificationRow */
+/** @typedef {DatabaseRow & { workspace_id: string, user_id: string, grouping_mode: string, created_at: string, updated_at: string }} NotificationDisplayPreferenceRow */
+/** @typedef {DatabaseRow & { notification_subscription_id: string, workspace_id: string, user_id: string, module_id: string, target_type: string, target_id: string, event_type: string | null, status: string, created_at: string, updated_at: string }} NotificationSubscriptionRow */
 
 const NOTIFICATION_COLUMNS = `
   notification_id,
@@ -637,7 +644,9 @@ async function saveUserDisplayPreferences(workspaceId, userId, preferences) {
   return readUserDisplayPreferences(workspaceId, userId);
 }
 
-function notificationRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function notificationRowToAppValue(databaseRow) {
+  const row = /** @type {NotificationRow} */ (databaseRow);
   return {
     notification_id: row.notification_id,
     workspace_id: row.workspace_id,
@@ -659,7 +668,9 @@ function notificationRowToAppValue(row) {
   };
 }
 
-function displayPreferenceRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function displayPreferenceRowToAppValue(databaseRow) {
+  const row = /** @type {NotificationDisplayPreferenceRow} */ (databaseRow);
   return {
     workspace_id: row.workspace_id,
     user_id: row.user_id,
@@ -669,7 +680,9 @@ function displayPreferenceRowToAppValue(row) {
   };
 }
 
-function subscriptionRowToAppValue(row) {
+/** @param {DatabaseRow} databaseRow */
+function subscriptionRowToAppValue(databaseRow) {
+  const row = /** @type {NotificationSubscriptionRow} */ (databaseRow);
   return {
     notification_subscription_id: row.notification_subscription_id,
     workspace_id: row.workspace_id,

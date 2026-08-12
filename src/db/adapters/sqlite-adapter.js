@@ -1,3 +1,4 @@
+// @ts-check
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   closeSqlite,
@@ -15,6 +16,10 @@ import {
 } from "../parameter-bindings.js";
 import { createSqliteDialectSeams } from "./sqlite-dialect-seams.js";
 
+/** @typedef {import("../../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
+
 const SQLITE_CAPABILITIES = Object.freeze({
   provider: "sqlite",
   adapter: "better-sqlite3",
@@ -30,9 +35,11 @@ const SQLITE_CAPABILITIES = Object.freeze({
   health: true,
 });
 
+/** @returns {DatabaseAdapter} */
 function createSqliteAdapter() {
   const transactionContext = new AsyncLocalStorage();
   const dialect = createSqliteDialectSeams();
+  /** @type {Promise<unknown>} */
   let transactionTail = Promise.resolve();
 
   function assertNotInsideTransactionContext(operationName) {
@@ -53,7 +60,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<Record<string, any>[]>} result rows
+   * @returns {Promise<DatabaseRow[]>} result rows
    */
   async function executeQuery(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
@@ -63,7 +70,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<Record<string, any> | null>} first result row, if any
+   * @returns {Promise<DatabaseRow | null>} first result row, if any
    */
   async function executeGet(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
@@ -73,7 +80,7 @@ function createSqliteAdapter() {
   /**
    * @param {string} sql
    * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
-   * @returns {Promise<any>} driver run result
+   * @returns {Promise<unknown>} driver run result
    */
   async function executeRun(sql, params = []) {
     const statement = prepareSqliteStatement(sql, params);
@@ -113,6 +120,11 @@ function createSqliteAdapter() {
     return waitForOpenTransaction(() => executeRun(sql, params));
   }
 
+  /**
+   * @template T
+   * @param {(transaction: TransactionClient) => Promise<T> | T} callback
+   * @returns {Promise<T>}
+   */
   async function transaction(callback) {
     if (typeof callback !== "function") {
       throw new Error("Database transaction requires a callback.");
@@ -145,7 +157,9 @@ function createSqliteAdapter() {
         try {
           await executeRun("ROLLBACK;");
         } catch (rollbackError) {
-          error.rollbackError = rollbackError;
+          if (error && typeof error === "object") {
+            Object.assign(error, { rollbackError });
+          }
         }
 
         throw error;

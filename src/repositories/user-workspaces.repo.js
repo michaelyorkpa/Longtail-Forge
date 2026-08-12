@@ -1,5 +1,30 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+
+/**
+ * @typedef {DatabaseRow & Object} UserWorkspaceMembershipRow
+ * @property {string} user_workspace_id
+ * @property {string} user_id
+ * @property {string} workspace_id
+ * @property {string} [workspace_name]
+ * @property {string} status
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+/**
+ * @typedef {DatabaseRow & Object} AssignableWorkspaceRow
+ * @property {string} workspace_id
+ * @property {string} workspace_name
+ * @property {string} workspace_type
+ * @property {string | null} owner_user_id
+ * @property {string | null} owner_username
+ */
+/** @typedef {DatabaseRow & { workspace_id: string, workspace_name: string }} InstallSecurityWorkspaceRow */
+/** @typedef {DatabaseRow & { count: unknown }} WorkspaceMembershipCountRow */
 
 const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
   columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
@@ -16,8 +41,9 @@ const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpd
   },
 });
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<UserWorkspaceMembershipRow | null>} */
 async function readByUserAndWorkspace(userId, workspaceId) {
-  return db.get(`
+  return /** @type {Promise<UserWorkspaceMembershipRow | null>} */ (db.get(`
 SELECT
   user_workspace_id,
   user_id,
@@ -29,11 +55,12 @@ FROM user_workspaces
 WHERE user_id = :userId
   AND workspace_id = :workspaceId
 LIMIT 1;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
+/** @param {string} userId @returns {Promise<UserWorkspaceMembershipRow[]>} */
 async function readForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<UserWorkspaceMembershipRow[]>} */ (db.query(`
 SELECT
   user_workspaces.user_workspace_id,
   user_workspaces.user_id,
@@ -47,16 +74,18 @@ INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = :userId
   AND lower(workspaces.status) = 'active'
 ORDER BY workspaces.name;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} userId @returns {Promise<UserWorkspaceMembershipRow[]>} */
 async function readActiveForUser(userId) {
   const rows = await readForUser(userId);
   return rows.filter((membership) => membership.status === "active");
 }
 
+/** @returns {Promise<AssignableWorkspaceRow[]>} */
 async function readAllWorkspaces() {
-  return db.query(`
+  return /** @type {Promise<AssignableWorkspaceRow[]>} */ (db.query(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name,
@@ -68,11 +97,12 @@ LEFT JOIN users AS owner
   ON owner.user_id = workspaces.owner_user_id
 WHERE lower(workspaces.status) = 'active'
 ORDER BY name;
-`);
+`));
 }
 
+/** @returns {Promise<InstallSecurityWorkspaceRow | null>} */
 async function readInstallSecurityWorkspace() {
-  return db.get(`
+  return /** @type {Promise<InstallSecurityWorkspaceRow | null>} */ (db.get(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name
@@ -85,20 +115,22 @@ ORDER BY
   workspaces.created_at,
   workspaces.workspace_id
 LIMIT 1;
-`);
+`));
 }
 
+/** @param {string} workspaceId @returns {Promise<number>} */
 async function countActiveForWorkspace(workspaceId) {
-  const row = await db.get(`
+  const row = /** @type {WorkspaceMembershipCountRow | null} */ (await db.get(`
 SELECT COUNT(1) AS count
 FROM user_workspaces
 WHERE workspace_id = :workspaceId
   AND status = 'active';
-`, { workspaceId });
+`, { workspaceId }));
 
   return Number(row?.count) || 0;
 }
 
+/** @param {{ userId: string, workspaceId: string, status?: string }} input @returns {Promise<UserWorkspaceMembershipRow | null>} */
 async function upsert({ userId, workspaceId, status = "active" }) {
   const now = new Date().toISOString();
   const normalizedStatus = normalizeStatus(status);
@@ -121,6 +153,7 @@ WHERE user_id = :userId;
   return readByUserAndWorkspace(userId, workspaceId);
 }
 
+/** @param {string} userId @param {string} workspaceId @param {string} status @returns {Promise<UserWorkspaceMembershipRow | null>} */
 async function updateStatus(userId, workspaceId, status) {
   const now = new Date().toISOString();
 
@@ -140,6 +173,7 @@ WHERE user_id = :userId
   return readByUserAndWorkspace(userId, workspaceId);
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<UserWorkspaceMembershipRow | null>} */
 async function deactivateAccess(userId, workspaceId) {
   const updatedAt = new Date().toISOString();
 
@@ -161,6 +195,7 @@ WHERE user_id = :userId
   return readByUserAndWorkspace(userId, workspaceId);
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<void>} */
 async function remove(userId, workspaceId) {
   await db.transaction(async (transaction) => {
     await transaction.run(`
@@ -176,6 +211,7 @@ WHERE user_id = :userId
   });
 }
 
+/** @param {string} status @returns {"active" | "inactive"} */
 function normalizeStatus(status) {
   return status === "inactive" ? "inactive" : "active";
 }

@@ -1,6 +1,8 @@
+// @ts-check
 import { tagsRoutes } from "../../routes/tags.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const tagsModule = {
   id: "tags",
   name: "Tags",
@@ -68,6 +70,7 @@ const tagsModule = {
       dataSource: {
         route: "/api/tags",
         method: "GET",
+        recordsKey: "tags",
         fieldBindings: {
           id: "tag_id",
           label: "label",

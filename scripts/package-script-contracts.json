@@ -89,7 +89,7 @@
     "test:watch": "vitest",
     "third-party-notices:check": "node scripts/check-third-party-notices.mjs",
     "third-party-notices:write": "node scripts/check-third-party-notices.mjs --write",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.public.json",
     "verify:slice": "node scripts/run-slice-verification.mjs",
     "version:bump": "node scripts/bump-version.mjs",
     "version:guard": "node scripts/version-literal-guardrail-regression.mjs",

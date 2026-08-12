@@ -1,9 +1,45 @@
+// @ts-check
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { supportViewService } from "../services/support-view.service.js";
 import { getRequestContext } from "../core/request-context.js";
 import { normalizeBooleanPreference, normalizeTimezone } from "../utils/normalizers.js";
 import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-records.js";
+
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/http-contracts.js").SessionMode} SessionMode */
+/**
+ * @typedef {Object} StoredSupportViewRow
+ * @property {string} support_session_id
+ * @property {string} actor_user_id
+ * @property {string} actor_username
+ * @property {string | null} actor_display_name
+ * @property {string} effective_user_id
+ * @property {string} effective_username
+ * @property {string | null} effective_display_name
+ * @property {string} workspace_id
+ * @property {string | null} workspace_name
+ * @property {string} started_at
+ * @property {string} expires_at
+ * @property {string | null} effective_home_workspace_id
+ * @property {unknown} effective_timezone
+ */
+/**
+ * @typedef {Object} StoredSessionRow
+ * @property {string} session_id
+ * @property {string | null} active_workspace_id
+ * @property {string | null} home_workspace_id
+ * @property {string} user_id
+ * @property {string} username
+ * @property {unknown} timezone
+ * @property {string | null} ip_address
+ * @property {unknown} password_change_required
+ * @property {string | null} session_mode
+ * @property {string} expires_at
+ * @property {string | null} support_session_id
+ * @property {StoredSupportViewRow} [support_view]
+ */
 
 async function createSession(user, options = {}) {
   const prepared = prepareSessionRecord(user, options);
@@ -13,6 +49,7 @@ async function createSession(user, options = {}) {
   return prepared.cookie;
 }
 
+/** @param {HttpIdentityRequest} request */
 async function deleteRequestSession(request) {
   const sessionId = getSessionIdFromRequest(request);
 
@@ -27,6 +64,10 @@ async function deleteSession(sessionId) {
   await sessionsRepository.remove(sessionId);
 }
 
+/**
+ * @param {HttpIdentityRequest} request
+ * @returns {Promise<RequestSession | null>}
+ */
 async function getRequestSession(request) {
   const sessionId = getSessionIdFromRequest(request);
 
@@ -34,17 +75,18 @@ async function getRequestSession(request) {
     return null;
   }
 
-  let session = await sessionsRepository.readById(sessionId);
+  let session = /** @type {StoredSessionRow | null} */ (await sessionsRepository.readById(sessionId));
 
   if (!session) {
     return null;
   }
 
   if (session.support_session_id) {
-    const resolution = await supportViewService.resolveForRequest(session, {
+    const activeSupportSession = { ...session, support_session_id: session.support_session_id };
+    const resolution = await supportViewService.resolveForRequest(activeSupportSession, {
       requestId: getRequestContext(request).requestId,
     });
-    session = resolution.storedSession;
+    session = /** @type {StoredSessionRow | null} */ (resolution.storedSession);
     if (resolution.session) {
       request.sessionRotation = resolution.session;
     }
@@ -73,40 +115,45 @@ async function getRequestSession(request) {
     timezone: normalizeTimezone(session.timezone),
     ip_address: session.ip_address || "",
     password_change_required: normalizeBooleanPreference(session.password_change_required),
-    session_mode: session.session_mode || "normal",
+    session_mode: /** @type {SessionMode} */ (session.session_mode || "normal"),
   };
 
   if (session.support_view) {
-    requestSession.actor_user_id = session.support_view.actor_user_id;
-    requestSession.actor_username = session.support_view.actor_username;
-    requestSession.effective_user_id = session.support_view.effective_user_id;
-    requestSession.effective_username = session.support_view.effective_username;
-    requestSession.effective_workspace_id = session.support_view.workspace_id;
-    requestSession.support_view = {
-      supportSessionId: session.support_view.support_session_id,
-      actorUserId: session.support_view.actor_user_id,
-      actorUsername: session.support_view.actor_username,
-      actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
-      effectiveUserId: session.support_view.effective_user_id,
-      effectiveUsername: session.support_view.effective_username,
-      effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
-      effectiveWorkspaceId: session.support_view.workspace_id,
-      effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
-      startedAt: session.support_view.started_at,
-      expiresAt: session.support_view.expires_at,
+    return {
+      ...requestSession,
+      actor_user_id: session.support_view.actor_user_id,
+      actor_username: session.support_view.actor_username,
+      effective_user_id: session.support_view.effective_user_id,
+      effective_username: session.support_view.effective_username,
+      effective_workspace_id: session.support_view.workspace_id,
+      support_view: {
+        supportSessionId: session.support_view.support_session_id,
+        actorUserId: session.support_view.actor_user_id,
+        actorUsername: session.support_view.actor_username,
+        actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
+        effectiveUserId: session.support_view.effective_user_id,
+        effectiveUsername: session.support_view.effective_username,
+        effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
+        effectiveWorkspaceId: session.support_view.workspace_id,
+        effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
+        startedAt: session.support_view.started_at,
+        expiresAt: session.support_view.expires_at,
+      },
+      user_id: session.support_view.effective_user_id,
+      username: session.support_view.effective_username,
+      workspace_id: session.support_view.workspace_id,
+      active_workspace_id: session.support_view.workspace_id,
+      home_workspace_id: session.support_view.effective_home_workspace_id,
+      timezone: normalizeTimezone(session.support_view.effective_timezone),
+      password_change_required: false,
+      session_mode: /** @type {const} */ ("normal"),
     };
-    requestSession.user_id = session.support_view.effective_user_id;
-    requestSession.username = session.support_view.effective_username;
-    requestSession.workspace_id = session.support_view.workspace_id;
-    requestSession.active_workspace_id = session.support_view.workspace_id;
-    requestSession.home_workspace_id = session.support_view.effective_home_workspace_id;
-    requestSession.timezone = normalizeTimezone(session.support_view.effective_timezone);
-    requestSession.password_change_required = false;
   }
 
   return requestSession;
 }
 
+/** @param {HttpIdentityRequest} request */
 function getSessionIdFromRequest(request) {
   if (request.cookies?.[config.cookies.sessionName]) {
     return request.cookies[config.cookies.sessionName];
@@ -116,6 +163,10 @@ function getSessionIdFromRequest(request) {
   return cookies[config.cookies.sessionName] || "";
 }
 
+/**
+ * @param {string} cookieHeader
+ * @returns {Record<string, string>}
+ */
 function parseCookieHeader(cookieHeader) {
   return String(cookieHeader || "")
     .split(";")
@@ -133,7 +184,7 @@ function parseCookieHeader(cookieHeader) {
 
       cookies[name] = decodeURIComponent(value);
       return cookies;
-    }, {});
+    }, /** @type {Record<string, string>} */ ({}));
 }
 
 export {

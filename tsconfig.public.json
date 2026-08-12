@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "types": [],
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "public/js/shared/api-client.js",
+    "public/js/shared/app-shell-bootstrap.js",
+    "public/js/shared/cached-fetch.js",
+    "public/js/shared/error-contract.js",
+    "public/js/shared/formatters.js",
+    "public/js/shared/page-controller.js",
+    "public/js/shared/records.js",
+    "public/js/shared/view-response-records.js",
+    "public/js/shared/view-surface-descriptor.js",
+    "src/types/browser-contracts.d.ts",
+    "src/types/framework-contracts.d.ts",
+    "tests/typecheck/browser-database-boundary.fixture.mjs"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

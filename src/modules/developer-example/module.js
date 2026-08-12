@@ -1,7 +1,9 @@
+// @ts-check
 import { developerExampleRoutes } from "./routes.js";
 import { developerExamplePublicApiRoutes } from "./public-api.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const developerExampleModule = {
   id: "developer-example",
   name: "Developer Example",
@@ -68,6 +70,7 @@ const developerExampleModule = {
       dataSource: {
         route: "/api/developer-example",
         method: "GET",
+        recordsKey: "records",
         fieldBindings: {
           id: "id",
           title: "title",

@@ -45,6 +45,7 @@ const frameworkViewSurfaces = Object.freeze([
     dataSource: Object.freeze({
       route: "/api/files/attachments",
       method: "GET",
+      recordsKey: "attachments",
       fieldBindings: Object.freeze({
         id: "fileAttachmentId",
         fileId: "fileId",

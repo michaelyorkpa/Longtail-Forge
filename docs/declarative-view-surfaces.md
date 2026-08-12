@@ -13,11 +13,19 @@ As of 0.33.5.28.2, declarative view surfaces are also downstream of the complete
 1. Declare a protected view in `protectedViews`.
 2. Add a `viewSurfaces` descriptor bound to that view by `moduleId` and `viewId`.
 3. Keep the protected HTML view as a minimal host that loads `view-builder.js`, `view-renderer.js`, and the module adapter script.
-4. Expose a normalized data route and map response fields through `dataSource.fieldBindings`.
+4. Expose a normalized data route, declare its array envelope through `dataSource.recordsKey`, and map response fields through `dataSource.fieldBindings`.
 5. Put common anatomy in the descriptor: header, filters, index, table, detail, item rows, linked records, modals, and actions.
 6. Register module-owned behavior handlers with `LongtailForge.view.registerBehavior(id, handler)` for actions that are not simple route actions.
 7. Keep module-specific field binding, task pickers, catalog suggestions, payload construction, and permission-shaped workflow calls in the module adapter.
 8. Add a focused regression before enabling strict guardrails for the surface.
+
+## Checked Descriptor Boundary (0.33.32.22)
+
+The app-shell still delivers view surfaces as untrusted browser JSON. Before `view-renderer.js` reads a field, `LongtailForge.view.normalizeSurfaceDescriptor(...)` delegates to the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` adapter. That projection owns the supported `layout`, `filterPlacement`, `pageHeader`, `sidebarLabel`, `sidebarPanels`, `filters`, `indexPanel`, `table`, `detail`, `modals`, `dataSource`, `actions`, and `regions` shapes plus the service-supplied `viewPath`; page-local renderer adapters may keep the existing `dataSource: null` opt-out when module code owns data loading. Unknown or wrong-typed supported fields fail with their descriptor path instead of quietly selecting fallback anatomy. `view-builder.js` and `view-renderer.js` remain classic unchecked DOM runtimes; do not duplicate descriptor parsing in either file or in a module adapter.
+
+The shared declarations in `src/types/framework-contracts.d.ts`, the manifest validator, and this browser projection describe the same authoring vocabulary. Open objects remain open only where manifest validation already treats them as module/framework-owned extension content, such as empty-state and detail-header payloads. Existing renderer-backed summary-panel `messageField`/`items` metadata and string-or-object action confirmation copy are now admitted explicitly by the manifest contract rather than existing as browser-only shapes.
+
+As of 0.33.32.24, page-local delivery mutations must preserve that vocabulary too. When a module determines that `pageHeader.primaryAction` is unavailable, it omits the optional key before delivery rather than assigning `null`; the checked projection continues rejecting malformed action values. The declarative guardrail executes the real Clients/Projects delivery mutation for both unavailable and available action paths, normalizes those delivered descriptors, preserves their declared response envelope keys, and keeps response-key compatibility guessing confined to `view-response-records.js`. Restricted desktop/mobile rendering and unchanged super-admin actions are also covered in the rendered smoke suite.
 
 ## Layouts (0.33.5.18.2)
 

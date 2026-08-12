@@ -1,4 +1,6 @@
+// @ts-check
 import { Router } from "express";
+import { createScopedPermissionResource } from "../core/permission-resource.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { tagsRepository } from "../repositories/tags.repo.js";
@@ -9,9 +11,23 @@ import { searchService } from "../services/search.service.js";
 import { asyncRoute } from "../utils/http.js";
 import { sendApiError } from "../core/http-error-contract.js";
 
+/** @typedef {import("../types/framework-contracts.js").BrowserSearchContextRecord} BrowserSearchContextRecord */
+/** @typedef {import("../types/framework-contracts.js").BrowserSearchResult} BrowserSearchResult */
+/** @typedef {import("../types/framework-contracts.js").BrowserSearchResultTarget} BrowserSearchResultTarget */
+/** @typedef {import("../types/framework-contracts.js").BrowserSearchTag} BrowserSearchTag */
+/** @typedef {import("../types/framework-contracts.js").PermissionSafeSearchRequest} PermissionSafeSearchRequest */
+/** @typedef {import("../types/framework-contracts.js").SearchPermissionTarget} SearchPermissionTarget */
+/** @typedef {import("../types/framework-contracts.js").SearchResult} SearchResult */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{ field: string, message: string }} SearchQueryError */
+/** @typedef {{ backend: string, fallbackMode: string, fts5Supported: boolean, ftsTableReady: boolean, hasMore: boolean, results: BrowserSearchResult[], visibleTargetCount: number }} VisibleSearchResult */
+
 const searchRoutes = Router();
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+const MAX_PAGE = 10000;
+const MAX_VISIBLE_OFFSET = (MAX_PAGE - 1) * MAX_LIMIT;
 
 searchRoutes.get("/search", asyncRoute(async (request, response) => {
   const parsed = parseSearchQuery(request.query);
@@ -26,14 +42,17 @@ searchRoutes.get("/search", asyncRoute(async (request, response) => {
     return;
   }
 
+  // The application mounts this router after requireAuth; this alias makes the
+  // protected workspace contract explicit for every downstream permission read.
+  const session = /** @type {WorkspaceRequestSession} */ (request.session);
   const searchRequest = await searchService.composePermissionSafeSearchRequest({
-    session: request.session,
+    session,
     filters: parsed.filters,
   });
   const shaped = await executeVisibleSearch({
     requestedOffset: parsed.pagination.offset,
     searchRequest,
-    session: request.session,
+    session,
     visibleLimit: parsed.pagination.limit,
   });
 
@@ -59,9 +78,14 @@ searchRoutes.get("/search", asyncRoute(async (request, response) => {
   });
 }));
 
+/**
+ * @param {{ requestedOffset: number, searchRequest: PermissionSafeSearchRequest, session: WorkspaceRequestSession, visibleLimit: number }} input
+ * @returns {Promise<VisibleSearchResult>}
+ */
 async function executeVisibleSearch({ requestedOffset, searchRequest, session, visibleLimit }) {
   const targetByType = new Map((searchRequest.targets || [])
     .map((target) => [`${target.moduleId}:${target.recordType}`, target]));
+  /** @type {BrowserSearchResult[]} */
   const shaped = [];
   const batchLimit = Math.min(MAX_LIMIT, Math.max(visibleLimit + 1, DEFAULT_LIMIT));
   const maxRawResultsToScan = Math.max(500, requestedOffset + (visibleLimit + 1) * 10);
@@ -131,19 +155,27 @@ async function executeVisibleSearch({ requestedOffset, searchRequest, session, v
   };
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {SearchResult} result
+ * @param {SearchPermissionTarget} target
+ */
 async function canReadSearchResult(session, result, target) {
   if (result.record_type === HELP_SEARCH_RECORD_TYPE) {
     return helpService.canReadIndexedArticle(session, result.record_id);
   }
 
-  return permissionsService.can(session, target.requiredReadPermission, {
-    workspace_id: session.workspace_id,
-    client_id: resolvePermissionClientId(result),
-    project_id: resolvePermissionProjectId(result),
-    operation: "read",
-  });
+  return permissionsService.can(
+    session,
+    target.requiredReadPermission,
+    createScopedPermissionResource(session.workspace_id, "read", {
+      clientId: resolvePermissionClientId(result),
+      projectId: resolvePermissionProjectId(result),
+    }),
+  );
 }
 
+/** @param {SearchResult} result */
 function resolvePermissionClientId(result) {
   if (result.record_type === "client") {
     return result.record_id || "";
@@ -152,6 +184,7 @@ function resolvePermissionClientId(result) {
   return result.client_id || "";
 }
 
+/** @param {SearchResult} result */
 function resolvePermissionProjectId(result) {
   if (result.record_type === "project") {
     return result.record_id || "";
@@ -160,8 +193,12 @@ function resolvePermissionProjectId(result) {
   return result.project_id || "";
 }
 
-function parseSearchQuery(query = {}) {
+/** @param {unknown} queryValue */
+function parseSearchQuery(queryValue = {}) {
+  const query = isPlainObject(queryValue) ? queryValue : {};
+  /** @type {SearchQueryError[]} */
   const errors = [];
+  validateQueryValueShapes(query, errors);
   const text = firstString(query.text, query.q, query.query);
   const moduleIds = readStringList(query.moduleIds, query.module_ids, query.moduleId, query.module_id, query.module);
   const recordTypes = readStringList(
@@ -179,14 +216,27 @@ function parseSearchQuery(query = {}) {
   const status = firstString(query.recordStatus, query.record_status, query.status);
   const visibility = firstString(query.visibility);
   const source = firstString(query.source, query.sourceLabel, query.source_label);
-  const page = parsePositiveInteger(firstString(query.page), "page", errors, { defaultValue: 1, max: 10000 });
+  const page = parsePositiveInteger(firstString(query.page), "page", errors, { defaultValue: 1, max: MAX_PAGE });
   const limit = parsePositiveInteger(firstString(query.limit, query.pageSize, query.page_size), "limit", errors, {
     defaultValue: DEFAULT_LIMIT,
     max: MAX_LIMIT,
   });
   const cursorOffset = decodeOffsetCursor(firstString(query.cursor, query.nextCursor, query.next_cursor));
-  const offset = cursorOffset ?? (page - 1) * limit;
-  const responsePage = cursorOffset === null ? page : Math.floor(offset / limit) + 1;
+  const acceptedCursorOffset = cursorOffset !== null
+    && Number.isSafeInteger(cursorOffset)
+    && cursorOffset <= MAX_VISIBLE_OFFSET
+    ? cursorOffset
+    : null;
+
+  if (cursorOffset !== null && acceptedCursorOffset === null) {
+    errors.push({
+      field: "cursor",
+      message: `cursor offset must be a safe integer between 0 and ${MAX_VISIBLE_OFFSET}.`,
+    });
+  }
+
+  const offset = acceptedCursorOffset ?? (page - 1) * limit;
+  const responsePage = acceptedCursorOffset === null ? page : Math.floor(offset / limit) + 1;
 
   for (const [field, values] of Object.entries({ module: moduleIds, recordType: recordTypes, tag: tagIds })) {
     if (values.some((value) => !isSafeFilterValue(value))) {
@@ -244,7 +294,12 @@ function parseSearchQuery(query = {}) {
   };
 }
 
-function toBrowserSearchResult(result = {}, target = {}) {
+/**
+ * @param {SearchResult} result
+ * @param {SearchPermissionTarget} target
+ * @returns {BrowserSearchResult}
+ */
+function toBrowserSearchResult(result, target) {
   return {
     searchIndexId: result.search_index_id,
     workspaceId: result.workspace_id,
@@ -279,6 +334,11 @@ function toBrowserSearchResult(result = {}, target = {}) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {BrowserSearchResult[]} results
+ * @returns {Promise<BrowserSearchResult[]>}
+ */
 async function enrichBrowserSearchResults(workspaceId, results) {
   const tagsByResultKey = await readResultTags(workspaceId, results);
   const contextById = await readResultContext(workspaceId, results);
@@ -293,16 +353,21 @@ async function enrichBrowserSearchResults(workspaceId, results) {
   }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {BrowserSearchResult[]} results
+ * @returns {Promise<Map<string, BrowserSearchTag[]>>}
+ */
 async function readResultTags(workspaceId, results) {
+  /** @type {Map<string, BrowserSearchTag[]>} */
   const byKey = new Map();
+  /** @type {Map<string, string[]>} */
   const idsByType = new Map();
 
   for (const result of results) {
-    if (!idsByType.has(result.recordType)) {
-      idsByType.set(result.recordType, []);
-    }
-
-    idsByType.get(result.recordType).push(result.recordId);
+    const recordIds = idsByType.get(result.recordType) || [];
+    recordIds.push(result.recordId);
+    idsByType.set(result.recordType, recordIds);
   }
 
   for (const [recordType, recordIds] of idsByType.entries()) {
@@ -326,10 +391,17 @@ async function readResultTags(workspaceId, results) {
   return byKey;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {BrowserSearchResult[]} results
+ * @returns {Promise<{ clients: Map<string, BrowserSearchContextRecord>, projects: Map<string, BrowserSearchContextRecord> }>}
+ */
 async function readResultContext(workspaceId, results) {
   const clientIds = new Set(results.map((result) => result.clientId).filter(Boolean));
   const projectIds = new Set(results.map((result) => result.projectId).filter(Boolean));
+  /** @type {Map<string, BrowserSearchContextRecord>} */
   const clients = new Map();
+  /** @type {Map<string, BrowserSearchContextRecord>} */
   const projects = new Map();
   const [clientRecords, projectRecords] = await Promise.all([
     clientIds.size > 0 ? clientsRepository.readByIds(workspaceId, [...clientIds]) : Promise.resolve([]),
@@ -357,6 +429,10 @@ async function readResultContext(workspaceId, results) {
   return { clients, projects };
 }
 
+/**
+ * @param {SearchResult} result
+ * @returns {BrowserSearchResultTarget}
+ */
 function buildResultTarget(result) {
   const recordId = encodeURIComponent(result.record_id || "");
 
@@ -415,16 +491,24 @@ function buildResultTarget(result) {
   };
 }
 
+/** @param {BrowserSearchResult} result */
 function resultKey(result) {
   return `${result.recordType}:${result.recordId}`;
 }
 
+/** @param {unknown} value */
 function normalizeScore(value) {
   const score = Number(value);
   return Number.isFinite(score) ? score : null;
 }
 
-function parsePositiveInteger(value, field, errors, options = {}) {
+/**
+ * @param {string} value
+ * @param {string} field
+ * @param {SearchQueryError[]} errors
+ * @param {{ defaultValue: number, max?: number }} options
+ */
+function parsePositiveInteger(value, field, errors, options) {
   if (!value) {
     return options.defaultValue;
   }
@@ -444,6 +528,7 @@ function parsePositiveInteger(value, field, errors, options = {}) {
   return parsed;
 }
 
+/** @param {...unknown} values */
 function firstString(...values) {
   for (const value of values) {
     if (Array.isArray(value)) {
@@ -462,10 +547,15 @@ function firstString(...values) {
   return "";
 }
 
-function hasQueryField(query = {}, keys = []) {
+/**
+ * @param {Record<string, unknown>} query
+ * @param {string[]} keys
+ */
+function hasQueryField(query, keys) {
   return keys.some((key) => Object.hasOwn(query, key));
 }
 
+/** @param {...unknown} values */
 function readStringList(...values) {
   return values
     .flatMap((value) => Array.isArray(value) ? value : [value])
@@ -476,8 +566,66 @@ function readStringList(...values) {
     .filter((value, index, list) => list.indexOf(value) === index);
 }
 
+/** @param {string} value */
 function isSafeFilterValue(value) {
   return /^[\w .:-]+$/u.test(value);
+}
+
+/**
+ * @param {Record<string, unknown>} query
+ * @param {SearchQueryError[]} errors
+ */
+function validateQueryValueShapes(query, errors) {
+  /** @type {Array<[string, string[]]>} */
+  const fields = [
+    ["text", ["text", "q", "query"]],
+    ["module", ["moduleIds", "module_ids", "moduleId", "module_id", "module"]],
+    ["recordType", ["recordTypes", "record_types", "recordType", "record_type", "type"]],
+    ["tag", ["tagIds", "tag_ids", "tagId", "tag_id", "tag"]],
+    ["clientId", ["clientId", "client_id", "client"]],
+    ["projectId", ["projectId", "project_id", "project"]],
+    ["libraryBucket", ["libraryBucket", "library_bucket", "library"]],
+    ["noteCollectionId", ["noteCollectionId", "note_collection_id", "collectionId", "collection_id"]],
+    ["status", ["recordStatus", "record_status", "status"]],
+    ["visibility", ["visibility"]],
+    ["source", ["source", "sourceLabel", "source_label"]],
+    ["page", ["page"]],
+    ["limit", ["limit", "pageSize", "page_size"]],
+    ["cursor", ["cursor", "nextCursor", "next_cursor"]],
+  ];
+
+  for (const [field, aliases] of fields) {
+    const malformed = aliases.some((alias) => (
+      Object.hasOwn(query, alias) && !isSupportedQueryValue(query[alias])
+    ));
+
+    if (malformed) {
+      errors.push({
+        field,
+        message: `${field} must be supplied as a string or repeated string values.`,
+      });
+    }
+  }
+}
+
+/** @param {unknown} value */
+function isSupportedQueryValue(value) {
+  return typeof value === "string"
+    || (Array.isArray(value) && value.every((entry) => typeof entry === "string"));
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isPlainObject(value) {
+  // Express supplies this value through the application-owned extended query parser:
+  // repeated keys become arrays and bracketed nested shapes become objects. Keep
+  // this guard aligned with src/core/app.js and the Search route regression.
+  return Boolean(value)
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 export { searchRoutes };

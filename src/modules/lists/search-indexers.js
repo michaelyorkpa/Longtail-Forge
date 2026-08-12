@@ -1,6 +1,9 @@
+// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { listsRepository } from "./lists.repo.js";
+
+/** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
 
 const LISTS_SEARCH_INDEXER_ID = "lists.records";
 
@@ -8,6 +11,7 @@ function registerListsSearchIndexers() {
   return registerSearchIndexer(LISTS_SEARCH_INDEXER_ID, indexListRecord);
 }
 
+/** @param {SearchReference} reference */
 async function indexListRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const lists = await listsRepository.list(workspaceId, { includeDeleted: false });
@@ -20,7 +24,9 @@ async function indexListRecord({ workspaceId, recordId }) {
     return { documents };
   }
 
-  const list = await listsRepository.readById(workspaceId, recordId);
+  const list = /** @type {Record<string, any> | null} */ (
+    await listsRepository.readById(workspaceId, recordId)
+  );
 
   if (!list || list.status === "deleted") {
     return null;
@@ -29,8 +35,9 @@ async function indexListRecord({ workspaceId, recordId }) {
   return listToSearchDocument(list);
 }
 
+/** @param {Record<string, any>} list */
 async function listToSearchDocument(list = {}) {
-  const [items, links, tagsText] = await Promise.all([
+  const [rawItems, rawLinks, tagsText] = await Promise.all([
     listsRepository.listItems(list.workspace_id, list.list_id),
     listsRepository.listLinks(list.workspace_id, list.list_id),
     readSearchTagsText({
@@ -39,6 +46,8 @@ async function listToSearchDocument(list = {}) {
       targetId: list.list_id,
     }),
   ]);
+  const items = /** @type {Record<string, any>[]} */ (rawItems);
+  const links = /** @type {Record<string, any>[]} */ (rawLinks);
   const itemText = items
     .map((item) => [
       item.item_name,

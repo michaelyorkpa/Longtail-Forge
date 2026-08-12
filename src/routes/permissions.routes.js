@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { permissionsService } from "../services/permissions.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { readJsonObjectBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const permissionsRoutes = Router();
 
@@ -10,7 +12,7 @@ permissionsRoutes.get("/roles", asyncRoute(async (request, response) => {
 }));
 
 permissionsRoutes.post("/role-assignments/lookup", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await permissionsService.lookupDelegatedRoleAssignmentAccount(request.session, payload);
   response.status(200).json(result);
 }));
@@ -21,7 +23,7 @@ permissionsRoutes.get("/users/:userId/role-assignments", asyncRoute(async (reque
 }));
 
 permissionsRoutes.put("/users/:userId/role-assignments", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await permissionsService.replaceUserAssignments(request.session, request.params.userId, payload);
   response.status(200).json(result);
 }));

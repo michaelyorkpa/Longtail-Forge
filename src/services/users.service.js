@@ -1,3 +1,4 @@
+// @ts-check
 import { usersRepository } from "../repositories/users.repo.js";
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
@@ -41,6 +42,33 @@ import {
   userRowToAppValue,
 } from "../utils/normalizers.js";
 
+/** @typedef {import("../types/users-service-contracts.js").AssignableWorkspaceRow} AssignableWorkspaceRow */
+/** @typedef {import("../types/users-service-contracts.js").CreatedWorkspace} CreatedWorkspace */
+/** @typedef {import("../types/users-service-contracts.js").DecoratedUser} DecoratedUser */
+/** @typedef {import("../types/users-service-contracts.js").EnsureWorkspaceInput} EnsureWorkspaceInput */
+/** @typedef {import("../types/users-service-contracts.js").ModuleStatusChange} ModuleStatusChange */
+/** @typedef {import("../types/users-service-contracts.js").OwnerTransferCandidate} OwnerTransferCandidate */
+/** @typedef {import("../types/users-service-contracts.js").ReplaceMembershipsInput} ReplaceMembershipsInput */
+/** @typedef {import("../types/users-service-contracts.js").RetireAccountInput} RetireAccountInput */
+/** @typedef {import("../types/users-service-contracts.js").UserActionInput} UserActionInput */
+/** @typedef {import("../types/users-service-contracts.js").UserListResult} UserListResult */
+/** @typedef {import("../types/users-service-contracts.js").UserMutationResult} UserMutationResult */
+/** @typedef {import("../types/users-service-contracts.js").UserPayload} UserPayload */
+/** @typedef {import("../types/users-service-contracts.js").UserProfile} UserProfile */
+/** @typedef {import("../types/users-service-contracts.js").UserRow} UserRow */
+/** @typedef {import("../types/users-service-contracts.js").UserServiceContext} UserServiceContext */
+/** @typedef {import("../types/users-service-contracts.js").UsersRequestSession} UsersRequestSession */
+/** @typedef {import("../types/users-service-contracts.js").UserValue} UserValue */
+/** @typedef {import("../types/users-service-contracts.js").UserWorkspaceMembershipRow} UserWorkspaceMembershipRow */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceCreationModuleDefinition} WorkspaceCreationModuleDefinition */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceCreationOptions} WorkspaceCreationOptions */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceMembershipAuditInput} WorkspaceMembershipAuditInput */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceMembershipRow} WorkspaceMembershipRow */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceOwnershipInput} WorkspaceOwnershipInput */
+/** @typedef {import("../types/users-service-contracts.js").WorkspaceValue} WorkspaceValue */
+/** @typedef {Record<string, unknown>} JsonObject */
+
+/** @param {UsersRequestSession} session @returns {Promise<UserListResult>} */
 async function list(session) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
   return {
@@ -49,6 +77,7 @@ async function list(session) {
   };
 }
 
+/** @param {UsersRequestSession} session */
 async function listPermissionResources(session) {
   await permissionsService.assertCan(session, "users.manage", {
     workspace_id: session.workspace_id,
@@ -60,6 +89,7 @@ async function listPermissionResources(session) {
   };
 }
 
+/** @param {UsersRequestSession} session @returns {Promise<{ workspaces: WorkspaceValue[] }>} */
 async function listWorkspaces(session) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
 
@@ -68,6 +98,7 @@ async function listWorkspaces(session) {
   };
 }
 
+/** @param {UsersRequestSession} session @param {unknown} [requestedWorkspaceId] */
 async function readAddUserOptions(session, requestedWorkspaceId = "") {
   assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace, workspaces } = await resolveAddUserWorkspace(
@@ -86,6 +117,7 @@ async function readAddUserOptions(session, requestedWorkspaceId = "") {
   };
 }
 
+/** @param {UserPayload} payload @param {UsersRequestSession} session */
 async function lookupAddUserAccount(payload, session) {
   assertPublicDemoCapabilityAllowed("administration.accounts");
   const username = normalizeCreateUsername(payload.username);
@@ -119,6 +151,7 @@ async function lookupAddUserAccount(payload, session) {
   };
 }
 
+/** @param {UserPayload} payload @param {UsersRequestSession} session */
 async function create(payload, session) {
   assertPublicDemoCapabilityAllowed("administration.accounts");
   const { targetSession, workspace } = await resolveAddUserWorkspace(
@@ -225,6 +258,7 @@ async function create(payload, session) {
   };
 }
 
+/** @param {UserActionInput} input */
 async function action({ payload = {}, session, userId, action: userAction, context = {} }) {
   if (!userId || !userAction) {
     throw new AppError("User action was not found.", 404);
@@ -249,6 +283,7 @@ async function action({ payload = {}, session, userId, action: userAction, conte
   throw new AppError("User action was not found.", 404);
 }
 
+/** @param {UserPayload} payload @param {UsersRequestSession} session @param {string} userId @returns {Promise<UserMutationResult>} */
 async function update(payload, session, userId) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
@@ -309,7 +344,7 @@ async function update(payload, session, userId) {
     await replaceWorkspaceMemberships({
       session,
       user: updatedUser,
-      requestedWorkspaceIds: payload.workspaceMemberships,
+      requestedWorkspaceIds: payload.workspaceMemberships || [],
     });
   }
 
@@ -319,6 +354,7 @@ async function update(payload, session, userId) {
   };
 }
 
+/** @param {UsersRequestSession} session @param {string} userId @param {UserServiceContext} [context] */
 async function resetPassword(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
@@ -393,6 +429,7 @@ async function resetPassword(session, userId, context = {}) {
   };
 }
 
+/** @param {UsersRequestSession} session @param {string} userId @param {UserServiceContext} [context] @returns {Promise<UserMutationResult>} */
 async function deactivate(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
@@ -476,6 +513,7 @@ async function deactivate(session, userId, context = {}) {
   };
 }
 
+/** @param {UsersRequestSession} session @param {string} userId @returns {Promise<UserMutationResult>} */
 async function reactivate(session, userId) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
   const user = await usersRepository.readById(session.workspace_id, userId);
@@ -528,6 +566,7 @@ async function reactivate(session, userId) {
   };
 }
 
+/** @param {UsersRequestSession} session @param {string} userId @param {UserServiceContext} [context] */
 async function remove(session, userId, context = {}) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "delete" });
   if (!userId) {
@@ -642,6 +681,7 @@ async function remove(session, userId, context = {}) {
   return { users: await readUsersWithMemberships(session) };
 }
 
+/** @param {UsersRequestSession} session @param {UserServiceContext} [context] */
 async function retireOwnAccount(session, context = {}) {
   assertPublicDemoVisitorIdentityMutable(session.user_id);
   const user = await usersRepository.readFirstByUserId(session.user_id);
@@ -660,6 +700,7 @@ async function retireOwnAccount(session, context = {}) {
   return { accountRetired: true };
 }
 
+/** @param {RetireAccountInput} input @returns {Promise<void>} */
 async function retireAccount({ actorSession, context, targetUser, selfService }) {
   assertPublicDemoVisitorIdentityMutable(targetUser.user_id);
   const memberships = await userWorkspacesRepository.readForUser(targetUser.user_id);
@@ -727,6 +768,7 @@ async function retireAccount({ actorSession, context, targetUser, selfService })
   });
 }
 
+/** @param {UsersRequestSession} session */
 async function readSettings(session) {
   const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
@@ -754,6 +796,7 @@ async function readSettings(session) {
   };
 }
 
+/** @param {UserPayload} payload @param {UsersRequestSession} session @param {string} [sessionId] */
 async function createWorkspace(payload, session, sessionId = "") {
   assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   const workspaceType = normalizeWorkspaceType(payload.workspaceType || payload.workspace_type);
@@ -834,6 +877,7 @@ async function createWorkspace(payload, session, sessionId = "") {
   };
 }
 
+/** @param {UsersRequestSession} session @param {unknown} workspaceId @param {UserServiceContext} [context] */
 async function removeOwnWorkspaceMembership(session, workspaceId, context = {}) {
   assertPublicDemoVisitorIdentityMutable(session.user_id);
   const targetWorkspaceId = String(workspaceId || "").trim();
@@ -895,6 +939,9 @@ async function removeOwnWorkspaceMembership(session, workspaceId, context = {}) 
 
   if (removingLastActive) {
     const user = await usersRepository.readFirstByUserId(session.user_id);
+    if (!user) {
+      throw new AppError("User was not found.", 404);
+    }
     await usersRepository.clearWorkspaceReferences(session.user_id, targetWorkspaceId);
     await sessionsService.revokeAllForUser({
       actorSession: session,
@@ -916,6 +963,7 @@ async function removeOwnWorkspaceMembership(session, workspaceId, context = {}) 
   };
 }
 
+/** @param {UserPayload} payload @param {UsersRequestSession} session */
 async function saveSettings(payload, session) {
   const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
@@ -941,6 +989,7 @@ async function saveSettings(payload, session) {
   let preferredWorkspaceSwitchLanding = previousValue.preferredWorkspaceSwitchLanding;
   let preferredCalendarView = previousValue.preferredCalendarView;
   let openExternalLinksNewTab = previousValue.openExternalLinksNewTab;
+  /** @type {{ setting_group: string, setting_names: string[] }} */
   const metadata = {
     setting_group: "user",
     setting_names: [],
@@ -1066,6 +1115,7 @@ async function saveSettings(payload, session) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {UsersRequestSession} session @returns {Promise<void>} */
 async function reconcilePrivateCalendarSubscriptions(workspaceId, userId, session) {
   const { privateFeedsService } = await import("./private-feeds.service.js");
   await privateFeedsService.reconcileCalendarSubscriptions({
@@ -1075,6 +1125,7 @@ async function reconcilePrivateCalendarSubscriptions(workspaceId, userId, sessio
   });
 }
 
+/** @param {WorkspaceMembershipAuditInput} input @returns {Promise<void>} */
 async function recordWorkspaceMembershipChange({
   session,
   action,
@@ -1101,6 +1152,7 @@ async function recordWorkspaceMembershipChange({
   });
 }
 
+/** @param {UsersRequestSession} session @param {UserValue} user @param {WorkspaceValue} workspace @returns {Promise<UserWorkspaceMembershipRow | null>} */
 async function deactivateWorkspaceMembershipWithLifecycle(session, user, workspace) {
   await transferOrBlockWorkspaceOwnership({
     session,
@@ -1114,6 +1166,7 @@ async function deactivateWorkspaceMembershipWithLifecycle(session, user, workspa
   return membership;
 }
 
+/** @param {WorkspaceOwnershipInput} input @returns {Promise<OwnerTransferCandidate | null>} */
 async function transferOrBlockWorkspaceOwnership({ session, workspaceId, ownerUserId, action }) {
   const workspace = await workspacesRepository.readById(workspaceId);
 
@@ -1158,8 +1211,11 @@ async function transferOrBlockWorkspaceOwnership({ session, workspaceId, ownerUs
   return candidate;
 }
 
+/** @param {EnsureWorkspaceInput} input @returns {Promise<CreatedWorkspace | null>} */
 async function ensureUserHasActiveWorkspace({ session, userId, reason }) {
-  const activeMemberships = await userWorkspacesRepository.readActiveForUser(userId);
+  const activeMemberships = /** @type {UserWorkspaceMembershipRow[]} */ (
+    await userWorkspacesRepository.readActiveForUser(userId)
+  );
 
   if (activeMemberships.length > 0) {
     const activeWorkspaceId = activeMemberships[0].workspace_id;
@@ -1204,6 +1260,7 @@ async function ensureUserHasActiveWorkspace({ session, userId, reason }) {
   return workspace;
 }
 
+/** @param {string} userId @returns {Promise<string>} */
 async function createPersonalWorkspaceName(userId) {
   const existingNames = new Set(
     (await workspacesRepository.readForUser(userId))
@@ -1221,11 +1278,13 @@ async function createPersonalWorkspaceName(userId) {
   return candidate;
 }
 
+/** @param {UsersRequestSession} session @returns {Promise<DecoratedUser[]>} */
 async function readUsersWithMemberships(session) {
   const users = await usersRepository.readAll(session.workspace_id);
   return Promise.all(users.map((user) => decorateUserWithMemberships(user)));
 }
 
+/** @param {UsersRequestSession} session @returns {Promise<WorkspaceValue[]>} */
 async function readAssignableWorkspaces(session) {
   const allWorkspaces = await userWorkspacesRepository.readAllWorkspaces();
 
@@ -1233,12 +1292,15 @@ async function readAssignableWorkspaces(session) {
     return allWorkspaces.map(workspaceToAppValue);
   }
 
-  const currentUserMemberships = await userWorkspacesRepository.readForUser(session.user_id);
+  const currentUserMemberships = /** @type {UserWorkspaceMembershipRow[]} */ (
+    await userWorkspacesRepository.readForUser(session.user_id)
+  );
   const currentUserWorkspaceIds = new Set(
     currentUserMemberships
       .filter((membership) => membership.status !== "inactive")
       .map((membership) => membership.workspace_id),
   );
+  /** @type {WorkspaceValue[]} */
   const visibleWorkspaces = [];
 
   for (const workspace of allWorkspaces) {
@@ -1259,6 +1321,7 @@ async function readAssignableWorkspaces(session) {
   return visibleWorkspaces;
 }
 
+/** @param {UsersRequestSession} session @param {unknown} requestedWorkspaceId @param {string} operation */
 async function resolveAddUserWorkspace(session, requestedWorkspaceId, operation) {
   const workspaces = await readAssignableWorkspaces(session);
   const workspaceId = String(requestedWorkspaceId || session.workspace_id || "").trim();
@@ -1277,6 +1340,7 @@ async function resolveAddUserWorkspace(session, requestedWorkspaceId, operation)
   return { targetSession, workspace, workspaces };
 }
 
+/** @param {UsersRequestSession} session @param {string} workspaceId @returns {UsersRequestSession} */
 function createTargetWorkspaceSession(session, workspaceId) {
   return {
     ...session,
@@ -1285,6 +1349,7 @@ function createTargetWorkspaceSession(session, workspaceId) {
   };
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeCreateUsername(value) {
   const username = normalizeUsername(value);
 
@@ -1299,6 +1364,7 @@ function normalizeCreateUsername(value) {
   return username;
 }
 
+/** @param {UsersRequestSession} session @returns {Promise<WorkspaceCreationOptions>} */
 async function readWorkspaceCreationOptions(session) {
   const appSettings = await appSettingsRepository.readAll();
   const userCreationPermission = await appSettingsRepository.readWorkspaceCreationPermission(session.user_id);
@@ -1331,6 +1397,7 @@ async function readWorkspaceCreationOptions(session) {
   };
 }
 
+/** @param {string} workspaceType @returns {WorkspaceCreationModuleDefinition[]} */
 function readWorkspaceCreationModuleSettings(workspaceType) {
   return modulesService.listModuleSettingsForWorkspaceType(workspaceType)
     .map((moduleDefinition) => ({
@@ -1340,9 +1407,11 @@ function readWorkspaceCreationModuleSettings(workspaceType) {
     .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
 }
 
+/** @param {UserPayload} payload @param {string} workspaceType @returns {ModuleStatusChange[]} */
 function resolveCreateWorkspaceModuleStatusChanges(payload, workspaceType) {
   const definitions = buildCreateWorkspaceModuleStatusDefinitionMap(workspaceType);
   const submittedSettings = readSubmittedCreateWorkspaceModuleSettings(payload);
+  /** @type {ModuleStatusChange[]} */
   const changes = [];
 
   if (submittedSettings.size === 0) {
@@ -1388,6 +1457,7 @@ function resolveCreateWorkspaceModuleStatusChanges(payload, workspaceType) {
   return changes;
 }
 
+/** @param {string} workspaceType */
 function buildCreateWorkspaceModuleStatusDefinitionMap(workspaceType) {
   const definitions = new Map();
 
@@ -1403,7 +1473,9 @@ function buildCreateWorkspaceModuleStatusDefinitionMap(workspaceType) {
   return definitions;
 }
 
+/** @param {UserPayload} payload @returns {Map<string, Map<string, unknown>>} */
 function readSubmittedCreateWorkspaceModuleSettings(payload) {
+  /** @type {Map<string, Map<string, unknown>>} */
   const submittedSettings = new Map();
   const moduleSettings = payload?.moduleSettings;
 
@@ -1432,13 +1504,17 @@ function readSubmittedCreateWorkspaceModuleSettings(payload) {
         submittedSettings.set(normalizedModuleId, new Map());
       }
 
-      submittedSettings.get(normalizedModuleId).set(normalizedSettingId, value);
+      const submittedModuleSettings = submittedSettings.get(normalizedModuleId);
+      if (submittedModuleSettings) {
+        submittedModuleSettings.set(normalizedSettingId, value);
+      }
     }
   }
 
   return submittedSettings;
 }
 
+/** @param {UsersRequestSession} session @param {string[]} baseTypes @returns {Promise<string[]>} */
 async function readSaasWorkspaceTypes(session, baseTypes) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const personalCount = await workspacesRepository.countUserWorkspacesByType(session.user_id, "personal");
@@ -1457,6 +1533,7 @@ async function readSaasWorkspaceTypes(session, baseTypes) {
   return baseTypes.filter((type) => type === "personal" && personalCount === 0);
 }
 
+/** @param {unknown} workspaceType @returns {string} */
 function formatWorkspaceType(workspaceType) {
   return {
     business: "Business",
@@ -1465,6 +1542,7 @@ function formatWorkspaceType(workspaceType) {
   }[workspaceType] || "Workspace";
 }
 
+/** @param {ReplaceMembershipsInput} input @returns {Promise<void>} */
 async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceIds }) {
   await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
 
@@ -1487,7 +1565,9 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
     throw new AppError("Personal workspaces can only belong to their creator.", 400);
   }
 
-  const previousMemberships = await userWorkspacesRepository.readForUser(user.user_id);
+  const previousMemberships = /** @type {UserWorkspaceMembershipRow[]} */ (
+    await userWorkspacesRepository.readForUser(user.user_id)
+  );
   const previousActiveWorkspaceIds = new Set(
     previousMemberships
       .filter((membership) => membership.status === "active")
@@ -1531,6 +1611,7 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
   });
 }
 
+/** @param {AssignableWorkspaceRow} workspace @returns {WorkspaceValue} */
 function workspaceToAppValue(workspace) {
   return {
     workspaceId: workspace.workspace_id,
@@ -1541,8 +1622,11 @@ function workspaceToAppValue(workspace) {
   };
 }
 
+/** @param {UserValue} user @returns {Promise<DecoratedUser>} */
 async function decorateUserWithMemberships(user) {
-  const memberships = await userWorkspacesRepository.readForUser(user.user_id);
+  const memberships = /** @type {UserWorkspaceMembershipRow[]} */ (
+    await userWorkspacesRepository.readForUser(user.user_id)
+  );
 
   return {
     ...user,
@@ -1557,6 +1641,7 @@ async function decorateUserWithMemberships(user) {
   };
 }
 
+/** @param {UserValue} user @param {string} workspaceId @returns {Promise<DecoratedUser>} */
 async function decorateUserForWorkspace(user, workspaceId) {
   const membership = await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspaceId);
 
@@ -1572,6 +1657,7 @@ async function decorateUserForWorkspace(user, workspaceId) {
   };
 }
 
+/** @param {UsersRequestSession} session @returns {Promise<void>} */
 async function assertWorkspaceCanAddUser(session) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
@@ -1590,6 +1676,7 @@ async function assertWorkspaceCanAddUser(session) {
   }
 }
 
+/** @param {UserPayload} payload @param {Partial<UserRow>} [fallbackUser] @returns {UserProfile} */
 function normalizeUserProfilePayload(payload, fallbackUser = {}) {
   const username = normalizeUsername(
     Object.hasOwn(payload, "username") ? payload.username : fallbackUser.username,
@@ -1628,6 +1715,7 @@ function normalizeUserProfilePayload(payload, fallbackUser = {}) {
   };
 }
 
+/** @param {unknown} value @returns {value is JsonObject} */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }

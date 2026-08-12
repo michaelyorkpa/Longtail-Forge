@@ -4,7 +4,11 @@ import { get } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
-import { compareDottedVersions, readActiveRoadmapCursor } from "./lib/roadmap-cursor.mjs";
+import {
+  compareDottedVersions,
+  isDocumentedOutOfOrderRoadmapCloseout,
+  readActiveRoadmapCursor,
+} from "./lib/roadmap-cursor.mjs";
 import {
   loadVersionLiteralAllowlist,
   readWorkspaceTextEntries,
@@ -17,6 +21,8 @@ const root = process.cwd();
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
 const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
+const roadmap = await fs.readFile("ROADMAP.md", "utf8");
+const roadmapArchive = await fs.readFile("ROADMAP-ARCHIVE.md", "utf8");
 const allowlist = await loadVersionLiteralAllowlist(root);
 const fixture = await createDisposableDatabaseFixture("version-literal-guardrail-regression");
 const { createApp } = await import("../src/core/app.js");
@@ -27,9 +33,13 @@ assert.equal(appVersion, packageJson.version, "the runtime helper should match p
 assert.equal(packageLock.version, packageJson.version, "the lock root should match package metadata");
 assert.equal(packageLock.packages[""].version, packageJson.version, "the lock package entry should match package metadata");
 assert.match(changelog, new RegExp(`^## Version ${escapeRegExp(appVersion)} - `, "m"), "CHANGELOG should carry the current version heading");
+const activeRoadmapCursor = readActiveRoadmapCursor({ roadmapSource: roadmap });
 assert.ok(
-  compareDottedVersions(readActiveRoadmapCursor(), appVersion) > 0,
-  "ROADMAP should advance beyond the current package version before closeout",
+  compareDottedVersions(activeRoadmapCursor, appVersion) > 0 || isDocumentedOutOfOrderRoadmapCloseout(appVersion, {
+    roadmapArchiveSource: roadmapArchive,
+    roadmapSource: roadmap,
+  }),
+  "ROADMAP should advance beyond the current package version or explicitly archive an operator-requested out-of-order closeout while preserving its lower active cursor",
 );
 
 const violations = await scanWorkspaceForCurrentVersion(root, appVersion, allowlist);
@@ -46,6 +56,20 @@ assert.deepEqual(
   ], appVersion, allowlist),
   [],
   "governing decisions plus historical changelog, TODO, docs, and archive labels should be ignored",
+);
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "ROADMAP.md", source: `Future child versions ${appVersion}0 and ${appVersion}.1 remain distinct.` },
+  ], appVersion, allowlist),
+  [],
+  "longer dotted versions must not be mistaken for the exact current version token",
+);
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "src/example.js", source: `const displayVersion = "${appVersion}-nightly";` },
+  ], appVersion, allowlist).map(({ path }) => path),
+  ["src/example.js"],
+  "a qualified display version must still expose an exact current-version literal",
 );
 assert.deepEqual(
   scanEntriesForCurrentVersion([

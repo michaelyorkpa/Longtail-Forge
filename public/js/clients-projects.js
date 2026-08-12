@@ -199,12 +199,14 @@ function withoutUnavailableTopLevelActions(surface) {
     return surface;
   }
 
+  const pageHeader = surface.pageHeader ? { ...surface.pageHeader } : surface.pageHeader;
+  if (pageHeader) {
+    delete pageHeader.primaryAction;
+  }
+
   return {
     ...surface,
-    pageHeader: surface.pageHeader ? {
-      ...surface.pageHeader,
-      primaryAction: null,
-    } : surface.pageHeader,
+    pageHeader,
   };
 }
 

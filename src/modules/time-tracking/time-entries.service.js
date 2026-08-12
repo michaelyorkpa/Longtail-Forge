@@ -1,3 +1,4 @@
+// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -17,8 +18,16 @@ import {
   parseTimeTrackingEdgePayload,
 } from "./time-tracking.contracts.js";
 
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
+/** @typedef {import("zod").infer<typeof BrowserTimeEntryCreateSchema>} BrowserTimeEntryCreatePayload */
+/** @typedef {(TimeEntryInput | BrowserTimeEntryCreatePayload) & { tagIds?: unknown[], tag_ids?: unknown[] }} TimeEntryCreateInput */
+/** @typedef {{ tagIds?: unknown, tag_ids?: unknown, tags?: unknown }} TimeEntryListQuery */
+/** @typedef {{ create: typeof create, createFromActiveTimer: typeof createFromActiveTimer, hasTaskTime: typeof hasTaskTime, list: typeof list, remove: typeof remove, update: typeof update }} TimeEntriesService */
+
 const MODULE_ID = "time-tracking";
 
+/** @param {unknown} rawEntry @param {WorkspaceRequestSession} session */
 async function create(rawEntry, session) {
   const entry = parseTimeTrackingEdgePayload(BrowserTimeEntryCreateSchema, rawEntry);
   return createFromActiveTimer(entry, session);
@@ -27,12 +36,16 @@ async function create(rawEntry, session) {
 // Active timer finalization constructs this object from an already-validated
 // finalize payload plus the authoritative stored timer. It is intentionally
 // not parsed again as an untrusted browser create payload.
+/** @param {TimeEntryCreateInput} entry @param {WorkspaceRequestSession} session */
 async function createFromActiveTimer(entry, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const [scope, settings] = await Promise.all([
     resolveTimeEntryScope(session.workspace_id, entry),
     settingsRepository.readWorkspaceSettings(session.workspace_id),
   ]);
+  if (!scope.project) {
+    throw new AppError("Project not found", 404);
+  }
 
   await permissionsService.assertCan(session, "time_entries.create", {
     workspace_id: session.workspace_id,
@@ -93,6 +106,7 @@ async function createFromActiveTimer(entry, session) {
   };
 }
 
+/** @param {unknown} rawPayload @param {string} entryId @param {WorkspaceRequestSession} session */
 async function update(rawPayload, entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(BrowserTimeEntryUpdateSchema, rawPayload);
@@ -113,6 +127,9 @@ async function update(rawPayload, entryId, session) {
     }),
     settingsRepository.readWorkspaceSettings(session.workspace_id),
   ]);
+  if (!scope.project) {
+    throw new AppError("Project not found", 404);
+  }
   const nextScopeResource = {
     client_id: scope.client?.id || "",
     project_id: scope.project.id,
@@ -169,6 +186,7 @@ async function update(rawPayload, entryId, session) {
   return { entry: taggedEntry, storage: "database" };
 }
 
+/** @param {string} entryId @param {WorkspaceRequestSession} session */
 async function remove(entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
@@ -213,6 +231,7 @@ async function remove(entryId, session) {
   return { entry_id: decodedEntryId, deleted: true };
 }
 
+/** @param {WorkspaceRequestSession} session @param {TimeEntryListQuery} [query] */
 async function list(session, query = {}) {
   const [storedEntries, settings] = await Promise.all([
     timeEntriesRepository.readAll(session.workspace_id),
@@ -234,6 +253,7 @@ async function list(session, query = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasTaskTime(workspaceId, taskId) {
   return timeEntriesRepository.hasForTask(workspaceId, taskId);
 }
@@ -369,6 +389,7 @@ async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
   });
 }
 
+/** @type {TimeEntriesService} */
 export const timeEntriesService = {
   create,
   createFromActiveTimer,

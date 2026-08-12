@@ -1,12 +1,25 @@
+// @ts-check
 import { clientProjectSettingsService, clientsService } from "../client-projects/index.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { settingsService } from "../../services/settings.service.js";
+import { normalizeTimezone } from "../../utils/normalizers.js";
+import {
+  DEFAULT_TIMEZONE,
+  addLocalDateDays,
+  localDateBoundToUtcIso,
+  localDateKey,
+} from "../../utils/timezones.js";
 import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
 
+/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{ endDate?: unknown, end_date?: unknown, period?: unknown, projectIds?: unknown, project_ids?: unknown, scopeId?: unknown, scope_id?: unknown, startDate?: unknown, start_date?: unknown, tagIds?: unknown, tag_ids?: unknown, tags?: unknown, taskId?: unknown, task_id?: unknown, taskIds?: unknown, task_ids?: unknown }} BillingReportQuery */
+/** @typedef {{ readDashboardBillingSummary: typeof readDashboardBillingSummary, readProjectSummary: typeof readProjectSummary, readReportingBootstrap: typeof readReportingBootstrap, runProjectTimeBillingReport: typeof runProjectTimeBillingReport }} TimeTrackingBillingService */
+
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
 
+/** @param {WorkspaceRequestSession} session */
 async function readDashboardBillingSummary(session) {
   await permissionsService.assertCanInAnyScope(session, "reporting.view", {
     workspace_id: session.workspace_id,
@@ -21,14 +34,16 @@ async function readDashboardBillingSummary(session) {
   const entries = normalizeTimeEntries(timeEntries.entries);
   const activeScopes = buildBillingScopes(clientProjectData, settings, { includeInactive: true })
     .filter((scope) => scope.status === "Active");
-  const currentMonthRows = summarizeBillingScopesForRange(settings, activeScopes, entries, getMonthRange(new Date()))
+  const now = new Date();
+  const timezone = normalizeBillingSessionTimezone(session);
+  const currentMonthRows = summarizeBillingScopesForRange(settings, activeScopes, entries, getMonthRange(now, timezone))
     .filter((row) => row.billableSeconds > 0);
   const currentMonthTotals = filterRollupScopeSummaries(currentMonthRows).reduce((summary, row) => ({
     amount: summary.amount + row.amount,
     seconds: summary.seconds + row.billableSeconds,
   }), { amount: 0, seconds: 0 });
-  const chartPoints = getTrailingMonthStarts(12).map((monthStart) => {
-    const range = getMonthRange(monthStart);
+  const chartPoints = getTrailingMonthStarts(12, now, timezone).map((monthStart) => {
+    const range = getMonthRange(monthStart, timezone);
     const totals = filterRollupScopeSummaries(summarizeBillingScopesForRange(settings, activeScopes, entries, range))
       .reduce((summary, row) => ({
         amount: summary.amount + row.amount,
@@ -49,6 +64,7 @@ async function readDashboardBillingSummary(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readReportingBootstrap(session) {
   const { settings, scopes, moduleContext } = await readProjectTimeBillingContext(session, {
     includeModuleContext: true,
@@ -64,6 +80,7 @@ async function readReportingBootstrap(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {BillingReportQuery} [query] */
 async function readProjectSummary(session, query = {}) {
   const { settings, scopes } = await readProjectTimeBillingContext(session);
   const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
@@ -90,6 +107,7 @@ async function readProjectSummary(session, query = {}) {
     .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
   const summary = summarizeProjectBillingRows(settings, scope, projects, scopeEntries, query, {
     includeDescendants,
+    timezone: normalizeBillingSessionTimezone(session),
   });
 
   return {
@@ -99,10 +117,12 @@ async function readProjectSummary(session, query = {}) {
   };
 }
 
+/** @param {{ filters?: BillingReportQuery, session: WorkspaceRequestSession }} input */
 async function runProjectTimeBillingReport({ filters, session }) {
   return readProjectSummary(session, filters);
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readProjectTimeBillingContext(session, options = {}) {
   await permissionsService.assertCanInAnyScope(session, "reporting.view", {
     workspace_id: session.workspace_id,
@@ -127,6 +147,7 @@ async function readProjectTimeBillingContext(session, options = {}) {
   return { settings, scopes, moduleContext };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readBillingSettings(session) {
   const [workspaceSettings, clientProjectSettings, timeTrackingSettings] = await Promise.all([
     settingsService.read(session),
@@ -138,6 +159,16 @@ async function readBillingSettings(session) {
     ...clientProjectSettings,
     ...timeTrackingSettings,
   };
+}
+
+/**
+ * Normalize persisted session data before billing calendar helpers reach Intl.
+ *
+ * @param {{ timezone?: unknown } | null | undefined} session
+ * @returns {string}
+ */
+function normalizeBillingSessionTimezone(session) {
+  return normalizeTimezone(session?.timezone);
 }
 
 function buildBillingScopes(data, settings, options = {}) {
@@ -285,6 +316,7 @@ function summarizeProjectBillingRows(settings, scope, selectedProjects, entries,
       includeDescendants,
       query,
       today: options.today,
+      timezone: options.timezone,
     }))
     .filter(Boolean);
   const totals = rows.reduce((summary, row) => ({
@@ -303,6 +335,7 @@ function summarizeBillingProjectTree(settings, scope, project, projects, entries
     project,
     options.query,
     options.today,
+    options.timezone,
   );
   const direct = summarizeDirectBillingProject(settings, scope, project, entries, range);
   const childRows = includeDescendants
@@ -391,29 +424,39 @@ function emptyProjectRow(settings, scope, project) {
   };
 }
 
-function readSelectedDateRange(settings, scope, project, query = {}, today = new Date()) {
+function readSelectedDateRange(
+  settings,
+  scope,
+  project,
+  query = {},
+  today = new Date(),
+  timezone = DEFAULT_TIMEZONE,
+) {
   if (query.period === "custom") {
-    return getCustomDateRange(query.startDate || query.start_date, query.endDate || query.end_date);
+    return getCustomDateRange(
+      query.startDate || query.start_date,
+      query.endDate || query.end_date,
+      timezone,
+    );
   }
 
   return getBillingPeriodRange(
     getEffectiveProjectBillingPeriod(settings, scope, project),
     query.period === "last" ? "last" : "current",
     today,
+    timezone,
   );
 }
 
-function getCustomDateRange(startValue, endValue) {
-  const start = parseDateInput(startValue);
-  const endDate = parseDateInput(endValue);
+function getCustomDateRange(startValue, endValue, timezone = DEFAULT_TIMEZONE) {
+  const startDateKey = parseDateInput(startValue);
+  const endDateKey = parseDateInput(endValue);
 
-  if (!start || !endDate || start > endDate) {
+  if (!startDateKey || !endDateKey || startDateKey > endDateKey) {
     throw new AppError("Choose a valid custom start and end date.", 400);
   }
 
-  const end = new Date(endDate);
-  end.setDate(end.getDate() + 1);
-  return { start, end };
+  return dateKeyRange(startDateKey, addLocalDateDays(endDateKey, 1), timezone);
 }
 
 function parseDateInput(value) {
@@ -423,55 +466,64 @@ function parseDateInput(value) {
     return null;
   }
 
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-    ? date
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     : null;
 }
 
-function getBillingPeriodRange(period, mode, today = new Date()) {
+function getBillingPeriodRange(period, mode, today = new Date(), timezone = DEFAULT_TIMEZONE) {
   const normalizedPeriod = normalizeBillingPeriod(period);
-  let start = normalizedPeriod.type === "custom"
-    ? getCurrentCustomPeriodStart(today, normalizedPeriod.startDay)
-    : new Date(today.getFullYear(), today.getMonth(), 1);
+  const todayKey = localDateKey(today, timezone);
+  let startKey = normalizedPeriod.type === "custom"
+    ? getCurrentCustomPeriodStart(todayKey, normalizedPeriod.startDay)
+    : monthStartKey(todayKey);
 
   if (mode === "last") {
-    start = addMonths(start, -1);
+    startKey = addMonthsKey(startKey, -1);
   }
 
-  return {
-    start,
-    end: addMonths(start, 1),
-  };
+  return dateKeyRange(startKey, addMonthsKey(startKey, 1), timezone);
 }
 
-function getCurrentCustomPeriodStart(date, startDay) {
-  const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
+function getCurrentCustomPeriodStart(dateKey, startDay) {
+  const currentMonthStart = `${dateKey.slice(0, 8)}${String(startDay).padStart(2, "0")}`;
 
-  return date >= currentMonthStart
+  return dateKey >= currentMonthStart
     ? currentMonthStart
-    : new Date(date.getFullYear(), date.getMonth() - 1, startDay);
+    : addMonthsKey(currentMonthStart, -1);
 }
 
-function addMonths(date, monthCount) {
-  return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
+function addMonthsKey(dateKey, monthCount) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + monthCount, day)).toISOString().slice(0, 10);
 }
 
-function getMonthRange(date) {
-  return {
-    start: new Date(date.getFullYear(), date.getMonth(), 1),
-    end: new Date(date.getFullYear(), date.getMonth() + 1, 1),
-  };
+function getMonthRange(date, timezone = DEFAULT_TIMEZONE) {
+  const startKey = monthStartKey(localDateKey(date, timezone));
+  return dateKeyRange(startKey, addMonthsKey(startKey, 1), timezone);
 }
 
-function getTrailingMonthStarts(monthsBack, today = new Date()) {
+function getTrailingMonthStarts(monthsBack, today = new Date(), timezone = DEFAULT_TIMEZONE) {
   const months = [];
+  const currentMonthStart = monthStartKey(localDateKey(today, timezone));
 
   for (let offset = monthsBack; offset >= 0; offset -= 1) {
-    months.push(new Date(today.getFullYear(), today.getMonth() - offset, 1));
+    months.push(new Date(localDateBoundToUtcIso(addMonthsKey(currentMonthStart, -offset), timezone)));
   }
 
   return months;
+}
+
+function monthStartKey(dateKey) {
+  return `${dateKey.slice(0, 7)}-01`;
+}
+
+function dateKeyRange(startKey, endKey, timezone) {
+  return {
+    start: new Date(localDateBoundToUtcIso(startKey, timezone)),
+    end: new Date(localDateBoundToUtcIso(endKey, timezone)),
+  };
 }
 
 function isEntryInRange(entry, range) {
@@ -824,11 +876,13 @@ function workspaceSummary(session, settings) {
 
 export {
   buildBillingScopes,
+  normalizeBillingSessionTimezone,
   normalizeTimeEntries,
   summarizeBillingScopesForRange,
   summarizeProjectBillingRows,
 };
 
+/** @type {TimeTrackingBillingService} */
 export const timeTrackingBillingService = {
   readDashboardBillingSummary,
   readProjectSummary,

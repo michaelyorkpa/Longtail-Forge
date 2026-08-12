@@ -1,28 +1,28 @@
 {
   "schemaVersion": 1,
-  "minimumActiveScripts": 451,
+  "minimumActiveScripts": 467,
   "minimumAreaScripts": {
     "dashboard": 2,
-    "database": 42,
+    "database": 47,
     "docs": 10,
     "files": 44,
-    "framework": 81,
-    "jobs": 7,
+    "framework": 85,
+    "jobs": 8,
     "licensing": 1,
     "lists": 12,
     "notes": 40,
     "notifications": 3,
-    "permissions": 12,
+    "permissions": 13,
     "public-api": 3,
-    "release": 38,
+    "release": 39,
     "search": 12,
     "tags": 12,
     "tasks": 58,
-    "time-tracking": 9,
+    "time-tracking": 13,
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 72,
+  "minimumReleaseGateScripts": 78,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -99,7 +99,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 16
+      "minimumActiveScripts": 17
     }
   ],
   "legacyMetadataException": {

@@ -342,6 +342,38 @@
       ]
     },
     {
+      "id": "typecheck-seams",
+      "label": "TypeScript checked seams",
+      "sourcePatterns": [
+        "^tsconfig(?:\\.public)?\\.json$",
+        "^src/types/(?:browser|framework|http)-contracts\\.d\\.ts$",
+        "^scripts/typecheck-(?:clean-file-passes|seam-inventory)\\.json$",
+        "^scripts/regressions/framework/typecheck-seams\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-development.md",
+        "docs/regression-suite.md"
+      ]
+    },
+    {
+      "id": "app-shell-bootstrap",
+      "label": "App-shell bootstrap boundary",
+      "sourcePatterns": [
+        "^public/js/navigation\\.js$",
+        "^public/js/shared/app-shell-bootstrap\\.js$",
+        "^src/services/app-shell\\.service\\.js$",
+        "^src/services/static\\.service\\.js$",
+        "^scripts/regressions/framework/app-shell-bootstrap-boundary\\.regression\\.mjs$"
+      ],
+      "docs": [
+        "docs/architecture.md",
+        "docs/module-contract.md",
+        "docs/module-development.md",
+        "docs/regression-suite.md"
+      ]
+    },
+    {
       "id": "module-contracts",
       "label": "Module contracts",
       "sourcePatterns": [

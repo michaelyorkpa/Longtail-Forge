@@ -28,6 +28,8 @@ The v15 package is built from TypeScript and reorganizes its ESM/CommonJS/browse
 
 Focused coverage preserves the existing raw-HTML, safe-URL, image opt-in, table, task-list, underline, plain-text, excerpt, and document/user-authored render-mode policies. It also pins safe and unsafe reference links, a literal backslash before a terminating link-destination space, semicolon-required named entities, inline-code image alt text without duplicated plain text, and inert plain URLs. The earlier 14.3 hard-break correction remains covered in both render modes. Stored Markdown and application-level source normalization are unchanged by the dependency update.
 
+As of 0.33.32.42, the shared service is checked JavaScript against Markdown-it's public parser, renderer, inline-state, token, option, and environment declarations. Application-owned types separately name document/user-authored modes, rendering preferences, link inputs, and safe rendered output. Public source and URL helpers accept unknown values and retain their established string normalization; nullable/string-or-number token attributes are narrowed at the library edge. This checking boundary does not change approved syntax, HTML policy, safe schemes, image opt-in, stored source, output, or consumer ownership.
+
 ## Approved Syntax
 
 The baseline syntax is CommonMark:

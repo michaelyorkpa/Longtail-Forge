@@ -1,3 +1,4 @@
+// @ts-check
 import { config } from "../config.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { db } from "../core/database.js";
@@ -13,16 +14,45 @@ import { AppError } from "../utils/app-error.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
 
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/http-contracts.js").SupportViewRequestSession} SupportViewRequestSession */
+/** @typedef {import("../types/support-view-contracts.js").ActiveSupportViewBrowserSessionRow} ActiveSupportViewBrowserSessionRow */
+/** @typedef {import("../types/support-view-contracts.js").NormalizedSupportViewAuditFilters} NormalizedSupportViewAuditFilters */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewActionAttempt} SupportViewActionAttempt */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditFilters} SupportViewAuditFilters */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditOptions} SupportViewAuditOptions */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditRow} SupportViewAuditRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewBrowserSessionRow} SupportViewBrowserSessionRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEligibilityRow} SupportViewEligibilityRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEndOptions} SupportViewEndOptions */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEventInput} SupportViewEventInput */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEventOutcome} SupportViewEventOutcome */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEventType} SupportViewEventType */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewInvalidState} SupportViewInvalidState */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewOperatorSession} SupportViewOperatorSession */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewPublicRow} SupportViewPublicRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewServiceContext} SupportViewServiceContext */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewStartPayload} SupportViewStartPayload */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewStoredSessionRow} SupportViewStoredSessionRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewTargetRow} SupportViewTargetRow */
+/** @typedef {{ workspace_id: string }} ActiveMembership */
+/** @typedef {{ workspaceId: string, workspaceName: string, label: string }} SupportViewTargetWorkspace */
+/** @typedef {{ userId: string, username: string, displayName: string, label: string, workspaces: SupportViewTargetWorkspace[] }} SupportViewTarget */
+/** @typedef {{ eventType: SupportViewEventType, outcome: SupportViewEventOutcome, supportSessionId: string, actorUserId: string, effectiveUserId: string, workspaceId: string, requestId: string, occurredAt: string, routeId?: string, actionId?: string, reasonClass?: string, metadata?: Record<string, unknown> }} SupportViewEventValue */
+
 const SUPPORT_VIEW_AUDIT_RETENTION_DAYS = 365;
 const SUPPORT_VIEW_AUDIT_DEFAULT_PAGE_SIZE = 50;
 const SUPPORT_VIEW_AUDIT_MAX_PAGE_SIZE = 200;
 const SUPPORT_VIEW_AUDIT_EXPORT_LIMIT = 1000;
 
+/** @param {RequestSession | null | undefined} session */
 async function listTargets(session) {
   assertPublicDemoCapabilityAllowed("support_view");
-  await assertOperator(session);
-  const rows = await supportSessionsRepository.listEligibleTargets(session.user_id);
+  const operator = await assertOperator(session);
+  const rows = await supportSessionsRepository.listEligibleTargets(operator.user_id);
+  /** @type {SupportViewTarget[]} */
   const targets = [];
+  /** @type {Map<string, SupportViewTarget>} */
   const byUserId = new Map();
 
   rows.forEach((row) => {
@@ -48,21 +78,26 @@ async function listTargets(session) {
 
   return {
     actor: {
-      userId: session.user_id,
-      username: session.username,
-      label: session.username,
+      userId: operator.user_id,
+      username: operator.username,
+      label: operator.username,
     },
     expiresInSeconds: config.supportView.ttlSeconds,
     targets,
   };
 }
 
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {SupportViewAuditFilters} [filters]
+ * @param {SupportViewAuditOptions} [options]
+ */
 async function listAudit(session, filters = {}, options = {}) {
   assertPublicDemoCapabilityAllowed("support_view");
-  await assertOperator(session);
+  const operator = await assertOperator(session);
   const cutoffIso = retentionCutoff(options.now);
   await supportSessionsRepository.pruneBefore(cutoffIso);
-  const normalizedFilters = normalizeAuditFilters(filters, session.timezone, cutoffIso);
+  const normalizedFilters = normalizeAuditFilters(filters, operator.timezone, cutoffIso);
   const pagination = normalizeBoundedPagination(filters, {
     defaultLimit: SUPPORT_VIEW_AUDIT_DEFAULT_PAGE_SIZE,
     maxLimit: options.maxPageSize || SUPPORT_VIEW_AUDIT_MAX_PAGE_SIZE,
@@ -92,6 +127,7 @@ async function listAudit(session, filters = {}, options = {}) {
   };
 }
 
+/** @param {RequestSession | null | undefined} session @param {SupportViewAuditFilters} [filters] */
 async function exportAuditCsv(session, filters = {}) {
   assertPublicDemoCapabilityAllowed("support_view");
   const result = await listAudit(session, {
@@ -126,6 +162,12 @@ async function exportAuditCsv(session, filters = {}) {
   return `${headers.join(",")}\n${rows.join("\n")}${rows.length ? "\n" : ""}`;
 }
 
+/**
+ * @param {RequestSession | null | undefined} session
+ * @param {string} currentSessionId
+ * @param {SupportViewStartPayload} [payload]
+ * @param {SupportViewServiceContext} [context]
+ */
 async function start(session, currentSessionId, payload = {}, context = {}) {
   assertPublicDemoCapabilityAllowed("support_view");
   if (!config.supportView.enabled) {
@@ -162,11 +204,7 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
   const now = normalizeNow(context.now);
   const requestId = normalizeRequestId(context.requestId);
   const supportSessionId = createOpaqueId();
-  let expiresAt;
-  let prepared;
-  let eligibility;
-
-  await db.transaction(async (transaction) => {
+  const startState = await db.transaction(async (transaction) => {
     const freshSession = await sessionsRepository.readById(currentSessionId, transaction);
     if (
       !freshSession
@@ -177,11 +215,11 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
     ) {
       throw new AppError("The current session changed. Sign in and try again.", 409);
     }
-    expiresAt = new Date(Math.min(
+    const expiresAt = new Date(Math.min(
       now.getTime() + config.supportView.ttlSeconds * 1000,
       new Date(freshSession.expires_at).getTime(),
     ));
-    eligibility = await supportSessionsRepository.readEligibility(
+    const eligibility = await supportSessionsRepository.readEligibility(
       session.user_id,
       effectiveUserId,
       workspaceId,
@@ -189,7 +227,7 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
     );
     assertEligible(eligibility);
 
-    prepared = prepareSessionRecord({
+    const prepared = prepareSessionRecord({
       user_id: eligibility.actor_user_id,
       username: eligibility.actor_username,
       home_workspace_id: freshSession.home_workspace_id,
@@ -229,26 +267,28 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
     }), transaction);
     await sessionsRepository.create(prepared.record, transaction);
     await sessionsRepository.remove(currentSessionId, transaction);
+    return { eligibility, expiresAt, prepared };
   });
 
   return {
-    session: prepared.cookie,
+    session: startState.prepared.cookie,
     supportView: toPublicSupportView({
       support_session_id: supportSessionId,
-      actor_user_id: eligibility.actor_user_id,
-      actor_username: eligibility.actor_username,
-      actor_display_name: eligibility.actor_display_name,
-      effective_user_id: eligibility.effective_user_id,
-      effective_username: eligibility.effective_username,
-      effective_display_name: eligibility.effective_display_name,
+      actor_user_id: startState.eligibility.actor_user_id,
+      actor_username: startState.eligibility.actor_username,
+      actor_display_name: startState.eligibility.actor_display_name,
+      effective_user_id: startState.eligibility.effective_user_id,
+      effective_username: startState.eligibility.effective_username,
+      effective_display_name: startState.eligibility.effective_display_name,
       workspace_id: workspaceId,
-      workspace_name: eligibility.workspace_name,
+      workspace_name: startState.eligibility.workspace_name,
       started_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
+      expires_at: startState.expiresAt.toISOString(),
     }),
   };
 }
 
+/** @param {SupportViewRequestSession} session @param {string} currentSessionId @param {SupportViewServiceContext} [context] */
 async function exit(session, currentSessionId, context = {}) {
   const { storedSession, supportSession } = await readActiveSupportSession(session, currentSessionId);
 
@@ -265,6 +305,7 @@ async function exit(session, currentSessionId, context = {}) {
   return { ok: true, session: result.session };
 }
 
+/** @param {SupportViewRequestSession} session @param {string} currentSessionId @param {SupportViewServiceContext} [context] */
 async function endForLogout(session, currentSessionId, context = {}) {
   const { storedSession, supportSession } = await readActiveSupportSession(session, currentSessionId);
   const result = await endAndRotate(storedSession, supportSession, {
@@ -278,6 +319,7 @@ async function endForLogout(session, currentSessionId, context = {}) {
   return { ok: true, actorSession: result.actorSession };
 }
 
+/** @param {SupportViewRequestSession} session @param {string} currentSessionId */
 async function readActiveSupportSession(session, currentSessionId) {
   if (!session?.support_view?.supportSessionId) {
     throw new AppError("Support View is not active.", 409);
@@ -293,6 +335,7 @@ async function readActiveSupportSession(session, currentSessionId) {
   return { storedSession, supportSession };
 }
 
+/** @param {ActiveSupportViewBrowserSessionRow} storedSession @param {SupportViewServiceContext} [context] */
 async function resolveForRequest(storedSession, context = {}) {
   const supportSession = await supportSessionsRepository.readById(storedSession.support_session_id);
   if (!supportSession) {
@@ -314,7 +357,8 @@ async function resolveForRequest(storedSession, context = {}) {
   return { storedSession, supportSession };
 }
 
-async function recordAction(session, action = {}, context = {}) {
+/** @param {SupportViewRequestSession} session @param {SupportViewActionAttempt} action @param {SupportViewServiceContext} [context] */
+async function recordAction(session, action, context = {}) {
   if (!session?.support_view?.supportSessionId) {
     return null;
   }
@@ -338,24 +382,25 @@ async function recordAction(session, action = {}, context = {}) {
   return event;
 }
 
+/** @param {SupportViewBrowserSessionRow} storedSession @param {SupportViewStoredSessionRow} supportSession @param {SupportViewEndOptions} options */
 async function endAndRotate(storedSession, supportSession, options) {
   const actor = await usersRepository.readFirstByUserId(supportSession.actor_user_id);
   const activeMemberships = actor?.user_status === "active"
     ? await userWorkspacesRepository.readActiveForUser(actor.user_id)
     : [];
   const restoreWorkspaceId = chooseRestoreWorkspace(supportSession, activeMemberships);
-  const canRepresentActor = Boolean(
-    actor
+  const canRepresentActor = actor
     && actor.user_status === "active"
     && restoreWorkspaceId
     && new Date(storedSession.expires_at).getTime() > options.now.getTime()
-  );
+    ? actor
+    : null;
   let actorSession = canRepresentActor
     ? {
-      user_id: actor.user_id,
-      username: actor.username,
-      timezone: actor.timezone,
-      home_workspace_id: actor.home_workspace_id || restoreWorkspaceId,
+      user_id: canRepresentActor.user_id,
+      username: canRepresentActor.username,
+      timezone: canRepresentActor.timezone,
+      home_workspace_id: canRepresentActor.home_workspace_id || restoreWorkspaceId,
       active_workspace_id: restoreWorkspaceId,
       workspace_id: restoreWorkspaceId,
       ip_address: storedSession.ip_address,
@@ -408,6 +453,7 @@ async function endAndRotate(storedSession, supportSession, options) {
   };
 }
 
+/** @param {SupportViewEligibilityRow | null} row @returns {asserts row is SupportViewEligibilityRow} */
 function assertEligible(row) {
   if (!row || row.actor_status !== "active" || Number(row.actor_has_support_permission) !== 1) {
     throw new AppError("Support View is not available for this administrator.", 403);
@@ -421,6 +467,7 @@ function assertEligible(row) {
   }
 }
 
+/** @param {SupportViewStoredSessionRow} row @param {Date} now @returns {SupportViewInvalidState | null} */
 function classifyInvalidState(row, now) {
   if (row.ended_at) {
     return { eventType: "terminated", outcome: "revoked", reasonClass: "already_ended" };
@@ -449,6 +496,7 @@ function classifyInvalidState(row, now) {
   return null;
 }
 
+/** @param {SupportViewStoredSessionRow} supportSession @param {ActiveMembership[]} memberships */
 function chooseRestoreWorkspace(supportSession, memberships) {
   const candidates = [supportSession.actor_workspace_id, supportSession.actor_home_workspace_id];
   for (const candidate of candidates) {
@@ -459,6 +507,7 @@ function chooseRestoreWorkspace(supportSession, memberships) {
   return memberships[0]?.workspace_id || null;
 }
 
+/** @param {SupportViewEventValue} value @returns {SupportViewEventInput} */
 function createEvent(value) {
   return {
     eventId: createOpaqueId(),
@@ -477,11 +526,13 @@ function createEvent(value) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeAuditIdentifier(value) {
   const normalized = String(value || "").trim();
   return /^[a-z0-9._:-]{1,160}$/i.test(normalized) ? normalized : "unspecified";
 }
 
+/** @param {SupportViewPublicRow} row */
 function toPublicSupportView(row) {
   return {
     supportSessionId: row.support_session_id,
@@ -498,11 +549,12 @@ function toPublicSupportView(row) {
   };
 }
 
+/** @param {RequestSession | null | undefined} session @returns {Promise<SupportViewOperatorSession>} */
 async function assertOperator(session) {
   if (!config.supportView.enabled) {
     throw new AppError("Support View is disabled for this installation.", 403);
   }
-  if (!session || session.session_mode !== "normal" || session.support_view) {
+  if (!isSupportViewOperatorSession(session)) {
     throw new AppError("Not found.", 404);
   }
   if (!(await permissionsService.isSuperAdmin(session))) {
@@ -512,8 +564,24 @@ async function assertOperator(session) {
     operation: "read",
     workspace_id: session.workspace_id,
   });
+  return session;
 }
 
+/**
+ * @param {RequestSession | null | undefined} session
+ * @returns {session is SupportViewOperatorSession}
+ */
+function isSupportViewOperatorSession(session) {
+  return Boolean(
+    session
+    && session.session_mode === "normal"
+    && !session.support_view
+    && session.workspace_id
+    && session.active_workspace_id
+  );
+}
+
+/** @param {SupportViewAuditFilters} filters @param {string} timezone @param {string} cutoffIso @returns {NormalizedSupportViewAuditFilters} */
 function normalizeAuditFilters(filters, timezone, cutoffIso) {
   return {
     actorUserId: normalizeId(filters.actorUserId),
@@ -527,6 +595,7 @@ function normalizeAuditFilters(filters, timezone, cutoffIso) {
   };
 }
 
+/** @param {unknown} value @param {string} timezone @param {"start" | "end"} edge */
 function normalizeAuditDate(value, timezone, edge) {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -537,16 +606,23 @@ function normalizeAuditDate(value, timezone, edge) {
     : normalizeUtcIso(normalized, timezone);
 }
 
+/** @param {unknown} value @param {readonly string[]} allowed */
 function normalizeAuditChoice(value, allowed) {
   const normalized = String(value || "").trim();
   return allowed.includes(normalized) ? normalized : "";
 }
 
+/** @param {unknown} [now] */
 function retentionCutoff(now = Date.now()) {
-  const timestamp = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const timestamp = now instanceof Date
+    ? now.getTime()
+    : typeof now === "string" || typeof now === "number"
+      ? new Date(now).getTime()
+      : Number.NaN;
   return new Date(timestamp - SUPPORT_VIEW_AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
+/** @param {SupportViewAuditRow} row */
 function toAuditEvent(row) {
   return {
     actionId: row.action_id || "",
@@ -563,10 +639,12 @@ function toAuditEvent(row) {
   };
 }
 
+/** @param {unknown} displayName @param {unknown} username */
 function displayLabel(displayName, username) {
   return String(displayName || username || "User unavailable").trim();
 }
 
+/** @param {unknown} value */
 function csvValue(value) {
   const text = String(value ?? "");
   const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
@@ -576,6 +654,7 @@ function csvValue(value) {
   return needsQuotes ? quote + safeText.split(quote).join(quote + quote) + quote : safeText;
 }
 
+/** @param {unknown} value */
 function normalizeReasonReference(value) {
   const normalized = String(value || "").replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
   if (!normalized) {
@@ -587,17 +666,25 @@ function normalizeReasonReference(value) {
   return normalized;
 }
 
+/** @param {unknown} value */
 function normalizeRequestId(value) {
   const normalized = String(value || "").trim();
   return /^[A-Za-z0-9_-]{1,128}$/.test(normalized) ? normalized : createOpaqueId();
 }
 
+/** @param {unknown} value */
 function normalizeId(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} value */
 function normalizeNow(value) {
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value || Date.now());
+  const normalized = value ?? Date.now();
+  const date = normalized instanceof Date
+    ? new Date(normalized.getTime())
+    : typeof normalized === "string" || typeof normalized === "number"
+      ? new Date(normalized)
+      : new Date(Number.NaN);
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 

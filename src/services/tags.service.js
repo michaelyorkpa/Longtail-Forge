@@ -12,6 +12,14 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TAGS_MODULE_ID = "tags";
 const propagationFailures = [];
 
+/**
+ * @typedef {Object} TagTargetRow
+ * @property {string} label
+ * @property {string | null} client_id
+ * @property {string | null} project_id
+ * @property {string | null} [url]
+ */
+
 async function list(session, query = {}) {
   await assertTaggingReadEnabled(session);
   await permissionsService.assertCan(session, "tags.view", {
@@ -1156,7 +1164,7 @@ async function readTargetRecord(workspaceId, descriptor, targetId) {
     projectField ? `${projectField} AS project_id` : "NULL AS project_id",
   ];
 
-  const row = await db.get(`
+  const row = /** @type {TagTargetRow | null} */ (await db.get(`
 SELECT ${columns.join(", ")}
 FROM ${tableName}
 WHERE ${workspaceField} = :workspaceId
@@ -1165,7 +1173,7 @@ LIMIT 1;
 `, {
     targetId: text(targetId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row || null;
 }

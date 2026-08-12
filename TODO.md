@@ -109,6 +109,17 @@ This section is to define a series of human testing goals for different sections
 
 The 2026-07-22 re-audit of the current rendered surfaces produced the concrete near-term tweaks now promoted to **ROADMAP.md 0.33.21.10** (app-shell notification/search relocation, mobile Day-default calendar, Workbench Inspector slide-out, Workbench chip layout). Broader mobile-polish work beyond those items stays deferred to a future pass: re-audit the current rendered surfaces first, and do not revive layout requests written against retired page anatomy.
 
+## TypeScript gap closure after the 0.33.32 completion review (module internals and client/test hardening)
+
+Context: archived **ROADMAP 0.33.32.24-0.33.32.45** owns the 2026-08-11 completion-review findings and final reconciliation. The 0.33.32.45 closeout re-ran `scripts/typecheck-honesty-inventory.json`: the configured 150-file program is clean, while the strict source/test probe reports 864 errors across 90 files (670 production, 192 test-only, 2 scripts) and the strict public-browser probe reports 11,134 errors across 69 files. These are dated 2026-08-12 routing results, not permanent baselines; re-audit before implementation. Every intentional branch-closeout deferral is listed below.
+
+- Per-module internals conversion in priority order **Notes -> Lists -> Tasks -> Clients/Projects**, permission-adjacent files first: `src/modules/notes/catalog-security.service.js` (Secure Notes authority), `notes/access-policy.js`, and `lists/access-policy.js` before the big services/repos. `notes.service.js` (~4.4k lines) was the audit's single largest error concentration (166 probe errors), followed by `lists.service.js` (92) and the Tasks service/repo/recurrence cluster.
+- Notes and Lists have no `*.contracts.js` Zod edge (only Files, Tasks, and Time Tracking do), so their routes feed unvalidated bodies into the untyped services. Decide per module whether the hardening pass also adds the module-owned Zod edge contract following the settled 0.33.7.3 (strict/Files) or 0.33.7.6 (calibrated/Tasks) templates.
+- `src/services/files.service.js` (~4.5k lines): framework-owned, sits directly behind the already-typed `files.contracts.js` — the widest typed-seam/untyped-implementation gap left after 0.33.32. Include its local/S3 storage and scanner adapters, which the same audit found bare.
+- The deferred client-hardening branch: whole-file conversion of the giant page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) and `navigation.js`/`view-renderer.js`/`view-builder.js` after 0.33.32's boundary adapters (slices 20-24) land. Prerequisite: a checked element-lookup helper, since the ~876 unguarded `querySelector` sites are what make whole-file DOM checking intractable today.
+- Broad e2e/unit/contract-spec conversion remains test-hardening work, not production coverage. The 192 strict test-only errors confirmed by slice 0.33.32.45 stay here unless a later roadmap slice gives a coherent tier an owner and behavior contract.
+- Framework/service residuals explicitly inventoried at 0.33.32.45 stay with focused framework interior passes: event summaries, the job runner, account-export recovery, authentication throttling, Notifications, Tags, Work Candidate, and Work Resume initial producers. The two declaration-level `JobExecutionRecord`/`JobHandlerContext` payload `any` terminals require a future Jobs payload-schema contract rather than a generic `unknown` substitution.
+
 # Near Term Ideas
 
 ## User controls

@@ -10,12 +10,19 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import http from "node:http";
+import { PassThrough } from "node:stream";
 import vm from "node:vm";
 import express from "express";
 import { apiRouteBoundary, browserNotFound } from "../../../src/core/http-error-contract.js";
 import { createErrorHandler } from "../../../src/middleware/error-handler.js";
 import { attachRequestContext } from "../../../src/core/request-context.js";
 import { AppError } from "../../../src/utils/app-error.js";
+import {
+  apiKeyAsyncRoute,
+  authenticatedAsyncRoute,
+  readJsonObjectBody,
+  workspaceAsyncRoute,
+} from "../../../src/utils/http.js";
 
 const appSource = await fs.readFile("src/core/app.js", "utf8");
 assertOrdered(appSource, [
@@ -32,7 +39,9 @@ assert.match(
   /injectErrorBoundaryScripts\(contents\)[\s\S]*\/js\/shared\/error-contract\.js/,
   "served HTML should install the shared browser error parser before page callers run",
 );
-await assertBrowserParser();
+await assertBrowserApiContract();
+await assertCheckedRouteBoundaries();
+assertHeadersAlreadySentPassThrough();
 
 const diagnostics = [];
 const logger = {
@@ -66,6 +75,9 @@ app.post("/api/unexpected", (request) => {
   throw new Error(
     "exception-secret SELECT * FROM users C:\\protected\\database.sqlite password=credential-secret raw-protected-record-id",
   );
+});
+app.get("/api/unknown-thrown", () => {
+  throw "unknown-thrown-secret raw-unknown-record-id";
 });
 app.get("/api/v1/conflict", () => {
   throw new AppError("The record changed before it could be saved.", 409);
@@ -145,6 +157,17 @@ try {
     workspaceState: "scoped",
   });
 
+  const unknownThrown = await request(server, "/api/unknown-thrown");
+  assert.equal(unknownThrown.status, 500);
+  assert.equal(unknownThrown.body.error.code, "internal_server_error");
+  assert.equal(unknownThrown.body.error.message, "Internal server error.");
+  assertNoProtectedDiagnosticContent(unknownThrown.body);
+  assertSafeDiagnosticForRequest(diagnostics, unknownThrown.headers["x-request-id"], {
+    actorState: "anonymous",
+    routeClass: "api-internal",
+    workspaceState: "unscoped",
+  });
+
   const unknownApi = await request(server, "/api/unknown");
   assert.equal(unknownApi.status, 404);
   assert.equal(unknownApi.body.error.code, "not_found");
@@ -180,7 +203,20 @@ try {
 
 console.log("HTTP error contract regression passed.");
 
-async function assertBrowserParser() {
+async function assertBrowserApiContract() {
+  const apiClientSource = await fs.readFile("public/js/shared/api-client.js", "utf8");
+  const missingParserContext = vm.createContext({
+    Error,
+    fetch: async () => ({ ok: true, status: 200, text: async () => "{}" }),
+    window: { LongtailForge: {} },
+  });
+  assert.throws(
+    () => vm.runInContext(apiClientSource, missingParserContext, { filename: "api-client.js" }),
+    /requires the shared error contract/i,
+    "api-client must fail visibly when the canonical parser is unavailable",
+  );
+  assert.equal(missingParserContext.window.LongtailForge.api, undefined);
+
   const context = vm.createContext({
     Error,
     fetch: async () => ({
@@ -203,7 +239,7 @@ async function assertBrowserParser() {
     { filename: "error-contract.js" },
   );
   vm.runInContext(
-    await fs.readFile("public/js/shared/api-client.js", "utf8"),
+    apiClientSource,
     context,
     { filename: "api-client.js" },
   );
@@ -214,6 +250,95 @@ async function assertBrowserParser() {
   assert.equal(error.code, "conflict");
   assert.equal(error.requestId, "browser-request-id");
   assert.equal(error.status, 409);
+  assert.equal(error.method, "GET");
+  assert.equal(error.body.error.code, "conflict");
+}
+
+async function assertCheckedRouteBoundaries() {
+  const objectPayload = await readObjectPayload('{"name":"checked"}');
+  assert.deepEqual(objectPayload, { name: "checked" });
+  for (const invalidPayload of ["null", "[]", '"scalar"']) {
+    await assert.rejects(
+      readObjectPayload(invalidPayload),
+      (error) => error instanceof AppError
+        && error.statusCode === 400
+        && error.message === "Request body must contain a JSON object.",
+      "object-bound routes must reject non-object JSON with one safe 400 contract",
+    );
+  }
+
+  await assertRouteRefinement(
+    authenticatedAsyncRoute,
+    {},
+    "Login required.",
+  );
+  await assertRouteRefinement(
+    workspaceAsyncRoute,
+    { session: { user_id: "user-1", workspace_id: null } },
+    "An active workspace is required.",
+  );
+  await assertRouteRefinement(
+    apiKeyAsyncRoute,
+    { apiKey: { id: "key-1" } },
+    "API key required.",
+  );
+
+  for (const [adapter, requestValue] of [
+    [authenticatedAsyncRoute, { session: { user_id: "user-1", workspace_id: null } }],
+    [workspaceAsyncRoute, { session: { user_id: "user-1", workspace_id: "workspace-1" } }],
+    [apiKeyAsyncRoute, {
+      apiKey: { id: "key-1" },
+      apiSession: { user_id: "user-1", workspace_id: "workspace-1" },
+    }],
+  ]) {
+    let dispatchedRequest = null;
+    await new Promise((resolve, reject) => {
+      adapter(async (routeRequest) => {
+        dispatchedRequest = routeRequest;
+        resolve();
+      })(requestValue, {}, reject);
+    });
+    assert.equal(dispatchedRequest, requestValue, "valid refined route contexts must dispatch unchanged");
+  }
+}
+
+function readObjectPayload(payload) {
+  const requestStream = new PassThrough();
+  const result = readJsonObjectBody(requestStream);
+  requestStream.end(payload);
+  return result;
+}
+
+function assertRouteRefinement(adapter, requestValue, expectedMessage) {
+  return new Promise((resolve, reject) => {
+    adapter(() => reject(new Error("an invalid route context reached its handler")))(
+      requestValue,
+      {},
+      (error) => {
+        try {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.message, expectedMessage);
+          resolve();
+        } catch (assertionError) {
+          reject(assertionError);
+        }
+      },
+    );
+  });
+}
+
+function assertHeadersAlreadySentPassThrough() {
+  const forwarded = [];
+  const logged = [];
+  const thrownValue = { protected: "already-sent-secret" };
+  createErrorHandler({ logger: { error: (...args) => logged.push(args) } })(
+    thrownValue,
+    {},
+    { headersSent: true },
+    (error) => forwarded.push(error),
+  );
+  assert.deepEqual(forwarded, [thrownValue]);
+  assert.deepEqual(logged, [], "headers-already-sent failures must be delegated without a duplicate log or write");
 }
 
 function assertOrdered(source, snippets) {
@@ -303,7 +428,7 @@ function assertSafeDiagnosticForRequest(records, requestId, expected) {
 function assertNoProtectedDiagnosticContent(value) {
   assert.doesNotMatch(
     JSON.stringify(value),
-    /exception-secret|browser-secret|query-secret|request-body|request-header|credential-secret|browser-credential|raw-protected|raw-browser|database\.sqlite|notes\.sqlite|SELECT \*|DELETE FROM|OneDrive|Time_Tracker|\\protected|\\private/i,
+    /exception-secret|browser-secret|unknown-thrown-secret|query-secret|request-body|request-header|credential-secret|browser-credential|raw-protected|raw-browser|raw-unknown|database\.sqlite|notes\.sqlite|SELECT \*|DELETE FROM|OneDrive|Time_Tracker|\\protected|\\private/i,
     "responses and diagnostics must omit secrets, bodies, SQL, paths, credentials, and raw protected identifiers",
   );
 }

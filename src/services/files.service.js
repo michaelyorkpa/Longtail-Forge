@@ -436,6 +436,7 @@ async function resolveAttachableType(workspaceId, moduleId, targetType) {
   return attachableType;
 }
 
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} payload */
 async function uploadAndAttach(session, payload = {}) {
   assertFileIngressAllowed();
   await emitFileLifecycleEvent("file.upload.requested", {
@@ -562,6 +563,7 @@ async function recordUploadRejected(session, payload = {}, error) {
   });
 }
 
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} rawPayload */
 async function uploadBatchAndAttach(session, rawPayload = {}) {
   assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(CreateFileBatchSchema, rawPayload);
@@ -620,6 +622,7 @@ async function uploadBatchAndAttach(session, rawPayload = {}) {
   };
 }
 
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} rawPayload */
 async function attachExistingFile(session, rawPayload = {}) {
   assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(FileAttachmentSchema, rawPayload);
@@ -1131,6 +1134,7 @@ WHERE workspace_id = :workspaceId
   return { attachment: { ...shapeAttachment(attachment), removedAt: now, removed_at: now } };
 }
 
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {string} attachmentId @param {unknown} rawPayload */
 async function updateAttachmentContext(session, attachmentId, rawPayload = {}) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 

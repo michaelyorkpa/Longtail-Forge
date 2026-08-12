@@ -1,3 +1,4 @@
+// @ts-check
 import { db } from "../core/database.js";
 import { listsService } from "../modules/lists/lists.service.js";
 import { LIST_STATUSES } from "../modules/lists/storage-contract.js";
@@ -17,6 +18,20 @@ import {
   registerResumeStateBatchReadResolver,
   registerResumeStateReadResolver,
 } from "./work-resume-state-read-checks.js";
+
+/** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolverContext} ResumeStateBatchReadResolverContext */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolverContext} ResumeStateReadResolverContext */
+/**
+ * @typedef {Object} SafeNoteLifecycleRow
+ * @property {string} note_id
+ * @property {string} library_bucket
+ * @property {string} status
+ * @property {string} visibility
+ * @property {string} security_mode
+ * @property {string} [effective_security_mode]
+ */
 
 const TASK_EVENTS = [
   "task.created",
@@ -143,10 +158,12 @@ function registerTimerProducer() {
   });
 }
 
+/** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function taskBatchReadResolver({ recordIds, session }) {
   return tasksService.readLifecycleForIds(session, recordIds);
 }
 
+/** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function listBatchReadResolver({ recordIds, session }) {
   return listsService.readLifecycleForIds(session, recordIds);
 }
@@ -154,6 +171,7 @@ async function listBatchReadResolver({ recordIds, session }) {
 // Batches the safe lifecycle pre-filter into one IN-query; notes that survive
 // it still go through notesService.read per row because Notes owns its access
 // and secure-content policy, and that boundary is not re-implemented here.
+/** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
   const lifecycleRows = await readSafeNoteLifecycleForIds(workspaceId, recordIds);
   const lifecycleByNoteId = new Map(lifecycleRows.map((row) => [row.note_id, row]));
@@ -178,6 +196,7 @@ async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
   return checks;
 }
 
+/** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function activeTimerBatchReadResolver({ recordIds, session, workspaceId }) {
   const timerRows = await db.query(`
 SELECT active_timer_id, timer_status
@@ -205,6 +224,7 @@ WHERE workspace_id = :workspaceId
   return checks;
 }
 
+/** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function taskReadResolver({ recordId, session }) {
   try {
     const result = await tasksService.readCore(recordId, session);
@@ -220,6 +240,7 @@ async function taskReadResolver({ recordId, session }) {
   }
 }
 
+/** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function listReadResolver({ recordId, session }) {
   try {
     const result = await listsService.read(recordId, session, { includeDeleted: true });
@@ -237,6 +258,7 @@ async function listReadResolver({ recordId, session }) {
   }
 }
 
+/** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function noteReadResolver({ recordId, session, workspaceId }) {
   const note = await readSafeNoteLifecycle(workspaceId, recordId);
 
@@ -252,6 +274,7 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
   return readEligibleNoteCheck(recordId, session);
 }
 
+/** @param {string} recordId @param {Record<string, any>} session @returns {Promise<ResumeStateReadCheck>} */
 async function readEligibleNoteCheck(recordId, session) {
   try {
     const note = await notesService.readConsumerSummary(recordId, session, "notes.resume");
@@ -265,6 +288,7 @@ async function readEligibleNoteCheck(recordId, session) {
   }
 }
 
+/** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function activeTimerReadResolver({ recordId, userId, workspaceId }) {
   const row = await db.get(`
 SELECT active_timer_id, timer_status
@@ -289,6 +313,7 @@ LIMIT 1;
   };
 }
 
+/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
 function buildTaskPayload({ event }) {
   const task = event.record_type === "task_checklist_item"
     ? checklistTaskPayload(event)
@@ -321,6 +346,7 @@ function buildTaskPayload({ event }) {
   };
 }
 
+/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
 function buildListPayload({ event }) {
   const list = listFromEvent(event);
   const listId = list.list_id || event.metadata?.list_id || event.record_id;
@@ -350,6 +376,7 @@ function buildListPayload({ event }) {
   };
 }
 
+/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
 function buildNotePayload({ event }) {
   const note = noteFromEvent(event);
 
@@ -373,6 +400,7 @@ function buildNotePayload({ event }) {
   };
 }
 
+/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
 function buildTimerPayload({ event }) {
   const timer = timerFromEvent(event);
 
@@ -460,8 +488,13 @@ function timerFromEvent(event) {
   };
 }
 
+/** @param {SafeNoteLifecycleRow | null | undefined} note */
 function isResumeEligibleNote(note = null) {
-  return Boolean(note?.note_id) &&
+  if (!note) {
+    return false;
+  }
+
+  return Boolean(note.note_id) &&
     note.library_bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK &&
     note.status === NOTE_STATUSES.ACTIVE &&
     note.visibility !== NOTE_VISIBILITIES.PRIVATE &&
@@ -481,7 +514,7 @@ function safeNoteLinkedContext(metadata = {}) {
 }
 
 async function readSafeNoteLifecycle(workspaceId, noteId) {
-  return db.get(`
+  return /** @type {Promise<SafeNoteLifecycleRow | null>} */ (db.get(`
 SELECT note_id, library_bucket, status, visibility, security_mode
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -490,7 +523,7 @@ LIMIT 1;
 `, {
     noteId: textParam(noteId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
 async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
@@ -502,7 +535,7 @@ async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
     return [];
   }
 
-  return db.query(`
+  return /** @type {Promise<SafeNoteLifecycleRow[]>} */ (db.query(`
 SELECT note_id, library_bucket, status, visibility, security_mode
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -510,7 +543,7 @@ WHERE workspace_id = :workspaceId
 `, {
     noteIds: ids,
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
 function textParam(value) {

@@ -63,10 +63,6 @@
       "specifier": "../time-tracking/active-timers.repo.js"
     },
     {
-      "file": "src/modules/tasks/task-timers.service.js",
-      "specifier": "../time-tracking/active-timers.service.js"
-    },
-    {
       "file": "src/modules/tasks/tasks.service.js",
       "specifier": "../client-projects/clients.repo.js"
     },

@@ -1,5 +1,43 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+
+/**
+ * @typedef {DatabaseRow & Object} StoredSession
+ * @property {string} session_id
+ * @property {string | null} home_workspace_id
+ * @property {string | null} active_workspace_id
+ * @property {string} user_id
+ * @property {string | undefined} [username]
+ * @property {string | undefined} [timezone]
+ * @property {string | null} ip_address
+ * @property {string | undefined} [session_mode]
+ * @property {string | null | undefined} [support_session_id]
+ * @property {string} expires_at
+ * @property {string | undefined} [created_at]
+ * @property {string | undefined} [updated_at]
+ * @property {boolean | number | string | null | undefined} [password_change_required]
+ */
+/**
+ * @typedef {Object} SessionCreateInput
+ * @property {string} session_id
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string} timezone
+ * @property {string} expires_at
+ * @property {string | null | undefined} [workspace_id]
+ * @property {string | null | undefined} [home_workspace_id]
+ * @property {string | null | undefined} [active_workspace_id]
+ * @property {string | null | undefined} [ip_address]
+ * @property {string | null | undefined} [session_mode]
+ * @property {string | null | undefined} [support_session_id]
+ */
+/** @typedef {DatabaseRow & { session_count: unknown }} SessionCountRow */
+
+/** @param {SessionCreateInput} session @param {TransactionClient} [database] @returns {Promise<void>} */
 async function create(session, database = db) {
   const now = new Date().toISOString();
 
@@ -48,8 +86,9 @@ VALUES (
   });
 }
 
+/** @param {string} sessionId @param {TransactionClient} [database] @returns {Promise<StoredSession | null>} */
 async function readById(sessionId, database = db) {
-  return database.get(`
+  return /** @type {Promise<StoredSession | null>} */ (database.get(`
 SELECT
   sessions.session_id,
   sessions.home_workspace_id,
@@ -67,11 +106,12 @@ INNER JOIN users
   ON users.user_id = sessions.user_id
 WHERE sessions.session_id = :sessionId
 LIMIT 1;
-`, { sessionId });
+`, { sessionId }));
 }
 
+/** @param {string} userId @returns {Promise<StoredSession[]>} */
 async function listForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<StoredSession[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,
@@ -84,11 +124,12 @@ SELECT
 FROM sessions
 WHERE user_id = :userId
 ORDER BY created_at DESC, session_id;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<StoredSession[]>} */
 async function listForUserInWorkspace(userId, workspaceId) {
-  return db.query(`
+  return /** @type {Promise<StoredSession[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,
@@ -105,9 +146,10 @@ WHERE user_id = :userId
     OR active_workspace_id = :workspaceId
   )
 ORDER BY created_at DESC, session_id;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
+/** @param {string} sessionId @param {TransactionClient} [database] @returns {Promise<number>} */
 async function remove(sessionId, database = db) {
   const existing = database === db ? await readById(sessionId) : true;
   await database.run(`
@@ -117,12 +159,13 @@ WHERE session_id = :sessionId;
   return existing ? 1 : 0;
 }
 
+/** @param {string} userId @returns {Promise<number>} */
 async function removeAllForUser(userId) {
-  const count = await db.get(`
+  const count = /** @type {SessionCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS session_count
 FROM sessions
 WHERE user_id = :userId;
-`, { userId });
+`, { userId }));
   await db.run(`
 DELETE FROM sessions
 WHERE user_id = :userId;
@@ -130,13 +173,14 @@ WHERE user_id = :userId;
   return Number(count?.session_count || 0);
 }
 
+/** @param {string} userId @param {string} excludedSessionId @returns {Promise<number>} */
 async function removeAllForUserExcept(userId, excludedSessionId) {
-  const count = await db.get(`
+  const count = /** @type {SessionCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS session_count
 FROM sessions
 WHERE user_id = :userId
   AND session_id != :excludedSessionId;
-`, { excludedSessionId, userId });
+`, { excludedSessionId, userId }));
   await db.run(`
 DELETE FROM sessions
 WHERE user_id = :userId
@@ -145,8 +189,9 @@ WHERE user_id = :userId
   return Number(count?.session_count || 0);
 }
 
+/** @param {string} userId @param {string} workspaceId @returns {Promise<number>} */
 async function removeAllForUserInWorkspace(userId, workspaceId) {
-  const count = await db.get(`
+  const count = /** @type {SessionCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS session_count
 FROM sessions
 WHERE user_id = :userId
@@ -154,7 +199,7 @@ WHERE user_id = :userId
     home_workspace_id = :workspaceId
     OR active_workspace_id = :workspaceId
   );
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
   await db.run(`
 DELETE FROM sessions
 WHERE user_id = :userId
@@ -166,6 +211,7 @@ WHERE user_id = :userId
   return Number(count?.session_count || 0);
 }
 
+/** @param {Date} [now] @returns {Promise<void>} */
 async function removeExpired(now = new Date()) {
   await db.run(`
 DELETE FROM sessions
@@ -174,6 +220,7 @@ WHERE expires_at <= :now
 `, { now: now.toISOString() });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username @returns {Promise<void>} */
 async function updateUsernameForUser(workspaceId, userId, username) {
   await db.run(`
 UPDATE sessions
@@ -186,6 +233,7 @@ WHERE user_id = :userId
 `, { userId, username, workspaceId });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} timezone @returns {Promise<void>} */
 async function updateTimezoneForUser(workspaceId, userId, timezone) {
   await db.run(`
 UPDATE sessions
@@ -198,6 +246,7 @@ WHERE user_id = :userId
 `, { timezone, userId, workspaceId });
 }
 
+/** @param {string} sessionId @param {string | null} workspaceId @returns {Promise<void>} */
 async function updateActiveWorkspace(sessionId, workspaceId) {
   await db.run(`
 UPDATE sessions
@@ -207,6 +256,7 @@ WHERE session_id = :sessionId;
 `, { sessionId, updatedAt: new Date().toISOString(), workspaceId });
 }
 
+/** @param {string} userId @param {string | null} workspaceId @returns {Promise<void>} */
 async function updateActiveWorkspaceForUser(userId, workspaceId) {
   await db.run(`
 UPDATE sessions

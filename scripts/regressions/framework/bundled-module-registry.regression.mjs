@@ -19,7 +19,7 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "779361c01d3803f416ac9cecdf86c3ca50eb0f40a655e115d69879a34c6dbb55";
+const EXPECTED_INVENTORY_SHA256 = "481fa207b3ca33c73e088bf2f77a63c0f89d92b3fb95eaf6d5c377786bb61c8d";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
@@ -45,6 +45,26 @@ check("generated catalog is complete and deterministically ordered", () => {
     "users",
   ]);
   assert.deepEqual(entries.map((entry) => entry.directoryName), ids);
+});
+
+check("every bundled manifest is a checked ModuleManifest declaration", () => {
+  for (const { directoryName } of listModuleEntries()) {
+    const modulePath = `src/modules/${directoryName}/module.js`;
+    const source = read(modulePath);
+    assert.match(source, /^\/\/ @ts-check\r?\n/, `${modulePath} must remain opted in to the fast typecheck gate`);
+    assert.match(
+      source,
+      /\/\*\* @type \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleManifest\} \*\//,
+      `${modulePath} must check its declaration against ModuleManifest`,
+    );
+  }
+
+  const packageJson = JSON.parse(read("package.json"));
+  assert.match(
+    packageJson.scripts["check:fast"],
+    /^npm run typecheck\s*&&/,
+    "the fast gate must typecheck bundled declarations before unit and lint work",
+  );
 });
 
 check("module and contribution inventory matches the approved baseline", () => {

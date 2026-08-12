@@ -1,3 +1,5 @@
+// @ts-check
+
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -7,6 +9,13 @@ import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { withMigrationLock } from "./migration-lock.js";
 import { consumeMaterializedVerifiedRegressionBaseline } from "./regression-baseline-fast-path.js";
 import { databaseDialect, querySql, runSql } from "./provider.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {{ moduleId: string, migrationsDir: string | URL }} MigrationSource */
+/** @typedef {{ checksum: string, compatibleChecksums: Set<string>, fileName: string, moduleId: string, name: string, sql: string, version: string }} MigrationFile */
+/** @typedef {{ tableName: string, legacyPatterns: RegExp[], copyConditions: string[] }} ForeignKeyRepair */
+/** @typedef {{ version: string, moduleId: string, checksum: string }} AppliedMigration */
+/** @typedef {{ rollbackError?: unknown }} RollbackAnnotatedFailure */
 
 const MIGRATIONS_TABLE = "schema_migrations";
 const BASELINE_VERSION = "0.33.5.18.6.5.4";
@@ -31,6 +40,7 @@ const LEGACY_ROLE_SEED_BASELINE_CHECKSUMS = new Set([
   "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c",
   "67ec76af2c94f84eff8b5c90191e652ec4a449177317547da95eb0c159ca5d2c",
 ]);
+/** @type {ForeignKeyRepair[]} */
 const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
   {
     tableName: "lists",
@@ -99,6 +109,7 @@ const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
     ],
   },
 ];
+/** @type {ForeignKeyRepair[]} */
 const LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS = [
   {
     tableName: "list_items",
@@ -127,6 +138,7 @@ const LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS = [
   },
 ];
 
+/** @returns {Promise<void>} */
 async function runMigrations() {
   if (consumeMaterializedVerifiedRegressionBaseline(config.databaseFile)) {
     const foreignKeys = await querySql("PRAGMA foreign_keys;");
@@ -139,6 +151,7 @@ async function runMigrations() {
   return withMigrationLock(runMigrationsWithAcquiredLock);
 }
 
+/** @returns {Promise<void>} */
 async function runMigrationsWithAcquiredLock() {
   await fs.mkdir(config.dataDir, { recursive: true });
 
@@ -188,7 +201,7 @@ WHERE type = 'table'
   AND name = 'user_workspaces'
 LIMIT 1;
 `);
-  const createSql = rows[0]?.sql || "";
+  const createSql = readTextColumn(rows[0], "sql");
 
   if (!/\bREFERENCES\s+organizations\b/i.test(createSql)) {
     return;
@@ -277,6 +290,7 @@ async function repairLegacyRenamedParentReferences() {
   }
 }
 
+/** @param {ForeignKeyRepair} repair */
 async function tableNeedsForeignKeyRepair(repair) {
   if (!(await tableExists(repair.tableName))) {
     return false;
@@ -289,17 +303,21 @@ WHERE type = 'table'
   AND name = :tableName
 LIMIT 1;
 `, { tableName: repair.tableName });
-  const createSql = rows[0]?.sql || "";
+  const createSql = readTextColumn(rows[0], "sql");
   return repair.legacyPatterns.some((pattern) => pattern.test(createSql));
 }
 
+/**
+ * @param {string} schemaSql
+ * @param {ForeignKeyRepair} repair
+ */
 async function rebuildTableFromCurrentSchema(schemaSql, repair) {
   const legacyTableName = `${repair.tableName}_legacy_sqlite_hardening_fk`;
   const createTableSql = extractCreateTableStatement(schemaSql, repair.tableName);
   const indexSql = extractTableIndexStatements(schemaSql, repair.tableName).join("\n");
   const currentColumns = extractCreateTableColumnNames(createTableSql);
   const oldColumns = await querySql(databaseDialect.introspection.tableInfo(repair.tableName));
-  const oldColumnNames = new Set(oldColumns.map((column) => column.name));
+  const oldColumnNames = new Set(oldColumns.map((column) => readTextColumn(column, "name")));
   const copyColumns = currentColumns.filter((columnName) => oldColumnNames.has(columnName));
 
   if (copyColumns.length === 0) {
@@ -349,7 +367,7 @@ WHERE version = :version
 LIMIT 1;
 `, { version: BASELINE_VERSION });
 
-  const appliedChecksum = rows[0]?.checksum;
+  const appliedChecksum = readTextColumn(rows[0], "checksum");
   if (!appliedChecksum || baseline.compatibleChecksums.has(appliedChecksum)) {
     return;
   }
@@ -394,7 +412,7 @@ WHERE type = 'table'
 LIMIT 1;
 `);
 
-  return !/\bREFERENCES\s+organizations\b/i.test(userWorkspaceRows[0]?.sql || "");
+  return !/\bREFERENCES\s+organizations\b/i.test(readTextColumn(userWorkspaceRows[0], "sql"));
 }
 
 async function ensureMigrationsTable() {
@@ -416,10 +434,14 @@ CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
   }
 }
 
+/** @returns {Promise<MigrationFile[]>} */
 async function readMigrationFiles() {
+  /** @type {MigrationSource[]} */
   const migrationSources = [
     { moduleId: "core", migrationsDir: config.migrationsDir },
-    ...listModuleMigrationSources(),
+    ...listModuleMigrationSources().flatMap((source) => source.migrationsDir
+      ? [{ moduleId: source.moduleId, migrationsDir: source.migrationsDir }]
+      : []),
   ];
   const migrationGroups = await Promise.all(migrationSources.map(readMigrationSource));
 
@@ -428,6 +450,10 @@ async function readMigrationFiles() {
     .sort((left, right) => left.version.localeCompare(right.version) || left.moduleId.localeCompare(right.moduleId));
 }
 
+/**
+ * @param {MigrationSource} source
+ * @returns {Promise<MigrationFile[]>}
+ */
 async function readMigrationSource(source) {
   const migrationsDir = normalizeMigrationsDir(source.migrationsDir);
   const entries = await readMigrationDirEntries(migrationsDir);
@@ -439,11 +465,12 @@ async function readMigrationSource(source) {
   return Promise.all(files.map((fileName) => readMigrationFile(fileName, source.moduleId, migrationsDir)));
 }
 
+/** @param {string} migrationsDir */
 async function readMigrationDirEntries(migrationsDir) {
   try {
     return await fs.readdir(migrationsDir, { withFileTypes: true });
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (hasErrorCode(error, "ENOENT")) {
       return [];
     }
 
@@ -451,6 +478,7 @@ async function readMigrationDirEntries(migrationsDir) {
   }
 }
 
+/** @param {string | URL} migrationsDir */
 function normalizeMigrationsDir(migrationsDir) {
   if (migrationsDir instanceof URL) {
     return fileURLToPath(migrationsDir);
@@ -459,6 +487,12 @@ function normalizeMigrationsDir(migrationsDir) {
   return migrationsDir;
 }
 
+/**
+ * @param {string} fileName
+ * @param {string} [moduleId]
+ * @param {string} [migrationsDir]
+ * @returns {Promise<MigrationFile>}
+ */
 async function readMigrationFile(fileName, moduleId = "core", migrationsDir = config.migrationsDir) {
   const sql = await fs.readFile(path.join(migrationsDir, fileName), "utf8");
 
@@ -473,11 +507,13 @@ async function readMigrationFile(fileName, moduleId = "core", migrationsDir = co
   };
 }
 
+/** @returns {Promise<Set<string>>} */
 async function readAppliedVersions() {
   const rows = await querySql(`SELECT version FROM ${MIGRATIONS_TABLE};`);
-  return new Set(rows.map((row) => row.version));
+  return new Set(rows.map((row) => readTextColumn(row, "version")));
 }
 
+/** @returns {Promise<boolean>} */
 async function readMigrationReadiness() {
   if (!(await tableExists(MIGRATIONS_TABLE))) {
     return false;
@@ -492,6 +528,7 @@ async function readMigrationReadiness() {
     && migrations.every((migration) => appliedVersions.has(migration.version));
 }
 
+/** @param {MigrationFile[]} migrations */
 async function backfillMissingChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
@@ -524,6 +561,7 @@ WHERE version = :version;
   }
 }
 
+/** @param {MigrationFile[]} migrations */
 async function validateAppliedMigrationChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
@@ -547,11 +585,18 @@ async function validateAppliedMigrationChecksums(migrations) {
   }
 }
 
+/** @returns {Promise<AppliedMigration[]>} */
 async function readAppliedMigrations() {
-  return querySql(`
+  const rows = await querySql(`
 SELECT version, module_id, checksum
 FROM ${MIGRATIONS_TABLE};
 `);
+
+  return rows.map((row) => ({
+    version: readTextColumn(row, "version"),
+    moduleId: readTextColumn(row, "module_id"),
+    checksum: readTextColumn(row, "checksum"),
+  }));
 }
 
 async function hasExistingApplicationSchema() {
@@ -612,12 +657,13 @@ FROM sqlite_master
 WHERE type = 'table'
   AND name IN (:requiredTables);
 `, { requiredTables });
-  const existingTables = new Set(tableRows.map((row) => row.name));
+  const existingTables = new Set(tableRows.map((row) => readTextColumn(row, "name")));
 
   if (!requiredTables.every((tableName) => existingTables.has(tableName))) {
     return false;
   }
 
+  /** @type {Array<[string, string[]]>} */
   const columnChecks = [
     ["users", ["active_workspace_id", "protected_user"]],
     ["tasks", ["resume_note", "last_worked_at"]],
@@ -657,6 +703,7 @@ async function applyFreshBaseline() {
   });
 }
 
+/** @returns {Promise<MigrationFile>} */
 async function readBaselineSchema() {
   const sql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
   const compatibleChecksums = createCompatibleMigrationChecksums(sql);
@@ -695,11 +742,12 @@ WHERE version = :version
 LIMIT 1;
 `, { version: BASELINE_VERSION });
 
-  if (rows.length > 0 && !baseline.compatibleChecksums.has(rows[0].checksum)) {
+  if (rows.length > 0 && !baseline.compatibleChecksums.has(readTextColumn(rows[0], "checksum"))) {
     throw new Error(`Applied ${BASELINE_VERSION} fresh-start database baseline checksum does not match the current schema file.`);
   }
 }
 
+/** @param {MigrationFile} migration */
 async function applyMigration(migration) {
   const rebuildsForeignKeyParent = /^-- migration-foreign-keys: off$/mu.test(migration.sql);
   if (rebuildsForeignKeyParent) await runSql("PRAGMA foreign_keys = OFF;");
@@ -720,6 +768,7 @@ async function applyMigration(migration) {
   }
 }
 
+/** @param {MigrationFile} migration */
 async function recordMigrationApplied(migration) {
   await runSql(RECORD_MIGRATION_SQL, {
     appliedAt: new Date().toISOString(),
@@ -730,6 +779,10 @@ async function recordMigrationApplied(migration) {
   });
 }
 
+/**
+ * @param {() => Promise<void>} callback
+ * @returns {Promise<void>}
+ */
 async function runMigrationScriptTransaction(callback) {
   await runSql("BEGIN TRANSACTION;");
 
@@ -740,17 +793,27 @@ async function runMigrationScriptTransaction(callback) {
     try {
       await runSql("ROLLBACK;");
     } catch (rollbackError) {
-      error.rollbackError = rollbackError;
+      if (isRollbackAnnotatedFailure(error)) {
+        error.rollbackError = rollbackError;
+      }
     }
 
     throw error;
   }
 }
 
+/**
+ * @param {string} sql
+ * @returns {string}
+ */
 function createMigrationChecksum(sql) {
   return hashMigrationSql(normalizeMigrationSqlForChecksum(sql));
 }
 
+/**
+ * @param {string} sql
+ * @returns {Set<string>}
+ */
 function createCompatibleMigrationChecksums(sql) {
   const normalizedSql = normalizeMigrationSqlForChecksum(sql);
 
@@ -760,14 +823,17 @@ function createCompatibleMigrationChecksums(sql) {
   ]);
 }
 
+/** @param {string} sql */
 function normalizeMigrationSqlForChecksum(sql) {
   return sql.replace(/\r\n?/g, "\n");
 }
 
+/** @param {string} sql */
 function hashMigrationSql(sql) {
   return createHash("sha256").update(sql).digest("hex");
 }
 
+/** @param {string} tableName */
 async function tableExists(tableName) {
   const rows = await querySql(`
 SELECT name
@@ -780,13 +846,22 @@ LIMIT 1;
   return rows.length > 0;
 }
 
+/**
+ * @param {string} tableName
+ * @param {string[]} columnNames
+ */
 async function columnsExist(tableName, columnNames) {
   const columns = await querySql(databaseDialect.introspection.tableInfo(tableName));
-  const existingColumnNames = new Set(columns.map((column) => column.name));
+  const existingColumnNames = new Set(columns.map((column) => readTextColumn(column, "name")));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));
 }
 
+/**
+ * @param {string} childColumn
+ * @param {string} parentTable
+ * @param {string} parentColumn
+ */
 function createWorkspaceParentCondition(childColumn, parentTable, parentColumn) {
   return [
     "(",
@@ -802,6 +877,10 @@ function createWorkspaceParentCondition(childColumn, parentTable, parentColumn) 
   ].join("\n    ");
 }
 
+/**
+ * @param {string} schemaSql
+ * @param {string} tableName
+ */
 function extractCreateTableStatement(schemaSql, tableName) {
   const tablePattern = escapeRegExp(tableName);
   const pattern = new RegExp(`CREATE\\s+TABLE\\s+(?:"${tablePattern}"|${tablePattern})\\s*\\(`, "i");
@@ -814,6 +893,10 @@ function extractCreateTableStatement(schemaSql, tableName) {
   return extractSqlStatementAt(schemaSql, match.index);
 }
 
+/**
+ * @param {string} schemaSql
+ * @param {string} tableName
+ */
 function extractTableIndexStatements(schemaSql, tableName) {
   const tablePattern = escapeRegExp(tableName);
   const onTablePattern = new RegExp(`\\bON\\s+(?:"${tablePattern}"|${tablePattern})\\s*\\(`, "i");
@@ -824,6 +907,10 @@ function extractTableIndexStatements(schemaSql, tableName) {
     .map((statement) => statement.trim());
 }
 
+/**
+ * @param {string} sql
+ * @param {number} startIndex
+ */
 function extractSqlStatementAt(sql, startIndex) {
   const endIndex = sql.indexOf(";", startIndex);
   if (endIndex === -1) {
@@ -833,6 +920,7 @@ function extractSqlStatementAt(sql, startIndex) {
   return sql.slice(startIndex, endIndex + 1).trim();
 }
 
+/** @param {string} createTableSql */
 function extractCreateTableColumnNames(createTableSql) {
   const bodyStart = createTableSql.indexOf("(");
   const bodyEnd = createTableSql.lastIndexOf(")");
@@ -847,17 +935,48 @@ function extractCreateTableColumnNames(createTableSql) {
     .filter(Boolean);
 }
 
+/** @param {string} line */
 function extractLeadingIdentifier(line) {
   const match = /^"([^"]+)"|^`([^`]+)`|^\[([^\]]+)\]|^([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
   return match?.[1] || match?.[2] || match?.[3] || match?.[4] || "";
 }
 
+/** @param {string} value */
 function quoteIdentifier(value) {
-  return `"${String(value).replaceAll("\"", "\"\"")}"`;
+  return `"${value.replaceAll("\"", "\"\"")}"`;
 }
 
+/** @param {string} value */
 function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * @param {DatabaseRow | undefined} row
+ * @param {string} columnName
+ */
+function readTextColumn(row, columnName) {
+  const value = row?.[columnName];
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * @param {unknown} error
+ * @param {string} code
+ */
+function hasErrorCode(error, code) {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && error.code === code;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is RollbackAnnotatedFailure}
+ */
+function isRollbackAnnotatedFailure(value) {
+  return (typeof value === "object" && value !== null) || typeof value === "function";
 }
 
 export { readMigrationReadiness, runMigrations };

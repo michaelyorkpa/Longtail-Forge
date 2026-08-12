@@ -1,3 +1,4 @@
+// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { notesRepository } from "./notes.repo.js";
@@ -5,12 +6,15 @@ import { canExposeNoteToConsumer } from "./consumer-policy.js";
 import { NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
 import { extractPlainTextFromMarkdown } from "./markdown.js";
 
+/** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+
 const NOTES_SEARCH_INDEXER_ID = "notes.records";
 
 function registerNotesSearchIndexers() {
   return registerSearchIndexer(NOTES_SEARCH_INDEXER_ID, indexNoteRecord);
 }
 
+/** @param {SearchReference} reference */
 async function indexNoteRecord({ workspaceId, recordId }) {
   if (!recordId) {
     const notes = await notesRepository.list(workspaceId, { includeDeleted: false });

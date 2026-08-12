@@ -1,3 +1,4 @@
+// @ts-check
 import { clientsRoutes } from "./clients.routes.js";
 import { registerClientProjectsSearchIndexers } from "./search-indexers.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
@@ -8,6 +9,7 @@ function activateClientProjectsRuntime() {
   registerClientProjectsSearchIndexers();
 }
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const clientProjectsModule = {
   id: "client-projects",
   name: "Clients and Projects",
@@ -212,6 +214,7 @@ const clientProjectsModule = {
       dataSource: {
         route: "/api/clients?include_depth=true",
         method: "GET",
+        recordsKey: "clients",
         fieldBindings: {
           id: "id",
           name: "name",
@@ -376,6 +379,7 @@ const clientProjectsModule = {
       dataSource: {
         route: "/api/projects?include_depth=true",
         method: "GET",
+        recordsKey: "projects",
         fieldBindings: {
           id: "id",
           name: "name",

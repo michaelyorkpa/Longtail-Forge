@@ -3,9 +3,11 @@
 // Closeout regressions must assert that the live roadmap has advanced past
 // their branch and never regressed. Exact-value pins ("cursor equals X")
 // forced every branch closeout to edit every prior closeout regression;
-// these floor assertions are monotonic instead: they pass for the cursor
-// value that was current when the branch closed and for every later cursor,
-// so closing a future branch requires no edits here.
+// these floor assertions are normally monotonic: they pass for the cursor
+// value that was current when the branch closed and for every later cursor.
+// A roadmap-permitted out-of-order closeout may also satisfy its exact floor
+// through explicit live-roadmap and archive evidence while an earlier slice
+// remains the honest active cursor.
 //
 // Do not write new exact cursor or next-section pins in closeout
 // regressions; call assertRoadmapCursorAtLeast with the cursor value that is
@@ -60,16 +62,54 @@ function compareDottedVersions(left, right) {
  * Assert the live roadmap cursor is at or beyond the given floor.
  * @param {string} minimumVersion the cursor value current when the calling branch closed
  * @param {string} message assertion context shown on failure
- * @param {{ roadmapSource?: string }} [options] optional source override for fixtures
+ * @param {{ roadmapArchiveSource?: string, roadmapSource?: string }} [options] optional source overrides for fixtures
  */
 function assertRoadmapCursorAtLeast(minimumVersion, message, options = {}) {
   parseDottedVersion(minimumVersion);
   const cursor = readActiveRoadmapCursor(options);
 
   assert.ok(
-    compareDottedVersions(cursor, minimumVersion) >= 0,
+    compareDottedVersions(cursor, minimumVersion) >= 0
+      || isDocumentedOutOfOrderRoadmapCloseout(minimumVersion, options),
     `${message} (live roadmap cursor ${cursor} is below the required floor ${minimumVersion})`,
   );
+}
+
+/**
+ * Recognize only an explicitly archived operator-requested closeout whose
+ * completed version is absent from the live roadmap and whose earlier active
+ * cursor still has a real live section.
+ * @param {string} completedVersion
+ * @param {{ roadmapArchiveSource?: string, roadmapSource?: string }} [options]
+ * @returns {boolean}
+ */
+function isDocumentedOutOfOrderRoadmapCloseout(completedVersion, options = {}) {
+  parseDottedVersion(completedVersion);
+  const roadmapSource = options.roadmapSource ?? readFileSync("ROADMAP.md", "utf8");
+  const archiveSource = options.roadmapArchiveSource ?? readFileSync("ROADMAP-ARCHIVE.md", "utf8");
+  const activeCursor = readActiveRoadmapCursor({ roadmapSource });
+  if (compareDottedVersions(activeCursor, completedVersion) >= 0) {
+    return false;
+  }
+
+  const activeHeading = versionHeadingPattern(activeCursor);
+  const completedHeading = versionHeadingPattern(completedVersion);
+  if (!activeHeading.test(roadmapSource) || completedHeading.test(roadmapSource)) {
+    return false;
+  }
+
+  const archiveSection = archiveSource.split(completedHeading)[1]?.split(/^## Version /m)[0] || "";
+  const preservedCursorStatement = `The active roadmap cursor remains \`${activeCursor}\`;`;
+  return /Completed on \d{4}-\d{2}-\d{2} out of numeric order at the operator's request\./.test(archiveSection)
+    && archiveSection.includes(preservedCursorStatement);
+}
+
+function versionHeadingPattern(version) {
+  return new RegExp(`^## Version ${escapeRegExp(version)}(?:\\s+-|\\s*$)`, "m");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseDottedVersion(value) {
@@ -85,5 +125,6 @@ function parseDottedVersion(value) {
 export {
   assertRoadmapCursorAtLeast,
   compareDottedVersions,
+  isDocumentedOutOfOrderRoadmapCloseout,
   readActiveRoadmapCursor,
 };

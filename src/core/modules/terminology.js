@@ -22,6 +22,12 @@ function resolveWorkspaceTerminology(terminology = {}, workspaceType = "default"
   return resolved;
 }
 
+/**
+ * @template {Record<string, any>} Definition
+ * @param {Definition} moduleDefinition
+ * @param {string} workspaceType
+ * @returns {Definition}
+ */
 function resolveModuleDefinitionTerminology(moduleDefinition, workspaceType) {
   const terms = resolveWorkspaceTerminology(moduleDefinition.terminology, workspaceType);
   const resolvedModule = applyTerminology(moduleDefinition, terms, { moduleLabel: true });
@@ -50,6 +56,13 @@ function resolveModuleDefinitionTerminology(moduleDefinition, workspaceType) {
   };
 }
 
+/**
+ * @template {Record<string, any>} Contribution
+ * @param {Contribution} contribution
+ * @param {string} workspaceType
+ * @param {string} [fieldName]
+ * @returns {Contribution}
+ */
 function resolveContributionTerminology(contribution, workspaceType, fieldName = "") {
   const contributionTerms = resolveWorkspaceTerminology(contribution.terminology, workspaceType);
 

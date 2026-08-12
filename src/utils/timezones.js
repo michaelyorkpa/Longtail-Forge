@@ -1,5 +1,27 @@
+// @ts-check
+
 const DEFAULT_TIMEZONE = "America/New_York";
 
+/** @typedef {string | number | null | undefined} DateTimeInput */
+/** @typedef {Date | string | number} DateFallbackInput */
+/** @typedef {"start" | "end"} DateBoundEdge */
+/**
+ * @typedef {Object} DateTimeParts
+ * @property {number} year
+ * @property {number} month
+ * @property {number} day
+ * @property {number} hour
+ * @property {number} minute
+ * @property {number} second
+ * @property {number} millisecond
+ */
+
+/**
+ * @param {DateTimeInput} value
+ * @param {string} [sourceTimezone]
+ * @param {DateFallbackInput} [fallback]
+ * @returns {string}
+ */
 function normalizeUtcIso(value, sourceTimezone = DEFAULT_TIMEZONE, fallback = new Date()) {
   const text = String(value || "").trim();
   const fallbackDate = fallback instanceof Date ? fallback : new Date(fallback);
@@ -21,10 +43,18 @@ function normalizeUtcIso(value, sourceTimezone = DEFAULT_TIMEZONE, fallback = ne
   return zonedDateTimeToUtc(parts, sourceTimezone).toISOString();
 }
 
+/**
+ * @param {DateTimeInput} value
+ * @returns {boolean}
+ */
 function hasExplicitTimezone(value) {
   return /(?:z|[+-]\d{2}:?\d{2})$/i.test(String(value || "").trim());
 }
 
+/**
+ * @param {DateTimeInput} value
+ * @returns {DateTimeParts | null}
+ */
 function parseDateTimeParts(value) {
   const match = String(value || "").trim().match(
     /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/,
@@ -45,6 +75,11 @@ function parseDateTimeParts(value) {
   };
 }
 
+/**
+ * @param {DateTimeParts} parts
+ * @param {string} [timezone]
+ * @returns {Date}
+ */
 function zonedDateTimeToUtc(parts, timezone = DEFAULT_TIMEZONE) {
   const utcGuess = Date.UTC(
     parts.year,
@@ -66,6 +101,11 @@ function zonedDateTimeToUtc(parts, timezone = DEFAULT_TIMEZONE) {
   return firstPass;
 }
 
+/**
+ * @param {Date} date
+ * @param {string} [timezone]
+ * @returns {number}
+ */
 function getTimezoneOffsetMilliseconds(date, timezone = DEFAULT_TIMEZONE) {
   const parts = getZonedParts(date, timezone);
   const zonedAsUtc = Date.UTC(
@@ -81,6 +121,11 @@ function getTimezoneOffsetMilliseconds(date, timezone = DEFAULT_TIMEZONE) {
   return zonedAsUtc - date.getTime();
 }
 
+/**
+ * @param {Date} date
+ * @param {string} [timezone]
+ * @returns {DateTimeParts}
+ */
 function getZonedParts(date, timezone = DEFAULT_TIMEZONE) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -105,6 +150,12 @@ function getZonedParts(date, timezone = DEFAULT_TIMEZONE) {
   };
 }
 
+/**
+ * @param {DateTimeInput} dateValue
+ * @param {string} [timezone]
+ * @param {DateBoundEdge} [edge]
+ * @returns {string}
+ */
 function localDateBoundToUtcIso(dateValue, timezone = DEFAULT_TIMEZONE, edge = "start") {
   const text = String(dateValue || "").trim();
 
@@ -118,14 +169,49 @@ function localDateBoundToUtcIso(dateValue, timezone = DEFAULT_TIMEZONE, edge = "
   );
 }
 
+/**
+ * Return the calendar date containing an absolute instant in the selected
+ * timezone. Calendar-bound report and Dashboard windows use this key before
+ * converting their inclusive start/exclusive end bounds back to UTC.
+ *
+ * @param {Date} date
+ * @param {string} [timezone]
+ * @returns {string}
+ */
+function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
+  const parts = getZonedParts(date, timezone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+/**
+ * Add whole calendar days without allowing the server timezone to influence
+ * the resulting date key.
+ *
+ * @param {string} dateKey
+ * @param {number} days
+ * @returns {string}
+ */
+function addLocalDateDays(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * @param {Date} date
+ * @param {string} [fallbackIso]
+ * @returns {string}
+ */
 function toValidIso(date, fallbackIso = new Date().toISOString()) {
   return Number.isFinite(date.getTime()) ? date.toISOString() : fallbackIso;
 }
 
 export {
   DEFAULT_TIMEZONE,
+  addLocalDateDays,
   hasExplicitTimezone,
   localDateBoundToUtcIso,
+  localDateKey,
   normalizeUtcIso,
   zonedDateTimeToUtc,
 };

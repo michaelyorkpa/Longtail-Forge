@@ -19,6 +19,7 @@ process.env.SUPER_ADMIN_PASSWORD = "File-Multipart-Batch-Test-123!";
 const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
+const { filesService } = await import("../src/services/files.service.js");
 
 let server;
 
@@ -33,6 +34,7 @@ try {
   await checkSuccessfulMultiFileUpload(api, fixtures);
   await checkPartialBatchFailure(api, fixtures);
   await checkMalformedFilePartBatchFailure(api, fixtures);
+  await checkUnexpectedBatchFailureIsRedacted(api, fixtures);
   await checkJsonBatchRouteCompatibility(api, fixtures);
   await assertIntegrity();
 
@@ -214,6 +216,34 @@ WHERE original_filename = 'malformed-part-bad.txt';
   assert.equal(Number(badRows[0].count), 0, "malformed streamed batch file parts should not create file rows");
 }
 
+async function checkUnexpectedBatchFailureIsRedacted(api, fixtures) {
+  const originalAdapter = filesService.getFileStorageAdapter("local");
+  filesService.registerFileStorageAdapter("local", {
+    ...originalAdapter,
+    async saveStream(readable) {
+      for await (const _chunk of readable) {
+        // Drain the request stream before simulating an unexpected provider failure.
+      }
+      throw new Error("unexpected-provider-secret storage/path/should-not-leak");
+    },
+  });
+
+  let response;
+  try {
+    response = await api.postForm("/api/files/upload/batch", createBatchForm(fixtures.unexpectedFailureTaskId, [
+      { filename: "unexpected-provider.txt", text: "unexpected provider failure" },
+    ]), { cookie: fixtures.adminSessionId });
+  } finally {
+    filesService.registerFileStorageAdapter("local", originalAdapter);
+  }
+
+  assert.equal(response.status, 207);
+  assert.equal(response.body.failed, 1);
+  assert.equal(response.body.results[0].error, "Uploaded file could not be stored.");
+  assert.equal(response.body.results[0].status, 500);
+  assert.doesNotMatch(JSON.stringify(response.body), /unexpected-provider-secret|storage\/path/i);
+}
+
 async function checkJsonBatchRouteCompatibility(api, fixtures) {
   const response = await api.postJson("/api/files/batch", {
     files: [
@@ -243,6 +273,7 @@ async function seedFixtures() {
     malformedTaskId: randomUUID(),
     multiTaskId: randomUUID(),
     partialTaskId: randomUUID(),
+    unexpectedFailureTaskId: randomUUID(),
   };
 
   for (const [name, taskId] of Object.entries(taskIds)) {

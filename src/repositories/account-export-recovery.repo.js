@@ -1,4 +1,7 @@
+// @ts-check
 import { db } from "../core/database.js";
+
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
 
 const QUALIFICATION_BASIS = "former_workspace_administrator";
 const QUALIFICATION_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -15,6 +18,10 @@ const QUALIFICATION_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpda
   },
 });
 
+/**
+ * @param {string} userId
+ * @param {TransactionClient} [database]
+ */
 async function readForUser(userId, database = db) {
   return database.get(`
 SELECT
@@ -29,6 +36,10 @@ LIMIT 1;
 `, { userId });
 }
 
+/**
+ * @param {string} userId
+ * @param {TransactionClient} [database]
+ */
 async function hasActiveWorkspace(userId, database = db) {
   const row = await database.get(`
 SELECT COUNT(1) AS count
@@ -41,6 +52,10 @@ WHERE user_workspaces.user_id = :userId
   return Number(row?.count || 0) > 0;
 }
 
+/**
+ * @param {string} userId
+ * @param {TransactionClient} [database]
+ */
 async function clear(userId, database = db) {
   await database.run(`
 DELETE FROM account_export_recovery_qualifications
@@ -48,6 +63,10 @@ WHERE user_id = :userId;
 `, { userId });
 }
 
+/**
+ * @param {any} input
+ * @param {TransactionClient} [database]
+ */
 async function recordWorkspaceAccessLoss({ userId, workspaceId, source }, database = db) {
   const remaining = await database.get(`
 SELECT COUNT(1) AS count
@@ -96,6 +115,10 @@ LIMIT 1;
   return true;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {TransactionClient} [database]
+ */
 async function prepareWorkspacePurge(workspaceId, database = db) {
   const users = await database.query(`
 SELECT DISTINCT user_id

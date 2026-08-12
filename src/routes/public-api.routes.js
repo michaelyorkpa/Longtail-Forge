@@ -1,7 +1,9 @@
+// @ts-check
+
 import { Router } from "express";
 import { requireApiKey } from "../middleware/require-api-key.js";
 import { publicApiService } from "../services/public-api.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { apiKeyAsyncRoute as asyncRoute, readJsonBody } from "../utils/http.js";
 
 const publicApiRoutes = Router();
 

@@ -76,7 +76,7 @@ assert.match(
 );
 assert.match(
   browserSource,
-  /function withoutUnavailableTopLevelActions[\s\S]*surface\.id === "client-projects\.clients"[\s\S]*canCreateTopLevelClient\(\)[\s\S]*primaryAction: null/,
+  /function withoutUnavailableTopLevelActions[\s\S]*surface\.id === "client-projects\.clients"[\s\S]*canCreateTopLevelClient\(\)[\s\S]*delete pageHeader\.primaryAction/,
   "The Clients page should remove the top-level action when workspace-scoped creation is unavailable.",
 );
 assert.match(

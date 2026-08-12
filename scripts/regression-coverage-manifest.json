@@ -3,41 +3,41 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 448,
+    "discoveredScripts": 464,
     "legacyScripts": 309,
-    "releaseGateScripts": 70,
+    "releaseGateScripts": 76,
     "areaCounts": {
       "dashboard": 2,
-      "database": 42,
+      "database": 47,
       "docs": 10,
       "files": 44,
-      "framework": 81,
-      "jobs": 7,
+      "framework": 85,
+      "jobs": 8,
       "licensing": 1,
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 12,
+      "permissions": 13,
       "public-api": 3,
-      "release": 35,
+      "release": 36,
       "search": 12,
       "tags": 12,
       "tasks": 58,
-      "time-tracking": 9,
+      "time-tracking": 13,
       "views": 33,
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 205,
-      "integration": 165,
-      "release-gate": 70,
+      "focused": 211,
+      "integration": 169,
+      "release-gate": 76,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 188,
+      "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 226
+      "static": 238
     }
   },
   "coverageFamilies": [
@@ -46,7 +46,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 16,
+      "minimumActiveScripts": 17,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
         "framework.settings-branch-closeout",
@@ -63,6 +63,7 @@
         "release.maintainability-closeout",
         "release.playwright-dev-only-boundary",
         "release.roadmap-cursor-floor",
+        "release.typescript-seam-branch-closeout",
         "release.validation-single-ownership"
       ],
       "retiredScripts": [
@@ -2575,6 +2576,56 @@
     },
     {
       "area": "database",
+      "description": "Proves dialect option bags, row identity, boolean field transforms, and scalar/array parameter bindings remain checked discriminated contracts.",
+      "id": "database.dialect-binding-types",
+      "legacy": false,
+      "path": "scripts/regressions/database/database-dialect-binding-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "bindings",
+        "contracts",
+        "database",
+        "dialect",
+        "typecheck"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves Settings, Users, and Workspaces expose checked method inputs, projected rows, and nullable single-row results without changing runtime queries.",
+      "id": "database.repository-signature-types",
+      "legacy": false,
+      "path": "scripts/regressions/database/database-repository-signature-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "database",
+        "repositories",
+        "typecheck"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
+      "description": "Proves the full database adapter and transaction-only client remain distinct checked contracts across the SQLite driver and injected repositories.",
+      "id": "database.transaction-client-types",
+      "legacy": false,
+      "path": "scripts/regressions/database/database-transaction-client-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "adapter",
+        "contracts",
+        "database",
+        "transactions",
+        "typecheck"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "database",
       "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
@@ -2607,6 +2658,24 @@
         "permissions",
         "seed",
         "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the checked migration runner keeps explicit source, row, checksum, ordering, locking, transaction, rollback, and foreign-key contracts.",
+      "id": "database.migration-runner-checked-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/database/migration-runner-checked-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "checksums",
+        "contracts",
+        "database",
+        "migrations",
+        "transactions",
+        "typecheck"
       ],
       "tier": "release-gate"
     },
@@ -2678,6 +2747,23 @@
         "sqlite"
       ],
       "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the bounded credential/session, permission/audit/activity, and workspace-lifecycle repository passes remain exact, checked, projected, and migration-free.",
+      "id": "database.repository-checked-passes",
+      "legacy": false,
+      "path": "scripts/regressions/database/repository-checked-passes.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "database",
+        "permissions",
+        "repositories",
+        "typecheck"
+      ],
+      "tier": "focused"
     },
     {
       "area": "database",
@@ -2885,6 +2971,24 @@
         "security",
         "sessions",
         "workspaces"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the checked app-shell producer and unknown-input browser adapter preserve safe defaults, nested fallbacks, and pre-navigation load order.",
+      "id": "framework.app-shell-bootstrap-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "app-shell",
+        "bootstrap",
+        "browser",
+        "contracts",
+        "navigation",
+        "typecheck"
       ],
       "tier": "release-gate"
     },
@@ -3108,6 +3212,23 @@
     },
     {
       "area": "framework",
+      "description": "Proves the shared Markdown core remains checked against explicit parser, token, preference, URL, and safe-output contracts.",
+      "id": "framework.markdown-checked-core",
+      "legacy": false,
+      "path": "scripts/regressions/framework/markdown-checked-core.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "content-safety",
+        "contracts",
+        "markdown",
+        "security",
+        "typecheck"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
       "id": "framework.module-import-boundaries",
       "legacy": false,
@@ -3170,6 +3291,24 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves password primitives and application startup/shutdown remain checked, explicitly contracted, safely narrowed, and behavior-ordered.",
+      "id": "framework.password-startup-checked-core",
+      "legacy": false,
+      "path": "scripts/regressions/framework/password-startup-checked-core.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "contracts",
+        "readiness",
+        "security",
+        "startup",
+        "typecheck"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",
@@ -3625,7 +3764,23 @@
     },
     {
       "area": "framework",
-      "description": "Proves the high-value framework seams stay @ts-check opted-in against the shared contract types, without ts-nocheck/ts-ignore escapes or runtime .ts imports.",
+      "description": "Pins the checked-program honesty inventory, named contract cleanup, and explicit future ownership for strict production, browser, and test residuals.",
+      "id": "framework.typecheck-honesty-inventory",
+      "legacy": false,
+      "path": "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "framework",
+        "release",
+        "typecheck"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the server and browser typecheck programs, bounded clean-file passes, complete checked-seam inventory, and escape-hatch prohibitions stay intact.",
       "id": "framework.typecheck-seams",
       "legacy": false,
       "path": "scripts/regressions/framework/typecheck-seams.regression.mjs",
@@ -3669,6 +3824,22 @@
         "permissions",
         "settings",
         "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "jobs",
+      "description": "Proves arbitrary active-run rejections cannot break worker shutdown or leak unbounded payloads through warning logs.",
+      "id": "jobs.job-worker-shutdown-rejection",
+      "legacy": false,
+      "path": "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "jobs",
+        "logging",
+        "shutdown",
+        "typecheck"
       ],
       "tier": "focused"
     },
@@ -3843,6 +4014,23 @@
         "modules",
         "permissions",
         "users"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "permissions",
+      "description": "Proves permission and active API-key contracts reject missing or misspelled fields while Audit/Search routes construct the shared checked resource.",
+      "id": "permissions.permission-resource-types",
+      "legacy": false,
+      "path": "scripts/regressions/permissions/permission-resource-types.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "audit",
+        "contracts",
+        "permissions",
+        "search",
+        "typecheck"
       ],
       "tier": "focused"
     },
@@ -4355,7 +4543,7 @@
     },
     {
       "area": "release",
-      "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, that closeout regressions use floors instead of exact pins, and that a future cursor advance requires no edits to prior closeout regressions.",
+      "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, accepts only documented out-of-order completion evidence below a floor, keeps closeout regressions on floors instead of exact pins, and lets future cursor advances pass without prior-regression edits.",
       "id": "release.roadmap-cursor-floor",
       "legacy": false,
       "path": "scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
@@ -4381,6 +4569,23 @@
         "packaging",
         "release",
         "runtime"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the complete 0.33.32 checked-seam branch is archived once, retains auditable correction evidence, and hands off every residual to an executable or explicit future owner.",
+      "id": "release.typescript-seam-branch-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "contracts",
+        "docs",
+        "release",
+        "typecheck"
       ],
       "tier": "release-gate"
     },
@@ -4579,6 +4784,38 @@
     },
     {
       "area": "time-tracking",
+      "description": "Proves active-timer finalization persists one authoritative seconds value with a matching hours projection, including the missing-timer fallback.",
+      "id": "time-tracking.active-timer-duration-consistency",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "time-tracking",
+        "timers"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves billing periods and Dashboard effort windows use session-local calendar boundaries converted to UTC across month and DST edges.",
+      "id": "time-tracking.billing-dashboard-timezone-boundaries",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "billing",
+        "dashboard",
+        "database",
+        "time-tracking",
+        "timezone"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
       "legacy": false,
@@ -4610,6 +4847,36 @@
         "runner"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves public API durations persist one billing-authoritative seconds value with a numerically matching hours projection.",
+      "id": "time-tracking.public-api-duration-persistence",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "public-api",
+        "time-tracking"
+      ],
+      "tier": "integration"
+    },
+    {
+      "area": "time-tracking",
+      "description": "Proves manual and sourced timer edges preserve non-billable intent across workspace types while Task Timer finalization retains authoritative duration.",
+      "id": "time-tracking.sourced-task-timer-bridge",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs",
+      "releaseGate": false,
+      "runMode": "isolated-database",
+      "tags": [
+        "database",
+        "tasks",
+        "time-tracking"
+      ],
+      "tier": "integration"
     },
     {
       "area": "time-tracking",

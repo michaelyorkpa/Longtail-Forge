@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { tagsService } from "../services/tags.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { readJsonObjectBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const tagsRoutes = Router();
 
@@ -10,7 +12,7 @@ tagsRoutes.get("/tags", asyncRoute(async (request, response) => {
 }));
 
 tagsRoutes.post("/tags", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await tagsService.create(request.session, payload);
   response.status(201).json(result);
 }));
@@ -21,19 +23,19 @@ tagsRoutes.get("/tags/assignments", asyncRoute(async (request, response) => {
 }));
 
 tagsRoutes.put("/tags/assignments", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await tagsService.replaceAssignments(request.session, payload);
   response.status(200).json(result);
 }));
 
 tagsRoutes.post("/tags/bulk-assignments", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await tagsService.bulkAssign(request.session, payload);
   response.status(200).json(result);
 }));
 
 tagsRoutes.post("/tags/assignments/:assignmentId/suppress", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await tagsService.suppressAssignment(request.session, {
     ...payload,
     assignmentId: request.params.assignmentId,
@@ -42,7 +44,7 @@ tagsRoutes.post("/tags/assignments/:assignmentId/suppress", asyncRoute(async (re
 }));
 
 tagsRoutes.put("/tags/:tagId", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readJsonObjectBody(request);
   const result = await tagsService.update(request.session, request.params.tagId, payload);
   response.status(200).json(result);
 }));

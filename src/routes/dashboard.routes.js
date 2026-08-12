@@ -1,6 +1,8 @@
+// @ts-check
+
 import { Router } from "express";
 import { dashboardService } from "../services/dashboard.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const dashboardRoutes = Router();
 

@@ -1,6 +1,23 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { accountExportRecoveryRepository } from "./account-export-recovery.repo.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseParams} DatabaseParams */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {DatabaseRow & { status: string, purge_started_at: string | null, attempt_count: unknown }} PurgeFenceRow */
+/** @typedef {DatabaseRow & { workspace_id: string, requested_at: string, purge_after: string, status: string, purge_started_at: string | null, purge_token: string | null, workspace_name: string }} PurgeLifecycleRow */
+/** @typedef {DatabaseRow & { status: string, purge_token: string | null }} PurgeLifecycleFenceRow */
+/** @typedef {DatabaseRow & { user_id: string, home_workspace_id: string | null, active_workspace_id: string | null }} PurgeAffectedUserRow */
+/** @typedef {DatabaseRow & { workspace_id: string }} PurgeFallbackWorkspaceRow */
+/** @typedef {DatabaseRow & { name: string }} DatabaseTableNameRow */
+/** @typedef {DatabaseRow & { name: string }} DatabaseColumnRow */
+/** @typedef {DatabaseRow & { count: unknown }} PurgeCountRow */
+/** @typedef {{ workspaceId: string, workspaceFingerprint: string, now: string, purgeJobId: string, purgeToken: string, purgeTombstoneId: string }} PurgeFenceInput */
+/** @typedef {{ workspaceId: string, workspaceFingerprint: string, now: string, purgeToken: string, prepareArtifacts: (transaction: TransactionClient) => Promise<{ fileObjectBytes: number, fileObjectCount: number }> }} PurgeFinalizeInput */
+
+/** @param {string} workspaceFingerprint */
 async function readTombstone(workspaceFingerprint) {
   return db.get(`
 SELECT
@@ -23,19 +40,20 @@ LIMIT 1;
 `, { workspaceFingerprint });
 }
 
+/** @param {PurgeFenceInput} value */
 async function beginFence(value) {
   return db.transaction(async (transaction) => {
-    const tombstone = await transaction.get(`
+    const tombstone = /** @type {PurgeFenceRow | null} */ (await transaction.get(`
 SELECT status, purge_started_at, attempt_count
 FROM workspace_purge_tombstones
 WHERE workspace_fingerprint = :workspaceFingerprint
 LIMIT 1;
-`, { workspaceFingerprint: value.workspaceFingerprint });
+`, { workspaceFingerprint: value.workspaceFingerprint }));
     if (tombstone?.status === "complete") {
       return { alreadyComplete: true };
     }
 
-    const lifecycle = await transaction.get(`
+    const lifecycle = /** @type {PurgeLifecycleRow | null} */ (await transaction.get(`
 SELECT
   workspace_deletion_lifecycle.workspace_id,
   workspace_deletion_lifecycle.requested_at,
@@ -48,7 +66,7 @@ FROM workspace_deletion_lifecycle
 INNER JOIN workspaces ON workspaces.workspace_id = workspace_deletion_lifecycle.workspace_id
 WHERE workspace_deletion_lifecycle.workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId: value.workspaceId });
+`, { workspaceId: value.workspaceId }));
     if (!lifecycle) return { missingLifecycle: true };
     if (new Date(value.now).getTime() < new Date(lifecycle.purge_after).getTime()) {
       return { purgeAfter: lifecycle.purge_after, tooEarly: true };
@@ -150,6 +168,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceFingerprint @param {string} failureClass @param {string} now @returns {Promise<void>} */
 async function markFailure(workspaceFingerprint, failureClass, now) {
   await db.run(`
 UPDATE workspace_purge_tombstones
@@ -160,22 +179,23 @@ WHERE workspace_fingerprint = :workspaceFingerprint
 `, { failureClass, now, workspaceFingerprint });
 }
 
+/** @param {PurgeFinalizeInput} value */
 async function finalize(value) {
   return db.transaction(async (transaction) => {
-    const tombstone = await transaction.get(`
+    const tombstone = /** @type {PurgeFenceRow | null} */ (await transaction.get(`
 SELECT status
 FROM workspace_purge_tombstones
 WHERE workspace_fingerprint = :workspaceFingerprint
 LIMIT 1;
-`, { workspaceFingerprint: value.workspaceFingerprint });
+`, { workspaceFingerprint: value.workspaceFingerprint }));
     if (tombstone?.status === "complete") return { alreadyComplete: true };
 
-    const lifecycle = await transaction.get(`
+    const lifecycle = /** @type {PurgeLifecycleFenceRow | null} */ (await transaction.get(`
 SELECT status, purge_token
 FROM workspace_deletion_lifecycle
 WHERE workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId: value.workspaceId });
+`, { workspaceId: value.workspaceId }));
     if (!lifecycle || lifecycle.status !== "purging" || lifecycle.purge_token !== value.purgeToken) {
       throw new Error("Workspace purge fence is unavailable or no longer owned by this purge.");
     }
@@ -183,15 +203,15 @@ LIMIT 1;
     await transaction.run(transaction.dialect.introspection.deferForeignKeys());
     const artifacts = await value.prepareArtifacts(transaction);
     await accountExportRecoveryRepository.prepareWorkspacePurge(value.workspaceId, transaction);
-    const affectedUsers = await transaction.query(`
+    const affectedUsers = /** @type {PurgeAffectedUserRow[]} */ (await transaction.query(`
 SELECT user_id, home_workspace_id, active_workspace_id
 FROM users
 WHERE home_workspace_id = :workspaceId
    OR active_workspace_id = :workspaceId
 ORDER BY user_id;
-`, { workspaceId: value.workspaceId });
+`, { workspaceId: value.workspaceId }));
     for (const user of affectedUsers) {
-      const fallback = await transaction.get(`
+      const fallback = /** @type {PurgeFallbackWorkspaceRow | null} */ (await transaction.get(`
 SELECT user_workspaces.workspace_id
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
@@ -201,7 +221,7 @@ WHERE user_workspaces.user_id = :userId
   AND lower(workspaces.status) = 'active'
 ORDER BY user_workspaces.created_at, user_workspaces.workspace_id
 LIMIT 1;
-`, { userId: user.user_id, workspaceId: value.workspaceId });
+`, { userId: user.user_id, workspaceId: value.workspaceId }));
       await transaction.run(`
 UPDATE users
 SET home_workspace_id = CASE
@@ -290,12 +310,14 @@ WHERE workspace_fingerprint = :workspaceFingerprint;
   });
 }
 
+/** @param {TransactionClient} transaction @returns {Promise<string[]>} */
 async function discoverWorkspaceTables(transaction) {
-  const tables = await transaction.query(transaction.dialect.introspection.tableNames());
+  const tables = /** @type {DatabaseTableNameRow[]} */ (await transaction.query(transaction.dialect.introspection.tableNames()));
+  /** @type {string[]} */
   const workspaceTables = [];
   for (const { name } of tables) {
     if (name === "workspaces") continue;
-    const columns = await transaction.query(transaction.dialect.introspection.tableInfo(name));
+    const columns = /** @type {DatabaseColumnRow[]} */ (await transaction.query(transaction.dialect.introspection.tableInfo(name)));
     if (columns.some((column) => column.name === "workspace_id")) {
       workspaceTables.push(name);
     }
@@ -307,8 +329,9 @@ async function discoverWorkspaceTables(transaction) {
   });
 }
 
+/** @param {TransactionClient} transaction @param {string} sql @param {DatabaseParams} params */
 async function countRows(transaction, sql, params) {
-  const row = await transaction.get(sql, params);
+  const row = /** @type {PurgeCountRow | null} */ (await transaction.get(sql, params));
   return Number(row?.count) || 0;
 }
 

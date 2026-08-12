@@ -1,5 +1,9 @@
+// @ts-check
 import { db } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
+
+/** @typedef {import("../../utils/normalizers.js").TimeEntry} TimeEntry */
+/** @typedef {{ total: number | string }} CountRow */
 
 async function readAll(workspaceId) {
   const rows = await db.query(`
@@ -182,6 +186,7 @@ ORDER BY end_time;
   return rows.map(timeEntryRowToAppValue);
 }
 
+/** @param {TimeEntry} entry */
 async function create(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -226,6 +231,7 @@ VALUES (
 `, timeEntryWriteParams(entry, now, { includeCreatedAt: true }));
 }
 
+/** @param {TimeEntry} entry */
 async function update(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -252,7 +258,7 @@ WHERE workspace_id = :workspaceId
 }
 
 async function countByProjectId(workspaceId, projectId) {
-  const row = await db.get(`
+  const row = /** @type {CountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS total
 FROM time_entries
 WHERE workspace_id = :workspaceId
@@ -260,9 +266,9 @@ WHERE workspace_id = :workspaceId
 `, {
     projectId: textParam(projectId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
-  return Number.parseInt(row?.total, 10) || 0;
+  return Number.parseInt(String(row?.total ?? ""), 10) || 0;
 }
 
 async function hasForTask(workspaceId, taskId) {
@@ -335,6 +341,11 @@ function timeEntryRowToAppValue(row) {
   });
 }
 
+/**
+ * @param {TimeEntry} entry
+ * @param {string} now
+ * @param {{ includeCreatedAt?: boolean }} [options]
+ */
 function timeEntryWriteParams(entry, now, options = {}) {
   const params = {
     billable: textParam(entry.billable),

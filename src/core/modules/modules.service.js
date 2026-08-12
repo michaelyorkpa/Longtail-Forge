@@ -1,3 +1,4 @@
+// @ts-check
 import {
   getModule as getRegisteredModule,
   listModuleBrowserAssets as listRegisteredModuleBrowserAssets,
@@ -48,6 +49,14 @@ import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
+
+/** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
+/** @typedef {import("../../types/framework-contracts.js").CatalogContribution} CatalogContribution */
+/** @typedef {import("../../types/framework-contracts.js").ModuleEventHook} ModuleEventHook */
+/** @typedef {import("../../types/framework-contracts.js").ApiScopeCatalogEntry} ApiScopeCatalogEntry */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
 
 const MODULE_INSERT_COLUMNS = [
   "module_id",
@@ -116,12 +125,23 @@ const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
   "workspace-settings",
 ]);
 
+/** @returns {ModuleManifest[]} */
 function listModules() {
   return listRegisteredModules();
 }
 
+/** @returns {ModuleManifest | null} */
 function getModule(moduleId) {
   return getRegisteredModule(moduleId);
+}
+
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {string} workspaceType
+ * @returns {ResolvedModuleManifest}
+ */
+function resolveModuleTerminology(moduleDefinition, workspaceType) {
+  return resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
 }
 
 function listModuleRoutes(type) {
@@ -169,6 +189,7 @@ function listResourceDefinitions() {
   ];
 }
 
+/** @param {string} workspaceId @param {RequestSession | null} [session] */
 async function listActiveResourceDefinitions(workspaceId, session = null) {
   if (!workspaceId) {
     return [];
@@ -207,6 +228,7 @@ function listModuleApiScopes() {
   return listRegisteredModuleApiScopes();
 }
 
+/** @returns {ApiScopeCatalogEntry[]} */
 function listModuleApiScopeEntries() {
   return listRegisteredModuleApiScopeEntries();
 }
@@ -216,7 +238,12 @@ function listModuleAuditRecordTypes() {
 }
 
 function listModuleEventHooks() {
-  return listRegisteredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+  return registeredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+}
+
+/** @returns {ModuleEventHook[]} */
+function registeredModuleEventHooks() {
+  return listRegisteredModuleEventHooks();
 }
 
 function listModuleEventSummaries() {
@@ -352,7 +379,7 @@ function listModuleSettingsForWorkspaceType(workspaceType = "business") {
   const workspaceCapabilities = getWorkspaceCapabilities(workspaceType);
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
   const moduleDefinitions = listModules()
-    .map((rawModuleDefinition) => resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
+    .map((rawModuleDefinition) => resolveModuleTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
     .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools));
   const moduleStatusById = Object.fromEntries(moduleDefinitions.map((moduleDefinition) => [
     moduleDefinition.id,
@@ -506,6 +533,7 @@ ORDER BY module_id;
   return workspaceModuleContextCache.get(cacheKey).contextPromise;
 }
 
+/** @param {unknown | null} [workspaceId] */
 function invalidateWorkspaceModuleContext(workspaceId = null) {
   if (workspaceId === null) {
     workspaceModuleContextCache.clear();
@@ -525,7 +553,7 @@ async function loadWorkspaceModuleContext(workspaceId, rows) {
   }, {});
   const hasModuleRows = rows.length > 0;
   const modules = installedModules.map((rawModuleDefinition) => {
-    const moduleDefinition = resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceType);
+    const moduleDefinition = resolveModuleTerminology(rawModuleDefinition, workspaceType);
     const status = workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows);
 
     return {
@@ -688,6 +716,12 @@ async function ensureAllWorkspaceModuleRows() {
   }
 }
 
+/**
+ * @param {TransactionClient} database
+ * @param {unknown} workspaceId
+ * @param {ModuleManifest[]} modules
+ * @param {unknown} now
+ */
 async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
   for (const moduleDefinition of modules) {
     const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
@@ -703,6 +737,12 @@ async function syncWorkspaceModuleRows(database, workspaceId, modules, now) {
   }
 }
 
+/**
+ * @param {unknown} workspaceId
+ * @param {ModuleManifest[]} modules
+ * @param {unknown} now
+ * @param {TransactionClient} [database]
+ */
 async function repairRequiredWorkspaceModules(workspaceId, modules, now, database = db) {
   const requiredModuleIds = modules
     .filter((moduleDefinition) => moduleDefinition.canDisable === false)
@@ -892,9 +932,12 @@ function registerModuleEventHooks(options = {}) {
 
   moduleEventHookUnsubscribers = [];
 
-  for (const hook of listRegisteredModuleEventHooks()) {
+  for (const hook of registeredModuleEventHooks()) {
     moduleEventHookUnsubscribers.push(internalEventBus.on(hook.event, async (event) => {
       const moduleDefinition = getModule(hook.moduleId);
+      if (!moduleDefinition) {
+        return;
+      }
       await hook.handler({
         event,
         module: moduleDefinition,
@@ -1016,7 +1059,7 @@ async function listModuleSettingsNavigation(workspaceId, session = null) {
       continue;
     }
 
-    const resolvedModule = resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
+    const resolvedModule = resolveModuleTerminology(moduleDefinition, workspaceType);
 
     items.push({
       id: view.id,
@@ -1450,6 +1493,10 @@ function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
   };
 }
 
+/**
+ * @param {CatalogContribution} view
+ * @param {ModuleManifest | null} [moduleDefinition]
+ */
 function isModuleSettingsView(view, moduleDefinition = null) {
   if (String(view.id || "").endsWith("-settings") || String(view.path || "").endsWith("-settings.html")) {
     return true;

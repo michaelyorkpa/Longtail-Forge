@@ -1,3 +1,4 @@
+// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
@@ -15,6 +16,7 @@ function activateNotesRuntime() {
   catalogSecurityService.registerCatalogSecurityJobHandler();
 }
 
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const notesModule = {
   id: "notes",
   name: "Notes",
@@ -265,6 +267,7 @@ const notesModule = {
       dataSource: {
         route: "/api/notes",
         method: "GET",
+        recordsKey: "notes",
         fieldBindings: {
           id: "note_id",
           title: "title",

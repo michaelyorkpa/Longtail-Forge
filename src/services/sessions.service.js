@@ -1,3 +1,5 @@
+// @ts-check
+
 import { createHmac, randomBytes } from "node:crypto";
 import { internalEventBus } from "../core/events/event-bus.js";
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
@@ -7,8 +9,39 @@ import { AppError } from "../utils/app-error.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {import("../repositories/sessions.repo.js").StoredSession} StoredSession */
+/**
+ * @typedef {Object} SessionRevocationTargetUser
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string | null} home_workspace_id
+ */
+/**
+ * @typedef {Object} SessionRevocationInput
+ * @property {WorkspaceRequestSession | null} [actorSession]
+ * @property {string} [currentSessionId]
+ * @property {string} reason
+ * @property {SessionRevocationTargetUser} targetUser
+ * @property {string} [workspaceId]
+ */
+/**
+ * The preserved session is mandatory: callers that intend to revoke every
+ * session must use revokeAllForUser instead of weakening this exception.
+ *
+ * @typedef {SessionRevocationInput & { preservedSessionId: string }} RevokeAllForUserExceptInput
+ */
+/** @typedef {{ revokedCount: number }} SessionRevocationResult */
+/**
+ * @typedef {SessionRevocationInput & {
+ *   scope: "single" | "all" | "all_except_current" | "workspace"
+ * }} SessionRevocationContext
+ */
+
 const SESSION_REFERENCE_SECRET = randomBytes(32);
 
+/** @param {WorkspaceRequestSession} session @param {string} userId @param {string} [currentSessionId] */
 async function listManagedUserSessions(session, userId, currentSessionId = "") {
   const targetUser = await assertCanManageUserSessions(session, userId, "read");
   await sessionsRepository.removeExpired();
@@ -20,6 +53,7 @@ async function listManagedUserSessions(session, userId, currentSessionId = "") {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} userId @param {string} sessionReference @param {string} [currentSessionId] */
 async function revokeManagedSession(session, userId, sessionReference, currentSessionId = "") {
   const targetUser = await assertCanManageUserSessions(session, userId, "update");
   const normalizedReference = normalizeReference(sessionReference);
@@ -44,6 +78,7 @@ async function revokeManagedSession(session, userId, sessionReference, currentSe
   return { ok: true, revokedCount };
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} userId @param {string} [currentSessionId] */
 async function revokeManagedUserSessions(session, userId, currentSessionId = "") {
   const targetUser = await assertCanManageUserSessions(session, userId, "update");
   await sessionsRepository.removeExpired();
@@ -61,6 +96,7 @@ async function revokeManagedUserSessions(session, userId, currentSessionId = "")
   return { ok: true, revokedCount };
 }
 
+/** @param {SessionRevocationInput & { sessionId: string }} input @returns {Promise<SessionRevocationResult>} */
 async function revokeSessionById({ actorSession = null, currentSessionId = "", reason, sessionId, targetUser, workspaceId = "" }) {
   if (!sessionId) {
     return { revokedCount: 0 };
@@ -80,6 +116,7 @@ async function revokeSessionById({ actorSession = null, currentSessionId = "", r
   return { revokedCount };
 }
 
+/** @param {SessionRevocationInput} input @returns {Promise<SessionRevocationResult>} */
 async function revokeAllForUser({ actorSession = null, currentSessionId = "", reason, targetUser, workspaceId = "" }) {
   await sessionsRepository.removeExpired();
   const candidates = await sessionsRepository.listForUser(targetUser.user_id);
@@ -95,15 +132,16 @@ async function revokeAllForUser({ actorSession = null, currentSessionId = "", re
   return { revokedCount };
 }
 
-async function revokeAllForUserExcept({ actorSession = null, currentSessionId = "", excludedSessionId, reason, targetUser, workspaceId = "" }) {
-  if (!excludedSessionId) {
-    return revokeAllForUser({ actorSession, currentSessionId, reason, targetUser, workspaceId });
+/** @param {RevokeAllForUserExceptInput} input @returns {Promise<SessionRevocationResult>} */
+async function revokeAllForUserExcept({ actorSession = null, currentSessionId = "", preservedSessionId, reason, targetUser, workspaceId = "" }) {
+  if (!preservedSessionId) {
+    throw new AppError("The current session changed. Sign in and try again.", 409);
   }
 
   await sessionsRepository.removeExpired();
   const candidates = (await sessionsRepository.listForUser(targetUser.user_id))
-    .filter((row) => row.session_id !== excludedSessionId);
-  const revokedCount = await sessionsRepository.removeAllForUserExcept(targetUser.user_id, excludedSessionId);
+    .filter((row) => row.session_id !== preservedSessionId);
+  const revokedCount = await sessionsRepository.removeAllForUserExcept(targetUser.user_id, preservedSessionId);
   await recordRevocations(candidates.slice(0, revokedCount), {
     actorSession,
     currentSessionId,
@@ -115,6 +153,7 @@ async function revokeAllForUserExcept({ actorSession = null, currentSessionId = 
   return { revokedCount };
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} userId @param {string} operation */
 async function assertCanManageUserSessions(session, userId, operation) {
   await permissionsService.assertCan(session, "users.manage", {
     operation,
@@ -128,6 +167,7 @@ async function assertCanManageUserSessions(session, userId, operation) {
   return targetUser;
 }
 
+/** @param {StoredSession[]} revokedSessions @param {SessionRevocationContext} context */
 async function recordRevocations(revokedSessions, context) {
   if (!revokedSessions.length) {
     return;
@@ -173,6 +213,7 @@ async function recordRevocations(revokedSessions, context) {
   });
 }
 
+/** @param {StoredSession} row @param {string} currentSessionId */
 function toManagedSession(row, currentSessionId) {
   return {
     sessionReference: createSessionReference(row.session_id),
@@ -183,6 +224,7 @@ function toManagedSession(row, currentSessionId) {
   };
 }
 
+/** @param {SessionRevocationTargetUser & { display_name?: string | null }} user */
 function toTargetUser(user) {
   return {
     displayName: user.display_name || user.username,
@@ -191,6 +233,7 @@ function toTargetUser(user) {
   };
 }
 
+/** @param {string} sessionId */
 function createSessionReference(sessionId) {
   return createHmac("sha256", SESSION_REFERENCE_SECRET)
     .update(String(sessionId || ""))
@@ -198,6 +241,7 @@ function createSessionReference(sessionId) {
     .slice(0, 32);
 }
 
+/** @param {unknown} value */
 function normalizeReference(value) {
   const reference = String(value || "").trim();
   if (!/^[A-Za-z0-9_-]{32}$/.test(reference)) {
@@ -206,6 +250,7 @@ function normalizeReference(value) {
   return reference;
 }
 
+/** @param {unknown} value */
 function normalizeReason(value) {
   return String(value || "session_revoked")
     .trim()

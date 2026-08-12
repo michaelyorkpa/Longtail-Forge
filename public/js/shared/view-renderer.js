@@ -15,11 +15,12 @@
     return () => behaviors.delete(behaviorId);
   }
 
-  function renderSurface(descriptor = {}, host) {
+  function renderSurface(deliveredDescriptor = {}, host) {
     const view = requireViewPrimitives();
     if (!host || typeof host.appendChild !== "function") {
       throw new Error("View surface rendering requires a host element.");
     }
+    const descriptor = view.normalizeSurfaceDescriptor(deliveredDescriptor);
 
     clearHost(host);
 
@@ -1758,9 +1759,11 @@
 
   async function loadBoundRecords(descriptor, filterValues = {}) {
     const api = requireApiClient();
+    const responseRecords = requireViewResponseRecords();
     const route = appendFilterQuery(descriptor.dataSource.route, descriptor.filters, filterValues);
     const body = await api.getJson(route, { cache: "no-store" });
-    return extractRecords(body).map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
+    return responseRecords.read(body, descriptor.dataSource.recordsKey)
+      .map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
   }
 
   function appendFilterQuery(route, filters, filterValues) {
@@ -1786,28 +1789,6 @@
       return route;
     }
     return `${route}${route.includes("?") ? "&" : "?"}${params.join("&")}`;
-  }
-
-  function extractRecords(body) {
-    if (Array.isArray(body)) {
-      return body;
-    }
-
-    for (const key of ["records", "items", "data", "results", "rows", "tags", "lists", "tasks"]) {
-      if (Array.isArray(body?.[key])) {
-        return body[key];
-      }
-    }
-
-    if (body && typeof body === "object") {
-      const firstArray = Object.values(body).find((value) => Array.isArray(value));
-      if (Array.isArray(firstArray)) {
-        return firstArray;
-      }
-      return [body];
-    }
-
-    return [];
   }
 
   function bindRecord(record, fieldBindings) {
@@ -2060,6 +2041,7 @@
       "createInfoPanel",
       "createInlineActionRow",
       "createModalForm",
+      "normalizeSurfaceDescriptor",
       "createPageHeader",
       "createSplitListDetail",
     ]) {
@@ -2076,6 +2058,14 @@
       throw new Error("View surface data binding requires LongtailForge.api.getJson.");
     }
     return api;
+  }
+
+  function requireViewResponseRecords() {
+    const responseRecords = root.viewResponseRecords || {};
+    if (typeof responseRecords.read !== "function") {
+      throw new Error("View surface data binding requires LongtailForge.viewResponseRecords.read.");
+    }
+    return responseRecords;
   }
 
   root.view = Object.freeze({

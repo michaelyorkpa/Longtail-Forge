@@ -1,8 +1,832 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32 - TypeScript Seam Expansion
+
+Completed on 2026-08-12 at package release `0.33.32.45`. The branch expanded the checked program from its 22-file planning baseline to a clean, behavior-proven 150-file seam and advanced the live roadmap to `0.33.33`.
+
+**Model: High Effort** - The branch targeted high-value trusted seams; identity, permissions, database access, billing, and framework-wide browser contracts exposed live behavioral drift that was resolved with regression proof rather than suppressed.
+
+Purpose:
+
+Expand checked TypeScript-annotated JavaScript at seams Support Tickets and future modules will depend on, while preserving the 0.33.7.4 runtime and checking model. Coverage percentage is not the goal: a file earns opt-in when its contract catches meaningful drift or gives checked consumers useful guarantees.
+
+Audit evidence:
+
+- The 2026-08-06 read-only probe at 0.33.30.3 found 1,057 errors in 116 files and 206 included files already clean. A 2026-08-07 recount at the planning baseline found 22 first-party runtime/test JavaScript files carrying `// @ts-check`. Separately, `public/` remained 74 JavaScript files and about 53k lines outside the typecheck program.
+- The original eleven-slice draft was not session-safe. Its Time Tracking slice combined four defect investigations across roughly 3,700 lines; its implementation-closure slice crossed Search, resume state, jobs, and events; its clean-file slice proposed about 200 files at once; and its client slices combined 1,700-2,100-line files with framework behavior changes.
+- The checked contracts identified high-value drift, including Search indexers destructuring camelCase from a snake_case `SearchReference` and auth/session consumers inferring different shapes for the same trusted identity.
+- `--noImplicitAny` remained off because enabling it would add broad annotation work without comparable near-term contract value.
+
+Decision:
+
+- Preserve the 0.33.7.4 regime: `strict` on, `noImplicitAny` off, `checkJs` per-file opt-in, no `@ts-nocheck` or `@ts-ignore`, no runtime `.ts` imports, and no compile/build step in `npm start`. Zod remains the untrusted-edge validator.
+- Put the coverage inventory and monotonic opted-in floor first so every later slice extends one standing guardrail. Do not mass-add pragmas merely to reach a percentage target.
+- When checking exposes possible runtime drift, the owning slice reproduces the named behavior before changing it. Checker findings do not authorize unrelated cleanup or silent behavior changes.
+- Dual-cased or dual-typed shapes remain honestly represented until a separately proven runtime change removes compatibility.
+- Treat parsed JSON as untrusted: `readJsonBody()` returns `unknown`, and checked consumers narrow through an existing schema or an explicit shape guard before property access.
+- Consciously defer whole-file checking of the giant declarative view runtimes, but protect their Support Tickets-critical descriptor fields with checked boundary adapters.
+
+Delivery and sizing rule:
+
+- Every numbered slice had one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
+- A slice could type one large file, one small cohesive cluster, or adjudicate one behavior risk. It did not absorb another listed slice because nearby checker errors looked convenient.
+- Slice 1 preceded all others; slice 2 preceded slices 2.1 and 16-17; slice 3 preceded slices 4-7; slice 8 preceded slices 9-10; slice 11 preceded slice 12; slices 13 and 17 preceded slice 23; slice 19 preceded slices 20-24 and 30; slice 21 preceded slices 22 and 24; slice 24 cleared the immediate promotion/deployment blocker; slice 44 followed the corrective and checked-seam passes; and slice 45 closed the branch.
+
+Final boundary:
+
+- The closing configured program is clean at 150 files. The dated strict probes retain 864 server/test errors across 90 files and 11,134 public-browser errors across 69 files as future-work routing evidence, not production coverage.
+- Whole-file Notes, Lists, Tasks, Clients/Projects, Files-service, giant browser-controller, broad test, framework-interior, and Jobs-payload hardening remains explicitly deferred in `TODO.md`.
+- No global `checkJs`/`noImplicitAny` flip, runtime `.ts` conversion, build step, speculative schema, broad test rewrite, or giant page-controller conversion was introduced.
+- `src/routes/private-feeds.routes.js` was explicitly claimed by slice 37 and remains excluded from generic bounded route passes. The branch retained module and framework ownership boundaries throughout.
+
+Completion-review evidence:
+
+- The 2026-08-11 independent review's permission-restricted descriptor blocker was reproduced and fixed in slice 24, with delivered descriptor mutation plus restricted desktop/mobile and unchanged super-admin proof.
+- Auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge/timezone semantics, browser error handling, Search parser/session contracts, backup portability, remaining checked services/routes/repositories/cores, and annotation honesty each retained a named slice and executable owner.
+- The final slice-45 audit verifies all 47 numbered slices exactly once, the reproduce-first ledger, zero checked-program errors, the refreshed residual totals, every explicit deferral, generated regression inventory, and the 0.33.33 handoff.
+
+## Version 0.33.32.45 - Branch completion audit and archive handoff
+
+Completed on 2026-08-12. The complete TypeScript seam-expansion plan is archived, all completion-review findings and intentional deferrals have one owner, and the active roadmap advances to `0.33.33`.
+
+**Model: High Effort** - Final closeout reconciled a previously integrated branch, independent-review findings, protected verification, version records, and the next cursor.
+
+- [x] Re-ran the independent-review matrix over slices 1-44: suppressions/runtime TS imports, checked floor, raw/delivered descriptors, restricted-role browser paths, behavior ledger, residual probes, backup shells, permissions, and release gates.
+- [x] Made reproduce-before-fix auditable for every runtime correction through archived pre-fix commands/output or an inspectable baseline/fix commit pair; the release gate rejects a correction supported only by post-fix green proof.
+- [x] Confirmed no finding was lost, duplicated, or closed only by source matching; every intentional deferral remains explicit in `TODO.md`.
+- [x] Completed version/changelog/decisions/owning docs/generated inventories/runtime identity and the canonical plus exceptional verification matrix.
+- [x] Published through the protected pull-request workflow and required exact-head merge plus exact-SHA Nightly integration before treating the branch as complete.
+- [x] Moved the complete 0.33.32 plan to this archive, advanced the cursor to `0.33.33`, and aligned package and running identity.
+
+Acceptance criteria:
+
+- [x] Every accepted review item is executable-proof complete, no type-contract honesty debt is unrecorded, exact-SHA Nightly proof is green, and 0.33.32 is archived with 0.33.33 active.
+
+Closeout notes:
+
+- The checked program is green at the exact 150-file floor. The refreshed strict server/test probe reports 864 errors across 90 files: 670 production, 192 test-only, and 2 scripts. The refreshed public-browser probe remains 11,134 errors across 69 files. `scripts/typecheck-honesty-inventory.json` and `TODO.md` agree on these dated routing results.
+- `release.typescript-seam-branch-closeout` composes the registered typecheck, descriptor, permissions, session-revocation, job-worker, Time Tracking, browser-error, backup, Search, and Work Resume behavior owners. It requires all 47 numbered slices once, checked acceptance, the archived branch contract, and the 0.33.33 live handoff.
+- Reproduce-first ledger: slice 4 compares baseline `9c548459` with fix merge `5be99809` for hours-only public API duration; slice 5 compares `5be99809` with `6a552494` for boolean `billable: false`; slice 6 compares `6a552494` with `625d5874` for contradictory missing-timer duration; slice 7 compares `625d5874` with `319c0acf` for the Los Angeles month boundary; and slice 13 compares `6e30f672` with `1c70cbf1` for the Search reference casing mismatch. Their archived slice records name the failing inputs and their registered Time Tracking/Search owners execute the corrected outcomes.
+- Completion-review correction ledger: baseline `077f9c8f` contains the delivered `primaryAction: null` mismatch and fix merge `49af0cc4` omits that unavailable action; baseline `49af0cc4` shows missing exception identity falling back to `revokeAllForUser`, while fix merge `012152ed` fails closed and preserves one named session; baseline `012152ed` dereferences arbitrary shutdown rejection `.message`, so `null` raises a `TypeError`, while fix merge `bfe5871d` executes the non-Error matrix; baseline `a47b2e2c` lacks the sourced timer Zod/boolean edge fixed by `94f18a2f`; and baseline `94f18a2f` reaches unsupported billing timezone data before fix merge `a361c0ed` applies the canonical fallback.
+- Browser/backup/Work Resume ledger: baseline `a361c0ed` retains `error.code = ""` and blank request-ID fallback assignments, while fix merge `8422f95b` makes missing/reversed parser order fail visibly and preserves the normal envelope; baseline `f61dd417` passes the absolute Windows drive-letter archive operand to tar, while fix merge `ee2517ba` proves supported Windows and GNU/Linux shells; and the archived 0.33.32.38.1 closeout retains the exact pre-fix compiler command/output plus temporary-trigger proof for post-dismiss disappearance before fix merge `d07c81cb`.
+- The restricted Clients/Projects Playwright spec remains untagged so both configured `desktop` and `mobile` Chromium projects execute the unavailable-action and unchanged-super-admin journeys.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, runtime configuration, deployment topology, database schema/migrations, public API behavior, and module workflows are unchanged; this slice closes and proves the existing branch contracts.
+
+## Version 0.33.32.38.1 - Work Resume route persistence-result boundary
+
+Completed on 2026-08-12 as package release `0.33.32.44.1`, preserving monotonic Nightly identity after slices 39-44 had already been completed out of numeric order. The active roadmap cursor advances to `0.33.32.45`.
+
+**Model: High Effort** - The post-dismiss route response crosses workspace/user scoping and a nullable persistence read, so its result contract must be resolved without a cast or guessed lifecycle behavior.
+
+- [x] Reproduced the checked `work-resume.routes.js` failure where the dismiss service's post-update `readById()` result remained nullable and its declared projection omitted the response's `resume_state_id` field.
+- [x] Encoded an honest non-null dismissal result with an exact persistence projection and an explicit existing-404 outcome when the scoped row disappears between update and reread; no assertion cast was added.
+- [x] Checked the Work Resume route against the shared active-workspace request/session/response boundary and named list/item response projections while preserving query aliases, dual-cased inputs, ranking, actions, empty state, and dismiss output.
+- [x] Retained focused Work Resume lifecycle, permission, API, concurrency/result, and checked-seam regressions without schema changes or route-owned module policy.
+
+Acceptance criteria:
+
+- [x] The checked Work Resume route consumes an honest non-null dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
+
+Closeout notes:
+
+- Reproduce-first proof: `node node_modules/typescript/bin/tsc --ignoreConfig --allowJs --checkJs --noEmit --strict --noImplicitAny false --skipLibCheck --types node --module nodenext --moduleResolution nodenext --target es2023 src/routes/work-resume.routes.js` failed before the fix with `TS18047` twice for the nullable dismiss result and `TS2339` for the missing `resume_state_id` projection.
+- `dismissResumeState()` now returns an exact five-field `ResumeStateDismissResult`. Both the pre-update missing row and a post-update disappearance return the established `Resume state was not found.` 404; workspace and user predicates remain on every read and update.
+- The route now uses the defensive `workspaceAsyncRoute` adapter, narrows unknown list rows through an object guard, and retains the established camelCase response, query aliases, empty state, ranking hint, metadata, and primary action fields.
+- A temporary SQLite trigger reproduces disappearance after the scoped dismissal update. The service and API regressions pass, and the checked-seam guard records the one-file `38.1` ownership pass without checker suppression or assertion casts.
+- The configured program is green at the 150-file floor. The strict server/test residual probe is now 864 errors across 90 files: 670 production, 192 test-only, and 2 script errors; the Work Resume route contributes zero residuals and the remaining route owner contributes 26.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, Workbench workflow, database schema/migrations, permissions, runtime configuration, deployment, and public API behavior are unchanged.
+
+## Version 0.33.32.44 - Checked-program honesty and residual inventory
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The checked program remains clean at the honest 149-file floor, while strict source/test and browser probes now publish exact residuals and future owners instead of treating a pragma or percentage as completion. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - The branch must distinguish meaningful contracts from pragma-only or `any`-terminated coverage without making percentage the goal.
+
+- [x] Re-ran source/test probes after slices 24-43 and published exact residuals by owner, including checked files ending in `any`, wildcard parameters, double casts, and exported service boundaries.
+- [x] Removed the named production honesty debt: billing/time-entry/task-timer exports now have callable contracts, permission-assignment wildcards and double casts remain absent, session types terminate in `RequestSession`, and module catalog projections no longer rely on assertion-only casts.
+- [x] Replaced `modules.service.js`'s `CatalogContribution`/`ModuleEventHook` `Record<string, any>` intersections with explicit catalog, API-scope, resource, event-type, and event-hook vocabulary suitable for future Support Tickets contributions.
+- [x] Removed open index signatures from `PermissionResource` and `ActiveApiKey`; compile fixtures require misspelled permission/API-key fields to fail excess-property checking.
+- [x] Recorded the remaining 192 strict test-only errors as non-production test hardening instead of converting an arbitrary e2e tier or inflating production coverage.
+- [x] Aligned the checked inventory, guardrail fixtures, owner docs, and decisions with exact achieved coverage and remaining owner-scoped work.
+
+Acceptance criteria:
+
+- [x] Claimed production seams enforce their contracts, inventories match reality, and every remaining probe error has an explicit future owner without weaker checking dials.
+
+Closeout notes:
+
+- Reproduce-first proof recorded 867 strict server/test errors across 91 files: 673 production, 192 test-only, and 2 script errors. The largest module owners are Notes (208), Tasks (123), Lists (118), Time Tracking (11), and Clients/Projects (31); framework/core, route, service, database, and developer-example residuals retain their named owners in `scripts/typecheck-honesty-inventory.json`.
+- The separate strict browser probe recorded 11,134 errors across 69 files. The deferred client-hardening branch owns that work after a checked element-lookup helper; this slice claims no coverage credit for it.
+- The configured server/browser programs remain green at 149 checked files. Nine checked implementation files retain explicitly inventoried `any` terminals, and the framework declaration retains two Jobs payload terminals; each now has a future framework/module or Jobs payload-schema owner.
+- `PermissionResource` and `ActiveApiKey` are closed contracts with positive and misspelled-field compile fixtures. Files and Tasks Zod edge helpers now preserve schema-specific output, matching Time Tracking's settled contract.
+- Module catalog and hook projections use explicit contribution vocabulary, live hook sessions use `RequestSession`, and exported billing, time-entry, and task-timer service objects have checked callable contracts. No runtime workflow, permission decision, schema, API, or UI behavior changed.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, module workflows, runtime configuration, deployment, database schema/migrations, and public API behavior are unchanged.
+- No docs change needed: Tasks, Files, and Time Tracking runtime behavior is unchanged; this slice only tightens their existing checked service and parser contracts.
+
+## Version 0.33.32.43 - Migration-runner checked boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The framework migration runner now checks against explicit source, file, repair, database-row, applied-migration, callback, filesystem-error, and rollback-error contracts at the 149-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Migration ordering, locking, checksums, baselines, and transactions are database-integrity contracts.
+
+- [x] Checked `src/db/migrations.js` against explicit migration-file, version, lock, checksum, adapter, transaction, and result contracts.
+- [x] Narrowed filesystem and database state without editing applied migrations, changing checksums, or adding schema for checker satisfaction.
+- [x] Retained fresh/repeat startup, adoption, contention, checksum mismatch, rollback, snapshot, foreign-key, and integrity proof.
+
+Acceptance criteria:
+
+- [x] Migration runner typechecks and every ordering, lock, checksum, rollback, and schema-integrity behavior remains unchanged.
+
+Closeout notes:
+
+- Reproduce-first checking exposed seven errors: three nullable/unknown SQL-text reads, one filesystem error-code read, one baseline checksum read, one generic database-column comparison, and one rollback-error annotation. The pre-fix failing output was recorded before the boundary was narrowed.
+- Named migration-source/file, repair, applied-row, rollback annotation, callback, checksum, and result contracts cover the runner; generic query values are narrowed once through `readTextColumn`, and caught filesystem failures use a guarded error-code check.
+- The runner still acquires the migration lock before baseline/repair/migration work, sorts by version then module ID, filters and sorts SQL files, validates checksums before applying pending versions, owns explicit begin/commit/rollback, and restores foreign-key enforcement after parent rebuilds.
+- No applied migration or schema snapshot changed. The focused guard rejects checker suppressions and freezes ordering, checksum, transaction, rollback, foreign-key, and bound-recording structure.
+- Focused proof covered the 149-file typecheck boundary, fresh/repeat startup, baseline adoption, lock contention, compatibility and checksum mismatch, generated schema drift, foreign-key enforcement, rollback ownership, and SQLite integrity before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, schema contents, applied migrations, runtime configuration, deployment, permissions, and public API behavior are unchanged.
+
+## Version 0.33.32.42 - Markdown checked core boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The shared Markdown renderer now checks against explicit parser, renderer, token, preference, link, environment, and safe-output contracts at the 148-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Shared Markdown rendering is a content-safety boundary consumed by Notes, Help, Files preview, and future Support Tickets.
+
+- [x] Checked `src/core/markdown/markdown.service.js` with explicit renderer, token, link, preference, and sanitized output contracts.
+- [x] Preserved HTML policy, safe schemes, link preferences, current integrations, empty/error behavior, and protected-data safety.
+
+Acceptance criteria:
+
+- [x] Shared Markdown is checked and produces the same safe output across current consumers.
+
+Closeout notes:
+
+- Reproduce-first checking exposed only Markdown-it's nullable token-attribute collection and `string | number` attribute values; the service now reads link attributes through the library accessor and null-safely removes an unsafe destination without changing reachable output.
+- Public input and URL helpers accept `unknown` and normalize at the established string boundary; parser preferences retain document/user-authored modes, the soft-line alias, and explicit image opt-in.
+- Named parser, renderer, inline-state, token, environment, preference, render-mode, and safe-HTML contracts cover the complete core without checker suppression, explicit `any`, assertion chains, runtime TypeScript, or a boot-path change.
+- `framework.markdown-checked-core` freezes checked ownership and the exact CommonMark, table, strikethrough exclusion, URL scheme, image, render-mode, underline-token, and task-list policies. Existing renderer, platform, Notes preference/soft-line, closeout, Help, Files preview, and cross-role content-safety regressions retain executable output and integration ownership.
+- The slice also makes the preceding password/startup guard's checked-floor assertion monotonic so later checked seams do not require rewriting a completed slice's behavior proof.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/markdown-platform-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and Markdown syntax, editable-content safety policy/sink inventory, Notes/Help/Files workflows, permissions, stored source, schema/migrations, runtime configuration, and deployment are unchanged.
+
+## Version 0.33.32.41 - Password and application-startup checked core
+
+Completed on 2026-08-12 out of numeric order at the operator's request. Password hashing and application startup/shutdown now check against explicit security and lifecycle contracts at the 147-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Password primitives and startup/shutdown orchestration are security- and availability-critical framework boundaries.
+
+- [x] Checked `src/security/passwords.js` against explicit hash, verification, rehash, policy, and unknown-error contracts without algorithm, parameter, dummy-hash, or timing changes.
+- [x] Checked `src/core/app.js` against explicit HTTP server, startup-phase, worker lifecycle, database close, signal, timer, queue-result, and unknown-error contracts.
+- [x] Preserved middleware/router order, readiness timing, startup jobs, graceful shutdown, safe logging, and exit behavior; slice 26 remains the worker rejection authority.
+
+Acceptance criteria:
+
+- [x] Password/app lifecycle core typechecks without suppression and credential/startup/readiness/shutdown behavior remains green.
+
+Closeout notes:
+
+- Reproduce-first checking exposed nullable decoded hashes, optional encoded parameters, an inferred rehash-reason literal, unknown caught failures, logger arity, and startup queue-result narrowing; the fixes make those existing branches explicit without changing runtime policy.
+- Password parsing is a discriminated Argon2/PBKDF2 union, decoded buffers are proven present before length checks, and verification retains the current policy parameters, dummy hash, asynchronous derivation, and timing-safe comparison.
+- Application startup names its HTTP server, startup-phase events, signals, and queue result variants, and narrows unknown failures through safe helpers while retaining the established startup, readiness, middleware, worker, shutdown, and exit order.
+- `framework.password-startup-checked-core` freezes checked ownership, password security parameters, unknown-error handling, middleware order, startup order, and graceful shutdown order; existing password, operational-security, startup-maintenance, worker-rejection, S3 registration, and Express HTTP regressions retain executable behavior ownership.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, HTTP error/request-correlation behavior, operational-security procedures, runtime configuration, deployment, password policy, and startup/shutdown behavior are unchanged.
+
+## Version 0.33.32.40 - Bounded framework repository passes
+
+Completed on 2026-08-12 out of numeric order at the operator's request. All 18 framework repositories are now checked; the final 12 are recorded as exact credential/session, permission/audit/activity, and workspace-lifecycle passes at the 145-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Repository annotations can expose nullable-row and binding drift across security, permissions, audit, notifications, tags, sessions, and workspace lifecycle.
+
+- [x] Recounted the 12 unchecked `src/repositories/*.js` files and recorded exact sorted, non-overlapping passes of 3 credential/session, 4 permission/audit/activity, and 5 workspace-lifecycle repositories.
+- [x] Added named row projections over the slice-27 unknown-valued base, explicit nullable reads and named inputs/bindings, plus callback-scoped `TransactionClient` authority where atomic helpers participate in existing transactions.
+- [x] Recorded the pre-fix checker failures for unknown query fields, nullable/count projections, support-session parameter bags, opaque run results, and workspace-purge lifecycle rows; no SQL, schema, uniqueness, scope, permission, or lifecycle behavior change was required.
+- [x] Added the `database.repository-checked-passes` guardrail and retained repository-signature, fresh-database, 409-check permission, workspace final-purge, and SQLite integrity proof.
+
+Acceptance criteria:
+
+- [x] Recorded repository tiers typecheck with explicit rows/nullability and no unproven SQL, scope, or lifecycle behavior change.
+
+Closeout notes:
+
+- `scripts/typecheck-repository-passes.json` is the reviewable owner inventory; all paths are unique, sorted within each pass, checked, and present in the monotonic seam inventory.
+- Notification and Tags row mappers narrow selected database rows at their existing application-value boundaries; API key, session, Support View, audit, permission, Settings, membership, backup, deletion, and purge repositories expose their nullable and transaction shapes directly.
+- The new guard rejects checker suppressions, double assertions, missing named projections, schema DDL, pass overlap, and inventory drift.
+- Focused proof covered repository signatures, clean database creation, all 409 permission checks, final workspace purge, and SQLite integrity before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, permission grants, database schema/migrations, SQL behavior, runtime configuration, deployment, and public API behavior are unchanged.
+
+## Version 0.33.32.39 - Files route checked boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The complete Files route surface now checks against explicit workspace, raw-body, multipart, streaming-response, and partial-result contracts at the 133-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - The largest uncovered route owns uploads, downloads, previews, lifecycle actions, scanner state, storage safety, and file permissions.
+
+- [x] Check `files.routes.js` against existing Files Zod, session, permission, upload, attachment, preview, download, scan, storage, and response contracts.
+- [x] Narrow multipart/route values at the real edge without duplicating service policy or exposing storage keys, paths, hashes, scanner internals, signed URLs, or hidden labels.
+- [x] Retain staged delete/restore, quarantine/report, partial success, attachment scope, download-only behavior, and direct-static-download prohibition.
+
+Acceptance criteria:
+
+- [x] Every Files route handler is checked and preserves existing Files security, lifecycle, permission, and response contracts.
+
+Closeout notes:
+
+- The route uses the checked active-workspace adapter, keeps schema-owned JSON untrusted until the Files service parses it, and rejects non-object settings/report/quarantine bodies through the shared fixed-safe edge.
+- Request and response structural contracts now cover multipart input plus authenticated download/preview streaming; multipart state and ordered success/failure entries are explicit without checker suppression or assertion casts.
+- Batch partial success retains HTTP `207` and reviewed `AppError` copy, while arbitrary thrown values collapse to bounded safe copy before reaching the client.
+- Service ownership remains unchanged for permissions, target validation, quotas, storage, scanning, lifecycle, audit, and valid response shaping; no schema, workflow, static download, or signed-URL behavior was added.
+- The version guard and shared closeout-regression cursor floor now admit this explicitly documented reordered closeout while rejecting an undocumented lower cursor or a completed current-version section left in the live roadmap.
+- Focused proof covered the 40 Files contract tests, 17 lifecycle checks, single and batch multipart transport, preview streaming, download metadata, and the 133-file checked-seam floor before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/files-strict-guardrail-inventory.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/versioning.md`.
+- No docs change needed: user-facing Help and Files workflows, permissions, storage/scanner setup, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+## Version 0.33.32.38 - Bounded framework route and error-middleware passes
+
+Completed on 2026-08-11. Three exact framework route tiers now check 20 sub-150-line adapters plus the final error middleware against shared structural HTTP contracts, and the active roadmap advances to `0.33.32.38.1` for the Work Resume persistence-result boundary exposed by this pass.
+
+**Model: High Effort** - Thin route adapters are mechanically similar, but collectively expose authentication, validation, response, and error boundaries.
+
+- [x] Recounted 23 unchecked sub-150-line routes; excluded Search's index route and the large module-owned Users adapter, then stopped at Work Resume's non-mechanical nullable result, leaving 20 framework adapters in three exact ownership tiers of 5 public/operational, 7 protected administration, and 8 protected work-surface routes.
+- [x] Added structural request, response, next, and async-handler contracts plus defensive authenticated, active-workspace, and API-key refinements without changing route mounts, middleware order, or service authority.
+- [x] Deepened the checked authentication and API-key middleware response/next boundaries and checked the final error middleware's unknown thrown values, headers-already-sent delegation, request correlation, safe production messages/diagnostics, and API/browser classification.
+- [x] Added the minimum shared object-body guard for existing open-object routes so JSON `null`, arrays, and scalars receive a fixed safe 400 while valid objects still reach service-owned policy unchanged.
+- [x] Created slice `0.33.32.38.1` rather than casting over Work Resume's nullable post-dismiss persistence/result mismatch; Search, private feeds, Files, the large Users adapter, and Work Resume remain outside the generic pass.
+- [x] Raised the checked inventory floor from 111 to 132 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help and module workflows, valid route payloads/responses, permissions, schema/migrations, runtime configuration, deployment, and public API fields are unchanged.
+
+Acceptance criteria:
+
+- Recorded thin-route tiers and final error middleware typecheck without suppression or HTTP behavior drift.
+
+## Version 0.33.32.37 - Private calendar-feed service and route trust boundary
+
+Completed on 2026-08-11. The complete framework-owned private calendar-feed service and route edge now consumes explicit bearer, scope, provider, repository, permission-session, request, and response contracts, and the active roadmap advances to `0.33.32.38` for bounded framework route and error-middleware passes.
+
+**Model: High Effort** - An unauthenticated token-in-URL calendar surface combines bearer credentials, task visibility, recurrence, and serialization.
+
+- [x] Checked `private-feeds.service.js` and `private-feeds.routes.js` against explicit token, feed-scope, task-calendar, request, response, provider-dispatch, and repository-row contracts; raised the checked inventory floor from 109 to 111 files.
+- [x] Reconciled the promoted scope by amending the branch non-goal, removing `src/routes/private-feeds.routes.js` from `RESERVED_CLEAN_FILE_PATHS`, claiming both edge files in the complete checked inventory, and confirming the former TODO deferral remains absent.
+- [x] Preserved generic invalid/revoked/expired behavior, constant-time hash comparison, token secrecy, workspace/module/status filtering, recurrence bounds, timezone formatting, escaping, cache headers, throttling, and audit/security behavior.
+- [x] Retained executable proof that malformed, unknown, rotated, revoked, and inaccessible requests share the exact safe response and cannot expose bearer, task, workspace, or user details.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help/Calendar workflow, role grants, RFC 5545 content, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- The complete public feed edge is checked without weakening bearer-token secrecy or valid calendar output.
+
+## Version 0.33.32.36 - Search-index rebuild checked service
+
+Completed on 2026-08-11. Search rebuild now consumes explicit active-declaration and canonical indexer-reference contracts and returns a named progress/result summary, while the active roadmap advances to `0.33.32.37` for the private calendar-feed trust boundary.
+
+**Model: High Effort** - Rebuild mutates a workspace-wide recovery index and must preserve module eligibility, permissions, batching, and stale cleanup.
+
+- [x] Checked `search-index-rebuild.service.js` against the slice-13/23 active declaration, camelCase reference, durable-job progress, failure, and result contracts; raised the checked inventory floor from 108 to 109 files.
+- [x] Made active searchable-type normalization an explicit checked producer and narrowed generic database rows, registered-indexer results, and unknown failures at the rebuild boundary without adding a checker escape.
+- [x] Retained app/workspace/module and dry-run rebuilds, disabled-module filtering, idempotent upserts, stale/inactive row removal, job failure recovery, backend FTS repair and indexed-LIKE fallback, audit summaries, and workspace isolation.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help/Search behavior, module declarations, permissions, routes and HTTP responses, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Search rebuild consumes canonical checked Search contracts and produces the same permission-safe index.
+
+## Version 0.33.32.35 - Help and static-delivery checked services
+
+Completed on 2026-08-11. Help/static delivery now consumes one explicit read-only contract family, the exact ownership tier is recorded as bounded pass `18.1`, and the active roadmap advances to `0.33.32.36` for the Search-index rebuild checked service.
+
+**Model: Medium Effort** - These are cohesive read/delivery services with low mutation risk, but protected paths and contribution filtering remain exact security contracts.
+
+- [x] Checked `help.service.js` and `static.service.js` as one read-only tier with explicit Help contribution, protected-page, asset, response, and nullable lookup shapes.
+- [x] Reproduced the checker baseline across unknown filesystem errors, nullable section/view/path resolution, recursive Help navigation, static Buffer/string responses, and theme workspace identity, then narrowed those shapes without changing runtime decisions.
+- [x] Preserved module/permission/capability filtering, safe local Help resolution, public/protected separation, content safety, protected-page caching, asset decoration, generic not-found behavior, and first-paint theme injection.
+- [x] Recorded the exact two-file `framework-read-delivery-services` tier as bounded pass `18.1`, raised the checked inventory floor from 106 to 108 files, and retained the separately scoped private-feed reservation.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help content, module manifests, permissions, routes, HTTP error envelopes, UI/workflows, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Help/static delivery typechecks without changing visible content, eligibility, protected paths, or asset resolution.
+
+## Version 0.33.32.34 - Users service checked boundary
+
+Completed on 2026-08-11. The Users service now consumes named identity, profile, membership, workspace, lifecycle-context, module-setting, and response contracts, and the active roadmap advances to `0.33.32.35` for the Help/static-delivery checked-services pass.
+
+**Model: High Effort** - Users service owns identity lifecycle, workspace membership, role assignment, and credential-adjacent state.
+
+- [x] Checked `src/services/users.service.js` with explicit input, authenticated-workspace session, nullable-row, membership, owner-transfer, workspace-creation, module-setting, and response projections.
+- [x] Reproduced the pre-fix checker failures with `npm run typecheck`: the last-membership identity row remained nullable at session revocation, user-settings audit names inferred as `never[]`, and unchecked workspace repository rows erased workspace IDs to `unknown`.
+- [x] Narrowed the nullable identity before revocation, added explicit settings metadata and internal collection types, and exposed named membership/workspace projections at the existing repository boundary without changing SQL or lifecycle ordering.
+- [x] Retained create/update/deactivate/reactivate/remove/retire, protected-user/public-demo, password reset/session revocation, owner-transfer, workspace-switch/fallback, role assignment, audit/security-event, and workspace-creation behavior through the checked guardrail and all 409 permission checks.
+- [x] Raised the checked inventory floor from 105 to 106 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, permission grants, Users/Settings UI and workflow, workspace lifecycle policy, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Users service consumes named contracts without suppressions and the identity/membership/role permission matrix is unchanged.
+
+## Version 0.33.32.33 - Support View checked service boundary
+
+Completed on 2026-08-11. Support View's service, repository projections, and request-session identity are checked as one actor/effective-identity boundary, and the active roadmap advances to `0.33.32.34` for the Users service checked boundary.
+
+**Model: High Effort** - Support View changes effective identity and intersects permissions, making its untyped service the highest-risk uncovered mid-tier seam.
+
+- [x] Checked `src/services/support-view.service.js` against explicit operator, target-user, support-session, workspace, event/audit, session-rotation, and effective-permission contracts.
+- [x] Replaced the permissive refinement interface with a normal-or-Support-View request-session union; the central request gate now narrows through `support_view` and no longer assertion-casts effective identity.
+- [x] Added named nullable eligibility/session/audit row projections and callback-scoped transaction contracts, with explicit control-flow narrowing before actor restoration or target use.
+- [x] Retained start/end/expiry, invalidation, generic 403/404 denial, action/security attribution, audit/export, proxy, and public-demo behavior through both focused Support View regressions and all 409 permission checks.
+- [x] Raised the checked inventory floor from 104 to 105 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, permission grants, Support View UI/workflow, operational security procedures, public-demo policy, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Support View identity lifecycle is checked end to end and every authorization, privacy, expiry, and audit invariant remains green.
+
+## Version 0.33.32.32 - Cross-shell backup-drill archive operands
+
+Completed on 2026-08-11. The destructive restore drill now shares the production local-archive command boundary, its internal staging directory is also shell-portable, and the active roadmap advances to `0.33.32.33` for the Support View checked service boundary.
+
+**Model: Medium Effort** - This is a contained release-tooling portability fix following an already proven production archive pattern.
+
+- [x] Reproduced Git Bash/GNU tar treating the absolute Windows drive-letter archive as a remote-shell operand, then reproduced the nested absolute `-C` staging path failure after the first archive-operand correction.
+- [x] Reused the settled production basename/working-directory archive command and supplied the internal staging directory as a relative forward-slash operand.
+- [x] Proved the complete destructive drill under PowerShell/Windows tar and Git Bash/GNU tar locally; the protected pull-request workflow supplies the independent Linux run.
+- [x] Retained the archive root and format plus traversal, checksum, manifest, database-and-Files, Secure Notes prerequisite, readiness, rejection, rollback, and restored-integrity checks.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/backup-restore.md`, `docs/regression-suite.md`. No docs change needed: the operator entry point, production backup/restore commands, workspace backup behavior, database schema/migrations, public API, permissions, deployment, runtime configuration, and user-facing Help are unchanged.
+
+Acceptance criteria:
+
+- `npm run backup:drill` succeeds from supported Windows shells and Linux without weakening archive validation.
+
+## Version 0.33.32.31 - Search parser provenance and session deepening
+
+Completed on 2026-08-11. Search query parsing now names and enforces its application-owned Express provenance, permission-safe composition carries the shared session shape through the service boundary, and the active roadmap advances to `0.33.32.32` for cross-shell backup-drill archive operands.
+
+**Model: High Effort** - Search query and session shapes participate in authorization; their assumptions must be explicit at the Express edge and service boundary.
+
+- [x] Documented at the Search route's `isPlainObject` guard that repeated arrays and bracketed nested objects come from `createApp()`'s Express `extended` parser, and pinned that exact setting inside the live Search API regression.
+- [x] Replaced the permission-safe composers' session and searchable-declaration `any` boundaries with the shared nullable request session, an active-workspace refinement, and the validated Search contribution contract; named filter-presence flags replaced the open `any` catch-all.
+- [x] Gave `normalizeSearchRecordReference` an explicit required camelCase result contract while retaining the established snake_case adapter/result aliases.
+- [x] Added checked guardrails plus runtime producer proof for canonical identity and compatibility aliases; the first-party indexer callback remains camelCase-only.
+- [x] Retained scalar, repeated, nested, bounded-cursor, ranking, active-module, workspace, and permission-pruning behavior through the existing live Search route and contract regressions.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, HTTP error envelopes, operational security procedures, public API behavior, database schema/migrations, deployment, and module-owned Search behavior are unchanged.
+
+Acceptance criteria:
+
+- Parser mode and Search query guards form one enforced contract and Search session typing reaches the service boundary without `any`.
+
+## Version 0.33.32.30 - Shared browser API failure fallback
+
+Completed on 2026-08-11. The shared API client now fails visibly when its canonical error parser is unavailable, normal envelopes retain safe diagnostic identity, and the active roadmap advances to `0.33.32.31` for Search parser provenance and session deepening.
+
+**Model: Medium Effort** - The shared fallback is small and well specified, but it must fail visibly when its canonical error parser is unavailable.
+
+- [x] Chose fail-fast ownership instead of retaining a second parser: `api-client.js` captures `error-contract.js` during initialization and throws fixed safe copy before installing the API client when the parser is missing.
+- [x] Removed the partial standalone error construction that forced `code` and `requestId` to empty strings; no fallback reads response-envelope fields or exposes raw server details.
+- [x] Extended the checked browser guardrail to require the fail-fast dependency and reject fallback field assignments while retaining sole parser ownership in `error-contract.js`.
+- [x] Added executable missing/reversed-order and normal-order proof. Missing infrastructure fails before a request or API installation; normal errors retain message, code, request ID, status, parsed safe body, and method.
+- [x] Retained the framework preamble's parser-before-page-assets contract without runtime imports, modules, bundling, whole-file page conversion, or error-envelope behavior changes.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, operational-security procedures, public API contracts, runtime configuration, database schema/migrations, permissions, and deployment are unchanged.
+
+Acceptance criteria:
+
+- Missing shared error infrastructure cannot silently erase safe diagnostic identity and normal errors retain message/code/request-ID/status.
+
+## Version 0.33.32.29 - Billing timezone compatibility and DST-period proof
+
+Completed on 2026-08-11. Billing now validates persisted session timezone data before calendar arithmetic, historical absolute instants remain unchanged, and the active roadmap advances to `0.33.32.30` for the shared browser API failure fallback.
+
+**Model: High Effort** - Billing-period boundaries affect historical money views, and timezone fallback changes can move entries between invoices around DST transitions.
+
+- [x] Recorded the governing `normalizeUtcIso` contract: explicit-zone precedence, source-timezone wall-clock interpretation, missing/invalid date fallback, invalid named-zone failure, and established DST gap/overlap resolution.
+- [x] Documented that pre-session-timezone Time Entries remain stored absolute instants with no migration or reinterpretation; only the viewer's normalized local calendar bounds affect report inclusion.
+- [x] Reproduced an unsupported persisted session timezone reaching `Intl.DateTimeFormat` as an uncaught `RangeError`, then routed both billing-session consumers through the canonical timezone normalizer and documented the `America/New_York` fallback.
+- [x] Extended the real billing/dashboard regression across current, last, and custom New York periods for both the 23-hour spring-forward and 25-hour fall-back transitions, with exact inclusive-start/exclusive-end and absolute-instant assertions.
+- [x] Preserved per-project period, rounding, rate, hierarchy, duration, billable, and invoice-state ownership; no schema, migration, or stored-row rewrite was introduced.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`. No docs change needed: user-facing Help, workflow-context guidance, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Historical instants remain stable, session-timezone billing follows a documented rule, and both DST transitions are proven at report-period level.
+
+## Version 0.33.32.28 - Time Tracking sourced-edge and boolean fidelity
+
+Completed on 2026-08-11. Time Tracking's checked payload parser now preserves each Zod schema's inferred output, sourced timer saves validate at the module boundary, and the active roadmap advances to `0.33.32.29` for billing timezone compatibility and DST-period proof.
+
+**Model: High Effort** - Active timers feed billable time and task-linked work, so unvalidated sourced payloads and false-to-yes coercion are revenue-path risks.
+
+- [x] Made `parseTimeTrackingEdgePayload` generic over its Zod schema and added a negative compile fixture proving manual payloads cannot expose sourced-only metadata.
+- [x] Added the `ActiveTimerSourcedSaveSchema` boundary for sourced timer fields and opaque object metadata; malformed billable values and source metadata now fail through the existing 400 `AppError` envelope before persistence.
+- [x] Made `normalizeTimerPayload` use the canonical boolean/string billable normalizer and removed the redundant sourced override so direct sourced proof exercises that primitive.
+- [x] Deepened the active-timer, time-entry, billing-session, and Task Timer annotations needed by the money path without broad service conversion or a new runtime/build model.
+- [x] Extended contract and isolated SQLite proof across manual and sourced saves, Business boolean false, Personal/Family forced non-billable writes, Task-linked save/finalize, authoritative duration, row removal, and database integrity.
+- [x] Raised the complete checked inventory floor from 103 to 104 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/tasks-module.md`, `docs/time-tracking-module.md`. No docs change needed: user-facing Help, Task workflow behavior, billing calculations/periods, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Every untrusted timer write is parsed at its real edge and no supported false/nonbillable value can be persisted as billable.
+
+## Version 0.33.32.27 - Database contract environment and row-shape honesty
+
+Completed on 2026-08-11. Database contracts are now explicitly Node-scoped and unknown-valued at generic row boundaries, and the active roadmap advances to `0.33.32.28` for Time Tracking sourced-edge and boolean fidelity.
+
+**Model: High Effort** - Shared database types reach many checked consumers; ambient Node-only values and open `any` rows can erase the provider boundary's guarantees.
+
+- [x] Moved adapter, transaction, dialect, binding, row, parameter, and health declarations into the server-only `database-contracts.d.ts`; imported `NodeBuffer` from `node:buffer` and removed database exports from browser-consumed framework declarations.
+- [x] Replaced `DatabaseRow = Record<string, any>` with `Record<string, unknown>`, removed generic row `any` from the checked SQLite/provider cluster, and added named projections at every surfaced consumer exposed by the change.
+- [x] Typed every public `src/db/provider.js` function while retaining the full-adapter/transaction-client split, supported parameter kinds, nullable `get`, health/dialect surfaces, compatibility aliases, and runtime exports.
+- [x] Added server and browser negative compile fixtures for unknown row-field access, nested transaction attempts, and browser reachability; extended the standing typecheck guardrail and updated both focused database contract regression owners.
+- [x] Raised the complete checked inventory floor from 101 to 103 files and passed the 45-script Database regression area before canonical closeout.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, database schema/migrations, SQL/runtime behavior, permissions, Tags, Time Tracking workflows, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Database contracts remain Node-scoped, generic rows require narrowing, and provider consumers cannot regain `any` or nested-transaction authority.
+
+## Version 0.33.32.26 - Job-worker shutdown rejection safety
+
+Completed on 2026-08-11. Scheduled-poll and shutdown failures now share one checked, bounded safe-summary authority, and the active roadmap advances to `0.33.32.27` for database contract environment and row-shape honesty.
+
+**Model: High Effort** - Shutdown is a framework-wide jobs lifecycle boundary where a non-`Error` rejection must not trigger a second exception or leave state misleadingly active.
+
+- [x] Replaced both direct unknown-rejection `.message` reads with `summarizeJobError`, removed the remaining error-summary `any` escape, and narrowed `JobWorkerLogger.warn` to one string message.
+- [x] Hardened summarization to accept string and error-like string messages, collapse whitespace, cap output at 1,000 characters, and return the generic `Job failed.` fallback for objects without a safe message, `null`, `undefined`, throwing accessors, and other unsupported values.
+- [x] Added executable scheduled-poll proof plus an active-run shutdown matrix for `Error`, long multiline string, object payload, `null`, and `undefined`; every case reaches stopped state with running/timer state cleared and bounded string-only warnings without object payload leakage.
+- [x] Retained all eight Jobs regressions for claim/locking, retry/dead-letter, idempotency, retention, handler execution, public-demo admission, and separate-worker behavior; added the new script to the generated inventory and raised active/jobs coverage floors.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, job payloads, database schema/migrations, worker configuration, deployment topology, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Graceful shutdown cannot throw while reporting an arbitrary rejection and always reaches a truthful stopped state without payload leakage.
+
+## Version 0.33.32.25 - Auth/session revocation signature authority
+
+Completed on 2026-08-11. Password-change revocation now consumes the checked sessions service's canonical exception-scoped contract; the active roadmap advances to `0.33.32.26` for job-worker shutdown rejection safety.
+
+**Model: High Effort** - Password-change session revocation is a credential-security boundary and must consume the real session-service signature rather than an invented double-cast shape.
+
+- [x] Defined the owning sessions service's `SessionRevocationInput`, required `preservedSessionId` exception input, and `SessionRevocationResult`; opted the service into checking and removed the auth-side invented function typedef and `unknown` double cast.
+- [x] Made a missing preservation target fail with the existing safe current-session conflict instead of broadening into all-session revocation, while password change passes one normalized current-session ID as both the audit context and the sole preserved credential.
+- [x] Retained executing two-cookie proof that password change preserves the identified current session, revokes the other session, records safe events/audit, and exposes no bearer IDs; retained the existing generic-error, Support View, public-demo, permission, and account-lifecycle gates.
+- [x] Replaced the touched permission-assignment wildcard parameters with explicit assignment/override shapes, added a stored-session list projection, and raised the complete checked inventory floor from 100 to 101 without changing grants, role ceilings, workspace scope, or effective-user decisions.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, permission matrix semantics, HTTP error envelopes, database schema/migrations, deployment, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Password-change revocation typechecks against its real implementation and the current-session exception is executable and unambiguous.
+
+## Version 0.33.32.24 - Permission-restricted descriptor delivery blocker
+
+Completed on 2026-08-11. Permission-restricted Clients and Projects pages now omit unavailable top-level actions before checked descriptor normalization; the active roadmap advances to `0.33.32.25` for auth/session revocation signature authority.
+
+**Model: High Effort** - A one-field nullability mismatch prevented an entire protected workflow from rendering for restricted users, and the durable fix had to cover delivered module mutations rather than only raw manifests.
+
+- [x] Aligned delivered descriptors with the established optional-action contract by omitting permission-unavailable `pageHeader.primaryAction` keys without restoring the action or weakening malformed-field rejection.
+- [x] Removed the checked projection adapter's double return assertion and narrowed its unknown result through an executable root identity/layout check.
+- [x] Executed the real Clients/Projects descriptor-delivery mutation for unavailable and available top-level actions, normalized both delivered surfaces, preserved declared response envelope keys, and broadened anti-guessing enforcement across the checked adapter, builder, renderer, and page mutation.
+- [x] Corrected the 0.33.32.22 decision/changelog record and added focused permission, desktop/mobile restricted delivery, unchanged super-admin action, and canonical verification proof.
+
+Acceptance criteria:
+
+- Permission-restricted Clients/Projects capability paths render without unavailable primary actions, malformed descriptors still fail at the checked boundary, and super-admin behavior is unchanged.
+
+## Version 0.33.32.23 - Permission-safe Search route and query boundary
+
+Completed on 2026-08-11. The protected Search route now checks its query, permission-safe request, canonical result, and browser projection seams while preserving Search and permission ownership; the active roadmap advanced to `0.33.32.24` for the permission-restricted descriptor delivery blocker.
+
+**Model: High Effort** - Express query coercion, bounded pagination, cross-module result shaping, and result-by-result authorization meet at this protected recovery boundary.
+
+- [x] Opted `src/routes/search.routes.js` into checking against explicit permission-safe request, raw Search result, browser result, and active workspace-session contracts; raised the checked inventory floor from 99 to 100 files.
+- [x] Normalized absent, scalar, and repeated string query values; rejected unsupported nested shapes through the existing generic 400 envelope; confirmed page/limit arithmetic was finite and fixed the real cursor path that could bypass the 10,000-page offset bound.
+- [x] Preserved workspace and declared-read-permission pruning before visible-offset accounting, browser shaping, tag reads, and Client/Project enrichment.
+- [x] Added repeated/nested/cursor query proof plus two-page permission-pruning coverage, and retained the Search API, lifecycle, rebuild, FTS, workflow, full permission, and release guardrails.
+
+Acceptance criteria:
+
+- Search query coercion and pagination are finite and bounded, malformed filters retain the generic 400 contract, and every returned result remains permission-safe without changing Search ranking, fallback, or enrichment behavior.
+
+## Version 0.33.32.22 - Declarative descriptor-field boundary adapter
+
+Completed on 2026-08-11. Declarative surfaces now cross one checked browser projection before renderer field reads, server and browser descriptor vocabulary is aligned, and the active 0.33.32 work advances to `0.33.32.23` for the permission-safe Search route and query boundary.
+
+**Model: High Effort** - Support Tickets depends on this framework contract, while the two large DOM runtimes remain consciously outside whole-file checking.
+
+- [x] Defined precise shared contracts for supported layout, header, sidebar, filter, index, table, detail, modal, data-source, action, and region fields, retaining open records only where manifest validation already permits them.
+- [x] Added the checked `LongtailForge.viewSurfaceDescriptor.normalize(unknown)` classic-script adapter and exposed its single handoff through `LongtailForge.view.normalizeSurfaceDescriptor(...)`.
+- [x] Routed renderer field reads through the projection without refactoring DOM anatomy, data fetching, behaviors, permissions, or module-owned workflow meaning; aligned existing summary-panel items and action-confirmation shapes across validator, types, and browser runtime.
+- [x] Added path-specific renamed/malformed field failures, projected every bundled descriptor in the declarative inventory, raised the browser program to nine scripts and the complete checked inventory floor from 98 to 99 files, and retained the full Views area plus rendered browser smoke.
+
+Acceptance criteria:
+
+- Server/browser descriptor drift fails at one checked boundary before Support Tickets depends on it, while whole-file renderer/builder conversion remains deferred to the separately audited client-hardening branch.
+
+## Version 0.33.32.21 - Descriptor-declared response record adapter
+
+Completed on 2026-08-11. All bundled declarative lists now declare their real response-array envelope and the renderer reads unknown response JSON through one checked adapter, while the giant renderer and builder remain outside whole-file checking. The active 0.33.32 work advances to `0.33.32.22` for the declarative descriptor-field boundary adapter.
+
+**Model: High Effort** - One extracted checked helper replaces response-key guessing without attempting whole-file conversion of either 2,000-line declarative runtime.
+
+- [x] Added optional `dataSource.recordsKey` to the shared descriptor contract and extracted record-envelope selection into the checked `LongtailForge.viewResponseRecords` classic-script adapter with declared-key precedence and explicit compatibility behavior.
+- [x] Routed `view-renderer.js` through the adapter without opting the renderer or builder into checking; declared `attachments`, `clients`, `projects`, `tags`, `records`, `tasks`, `lists`, and `notes` across the bundled surface inventory.
+- [x] Removed renderer-owned key guessing, pinned adapter load order and first-party declarations, and retained list result, empty/error, selection, paging, action, and permission coverage.
+- [x] Raised the browser program to eight scripts and the complete checked inventory floor from 97 to 98 files; retained the full Views area and rendered browser smoke.
+
+Acceptance criteria:
+
+- Bundled declarative views read records through one checked declared-key boundary, with compatibility explicit and the giant renderer/builder conversions safely deferred.
+
+## Version 0.33.32.20 - App-shell bootstrap boundary adapter
+
+Completed on 2026-08-11. The app-shell bootstrap now has one shared checked producer contract and one small checked unknown-input browser adapter, while the giant navigation runtime remains outside whole-file checking and the active 0.33.32 work advances to `0.33.32.21` for the descriptor-declared response record adapter.
+
+**Model: High Effort** - The server envelope is framework-wide, while a small checked adapter avoids turning the 1,700-line navigation runtime into an open-ended DOM conversion.
+
+- [x] Authored `AppShellBootstrap` at the checked producing service and added a checked classic-script adapter that normalizes unknown JSON to the safe current envelope.
+- [x] Routed `public/js/navigation.js` through the adapter without opting the full navigation runtime into checking or refactoring unrelated behavior.
+- [x] Preserved safe defaults, workspace switching, module visibility, caching, responsive navigation, recovery behavior, and framework-preamble order; raised the checked inventory floor from 95 to 97 files and retained focused app-shell/browser proof.
+
+Acceptance criteria:
+
+- Bootstrap drift fails at the typed producer/adapter boundary instead of silently degrading navigation, while the giant navigation runtime remains outside this slice's annotation blast radius.
+
+## Version 0.33.32.19 - Browser typecheck program and shared utilities
+
+Completed on 2026-08-11. A separate DOM-only browser program now checks the first six shared classic-script utilities against one declared browser namespace and the framework-owned API error envelope, while runtime imports and script load order remain unchanged. The active 0.33.32 work advances to `0.33.32.20` for the app-shell bootstrap boundary adapter.
+
+**Model: High Effort** - A new browser program is shared build-time infrastructure, but the first utility tier is intentionally small.
+
+- [x] Added `tsconfig.public.json` with browser libraries and the settled opt-in dials, wired it into typecheck, and reused framework contract types.
+- [x] Opted in `api-client.js`, `error-contract.js`, `records.js`, `formatters.js`, `cached-fetch.js`, and `page-controller.js` with `error-contract.js` as the single shared error-envelope parser.
+- [x] Raised the checked inventory floor from 89 to 95 files and retained green shared-browser utility, HTTP-error, cached-fetch, release-owner, and full framework-view regressions.
+
+Acceptance criteria:
+
+- The small shared browser tier typechecks against one contract vocabulary with runtime load order unchanged.
+
+## Version 0.33.32.18 - Bounded server clean-file rollout
+
+Completed on 2026-08-11. One exact 12-file framework core leaf-utility tier now participates in checked JavaScript, the retained pass inventory keeps future repeatable tiers bounded and reviewable, and runtime statements remain unchanged. The active 0.33.32 work advances to `0.33.32.19` for the browser typecheck program and shared utilities.
+
+**Model: High Effort** - Mechanical rollout is useful only when its size and ownership are reviewable.
+
+- [x] Re-audited the current compiler state, selected 12 already-clean direct `src/core` leaf utilities, and committed their exact sorted path list before adding any source pragma.
+- [x] Added the first-line checking pragma only to those 12 files; deferred `record-scope.js` and `tar-archive-command.js` after the audit exposed nullable-record and subprocess-error fallout outside this mechanical pass.
+- [x] Added a retained bounded-pass inventory and release-gate assertions for the 40-file ceiling, coherent tier boundary, unique/non-overlapping paths, reserved-slice exclusions, and complete checked-inventory membership.
+- [x] Raised the checked-seam inventory and monotonic floor from 77 to 89 files and retained the full fast and changed-area verification contract.
+
+Acceptance criteria:
+
+- The explicit framework core leaf-utility cluster gains checked coverage in one bounded session, while additional coherent tiers remain eligible as separately closable numeric sub-passes without a percentage target forcing unrelated edits.
+
+## Version 0.33.32.17 - Permission resources and route call sites
+
+Completed on 2026-08-10. Permission resources now require an explicit workspace scope at the checked boundary, the permission service and shared Audit/Search resource constructors typecheck against that contract, and existing role, override, Support View, module-catalog, Search, audit, and denial behavior remains unchanged. The active 0.33.32 work advances to `0.33.32.18` for the bounded server clean-file rollout.
+
+**Model: High Effort** - Permission scoping is a separate security boundary with a large service.
+
+- [x] Opted `permissions.service.js` into checked JavaScript against the shared `RequestSession` and workspace-required `PermissionResource` contracts.
+- [x] Routed only Audit, Search-result, and Search-index permission-resource construction through a small checked helper, preserving roles, Support View intersection, module enablement, hidden resources, denial events, and response behavior.
+- [x] Raised the checked inventory floor from 75 to 77 files, added valid/missing-workspace compile proof, and retained the permission harness plus focused Audit, Search, Search-index, Support View, and resource-catalog regressions.
+
+Acceptance criteria:
+
+- Missing workspace scope is a compile error and all existing allowed/denied decisions remain green.
+
+## Version 0.33.32.16 - Authentication and API-key services
+
+Completed on 2026-08-10. Authentication and API-key services now typecheck against the established request-session and active-key identity contracts without changing credential verification, generic errors, throttling, session issuance/rotation, scope filtering, audit payloads, or public-demo protections, and the active 0.33.32 work advances to `0.33.32.17` for Permission resources and route call sites.
+
+**Model: High Effort** - Credential/session issuance is isolated from permission-resource work.
+
+- [x] Opted `auth.service.js` and `api-keys.service.js` into checked JavaScript against the shared request-session and active API-key identity contracts.
+- [x] Narrowed successful credential/user, workspace-session, API-key row, and nullable active-key flows without changing runtime branches; raised the checked inventory floor from 73 to 75 files and retained focused authentication, hashing, session, recovery, API-scope, Support View, and public-demo coverage.
+
+Acceptance criteria:
+
+- Both services typecheck without weakening credential, enumeration, or session semantics.
+
+## Version 0.33.32.15 - Jobs and event-summary implementation closure
+
+Completed on 2026-08-10. The durable job queue, handler registry, runner, and safe event-summary implementation now typecheck against their live trusted contracts without changing execution, retry, notification, redaction, or fallback behavior, and the active 0.33.32 work advances to `0.33.32.16` for Authentication and API-key services.
+
+**Model: High Effort** - These related infrastructure contracts are bounded to existing implementations.
+
+- [x] Opted the job queue, runner, and handlers into checked JavaScript against aligned enqueue, persisted-row, execution-envelope, and worker-state contracts; opted `event-summaries.js` in against internal-event and summary resolver contracts.
+- [x] Preserved workflow execution, claims, retry timing, public-demo enforcement, notification delivery, safe URL/record-label redaction, and fallback copy; raised the checked inventory floor from 69 to 73 files and retained focused Jobs, events, audit-summary, and Notifications coverage.
+
+Acceptance criteria:
+
+- Existing job and event-summary implementations typecheck with execution, retry, and redaction unchanged.
+
+## Version 0.33.32.14 - Work Resume State implementation closure
+
+Completed on 2026-08-10. The first-party Resume State producer and read-check assembly now typechecks against explicit shared payload, resolver, and lifecycle-result contracts without changing recovery behavior, and the active 0.33.32 work advances to `0.33.32.15` for Jobs and event-summary implementation closure.
+
+**Model: Medium Effort** - Two files close one otherwise-typed recovery chain.
+
+- [x] Opted `work-resume-state-initial-producers.js` and `work-resume-state-read-checks.js` into checked JavaScript against shared Resume State contracts.
+- [x] Preserved registration, permission pruning, unavailable states, ranking, and payloads; raised the checked inventory floor from 67 to 69 files and retained focused producer, service, and conversion coverage.
+
+Acceptance criteria:
+
+- The first-party resume-state chain is checked without changing recovery behavior or ownership.
+
+## Version 0.33.32.13 - Search reference contract and indexers
+
+Completed on 2026-08-10. The live registered-indexer boundary now has one checked camelCase `SearchReference` consumed by every first-party module and Help indexer, while compatibility aliases remain at queue/service normalization inputs and Search indexing/rebuild behavior is unchanged. The active 0.33.32 work advances to `0.33.32.14` for Work Resume State implementation closure.
+
+**Model: High Effort** - The audit found a concrete casing disagreement at a recovery seam.
+
+- [x] Proved the live Search reference payload casing, aligned `SearchReference`, and opted the six first-party module/Help indexer owners into checked JavaScript.
+- [x] Preserved intentional compatibility at queue/service inputs, raised the checked inventory floor from 61 to 67 files, and retained Search contract, lifecycle, rebuild, and Help indexing regressions.
+
+Acceptance criteria:
+
+- Every first-party indexer consumes one proven shape without losing indexed records.
+
+## Version 0.33.32.12 - Module registry service fan-out
+
+Completed on 2026-08-10. The framework-facing module registry service now typechecks across manifest, workspace catalog, terminology, event-hook, API-scope, and transaction-client boundaries without changing public catalog behavior, and the active 0.33.32 work advances to `0.33.32.13` for Search reference contract and indexers.
+
+**Model: High Effort** - The roughly 1,600-line module service is framework-wide and earns its own session.
+
+- [x] Opted `src/core/modules/modules.service.js` into checked JavaScript with types derived from `ModuleManifest` and explicit catalog projections.
+- [x] Preserved permission filtering, enablement, ordering, caching, and envelopes; raised the checked inventory floor from 60 to 61 files and retained focused module catalog and permission regressions.
+
+Acceptance criteria:
+
+- The widest registry consumer typechecks while its public catalog behavior remains unchanged.
+
+## Version 0.33.32.11 - Bundled module manifest declarations
+
+Completed on 2026-08-10. All eight bundled module declarations now fail the fast typecheck gate on structural drift before runtime validation, with no manifest data or activation behavior change, and the active 0.33.32 work advances to `0.33.32.12` for module registry service fan-out.
+
+**Model: Medium Effort** - Eight small declaration files share one already-validated contract.
+
+- [x] Opted all eight `src/modules/*/module.js` files into checked JavaScript with explicit `ModuleManifest` annotations and aligned the type-only contract to existing validated notification, Dashboard, Workbench, and protected-content shapes.
+- [x] Raised the checked-seam inventory and floor from 52 to 60 files and extended the bundled-module registry guardrail alongside the generated catalog and existing manifest behavior regressions.
+
+Acceptance criteria:
+
+- Every bundled manifest fails the fast gate on structural drift before runtime validation.
+
+## Version 0.33.32.10 - High-fan-in repository signatures
+
+Completed on 2026-08-10. Settings, Users, and Workspaces now expose checked method inputs, projected rows, and explicit nullable single-row reads without changing their queries or behavior, and the active 0.33.32 work advances to `0.33.32.11` for bundled module manifest declarations.
+
+**Model: High Effort** - Users, workspaces, and settings are broad data and permission dependencies.
+
+- [x] Opted `settings.repo.js`, `users.repo.js`, and `workspaces.repo.js` into checked JavaScript against the settled adapter, dialect, and binding contracts.
+- [x] Declared public method inputs, list projections, and nullable user/workspace/module-setting/owner-transfer reads without changing SQL, transaction ordering, lifecycle, or permissions.
+- [x] Raised the checked-seam inventory and floor from 49 to 52 files, added compile-time invalid-input and nullable-read proof, and retained green settings/users/workspaces database regressions.
+
+Acceptance criteria:
+
+- The three widest repositories expose checked methods and result nullability with no runtime query change.
+
+## Version 0.33.32.9 - Dialect seams and parameter bindings
+
+Completed on 2026-08-10. The SQLite dialect and parameter-binding implementations now expose exact checked contracts without changing generated SQL or values, and the active 0.33.32 work advances to `0.33.32.10` for high-fan-in repository signatures.
+
+**Model: High Effort** - These helpers shape every query and required exact discriminated unions.
+
+- [x] Typed `sqlite-dialect-seams.js` with explicit builder option bags, the current string/object row-ID union, and paired boolean storage/read field transforms.
+- [x] Typed `parameter-bindings.js` with normalized parameter-state and named scalar/array discriminated unions so checked consumers must narrow before reading variant placeholder properties.
+- [x] Raised the checked-seam inventory and floor from 47 to 49 files, added compile-time misuse proof, and retained green dialect, boolean/time, introspection, binding, and statement-cache runtime regressions. High-fan-in repositories remain slice 10.
+
+Acceptance criteria:
+
+- Malformed options and placeholder misuse fail typecheck while generated SQL and values remain equivalent.
+
+## Version 0.33.32.8 - Database adapter and transaction-client contract
+
+Completed on 2026-08-10. Checked database consumers now distinguish the full provider adapter from the callback-scoped transaction client, and the active 0.33.32 work advances to `0.33.32.9` for dialect seams and parameter bindings.
+
+**Model: High Effort** - This was a database-integrity contract bounded to the SQLite driver and its direct injected-client repository proofs.
+
+- [x] Defined distinct `DatabaseAdapter` and `TransactionClient` contracts and opted in the SQLite adapter, provider, driver facade, and SQL literal compatibility helpers with honest nullable module state.
+- [x] Typed injected database parameters in the authentication throttle, private calendar token, and account-export recovery repositories so transaction-opening entry points require the full adapter and callback-safe helpers accept the transaction-only client.
+- [x] Raised the checked-seam inventory and floor from 40 to 47 files, added a compile-time nested-transaction failure regression, and retained green adapter, transaction, throttle, export-recovery, and private-feed behavior proof.
+
+Acceptance criteria:
+
+- Nested transaction misuse is a compile-time failure across the driver and injected repositories, with SQLite behavior unchanged.
+
+## Version 0.33.32.7 - Billing period and dashboard time boundaries
+
+Completed on 2026-08-10. Time Tracking billing and Dashboard effort windows now share the signed-in session timezone as their calendar authority, with UTC query boundaries derived from local date keys. The active 0.33.32 work advances to `0.33.32.8` for the database adapter and transaction-client contract.
+
+**Model: High Effort** - This was one revenue-calculation and timezone boundary with a confirmed server-local period defect.
+
+- [x] Opted `src/modules/time-tracking/time-tracking-billing.service.js` and `src/modules/time-tracking/time-tracking-dashboard.service.js` into checking against the canonical timezone helpers.
+- [x] Reproduced a Los Angeles month boundary where server-local February omitted a valid UTC-stored entry, then made the authenticated session timezone authoritative for billing, custom-date, chart, and Dashboard effort windows.
+- [x] Raised the checked-seam inventory and floor from 38 to 40 files and added isolated proof for UTC month edges, a New York 23-hour DST day, exact inclusive-start/exclusive-end queries, Dashboard windows, totals, and SQLite integrity.
+
+Acceptance criteria:
+
+- Billing and Dashboard periods use one documented timezone contract and produce regression-backed totals.
+
+## Version 0.33.32.6 - Active timer duration consistency
+
+Completed on 2026-08-10. Active-timer persistence and finalization now share checked timer and entry contracts, and every finalized entry derives its hours projection from authoritative seconds. The active 0.33.32 work advances to `0.33.32.7` for billing-period and Dashboard time boundaries.
+
+**Model: High Effort** - This was one data-integrity seam with one confirmed contradictory-duration defect.
+
+- [x] Opted `src/modules/time-tracking/active-timers.service.js` and `src/modules/time-tracking/active-timers.repo.js` into checking with a repository-owned `ActiveTimer` record, Zod-inferred timer payloads, and canonical Time Entry finalization inputs.
+- [x] Reproduced missing-timer finalization clamping absent seconds to one while retaining caller-supplied hours, then made the clamped seconds authoritative for the stored four-decimal hours projection.
+- [x] Raised the checked-seam inventory and floor from 36 to 38 files and added isolated proof for the fallback plus stored paused-timer finalization, authoritative accumulated seconds, matching hours, active-row removal, and SQLite integrity.
+
+Acceptance criteria:
+
+- Finalized timers cannot persist contradictory duration fields, with other lifecycle behavior unchanged.
+
+## Version 0.33.32.5 - Sourced time-entry and task-timer bridge
+
+Completed on 2026-08-10. Sourced timer saves and Task Timer finalization now preserve canonical non-billable intent and authoritative stored duration through Time Tracking's public module boundary, and the active 0.33.32 work advances to `0.33.32.6` for active-timer duration consistency.
+
+**Model: High Effort** - This was one cross-module seam with a confirmed billable-meaning defect.
+
+- [x] Opted `src/modules/tasks/task-timers.service.js` into checking, moved its Time Tracking dependency from the internal service path to the public `index.js` entry, and removed that resolved deep-import baseline exception.
+- [x] Reproduced direct sourced saves collapsing boolean `billable: false` to `"yes"`, then applied the canonical checked billable normalizer at the Time Tracking save seam and every Tasks billable handoff.
+- [x] Raised the checked-seam inventory and floor from 35 to 36 files and added isolated proof that direct sourced saves plus Task Timer save/finalize preserve `"no"`, 300 authoritative seconds, the matching hours projection, Task attribution, sourced-row removal, and SQLite integrity.
+
+Acceptance criteria:
+
+- Sourced entries preserve duration and billable intent through the existing public module dependency, with no new internal cross-module dependency.
+
+## Version 0.33.32.4 - Time-entry duration persistence and public API ingress
+
+Completed on 2026-08-10. Public API time-entry creates now canonicalize duration into billing-authoritative integer seconds before persistence, and the active 0.33.32 work advances to `0.33.32.5` for the sourced time-entry and task-timer bridge.
+
+**Model: High Effort** - This was one revenue-relevant write seam and one confirmed duration defect.
+
+- [x] Opted Time Tracking's `time-entries.service.js`, `time-entries.repo.js`, and `public-api.service.js` into checking against the canonical slice-3 `TimeEntry` contract, including a typed public Zod payload and repository create/update inputs.
+- [x] Reproduced hours-only public API entries persisting `duration_seconds = 0`, then fixed that ingress to derive nearest integer seconds; explicit seconds remain authoritative, and either path stores a matching hours projection.
+- [x] Raised the checked-seam inventory and floor from 32 to 35 files and added isolated real-public-API persistence proof for create, list, raw SQLite integer storage, numeric duration agreement, and database integrity. Billing periods, sourced entries, and timers remain unchanged.
+
+Acceptance criteria:
+
+- Public API and persistence agree on billing-authoritative integer seconds, and the named hours-only zero-duration defect is regression-proven fixed.
+
+## Version 0.33.32.3 - Canonical record normalizers and timezone math
+
+Completed on 2026-08-10. The canonical time-entry and timezone utility seams now carry checked, importable JSDoc contracts, and the active 0.33.32 work advances to `0.33.32.4` for time-entry duration persistence and public API ingress.
+
+**Model: High Effort** - The small utility layer defines shared record shapes and DST-sensitive arithmetic.
+
+- [x] Opted `src/utils/normalizers.js` into checking with an authoritative `TimeEntry` typedef that preserves string durations, tri-state billable values, and exact invoice-status output; numeric duration-to-string coercion is now an explicit helper.
+- [x] Opted `src/utils/timezones.js` into checking with accepted date/fallback input unions, a `"start" | "end"` edge union, nullable parse results, and string ISO returns. Proved that empty input intentionally resolves through the call-time fallback without changing it.
+- [x] Raised the complete checked-seam inventory and floor from 29 to 32 files, opted the utility contract test into checking, and covered the canonical record shape plus explicit-offset, invalid-input, invalid-timezone, DST-gap, DST-overlap, and local-date edge behavior.
+
+Acceptance criteria:
+
+- Consumers have one honest typed time-entry shape and timezone utilities retain proven DST and invalid-input behavior.
+
+## Version 0.33.32.2.1 - Untrusted JSON request-body boundary
+
+Completed on 2026-08-10. The shared streaming JSON reader now preserves `unknown` through checked callers, and the active 0.33.32 work advances to `0.33.32.3` for canonical record normalizers and timezone math.
+
+**Model: High Effort** - Raw request bodies cross every route's trust boundary, and the first runtime proof closed a security-sensitive null-body 500 without mixing unrelated route conversions into this slice.
+
+- [x] Opted in `src/utils/http.js`, declared `readJsonBody()` as `Promise<unknown>`, and inventoried every currently checked consumer so each must narrow through an existing schema or explicit shape guard before property access.
+- [x] Opted in `src/routes/support-view.routes.js`, reproduced JSON `null` returning 500, and added the smallest explicit object guard. Null, array, string, and number bodies now retain the generic confirmation 400; a valid object still starts Support View and rotates its session.
+- [x] Confirmed `src/utils/app-error.js` needed no conversion because the existing error contract was sufficient. Raised the checked-seam inventory and floor to 29 files and ran raw-body, Support View, authentication, HTTP error-contract, public-demo admission, and permission coverage.
+
+Acceptance criteria:
+
+- `readJsonBody()` never grants a trusted payload type, checked consumers must narrow before property access, and malformed or wrong-shape Support View bodies retain generic regression-backed 4xx behavior.
+
+## Version 0.33.32.2 - HTTP identity contract and authentication middleware
+
+Completed on 2026-08-10. Browser and API-key authentication now share one checked HTTP identity vocabulary, and the active 0.33.32 work advances to `0.33.32.2.1` for the separately bounded untrusted JSON request-body boundary.
+
+**Model: High Effort** - This typed the trusted identity behind authentication and permission decisions, including Support View impersonation.
+
+- [x] Authored `src/types/http-contracts.d.ts` with distinct request-session, API-session, Support View, permission-resource, rotation, and invalidation shapes plus Express request augmentation.
+- [x] Opted in `src/security/sessions.js`, both auth middleware files, and `support-view-request-gate.js`; reconciled `password_change_required` and `session_mode` shapes without changing behavior.
+- [x] Declared the Support View gate outcome as `"allowed" | "denied"` and its reason class as `"mutation_denied" | "sensitive_read_excluded" | "declared_read_safe" | "undeclared_read_denied"`, with a release guardrail that freezes both vocabularies.
+- [x] Raised the checked-seam inventory and monotonic floor to 27 files, ran the focused auth/session and Support View behavioral regressions, and included the separate permission harness in canonical local verification. Raw request-body typing remains in slice 2.1.
+
+Acceptance criteria:
+
+- One identity contract covers both authentication modes, Support View gate classification typos fail typecheck, and the proven authentication, 403/404, and permission behavior remains green.
+
+## Version 0.33.32.1 - Checked-seam inventory and monotonic ratchet
+
+Completed on 2026-08-10. The release gate now owns one complete reviewable inventory and monotonic floor for every first-party JavaScript seam explicitly opted into checking. The active 0.33.32 work advances to `0.33.32.2` for the trusted HTTP identity contract and authentication middleware.
+
+**Model: Medium Effort** - This was a bounded release-gate change with no product behavior.
+
+- [x] Recounted every first-party first-line `// @ts-check` pragma, replaced the partial `CHECKED_SEAM_FILES` list with the complete sorted 23-file inventory, and established a monotonic 23-file opted-in floor.
+- [x] Retained `tests/**/*.mjs` as a nominal per-file opt-in scope and documented that its unchecked files provide no type coverage. Preserved the complete compiler include/exclude scope, checking dials, and escape-hatch prohibitions.
+- [x] Ran the focused seam and documentation-routing regressions plus the fast typecheck and 69-test contract gates before final canonical verification.
+
+Acceptance criteria:
+
+- The one `framework.typecheck-seams` release gate fails if an opted-in seam disappears, the live inventory drifts, its floor falls, or a compiler scope/checking dial weakens, without forcing unrelated clean files into the program.
+
 ## Version 0.33.31.15 - Live Compose proof and public-demo release gate
 
-Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is technically ready for the planned August 31, 2026 publication window. The independent operator curtain remains the publication control; analytics, feedback, newsletter, and interest capture remain disabled pending the separate `0.33.32` review.
+Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is technically ready for the planned August 31, 2026 publication window. The independent operator curtain remains the publication control; analytics, feedback, newsletter, and interest capture remain disabled pending the separate `0.33.33` review.
 
 **Model: High Effort** - Final acceptance required retained secret-free evidence from the real public host across release, isolation, permissions, reset, recovery, restore, scheduling, and a separate installation.
 
@@ -11,7 +835,7 @@ Completed on 2026-08-09. The fifteen-slice public-demo hardening rollup is techn
 - [x] Corrected the post-reset verifier so it performs read-only Task, hierarchy, and seeded attachment checks plus authenticated logout. A scheduled-equivalent reset then returned the canonical semantic fingerprint `a191046f48e81b2eb77de35352faf3c811a1e1f452fdf542271bda08afdb1767`, SQLite integrity `ok`, zero foreign-key violations, exact counts of 5 workspaces, 24 users, 400 tasks, 200 notes, 24 lists, 2 Files records, and 624 Search rows, with zero sessions, mutation-budget rows/units, or verification residue.
 - [x] Proved lifecycle lock contention exits 75 before mutation and delivers the bounded `lifecycle-lock-contended` alert. A controlled post-activation container stop produced `reset-failed-recovered`, delivered its alert, restored and verified the prior database-and-Files unit, and returned the exact release healthy. A guarded rollback round trip restored the recorded `0.33.31.14.5` whole-instance archive and then the freshly backed-up clean `0.33.31.14.6` unit, with exact identity and isolation verified in both directions.
 - [x] Enabled the reviewed systemd timer only after manual proof. It remains `Persistent=false`, `AccuracySec=1s`, `RandomizedDelaySec=0`, and scheduled at the top of every UTC hour. The first real top-of-hour invocation started at `2026-08-09T01:00:00Z` and completed through the systemd service in 174,536 ms with a healthy exact-baseline result and the expected new-UTC-anchor fingerprint `84058d0eb16eef9229ac26cbc2c0f945283b6914dd8662d17f318429a59daf87`. The fingerprint changed from the August 8 scheduled-equivalent result because `--anchor-date today` intentionally re-anchors the date-relative fixture at UTC midnight; direct aggregate proof still returned the exact counts, zero sessions, zero budget usage, and zero verification residue before final public smoke.
-- [x] Recorded a GO decision for technical readiness for the planned August 31 publication window. The URL is controlled independently by the operator curtain, and `0.33.32` analytics/privacy/feedback/interest-capture work remains disabled and unimplemented.
+- [x] Recorded a GO decision for technical readiness for the planned August 31 publication window. The URL is controlled independently by the operator curtain, and `0.33.33` analytics/privacy/feedback/interest-capture work remains disabled and unimplemented.
 
 Acceptance criteria:
 
@@ -1675,7 +2499,7 @@ application through the complete `0.33.25` branch, the package is
 `0.33.25.6`, and the active cursor advances to `0.33.26.1`. Professional legal
 review is not claimed or required for this closeout; the decision appropriate
 to a future public analytics/interest-capture launch is deferred explicitly to
-`0.33.32`.
+`0.33.33`.
 
 **Model: Medium Effort** — Reclassifying claims across the marketing set demands the same truthfulness discipline the directory's rules mandate.
 
@@ -1705,7 +2529,7 @@ AGPL/source notice are shipped with neutral operator-scoped templates.
 Raymond Tec does not currently retain an attorney, and professional review is
 not represented as having occurred. Choosing the review path appropriate to
 future first-party public analytics, feedback, or interest capture is deferred
-to the `0.33.32` public-demo privacy gate.
+to the `0.33.33` public-demo privacy gate.
 
 **Model: Medium Effort** — New session-less public routes and operator-scoped legal content; the main risk is shipping first-party hosted-service terms as if they bound every self-hosted install, plus any leak of workspace/user data onto public pages.
 
@@ -1715,7 +2539,7 @@ to the `0.33.32` public-demo privacy gate.
 - [x] Kept ownership operator-truthful: the repository ships clearly labeled
   neutral templates, and each operator may supply installation-specific
   content through protected runtime configuration.
-- [x] Deferred the professional-review decision to `0.33.32`, before any
+- [x] Deferred the professional-review decision to `0.33.33`, before any
   first-party public analytics, feedback, or interest capture is enabled;
   `0.33.25` makes no legal-approval claim.
 - [x] Added the version-accurate public `AGPL-3.0-only` and Corresponding Source
@@ -1729,7 +2553,7 @@ Acceptance criteria:
 - Terms and Privacy are publicly reachable and operator-scoped, neutral
   defaults do not impersonate first-party legal documents, the public
   AGPL/source notice is version-accurate, and future launch-specific review is
-  owned explicitly by `0.33.32` rather than blocking this repository slice.
+  owned explicitly by `0.33.33` rather than blocking this repository slice.
 
 ## Version 0.33.25.5 - Help feature and concept coverage, and drift audit
 

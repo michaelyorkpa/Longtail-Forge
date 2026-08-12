@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { get as httpGet } from "node:http";
 import net from "node:net";
@@ -9,6 +9,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import packageJson from "../package.json" with { type: "json" };
 import { createRecordId } from "../src/core/identifiers.js";
+import { runLocalTarArchiveCommand } from "../src/core/tar-archive-command.js";
 import {
   REQUIRED_DESTRUCTIVE_CONFIRMATION,
   createBackup,
@@ -286,9 +287,9 @@ async function assertRestoredState(expectedMarker, expectedFile) {
 async function createTamperedArchive(sourceArchive, outputArchive) {
   const tamperWorkspace = await fs.mkdtemp(path.join(workspace, "tamper-"));
   try {
-    runTar(["-xzf", sourceArchive, "-C", tamperWorkspace]);
+    runTar(sourceArchive, "-xzf", ["-C", relativeTarDirectoryOperand(sourceArchive, tamperWorkspace)]);
     await fs.writeFile(path.join(tamperWorkspace, "longtail-forge-backup", "files", ...storageKey.split("/")), "maliciously changed payload\n", "utf8");
-    runTar(["-czf", outputArchive, "-C", tamperWorkspace, "longtail-forge-backup"]);
+    runTar(outputArchive, "-czf", ["-C", relativeTarDirectoryOperand(outputArchive, tamperWorkspace), "longtail-forge-backup"]);
     const archiveHash = createHash("sha256").update(await fs.readFile(outputArchive)).digest("hex");
     await fs.writeFile(`${outputArchive}.sha256`, `${archiveHash}  ${path.basename(outputArchive)}\n`, "utf8");
   } finally {
@@ -296,9 +297,19 @@ async function createTamperedArchive(sourceArchive, outputArchive) {
   }
 }
 
-function runTar(args) {
-  const result = spawnSync("tar", args, { encoding: "utf8", windowsHide: true });
-  if (result.status !== 0) throw new Error(String(result.stderr || result.stdout || result.error));
+function relativeTarDirectoryOperand(archivePath, directoryPath) {
+  const relativePath = path.relative(path.dirname(path.resolve(archivePath)), path.resolve(directoryPath)) || ".";
+  return relativePath.split(path.sep).join("/");
+}
+
+function runTar(archivePath, flags, trailingArgs = []) {
+  return runLocalTarArchiveCommand({
+    archivePath,
+    failureMessagePrefix: "Backup drill archive command failed",
+    flags,
+    missingCommandMessage: "The system tar command is required for the backup/restore drill.",
+    trailingArgs,
+  });
 }
 
 function assertIdentifierSnapshot(database) {
