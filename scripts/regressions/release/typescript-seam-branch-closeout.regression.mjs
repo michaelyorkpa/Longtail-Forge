@@ -177,10 +177,11 @@ assert.match(changelog, /^## Version 0\.33\.32\.45 - 2026-08-12$/m);
 console.log("0.33.32 TypeScript seam branch closeout regression passed.");
 
 function readArchivedSlice(version) {
-  const escaped = version.replace(/\./g, "\\.");
-  const match = archive.match(new RegExp(`^## Version ${escaped}\\b[\\s\\S]*?(?=^## Version |(?![\\s\\S]))`, "m"));
-  assert.ok(match, `${version} must have an archived section`);
-  return match[0];
+  const heading = `## Version ${version} -`;
+  const sectionStart = archive.indexOf(heading);
+  assert.notEqual(sectionStart, -1, `${version} must have an archived section`);
+  const nextSectionStart = archive.indexOf("\n## Version ", sectionStart + heading.length);
+  return archive.slice(sectionStart, nextSectionStart === -1 ? undefined : nextSectionStart);
 }
 
 function read(path) {
