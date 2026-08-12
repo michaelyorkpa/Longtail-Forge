@@ -71,18 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.39 - Files route checked boundary
-
-**Model: High Effort** — The largest uncovered route owns uploads, downloads, previews, lifecycle actions, scanner state, storage safety, and file permissions.
-
-- [ ] Check `files.routes.js` against existing Files Zod, session, permission, upload, attachment, preview, download, scan, storage, and response contracts.
-- [ ] Narrow multipart/route values at the real edge without duplicating service policy or exposing storage keys, paths, hashes, scanner internals, signed URLs, or hidden labels.
-- [ ] Retain staged delete/restore, quarantine/report, partial success, attachment scope, download-only behavior, and direct-static-download prohibition.
-
-Acceptance criteria:
-
-- Every Files route handler is checked and preserves existing Files security, lifecycle, permission, and response contracts.
-
 ## Version 0.33.32.40 - Bounded framework repository passes
 
 **Model: High Effort** — Repository annotations can expose nullable-row and binding drift across security, permissions, audit, notifications, tags, sessions, and workspace lifecycle.

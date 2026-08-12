@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.39 - Files route checked boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The complete Files route surface now checks against explicit workspace, raw-body, multipart, streaming-response, and partial-result contracts at the 133-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - The largest uncovered route owns uploads, downloads, previews, lifecycle actions, scanner state, storage safety, and file permissions.
+
+- [x] Check `files.routes.js` against existing Files Zod, session, permission, upload, attachment, preview, download, scan, storage, and response contracts.
+- [x] Narrow multipart/route values at the real edge without duplicating service policy or exposing storage keys, paths, hashes, scanner internals, signed URLs, or hidden labels.
+- [x] Retain staged delete/restore, quarantine/report, partial success, attachment scope, download-only behavior, and direct-static-download prohibition.
+
+Acceptance criteria:
+
+- [x] Every Files route handler is checked and preserves existing Files security, lifecycle, permission, and response contracts.
+
+Closeout notes:
+
+- The route uses the checked active-workspace adapter, keeps schema-owned JSON untrusted until the Files service parses it, and rejects non-object settings/report/quarantine bodies through the shared fixed-safe edge.
+- Request and response structural contracts now cover multipart input plus authenticated download/preview streaming; multipart state and ordered success/failure entries are explicit without checker suppression or assertion casts.
+- Batch partial success retains HTTP `207` and reviewed `AppError` copy, while arbitrary thrown values collapse to bounded safe copy before reaching the client.
+- Service ownership remains unchanged for permissions, target validation, quotas, storage, scanning, lifecycle, audit, and valid response shaping; no schema, workflow, static download, or signed-URL behavior was added.
+- The version guard and shared closeout-regression cursor floor now admit this explicitly documented reordered closeout while rejecting an undocumented lower cursor or a completed current-version section left in the live roadmap.
+- Focused proof covered the 40 Files contract tests, 17 lifecycle checks, single and batch multipart transport, preview streaming, download metadata, and the 133-file checked-seam floor before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/files-strict-guardrail-inventory.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/versioning.md`.
+- No docs change needed: user-facing Help and Files workflows, permissions, storage/scanner setup, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.38 - Bounded framework route and error-middleware passes
 
 Completed on 2026-08-11. Three exact framework route tiers now check 20 sub-150-line adapters plus the final error middleware against shared structural HTTP contracts, and the active roadmap advances to `0.33.32.38.1` for the Work Resume persistence-result boundary exposed by this pass.

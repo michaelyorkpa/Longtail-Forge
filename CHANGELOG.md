@@ -1,3 +1,15 @@
+## Version 0.33.32.39 - 2026-08-12
+
+- Checked the complete Files route adapter against explicit active-workspace, raw-body, multipart, streaming-response, and ordered partial-result contracts, raising the checked inventory floor from 132 to 133 files.
+- Kept existing Zod-owned upload and attachment JSON untrusted until the Files service parses it, while legacy settings, report, and quarantine mutations now reject arrays, scalars, and `null` with the shared fixed-safe 400 response.
+- Added honest readable-request and writable-response stream contracts for Busboy uploads plus authenticated download and preview piping, with explicit multipart success/failure variants and no checker suppression or assertion casts.
+- Preserved HTTP `207` batch partial success and reviewed `AppError` copy while preventing arbitrary provider/path exception messages from entering per-file responses.
+- Retained Files service authority for permissions, target resolution, quotas, storage, scanner state, staged delete/restore, quarantine/report, lifecycle, audit, attachment scope, download-only behavior, and valid response shaping; no schema, static download, signed URL, or workflow change was added.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Tightened the version guard and shared closeout-regression cursor floor so a lower cursor passes only for an explicitly archived operator-requested out-of-order closeout whose completed section is absent from the live roadmap and whose pending cursor section remains present.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/files-strict-guardrail-inventory.md`, `docs/module-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/versioning.md`.
+- No docs change needed: user-facing Help and Files workflows, permissions, storage/scanner setup, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.38 - 2026-08-11
 
 - Checked 20 sub-150-line framework route adapters across three exact public/operational, protected-administration, and protected-work-surface tiers, plus the final error middleware; the checked inventory floor rises from 111 to 132 files.

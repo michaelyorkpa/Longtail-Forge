@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["closeout", "release", "roadmap"],
-  description: "Proves the shared roadmap-cursor floor helper parses and compares correctly, that closeout regressions use floors instead of exact pins, and that a future cursor advance requires no edits to prior closeout regressions.",
+  description: "Proves the shared roadmap-cursor floor helper parses and compares correctly, accepts only documented out-of-order completion evidence below a floor, keeps closeout regressions on floors instead of exact pins, and lets future cursor advances pass without prior-regression edits.",
   runMode: "static",
 });
 
@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   assertRoadmapCursorAtLeast,
   compareDottedVersions,
+  isDocumentedOutOfOrderRoadmapCloseout,
   readActiveRoadmapCursor,
 } from "../../lib/roadmap-cursor.mjs";
 
@@ -72,6 +73,38 @@ assertRoadmapCursorAtLeast("0.33.8", "prior closeout floors must pass after any 
 });
 assert.equal(readActiveRoadmapCursor({ roadmapSource: advancedFixture }), "0.99.1");
 
+const reorderedRoadmapFixture = "Active cursor: `1.2.3.4`.\n\n## Version 1.2.3.4 - Pending slice\n";
+const reorderedArchiveFixture = [
+  "## Version 1.2.3.5 - Completed slice",
+  "",
+  "Completed on 2026-08-12 out of numeric order at the operator's request.",
+  "The active roadmap cursor remains `1.2.3.4`; this closeout does not skip the pending slice.",
+].join("\n");
+assert.equal(isDocumentedOutOfOrderRoadmapCloseout("1.2.3.5", {
+  roadmapArchiveSource: reorderedArchiveFixture,
+  roadmapSource: reorderedRoadmapFixture,
+}), true, "an explicit archived out-of-order closeout should preserve the lower live cursor");
+assertRoadmapCursorAtLeast("1.2.3.5", "the documented completed slice should satisfy its floor", {
+  roadmapArchiveSource: reorderedArchiveFixture,
+  roadmapSource: reorderedRoadmapFixture,
+});
+assert.throws(
+  () => assertRoadmapCursorAtLeast("1.2.3.5", "an undocumented reorder should fail", {
+    roadmapArchiveSource: "## Version 1.2.3.5 - Completed slice\n\nCompleted normally.\n",
+    roadmapSource: reorderedRoadmapFixture,
+  }),
+  /below the required floor 1\.2\.3\.5/,
+  "a lower cursor must not pass without the exact archive evidence",
+);
+assert.throws(
+  () => assertRoadmapCursorAtLeast("1.2.3.5", "a still-live completed section should fail", {
+    roadmapArchiveSource: reorderedArchiveFixture,
+    roadmapSource: `${reorderedRoadmapFixture}\n## Version 1.2.3.5 - Still live\n`,
+  }),
+  /below the required floor 1\.2\.3\.5/,
+  "an out-of-order closeout must remove its completed version from the live roadmap",
+);
+
 // No closeout regression may reintroduce exact cursor or next-section pins;
 // the floor helper is the only supported mechanism. The bump-version
 // regression writes its own fixture roadmap and the helper/guardrail define
@@ -98,7 +131,7 @@ assert.deepEqual(
   `Closeout regressions must use assertRoadmapCursorAtLeast instead of exact cursor/next-section pins:\n${exactPinViolations.join("\n")}`,
 );
 
-console.log(`Roadmap cursor floor guardrail passed: live cursor ${liveCursor}, floors monotonic, no exact pins outside the helper.`);
+console.log(`Roadmap cursor floor guardrail passed: live cursor ${liveCursor}, floors monotonic or explicitly archived out of order, no exact pins outside the helper.`);
 
 function walkMjsFiles(directory) {
   const files = [];
