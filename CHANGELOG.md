@@ -1,3 +1,13 @@
+## Version 0.33.32.41 - 2026-08-12
+
+- Checked the password-security and application-startup cores against explicit hash, verification, policy, HTTP server, startup-phase, signal, timer, queue-result, and unknown-error contracts, raising the checked inventory floor from 145 to 147 files.
+- Made Argon2/PBKDF2 parsing a discriminated union, proved decoded salt/hash buffers before use, and retained the current algorithm parameters, compatibility bounds, dummy hash, asynchronous derivation, and timing-safe comparison.
+- Narrowed unknown startup, shutdown, and deferred-maintenance failures through fixed safe helpers; named server, phase-event, and signal boundaries; and retained middleware/router order, readiness timing, startup jobs, worker lifecycle, graceful shutdown, safe logging, and exit behavior.
+- Added `framework.password-startup-checked-core` to freeze checked ownership, security parameters, middleware/startup/shutdown order, and the absence of checker escapes; retained the existing password, operational-security, startup-maintenance, worker-rejection, S3 registration, and Express HTTP behavior owners.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, HTTP error/request-correlation behavior, operational-security procedures, runtime configuration, deployment, password policy, and startup/shutdown behavior are unchanged.
+
 ## Version 0.33.32.40 - 2026-08-12
 
 - Completed the framework repository tier by checking the final 12 files in three exact credential/session, permission/audit/activity, and workspace-lifecycle passes, raising the checked inventory floor from 133 to 145 files.

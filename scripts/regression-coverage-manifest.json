@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 459,
+    "discoveredScripts": 460,
     "legacyScripts": 309,
-    "releaseGateScripts": 71,
+    "releaseGateScripts": 72,
     "areaCounts": {
       "dashboard": 2,
       "database": 46,
       "docs": 10,
       "files": 44,
-      "framework": 82,
+      "framework": 83,
       "jobs": 8,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 211,
       "integration": 169,
-      "release-gate": 71,
+      "release-gate": 72,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 233
+      "static": 234
     }
   },
   "coverageFamilies": [
@@ -3255,6 +3255,24 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "description": "Proves password primitives and application startup/shutdown remain checked, explicitly contracted, safely narrowed, and behavior-ordered.",
+      "id": "framework.password-startup-checked-core",
+      "legacy": false,
+      "path": "scripts/regressions/framework/password-startup-checked-core.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "authentication",
+        "contracts",
+        "readiness",
+        "security",
+        "startup",
+        "typecheck"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",

@@ -1,5 +1,28 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.41 - Password and application-startup checked core
+
+Completed on 2026-08-12 out of numeric order at the operator's request. Password hashing and application startup/shutdown now check against explicit security and lifecycle contracts at the 147-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Password primitives and startup/shutdown orchestration are security- and availability-critical framework boundaries.
+
+- [x] Checked `src/security/passwords.js` against explicit hash, verification, rehash, policy, and unknown-error contracts without algorithm, parameter, dummy-hash, or timing changes.
+- [x] Checked `src/core/app.js` against explicit HTTP server, startup-phase, worker lifecycle, database close, signal, timer, queue-result, and unknown-error contracts.
+- [x] Preserved middleware/router order, readiness timing, startup jobs, graceful shutdown, safe logging, and exit behavior; slice 26 remains the worker rejection authority.
+
+Acceptance criteria:
+
+- [x] Password/app lifecycle core typechecks without suppression and credential/startup/readiness/shutdown behavior remains green.
+
+Closeout notes:
+
+- Reproduce-first checking exposed nullable decoded hashes, optional encoded parameters, an inferred rehash-reason literal, unknown caught failures, logger arity, and startup queue-result narrowing; the fixes make those existing branches explicit without changing runtime policy.
+- Password parsing is a discriminated Argon2/PBKDF2 union, decoded buffers are proven present before length checks, and verification retains the current policy parameters, dummy hash, asynchronous derivation, and timing-safe comparison.
+- Application startup names its HTTP server, startup-phase events, signals, and queue result variants, and narrows unknown failures through safe helpers while retaining the established startup, readiness, middleware, worker, shutdown, and exit order.
+- `framework.password-startup-checked-core` freezes checked ownership, password security parameters, unknown-error handling, middleware order, startup order, and graceful shutdown order; existing password, operational-security, startup-maintenance, worker-rejection, S3 registration, and Express HTTP regressions retain executable behavior ownership.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, HTTP error/request-correlation behavior, operational-security procedures, runtime configuration, deployment, password policy, and startup/shutdown behavior are unchanged.
+
 ## Version 0.33.32.40 - Bounded framework repository passes
 
 Completed on 2026-08-12 out of numeric order at the operator's request. All 18 framework repositories are now checked; the final 12 are recorded as exact credential/session, permission/audit/activity, and workspace-lifecycle passes at the 145-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
