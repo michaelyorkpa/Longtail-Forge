@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.32`.
+Active cursor: `0.33.32.33`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -57,18 +57,6 @@ Completion-review evidence:
 - The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.32 - Cross-shell backup-drill archive operands
-
-**Model: Medium Effort** — This is a contained release-tooling portability fix following an already proven production archive pattern.
-
-- [ ] Reproduce the Git Bash/GNU tar drive-letter failure without changing the production backup format.
-- [ ] Use basename/working-directory operands following the settled production backup pattern, or an equivalently portable local-archive flag.
-- [ ] Prove equivalent PowerShell/Windows tar, Git Bash/GNU tar, and Linux results while retaining traversal, checksum, manifest, and restore-safety checks.
-
-Acceptance criteria:
-
-- `npm run backup:drill` succeeds from supported Windows shells and Linux without weakening archive validation.
 
 ## Version 0.33.32.33 - Support View checked service boundary
 

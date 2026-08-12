@@ -1,3 +1,12 @@
+## Version 0.33.32.32 - 2026-08-11
+
+- Reproduced Git Bash/GNU tar treating the backup drill's absolute Windows drive-letter archive as a remote-shell operand, followed by its absolute staging-directory failure.
+- Routed the drill's tampered-archive extraction and repacking through the production local-archive helper with basename/working-directory archive operands and a relative forward-slash staging operand.
+- Proved the full drill locally under PowerShell/Windows tar and Git Bash/GNU tar; protected pull-request verification supplies independent Linux proof.
+- Preserved the backup root and format plus traversal, checksum, manifest, database-and-Files, Secure Notes prerequisite, readiness, rejection, rollback, migration, and restored-integrity validation.
+- Docs updated: `DECISIONS.md`, `docs/backup-restore.md`, `docs/regression-suite.md`.
+- No docs change needed: the operator entry point, production backup/restore commands, workspace backup behavior, database schema/migrations, public API, permissions, deployment, runtime configuration, and user-facing Help are unchanged.
+
 ## Version 0.33.32.31 - 2026-08-11
 
 - Made the Search route's plain-object guard explicitly depend on the application-owned Express `extended` parser and pinned that setting beside the live scalar, repeated, nested, and bounded-cursor route contract.
