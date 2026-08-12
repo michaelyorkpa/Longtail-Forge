@@ -1,5 +1,23 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.2 - Archive historical closeout evidence and retire paperwork gates
+
+**Model: High Effort** - A large careful retirement must separate inert historical assertions from live protections embedded in the same files.
+
+- [x] Inventory every branch-closeout/history-pinned regression and extract its live fragments to retained owners before retirement.
+- [x] Preserve cursor-floor behavior, anti-current-pin scanning, manifest registration, and other live safeguards; archive only evidence that can fail solely when history is tidied.
+- [x] Replace verbatim package-script mirrors and stale cross-file hashes with targeted single-ownership checks.
+- [x] Record credited retirements and one evidence index without rewriting historical changelog or roadmap archive content.
+
+## Version 0.33.33.1 - Rebase internal checkpoint ceremony
+
+**Model: High Effort** - Release-policy and validation-owner changes must preserve traceability and package identity exactly.
+
+- [x] Define structured checkpoint trailers carrying slice ID, summary, and documentation disposition.
+- [x] Move package/lock version bump, rolled-up changelog, durable decision/docs prose, roadmap archive handoff, and runtime identity proof to branch closeout while retaining `verify:slice` per checkpoint.
+- [x] Adjust only the version/changelog owners that assume per-checkpoint release identity; keep exact-SHA CI, Nightly, promotion, artifact, and deployment contracts unchanged.
+- [x] Prove the next checkpoint can complete with no more than two ceremony-file changes and a machine-readable trailer.
+
 ## Version 0.33.32 - TypeScript Seam Expansion
 
 Completed on 2026-08-12 at package release `0.33.32.45`. The branch expanded the checked program from its 22-file planning baseline to a clean, behavior-proven 150-file seam and advanced the live roadmap to `0.33.33`.
