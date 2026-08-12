@@ -281,20 +281,20 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 458 |
+| Active discovered regressions | 456 |
 | Legacy-snapshot regressions | 307 |
-| Convention-path metadata regressions | 151 |
-| Credited retirements | 11 |
-| Active release-gate regressions | 75 |
+| Convention-path metadata regressions | 149 |
+| Credited retirements | 15 |
+| Active release-gate regressions | 73 |
 | Required active release-gate IDs | 46 |
-| Active regression ceiling | 458 |
+| Active regression ceiling | 456 |
 | Legacy regression ceiling | 307 |
-| Active regression assertions | 18324 |
+| Active regression assertions | 18264 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
-| Credited reviewed assertion reductions | 133 |
+| Credited reviewed assertion reductions | 193 |
 | Effective assertion floor | 18630 |
-| Release-gate ratchet floor | 80 |
+| Release-gate ratchet floor | 81 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -314,8 +314,8 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | `permissions` | 11 | 3 | 14 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 34 | 6 | 40 |
-| `docs` | 9 | 1 | 10 |
+| `release` | 32 | 9 | 41 |
+| `docs` | 9 | 2 | 11 |
 | `licensing` | 1 | 0 | 1 |
 
 | Canonical tier | Active |
@@ -323,12 +323,12 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | `unit-like` | 0 |
 | `focused` | 206 |
 | `integration` | 169 |
-| `release-gate` | 75 |
+| `release-gate` | 73 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 231 |
+| `static` | 229 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

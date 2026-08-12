@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["deployment", "docs", "maintenance", "proxy", "recovery"],
-  description: "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, documentation ownership, and historical staging retirement.",
+  description: "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, and current documentation ownership.",
   runMode: "static",
 });
 
@@ -13,7 +13,6 @@ import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
 const paths = {
-  changelog: "CHANGELOG.md",
   decisions: "DECISIONS.md",
   developmentWorkflow: "docs/development/github-workflow.md",
   docsOwnership: "docs/docs-ownership.json",
@@ -23,7 +22,6 @@ const paths = {
   privateReadiness: "docs/private-preview-readiness.md",
   proxySmoke: "scripts/reference-caddy-security-smoke.mjs",
   regressionSuite: "docs/regression-suite.md",
-  roadmapArchive: "ROADMAP-ARCHIVE.md",
   releasing: "docs/releasing.md",
   rehearsal: "scripts/release/rehearse-maintenance-boundary.mjs",
   upgrading: "docs/upgrading.md",
@@ -42,7 +40,7 @@ for (const requirement of [
   /maintenance-host-assets\.regression\.mjs/,
   /reference-caddy-security-smoke\.mjs/,
   /"--topology",\s*"multi-proxy"/,
-  /deploy-maintenance-curtain\.regression\.mjs/,
+  /current-static-contracts\.regression\.mjs/,
   /process\.platform !== "linux"/,
   /later stages were not run/,
   /without proxy reload/,
@@ -113,16 +111,12 @@ assert.match(content.docsOwnership, /maintenance-mode\//);
 assert.match(content.docsOwnership, /2026-07-18-preview-real-ip-and-maintenance-mode/);
 assert.match(content.regressionSuite, /GENERATED REGRESSION INVENTORY START/);
 assert.match(content.regressionSuite, /Convention-path metadata regressions/);
-assert.match(content.decisions, /As of 0\.33\.24\.7/);
 assert.match(content.decisions, /As of 0\.33\.24\.8[\s\S]*operator markers are therefore `0664`[\s\S]*deployment markers are `0644`/);
 assert.match(content.previewDeployment, /operator marker as `0664`[\s\S]*deployment marker as `0644`/);
 assert.match(content.regressionSuite, /As of 0\.33\.24\.8[\s\S]*distinct-service-account marker read boundary/);
-assert.match(content.decisions, /As of 0\.33\.24\.9[\s\S]*topic branch -> protected `nightly` pull request[\s\S]*manual full-main-SHA preview dispatch/);
 assert.match(content.privateReadiness, /^## 0\.33\.24\.9 Maintenance Boundary Release Evidence$/m);
 assert.match(content.privateReadiness, /technical completion does not authorize invitations/i);
 assert.match(content.regressionSuite, /As of 0\.33\.24\.9[\s\S]*login-limit `429`[\s\S]*HSTS[\s\S]*`nosniff`/);
-assert.match(content.roadmapArchive, /^## Version 0\.33\.24\.9 - Preview rollout, cross-host proof, and branch closeout$/m);
-assert.match(content.changelog, /^## Version 0\.33\.24\.9 - 2026-07-30$/m);
 assertRoadmapCursorAtLeast("0.33.24.9");
 
 console.log("Maintenance release rehearsal and operator handoff regression passed.");

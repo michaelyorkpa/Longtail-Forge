@@ -88,7 +88,9 @@ assert.match(brief.stdout, /Documentation owners/);
 assert.match(brief.stdout, /Likely test commands/);
 
 const roadmapSource = readFileSync("ROADMAP.md", "utf8");
-const roadmapArchiveSource = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
+const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6"]
+  .map((version) => `## Version ${version} - Synthetic completed checkpoint fixture`)
+  .join("\n");
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const versioning = readFileSync("docs/versioning.md", "utf8");

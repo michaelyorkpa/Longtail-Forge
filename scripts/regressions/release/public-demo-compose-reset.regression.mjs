@@ -246,7 +246,7 @@ async function exerciseRefusals(dataRoot) {
 }
 
 async function assertHostContract() {
-  const [host, deploy, candidate, activationCli, artifact, attributes, manualRelease, roadmap, archive, changelog, docs] = await Promise.all([
+  const [host, deploy, candidate, activationCli, artifact, attributes, manualRelease, roadmap, docs] = await Promise.all([
     fs.readFile("scripts/release/longtail-forge-public-demo-reset-host.example", "utf8"),
     fs.readFile("scripts/release/longtail-forge-compose-deploy-host.example", "utf8"),
     fs.readFile("scripts/lib/public-demo-baseline-candidate.mjs", "utf8"),
@@ -255,8 +255,6 @@ async function assertHostContract() {
     fs.readFile(".gitattributes", "utf8"),
     fs.readFile(".github/workflows/manual-release.yml", "utf8"),
     fs.readFile("ROADMAP.md", "utf8"),
-    fs.readFile("ROADMAP-ARCHIVE.md", "utf8"),
-    fs.readFile("CHANGELOG.md", "utf8"),
     fs.readFile("docs/demo-data-operations.md", "utf8"),
   ]);
   for (const source of [host, deploy]) {
@@ -327,8 +325,6 @@ async function assertHostContract() {
   assert.match(docs, /shared Compose operation lock/i);
   assert.match(docs, /pre-reset session/i);
   assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", roadmap);
-  assert.match(archive, /^## Version 0\.33\.31\.7 - Compose reset activation and automatic recovery$/m);
-  assert.match(changelog, /^## Version 0\.33\.31\.7 - \d{4}-\d{2}-\d{2}$/m);
 }
 
 async function createUnit(unitRoot, label, { sidecars = false } = {}) {

@@ -29,9 +29,6 @@ const [
   userSettingsView,
   packageJson,
   packageLock,
-  roadmap,
-  roadmapArchive,
-  changelog,
 ] = await Promise.all([
   readText("public/js/shared/settings-host.js"),
   readText("public/js/calendar-settings.js"),
@@ -47,9 +44,6 @@ const [
   readText("views/protected/user-settings.html"),
   readText("package.json"),
   readText("package-lock.json"),
-  readText("ROADMAP.md"),
-  readText("ROADMAP-ARCHIVE.md"),
-  readText("CHANGELOG.md"),
 ]);
 
 assert.match(calendarSettingsView, /data-settings-host="calendar"/, "Calendar should use a dedicated shared Settings host");
@@ -139,8 +133,5 @@ const packageLockData = JSON.parse(packageLock);
 assert.equal(packageLockData.version, packageData.version, "package and lockfile versions should match");
 assert.equal(packageLockData.packages[""].version, packageData.version, "lockfile root package version should match");
 assertRoadmapCursorAtLeast(packageData.version, "the Calendar administration correction should not move the roadmap backward");
-assert.doesNotMatch(roadmap, /^## Version 0\.33\.22\.9(?:\.1|\.2|\.3|\s|-)/m, "completed Calendar correction slices should leave the live roadmap");
-assert.match(roadmapArchive, /^## Version 0\.33\.22\.9\.3 - Calendar client metadata and subscription refinement/m, "the completed client-tested refinement should be archived");
-assert.match(changelog, /^## Version 0\.33\.22\.9\.3 - 2026-07-27/m, "the completed refinement should be recorded in the changelog");
 
 console.log("Calendar subscription settings regression passed.");

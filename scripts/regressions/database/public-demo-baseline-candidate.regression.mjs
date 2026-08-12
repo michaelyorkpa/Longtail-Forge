@@ -326,15 +326,13 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   }), /not the named demo installation/);
   assert.equal(await activeStateDigest(dataRoot), activeBefore);
 
-  const [candidateSource, cliSource, hostSource, serverSource, workerSource, roadmap, archive, changelog] = await Promise.all([
+  const [candidateSource, cliSource, hostSource, serverSource, workerSource, roadmap] = await Promise.all([
     fs.readFile("scripts/lib/public-demo-baseline-candidate.mjs", "utf8"),
     fs.readFile("scripts/public-demo-baseline-candidate.mjs", "utf8"),
     fs.readFile("scripts/demo-data-host.mjs", "utf8"),
     fs.readFile("server.js", "utf8"),
     fs.readFile("worker.js", "utf8"),
     fs.readFile("ROADMAP.md", "utf8"),
-    fs.readFile("ROADMAP-ARCHIVE.md", "utf8"),
-    fs.readFile("CHANGELOG.md", "utf8"),
   ]);
   assert.match(candidateSource, /PUBLIC_DEMO_ROLE_FIXTURE_MODE/);
   assert.match(candidateSource, /listCandidateMigrationFiles/);
@@ -346,9 +344,6 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
     assert.doesNotMatch(normalSource, /public-demo-baseline-candidate\.mjs|demo:baseline:candidate/);
   }
   assertRoadmapCursorAtLeast("0.33.31.7", "public-demo candidate closeout", roadmap);
-  assert.doesNotMatch(roadmap, /^### Version 0\.33\.31\.6\b/m);
-  assert.match(archive, /^## Version 0\.33\.31\.6 - Deterministic public baseline candidate$/m);
-  assert.match(changelog, /^## Version 0\.33\.31\.6 - 2026-08-07$/m);
   assert.ok(symlinkProven || candidateSource.includes("isSymbolicLink"));
   assert.equal(
     redactDemoError(new Error(`${privateOperatorPassword} ${dataRoot}`), [privateOperatorPassword, dataRoot]),

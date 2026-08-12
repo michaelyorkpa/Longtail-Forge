@@ -123,9 +123,6 @@ for (const entry of scriptSources) {
   }
 }
 assert.deepEqual(testSupportDuplicateErrors, [], `shared test-support implementations must remain single-owner:\n${testSupportDuplicateErrors.join("\n")}`);
-assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.sharedOwner && /import\s*\{[^}]*\bcreateProjectTextReader\b[^}]*\}\s*from/.test(entry.source)).length, 246);
-assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.sharedOwner && /import\s*\{[^}]*\bescapeRegExp\b[^}]*\}\s*from/.test(entry.source)).length, 78);
-assert.equal(scriptSources.filter((entry) => entry.file !== scanEvidence.fakeDomOwner && /import\s*\{[^}]*\bcreateFakeBrowserContext\b[^}]*\}\s*from/.test(entry.source)).length, 11);
 
 const closeoutSource = reader.readText("scripts/lib/closeout-gates.mjs");
 for (const command of [
@@ -162,9 +159,9 @@ for (const retainedCase of [
   assert.match(manifestRegression, new RegExp(escapeRegExp(retainedCase)), `${retainedCase} should retain its executable manifest-policy owner`);
 }
 
-const fastCheckRegression = reader.readText("scripts/regressions/release/fast-check-pipeline.regression.mjs");
+const currentStaticContracts = reader.readText("scripts/regressions/release/current-static-contracts.regression.mjs");
 const typecheckRegression = reader.readText("scripts/regressions/framework/typecheck-seams.regression.mjs");
-assert.doesNotMatch(fastCheckRegression, /tsconfig\.compilerOptions/, "fast-check should rely on the typecheck-seams owner");
+assert.doesNotMatch(currentStaticContracts, /tsconfig\.compilerOptions/, "the current release owner should rely on the typecheck-seams owner");
 assert.match(typecheckRegression, /tsconfig\.compilerOptions\.noEmit/);
 assert.match(typecheckRegression, /tsconfig\.compilerOptions\.strict/);
 

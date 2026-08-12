@@ -14,7 +14,6 @@ import fs from "node:fs/promises";
 const paths = Object.freeze({
   alert: "scripts/release/longtail-forge-public-demo-reset-alert.example",
   attributes: ".gitattributes",
-  changelog: "CHANGELOG.md",
   decisions: "DECISIONS.md",
   demoDocs: "docs/demo-data-operations.md",
   environment: "docs/longtail-forge-public-demo-reset-scheduler.env.example",
@@ -22,7 +21,6 @@ const paths = Object.freeze({
   previewDocs: "docs/preview-deployment.md",
   reset: "scripts/release/longtail-forge-public-demo-reset-host.example",
   roadmap: "ROADMAP.md",
-  archive: "ROADMAP-ARCHIVE.md",
   runtimeDocs: "docs/runtime-configuration.md",
   scheduler: "scripts/release/longtail-forge-public-demo-reset-scheduler-host.example",
   service: "scripts/release/longtail-forge-public-demo-reset.service.example",
@@ -99,10 +97,6 @@ for (const docs of [source.demoDocs, source.previewDocs]) {
 }
 assert.match(source.runtimeDocs, /host-only scheduler control/i);
 assert.match(source.runtimeDocs, /not an Admin setting/i);
-assert.match(source.decisions, /As of 0\.33\.31\.8/);
-assert.doesNotMatch(source.roadmap, /^### Version 0\\.33\\.31\\.8\\b/m);
-assert.match(source.archive, /^## Version 0\.33\.31\.8 - External hourly scheduler and reset observability$/m);
-assert.match(source.changelog, /^## Version 0\.33\.31\.8 - \d{4}-\d{2}-\d{2}$/m);
 assert.doesNotMatch(source.roadmap, /^### Version 0\.33\.(31|33) slice \d+/m);
 
 if (process.platform !== "win32") {

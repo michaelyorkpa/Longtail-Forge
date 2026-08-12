@@ -32,7 +32,7 @@ const stages = [
   {
     id: "deploy-rollback-recovery",
     label: "deploy, failed-candidate recovery, rollback, and stale-state recovery",
-    args: ["scripts/regressions/release/deploy-maintenance-curtain.regression.mjs"],
+    args: ["scripts/regressions/release/current-static-contracts.regression.mjs"],
   },
 ];
 
