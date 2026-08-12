@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 105,
+  "minimumOptedInFiles": 106,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -94,6 +94,7 @@
     "src/services/support-view.service.js",
     "src/services/tag-propagation-registry.js",
     "src/services/tags.service.js",
+    "src/services/users.service.js",
     "src/services/work-candidate.service.js",
     "src/services/work-focus-modes.service.js",
     "src/services/work-resume-state-initial-producers.js",

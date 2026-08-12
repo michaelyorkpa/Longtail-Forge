@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.34 - Users service checked boundary
+
+Completed on 2026-08-11. The Users service now consumes named identity, profile, membership, workspace, lifecycle-context, module-setting, and response contracts, and the active roadmap advances to `0.33.32.35` for the Help/static-delivery checked-services pass.
+
+**Model: High Effort** - Users service owns identity lifecycle, workspace membership, role assignment, and credential-adjacent state.
+
+- [x] Checked `src/services/users.service.js` with explicit input, authenticated-workspace session, nullable-row, membership, owner-transfer, workspace-creation, module-setting, and response projections.
+- [x] Reproduced the pre-fix checker failures with `npm run typecheck`: the last-membership identity row remained nullable at session revocation, user-settings audit names inferred as `never[]`, and unchecked workspace repository rows erased workspace IDs to `unknown`.
+- [x] Narrowed the nullable identity before revocation, added explicit settings metadata and internal collection types, and exposed named membership/workspace projections at the existing repository boundary without changing SQL or lifecycle ordering.
+- [x] Retained create/update/deactivate/reactivate/remove/retire, protected-user/public-demo, password reset/session revocation, owner-transfer, workspace-switch/fallback, role assignment, audit/security-event, and workspace-creation behavior through the checked guardrail and all 409 permission checks.
+- [x] Raised the checked inventory floor from 105 to 106 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, permission grants, Users/Settings UI and workflow, workspace lifecycle policy, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Users service consumes named contracts without suppressions and the identity/membership/role permission matrix is unchanged.
+
 ## Version 0.33.32.33 - Support View checked service boundary
 
 Completed on 2026-08-11. Support View's service, repository projections, and request-session identity are checked as one actor/effective-identity boundary, and the active roadmap advances to `0.33.32.34` for the Users service checked boundary.

@@ -809,6 +809,43 @@ for (const [filePath, source] of [
 assert.doesNotMatch(permissionsServiceSource, /@param \{\*\} (?:assignment|overrides)/, "permission assignment decisions must not accept wildcard inputs");
 assert.match(permissionResourceSource, /@returns \{PermissionResource\}/, "permission-resource constructors must return the shared contract");
 assert.match(permissionsServiceSource, /@param \{PermissionResource\} resource[\s\S]*?async function can/, "permission checks must consume a workspace-scoped resource");
+const usersServiceSource = readFileSync("src/services/users.service.js", "utf8");
+const usersServiceContractSource = readFileSync("src/types/users-service-contracts.d.ts", "utf8");
+assert.match(
+  usersServiceSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the Users service must remain in the checked seam inventory",
+);
+assert.doesNotMatch(
+  usersServiceSource,
+  /@ts-(?:ignore|nocheck)|\bany\b/,
+  "the Users service must not terminate checking through suppressions or any",
+);
+assert.match(
+  usersServiceSource,
+  /@param \{UserPayload\} payload @param \{UsersRequestSession\} session/,
+  "Users mutations must consume the named payload and authenticated-workspace session contracts",
+);
+assert.match(
+  usersServiceSource,
+  /if \(!user\) \{\s*throw new AppError\("User was not found\."[\s\S]{0,420}targetUser: user/,
+  "last-membership revocation must narrow the nullable identity row before use",
+);
+assert.match(
+  usersServiceSource,
+  /@param \{WorkspaceOwnershipInput\} input @returns \{Promise<OwnerTransferCandidate \| null>\}/,
+  "owner transfer must retain an explicit nullable candidate projection",
+);
+assert.match(
+  usersServiceContractSource,
+  /export interface UserWorkspaceMembershipRow[\s\S]*?user_workspace_id: string;[\s\S]*?workspace_id: string;/,
+  "workspace membership reads must retain their named lifecycle projection",
+);
+assert.match(
+  usersServiceContractSource,
+  /export interface WorkspaceValue[\s\S]*?ownerUserId: string \| null;[\s\S]*?workspaceId: string;/,
+  "workspace responses must retain their named owner and identity projection",
+);
 assert.deepEqual(
   readStringUnion(httpContractSource, "SupportViewGateOutcome"),
   ["allowed", "denied"],

@@ -52,6 +52,7 @@ import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } fro
 
 /** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
 /** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
 /** @typedef {Record<string, any> & {id?: string, moduleId?: string, requiredPermissions?: string[], requiredWorkspaceCapabilities?: string[], requiresEnabledModules?: string[], requiredModules?: string[], workspaceTypes?: string[]}} CatalogContribution */
 /** @typedef {CatalogContribution & {event: string, handler: (context: Record<string, any>) => unknown | Promise<unknown>}} ModuleEventHook */
@@ -188,6 +189,7 @@ function listResourceDefinitions() {
   ];
 }
 
+/** @param {string} workspaceId @param {RequestSession | null} [session] */
 async function listActiveResourceDefinitions(workspaceId, session = null) {
   if (!workspaceId) {
     return [];

@@ -1,3 +1,13 @@
+## Version 0.33.32.34 - 2026-08-11
+
+- Checked the Users service against named request-session, input, nullable identity, membership, workspace, owner-transfer, module-setting, lifecycle-context, and response contracts.
+- Reproduced and closed the checker-visible nullable last-membership identity, settings audit-name inference, and erased workspace-row projection gaps without changing SQL or lifecycle ordering.
+- Added explicit repository membership/workspace projections and typed the existing module-resource session consumer so Users authorization retains its effective request identity.
+- Preserved user creation/profile updates, role assignment, password reset and revocation, deactivate/reactivate/remove/retire, protected-user/public-demo rules, ownership transfer/blocking, workspace fallback/switching, and audit/security-event behavior; all 409 permission checks pass.
+- Raised the checked inventory floor from 105 to 106 files.
+- Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, permission grants, Users/Settings UI and workflow, workspace lifecycle policy, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.33 - 2026-08-11
 
 - Checked the complete Support View service against named operator, target, support-session, workspace, event/audit, session-rotation, and permission contracts.
