@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.32 - Cross-shell backup-drill archive operands
+
+Completed on 2026-08-11. The destructive restore drill now shares the production local-archive command boundary, its internal staging directory is also shell-portable, and the active roadmap advances to `0.33.32.33` for the Support View checked service boundary.
+
+**Model: Medium Effort** - This is a contained release-tooling portability fix following an already proven production archive pattern.
+
+- [x] Reproduced Git Bash/GNU tar treating the absolute Windows drive-letter archive as a remote-shell operand, then reproduced the nested absolute `-C` staging path failure after the first archive-operand correction.
+- [x] Reused the settled production basename/working-directory archive command and supplied the internal staging directory as a relative forward-slash operand.
+- [x] Proved the complete destructive drill under PowerShell/Windows tar and Git Bash/GNU tar locally; the protected pull-request workflow supplies the independent Linux run.
+- [x] Retained the archive root and format plus traversal, checksum, manifest, database-and-Files, Secure Notes prerequisite, readiness, rejection, rollback, and restored-integrity checks.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/backup-restore.md`, `docs/regression-suite.md`. No docs change needed: the operator entry point, production backup/restore commands, workspace backup behavior, database schema/migrations, public API, permissions, deployment, runtime configuration, and user-facing Help are unchanged.
+
+Acceptance criteria:
+
+- `npm run backup:drill` succeeds from supported Windows shells and Linux without weakening archive validation.
+
 ## Version 0.33.32.31 - Search parser provenance and session deepening
 
 Completed on 2026-08-11. Search query parsing now names and enforces its application-owned Express provenance, permission-safe composition carries the shared session shape through the service boundary, and the active roadmap advances to `0.33.32.32` for cross-shell backup-drill archive operands.
