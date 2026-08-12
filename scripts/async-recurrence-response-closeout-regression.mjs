@@ -5,15 +5,12 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const asyncRecurrenceVersion = "0.33.5.21.7.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-async-recurrence-response.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Async-Recurrence-Response-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const publicApiDocs = readText("docs/public-api.md");
 const tasksPageSource = readText("public/js/tasks.js");
@@ -43,10 +40,6 @@ try {
   assert.doesNotMatch(functionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
   assert.match(tasksDocs, /As of 0\.33\.9\.6[\s\S]*does not create the next instance inline[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "Tasks docs should describe the async recurrence continuity contract");
   assert.match(publicApiDocs, /As of 0\.33\.9\.6[\s\S]*createdTask` remains `null`[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "public API docs should describe the safe recurrence continuity contract");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-
   await initializeDatabase();
   activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
@@ -174,8 +167,4 @@ function functionBlock(source, functionName) {
 
 function readText(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

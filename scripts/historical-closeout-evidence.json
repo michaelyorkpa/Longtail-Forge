@@ -1,0 +1,72 @@
+{
+  "version": "0.33.33.2",
+  "scope": "Every discovered regression whose ID, path, or metadata identifies it as a closeout owner at the 0.33.33.2 baseline.",
+  "singleOwnership": {
+    "packageScripts": "scripts/package-script-contracts.json via release.validation-single-ownership",
+    "roadmapCursor": "release.roadmap-cursor-floor",
+    "regressionManifest": "release.regression-manifest-generation",
+    "versionPins": "scripts/version-literal-guardrail-regression.mjs via release.closeout-conductor"
+  },
+  "retirements": [
+    {
+      "id": "docs.short-term-cleanup-closeout",
+      "path": "scripts/regressions/docs/short-term-cleanup-closeout.regression.mjs",
+      "reason": "The program pinned recovered planning prose and TODO headings that can change without changing shipped behavior.",
+      "retainedOwners": ["docs.ownership-routing", "release.roadmap-cursor-floor"],
+      "liveFragments": ["Documentation ownership remains checked by docs.ownership-routing.", "The active implementation cursor and anti-current-pin scan remain checked by release.roadmap-cursor-floor."]
+    },
+    {
+      "id": "legacy.static.contract.closeout",
+      "path": "scripts/static-contract-closeout-regression.mjs",
+      "reason": "The aggregator launched fourteen already-retired historical assertion modules whose targets are preserved in Git and this evidence index.",
+      "retainedOwners": ["release.historical-evidence-retirement", "release.regression-manifest-generation"],
+      "liveFragments": ["Retirement registration and floor credit remain checked by release.regression-manifest-generation.", "The imported historical module inventory remains recorded below without executing it as product evidence."]
+    },
+    {
+      "id": "release.maintainability-closeout",
+      "path": "scripts/regressions/release/maintainability-closeout.regression.mjs",
+      "reason": "The program mixed archived roadmap and changelog pins with verbatim mirrors of live regression source and one stale cross-file SHA.",
+      "retainedOwners": ["database.startup-maintenance-lifecycle", "framework.bundled-module-registry", "release.regression-manifest-generation", "views.dashboard-es-module-entry"],
+      "liveFragments": ["Bundled module inventory and side-effect behavior remain with framework.bundled-module-registry.", "Startup ordering, repair idempotence, and integrity remain with database.startup-maintenance-lifecycle.", "Dashboard module loading and focus behavior remain with views.dashboard-es-module-entry.", "Manifest membership remains with release.regression-manifest-generation."]
+    },
+    {
+      "id": "release.typescript-seam-branch-closeout",
+      "path": "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
+      "reason": "The program pinned every archived 0.33.32 heading, historical correction token, changelog entry, and durable-doc version label after the live type owners had shipped.",
+      "retainedOwners": ["framework.typecheck-honesty-inventory", "framework.typecheck-seams", "release.regression-manifest-generation"],
+      "liveFragments": ["Checked-file membership and strict probe measurements remain with framework.typecheck-honesty-inventory.", "Compiler seam configuration remains with framework.typecheck-seams.", "Required behavioral regression registration remains with release.regression-manifest-generation.", "Restricted descriptor rendering remains in tests/e2e/client-projects-restricted-descriptor.spec.mjs."]
+    }
+  ],
+  "retainedCloseoutOwners": [
+    "framework.reporting-closeout",
+    "framework.settings-branch-closeout",
+    "legacy.async.recurrence.response.closeout",
+    "legacy.better.sqlite3.driver.closeout",
+    "legacy.client.project.hierarchy.branch.closeout",
+    "legacy.files.time.tracking.qol.closeout",
+    "legacy.lists.closeout",
+    "legacy.notes.integration.closeout",
+    "legacy.task.qol.closeout",
+    "legacy.work.resume.state.closeout",
+    "release.closeout-conductor",
+    "release.playwright-dev-only-boundary",
+    "release.roadmap-cursor-floor",
+    "release.validation-single-ownership"
+  ],
+  "archivedStaticModules": [
+    "scripts/clients-projects-strict-closeout-regression.mjs",
+    "scripts/database-agnostic-contract-closeout-regression.mjs",
+    "scripts/files-browse-edit-preview-closeout-regression.mjs",
+    "scripts/files-conversion-closeout-regression.mjs",
+    "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
+    "scripts/markdown-closeout-regression.mjs",
+    "scripts/module-file-closeout-regression.mjs",
+    "scripts/notes-import-closeout-regression.mjs",
+    "scripts/notes-slideout-closeout-regression.mjs",
+    "scripts/runtime-database-foundation-closeout-regression.mjs",
+    "scripts/surface-standardization-closeout-regression.mjs",
+    "scripts/tasks-conversion-closeout-regression.mjs",
+    "scripts/view-builder-closeout-regression.mjs",
+    "scripts/view-conversion-branch-closeout-regression.mjs"
+  ]
+}

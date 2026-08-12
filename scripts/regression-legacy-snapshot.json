@@ -35,10 +35,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/static-contract-closeout-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/parameter-binding-audit-regression.mjs",
       "runMode": "static"
     },
