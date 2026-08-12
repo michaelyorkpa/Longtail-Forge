@@ -53,6 +53,18 @@ export interface SupportViewRequestSession extends RequestSessionBase {
 
 export type RequestSession = NormalRequestSession | SupportViewRequestSession;
 
+export interface PrivateFeedAuthorizationSession extends AuthenticatedIdentity {
+  workspace_id: string;
+  active_workspace_id: string;
+  home_workspace_id: string | null;
+  timezone: string;
+  ip_address: string;
+  session_mode: "private_feed";
+  workspace_type: string;
+}
+
+export type PermissionSession = RequestSession | PrivateFeedAuthorizationSession;
+
 export interface ApiSession extends AuthenticatedIdentity {
   workspace_id: string;
   api_key_id: string;

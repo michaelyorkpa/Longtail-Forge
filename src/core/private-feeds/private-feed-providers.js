@@ -1,7 +1,17 @@
+/** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedProvider} PrivateFeedProvider */
+/** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedProviderDefinition} PrivateFeedProviderDefinition */
+/** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedSubscriptionDescriptor} PrivateFeedSubscriptionDescriptor */
+/** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedSubscriptionDescriptorInput} PrivateFeedSubscriptionDescriptorInput */
+
+/** @type {Map<string, PrivateFeedProvider>} */
 const providers = new Map();
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 const SUBSCRIPTION_SCOPE_TYPES = new Set(["workspace", "client", "project"]);
 
+/**
+ * @param {PrivateFeedProviderDefinition} definition
+ * @returns {PrivateFeedProvider}
+ */
 function registerPrivateFeedProvider(definition) {
   const provider = normalizeProvider(definition);
   const existing = providers.get(provider.id);
@@ -17,14 +27,23 @@ function registerPrivateFeedProvider(definition) {
   return provider;
 }
 
+/**
+ * @param {unknown} providerId
+ * @returns {PrivateFeedProvider | null}
+ */
 function getPrivateFeedProvider(providerId) {
   return providers.get(normalizeProviderId(providerId)) || null;
 }
 
+/** @returns {PrivateFeedProvider[]} */
 function listPrivateFeedProviders() {
   return Array.from(providers.values());
 }
 
+/**
+ * @param {PrivateFeedSubscriptionDescriptorInput} value
+ * @returns {Readonly<PrivateFeedSubscriptionDescriptor>}
+ */
 function createPrivateFeedSubscriptionDescriptor(value) {
   if (!value || typeof value !== "object") {
     throw new TypeError("Private feed subscription descriptor is required.");
@@ -69,6 +88,10 @@ function createPrivateFeedSubscriptionDescriptor(value) {
   });
 }
 
+/**
+ * @param {PrivateFeedProviderDefinition} definition
+ * @returns {PrivateFeedProvider}
+ */
 function normalizeProvider(definition) {
   if (!definition || typeof definition !== "object") {
     throw new TypeError("Private feed provider definition is required.");
@@ -85,6 +108,11 @@ function normalizeProvider(definition) {
   });
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {string}
+ */
 function normalizeDescriptorIdentity(value, label) {
   const identity = normalizeOptionalDescriptorIdentity(value, label);
   if (!identity) {
@@ -93,6 +121,11 @@ function normalizeDescriptorIdentity(value, label) {
   return identity;
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {string | null}
+ */
 function normalizeOptionalDescriptorIdentity(value, label) {
   const identity = String(value || "").trim();
   if (!identity) {
@@ -104,6 +137,10 @@ function normalizeOptionalDescriptorIdentity(value, label) {
   return identity;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeProviderId(value) {
   const providerId = String(value || "").trim().toLowerCase();
   if (!PROVIDER_ID_PATTERN.test(providerId) || providerId.length > 80) {

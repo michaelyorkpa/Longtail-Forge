@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.37 - Private calendar-feed service and route trust boundary
+
+Completed on 2026-08-11. The complete framework-owned private calendar-feed service and route edge now consumes explicit bearer, scope, provider, repository, permission-session, request, and response contracts, and the active roadmap advances to `0.33.32.38` for bounded framework route and error-middleware passes.
+
+**Model: High Effort** - An unauthenticated token-in-URL calendar surface combines bearer credentials, task visibility, recurrence, and serialization.
+
+- [x] Checked `private-feeds.service.js` and `private-feeds.routes.js` against explicit token, feed-scope, task-calendar, request, response, provider-dispatch, and repository-row contracts; raised the checked inventory floor from 109 to 111 files.
+- [x] Reconciled the promoted scope by amending the branch non-goal, removing `src/routes/private-feeds.routes.js` from `RESERVED_CLEAN_FILE_PATHS`, claiming both edge files in the complete checked inventory, and confirming the former TODO deferral remains absent.
+- [x] Preserved generic invalid/revoked/expired behavior, constant-time hash comparison, token secrecy, workspace/module/status filtering, recurrence bounds, timezone formatting, escaping, cache headers, throttling, and audit/security behavior.
+- [x] Retained executable proof that malformed, unknown, rotated, revoked, and inaccessible requests share the exact safe response and cannot expose bearer, task, workspace, or user details.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help/Calendar workflow, role grants, RFC 5545 content, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- The complete public feed edge is checked without weakening bearer-token secrecy or valid calendar output.
+
 ## Version 0.33.32.36 - Search-index rebuild checked service
 
 Completed on 2026-08-11. Search rebuild now consumes explicit active-declaration and canonical indexer-reference contracts and returns a named progress/result summary, while the active roadmap advances to `0.33.32.37` for the private calendar-feed trust boundary.

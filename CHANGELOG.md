@@ -1,3 +1,13 @@
+## Version 0.33.32.37 - 2026-08-11
+
+- Checked the complete private calendar-feed service and route edge against explicit bearer-token, repository-row, scope, lifecycle, provider-dispatch, permission-session, request, and response contracts.
+- Kept sessionless feed authorization separate from browser request sessions, narrowed raw lifecycle JSON and nullable repository reads, and retained the immutable secret-free descriptor passed to Tasks.
+- Claimed the Calendar/security-owned route from the reserved-path guardrail and raised the checked inventory floor from 109 to 111 files.
+- Preserved one-time hashed credentials, constant-time verification, generic missing responses, trusted-IP throttling, live workspace/module/target/permission checks, reconciliation, safe headers, recurrence/timezone/escaping behavior, and secret-free audit/log output.
+- Verification: the focused typecheck-seam and private-calendar authentication regressions passed; final `npm run verify:slice` passed the canonical local closeout, changed-area/full-check, and permission gates; SQLite integrity remained `ok`; and the restarted local server returned the expected version from `/api/app-info`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/longtail_forge_permissions_matrix.md`, `docs/module-development.md`, `docs/operational-security.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help/Calendar workflow, role grants, RFC 5545 content, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.36 - 2026-08-11
 
 - Checked the Search-index rebuild service against explicit active-declaration, canonical indexer-reference, scope/options, progress-count, target, failure, audit-session, and result-summary contracts.
