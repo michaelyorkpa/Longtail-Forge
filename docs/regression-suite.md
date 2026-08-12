@@ -281,25 +281,25 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 456 |
-| Legacy-snapshot regressions | 307 |
-| Convention-path metadata regressions | 149 |
-| Credited retirements | 15 |
-| Active release-gate regressions | 73 |
+| Active discovered regressions | 424 |
+| Legacy-snapshot regressions | 285 |
+| Convention-path metadata regressions | 139 |
+| Credited retirements | 49 |
+| Active release-gate regressions | 71 |
 | Required active release-gate IDs | 46 |
-| Active regression ceiling | 456 |
-| Legacy regression ceiling | 307 |
-| Active regression assertions | 18264 |
+| Active regression ceiling | 424 |
+| Legacy regression ceiling | 285 |
+| Active regression assertions | 17028 |
 | Vitest owner assertions | 101 |
-| Direct owner assertions | 72 |
+| Direct owner assertions | 1329 |
 | Credited reviewed assertion reductions | 193 |
-| Effective assertion floor | 18630 |
-| Release-gate ratchet floor | 81 |
+| Effective assertion floor | 18651 |
+| Release-gate ratchet floor | 83 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 84 | 1 | 85 |
-| `views` | 33 | 0 | 33 |
+| `framework` | 78 | 8 | 86 |
+| `views` | 8 | 26 | 34 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
 | `tasks` | 58 | 0 | 58 |
@@ -311,7 +311,7 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 13 | 0 | 13 |
 | `database` | 47 | 0 | 47 |
-| `permissions` | 11 | 3 | 14 |
+| `permissions` | 10 | 4 | 14 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
 | `release` | 32 | 9 | 41 |
@@ -321,14 +321,14 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 206 |
+| `focused` | 176 |
 | `integration` | 169 |
-| `release-gate` | 73 |
+| `release-gate` | 71 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 229 |
+| `static` | 197 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
@@ -336,7 +336,7 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `closeout-regressions` | 13 | 4 | 17 |
+| `closeout-regressions` | 12 | 5 | 17 |
 <!-- GENERATED REGRESSION INVENTORY END -->
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.

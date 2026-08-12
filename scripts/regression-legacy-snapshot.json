@@ -3,10 +3,6 @@
   "recordedAtVersion": "0.33.6.16.1",
   "scripts": [
     {
-      "path": "scripts/accessibility-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/event-bus-regression.mjs",
       "runMode": "static"
     },
@@ -143,47 +139,11 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/ui-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/surface-token-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/modal-section-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/modal-footer-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/overlay-host-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/drawer-main-surface-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/surface-adoption-pass-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-builder-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/view-builder-helper-regression.mjs",
       "runMode": "static"
     },
     {
       "path": "scripts/lists-view-builder-pilot-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-builder-converted-surface-guardrails.mjs",
       "runMode": "static"
     },
     {
@@ -195,23 +155,7 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/view-descriptor-terminology-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-descriptor-declarative-guardrails.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-renderer-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/view-descriptor-bootstrap-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-renderer-data-binding-regression.mjs",
       "runMode": "static"
     },
     {
@@ -260,10 +204,6 @@
     },
     {
       "path": "scripts/files-strict-guardrail-inventory-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/view-index-primitive-regression.mjs",
       "runMode": "static"
     },
     {
@@ -320,14 +260,6 @@
     },
     {
       "path": "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/markdown-platform-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/markdown-renderer-service-regression.mjs",
       "runMode": "static"
     },
     {
@@ -515,10 +447,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/modal-action-standardization-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/tasks-tags-files-child-dialog-regression.mjs",
       "runMode": "static"
     },
@@ -528,10 +456,6 @@
     },
     {
       "path": "scripts/notes-notification-follow-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/client-modal-footer-actions-regression.mjs",
       "runMode": "static"
     },
     {
@@ -568,18 +492,6 @@
     },
     {
       "path": "scripts/module-actions-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/shared-icons-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/icon-control-conversion-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/remaining-icon-actions-regression.mjs",
       "runMode": "static"
     },
     {

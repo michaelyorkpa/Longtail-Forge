@@ -21,7 +21,7 @@ const surfaceContract = readText("docs/ui-surface-contract.md");
 const filesInventory = readText("docs/files-strict-guardrail-inventory.md");
 const tasksInventory = readText("docs/tasks-strict-guardrail-inventory.md");
 const clientsProjectsInventory = readText("docs/clients-projects-strict-guardrail-inventory.md");
-const declarativeGuardrailRegression = readText("scripts/view-descriptor-declarative-guardrails.mjs");
+const declarativeGuardrailRegression = readText("scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs");
 
 const strictSurfaceIds = [
   "client-projects.clients",
