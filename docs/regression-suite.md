@@ -122,6 +122,8 @@ As of 0.33.32.41, `framework.password-startup-checked-core` requires checked own
 
 As of 0.33.32.42, `framework.markdown-checked-core` requires checked ownership and explicit Markdown-it/application parser, renderer, inline-state, token, environment, render-mode, preference, link, and safe-output contracts. It freezes CommonMark mode, tables, strikethrough exclusion, exact safe schemes/relative prefixes, image opt-in, user-authored aliases, underline tokenization, and generated task-list output while rejecting checker escapes. The complete checked inventory floor is 148 files, the active regression floor is 464 scripts, and the Framework area floor is 84 scripts. Renderer/platform, Notes preference/soft-line, closeout, Help, Files preview, and cross-role editable-content regressions retain executable output and integration ownership.
 
+As of 0.33.32.43, `database.migration-runner-checked-boundary` requires checked ownership and explicit migration source/file, repair, database-row, applied-migration, callback, filesystem-error, and rollback-error contracts. It freezes version/module ordering, SQL-file selection, checksum normalization and validate-before-apply ordering, migration locking, explicit transaction/rollback ownership, foreign-key repair sequencing, and bound migration recording while rejecting checker escapes. The complete checked inventory floor is 149 files, the credited active regression floor is 465 scripts, the release-gate floor is 76 scripts, and the Database area floor is 47 scripts. Fresh/repeat startup, baseline adoption, contention, compatibility/checksum mismatch, generated schema, foreign-key, and SQLite integrity regressions remain the executable behavior owners.
+
 As of 0.33.32.14, `framework.typecheck-seams` raises the complete checked inventory to 69 files and pins the first-party Work Resume State producer and read-resolver assembly to shared payload, resolver-context, batch-resolver, and lifecycle-result contracts. The initial-producer, producer, service, and conversion regressions independently prove registration, permission and lifecycle pruning, unavailable states, active/history filtering, ranking, and emitted recovery payloads remain unchanged. `framework.identifier-authority` excludes dot-prefixed transient regression workspaces from its package-import scan so concurrently removed compile fixtures cannot invalidate an otherwise stable tracked-source audit.
 
 As of 0.33.32.15, `framework.typecheck-seams` raises the complete checked inventory to 73 files and pins Jobs enqueue/persisted-row/handler-envelope/worker-state contracts plus normalized internal-event and declared summary-resolver contracts. The Jobs area proves schema, dedupe, claims, locking, retries, idempotency, retention, and separate-worker execution; event-bus and audit-extensibility coverage prove hook isolation, safe summary/redaction/fallback behavior; Notifications coverage proves queued delivery and inbox/preference lifecycles remain unchanged.
@@ -269,14 +271,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 461 |
+| Active discovered regressions | 462 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 152 |
+| Convention-path metadata regressions | 153 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 73 |
+| Active release-gate regressions | 74 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 464 |
-| Release-gate ratchet floor | 75 |
+| Global ratchet floor | 465 |
+| Release-gate ratchet floor | 76 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -292,7 +294,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 13 | 0 | 13 |
-| `database` | 46 | 0 | 46 |
+| `database` | 47 | 0 | 47 |
 | `permissions` | 13 | 0 | 13 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
@@ -305,12 +307,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 211 |
 | `integration` | 169 |
-| `release-gate` | 73 |
+| `release-gate` | 74 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 235 |
+| `static` | 236 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

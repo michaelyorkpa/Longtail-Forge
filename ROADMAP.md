@@ -71,18 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.43 - Migration-runner checked boundary
-
-**Model: High Effort** — Migration ordering, locking, checksums, baselines, and transactions are database-integrity contracts.
-
-- [ ] Check `src/db/migrations.js` against explicit migration-file, version, lock, checksum, adapter, transaction, and result contracts.
-- [ ] Narrow filesystem/database state without editing applied migrations, changing checksums, or adding schema solely for checker satisfaction.
-- [ ] Retain fresh/repeat startup, adoption, contention, checksum mismatch, rollback, snapshot, foreign-key, and integrity proof.
-
-Acceptance criteria:
-
-- Migration runner typechecks and every ordering, lock, checksum, rollback, and schema-integrity behavior remains unchanged.
-
 ## Version 0.33.32.44 - Checked-program honesty and residual inventory
 
 **Model: High Effort** — The branch must distinguish meaningful contracts from pragma-only or `any`-terminated coverage without making percentage the goal.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 148,
+  "minimumOptedInFiles": 149,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -47,6 +47,7 @@
     "src/core/version.js",
     "src/db/adapters/sqlite-adapter.js",
     "src/db/adapters/sqlite-dialect-seams.js",
+    "src/db/migrations.js",
     "src/db/parameter-bindings.js",
     "src/db/provider.js",
     "src/db/sql-literals.js",
