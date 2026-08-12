@@ -46,16 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.6 - Move duplicated pure contracts to Vitest owners
-
-**Model: High Effort** - Retirement is safe only when pure behavior and remaining integration seams are separated precisely.
-
-- [ ] Move duplicated asset-version, runtime-configuration, formatter, comparator, and similar deterministic matrices to direct Vitest owners.
-- [ ] Retain spawned integration checks only for environment materialization, startup/import propagation, database, HTTP, or artifact behavior that Vitest does not own.
-- [ ] Use the new assertion-movement policy to retire redundant entry points with complete dispositions and no floor fiction.
-- [ ] Remove `--passWithNoTests` from the narrow Vitest aliases (`test:contracts`, `test:tasks`, `test:time-tracking`) and make each alias name its owned coverage so a moved or deleted suite fails its command instead of passing vacuously.
-- [ ] Keep Vitest ahead of stateful regressions in `check:fast` so deterministic failures remain cheap and fail-fast.
-
 ### 0.33.33.7 - Add audit-gated in-process static execution
 
 **Model: High Effort** - Runner changes affect global state, output isolation, failure propagation, and every static owner.
