@@ -1636,6 +1636,8 @@ As of 0.33.32.43, `src/db/migrations.js` is a checked framework boundary. Named 
 
 As of 0.33.32.44, the 149-file checked seam is described by both the membership inventory and `scripts/typecheck-honesty-inventory.json`. The latter separates configured-program success from dated strict residual probes and owner-scoped future work. Module catalog projections now use explicit resource, API-scope, audit-type, event-type, and event-hook contracts; permission resources and active API keys are closed shapes; and framework resume/event sessions use the shared request-session union. This is contract hardening only and does not change module activation, catalog filtering, hook dispatch, permissions, API-key behavior, or runtime workflows.
 
+As of 0.33.32.45, the completed seam-expansion architecture is frozen by `release.typescript-seam-branch-closeout` at the clean 150-file configured floor. The closeout composes the existing typecheck, raw/delivered descriptor, permission, session, Jobs, Time Tracking, Search, backup, and Work Resume owners instead of replacing their behavior assertions with source matching. It also preserves inspectable pre-fix commit/output evidence for each runtime correction and the independent desktop/mobile restricted-descriptor journey. The final strict probes report 864 server/test errors across 90 files and 11,134 public-browser errors across 69 files; their module, Files-service, client, test, framework-interior, and Jobs-payload owners remain explicitly deferred rather than treated as completed coverage.
+
 ---
 
 ## File and Folder Boundaries

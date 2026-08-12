@@ -128,6 +128,8 @@ As of 0.33.32.44, `framework.typecheck-honesty-inventory` pins the zero-error 14
 
 As of roadmap slice 0.33.32.38.1 (package 0.33.32.44.1), `framework.typecheck-seams` records the exact one-file Work Resume route pass and raises the checked floor to 150. It pins the active-workspace adapter, named response fields, absence of suppression/assertion casts, the non-null service result, and explicit post-update disappearance handling. `work-resume-state-service-regression.mjs` uses a temporary SQLite trigger to delete the row after its scoped dismissal update and requires the established 404; the API regression retains list/filter/active/recent/dismiss/empty-state compatibility. The refreshed strict server/test inventory is 864 errors across 90 files: 670 production, 192 test-only, and 2 script errors, with zero residuals in the Work Resume route.
 
+As of 0.33.32.45, `release.typescript-seam-branch-closeout` is the release-gate inventory for the complete 0.33.32 branch. It requires every numbered slice exactly once in the archive, the 0.33.33 live handoff, the clean 150-file configured floor, current-or-lower dated residual ceilings, explicit TODO owners, and the registered regressions that execute descriptor, permission, session, Jobs, Time Tracking, browser-error, backup, Search, and Work Resume behavior. It also pins the independent desktop/mobile restricted-descriptor spec and the archived pre-fix commit/output ledger so a correction cannot be closed by post-fix green output or source matching alone. The closing probes remain 864 server/test errors across 90 files and 11,134 public-browser errors across 69 files; neither residual inventory receives production-coverage credit.
+
 As of 0.33.32.14, `framework.typecheck-seams` raises the complete checked inventory to 69 files and pins the first-party Work Resume State producer and read-resolver assembly to shared payload, resolver-context, batch-resolver, and lifecycle-result contracts. The initial-producer, producer, service, and conversion regressions independently prove registration, permission and lifecycle pruning, unavailable states, active/history filtering, ranking, and emitted recovery payloads remain unchanged. `framework.identifier-authority` excludes dot-prefixed transient regression workspaces from its package-import scan so concurrently removed compile fixtures cannot invalidate an otherwise stable tracked-source audit.
 
 As of 0.33.32.15, `framework.typecheck-seams` raises the complete checked inventory to 73 files and pins Jobs enqueue/persisted-row/handler-envelope/worker-state contracts plus normalized internal-event and declared summary-resolver contracts. The Jobs area proves schema, dedupe, claims, locking, retries, idempotency, retention, and separate-worker execution; event-bus and audit-extensibility coverage prove hook isolation, safe summary/redaction/fallback behavior; Notifications coverage proves queued delivery and inbox/preference lifecycles remain unchanged.
@@ -275,14 +277,14 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 463 |
+| Active discovered regressions | 464 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 154 |
+| Convention-path metadata regressions | 155 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 75 |
+| Active release-gate regressions | 76 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 466 |
-| Release-gate ratchet floor | 77 |
+| Global ratchet floor | 467 |
+| Release-gate ratchet floor | 78 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -302,7 +304,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `permissions` | 13 | 0 | 13 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
-| `release` | 35 | 3 | 38 |
+| `release` | 36 | 3 | 39 |
 | `docs` | 10 | 0 | 10 |
 | `licensing` | 1 | 0 | 1 |
 
@@ -311,12 +313,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 211 |
 | `integration` | 169 |
-| `release-gate` | 75 |
+| `release-gate` | 76 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 237 |
+| `static` | 238 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
@@ -324,7 +326,7 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `closeout-regressions` | 16 | 0 | 16 |
+| `closeout-regressions` | 17 | 0 | 17 |
 <!-- GENERATED REGRESSION INVENTORY END -->
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.

@@ -1,3 +1,13 @@
+## Version 0.33.32.45 - 2026-08-12
+
+- Completed the independent review matrix across all 46 preceding 0.33.32 slices: the configured program is clean at 150 checked files, descriptor and restricted-role paths retain executable proof, permissions and backup portability remain green, and no runtime TypeScript import or checker suppression was introduced.
+- Added `release.typescript-seam-branch-closeout`, which requires all 47 numbered slices exactly once in the archive, composes the retained behavior owners, freezes auditable pre-fix commit/output evidence, and rejects an unowned deferral or stale live-roadmap section.
+- Re-ran the strict inventories: server/test remains 864 errors across 90 files (670 production, 192 test-only, 2 scripts), and public browser remains 11,134 errors across 69 files. These dated totals route future work and confer no production-coverage credit.
+- Reconciled `TODO.md` to the 150-file post-0.33.32.38.1 baseline and retained the explicit module, Files-service, client, test, framework-interior, and Jobs-payload owners.
+- Archived the complete TypeScript Seam Expansion branch, advanced the active roadmap cursor to `0.33.33`, and aligned release metadata and running identity for this release.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, runtime configuration, deployment topology, database schema/migrations, public API behavior, and module workflows are unchanged; this slice closes and proves existing branch contracts.
+
 ## Version 0.33.32.44.1 - 2026-08-12
 
 - Completed roadmap slice `0.33.32.38.1` under a monotonic package identity after the later `.39`-`.44` slices had already shipped out of numeric order.
@@ -5,7 +15,7 @@
 - Checked the Work Resume route through the active-workspace adapter and explicit response projections while preserving query aliases, dual-cased compatibility input, ranking, action fields, empty state, API output, permission pruning, and lifecycle behavior.
 - Added executable post-update disappearance proof, retained the Work Resume API/service suites, and recorded the separately owned route pass at a 150-file checked floor.
 - Updated the strict server/test residual inventory to 864 errors across 90 files: 670 production, 192 test-only, and 2 script errors; the checked Work Resume route has no residual errors.
-- Advanced the active roadmap cursor to `0.33.32.45`.
+- Advanced the active roadmap cursor to the final branch-audit slice.
 - Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
 - No docs change needed: user-facing Help, Workbench workflow, database schema/migrations, permissions, runtime configuration, deployment, and public API behavior are unchanged.
 
