@@ -27,6 +27,7 @@ try {
 
   await assertUpsertNormalizesAndGuardsWorkspace(session);
   await assertDismissalClearsAfterNewProducerUpdate(session);
+  await assertDismissalHandlesPostUpdateDisappearance(session);
   await assertReadGuardsHideUnsafeRows(session, resolverState);
   await assertRemoveForRecordDeletesAllUserRows(session);
 
@@ -92,7 +93,9 @@ async function assertDismissalClearsAfterNewProducerUpdate(session) {
 
   assert.equal((await workResumeStateService.listResumeState(session)).items.some((item) => item.record_id === taskId), true);
 
-  await workResumeStateService.dismissResumeState(session, saved.resume_state_id);
+  const dismissed = await workResumeStateService.dismissResumeState(session, saved.resume_state_id);
+  assert.equal(dismissed.resume_state_id, saved.resume_state_id);
+  assert.ok(dismissed.dismissed_at, "dismissal should return the updated non-null projection");
 
   assert.equal((await workResumeStateService.listResumeState(session)).items.some((item) => item.record_id === taskId), false);
 
@@ -118,6 +121,37 @@ async function assertDismissalClearsAfterNewProducerUpdate(session) {
   const refreshed = listed.items.find((item) => item.record_id === taskId);
   assert.ok(refreshed, "a newer producer update should make a dismissed row eligible again");
   assert.equal(refreshed.dismissed_at, "");
+}
+
+async function assertDismissalHandlesPostUpdateDisappearance(session) {
+  const taskId = `dismissal-disappearance-task-${randomUUID()}`;
+  const saved = await workResumeStateService.upsertResumeState(session, {
+    moduleId: "tasks",
+    recordId: taskId,
+    recordType: "task",
+    title: "Dismissal disappearance candidate",
+  });
+  const triggerName = "work_resume_state_dismiss_disappearance_regression";
+
+  await runSql(`
+CREATE TEMP TRIGGER ${triggerName}
+AFTER UPDATE OF dismissed_at ON work_resume_state
+WHEN NEW.resume_state_id = ${sqlText(saved.resume_state_id)}
+BEGIN
+  DELETE FROM work_resume_state
+  WHERE resume_state_id = NEW.resume_state_id;
+END;
+`);
+
+  try {
+    await assert.rejects(
+      () => workResumeStateService.dismissResumeState(session, saved.resume_state_id),
+      (error) => error?.statusCode === 404 && error?.message === "Resume state was not found.",
+      "a row disappearing after the scoped update must preserve the existing not-found contract",
+    );
+  } finally {
+    await runSql(`DROP TRIGGER IF EXISTS ${triggerName};`);
+  }
 }
 
 async function assertReadGuardsHideUnsafeRows(session, resolverState) {

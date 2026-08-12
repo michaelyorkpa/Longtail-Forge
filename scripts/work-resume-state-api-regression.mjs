@@ -154,6 +154,7 @@ async function assertDismissRouteHidesDefaultRows(api, fixture) {
   const dismissResponse = await api.post(`/api/work-resume/${encodeURIComponent(task.resumeStateId)}/dismiss`);
   assert.equal(dismissResponse.status, 200);
   assert.equal(dismissResponse.body.dismissed, true);
+  assert.ok(dismissResponse.body.dismissedAt, "dismiss response should include the persisted timestamp");
   assert.equal(dismissResponse.body.resumeStateId, task.resumeStateId);
 
   const leftOffResponse = await api.get("/api/work-resume?mode=left_off&limit=50");

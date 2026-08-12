@@ -3,7 +3,7 @@
   "reviewedSlice": "checked-program-honesty",
   "checkedProgram": {
     "command": "npm run typecheck",
-    "optedInFiles": 149,
+    "optedInFiles": 150,
     "errors": 0,
     "remainingExplicitAnyByOwner": {
       "src/core/events/event-summaries.js": 10,
@@ -26,8 +26,8 @@
   },
   "strictServerAndTestProbe": {
     "command": "node node_modules/typescript/bin/tsc --noEmit --checkJs --pretty false",
-    "errors": 867,
-    "files": 91,
+    "errors": 864,
+    "files": 90,
     "byOwner": {
       "src/modules/notes/": 208,
       "src/modules/lists/": 118,
@@ -37,14 +37,14 @@
       "src/modules/developer-example/": 2,
       "src/core/": 62,
       "src/db/": 21,
-      "src/routes/": 29,
+      "src/routes/": 26,
       "src/services/": 68,
       "tests/e2e/": 156,
       "tests/unit/": 28,
       "tests/contracts/": 8,
       "scripts/": 2
     },
-    "productionErrors": 673,
+    "productionErrors": 670,
     "testOnlyErrors": 192,
     "scriptErrors": 2,
     "testDisposition": "Deferred as non-production test hardening; no production coverage credit is claimed."

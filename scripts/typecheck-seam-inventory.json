@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 149,
+  "minimumOptedInFiles": 150,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -120,6 +120,7 @@
     "src/routes/static.routes.js",
     "src/routes/support-view.routes.js",
     "src/routes/tags.routes.js",
+    "src/routes/work-resume.routes.js",
     "src/routes/workbench.routes.js",
     "src/security/passwords.js",
     "src/security/sessions.js",

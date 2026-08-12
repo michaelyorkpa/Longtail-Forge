@@ -1,3 +1,14 @@
+## Version 0.33.32.44.1 - 2026-08-12
+
+- Completed roadmap slice `0.33.32.38.1` under a monotonic package identity after the later `.39`-`.44` slices had already shipped out of numeric order.
+- Made Work Resume dismissal return an exact non-null persistence projection and preserve the established 404 when the scoped row disappears before the post-update reread, without an assertion cast.
+- Checked the Work Resume route through the active-workspace adapter and explicit response projections while preserving query aliases, dual-cased compatibility input, ranking, action fields, empty state, API output, permission pruning, and lifecycle behavior.
+- Added executable post-update disappearance proof, retained the Work Resume API/service suites, and recorded the separately owned route pass at a 150-file checked floor.
+- Updated the strict server/test residual inventory to 864 errors across 90 files: 670 production, 192 test-only, and 2 script errors; the checked Work Resume route has no residual errors.
+- Advanced the active roadmap cursor to `0.33.32.45`.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, Workbench workflow, database schema/migrations, permissions, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.44 - 2026-08-12
 
 - Published a reviewable honesty inventory separating the clean 149-file configured program from 867 strict server/test errors across 91 files and 11,134 strict public-browser errors across 69 files, with explicit future owners and no nominal production-coverage credit.

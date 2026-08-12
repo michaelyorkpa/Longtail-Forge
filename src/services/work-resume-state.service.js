@@ -6,11 +6,12 @@ import { AppError } from "../utils/app-error.js";
 import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
 /**
- * @typedef {Object} ResumeStateTimestampRow
+ * @typedef {Object} ResumeStateDismissResult
+ * @property {string} resume_state_id
  * @property {string | null} last_worked_at
  * @property {string} updated_at
- * @property {string | null} [dismissed_at]
- * @property {string | null} [dismissed_source_updated_at]
+ * @property {string | null} dismissed_at
+ * @property {string | null} dismissed_source_updated_at
  */
 
 const DEFAULT_LIMIT = 25;
@@ -144,6 +145,11 @@ async function upsertResumeState(session, payload = {}) {
   );
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {unknown} resumeStateId
+ * @returns {Promise<ResumeStateDismissResult>}
+ */
 async function dismissResumeState(session, resumeStateId) {
   assertSession(session);
   const normalizedResumeStateId = normalizeText(resumeStateId, 160);
@@ -178,7 +184,13 @@ WHERE workspace_id = :workspaceId
     workspaceId: textParam(session.workspace_id),
   });
 
-  return readById(session.workspace_id, session.user_id, normalizedResumeStateId);
+  const dismissedRow = await readById(session.workspace_id, session.user_id, normalizedResumeStateId);
+
+  if (!dismissedRow) {
+    throw new AppError("Resume state was not found.", 404);
+  }
+
+  return dismissedRow;
 }
 
 async function listResumeState(session, query = {}) {
@@ -513,8 +525,12 @@ LIMIT 1;
 }
 
 async function readById(workspaceId, userId, resumeStateId) {
-  return /** @type {Promise<ResumeStateTimestampRow | null>} */ (db.get(`
-SELECT *
+  return /** @type {Promise<ResumeStateDismissResult | null>} */ (db.get(`
+SELECT resume_state_id,
+       last_worked_at,
+       dismissed_at,
+       dismissed_source_updated_at,
+       updated_at
 FROM work_resume_state
 WHERE workspace_id = :workspaceId
   AND user_id = :userId

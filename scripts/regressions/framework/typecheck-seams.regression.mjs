@@ -32,7 +32,6 @@ const SLICE_38_ROUTE_EXCLUSIONS = new Set([
   "src/routes/search-index.routes.js",
   "src/routes/search.routes.js",
   "src/routes/users.routes.js",
-  "src/routes/work-resume.routes.js",
 ]);
 const SLICE_38_ROUTE_TIERS = new Set([
   "framework-protected-administration-routes",
@@ -435,7 +434,7 @@ const cleanFilePassPaths = [];
 for (const pass of cleanFilePassInventory.passes) {
   assert.match(
     pass.slice,
-    /^(?:18(?:\.\d+)?|38)$/,
+    /^(?:18(?:\.\d+)?|38(?:\.1)?)$/,
     "bounded clean-file pass IDs must remain under an explicitly owned checking slice",
   );
   assert.ok(
@@ -498,6 +497,16 @@ assert.deepEqual(
     .sort(),
   SLICE_38_ROUTE_FILES,
   "slice 38 must retain its exact 20-file framework route ownership boundary",
+);
+const workResumeRoutePass = cleanFilePassInventory.passes.find((pass) => pass.slice === "38.1");
+assert.deepEqual(
+  workResumeRoutePass,
+  {
+    slice: "38.1",
+    ownershipTier: "framework-work-resume-route",
+    files: ["src/routes/work-resume.routes.js"],
+  },
+  "slice 38.1 must retain its exact Work Resume route ownership boundary",
 );
 
 const discoveredCheckedFiles = [
@@ -1238,6 +1247,40 @@ assert.doesNotMatch(
   filesRouteSource,
   /storageKey|storagePath|sha256Hash|scanReason|signedUrl/i,
   "the checked Files route must not shape protected storage, integrity, scanner, or signed-URL fields",
+);
+const workResumeRouteSource = readFileSync("src/routes/work-resume.routes.js", "utf8");
+const workResumeStateServiceSource = readFileSync("src/services/work-resume-state.service.js", "utf8");
+assert.match(workResumeRouteSource, /^\/\/ @ts-check\r?\n/, "the Work Resume route must remain checked");
+assert.match(
+  workResumeRouteSource,
+  /workspaceAsyncRoute as asyncRoute/,
+  "the Work Resume route must refine its active-workspace session before service dispatch",
+);
+assert.doesNotMatch(
+  workResumeRouteSource,
+  /@ts-(?:ignore|nocheck)|\/\*\*\s*@type(?!def)|\bas\s+(?:unknown|any)\b/,
+  "the Work Resume route must not suppress or assertion-cast its checked boundary",
+);
+for (const responseField of [
+  "emptyState",
+  "filters",
+  "items",
+  "mode",
+  "resumeStateId",
+  "resumeRankHint",
+  "primaryAction",
+]) {
+  assert.ok(workResumeRouteSource.includes(responseField), `the Work Resume response must retain ${responseField}`);
+}
+assert.match(
+  workResumeStateServiceSource,
+  /@returns \{Promise<ResumeStateDismissResult>\}[\s\S]{0,150}async function dismissResumeState/,
+  "dismissResumeState must advertise a non-null persistence result",
+);
+assert.match(
+  workResumeStateServiceSource,
+  /const dismissedRow = await readById[\s\S]{0,180}if \(!dismissedRow\)[\s\S]{0,120}Resume state was not found\.[\s\S]{0,120}return dismissedRow;/,
+  "dismissResumeState must handle post-update disappearance before returning its projection",
 );
 const errorHandlerSource = readFileSync("src/middleware/error-handler.js", "utf8");
 assert.match(errorHandlerSource, /^\/\/ @ts-check\r?\n/, "the final error middleware must remain checked");

@@ -64,6 +64,13 @@
         "src/routes/tags.routes.js",
         "src/routes/workbench.routes.js"
       ]
+    },
+    {
+      "slice": "38.1",
+      "ownershipTier": "framework-work-resume-route",
+      "files": [
+        "src/routes/work-resume.routes.js"
+      ]
     }
   ]
 }
