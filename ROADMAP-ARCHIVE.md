@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.7 - Add audit-gated in-process static execution
+
+**Model: High Effort** - Runner changes affected global state, output isolation, failure propagation, and every static owner.
+
+- [x] Extended the static-isolation audit with complete environment, global-state, timer, listener, cache, process, and filesystem classifications; every static owner resolves to either reviewed worker certification or an explicit child-process fallback.
+- [x] Certified six read-only source owners: five run through the bounded parallel worker lane and the former serial Files documentation owner runs through the sequential worker lane; all remaining static, database, Files, environment-sensitive, and child-spawning owners retain child-process isolation.
+- [x] Preserved bucket order, per-script buffered output, fail-fast scheduling, timing JSON with execution identity, the runner-owned Node compile cache, and the isolated-database-only visible retry rule.
+- [x] Recorded three comparable 458-script full runs with zero failures or recoveries: 151.60 seconds on the forced child control and 145.37 / 141.23 seconds on the audited-worker path. The old path remains available through `LTF_STATIC_EXECUTION_MODE=child-process`, and certification was not widened beyond the six proven owners.
+
 ## Version 0.33.33.6 - Move duplicated pure contracts to Vitest owners
 
 **Model: High Effort** - Retirement is safe only when pure behavior and remaining integration seams are separated precisely.
