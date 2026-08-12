@@ -35,6 +35,8 @@ function parseCheckpointTrailers(message) {
 
 function validateCheckpointCommit({
   message,
+  packageAfterSource = "",
+  packageBeforeSource = "",
   parentCount = 1,
   paths = [],
   roadmapArchiveSource = "",
@@ -85,6 +87,9 @@ function validateCheckpointCommit({
   }
   if (!isCloseout) {
     for (const filePath of normalizedPaths) {
+      if (filePath === "package.json" && isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)) {
+        continue;
+      }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }
@@ -103,6 +108,23 @@ function validateCheckpointCommit({
     paths: Object.freeze(normalizedPaths),
     summary,
   });
+}
+
+function isScriptOnlyPackageChange(beforeSource, afterSource) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforePackage = JSON.parse(beforeSource);
+    const afterPackage = JSON.parse(afterSource);
+    if (beforePackage.version !== afterPackage.version) return false;
+    const beforeScripts = beforePackage.scripts;
+    const afterScripts = afterPackage.scripts;
+    delete beforePackage.scripts;
+    delete afterPackage.scripts;
+    return JSON.stringify(beforePackage) === JSON.stringify(afterPackage)
+      && JSON.stringify(beforeScripts) !== JSON.stringify(afterScripts);
+  } catch {
+    return false;
+  }
 }
 
 function validateDocsDisposition(disposition, documentationPaths, errors) {
@@ -173,6 +195,8 @@ function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", r
     const paths = runGit(["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "--find-renames", sha], cwd).split(/\r?\n/).filter(Boolean);
     return Object.freeze({ sha, validation: validateCheckpointCommit({
       message,
+      packageAfterSource: paths.includes("package.json") ? runGit(["show", `${sha}:package.json`], cwd) : "",
+      packageBeforeSource: paths.includes("package.json") && parents[0] ? runGit(["show", `${parents[0]}:package.json`], cwd) : "",
       parentCount: parents.length,
       paths,
       roadmapArchiveSource: roadmapArchive,

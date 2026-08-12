@@ -18,7 +18,6 @@ const roadmap = readText("ROADMAP.md");
 
 const {
   closeSqlite,
-  formatSqliteHealth,
   getLastSqliteHealth,
   initializeSqliteRuntime,
   querySql,
@@ -54,11 +53,6 @@ try {
   assert.equal(health.journalMode, "wal");
   assert.equal(health.busyTimeoutMs, 3210);
   assert.deepEqual(getLastSqliteHealth(), health, "startup should cache the latest SQLite health");
-  assert.equal(
-    formatSqliteHealth(health),
-    `[sqlite-health] provider=sqlite databaseFile=${health.databaseFile} writable=yes foreign_keys=on journal_mode=wal busy_timeout_ms=3210 synchronous=${health.synchronous} cache_size_kib=${health.cacheSizeKib} temp_store=${health.tempStore} mmap_size_bytes=${health.mmapSizeBytes}`,
-    "health formatter should preserve the existing output shape",
-  );
 
   await runSql(`
 CREATE TABLE helper_core_probe (

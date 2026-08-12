@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.28.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.6. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.6, deterministic matrices have direct Vitest owners while stateful regressions retain only the integration seams that need their heavier fixtures. Asset-version and runtime-configuration movements remain pinned; client/project hierarchy and comparator behavior now lives in `tests/unit/client-project-options.test.mjs`; SQLite health formatting, work-candidate normalization/ranking, and resume-producer sanitization live in their named unit owners. The legacy client-picker entry point is retired with its page/consumer wiring moved to `framework.client-project-options-projection`; the SQLite, candidate, and producer regressions remain discovered for startup, database, module, permission, event, and repository behavior. `test:contracts`, `test:tasks`, and `test:time-tracking` name their exact owned files without `--passWithNoTests`, so missing narrow coverage fails closed. Internal checkpoint validation permits a script-only `package.json` edit only when the package version and every non-script field are unchanged; package-lock, release-identity, changelog, and durable-policy changes remain deferred to branch closeout. `check:fast` still runs typecheck, the complete Vitest suite, and cached ESLint before stateful regressions.
 
 As of 0.33.27.7.1, one runner invocation owns one `NODE_COMPILE_CACHE` below the operating-system temp directory, passes it to every regression child, and removes it with the baseline fixture during final cleanup. Baseline construction starts before static execution and may overlap that safe work, but fixture consumers still await the same validated promise. Static scheduling resolves `LTF_STATIC_REGRESSION_PARALLELISM`, then the shared concurrency override, then a conservative two-thirds host-aware default capped at eight; `1` remains the diagnostic serial override. Successful output remains buffered per script to avoid interleaving, while failures, retries, recovered-flake labels, bucket summaries, and timing JSON stay visible. Metadata discovery remains one bootstrap read, the retry queue remains exclusive to isolated-database failures, and bucket fail-fast ordering is unchanged.
 
@@ -222,7 +224,7 @@ Current package commands:
 | `npm run typecheck` | Runs `tsc --noEmit` against the narrow server `tsconfig.json` scope, then the DOM-only `tsconfig.public.json` browser scope. Both keep `checkJs` off so JavaScript files opt in per file with `// @ts-check`; the browser program excludes Node ambient types. `framework.typecheck-seams` reconciles the complete opted-in inventory and monotonic floor; the nominal server `tests/**/*.mjs` include checks only tests carrying that explicit pragma. |
 | `npm run test:unit` | Runs the Vitest suite (`tests/**/*.test.mjs`) once. |
 | `npm run test:watch` | Runs Vitest in watch mode for local iteration. |
-| `npm run test:contracts` / `test:tasks` | Filtered Vitest passes for contract/schema and Tasks tests; the optional filters retain `--passWithNoTests`. |
+| `npm run test:contracts` / `test:tasks` / `test:time-tracking` | Fail-closed Vitest aliases that name their exact contract, Tasks, and Time Tracking owner files. |
 | `npm run test:files` | Runs the exact Files contract suite and fails closed if that owned test file is missing. |
 | `npm run test:regressions` | Runs the full discovered regression registry without the lint stage. |
 | `npm run test:regressions:changed` | Runs content-aware routing; version-only package/lock plus roadmap/changelog ceremony stays focused, while executable/high-risk and unknown paths escalate to `npm run check`. |
@@ -277,24 +279,24 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 459 |
-| Legacy-snapshot regressions | 308 |
+| Active discovered regressions | 458 |
+| Legacy-snapshot regressions | 307 |
 | Convention-path metadata regressions | 151 |
-| Credited retirements | 10 |
+| Credited retirements | 11 |
 | Active release-gate regressions | 75 |
 | Required active release-gate IDs | 46 |
-| Active regression ceiling | 459 |
-| Legacy regression ceiling | 308 |
-| Active regression assertions | 18325 |
-| Vitest owner assertions | 40 |
+| Active regression ceiling | 458 |
+| Legacy regression ceiling | 307 |
+| Active regression assertions | 18296 |
+| Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 133 |
-| Effective assertion floor | 18570 |
+| Effective assertion floor | 18602 |
 | Release-gate ratchet floor | 80 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 85 | 0 | 85 |
+| `framework` | 84 | 1 | 85 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -317,14 +319,14 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 207 |
+| `focused` | 206 |
 | `integration` | 169 |
 | `release-gate` | 75 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 232 |
+| `static` | 231 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

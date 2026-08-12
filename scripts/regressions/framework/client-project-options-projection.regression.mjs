@@ -23,6 +23,28 @@ const sandboxWindow = {};
 new Function("window", optionsHelperSource)(sandboxWindow);
 const { normalizeClients } = sandboxWindow.LongtailForge.clientProjectOptions;
 
+for (const [pagePath, scriptPath] of [
+  ["views/protected/time-tracker.html", "js/stop-watch.js"],
+  ["views/protected/workbench.html", "js/workbench.js"],
+  ["views/protected/time-entries.html", "js/time-entries.js"],
+]) {
+  assertPageLoadsHelperBeforeScript(pagePath, scriptPath);
+}
+for (const sourcePath of [
+  "public/js/stop-watch.js",
+  "public/js/workbench.js",
+  "public/js/time-entry-dialog.js",
+  "public/js/time-entries.js",
+]) {
+  assertSourceUsesSharedHelper(sourcePath);
+}
+for (const sourcePath of [
+  "public/js/stop-watch.js",
+  "public/js/time-tracking-timer-dialog.js",
+]) {
+  assertTimerUsesSharedProjectOptions(sourcePath);
+}
+
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
 const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
 const { clientsService } = await import("../../../src/modules/client-projects/clients.service.js");
@@ -164,6 +186,44 @@ function dropdownProjection(client) {
       billingRounding: project.billingRounding,
     })),
   };
+}
+
+function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
+  const html = readFileSync(path.join(root, pagePath), "utf8");
+  const helperIndex = html.indexOf("js/shared/client-project-options.js");
+  const scriptIndex = html.indexOf(scriptPath);
+
+  assert.ok(helperIndex >= 0, `${pagePath} should load the shared client-project options helper.`);
+  assert.ok(scriptIndex >= 0, `${pagePath} should load ${scriptPath}.`);
+  assert.ok(helperIndex < scriptIndex, `${pagePath} should load the shared helper before ${scriptPath}.`);
+}
+
+function assertSourceUsesSharedHelper(sourcePath) {
+  const source = readFileSync(path.join(root, sourcePath), "utf8");
+  assert.match(
+    source,
+    /clientProjectOptions\.normalizeClients/,
+    `${sourcePath} should normalize clients through the shared hierarchy helper.`,
+  );
+}
+
+function assertTimerUsesSharedProjectOptions(sourcePath) {
+  const source = readFileSync(path.join(root, sourcePath), "utf8");
+  assert.match(
+    source,
+    /projects\.forEach\(\(project\) => \{[\s\S]*createOption\(project\.id, projectOptionLabel\(project\)\)/,
+    `${sourcePath} should render the shared project hierarchy in its supplied order and with its supplied labels.`,
+  );
+  assert.match(
+    source,
+    /function projectOptionLabel\(project\) \{[\s\S]*clientProjectOptions\.optionLabel\(project\)/,
+    `${sourcePath} should read project labels through the shared Clients/Projects option contract.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /sortByName\(projects\)|sortByName\(client\.projects\)/,
+    `${sourcePath} must not flatten the shared project hierarchy with a second alphabetical sort.`,
+  );
 }
 
 async function readSeedSession() {

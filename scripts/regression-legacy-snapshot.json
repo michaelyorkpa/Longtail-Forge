@@ -531,10 +531,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/client-picker-hierarchy-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/client-modal-footer-actions-regression.mjs",
       "runMode": "static"
     },

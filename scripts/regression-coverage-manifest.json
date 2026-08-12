@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 459,
-    "legacyScripts": 308,
+    "discoveredScripts": 458,
+    "legacyScripts": 307,
     "releaseGateScripts": 75,
     "areaCounts": {
       "dashboard": 2,
       "database": 47,
       "docs": 9,
       "files": 44,
-      "framework": 85,
+      "framework": 84,
       "jobs": 8,
       "licensing": 1,
       "lists": 12,
@@ -28,7 +28,7 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 207,
+      "focused": 206,
       "integration": 169,
       "release-gate": 75,
       "slow": 8
@@ -37,7 +37,7 @@
       "isolated-database": 193,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 232
+      "static": 231
     }
   },
   "coverageFamilies": [
@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18325,
+    "activeAssertionCount": 18296,
     "creditedAssertionReduction": 133,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -98,18 +98,34 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18570,
+    "effectiveAssertionCount": 18602,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
         "assertionCount": 12
       },
       {
+        "path": "tests/unit/client-project-options.test.mjs",
+        "assertionCount": 6
+      },
+      {
+        "path": "tests/unit/resume-producer-payload.test.mjs",
+        "assertionCount": 22
+      },
+      {
         "path": "tests/unit/runtime-configuration.test.mjs",
         "assertionCount": 28
+      },
+      {
+        "path": "tests/unit/sqlite-health-formatter.test.mjs",
+        "assertionCount": 2
+      },
+      {
+        "path": "tests/unit/work-candidate-ranking.test.mjs",
+        "assertionCount": 31
       }
     ],
-    "vitestAssertionCount": 40
+    "vitestAssertionCount": 101
   },
   "assertionMovements": [
     {
@@ -125,6 +141,21 @@
       "verificationPerformed": [
         "npm run version:guard",
         "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/better-sqlite3-helper-core-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 1,
+      "rationale": "SQLite health string formatting is deterministic and does not need a disposable database process.",
+      "assertionDisposition": "tests/unit/sqlite-health-formatter.test.mjs owns complete and unavailable health formatting; the discovered source regression retains driver startup, PRAGMA, statement, and connection-reopen integration.",
+      "movedTo": "tests/unit/sqlite-health-formatter.test.mjs",
+      "retainedIntegrationOwner": "scripts/better-sqlite3-helper-core-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/sqlite-health-formatter.test.mjs",
+        "node scripts/better-sqlite3-helper-core-regression.mjs",
         "npm run verify:slice"
       ]
     },
@@ -221,11 +252,41 @@
         "node scripts/regressions/release/validation-single-ownership.regression.mjs",
         "npm run verify:slice"
       ]
+    },
+    {
+      "sourceRegression": "scripts/work-candidate-service-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 17,
+      "rationale": "Candidate normalization, ranking comparators, and recurring-created bucket selection are deterministic service contracts and do not require a migrated disposable database.",
+      "assertionDisposition": "tests/unit/work-candidate-ranking.test.mjs owns the complete normalization and ranking matrices; the discovered source regression retains resume-row shaping, module gates, live timer repositories, permissions, and database integration.",
+      "movedTo": "tests/unit/work-candidate-ranking.test.mjs",
+      "retainedIntegrationOwner": "scripts/work-candidate-service-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/work-candidate-ranking.test.mjs",
+        "node scripts/work-candidate-service-regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/work-resume-state-producer-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 7,
+      "rationale": "Producer allowlist and recursive metadata scrubbing are deterministic payload transformations and do not need database initialization.",
+      "assertionDisposition": "tests/unit/resume-producer-payload.test.mjs owns the complete unsafe-field matrix; the discovered source regression retains event subscription, module disablement, current-user writes, row removal, and database integration.",
+      "movedTo": "tests/unit/resume-producer-payload.test.mjs",
+      "retainedIntegrationOwner": "scripts/work-resume-state-producer-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/resume-producer-payload.test.mjs",
+        "node scripts/work-resume-state-producer-regression.mjs",
+        "npm run verify:slice"
+      ]
     }
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "maximumScripts": 308,
+    "maximumScripts": 307,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "regressions": [
@@ -386,7 +447,7 @@
     },
     {
       "area": "database",
-      "assertionCount": 30,
+      "assertionCount": 29,
       "description": "Protects the legacy better sqlite3 helper core contract.",
       "id": "legacy.better.sqlite3.helper.core",
       "legacy": true,
@@ -431,18 +492,6 @@
       "id": "legacy.client.modal.footer.actions",
       "legacy": true,
       "path": "scripts/client-modal-footer-actions-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "framework",
-      "assertionCount": 13,
-      "description": "Protects the legacy client picker hierarchy contract.",
-      "id": "legacy.client.picker.hierarchy",
-      "legacy": true,
-      "path": "scripts/client-picker-hierarchy-regression.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [],
@@ -3333,7 +3382,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 15,
+      "assertionCount": 22,
       "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
       "id": "framework.client-project-options-projection",
       "legacy": false,
@@ -4431,7 +4480,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 56,
+      "assertionCount": 58,
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
       "id": "release.developer-verification-throughput",
       "legacy": false,
@@ -6790,7 +6839,7 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 51,
+      "assertionCount": 34,
       "description": "Protects the legacy work candidate service contract.",
       "id": "legacy.work.candidate.service",
       "legacy": true,
@@ -6875,7 +6924,7 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 19,
+      "assertionCount": 12,
       "description": "Protects the legacy work resume state producer contract.",
       "id": "legacy.work.resume.state.producer",
       "legacy": true,
@@ -7180,6 +7229,39 @@
         "release",
         "slow"
       ],
+      "legacy": true
+    },
+    {
+      "script": "scripts/client-picker-hierarchy-regression.mjs",
+      "retiredInVersion": "0.33.33.6",
+      "retirementType": "pure-contract-to-vitest",
+      "rationale": "The legacy entry point mixed a deterministic hierarchy/comparator matrix with static consumer wiring that already belongs beside the live options projection integration.",
+      "assertionDisposition": "tests/unit/client-project-options.test.mjs owns parent-first client and project ordering, indentation, and readable workspace labels; framework.client-project-options-projection retains helper load order, consumer adoption, timer rendering, payload identity, and database/query budgets.",
+      "retainedCoverageOwners": [
+        "framework.client-project-options-projection"
+      ],
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/client-project-options.test.mjs",
+        "node scripts/regressions/framework/client-project-options-projection.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "tests/unit/client-project-options.test.mjs",
+          "scripts/regressions/framework/client-project-options-projection.regression.mjs"
+        ]
+      },
+      "vitestOwner": "tests/unit/client-project-options.test.mjs",
+      "integrationCoverageOwners": [
+        "framework.client-project-options-projection"
+      ],
+      "id": "legacy.client.picker.hierarchy",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [],
       "legacy": true
     },
     {
