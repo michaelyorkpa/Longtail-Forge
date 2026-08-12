@@ -172,6 +172,28 @@ const DATABASE_CONTRACT_TYPE_EXPORTS = [
   "PreparedDatabaseBindings",
   "TransactionClient",
 ];
+const HELP_STATIC_CONTRACT_TYPE_EXPORTS = [
+  "FrameworkProtectedView",
+  "HelpArticle",
+  "HelpArticleDetailPayload",
+  "HelpArticleListPayload",
+  "HelpContribution",
+  "HelpListResponse",
+  "HelpNavigationItem",
+  "HelpReadResponse",
+  "HelpRequestSession",
+  "HelpSearchDocument",
+  "HelpSection",
+  "HelpSectionPayload",
+  "HydratedHelpArticle",
+  "HydratedHelpContribution",
+  "InitialTheme",
+  "ProtectedModuleViewResolution",
+  "StaticPathResolution",
+  "StaticReadResponse",
+  "StaticResolvedPath",
+  "StaticThemeSession",
+];
 const BROWSER_CONTRACT_TYPE_EXPORTS = [
   "BrowserApi",
   "BrowserApiError",
@@ -397,6 +419,24 @@ for (const typeName of DATABASE_CONTRACT_TYPE_EXPORTS) {
     `database-contracts.d.ts must export ${typeName}`,
   );
 }
+const helpStaticContractSource = readFileSync("src/types/help-static-contracts.d.ts", "utf8");
+for (const typeName of HELP_STATIC_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    helpStaticContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `help-static-contracts.d.ts must export ${typeName}`,
+  );
+}
+assert.match(
+  helpStaticContractSource,
+  /export type StaticPathResolution = StaticResolvedPath \| StaticDeniedPath;/,
+  "static delivery must retain an explicit resolved-or-denied path contract",
+);
+assert.match(
+  helpStaticContractSource,
+  /section: HelpSectionPayload \| null;/,
+  "Help article details must retain their nullable section lookup",
+);
 assert.match(
   databaseContractSource,
   /^import type \{ Buffer as NodeBuffer \} from "node:buffer";/,
@@ -967,7 +1007,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file pass recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {

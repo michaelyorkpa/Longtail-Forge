@@ -1,3 +1,5 @@
+// @ts-check
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
@@ -11,6 +13,17 @@ import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalize
 import { permissionsService } from "./permissions.service.js";
 import { legalContentService } from "./legal-content.service.js";
 
+/** @typedef {import("../types/help-static-contracts.js").FrameworkProtectedView} FrameworkProtectedView */
+/** @typedef {import("../types/help-static-contracts.js").InitialTheme} InitialTheme */
+/** @typedef {import("../types/help-static-contracts.js").ProtectedModuleViewResolution} ProtectedModuleViewResolution */
+/** @typedef {import("../types/help-static-contracts.js").StaticPathResolution} StaticPathResolution */
+/** @typedef {import("../types/help-static-contracts.js").StaticReadResponse} StaticReadResponse */
+/** @typedef {import("../types/help-static-contracts.js").StaticRequestSession} StaticRequestSession */
+/** @typedef {import("../types/help-static-contracts.js").StaticResolvedPath} StaticResolvedPath */
+/** @typedef {import("../types/help-static-contracts.js").StaticResolutionOptions} StaticResolutionOptions */
+/** @typedef {import("../types/help-static-contracts.js").StaticThemeSession} StaticThemeSession */
+
+/** @type {Record<string, string>} */
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
@@ -19,6 +32,7 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
 };
 
+/** @type {Map<string, FrameworkProtectedView>} */
 const frameworkProtectedViews = new Map([
   ["api-keys.html", { id: "api-keys", file: "api-keys.html" }],
   ["account-recovery.html", { id: "account-recovery", file: "account-recovery.html" }],
@@ -53,6 +67,7 @@ const frameworkProtectedViews = new Map([
   ["workbench-settings.html", { id: "workbench-settings", file: "workbench-settings.html" }],
   ["workspace-settings.html", { id: "workspace-settings", file: "workspace-settings.html" }],
 ]);
+/** @type {Map<string, string | null>} */
 const publicPages = new Map([
   ["index.html", null],
   ["login.html", null],
@@ -60,6 +75,7 @@ const publicPages = new Map([
   ["privacy.html", "privacy"],
 ]);
 
+/** @param {string} requestUrl @param {StaticRequestSession} [session] @returns {Promise<StaticReadResponse>} */
 async function read(requestUrl, session = null) {
   const requestPath = new URL(requestUrl, `http://${config.host}:${config.port}`).pathname;
   const resolved = await resolveRequestPath(requestPath, session);
@@ -73,6 +89,7 @@ async function read(requestUrl, session = null) {
   }
 
   try {
+    /** @type {string | Buffer} */
     let contents = await fs.readFile(resolved.filePath);
     const extension = path.extname(resolved.filePath).toLowerCase();
 
@@ -87,7 +104,7 @@ async function read(requestUrl, session = null) {
       headers: resolved.headers || {},
     };
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
       return {
         statusCode: 404,
         contents: "Not found",
@@ -99,13 +116,19 @@ async function read(requestUrl, session = null) {
   }
 }
 
+/** @param {string} requestPath @param {StaticRequestSession} session @returns {Promise<StaticPathResolution>} */
 async function resolveRequestPath(requestPath, session) {
   if (requestPath === "/") {
     return resolveViewPath("public", "index.html");
   }
 
   if (!requestPath.endsWith(".html")) {
-    return { filePath: resolvePublicAssetPath(requestPath) };
+    return {
+      filePath: resolvePublicAssetPath(requestPath),
+      headers: {},
+      legalDocumentId: "",
+      protectedHtml: false,
+    };
   }
 
   const pageName = path.basename(requestPath);
@@ -129,7 +152,7 @@ async function resolveRequestPath(requestPath, session) {
   }
 
   if (frameworkProtectedViews.has(pageName)) {
-    const view = frameworkProtectedViews.get(pageName);
+    const view = /** @type {FrameworkProtectedView} */ (frameworkProtectedViews.get(pageName));
     if (
       view.supportViewOperatorOnly
       && (!config.supportView.enabled || session.support_view || !(await permissionsService.isSuperAdmin(session)))
@@ -148,7 +171,9 @@ async function resolveRequestPath(requestPath, session) {
     return resolveViewPath("protected", view.file, { protectedHtml: true });
   }
 
-  const moduleView = await modulesService.resolveProtectedModuleView(session.workspace_id, session, requestPath);
+  const moduleView = /** @type {ProtectedModuleViewResolution} */ (
+    await modulesService.resolveProtectedModuleView(session.workspace_id, session, requestPath)
+  );
 
   if (!moduleView) {
     return {
@@ -167,6 +192,7 @@ async function resolveRequestPath(requestPath, session) {
   return resolveViewPath("protected", moduleView.view.file, { protectedHtml: true });
 }
 
+/** @param {"public" | "protected"} viewGroup @param {string} fileName @param {StaticResolutionOptions} [options] @returns {StaticResolvedPath} */
 function resolveViewPath(viewGroup, fileName, options = {}) {
   const filePath = path.resolve(config.viewsDir, viewGroup, fileName);
   const viewRoot = path.resolve(config.viewsDir, viewGroup);
@@ -179,6 +205,7 @@ function resolveViewPath(viewGroup, fileName, options = {}) {
   };
 }
 
+/** @param {string} requestPath @returns {string | null} */
 function resolvePublicAssetPath(requestPath) {
   const relativePath = requestPath.startsWith("/") ? requestPath.slice(1) : requestPath;
   const filePath = path.resolve(config.publicDir, relativePath);
@@ -187,6 +214,7 @@ function resolvePublicAssetPath(requestPath) {
   return filePath.startsWith(`${publicRoot}${path.sep}`) ? filePath : null;
 }
 
+/** @param {string} contents @param {StaticResolvedPath} resolved @param {StaticRequestSession} session @returns {Promise<string>} */
 async function decorateHtml(contents, resolved, session) {
   const withErrorBoundary = injectErrorBoundaryScripts(contents);
   const withLegalDocument = resolved.legalDocumentId
@@ -198,10 +226,11 @@ async function decorateHtml(contents, resolved, session) {
     return assetDecoratedContents;
   }
 
-  const theme = await readInitialTheme(session);
+  const theme = await readInitialTheme(/** @type {StaticThemeSession} */ (session));
   return injectCriticalThemeStyle(injectThemeAttributes(assetDecoratedContents, theme));
 }
 
+/** @param {string} contents @param {string} documentId @returns {Promise<string>} */
 async function injectLegalDocument(contents, documentId) {
   const document = await legalContentService.read(documentId);
   if (!document) {
@@ -210,6 +239,7 @@ async function injectLegalDocument(contents, documentId) {
   return contents.replace('<div data-legal-document-body></div>', document.bodyHtml);
 }
 
+/** @param {string} contents @returns {string} */
 function injectErrorBoundaryScripts(contents) {
   if (
     contents.includes('src="/js/shared/error-contract.js"')
@@ -227,6 +257,7 @@ function injectErrorBoundaryScripts(contents) {
   );
 }
 
+/** @param {StaticThemeSession} session @returns {Promise<InitialTheme>} */
 async function readInitialTheme(session) {
   const user = session.session_mode === "account_export_recovery"
     ? await usersRepository.readFirstByUserId(session.user_id)
@@ -241,6 +272,7 @@ async function readInitialTheme(session) {
   };
 }
 
+/** @param {string} contents @param {InitialTheme} theme @returns {string} */
 function injectThemeAttributes(contents, theme) {
   return contents.replace(/<html\b([^>]*)>/i, (match, attributes) => {
     if (/\sdata-theme=/.test(attributes)) {
@@ -251,6 +283,7 @@ function injectThemeAttributes(contents, theme) {
   });
 }
 
+/** @param {string} contents @returns {string} */
 function injectCriticalThemeStyle(contents) {
   if (contents.includes("data-theme-critical")) {
     return contents;
@@ -267,6 +300,7 @@ function injectCriticalThemeStyle(contents) {
   return contents.replace(/(<head\b[^>]*>)/i, `$1\n    ${criticalStyle}`);
 }
 
+/** @param {unknown} value @returns {string} */
 function escapeHtmlAttribute(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
