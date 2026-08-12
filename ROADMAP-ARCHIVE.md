@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.29 - Billing timezone compatibility and DST-period proof
+
+Completed on 2026-08-11. Billing now validates persisted session timezone data before calendar arithmetic, historical absolute instants remain unchanged, and the active roadmap advances to `0.33.32.30` for the shared browser API failure fallback.
+
+**Model: High Effort** - Billing-period boundaries affect historical money views, and timezone fallback changes can move entries between invoices around DST transitions.
+
+- [x] Recorded the governing `normalizeUtcIso` contract: explicit-zone precedence, source-timezone wall-clock interpretation, missing/invalid date fallback, invalid named-zone failure, and established DST gap/overlap resolution.
+- [x] Documented that pre-session-timezone Time Entries remain stored absolute instants with no migration or reinterpretation; only the viewer's normalized local calendar bounds affect report inclusion.
+- [x] Reproduced an unsupported persisted session timezone reaching `Intl.DateTimeFormat` as an uncaught `RangeError`, then routed both billing-session consumers through the canonical timezone normalizer and documented the `America/New_York` fallback.
+- [x] Extended the real billing/dashboard regression across current, last, and custom New York periods for both the 23-hour spring-forward and 25-hour fall-back transitions, with exact inclusive-start/exclusive-end and absolute-instant assertions.
+- [x] Preserved per-project period, rounding, rate, hierarchy, duration, billable, and invoice-state ownership; no schema, migration, or stored-row rewrite was introduced.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`. No docs change needed: user-facing Help, workflow-context guidance, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
+Acceptance criteria:
+
+- Historical instants remain stable, session-timezone billing follows a documented rule, and both DST transitions are proven at report-period level.
+
 ## Version 0.33.32.28 - Time Tracking sourced-edge and boolean fidelity
 
 Completed on 2026-08-11. Time Tracking's checked payload parser now preserves each Zod schema's inferred output, sourced timer saves validate at the module boundary, and the active roadmap advances to `0.33.32.29` for billing timezone compatibility and DST-period proof.

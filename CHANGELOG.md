@@ -1,3 +1,13 @@
+## Version 0.33.32.29 - 2026-08-11
+
+- Reproduced and fixed malformed or unsupported persisted session timezones crashing Time Tracking billing/Dashboard reads inside `Intl.DateTimeFormat`; both billing consumers now use the canonical `America/New_York` fallback boundary.
+- Documented the full `normalizeUtcIso` contract for explicit offsets, timezone-free source interpretation, missing/invalid fallback, invalid named zones, and DST gap/overlap resolution.
+- Kept historical Time Entry timestamps as unchanged absolute instants with no migration or wall-clock reinterpretation; session timezone affects only the local calendar bounds used for report inclusion.
+- Expanded the billing regression across current, last, and custom New York periods for both the 23-hour spring-forward and 25-hour fall-back transitions, including exact inclusive starts and exclusive ends.
+- Preserved per-project billing periods, hierarchy, rounding, rates, durations, billable state, and invoice state; SQLite integrity remains part of the focused proof.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/time-tracking-module.md`.
+- No docs change needed: user-facing Help, workflow-context guidance, database schema/migrations, permissions, deployment, runtime configuration, and public API contracts are unchanged.
+
 ## Version 0.33.32.28 - 2026-08-11
 
 - Made the shared Time Tracking edge parser return each Zod schema's inferred output instead of `any`, with a checked negative fixture for sourced-only fields.
