@@ -1,6 +1,17 @@
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
+/**
+ * @typedef {Object} UserWorkspaceMembershipRow
+ * @property {string} user_workspace_id
+ * @property {string} user_id
+ * @property {string} workspace_id
+ * @property {string} workspace_name
+ * @property {string} status
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
 const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
   columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
   conflictColumns: ["user_id", "workspace_id"],
@@ -32,8 +43,9 @@ LIMIT 1;
 `, { userId, workspaceId });
 }
 
+/** @param {string} userId @returns {Promise<UserWorkspaceMembershipRow[]>} */
 async function readForUser(userId) {
-  return db.query(`
+  return /** @type {Promise<UserWorkspaceMembershipRow[]>} */ (db.query(`
 SELECT
   user_workspaces.user_workspace_id,
   user_workspaces.user_id,
@@ -47,9 +59,10 @@ INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = :userId
   AND lower(workspaces.status) = 'active'
 ORDER BY workspaces.name;
-`, { userId });
+`, { userId }));
 }
 
+/** @param {string} userId @returns {Promise<UserWorkspaceMembershipRow[]>} */
 async function readActiveForUser(userId) {
   const rows = await readForUser(userId);
   return rows.filter((membership) => membership.status === "active");

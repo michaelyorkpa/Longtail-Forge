@@ -1,7 +1,21 @@
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {import("../types/support-view-contracts.js").NormalizedSupportViewAuditFilters} NormalizedSupportViewAuditFilters */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditFilterOptions} SupportViewAuditFilterOptions */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditFilters} SupportViewAuditFilters */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditOption} SupportViewAuditOption */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewAuditRow} SupportViewAuditRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewCreateInput} SupportViewCreateInput */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEligibilityRow} SupportViewEligibilityRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEndInput} SupportViewEndInput */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewEventInput} SupportViewEventInput */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewStoredSessionRow} SupportViewStoredSessionRow */
+/** @typedef {import("../types/support-view-contracts.js").SupportViewTargetRow} SupportViewTargetRow */
+
+/** @param {string} actorUserId @returns {Promise<SupportViewTargetRow[]>} */
 async function listEligibleTargets(actorUserId) {
-  const rows = await db.query(`
+  const rows = /** @type {SupportViewTargetRow[]} */ (await db.query(`
 SELECT
   users.user_id,
   users.username,
@@ -17,12 +31,19 @@ INNER JOIN workspaces
   AND LOWER(workspaces.status) = 'active'
 WHERE LOWER(users.user_status) = 'active'
   AND users.user_id != :actorUserId;
-`, { actorUserId });
+`, { actorUserId }));
   return rows.sort(compareTargetRows);
 }
 
+/**
+ * @param {string} actorUserId
+ * @param {string} effectiveUserId
+ * @param {string} workspaceId
+ * @param {TransactionClient} [database]
+ * @returns {Promise<SupportViewEligibilityRow | null>}
+ */
 async function readEligibility(actorUserId, effectiveUserId, workspaceId, database = db) {
-  return database.get(`
+  return /** @type {Promise<SupportViewEligibilityRow | null>} */ (database.get(`
 SELECT
   actor.user_id AS actor_user_id,
   actor.username AS actor_username,
@@ -61,11 +82,12 @@ INNER JOIN workspaces
   ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE actor.user_id = :actorUserId
 LIMIT 1;
-`, { actorUserId, effectiveUserId, workspaceId });
+`, { actorUserId, effectiveUserId, workspaceId }));
 }
 
+/** @param {string} supportSessionId @returns {Promise<SupportViewStoredSessionRow | null>} */
 async function readById(supportSessionId) {
-  return db.get(`
+  return /** @type {Promise<SupportViewStoredSessionRow | null>} */ (db.get(`
 SELECT
   support_sessions.*,
   actor.display_name AS actor_display_name,
@@ -101,9 +123,10 @@ LEFT JOIN workspaces
   ON workspaces.workspace_id = support_sessions.workspace_id
 WHERE support_sessions.support_session_id = :supportSessionId
 LIMIT 1;
-`, { supportSessionId });
+`, { supportSessionId }));
 }
 
+/** @param {SupportViewCreateInput} session @param {SupportViewEventInput} event @param {TransactionClient} [database] */
 async function create(session, event, database = db) {
   await database.run(`
 INSERT INTO support_sessions (
@@ -144,6 +167,7 @@ VALUES (
   await appendEvent(event, database);
 }
 
+/** @param {SupportViewEndInput} session @param {SupportViewEventInput} event @param {TransactionClient} [database] */
 async function end(session, event, database = db) {
   const current = await database.get(`
 SELECT ended_at
@@ -167,6 +191,7 @@ WHERE support_session_id = :supportSessionId
   return true;
 }
 
+/** @param {SupportViewEventInput} event @param {TransactionClient} [database] */
 async function appendEvent(event, database = db) {
   await database.run(`
 INSERT INTO support_view_events (
@@ -211,8 +236,9 @@ ORDER BY occurred_at, event_id;
 `, { supportSessionId });
 }
 
+/** @param {SupportViewAuditFilters} [filters] @returns {Promise<SupportViewAuditRow[]>} */
 async function searchAudit(filters = {}) {
-  return db.query(`
+  return /** @type {Promise<SupportViewAuditRow[]>} */ (db.query(`
 SELECT
   support_view_events.event_id,
   support_view_events.occurred_at,
@@ -258,9 +284,10 @@ OFFSET :offset;
     ...buildAuditParams(filters),
     limit: boundedInteger(filters.limit, 1, 1000, 50),
     offset: Math.max(0, Number.parseInt(filters.offset, 10) || 0),
-  });
+  }));
 }
 
+/** @param {SupportViewAuditFilters} [filters] */
 async function countAudit(filters = {}) {
   const row = await db.get(`
 SELECT COUNT(*) AS total
@@ -279,9 +306,10 @@ WHERE support_view_events.occurred_at >= :cutoffIso
   return Number.parseInt(row?.total, 10) || 0;
 }
 
+/** @param {string} cutoffIso @returns {Promise<SupportViewAuditFilterOptions>} */
 async function readAuditFilterOptions(cutoffIso) {
   const [actors, effectiveUsers, workspaces, eventTypes, outcomes] = await Promise.all([
-    db.query(`
+    /** @type {Promise<SupportViewAuditOption[]>} */ (db.query(`
 SELECT
   support_sessions.actor_user_id AS value,
   COALESCE(NULLIF(users.display_name, ''), support_sessions.actor_username) AS label
@@ -290,8 +318,8 @@ INNER JOIN users ON users.user_id = support_sessions.actor_user_id
 WHERE support_sessions.started_at >= :cutoffIso
 GROUP BY support_sessions.actor_user_id, users.display_name, support_sessions.actor_username
 ;
-`, { cutoffIso }),
-    db.query(`
+`, { cutoffIso })),
+    /** @type {Promise<SupportViewAuditOption[]>} */ (db.query(`
 SELECT
   support_sessions.effective_user_id AS value,
   COALESCE(NULLIF(users.display_name, ''), support_sessions.effective_username) AS label
@@ -300,27 +328,27 @@ INNER JOIN users ON users.user_id = support_sessions.effective_user_id
 WHERE support_sessions.started_at >= :cutoffIso
 GROUP BY support_sessions.effective_user_id, users.display_name, support_sessions.effective_username
 ;
-`, { cutoffIso }),
-    db.query(`
+`, { cutoffIso })),
+    /** @type {Promise<SupportViewAuditOption[]>} */ (db.query(`
 SELECT support_sessions.workspace_id AS value, workspaces.name AS label
 FROM support_sessions
 INNER JOIN workspaces ON workspaces.workspace_id = support_sessions.workspace_id
 WHERE support_sessions.started_at >= :cutoffIso
 GROUP BY support_sessions.workspace_id, workspaces.name
 ;
-`, { cutoffIso }),
-    db.query(`
+`, { cutoffIso })),
+    /** @type {Promise<SupportViewAuditOption[]>} */ (db.query(`
 SELECT DISTINCT event_type AS value
 FROM support_view_events
 WHERE occurred_at >= :cutoffIso
 ORDER BY event_type;
-`, { cutoffIso }),
-    db.query(`
+`, { cutoffIso })),
+    /** @type {Promise<SupportViewAuditOption[]>} */ (db.query(`
 SELECT DISTINCT outcome AS value
 FROM support_view_events
 WHERE occurred_at >= :cutoffIso
 ORDER BY outcome;
-`, { cutoffIso }),
+`, { cutoffIso })),
   ]);
   return {
     actors: actors.sort(compareAuditOptions),
@@ -362,6 +390,7 @@ WHERE support_session_id IN (:supportSessionIds);
   });
 }
 
+/** @param {SupportViewAuditFilters} filters @returns {NormalizedSupportViewAuditFilters} */
 function buildAuditParams(filters) {
   return {
     actorUserId: String(filters.actorUserId || ""),

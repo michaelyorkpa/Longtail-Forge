@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.33`.
+Active cursor: `0.33.32.34`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -57,19 +57,6 @@ Completion-review evidence:
 - The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.33 - Support View checked service boundary
-
-**Model: High Effort** — Support View changes effective identity and intersects permissions, making its untyped service the highest-risk uncovered mid-tier seam.
-
-- [ ] Check `src/services/support-view.service.js` against explicit operator, target-user, support-session, workspace, audit, and effective-permission contracts.
-- [ ] Refactor `SupportViewRequestSession` from a permissive refinement interface into the real discriminated request-session union so Support View narrowing removes the gate's remaining assertion cast rather than relocating it.
-- [ ] Narrow nullable rows and parsed payloads without casts that bypass enumeration resistance or target eligibility.
-- [ ] Retain start/end/expiry, invalidation, generic denial, security event, audit, proxy, and public-demo behavior with permission proof.
-
-Acceptance criteria:
-
-- Support View identity lifecycle is checked end to end and every authorization, privacy, expiry, and audit invariant remains green.
 
 ## Version 0.33.32.34 - Users service checked boundary
 

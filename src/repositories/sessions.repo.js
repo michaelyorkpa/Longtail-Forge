@@ -1,22 +1,25 @@
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+
 /**
  * @typedef {Object} StoredSession
  * @property {string} session_id
  * @property {string | null} home_workspace_id
  * @property {string | null} active_workspace_id
  * @property {string} user_id
- * @property {string | undefined} [username]
- * @property {string | undefined} [timezone]
- * @property {string | null | undefined} [ip_address]
- * @property {string | undefined} [session_mode]
- * @property {string | null | undefined} [support_session_id]
+ * @property {string} username
+ * @property {string} timezone
+ * @property {string | null} ip_address
+ * @property {string} session_mode
+ * @property {string | null} support_session_id
  * @property {string} expires_at
  * @property {string | undefined} [created_at]
  * @property {string | undefined} [updated_at]
- * @property {boolean | number | string | undefined} [password_change_required]
+ * @property {boolean | number | string | null | undefined} [password_change_required]
  */
 
+/** @param {StoredSession} session @param {TransactionClient} [database] */
 async function create(session, database = db) {
   const now = new Date().toISOString();
 
@@ -65,8 +68,9 @@ VALUES (
   });
 }
 
+/** @param {string} sessionId @param {TransactionClient} [database] @returns {Promise<StoredSession | null>} */
 async function readById(sessionId, database = db) {
-  return database.get(`
+  return /** @type {Promise<StoredSession | null>} */ (database.get(`
 SELECT
   sessions.session_id,
   sessions.home_workspace_id,
@@ -84,7 +88,7 @@ INNER JOIN users
   ON users.user_id = sessions.user_id
 WHERE sessions.session_id = :sessionId
 LIMIT 1;
-`, { sessionId });
+`, { sessionId }));
 }
 
 /** @param {string} userId @returns {Promise<StoredSession[]>} */
@@ -127,6 +131,7 @@ ORDER BY created_at DESC, session_id;
 `, { userId, workspaceId }));
 }
 
+/** @param {string} sessionId @param {TransactionClient} [database] */
 async function remove(sessionId, database = db) {
   const existing = database === db ? await readById(sessionId) : true;
   await database.run(`

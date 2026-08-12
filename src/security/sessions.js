@@ -27,6 +27,7 @@ import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-
  */
 /**
  * @typedef {Object} StoredSessionRow
+ * @property {string} session_id
  * @property {string | null} active_workspace_id
  * @property {string | null} home_workspace_id
  * @property {string} user_id
@@ -81,7 +82,8 @@ async function getRequestSession(request) {
   }
 
   if (session.support_session_id) {
-    const resolution = await supportViewService.resolveForRequest(session, {
+    const activeSupportSession = { ...session, support_session_id: session.support_session_id };
+    const resolution = await supportViewService.resolveForRequest(activeSupportSession, {
       requestId: getRequestContext(request).requestId,
     });
     session = /** @type {StoredSessionRow | null} */ (resolution.storedSession);
@@ -104,7 +106,6 @@ async function getRequestSession(request) {
 
   const activeWorkspaceId = session.active_workspace_id ?? session.home_workspace_id ?? null;
 
-  /** @type {RequestSession} */
   const requestSession = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
@@ -118,31 +119,35 @@ async function getRequestSession(request) {
   };
 
   if (session.support_view) {
-    requestSession.actor_user_id = session.support_view.actor_user_id;
-    requestSession.actor_username = session.support_view.actor_username;
-    requestSession.effective_user_id = session.support_view.effective_user_id;
-    requestSession.effective_username = session.support_view.effective_username;
-    requestSession.effective_workspace_id = session.support_view.workspace_id;
-    requestSession.support_view = {
-      supportSessionId: session.support_view.support_session_id,
-      actorUserId: session.support_view.actor_user_id,
-      actorUsername: session.support_view.actor_username,
-      actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
-      effectiveUserId: session.support_view.effective_user_id,
-      effectiveUsername: session.support_view.effective_username,
-      effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
-      effectiveWorkspaceId: session.support_view.workspace_id,
-      effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
-      startedAt: session.support_view.started_at,
-      expiresAt: session.support_view.expires_at,
+    return {
+      ...requestSession,
+      actor_user_id: session.support_view.actor_user_id,
+      actor_username: session.support_view.actor_username,
+      effective_user_id: session.support_view.effective_user_id,
+      effective_username: session.support_view.effective_username,
+      effective_workspace_id: session.support_view.workspace_id,
+      support_view: {
+        supportSessionId: session.support_view.support_session_id,
+        actorUserId: session.support_view.actor_user_id,
+        actorUsername: session.support_view.actor_username,
+        actorLabel: String(session.support_view.actor_display_name || session.support_view.actor_username || "Administrator"),
+        effectiveUserId: session.support_view.effective_user_id,
+        effectiveUsername: session.support_view.effective_username,
+        effectiveUserLabel: String(session.support_view.effective_display_name || session.support_view.effective_username || "User unavailable"),
+        effectiveWorkspaceId: session.support_view.workspace_id,
+        effectiveWorkspaceName: String(session.support_view.workspace_name || "Workspace unavailable"),
+        startedAt: session.support_view.started_at,
+        expiresAt: session.support_view.expires_at,
+      },
+      user_id: session.support_view.effective_user_id,
+      username: session.support_view.effective_username,
+      workspace_id: session.support_view.workspace_id,
+      active_workspace_id: session.support_view.workspace_id,
+      home_workspace_id: session.support_view.effective_home_workspace_id,
+      timezone: normalizeTimezone(session.support_view.effective_timezone),
+      password_change_required: false,
+      session_mode: /** @type {const} */ ("normal"),
     };
-    requestSession.user_id = session.support_view.effective_user_id;
-    requestSession.username = session.support_view.effective_username;
-    requestSession.workspace_id = session.support_view.workspace_id;
-    requestSession.active_workspace_id = session.support_view.workspace_id;
-    requestSession.home_workspace_id = session.support_view.effective_home_workspace_id;
-    requestSession.timezone = normalizeTimezone(session.support_view.effective_timezone);
-    requestSession.password_change_required = false;
   }
 
   return requestSession;
