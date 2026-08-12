@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.36 - Search-index rebuild checked service
+
+Completed on 2026-08-11. Search rebuild now consumes explicit active-declaration and canonical indexer-reference contracts and returns a named progress/result summary, while the active roadmap advances to `0.33.32.37` for the private calendar-feed trust boundary.
+
+**Model: High Effort** - Rebuild mutates a workspace-wide recovery index and must preserve module eligibility, permissions, batching, and stale cleanup.
+
+- [x] Checked `search-index-rebuild.service.js` against the slice-13/23 active declaration, camelCase reference, durable-job progress, failure, and result contracts; raised the checked inventory floor from 108 to 109 files.
+- [x] Made active searchable-type normalization an explicit checked producer and narrowed generic database rows, registered-indexer results, and unknown failures at the rebuild boundary without adding a checker escape.
+- [x] Retained app/workspace/module and dry-run rebuilds, disabled-module filtering, idempotent upserts, stale/inactive row removal, job failure recovery, backend FTS repair and indexed-LIKE fallback, audit summaries, and workspace isolation.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help/Search behavior, module declarations, permissions, routes and HTTP responses, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Search rebuild consumes canonical checked Search contracts and produces the same permission-safe index.
+
 ## Version 0.33.32.35 - Help and static-delivery checked services
 
 Completed on 2026-08-11. Help/static delivery now consumes one explicit read-only contract family, the exact ownership tier is recorded as bounded pass `18.1`, and the active roadmap advances to `0.33.32.36` for the Search-index rebuild checked service.
