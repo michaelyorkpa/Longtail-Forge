@@ -87,7 +87,7 @@ function validateCheckpointCommit({
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }
-      if (checkpoint !== `${series}.1` && isDocumentationPath(filePath)) {
+      if (checkpoint !== `${series}.1` && isDocumentationPath(filePath) && !isGeneratedDocumentationPath(filePath)) {
         errors.push(`${filePath} durable documentation is reserved for ${closeoutCheckpoint} branch closeout`);
       }
     }
@@ -127,6 +127,10 @@ function isDocumentationPath(filePath) {
     || filePath === "SECURITY.md"
     || filePath.startsWith("docs/")
     || filePath.startsWith("help/");
+}
+
+function isGeneratedDocumentationPath(filePath) {
+  return filePath === "docs/regression-suite.md";
 }
 
 function isCeremonyPath(filePath) {
@@ -210,6 +214,7 @@ export {
   inspectCheckpointRange,
   isCeremonyPath,
   isDocumentationPath,
+  isGeneratedDocumentationPath,
   parseCheckpointTrailers,
   validateCheckpointCommit,
 };

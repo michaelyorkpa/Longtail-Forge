@@ -99,13 +99,15 @@ assert.doesNotMatch(moduleRegistryRegression, /runGenerator\(rootDir, "--check"\
 
 const manifestRegression = reader.readText("scripts/regressions/release/regression-manifest-generation.regression.mjs");
 for (const retainedCase of [
-  "missingGateErrors",
-  "malformedErrors",
+  "collectCoverageFloorDriftErrors",
+  "buildRatchetedCoveragePolicy",
+  "assertionLossErrors",
+  "malformedRetirementErrors",
+  "invalidPureErrors",
+  "requiredOwnerErrors",
   "malformedMovementErrors",
-  "manual generated-index edits should fail",
-  "manifest generation should be deterministic",
 ]) {
-  assert.match(manifestRegression, new RegExp(escapeRegExp(retainedCase)));
+  assert.match(manifestRegression, new RegExp(escapeRegExp(retainedCase)), `${retainedCase} should retain its executable manifest-policy owner`);
 }
 
 const fastCheckRegression = reader.readText("scripts/regressions/release/fast-check-pipeline.regression.mjs");

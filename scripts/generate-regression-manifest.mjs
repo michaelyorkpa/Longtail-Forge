@@ -39,7 +39,7 @@ if (checkOnly) {
 } else {
   if (ratchetFloors) {
     await fs.writeFile(path.resolve(POLICY_SOURCE), `${JSON.stringify(policy, null, 2)}\n`, "utf8");
-    console.log(`Ratchet floors advanced in ${POLICY_SOURCE}; no floor was lowered.`);
+    console.log(`Coverage guardrails advanced in ${POLICY_SOURCE}; no floor was lowered and no ceiling was raised.`);
   }
   await fs.writeFile(path.resolve(MANIFEST_PATH), expected, "utf8");
   console.log(`Generated ${MANIFEST_PATH} from ${REGRESSION_ENTRIES.length} discovered scripts.`);

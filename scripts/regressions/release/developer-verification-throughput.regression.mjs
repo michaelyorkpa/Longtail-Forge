@@ -160,6 +160,13 @@ const earlyDurableDocs = validateCheckpointCommit({
   roadmapSource,
 });
 assert.match(earlyDurableDocs.errors.join("\n"), /durable documentation is reserved/);
+const generatedInventoryDocs = validateCheckpointCommit({
+  message: checkpointMessage({ checkpoint: "0.33.33.3", docs: "Docs updated: docs/regression-suite.md.", summary: "Refresh the generated regression coverage inventory" }),
+  paths: ["docs/regression-suite.md", "scripts/regression-coverage-manifest.json"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.deepEqual(generatedInventoryDocs.errors, [], "generated inventory documentation may move with its internal checkpoint");
 const docsMismatch = validateCheckpointCommit({
   message: checkpointMessage({ checkpoint: "0.33.33.1", docs: "Docs updated: docs/versioning.md.", summary: "Declare an incomplete documentation disposition" }),
   paths: ["AGENTS.md", "docs/versioning.md"],

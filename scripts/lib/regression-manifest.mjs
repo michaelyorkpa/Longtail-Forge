@@ -1,14 +1,15 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-const MANIFEST_SCHEMA_VERSION = 3;
+const MANIFEST_SCHEMA_VERSION = 4;
 const MANIFEST_GENERATOR = "node scripts/generate-regression-manifest.mjs";
 const POLICY_SOURCE = "scripts/regression-coverage-exceptions.json";
 
-function buildRegressionManifest({ entries, policy }) {
+function buildRegressionManifest({ entries, policy, readSource = readFileSync } = {}) {
   validateUniqueEntryIdentity(entries);
   const regressions = [...entries]
     .map((entry) => Object.freeze({
       area: entry.area,
+      assertionCount: countAssertions(readSource(entry.path, "utf8")),
       description: entry.description,
       id: entry.id,
       legacy: Boolean(entry.legacy),
@@ -26,12 +27,15 @@ function buildRegressionManifest({ entries, policy }) {
     .map((entry) => cloneJson(entry))
     .sort((left, right) => left.sourceRegression.localeCompare(right.sourceRegression));
 
+  const assertionInventory = buildAssertionInventory({ entries, policy, readSource });
+
   return Object.freeze({
     schemaVersion: MANIFEST_SCHEMA_VERSION,
     generatedBy: MANIFEST_GENERATOR,
     policySource: POLICY_SOURCE,
     summary: buildSummary(regressions),
     coverageFamilies: buildCoverageFamilies(regressions, retiredRegressions, policy.coverageFamilies || []),
+    assertionInventory,
     assertionMovements,
     legacyMetadataException: cloneJson(policy.legacyMetadataException),
     regressions,
@@ -47,7 +51,7 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function collectRegressionCoverageErrors({ entries, manifest, policy }) {
+function collectRegressionCoverageErrors({ entries, manifest, packageScripts = readPackageScripts(), policy, readSource = readFileSync }) {
   const errors = [];
   const activeEntries = Array.isArray(entries) ? entries : [];
   const retiredEntries = Array.isArray(policy?.retiredScripts) ? policy.retiredScripts : [];
@@ -68,26 +72,31 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   );
 
   for (const retiredEntry of retiredEntries) {
-    validateRetirementEntry({ activeIds, activePaths, errors, retiredEntry });
+    validateRetirementEntry({ activeIds, activePaths, errors, packageScripts, readSource, retiredEntry });
   }
   for (const movement of assertionMovements) {
     validateAssertionMovement({ activePaths, errors, movement });
   }
 
-  const minimumActive = Number.isInteger(policy?.minimumActiveScripts) ? policy.minimumActiveScripts : 0;
-  const expectedActiveFloor = Math.max(0, minimumActive - creditedRetirements.length);
-  if (activeEntries.length < expectedActiveFloor) {
-    errors.push(`active regression count ${activeEntries.length} is below policy floor ${expectedActiveFloor}`);
+  if (Number.isInteger(policy?.maximumActiveScripts) && activeEntries.length > policy.maximumActiveScripts) {
+    errors.push(`active regression count ${activeEntries.length} exceeds shrink-only ceiling ${policy.maximumActiveScripts}`);
+  }
+  const assertionInventory = buildAssertionInventory({ entries: activeEntries, policy, readSource });
+  if (Number.isInteger(policy?.minimumAssertionCount)
+    && assertionInventory.effectiveAssertionCount < policy.minimumAssertionCount) {
+    errors.push(
+      `effective assertion count ${assertionInventory.effectiveAssertionCount} is below policy floor ${policy.minimumAssertionCount}`,
+    );
   }
 
   validateAreaFloors({ activeEntries, creditedRetirements, errors, policy });
   validateTierAndFamilyFloors({ activeEntries, creditedRetirements, errors, policy });
-  validateRequiredReleaseGates({ activeIds, creditedRetirements, errors, policy });
-  validateLegacyException({ activeEntries, creditedRetirements, errors, policy });
-  errors.push(...collectCoverageFloorDriftErrors({ entries: activeEntries, policy }));
+  validateRequiredReleaseGates({ activeIds, errors, policy });
+  validateLegacyException({ activeEntries, errors, policy });
+  errors.push(...collectCoverageFloorDriftErrors({ entries: activeEntries, policy, readSource }));
 
   try {
-    const expectedManifest = buildRegressionManifest({ entries: activeEntries, policy });
+    const expectedManifest = buildRegressionManifest({ entries: activeEntries, policy, readSource });
     if (serializeRegressionManifest(manifest) !== serializeRegressionManifest(expectedManifest)) {
       errors.push(`generated manifest is stale; run ${MANIFEST_GENERATOR}`);
     }
@@ -98,12 +107,24 @@ function collectRegressionCoverageErrors({ entries, manifest, policy }) {
   return errors;
 }
 
-function buildRatchetedCoveragePolicy({ entries, policy }) {
+function buildRatchetedCoveragePolicy({ entries, policy, readSource = readFileSync }) {
   const nextPolicy = cloneJson(policy);
-  const targets = buildCoverageFloorTargets({ entries, policy });
+  const targets = buildCoverageFloorTargets({ entries, policy, readSource });
   const loweringErrors = [];
 
-  rejectFloorLowering(loweringErrors, "minimumActiveScripts", policy?.minimumActiveScripts, targets.minimumActiveScripts);
+  rejectCeilingIncrease(loweringErrors, "maximumActiveScripts", policy?.maximumActiveScripts, targets.maximumActiveScripts);
+  rejectCeilingIncrease(
+    loweringErrors,
+    "legacyMetadataException.maximumScripts",
+    policy?.legacyMetadataException?.maximumScripts,
+    targets.maximumLegacyScripts,
+  );
+  rejectFloorLowering(
+    loweringErrors,
+    "minimumAssertionCount",
+    policy?.minimumAssertionCount,
+    targets.minimumAssertionCount,
+  );
   rejectFloorLowering(
     loweringErrors,
     "minimumReleaseGateScripts",
@@ -129,10 +150,12 @@ function buildRatchetedCoveragePolicy({ entries, policy }) {
   }
 
   if (loweringErrors.length > 0) {
-    throw new Error(`Refusing to lower regression coverage floors:\n- ${loweringErrors.join("\n- ")}`);
+    throw new Error(`Refusing to weaken regression coverage guardrails:\n- ${loweringErrors.join("\n- ")}`);
   }
 
-  nextPolicy.minimumActiveScripts = targets.minimumActiveScripts;
+  nextPolicy.maximumActiveScripts = targets.maximumActiveScripts;
+  nextPolicy.minimumAssertionCount = targets.minimumAssertionCount;
+  nextPolicy.legacyMetadataException.maximumScripts = targets.maximumLegacyScripts;
   nextPolicy.minimumAreaScripts = targets.minimumAreaScripts;
   nextPolicy.minimumReleaseGateScripts = targets.minimumReleaseGateScripts;
   nextPolicy.coverageFamilies = nextPolicy.coverageFamilies.map((family) => ({
@@ -142,13 +165,20 @@ function buildRatchetedCoveragePolicy({ entries, policy }) {
   return nextPolicy;
 }
 
-function collectCoverageFloorDriftErrors({ entries, policy }) {
+function collectCoverageFloorDriftErrors({ entries, policy, readSource = readFileSync }) {
   if (!policy || typeof policy !== "object") {
     return [];
   }
-  const targets = buildCoverageFloorTargets({ entries, policy });
+  const targets = buildCoverageFloorTargets({ entries, policy, readSource });
   const errors = [];
-  reportLag(errors, "minimumActiveScripts", policy.minimumActiveScripts, targets.minimumActiveScripts);
+  reportCeilingDrift(errors, "maximumActiveScripts", policy.maximumActiveScripts, targets.maximumActiveScripts);
+  reportCeilingDrift(
+    errors,
+    "legacyMetadataException.maximumScripts",
+    policy.legacyMetadataException?.maximumScripts,
+    targets.maximumLegacyScripts,
+  );
+  reportLag(errors, "minimumAssertionCount", policy.minimumAssertionCount, targets.minimumAssertionCount);
   reportLag(
     errors,
     "minimumReleaseGateScripts",
@@ -165,7 +195,7 @@ function collectCoverageFloorDriftErrors({ entries, policy }) {
   return errors;
 }
 
-function buildCoverageFloorTargets({ entries, policy }) {
+function buildCoverageFloorTargets({ entries, policy, readSource = readFileSync }) {
   const activeEntries = Array.isArray(entries) ? entries : [];
   const creditedRetirements = Array.isArray(policy?.retiredScripts)
     ? policy.retiredScripts.filter((entry) => entry?.floorCredit === true)
@@ -200,12 +230,20 @@ function buildCoverageFloorTargets({ entries, policy }) {
   });
 
   return {
-    minimumActiveScripts: activeEntries.length + creditedRetirements.length,
+    maximumActiveScripts: activeEntries.length,
+    maximumLegacyScripts: activeEntries.filter((entry) => entry.legacy).length,
+    minimumAssertionCount: buildAssertionInventory({ entries: activeEntries, policy, readSource }).effectiveAssertionCount,
     minimumAreaScripts,
     minimumReleaseGateScripts: activeEntries.filter((entry) => entry.tier === "release-gate").length
       + releaseGateCredits,
     coverageFamilies,
   };
+}
+
+function rejectCeilingIncrease(errors, label, current, target) {
+  if (Number.isInteger(current) && target > current) {
+    errors.push(`${label} would increase from ${current} to ${target}`);
+  }
 }
 
 function rejectFloorLowering(errors, label, current, target) {
@@ -219,6 +257,18 @@ function reportLag(errors, label, current, target) {
     errors.push(
       `${label} lags current discovered coverage (${current} < ${target}); run ${MANIFEST_GENERATOR} --ratchet-floors`,
     );
+  } else if (Number.isInteger(current) && current > target) {
+    errors.push(`${label} exceeds current effective coverage (${current} > ${target}); coverage was lost or its retirement evidence is incomplete`);
+  }
+}
+
+function reportCeilingDrift(errors, label, current, target) {
+  if (Number.isInteger(current) && current > target) {
+    errors.push(
+      `${label} is above current discovered coverage (${current} > ${target}); run ${MANIFEST_GENERATOR} --ratchet-floors`,
+    );
+  } else if (Number.isInteger(current) && current < target) {
+    errors.push(`${label} was exceeded by discovered coverage (${current} < ${target}); active entry points may not grow implicitly`);
   }
 }
 
@@ -227,6 +277,68 @@ function validateRegressionCoverage({ entries, manifest, policy }) {
   if (errors.length > 0) {
     throw new Error(`Regression coverage manifest failed:\n- ${errors.join("\n- ")}`);
   }
+}
+
+function buildAssertionInventory({ entries, policy, readSource = readFileSync } = {}) {
+  const activePaths = new Set(entries.map((entry) => entry.path));
+  const active = entries
+    .map((entry) => ({
+      id: entry.id,
+      path: entry.path,
+      assertionCount: countAssertions(readSource(entry.path, "utf8")),
+    }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const vitestPaths = new Set();
+  const directOwnerPaths = new Set();
+  for (const movement of policy?.assertionMovements || []) {
+    if (movement?.movementType === "pure-contract-to-vitest" && typeof movement.movedTo === "string") {
+      vitestPaths.add(movement.movedTo);
+    }
+  }
+  for (const retirement of policy?.retiredScripts || []) {
+    if (retirement?.floorCredit !== true) continue;
+    if (typeof retirement.vitestOwner === "string") vitestPaths.add(retirement.vitestOwner);
+    for (const ownerPath of retirement?.assertionInventory?.ownerPaths || []) {
+      if (/^tests\/.+\.test\.mjs$/.test(ownerPath)) vitestPaths.add(ownerPath);
+      else if (!activePaths.has(ownerPath)) directOwnerPaths.add(ownerPath);
+    }
+  }
+  const vitest = buildExternalAssertionEntries(vitestPaths, readSource);
+  const directOwners = buildExternalAssertionEntries(directOwnerPaths, readSource);
+  const creditedAssertionReduction = (policy?.retiredScripts || [])
+    .filter((entry) => entry?.floorCredit === true)
+    .reduce((total, entry) => total + (entry?.assertionInventory?.creditedAssertionReduction || 0), 0);
+  const activeAssertionCount = sumAssertions(active);
+  const vitestAssertionCount = sumAssertions(vitest);
+  const directOwnerAssertionCount = sumAssertions(directOwners);
+  return Object.freeze({
+    activeAssertionCount,
+    creditedAssertionReduction,
+    directOwnerAssertionCount,
+    directOwners,
+    effectiveAssertionCount: activeAssertionCount
+      + vitestAssertionCount
+      + directOwnerAssertionCount
+      + creditedAssertionReduction,
+    vitest,
+    vitestAssertionCount,
+  });
+}
+
+function buildExternalAssertionEntries(paths, readSource) {
+  return [...paths]
+    .filter((filePath) => existsSync(filePath))
+    .map((filePath) => ({ path: filePath, assertionCount: countAssertions(readSource(filePath, "utf8")) }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function countAssertions(source) {
+  const matches = String(source || "").match(/\b(?:assert(?:\.[A-Za-z][A-Za-z0-9]*)?|expect)\s*\(/g);
+  return matches?.length || 0;
+}
+
+function sumAssertions(entries) {
+  return entries.reduce((total, entry) => total + entry.assertionCount, 0);
 }
 
 function buildSummary(regressions) {
@@ -261,11 +373,14 @@ function validatePolicyShape(errors, policy) {
     errors.push("coverage exceptions policy should be an object");
     return;
   }
-  if (policy.schemaVersion !== 1) {
-    errors.push("coverage exceptions policy schemaVersion should be 1");
+  if (policy.schemaVersion !== 2) {
+    errors.push("coverage exceptions policy schemaVersion should be 2");
   }
-  if (!Number.isInteger(policy.minimumActiveScripts) || policy.minimumActiveScripts < 1) {
-    errors.push("minimumActiveScripts should be a positive integer");
+  if (!Number.isInteger(policy.maximumActiveScripts) || policy.maximumActiveScripts < 1) {
+    errors.push("maximumActiveScripts should be a positive integer");
+  }
+  if (!Number.isInteger(policy.minimumAssertionCount) || policy.minimumAssertionCount < 1) {
+    errors.push("minimumAssertionCount should be a positive integer");
   }
   if (!policy.minimumAreaScripts || typeof policy.minimumAreaScripts !== "object") {
     errors.push("minimumAreaScripts should be an object");
@@ -339,7 +454,7 @@ function validateAssertionMovement({ activePaths, errors, movement }) {
   }
 }
 
-function validateRetirementEntry({ activeIds, activePaths, errors, retiredEntry }) {
+function validateRetirementEntry({ activeIds, activePaths, errors, packageScripts, readSource, retiredEntry }) {
   if (!retiredEntry || typeof retiredEntry !== "object") {
     errors.push("retirement entry should be an object");
     return;
@@ -350,8 +465,8 @@ function validateRetirementEntry({ activeIds, activePaths, errors, retiredEntry 
       errors.push(`${label} should include ${field}`);
     }
   }
-  if (!new Set(["assertions-moved", "dead-target"]).has(retiredEntry.retirementType)) {
-    errors.push(`${label} retirementType should be assertions-moved or dead-target`);
+  if (!new Set(["assertions-moved", "dead-target", "pure-contract-to-vitest"]).has(retiredEntry.retirementType)) {
+    errors.push(`${label} retirementType should be assertions-moved, dead-target, or pure-contract-to-vitest`);
   }
   if (typeof retiredEntry.floorCredit !== "boolean") {
     errors.push(`${label} should include boolean floorCredit`);
@@ -383,7 +498,71 @@ function validateRetirementEntry({ activeIds, activePaths, errors, retiredEntry 
     if (!Array.isArray(retiredEntry.tags)) {
       errors.push(`${label} credited retirement should include tags`);
     }
+    validateRetirementAssertionInventory({ activeIds, activePaths, errors, readSource, retiredEntry });
   }
+  if (retiredEntry.retirementType === "pure-contract-to-vitest") {
+    if (!/^tests\/.+\.test\.mjs$/.test(retiredEntry.vitestOwner || "") || !existsSync(retiredEntry.vitestOwner)) {
+      errors.push(`${label} pure-contract retirement should identify an existing vitestOwner`);
+    }
+    if (!Array.isArray(retiredEntry.integrationCoverageOwners) || retiredEntry.integrationCoverageOwners.length === 0) {
+      errors.push(`${label} pure-contract retirement should name integrationCoverageOwners`);
+    } else {
+      for (const owner of retiredEntry.integrationCoverageOwners) {
+        if (!activeIds.has(owner) && !activePaths.has(owner)) {
+          errors.push(`${label} integration coverage owner ${owner} should remain active`);
+        }
+      }
+    }
+    if (!vitestRunsInCheckFast(packageScripts)) {
+      errors.push(`${label} pure-contract retirement requires check:fast to run test:unit before regressions`);
+    }
+  }
+}
+
+function validateRetirementAssertionInventory({ activeIds, activePaths, errors, readSource, retiredEntry }) {
+  const label = retiredEntry.script;
+  const inventory = retiredEntry.assertionInventory;
+  if (!inventory || typeof inventory !== "object") {
+    errors.push(`${label} credited retirement should include assertionInventory`);
+    return;
+  }
+  if (!Number.isInteger(inventory.sourceAssertionCount) || inventory.sourceAssertionCount < 0) {
+    errors.push(`${label} assertionInventory should include non-negative sourceAssertionCount`);
+  }
+  if (!Number.isInteger(inventory.creditedAssertionReduction) || inventory.creditedAssertionReduction < 0) {
+    errors.push(`${label} assertionInventory should include non-negative creditedAssertionReduction`);
+  } else if (Number.isInteger(inventory.sourceAssertionCount)
+    && inventory.creditedAssertionReduction > inventory.sourceAssertionCount) {
+    errors.push(`${label} creditedAssertionReduction cannot exceed sourceAssertionCount`);
+  }
+  if (!Array.isArray(inventory.ownerPaths) || inventory.ownerPaths.length === 0) {
+    errors.push(`${label} assertionInventory should include ownerPaths`);
+    return;
+  }
+  for (const ownerPath of inventory.ownerPaths) {
+    if (!existsSync(ownerPath)) {
+      errors.push(`${label} assertion owner path ${ownerPath} should exist`);
+      continue;
+    }
+    if (!activePaths.has(ownerPath)
+      && !/^tests\/.+\.test\.mjs$/.test(ownerPath)
+      && ownerPath !== retiredEntry.script) {
+      const namedDirectOwner = retiredEntry.retainedCoverageOwners.some((owner) => activeIds.has(owner));
+      if (!namedDirectOwner) errors.push(`${label} direct assertion owner ${ownerPath} should have a named behavior owner`);
+    }
+    readSource(ownerPath, "utf8");
+  }
+}
+
+function vitestRunsInCheckFast(packageScripts) {
+  const checkFast = String(packageScripts?.["check:fast"] || "");
+  const unitIndex = checkFast.indexOf("npm run test:unit");
+  const regressionIndex = checkFast.search(/npm run (?:test:regressions|check)(?:\s|$)/);
+  return unitIndex >= 0 && (regressionIndex < 0 || unitIndex < regressionIndex);
+}
+
+function readPackageScripts() {
+  return JSON.parse(readFileSync("package.json", "utf8")).scripts || {};
 }
 
 function validateAreaFloors({ activeEntries, creditedRetirements, errors, policy }) {
@@ -427,16 +606,15 @@ function validateTierAndFamilyFloors({ activeEntries, creditedRetirements, error
   }
 }
 
-function validateRequiredReleaseGates({ activeIds, creditedRetirements, errors, policy }) {
-  const retiredIds = new Set(creditedRetirements.map((entry) => entry.id).filter(Boolean));
+function validateRequiredReleaseGates({ activeIds, errors, policy }) {
   for (const id of policy?.requiredReleaseGateIds || []) {
-    if (!activeIds.has(id) && !retiredIds.has(id)) {
-      errors.push(`required release-gate regression ${id} is missing without credited retirement`);
+    if (!activeIds.has(id)) {
+      errors.push(`required release-gate behavior owner ${id} is missing`);
     }
   }
 }
 
-function validateLegacyException({ activeEntries, creditedRetirements, errors, policy }) {
+function validateLegacyException({ activeEntries, errors, policy }) {
   const exception = policy?.legacyMetadataException;
   if (!exception || typeof exception !== "object") {
     errors.push("legacyMetadataException should document snapshot-backed legacy metadata");
@@ -449,10 +627,10 @@ function validateLegacyException({ activeEntries, creditedRetirements, errors, p
     errors.push("legacyMetadataException should include rationale");
   }
   const legacyCount = activeEntries.filter((entry) => entry.legacy).length;
-  const retiredLegacyCount = creditedRetirements.filter((entry) => entry.legacy === true).length;
-  const expectedLegacyCount = Math.max(0, exception.expectedScripts - retiredLegacyCount);
-  if (legacyCount !== expectedLegacyCount) {
-    errors.push(`legacy metadata exception expected ${expectedLegacyCount} scripts but discovered ${legacyCount}`);
+  if (!Number.isInteger(exception.maximumScripts) || exception.maximumScripts < 0) {
+    errors.push("legacyMetadataException should include non-negative maximumScripts");
+  } else if (legacyCount > exception.maximumScripts) {
+    errors.push(`legacy metadata count ${legacyCount} exceeds shrink-only ceiling ${exception.maximumScripts}`);
   }
 }
 
@@ -494,10 +672,12 @@ export {
   MANIFEST_GENERATOR,
   MANIFEST_SCHEMA_VERSION,
   POLICY_SOURCE,
+  buildAssertionInventory,
   buildRegressionManifest,
   buildRatchetedCoveragePolicy,
   collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
+  countAssertions,
   serializeRegressionManifest,
   validateRegressionCoverage,
 };

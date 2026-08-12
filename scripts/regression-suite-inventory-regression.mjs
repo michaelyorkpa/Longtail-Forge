@@ -85,13 +85,9 @@ assert.ok(
   REGRESSION_SCRIPTS.includes("scripts/regression-suite-inventory-regression.mjs"),
   "inventory contract guardrail should be registered",
 );
-const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
-  entry.floorCredit === true && entry.legacy === true
-)).length;
-assert.equal(
-  legacySnapshot.scripts.length + creditedLegacyRetirements,
-  coveragePolicy.legacyMetadataException.expectedScripts,
-  "the legacy migration snapshot and reviewed credits should reconcile to the recorded baseline",
+assert.ok(
+  legacySnapshot.scripts.length <= coveragePolicy.legacyMetadataException.maximumScripts,
+  "the legacy migration snapshot must not exceed its shrink-only ceiling",
 );
 const flattenedBucketScripts = REGRESSION_BUCKETS.flatMap((bucket) => bucket.scripts);
 assert.equal(flattenedBucketScripts.length, REGRESSION_ENTRIES.length, "bucket membership should cover every discovered entry");

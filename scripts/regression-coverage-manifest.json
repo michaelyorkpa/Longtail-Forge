@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
@@ -84,6 +84,29 @@
       ]
     }
   ],
+  "assertionInventory": {
+    "activeAssertionCount": 18055,
+    "creditedAssertionReduction": 65,
+    "directOwnerAssertionCount": 18,
+    "directOwners": [
+      {
+        "path": "scripts/version-literal-guardrail-regression.mjs",
+        "assertionCount": 18
+      }
+    ],
+    "effectiveAssertionCount": 18178,
+    "vitest": [
+      {
+        "path": "tests/unit/asset-version.test.mjs",
+        "assertionCount": 12
+      },
+      {
+        "path": "tests/unit/runtime-configuration.test.mjs",
+        "assertionCount": 28
+      }
+    ],
+    "vitestAssertionCount": 40
+  },
   "assertionMovements": [
     {
       "sourceRegression": "scripts/admin-job-observability-regression.mjs",
@@ -198,12 +221,13 @@
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "expectedScripts": 312,
+    "maximumScripts": 308,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "regressions": [
     {
       "area": "permissions",
+      "assertionCount": 9,
       "description": "Protects the legacy accessibility contract.",
       "id": "legacy.accessibility",
       "legacy": true,
@@ -217,6 +241,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 30,
       "description": "Protects the legacy active timers repository conversion contract.",
       "id": "legacy.active.timers.repository.conversion",
       "legacy": true,
@@ -230,6 +255,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 49,
       "description": "Protects the legacy admin job observability contract.",
       "id": "legacy.admin.job.observability",
       "legacy": true,
@@ -244,6 +270,7 @@
     },
     {
       "area": "public-api",
+      "assertionCount": 11,
       "description": "Protects the legacy api key scope audit contract.",
       "id": "legacy.api.key.scope.audit",
       "legacy": true,
@@ -258,6 +285,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 34,
       "description": "Protects the legacy app shell navigation contract.",
       "id": "legacy.app.shell.navigation",
       "legacy": true,
@@ -269,6 +297,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 33,
       "description": "Protects the legacy async recurrence response closeout contract.",
       "id": "legacy.async.recurrence.response.closeout",
       "legacy": true,
@@ -284,6 +313,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 28,
       "description": "Protects the legacy audit extensibility contract.",
       "id": "legacy.audit.extensibility",
       "legacy": true,
@@ -295,6 +325,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 54,
       "description": "Protects the legacy background work jobs contract.",
       "id": "legacy.background.work.jobs",
       "legacy": true,
@@ -309,6 +340,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 14,
       "description": "Protects the legacy baseline adoption contract.",
       "id": "legacy.baseline.adoption",
       "legacy": true,
@@ -323,6 +355,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 44,
       "description": "Protects the legacy batched list enrichment contract.",
       "id": "legacy.batched.list.enrichment",
       "legacy": true,
@@ -334,6 +367,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 20,
       "description": "Protects the legacy better sqlite3 driver closeout contract.",
       "id": "legacy.better.sqlite3.driver.closeout",
       "legacy": true,
@@ -348,6 +382,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 30,
       "description": "Protects the legacy better sqlite3 helper core contract.",
       "id": "legacy.better.sqlite3.helper.core",
       "legacy": true,
@@ -361,6 +396,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 20,
       "description": "Protects the legacy better sqlite3 install smoke contract.",
       "id": "legacy.better.sqlite3.install.smoke",
       "legacy": true,
@@ -372,6 +408,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 24,
       "description": "Protects the legacy bump version contract.",
       "id": "legacy.bump.version",
       "legacy": true,
@@ -385,6 +422,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 34,
       "description": "Protects the legacy client modal footer actions contract.",
       "id": "legacy.client.modal.footer.actions",
       "legacy": true,
@@ -396,6 +434,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 13,
       "description": "Protects the legacy client picker hierarchy contract.",
       "id": "legacy.client.picker.hierarchy",
       "legacy": true,
@@ -407,6 +446,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 57,
       "description": "Protects the legacy client project hierarchy branch closeout contract.",
       "id": "legacy.client.project.hierarchy.branch.closeout",
       "legacy": true,
@@ -420,6 +460,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 12,
       "description": "Protects the legacy client projects bugfix contract.",
       "id": "legacy.client.projects.bugfix",
       "legacy": true,
@@ -433,6 +474,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 27,
       "description": "Protects the legacy client projects canonical payload contract.",
       "id": "legacy.client.projects.canonical.payload",
       "legacy": true,
@@ -446,6 +488,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 56,
       "description": "Protects the legacy client projects repositories conversion contract.",
       "id": "legacy.client.projects.repositories.conversion",
       "legacy": true,
@@ -459,6 +502,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 22,
       "description": "Protects the legacy clients projects action registration contract.",
       "id": "legacy.clients.projects.action.registration",
       "legacy": true,
@@ -470,6 +514,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 34,
       "description": "Protects the legacy clients projects bulk toolbar contract.",
       "id": "legacy.clients.projects.bulk.toolbar",
       "legacy": true,
@@ -481,6 +526,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 57,
       "description": "Protects the legacy clients projects framework read anatomy contract.",
       "id": "legacy.clients.projects.framework.read.anatomy",
       "legacy": true,
@@ -492,6 +538,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 29,
       "description": "Protects the legacy clients projects hierarchy reparent contract.",
       "id": "legacy.clients.projects.hierarchy.reparent",
       "legacy": true,
@@ -503,6 +550,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 62,
       "description": "Protects the legacy clients projects read descriptor host contract.",
       "id": "legacy.clients.projects.read.descriptor.host",
       "legacy": true,
@@ -514,6 +562,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 19,
       "description": "Protects the legacy clients projects related regions contract.",
       "id": "legacy.clients.projects.related.regions",
       "legacy": true,
@@ -525,6 +574,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 87,
       "description": "Protects the legacy clients projects strict guardrail inventory contract.",
       "id": "legacy.clients.projects.strict.guardrail.inventory",
       "legacy": true,
@@ -539,6 +589,7 @@
     },
     {
       "area": "dashboard",
+      "assertionCount": 128,
       "description": "Protects the legacy dashboard workbench contract.",
       "id": "legacy.dashboard.workbench",
       "legacy": true,
@@ -550,6 +601,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 51,
       "description": "Protects the legacy database adapter contract contract.",
       "id": "legacy.database.adapter.contract",
       "legacy": true,
@@ -564,6 +616,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 35,
       "description": "Protects the legacy database boolean time seam contract.",
       "id": "legacy.database.boolean.time.seam",
       "legacy": true,
@@ -577,6 +630,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 33,
       "description": "Protects the legacy database case insensitive seam contract.",
       "id": "legacy.database.case.insensitive.seam",
       "legacy": true,
@@ -590,6 +644,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 42,
       "description": "Protects the legacy database conflict identity seam contract.",
       "id": "legacy.database.conflict.identity.seam",
       "legacy": true,
@@ -603,6 +658,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 72,
       "description": "Protects the legacy database dialect seam scaffold contract.",
       "id": "legacy.database.dialect.seam.scaffold",
       "legacy": true,
@@ -616,6 +672,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 27,
       "description": "Protects the legacy database introspection boundary contract.",
       "id": "legacy.database.introspection.boundary",
       "legacy": true,
@@ -629,6 +686,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 37,
       "description": "Protects the legacy database migration locking contract.",
       "id": "legacy.database.migration.locking",
       "legacy": true,
@@ -643,6 +701,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 55,
       "description": "Protects the legacy database parameterized query pilot contract.",
       "id": "legacy.database.parameterized.query.pilot",
       "legacy": true,
@@ -656,6 +715,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 29,
       "description": "Protects the legacy database result fidelity contract.",
       "id": "legacy.database.result.fidelity",
       "legacy": true,
@@ -669,6 +729,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 44,
       "description": "Protects the legacy database transaction helper contract.",
       "id": "legacy.database.transaction.helper",
       "legacy": true,
@@ -683,6 +744,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 27,
       "description": "Protects the legacy dialect enforcement guardrail contract.",
       "id": "legacy.dialect.enforcement.guardrail",
       "legacy": true,
@@ -696,6 +758,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 16,
       "description": "Protects the legacy drawer main surface contract contract.",
       "id": "legacy.drawer.main.surface.contract",
       "legacy": true,
@@ -709,6 +772,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 15,
       "description": "Protects the legacy event bus contract.",
       "id": "legacy.event.bus",
       "legacy": true,
@@ -720,6 +784,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 84,
       "description": "Protects the legacy file api lifecycle contract.",
       "id": "legacy.file.api.lifecycle",
       "legacy": true,
@@ -734,6 +799,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 57,
       "description": "Protects the legacy file clamd adapter contract.",
       "id": "legacy.file.clamd.adapter",
       "legacy": true,
@@ -749,6 +815,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 55,
       "description": "Protects the legacy file clamscan adapter contract.",
       "id": "legacy.file.clamscan.adapter",
       "legacy": true,
@@ -764,6 +831,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 36,
       "description": "Protects the legacy file framework contract contract.",
       "id": "legacy.file.framework.contract",
       "legacy": true,
@@ -779,6 +847,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 84,
       "description": "Protects the legacy file multipart batch upload helper contract.",
       "id": "legacy.file.multipart.batch.upload.helper",
       "legacy": true,
@@ -794,6 +863,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 56,
       "description": "Protects the legacy file multipart upload route contract.",
       "id": "legacy.file.multipart.upload.route",
       "legacy": true,
@@ -808,6 +878,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 33,
       "description": "Protects the legacy file s3 diagnostics signed url boundary contract.",
       "id": "legacy.file.s3.diagnostics.signed.url.boundary",
       "legacy": true,
@@ -822,6 +893,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 42,
       "description": "Protects the legacy file s3 object operation proof contract.",
       "id": "legacy.file.s3.object.operation.proof",
       "legacy": true,
@@ -836,6 +908,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 50,
       "description": "Protects the legacy file s3 provider registration contract.",
       "id": "legacy.file.s3.provider.registration",
       "legacy": true,
@@ -850,6 +923,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 24,
       "description": "Protects the legacy file scan job handoff contract.",
       "id": "legacy.file.scan.job.handoff",
       "legacy": true,
@@ -865,6 +939,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 34,
       "description": "Protects the legacy file scanner health diagnostics contract.",
       "id": "legacy.file.scanner.health.diagnostics",
       "legacy": true,
@@ -880,6 +955,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 40,
       "description": "Protects the legacy file scanner mode resolver contract.",
       "id": "legacy.file.scanner.mode.resolver",
       "legacy": true,
@@ -895,6 +971,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 17,
       "description": "Protects the legacy file scanner setup docs contract.",
       "id": "legacy.file.scanner.setup.docs",
       "legacy": true,
@@ -911,6 +988,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 23,
       "description": "Protects the legacy file settings contract.",
       "id": "legacy.file.settings",
       "legacy": true,
@@ -925,6 +1003,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 22,
       "description": "Protects the legacy file storage accounting contract.",
       "id": "legacy.file.storage.accounting",
       "legacy": true,
@@ -939,6 +1018,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 25,
       "description": "Protects the legacy file storage diagnostics contract.",
       "id": "legacy.file.storage.diagnostics",
       "legacy": true,
@@ -953,6 +1033,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 18,
       "description": "Protects the legacy file storage provider configuration contract.",
       "id": "legacy.file.storage.provider.configuration",
       "legacy": true,
@@ -967,6 +1048,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 22,
       "description": "Protects the legacy file storage quota enforcement contract.",
       "id": "legacy.file.storage.quota.enforcement",
       "legacy": true,
@@ -981,6 +1063,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 17,
       "description": "Protects the legacy file storage streaming contract contract.",
       "id": "legacy.file.storage.streaming.contract",
       "legacy": true,
@@ -996,6 +1079,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 27,
       "description": "Protects the legacy file streamed validation download metadata contract.",
       "id": "legacy.file.streamed.validation.download.metadata",
       "legacy": true,
@@ -1010,6 +1094,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 57,
       "description": "Protects the legacy file ui integration contract.",
       "id": "legacy.file.ui.integration",
       "legacy": true,
@@ -1023,6 +1108,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 35,
       "description": "Protects the legacy file upload compatibility error hardening contract.",
       "id": "legacy.file.upload.compatibility.error.hardening",
       "legacy": true,
@@ -1037,6 +1123,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 62,
       "description": "Protects the legacy files attachable target options contract.",
       "id": "legacy.files.attachable.target.options",
       "legacy": true,
@@ -1051,6 +1138,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 45,
       "description": "Protects the legacy files attachment context route contract.",
       "id": "legacy.files.attachment.context.route",
       "legacy": true,
@@ -1065,6 +1153,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 66,
       "description": "Protects the legacy files attachment panel shell contract.",
       "id": "legacy.files.attachment.panel.shell",
       "legacy": true,
@@ -1078,6 +1167,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 23,
       "description": "Protects the legacy files attachment readmodel contract.",
       "id": "legacy.files.attachment.readmodel",
       "legacy": true,
@@ -1092,6 +1182,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 31,
       "description": "Protects the legacy files browse attachment reads conversion contract.",
       "id": "legacy.files.browse.attachment.reads.conversion",
       "legacy": true,
@@ -1106,6 +1197,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 37,
       "description": "Protects the legacy files browse compact reset contract.",
       "id": "legacy.files.browse.compact.reset",
       "legacy": true,
@@ -1119,6 +1211,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 61,
       "description": "Protects the legacy files browse list shell contract.",
       "id": "legacy.files.browse.list.shell",
       "legacy": true,
@@ -1132,6 +1225,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 44,
       "description": "Protects the legacy files context targets conversion contract.",
       "id": "legacy.files.context.targets.conversion",
       "legacy": true,
@@ -1146,6 +1240,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 31,
       "description": "Protects the legacy files descriptor host contract.",
       "id": "legacy.files.descriptor.host",
       "legacy": true,
@@ -1159,6 +1254,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 47,
       "description": "Protects the legacy files edit modal save contract.",
       "id": "legacy.files.edit.modal.save",
       "legacy": true,
@@ -1172,6 +1268,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 39,
       "description": "Protects the legacy files edit modal shell contract.",
       "id": "legacy.files.edit.modal.shell",
       "legacy": true,
@@ -1185,6 +1282,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 38,
       "description": "Protects the legacy files filter sidebar contract.",
       "id": "legacy.files.filter.sidebar",
       "legacy": true,
@@ -1198,6 +1296,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 48,
       "description": "Protects the legacy files lifecycle settings quota conversion contract.",
       "id": "legacy.files.lifecycle.settings.quota.conversion",
       "legacy": true,
@@ -1212,6 +1311,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 52,
       "description": "Protects the legacy files preview availability route contract.",
       "id": "legacy.files.preview.availability.route",
       "legacy": true,
@@ -1226,6 +1326,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 56,
       "description": "Protects the legacy files preview content route contract.",
       "id": "legacy.files.preview.content.route",
       "legacy": true,
@@ -1240,6 +1341,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 38,
       "description": "Protects the legacy files preview modal contract.",
       "id": "legacy.files.preview.modal",
       "legacy": true,
@@ -1253,6 +1355,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 61,
       "description": "Protects the legacy files row attachment actions contract.",
       "id": "legacy.files.row.attachment.actions",
       "legacy": true,
@@ -1266,6 +1369,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 60,
       "description": "Protects the legacy files strict guardrail inventory contract.",
       "id": "legacy.files.strict.guardrail.inventory",
       "legacy": true,
@@ -1280,6 +1384,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 14,
       "description": "Protects the legacy files time tracking qol closeout contract.",
       "id": "legacy.files.time.tracking.qol.closeout",
       "legacy": true,
@@ -1295,6 +1400,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 47,
       "description": "Protects the legacy files upload shell contract.",
       "id": "legacy.files.upload.shell",
       "legacy": true,
@@ -1308,6 +1414,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 53,
       "description": "Protects the legacy files visual state control parity contract.",
       "id": "legacy.files.visual.state.control.parity",
       "legacy": true,
@@ -1321,6 +1428,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 55,
       "description": "Protects the legacy framework admin low count repositories conversion contract.",
       "id": "legacy.framework.admin.low.count.repositories.conversion",
       "legacy": true,
@@ -1334,6 +1442,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 19,
       "description": "Protects the legacy fresh database contract.",
       "id": "legacy.fresh.database",
       "legacy": true,
@@ -1348,6 +1457,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 73,
       "description": "Protects the legacy help center surface contract.",
       "id": "legacy.help.center.surface",
       "legacy": true,
@@ -1362,6 +1472,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 50,
       "description": "Protects the legacy help content contract.",
       "id": "legacy.help.content",
       "legacy": true,
@@ -1376,6 +1487,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 23,
       "description": "Protects the legacy help contract contract.",
       "id": "legacy.help.contract",
       "legacy": true,
@@ -1391,6 +1503,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 21,
       "description": "Protects the legacy help markdown source layout contract.",
       "id": "legacy.help.markdown.source.layout",
       "legacy": true,
@@ -1405,6 +1518,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 28,
       "description": "Protects the legacy help navigation boundary contract.",
       "id": "legacy.help.navigation.boundary",
       "legacy": true,
@@ -1419,6 +1533,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 39,
       "description": "Protects the legacy help search contract.",
       "id": "legacy.help.search",
       "legacy": true,
@@ -1433,6 +1548,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 34,
       "description": "Protects the legacy help workflow contract.",
       "id": "legacy.help.workflow",
       "legacy": true,
@@ -1447,6 +1563,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 66,
       "description": "Protects the legacy high volume admin lists contract.",
       "id": "legacy.high.volume.admin.lists",
       "legacy": true,
@@ -1458,6 +1575,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 21,
       "description": "Protects the legacy icon accessibility contract contract.",
       "id": "legacy.icon.accessibility.contract",
       "legacy": true,
@@ -1472,6 +1590,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 17,
       "description": "Protects the legacy icon control conversion contract.",
       "id": "legacy.icon.control.conversion",
       "legacy": true,
@@ -1483,6 +1602,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 11,
       "description": "Protects the legacy interpolation enforcement guardrail contract.",
       "id": "legacy.interpolation.enforcement.guardrail",
       "legacy": true,
@@ -1496,6 +1616,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 66,
       "description": "Protects the legacy job claiming locking contract.",
       "id": "legacy.job.claiming.locking",
       "legacy": true,
@@ -1510,6 +1631,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 30,
       "description": "Protects the legacy job idempotency at least once contract.",
       "id": "legacy.job.idempotency.at.least.once",
       "legacy": true,
@@ -1524,6 +1646,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 25,
       "description": "Protects the legacy job outbox schema contract.",
       "id": "legacy.job.outbox.schema",
       "legacy": true,
@@ -1538,6 +1661,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 34,
       "description": "Protects the legacy job retention pruning contract.",
       "id": "legacy.job.retention.pruning",
       "legacy": true,
@@ -1552,6 +1676,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 7,
       "description": "Protects the legacy legacy cleanup contract.",
       "id": "legacy.legacy.cleanup",
       "legacy": true,
@@ -1566,6 +1691,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 32,
       "description": "Protects the legacy linked context client project label sort contract.",
       "id": "legacy.linked.context.client.project.label.sort",
       "legacy": true,
@@ -1579,6 +1705,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 35,
       "description": "Protects the legacy linked context client scope picker contract.",
       "id": "legacy.linked.context.client.scope.picker",
       "legacy": true,
@@ -1593,6 +1720,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 39,
       "description": "Protects the legacy linked context note list label contract.",
       "id": "legacy.linked.context.note.list.label",
       "legacy": true,
@@ -1606,6 +1734,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 63,
       "description": "Protects the legacy linked context picker shell contract.",
       "id": "legacy.linked.context.picker.shell",
       "legacy": true,
@@ -1617,6 +1746,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 22,
       "description": "Protects the legacy linked context provider contract contract.",
       "id": "legacy.linked.context.provider.contract",
       "legacy": true,
@@ -1630,6 +1760,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 29,
       "description": "Protects the legacy linked context task label sort contract.",
       "id": "legacy.linked.context.task.label.sort",
       "legacy": true,
@@ -1643,6 +1774,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 13,
       "description": "Protects the legacy linked context unavailable fallback contract.",
       "id": "legacy.linked.context.unavailable.fallback",
       "legacy": true,
@@ -1656,6 +1788,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 125,
       "description": "Protects the legacy lists api contract.",
       "id": "legacy.lists.api",
       "legacy": true,
@@ -1669,6 +1802,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 56,
       "description": "Protects the legacy lists catalog links repository conversion contract.",
       "id": "legacy.lists.catalog.links.repository.conversion",
       "legacy": true,
@@ -1682,6 +1816,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 53,
       "description": "Protects the legacy lists closeout contract.",
       "id": "legacy.lists.closeout",
       "legacy": true,
@@ -1696,6 +1831,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 39,
       "description": "Protects the legacy lists declarative readonly surface contract.",
       "id": "legacy.lists.declarative.readonly.surface",
       "legacy": true,
@@ -1707,6 +1843,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 44,
       "description": "Protects the legacy lists foundation contract.",
       "id": "legacy.lists.foundation",
       "legacy": true,
@@ -1720,6 +1857,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 40,
       "description": "Protects the legacy lists items modals descriptor contract.",
       "id": "legacy.lists.items.modals.descriptor",
       "legacy": true,
@@ -1731,6 +1869,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 28,
       "description": "Protects the legacy lists query suggestions contract.",
       "id": "legacy.lists.query.suggestions",
       "legacy": true,
@@ -1744,6 +1883,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 64,
       "description": "Protects the legacy lists records items repository conversion contract.",
       "id": "legacy.lists.records.items.repository.conversion",
       "legacy": true,
@@ -1757,6 +1897,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 129,
       "description": "Protects the legacy lists service contract.",
       "id": "legacy.lists.service",
       "legacy": true,
@@ -1770,6 +1911,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 200,
       "description": "Protects the legacy lists ui workflow contract.",
       "id": "legacy.lists.ui.workflow",
       "legacy": true,
@@ -1783,6 +1925,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 29,
       "description": "Protects the legacy lists view builder pilot contract.",
       "id": "legacy.lists.view.builder.pilot",
       "legacy": true,
@@ -1794,6 +1937,7 @@
     },
     {
       "area": "lists",
+      "assertionCount": 41,
       "description": "Protects the legacy lists workflow linked layout contract.",
       "id": "legacy.lists.workflow.linked.layout",
       "legacy": true,
@@ -1805,6 +1949,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 30,
       "description": "Protects the legacy markdown platform contract contract.",
       "id": "legacy.markdown.platform.contract",
       "legacy": true,
@@ -1819,6 +1964,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 56,
       "description": "Protects the legacy markdown renderer service contract.",
       "id": "legacy.markdown.renderer.service",
       "legacy": true,
@@ -1832,6 +1978,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 37,
       "description": "Protects the legacy migration compatibility contract.",
       "id": "legacy.migration.compatibility",
       "legacy": true,
@@ -1846,6 +1993,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 46,
       "description": "Protects the legacy modal action standardization contract contract.",
       "id": "legacy.modal.action.standardization.contract",
       "legacy": true,
@@ -1859,6 +2007,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 21,
       "description": "Protects the legacy modal footer contract contract.",
       "id": "legacy.modal.footer.contract",
       "legacy": true,
@@ -1872,6 +2021,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 34,
       "description": "Protects the legacy modal section contract contract.",
       "id": "legacy.modal.section.contract",
       "legacy": true,
@@ -1885,6 +2035,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 86,
       "description": "Protects the legacy module actions contract.",
       "id": "legacy.module.actions",
       "legacy": true,
@@ -1896,6 +2047,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 84,
       "description": "Protects the legacy module sanity contract.",
       "id": "legacy.module.sanity",
       "legacy": true,
@@ -1909,6 +2061,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 41,
       "description": "Protects the legacy notes access contract contract.",
       "id": "legacy.notes.access.contract",
       "legacy": true,
@@ -1924,6 +2077,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 73,
       "description": "Protects the legacy notes api service contract.",
       "id": "legacy.notes.api.service",
       "legacy": true,
@@ -1937,6 +2091,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 32,
       "description": "Protects the legacy notes collections contract.",
       "id": "legacy.notes.collections",
       "legacy": true,
@@ -1950,6 +2105,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 24,
       "description": "Protects the legacy notes context terminology contract.",
       "id": "legacy.notes.context.terminology",
       "legacy": true,
@@ -1961,6 +2117,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 85,
       "description": "Protects the legacy notes declarative readonly surface contract.",
       "id": "legacy.notes.declarative.readonly.surface",
       "legacy": true,
@@ -1972,6 +2129,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 8,
       "description": "Protects the legacy notes developer docs contract.",
       "id": "legacy.notes.developer.docs",
       "legacy": true,
@@ -1985,6 +2143,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 47,
       "description": "Protects the legacy notes external markdown links preference contract.",
       "id": "legacy.notes.external.markdown.links.preference",
       "legacy": true,
@@ -1998,6 +2157,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 25,
       "description": "Protects the legacy notes file preview actions contract.",
       "id": "legacy.notes.file.preview.actions",
       "legacy": true,
@@ -2011,6 +2171,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 29,
       "description": "Protects the legacy notes files hierarchy scope contract.",
       "id": "legacy.notes.files.hierarchy.scope",
       "legacy": true,
@@ -2025,6 +2186,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 24,
       "description": "Protects the legacy notes files stacked modal contract.",
       "id": "legacy.notes.files.stacked.modal",
       "legacy": true,
@@ -2038,6 +2200,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 31,
       "description": "Protects the legacy notes foundation contract.",
       "id": "legacy.notes.foundation",
       "legacy": true,
@@ -2051,6 +2214,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 39,
       "description": "Protects the legacy notes integration closeout contract.",
       "id": "legacy.notes.integration.closeout",
       "legacy": true,
@@ -2065,6 +2229,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 72,
       "description": "Protects the legacy notes linked panel contract.",
       "id": "legacy.notes.linked.panel",
       "legacy": true,
@@ -2078,6 +2243,7 @@
     },
     {
       "area": "public-api",
+      "assertionCount": 35,
       "description": "Protects the legacy notes lists tags api scope contract.",
       "id": "legacy.notes.lists.tags.api.scope",
       "legacy": true,
@@ -2092,6 +2258,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 45,
       "description": "Protects the legacy notes markdown revision contract.",
       "id": "legacy.notes.markdown.revision",
       "legacy": true,
@@ -2106,6 +2273,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 10,
       "description": "Protects the legacy notes markdown soft break contract.",
       "id": "legacy.notes.markdown.soft.break",
       "legacy": true,
@@ -2120,6 +2288,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 36,
       "description": "Protects the legacy notes modal stack guardrails contract.",
       "id": "legacy.notes.modal.stack.guardrails",
       "legacy": true,
@@ -2133,6 +2302,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 42,
       "description": "Protects the legacy notes notification follow contract.",
       "id": "legacy.notes.notification.follow",
       "legacy": true,
@@ -2144,6 +2314,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 71,
       "description": "Protects the legacy notes preview editor contract.",
       "id": "legacy.notes.preview.editor",
       "legacy": true,
@@ -2157,6 +2328,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 67,
       "description": "Protects the legacy notes primary context contract.",
       "id": "legacy.notes.primary.context",
       "legacy": true,
@@ -2170,6 +2342,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 49,
       "description": "Protects the legacy notes records filters repository conversion contract.",
       "id": "legacy.notes.records.filters.repository.conversion",
       "legacy": true,
@@ -2181,6 +2354,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 36,
       "description": "Protects the legacy notes search help contract.",
       "id": "legacy.notes.search.help",
       "legacy": true,
@@ -2195,6 +2369,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 61,
       "description": "Protects the legacy notes secure contract.",
       "id": "legacy.notes.secure",
       "legacy": true,
@@ -2209,6 +2384,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 42,
       "description": "Protects the legacy notes server side list paging contract.",
       "id": "legacy.notes.server.side.list.paging",
       "legacy": true,
@@ -2220,6 +2396,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 20,
       "description": "Protects the legacy notes tags stacked modal contract.",
       "id": "legacy.notes.tags.stacked.modal",
       "legacy": true,
@@ -2231,6 +2408,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 38,
       "description": "Protects the legacy notes task context contract.",
       "id": "legacy.notes.task.context",
       "legacy": true,
@@ -2244,6 +2422,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 23,
       "description": "Protects the legacy notes tasks modal footer visual parity contract.",
       "id": "legacy.notes.tasks.modal.footer.visual.parity",
       "legacy": true,
@@ -2255,6 +2434,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 249,
       "description": "Protects the legacy notes ui workflow contract.",
       "id": "legacy.notes.ui.workflow",
       "legacy": true,
@@ -2268,6 +2448,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 53,
       "description": "Protects the legacy notes writes revisions links collections repository conversion contract.",
       "id": "legacy.notes.writes.revisions.links.collections.repository.conversion",
       "legacy": true,
@@ -2279,6 +2460,7 @@
     },
     {
       "area": "notifications",
+      "assertionCount": 28,
       "description": "Protects the legacy notification jobs contract.",
       "id": "legacy.notification.jobs",
       "legacy": true,
@@ -2293,6 +2475,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 238,
       "description": "Protects the legacy notification contract.",
       "id": "legacy.notification",
       "legacy": true,
@@ -2306,6 +2489,7 @@
     },
     {
       "area": "notifications",
+      "assertionCount": 36,
       "description": "Protects the legacy notifications inbox lifecycle conversion contract.",
       "id": "legacy.notifications.inbox.lifecycle.conversion",
       "legacy": true,
@@ -2319,6 +2503,7 @@
     },
     {
       "area": "notifications",
+      "assertionCount": 43,
       "description": "Protects the legacy notifications preferences subscriptions conversion contract.",
       "id": "legacy.notifications.preferences.subscriptions.conversion",
       "legacy": true,
@@ -2332,6 +2517,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 23,
       "description": "Protects the legacy overlay host contract contract.",
       "id": "legacy.overlay.host.contract",
       "legacy": true,
@@ -2345,6 +2531,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 27,
       "description": "Protects the legacy parameter binding audit contract.",
       "id": "legacy.parameter.binding.audit",
       "legacy": true,
@@ -2356,6 +2543,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 28,
       "description": "Protects the legacy parameter binding conversion wave contract.",
       "id": "legacy.parameter.binding.conversion.wave",
       "legacy": true,
@@ -2367,6 +2555,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 88,
       "description": "Protects the legacy parameter binding layer contract.",
       "id": "legacy.parameter.binding.layer",
       "legacy": true,
@@ -2378,6 +2567,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 7,
       "description": "Protects the legacy performance contract.",
       "id": "legacy.performance",
       "legacy": true,
@@ -2392,6 +2582,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 74,
       "description": "Protects the legacy personal family workspace scope contract.",
       "id": "legacy.personal.family.workspace.scope",
       "legacy": true,
@@ -2406,6 +2597,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 7,
       "description": "Protects the legacy project default assignee contract.",
       "id": "legacy.project.default.assignee",
       "legacy": true,
@@ -2419,6 +2611,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 12,
       "description": "Protects the legacy project hierarchy move contract.",
       "id": "legacy.project.hierarchy.move",
       "legacy": true,
@@ -2430,6 +2623,7 @@
     },
     {
       "area": "public-api",
+      "assertionCount": 35,
       "description": "Protects the legacy public api client project write contract.",
       "id": "legacy.public.api.client.project.write",
       "legacy": true,
@@ -2443,6 +2637,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 65,
       "description": "Protects the legacy quick action capture contract.",
       "id": "legacy.quick.action.capture",
       "legacy": true,
@@ -2454,6 +2649,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 39,
       "description": "Protects the legacy quick action opener rollout contract.",
       "id": "legacy.quick.action.opener.rollout",
       "legacy": true,
@@ -2465,6 +2661,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 3,
       "description": "Protects the legacy regression clean clone contract contract.",
       "id": "legacy.regression.clean.clone.contract",
       "legacy": true,
@@ -2479,6 +2676,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 109,
       "description": "Protects the legacy regression runner contract.",
       "id": "legacy.regression.runner",
       "legacy": true,
@@ -2492,6 +2690,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 29,
       "description": "Protects the legacy regression suite inventory contract.",
       "id": "legacy.regression.suite.inventory",
       "legacy": true,
@@ -2505,6 +2704,7 @@
     },
     {
       "area": "dashboard",
+      "assertionCount": 9,
       "description": "Pins HTTP timing, statement-count, and payload budgets for the three Dashboard data routes and proves unrelated Task/time-entry growth does not expand their steady-state cost.",
       "id": "dashboard.hot-endpoint-budgets",
       "legacy": false,
@@ -2523,6 +2723,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 14,
       "description": "Proves Windows drive-letter archive paths become local basename operands without changing backup or restore archive semantics.",
       "id": "database.backup-archive-portability",
       "legacy": false,
@@ -2539,6 +2740,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 21,
       "description": "Proves the versioned SQLite plus Files backup format, Secure Notes prerequisite, destructive restore safeguards, and disposable restore drill.",
       "id": "database.backup-restore-foundation",
       "legacy": false,
@@ -2556,6 +2758,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 31,
       "description": "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
       "id": "database.better-sqlite3-13-data-compatibility",
       "legacy": false,
@@ -2576,6 +2779,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 13,
       "description": "Proves dialect option bags, row identity, boolean field transforms, and scalar/array parameter bindings remain checked discriminated contracts.",
       "id": "database.dialect-binding-types",
       "legacy": false,
@@ -2593,6 +2797,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 13,
       "description": "Proves Settings, Users, and Workspaces expose checked method inputs, projected rows, and nullable single-row results without changing runtime queries.",
       "id": "database.repository-signature-types",
       "legacy": false,
@@ -2609,6 +2814,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 20,
       "description": "Proves the full database adapter and transaction-only client remain distinct checked contracts across the SQLite driver and injected repositories.",
       "id": "database.transaction-client-types",
       "legacy": false,
@@ -2626,6 +2832,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 106,
       "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
       "id": "database.demo-data-host-operation",
       "legacy": false,
@@ -2645,6 +2852,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 154,
       "description": "Proves deterministic rich development/demo data, safe reset ownership, disabled persona logins, and production/live target refusal.",
       "id": "database.development-data-seed",
       "legacy": false,
@@ -2663,6 +2871,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 17,
       "description": "Proves the checked migration runner keeps explicit source, row, checksum, ordering, locking, transaction, rollback, and foreign-key contracts.",
       "id": "database.migration-runner-checked-boundary",
       "legacy": false,
@@ -2681,6 +2890,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 47,
       "description": "Proves deterministic migration creation and generated final-schema drift detection without changing the SQLite runtime contract.",
       "id": "database.migration-schema-workflow",
       "legacy": false,
@@ -2697,6 +2907,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 22,
       "description": "Proves module-context reads perform zero writes, workspace module rows are ensured by the startup and workspace-creation lifecycle, enable/disable stays immediately visible through the context cache, and repeated request-scoped settings reads hit the memo.",
       "id": "database.module-context-read-lifecycle",
       "legacy": false,
@@ -2714,6 +2925,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 3,
       "description": "Proves legacy private calendar rows migrate with URL continuity only when still eligible, while invalid and disabled rows become revoked history under scoped workspace constraints.",
       "id": "database.private-calendar-subscriptions-migration",
       "legacy": false,
@@ -2731,6 +2943,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 59,
       "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
       "id": "database.public-demo-baseline-candidate",
       "legacy": false,
@@ -2750,6 +2963,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 13,
       "description": "Proves the bounded credential/session, permission/audit/activity, and workspace-lifecycle repository passes remain exact, checked, projected, and migration-free.",
       "id": "database.repository-checked-passes",
       "legacy": false,
@@ -2767,6 +2981,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 21,
       "description": "Proves fresh, pre-074 upgrade, and current databases converge on the seven-role scope and permission contract without changing valid assignments.",
       "id": "database.role-seed-scope-convergence",
       "legacy": false,
@@ -2783,6 +2998,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 38,
       "description": "Proves the adapter prepared-statement cache, single-pass SQL analysis, db.get single-row path, and config-gated performance PRAGMAs preserve query results, error contracts, and transaction semantics.",
       "id": "database.sqlite-statement-cache-adapter",
       "legacy": false,
@@ -2800,6 +3016,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 45,
       "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
       "id": "database.startup-maintenance-lifecycle",
       "legacy": false,
@@ -2819,6 +3036,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 19,
       "description": "Proves only a runner-attested copied baseline can bypass the full migration chain and that absent, direct, existing-target, forged, stale, and tampered cases fall back or fail closed.",
       "id": "database.verified-regression-baseline-fast-path",
       "legacy": false,
@@ -2839,6 +3057,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 13,
       "description": "Proves one-workspace backup isolation, credential/key exclusion, provider-normalized Files, checksums, and disposable restore.",
       "id": "database.workspace-backup-package",
       "legacy": false,
@@ -2857,6 +3076,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 43,
       "description": "Protects dry-run-first workspace cleanup, retained-data preservation, and direct/full-suite regression database isolation.",
       "id": "database.workspace-cleanup-isolation",
       "legacy": false,
@@ -2873,6 +3093,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 18,
       "description": "Proves authorized workspace-deletion requests are backup-aware, restart-durable, operational during the 30-day grace period, cancelable before the boundary, and non-destructive.",
       "id": "database.workspace-deletion-lifecycle",
       "legacy": false,
@@ -2892,6 +3113,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 42,
       "description": "Proves the operator-queued final workspace purge is deadline-exact, fenced, restart-resumable, artifact-complete, idempotent, and isolated from every retained workspace.",
       "id": "database.workspace-final-purge",
       "legacy": false,
@@ -2911,6 +3133,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 83,
       "description": "Proves changed source areas suggest owning documentation while the closeout gate remains explicit and warning-only.",
       "id": "docs.ownership-routing",
       "legacy": false,
@@ -2926,6 +3149,7 @@
     },
     {
       "area": "docs",
+      "assertionCount": 12,
       "description": "Keeps marketing status, proof, and preview-invitation boundaries aligned with the shipped baseline.",
       "id": "docs.marketing-claims-baseline",
       "legacy": false,
@@ -2942,6 +3166,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 34,
       "description": "Proves former sole-workspace administrators receive only a portable account export and logout, while other zero-workspace identities remain non-enumerating and former workspace data stays inaccessible.",
       "id": "framework.account-export-recovery",
       "legacy": false,
@@ -2961,6 +3186,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 17,
       "description": "Proves the checked app-shell producer and unknown-input browser adapter preserve safe defaults, nested fallbacks, and pre-navigation load order.",
       "id": "framework.app-shell-bootstrap-boundary",
       "legacy": false,
@@ -2979,6 +3205,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 22,
       "description": "Proves one application-derived asset version decorates served pages, runtime loaders, and module assets while raw keys stay guarded.",
       "id": "framework.asset-cache-version",
       "legacy": false,
@@ -2994,6 +3221,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 67,
       "description": "Proves login verification admission and password-sensitive throttling are pre-verification, concurrency-bounded, durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, and event emitting.",
       "id": "framework.authentication-throttle",
       "legacy": false,
@@ -3010,6 +3238,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 41,
       "description": "Proves self-contained branded browser failures, client crash recovery, and mutation-only permission-denied presentation.",
       "id": "framework.browser-recovery-boundary",
       "legacy": false,
@@ -3028,6 +3257,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 28,
       "description": "Proves the centralized browser header policy, compatible CSP inventory, trusted-HTTPS HSTS retention, and private-response cache boundary.",
       "id": "framework.browser-security-headers",
       "legacy": false,
@@ -3045,6 +3275,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 39,
       "description": "Proves deterministic bundled-module discovery, declaration-only imports, dependency-ordered activation, and exact inventory preservation.",
       "id": "framework.bundled-module-registry",
       "legacy": false,
@@ -3061,6 +3292,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 79,
       "description": "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
       "id": "framework.calendar-subscription-settings",
       "legacy": false,
@@ -3079,6 +3311,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 15,
       "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
       "id": "framework.client-project-options-projection",
       "legacy": false,
@@ -3096,6 +3329,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 6,
       "description": "Proves browser mutations share one origin, token, and content-type boundary while bearer API calls remain independent.",
       "id": "framework.csrf-protection",
       "legacy": false,
@@ -3112,6 +3346,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 26,
       "description": "Pins the Express 5 runtime boundary, named wildcard routes, prior query semantics, and exactly-once async error propagation.",
       "id": "framework.express-5-http-contract",
       "legacy": false,
@@ -3129,6 +3364,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 27,
       "description": "Proves generic workspace/module settings persistence, scoped accessors, opt-in persistence handlers, and post-save effects.",
       "id": "framework.generic-settings-engine",
       "legacy": false,
@@ -3144,6 +3380,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 56,
       "description": "Proves internal and v1 API envelopes, request correlation, safe diagnostics, browser HTML classification, and final route ordering.",
       "id": "framework.http-error-contract",
       "legacy": false,
@@ -3162,6 +3399,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 7,
       "description": "Prevents new routes and browser entries from bypassing the shared AppError, registered-code, recovery-boundary, and safe-diagnostic contracts.",
       "id": "framework.http-error-development-guardrails",
       "legacy": false,
@@ -3180,6 +3418,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 26,
       "description": "Keeps production UUID generation behind the central authority and freezes the empty direct-generator baseline.",
       "id": "framework.identifier-authority",
       "legacy": false,
@@ -3197,6 +3436,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 14,
       "description": "Proves the shared Markdown core remains checked against explicit parser, token, preference, URL, and safe-output contracts.",
       "id": "framework.markdown-checked-core",
       "legacy": false,
@@ -3214,6 +3454,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 3,
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
       "id": "framework.module-import-boundaries",
       "legacy": false,
@@ -3229,6 +3470,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 56,
       "description": "Proves secret-free JSON production logs, server-generated request correlation, minimal health/readiness responses, and fail-closed readiness checks.",
       "id": "framework.operational-security-basics",
       "legacy": false,
@@ -3246,6 +3488,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 24,
       "description": "Proves new Argon2id hashes, bounded constant-time verification, legacy PBKDF2 login upgrades, safe rehash events, and centralized async credential writes.",
       "id": "framework.password-hashing-modernization",
       "legacy": false,
@@ -3262,6 +3505,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 50,
       "description": "Proves admin reset forces a restricted next-login password change, remains scoped and throttled, emits safe events, and never logs generated credentials.",
       "id": "framework.password-reset-hardening",
       "legacy": false,
@@ -3279,6 +3523,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 19,
       "description": "Proves password primitives and application startup/shutdown remain checked, explicitly contracted, safely narrowed, and behavior-ordered.",
       "id": "framework.password-startup-checked-core",
       "legacy": false,
@@ -3297,6 +3542,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 105,
       "description": "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
       "id": "framework.private-calendar-feed-authentication",
       "legacy": false,
@@ -3316,6 +3562,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 51,
       "description": "Proves production startup rejects unsafe credential, transport, scanner, data-path, logging, and diagnostic combinations unless a narrow override is explicit.",
       "id": "framework.production-configuration-hardening",
       "legacy": false,
@@ -3333,6 +3580,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 22,
       "description": "Proves the six-account public-demo login catalog is safely shaped, demo-only, source-aligned, and excludes Super Admin and internal identity data.",
       "id": "framework.public-demo-account-catalog",
       "legacy": false,
@@ -3351,6 +3599,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 47,
       "description": "Proves persistent atomic public-demo growth, input, and query budgets plus protected browser-document access and fail-closed API catalog coverage without changing normal mode.",
       "id": "framework.public-demo-budgets",
       "legacy": false,
@@ -3369,6 +3618,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 25,
       "description": "Proves fail-closed public-demo denials at service, route, action, public API scope, job, and future-capability boundaries without changing standard mode.",
       "id": "framework.public-demo-capability-enforcement",
       "legacy": false,
@@ -3387,6 +3637,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 35,
       "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
       "id": "framework.public-demo-cross-role-content-safety",
       "legacy": false,
@@ -3405,6 +3656,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 24,
       "description": "Proves public-demo Files ingestion is denied before payload parsing or persistence while seeded reads and standard-mode ingress remain available.",
       "id": "framework.public-demo-files-ingress",
       "legacy": false,
@@ -3423,6 +3675,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 26,
       "description": "Proves exact marked public identities can authenticate and log out but cannot be changed, recovered, retired, session-managed, or used for API keys by self or administrators.",
       "id": "framework.public-demo-identity-immutability",
       "legacy": false,
@@ -3443,6 +3696,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 37,
       "description": "Proves demo-only global/client/mutation/search limits, NAT fairness, recovery, bounded bodies, trusted edge correlation, generic responses, and redacted evidence.",
       "id": "framework.public-demo-perimeter",
       "legacy": false,
@@ -3461,6 +3715,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 19,
       "description": "Proves session-less Terms and Privacy routes, neutral defaults, shared security headers, footer links, and runtime-bound Corresponding Source.",
       "id": "framework.public-legal-surfaces",
       "legacy": false,
@@ -3477,6 +3732,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 50,
       "description": "Proves the supported direct-Caddy and bounded Nginx/WireGuard/Caddy topologies, operator controls, and executable proxy smokes stay aligned.",
       "id": "framework.reference-internet-deployment",
       "legacy": false,
@@ -3494,6 +3750,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 22,
       "description": "Proves strict remembered-login validation, matched absolute database and cookie lifetimes, restart persistence, expiry, and logout revocation.",
       "id": "framework.remembered-sessions",
       "legacy": false,
@@ -3511,6 +3768,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 45,
       "description": "Proves permission-safe Reporting catalog delivery, stable runner dispatch, basic filter validation, and safe execution errors.",
       "id": "framework.reporting-catalog-execution",
       "legacy": false,
@@ -3528,6 +3786,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 28,
       "description": "Locks framework Reporting permission/navigation ownership, minimal host anatomy, and first-party-module-neutral framework code.",
       "id": "framework.reporting-closeout",
       "legacy": false,
@@ -3545,6 +3804,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 42,
       "description": "Proves the data-only report manifest contract, Reporting asset ownership, and enabled/permission-filtered report listing seam.",
       "id": "framework.reporting-contribution-contract",
       "legacy": false,
@@ -3561,6 +3821,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 39,
       "description": "Proves the minimal catalog-driven Reporting host, metadata filters, allowed renderer loading, and Time Tracking-owned hierarchical result renderer.",
       "id": "framework.reporting-host",
       "legacy": false,
@@ -3577,6 +3838,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 33,
       "description": "Proves consolidated security-event persistence, safe failed-login records, admin-only workspace views, retention, and non-blocking auth logging.",
       "id": "framework.security-event-logging",
       "legacy": false,
@@ -3595,6 +3857,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 19,
       "description": "Proves expired protected-app sessions surface one framework-owned foreground warning above open editors.",
       "id": "framework.session-auth-warning",
       "legacy": false,
@@ -3610,6 +3873,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 45,
       "description": "Proves immediate single/bulk revocation, password and deactivation forced logout, safe admin references, workspace boundaries, and security events.",
       "id": "framework.session-revocation",
       "legacy": false,
@@ -3627,6 +3891,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 34,
       "description": "Locks the Settings branch closeout guardrails, converted-host inventory, and documented consumer map.",
       "id": "framework.settings-branch-closeout",
       "legacy": false,
@@ -3642,6 +3907,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 61,
       "description": "Proves the data-only settings manifest contract, protected framework boundary, and shared eligibility-filtered listing seam.",
       "id": "framework.settings-contribution-contract",
       "legacy": false,
@@ -3657,6 +3923,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 79,
       "description": "Proves every Settings host uses dual universal Save and Revert actions while lifecycle forms stay outside dirty-state transactions.",
       "id": "framework.settings-page-actions",
       "legacy": false,
@@ -3673,6 +3940,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 88,
       "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
       "id": "framework.support-view-request-enforcement",
       "legacy": false,
@@ -3696,6 +3964,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 64,
       "description": "Proves the gated durable Support View session contract, actor/effective identity separation, rotation, expiry, reauthentication throttling, revocation, and safe event persistence.",
       "id": "framework.support-view-session-contract",
       "legacy": false,
@@ -3716,6 +3985,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 39,
       "description": "Proves production public URL policy, cookie attributes, trusted effective HTTPS, and HSTS gating fail closed at direct and proxy edges.",
       "id": "framework.tls-cookie-posture",
       "legacy": false,
@@ -3732,6 +4002,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 23,
       "description": "Proves request context rejects forged forwarding headers, trusts only configured peers, and requires multi-proxy chains to collapse before Node.",
       "id": "framework.trusted-proxy-request-context",
       "legacy": false,
@@ -3749,6 +4020,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 24,
       "description": "Pins the checked-program honesty inventory, named contract cleanup, and explicit future ownership for strict production, browser, and test residuals.",
       "id": "framework.typecheck-honesty-inventory",
       "legacy": false,
@@ -3765,6 +4037,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 266,
       "description": "Proves the server and browser typecheck programs, bounded clean-file passes, complete checked-seam inventory, and escape-hatch prohibitions stay intact.",
       "id": "framework.typecheck-seams",
       "legacy": false,
@@ -3780,6 +4053,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 44,
       "description": "Proves per-user app preferences persist calendar defaults and resolve login and workspace-switch landings only to enabled, authorized protected pages with Dashboard fallback.",
       "id": "framework.user-landing-preferences",
       "legacy": false,
@@ -3799,6 +4073,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 26,
       "description": "Proves the protected Workbench focus-policy catalog, persistence, validation, defaults, and server-owned ordering contract.",
       "id": "framework.workbench-focus-policy",
       "legacy": false,
@@ -3814,6 +4089,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 13,
       "description": "Proves arbitrary active-run rejections cannot break worker shutdown or leak unbounded payloads through warning logs.",
       "id": "jobs.job-worker-shutdown-rejection",
       "legacy": false,
@@ -3830,6 +4106,7 @@
     },
     {
       "area": "licensing",
+      "assertionCount": 39,
       "description": "Proves current licensing references and warning-only future publication and contribution gates remain explicit.",
       "id": "licensing.public-release-gates",
       "legacy": false,
@@ -3844,6 +4121,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 17,
       "description": "Pins the current Notes quick-fix contracts for permission-safe metadata bulk editing and create-save continuity with an explicit Save and Close path.",
       "id": "notes.notes-critical-quick-fixes",
       "legacy": false,
@@ -3862,6 +4140,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 40,
       "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, explicit/inherited security controls, and bounded bulk archive/restore behavior.",
       "id": "notes.notes-settings-catalog-management",
       "legacy": false,
@@ -3881,6 +4160,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 49,
       "description": "Proves the declared fail-closed effective-security policy across Notes consumers and the future Support View boundary.",
       "id": "notes.secure-catalog-consumer-enforcement",
       "legacy": false,
@@ -3902,6 +4182,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 28,
       "description": "Proves secure-catalog inheritance, fail-closed hierarchy projection, and encrypted note/revision persistence for secure creation and moves.",
       "id": "notes.secure-catalog-effective-security",
       "legacy": false,
@@ -3920,6 +4201,7 @@
     },
     {
       "area": "notes",
+      "assertionCount": 77,
       "description": "Proves fail-closed secure-catalog enable/retry/downgrade transitions, preservation moves, job routing, and current-password confirmation.",
       "id": "notes.secure-catalog-transitions",
       "legacy": false,
@@ -3938,6 +4220,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 14,
       "description": "Pins parent-scoped child-client creation, workspace-scoped top-level creation, and the Clients-owned Add Child Client affordance.",
       "id": "permissions.client-child-create-scope",
       "legacy": false,
@@ -3954,6 +4237,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 23,
       "description": "Proves Client project context is contributed and accepted only in Business workspaces.",
       "id": "permissions.client-project-business-boundary",
       "legacy": false,
@@ -3971,6 +4255,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 36,
       "description": "Pins the dedicated exact-account Role Assignments browser surface without reopening full User Administration.",
       "id": "permissions.delegated-role-assignment-browser",
       "legacy": false,
@@ -3989,6 +4274,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 24,
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
       "id": "permissions.permission-resource-catalog",
       "legacy": false,
@@ -4004,6 +4290,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 27,
       "description": "Proves permission and active API-key contracts reject missing or misspelled fields while Audit/Search routes construct the shared checked resource.",
       "id": "permissions.permission-resource-types",
       "legacy": false,
@@ -4021,6 +4308,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 21,
       "description": "Authenticates the exact six public demo visitors and proves allowed work, denials, isolation, immutable credentials, logout, and absence of a public Super Administrator path.",
       "id": "permissions.public-demo-role-journey",
       "legacy": false,
@@ -4038,6 +4326,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 16,
       "description": "Authenticates every local sanitized-demo role fixture and proves the complete scoped permission journey without exposing credentials.",
       "id": "permissions.sanitized-demo-role-journey",
       "legacy": false,
@@ -4055,6 +4344,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 22,
       "description": "Pins any-scope Client/Project Settings navigation and server-shaped scoped project affordances.",
       "id": "permissions.scope-aware-admin-navigation",
       "legacy": false,
@@ -4072,6 +4362,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 10,
       "description": "Proves any-scope workspace permission hints drive declarative action visibility without replacing record capabilities or server authorization.",
       "id": "permissions.view-surface-permission-wiring",
       "legacy": false,
@@ -4088,6 +4379,7 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 31,
       "description": "Proves inactive workspace members stay out of people surfaces and Personal/Family work cannot use the Billable flag.",
       "id": "permissions.workspace-membership-billable",
       "legacy": false,
@@ -4104,6 +4396,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 34,
       "description": "Proves changed-file routing can execute focused areas in one step and escalates shared changes without replacing the release gate.",
       "id": "release.changed-regression-auto-run",
       "legacy": false,
@@ -4119,6 +4412,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 36,
       "description": "Proves the closeout conductor aggregates every maintenance gate without replacing the full regression gate.",
       "id": "release.closeout-conductor",
       "legacy": false,
@@ -4134,6 +4428,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 38,
       "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
       "id": "release.dependency-baseline",
       "legacy": false,
@@ -4150,6 +4445,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 13,
       "description": "Proves Compose deploy and rollback keep the reviewed maintenance curtain active, retain whole-state recovery evidence, and reopen only after exact immutable verification.",
       "id": "release.deploy-maintenance-curtain",
       "legacy": false,
@@ -4167,6 +4463,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 49,
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
       "id": "release.developer-verification-throughput",
       "legacy": false,
@@ -4184,6 +4481,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 18,
       "description": "Proves npm run check runs TypeScript, Vitest, and the sole ESLint syntax/lint owner before the slow regression runner, and that npm start stays a pure Node boot.",
       "id": "release.fast-check-pipeline",
       "legacy": false,
@@ -4199,6 +4497,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 72,
       "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
       "id": "release.files-regression-isolation-audit",
       "legacy": false,
@@ -4215,6 +4514,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 53,
       "description": "Proves GitHub-only documentation uses fail-closed PR and nightly fast paths while runtime Help retains artifact and deployment routing.",
       "id": "release.github-only-docs-workflow-routing",
       "legacy": false,
@@ -4231,6 +4531,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 55,
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
       "id": "release.github-release-operations",
       "legacy": false,
@@ -4247,6 +4548,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 19,
       "description": "Proves historical closeout retirements have credited dispositions while live cursor, manifest, version, and command owners remain active.",
       "id": "release.historical-evidence-retirement",
       "legacy": false,
@@ -4262,6 +4564,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 31,
       "description": "Proves release publication binds the reviewed main source and runtime artifact to one GHCR digest, linux/amd64 platform manifest, native dependency proof, attestations, and backup-first constrained host handoff.",
       "id": "release.immutable-image-publication",
       "legacy": false,
@@ -4279,6 +4582,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 17,
       "description": "Proves the completed live Compose cutover retired bare-metal production support without weakening the immutable digest deployment and recovery contract.",
       "id": "release.live-compose-cutover",
       "legacy": false,
@@ -4296,6 +4600,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 64,
       "description": "Proves maintenance assets and independent operator/deployment markers install with a least-privilege, host-neutral boundary.",
       "id": "release.maintenance-host-assets",
       "legacy": false,
@@ -4312,6 +4617,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 29,
       "description": "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, documentation ownership, and historical staging retirement.",
       "id": "release.maintenance-release-rehearsal",
       "legacy": false,
@@ -4329,6 +4635,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 10,
       "description": "Proves exact-SHA nightly proof reuse is checksum-bound, policy-versioned, expiring, and fail-closed while hotfixes retain the full path.",
       "id": "release.nightly-proof-reuse",
       "legacy": false,
@@ -4346,6 +4653,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 52,
       "description": "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
@@ -4362,6 +4670,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 78,
       "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
       "id": "release.preview-deployment-boundary",
       "legacy": false,
@@ -4378,6 +4687,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 60,
       "description": "Proves the guarded Compose public-demo reset promotes one verified database-and-Files unit under a shared lock and automatically reconstructs prior state after failures or interruption.",
       "id": "release.public-demo-compose-reset",
       "legacy": false,
@@ -4395,6 +4705,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 23,
       "description": "Proves exact-demo outbound denial, environment and storage allowlists, loopback publishing, host firewall enforcement, and lifecycle-owned isolation smoke.",
       "id": "release.public-demo-isolation",
       "legacy": false,
@@ -4412,6 +4723,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 25,
       "description": "Proves the redacted exact-demo deployment profile, complete operator runbook, aggregate candidate smoke, and non-demo/interest-capture boundaries.",
       "id": "release.public-demo-release-candidate",
       "legacy": false,
@@ -4429,6 +4741,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 60,
       "description": "Proves the external UTC hourly public-demo reset trigger, shared-lock behavior, bounded redacted evidence, alert invocation, and safe disable/recovery contract.",
       "id": "release.public-demo-reset-scheduler",
       "legacy": false,
@@ -4446,6 +4759,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 22,
       "description": "Proves canonical and branch-qualified runtime identity across API, shell, diagnostics, public UI, artifacts, and deployment paths.",
       "id": "release.qualified-runtime-version",
       "legacy": false,
@@ -4462,6 +4776,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 5,
       "description": "Keeps every full-chain baseline bypass and nested runner-baseline opt-out explicit while rejecting accidental new environment deletion sites.",
       "id": "release.regression-baseline-bypass-audit",
       "legacy": false,
@@ -4479,6 +4794,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 23,
       "description": "Proves metadata-driven regression discovery preserves the legacy suite and safe execution modes.",
       "id": "release.regression-discovery-runner",
       "legacy": false,
@@ -4494,7 +4810,8 @@
     },
     {
       "area": "release",
-      "description": "Proves the generated regression coverage index and explicit exception policy prevent silent coverage loss.",
+      "assertionCount": 49,
+      "description": "Proves shrink-only script ceilings and generated assertion ownership prevent silent coverage loss while allowing reviewed consolidation.",
       "id": "release.regression-manifest-generation",
       "legacy": false,
       "path": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
@@ -4509,6 +4826,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 23,
       "description": "Proves narrow package commands and conservative changed-file routing retain the full release gate.",
       "id": "release.regression-routing-commands",
       "legacy": false,
@@ -4524,6 +4842,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 15,
       "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, accepts only documented out-of-order completion evidence below a floor, keeps closeout regressions on floors instead of exact pins, and lets future cursor advances pass without prior-regression edits.",
       "id": "release.roadmap-cursor-floor",
       "legacy": false,
@@ -4539,6 +4858,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 30,
       "description": "Proves the versioned runtime artifact includes only the bootable runtime boundary and a checksum.",
       "id": "release.runtime-artifact-boundary",
       "legacy": false,
@@ -4555,6 +4875,7 @@
     },
     {
       "area": "release",
+      "assertionCount": 35,
       "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
       "id": "release.validation-single-ownership",
       "legacy": false,
@@ -4571,6 +4892,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 23,
       "description": "Pins Tasks dashboard-summary to permission-shaped SQL count groups, bounded ranked row candidates, one precompiled permission evaluator, exact output, and constant statement/enrichment cost as terminal Task volume grows.",
       "id": "tasks.dashboard-summary-budgets",
       "legacy": false,
@@ -4589,6 +4911,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 24,
       "description": "Proves Workspace, Client, and Project calendar subscriptions apply a Tasks-owned SQL ceiling plus current permission and hierarchy intersection.",
       "id": "tasks.private-calendar-feed-scope",
       "legacy": false,
@@ -4607,6 +4930,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 53,
       "description": "Proves bounded, subscription-scoped, permission-shaped Tasks iCalendar serialization for one-off, recurring, moved, hidden, and cancelled occurrences.",
       "id": "tasks.task-calendar-feed-serialization",
       "legacy": false,
@@ -4625,6 +4949,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 71,
       "description": "Proves the task calendar-window contract: lean real rows plus bounded read-time recurrence projection, real-instance deduplication, exact renderer payload shape, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
       "id": "tasks.task-calendar-window",
       "legacy": false,
@@ -4642,6 +4967,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 52,
       "description": "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-capture Block flows.",
       "id": "tasks.task-critical-quick-fixes",
       "legacy": false,
@@ -4661,6 +4987,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 17,
       "description": "Pins the task editor's icon-only Open in Workbench handoff: placed immediately left of the notification bell, edit-mode only, accessible icon-only anatomy, and navigation through the canonical workbench.html?taskId= deep-link contract.",
       "id": "tasks.task-editor-workbench-handoff",
       "legacy": false,
@@ -4678,6 +5005,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 42,
       "description": "Proves nullable quarter-hour Task estimates across storage constraints, service and public API payloads, the canonical editor duplicate flow, read models, and recurrence materialization.",
       "id": "tasks.task-estimate-minutes",
       "legacy": false,
@@ -4696,6 +5024,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 36,
       "description": "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
       "id": "tasks.task-list-pipeline-projection",
       "legacy": false,
@@ -4713,6 +5042,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 43,
       "description": "Proves permission-checked, exactly-once recurrence materialization, independent occurrence edits, calendar replacement, and completion/sweep continuity.",
       "id": "tasks.task-recurrence-materialize-on-touch-permissions",
       "legacy": false,
@@ -4730,6 +5060,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 46,
       "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
       "id": "tasks.task-recurrence-skip-to-current",
       "legacy": false,
@@ -4748,6 +5079,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 11,
       "description": "Proves active-timer finalization persists one authoritative seconds value with a matching hours projection, including the missing-timer fallback.",
       "id": "time-tracking.active-timer-duration-consistency",
       "legacy": false,
@@ -4763,6 +5095,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 9,
       "description": "Proves billing periods and Dashboard effort windows use session-local calendar boundaries converted to UTC across month and DST edges.",
       "id": "time-tracking.billing-dashboard-timezone-boundaries",
       "legacy": false,
@@ -4780,6 +5113,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 20,
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
       "legacy": false,
@@ -4797,6 +5131,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 32,
       "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
       "id": "time-tracking.project-time-billing-runner",
       "legacy": false,
@@ -4814,6 +5149,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 19,
       "description": "Proves public API durations persist one billing-authoritative seconds value with a numerically matching hours projection.",
       "id": "time-tracking.public-api-duration-persistence",
       "legacy": false,
@@ -4829,6 +5165,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 17,
       "description": "Proves manual and sourced timer edges preserve non-billable intent across workspace types while Task Timer finalization retains authoritative duration.",
       "id": "time-tracking.sourced-task-timer-bridge",
       "legacy": false,
@@ -4844,6 +5181,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 47,
       "description": "Proves a running manual timer can become a permission-safe Task Timer without losing elapsed-time identity or final time-entry attribution.",
       "id": "time-tracking.timer-task-linking",
       "legacy": false,
@@ -4860,6 +5198,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 60,
       "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with quiet recurring projection, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
       "id": "views.calendar-host",
       "legacy": false,
@@ -4876,6 +5215,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 30,
       "description": "Pins the Dashboard calendar embed: hidden-by-default status anatomy, calendar region ordered below Workspace Pulse and Needs Attention, a gated Tasks module contribution, and rendering through the shared task-calendar path instead of duplicated grid logic.",
       "id": "views.dashboard-calendar-embed",
       "legacy": false,
@@ -4893,6 +5233,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 19,
       "description": "Pins Dashboard warm-first bootstrap sequencing, route-promise reuse, parallel asset loading, the rendered first-fetch gap budget, and lazy Task editor delivery.",
       "id": "views.dashboard-client-bootstrap",
       "legacy": false,
@@ -4910,6 +5251,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 43,
       "description": "Proves the Dashboard native ES-module entry, versioned local compatibility imports, contribution-owned module scripts and styles, and preserved accessible calendar controls.",
       "id": "views.dashboard-es-module-entry",
       "legacy": false,
@@ -4928,6 +5270,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 94,
       "description": "Proves field-factory metadata, editable grids, typed collection, message channels, raw-anatomy guardrails, and renderer, Reporting, and Settings adoption.",
       "id": "views.field-factory",
       "legacy": false,
@@ -4944,6 +5287,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 16,
       "description": "Pins the mobile app-shell header boundary: Search and Notifications stay outside the primary-menu drawer, the phone wordmark is hidden, and the established drawer lifecycle remains intact.",
       "id": "views.mobile-app-shell-header",
       "legacy": false,
@@ -4961,6 +5305,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 10,
       "description": "Pins the mobile foundation: exact viewport meta on every view, shared breakpoint/tap-target tokens, base media constraints, and a frozen media-query allowlist in the framework CSS.",
       "id": "views.mobile-foundation",
       "legacy": false,
@@ -4977,6 +5322,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 25,
       "description": "Proves Task completion closes directly, preserves recurrence continuity, and never promotes a completed Next Action into Workbench.",
       "id": "workbench.direct-task-completion",
       "legacy": false,
@@ -4993,6 +5339,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 15,
       "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
       "id": "workbench.focus-candidate-pipeline",
       "legacy": false,
@@ -5009,6 +5356,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 14,
       "description": "Pins statement-count and payload budgets for the hot workbench-path endpoints over HTTP so N+1 reintroductions and payload bloat fail loudly.",
       "id": "workbench.hot-endpoint-budgets",
       "legacy": false,
@@ -5025,6 +5373,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 18,
       "description": "Pins the one-shot Workbench task-focus deep-link contract: taskId/taskID are removed without disturbing other URL state, readable Tasks enter Task Focus, and every failure uses one privacy-safe Focus Selection fallback.",
       "id": "workbench.task-focus-deep-link",
       "legacy": false,
@@ -5042,6 +5391,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 35,
       "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
@@ -5059,6 +5409,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 31,
       "description": "Proves the workbench client loads in one parallel fan-out with stale-while-revalidate caches and warm-first render, the cached-fetch helper never duplicates fetches, dialog scripts lazy-load, and the app serves compressed responses.",
       "id": "workbench.workbench-client-fanout",
       "legacy": false,
@@ -5076,6 +5427,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 18,
       "description": "Protects the legacy remaining icon actions contract.",
       "id": "legacy.remaining.icon.actions",
       "legacy": true,
@@ -5087,6 +5439,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 75,
       "description": "Protects the legacy runtime configuration contract contract.",
       "id": "legacy.runtime.configuration.contract",
       "legacy": true,
@@ -5100,6 +5453,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 59,
       "description": "Protects the legacy runtime diagnostics route contract.",
       "id": "legacy.runtime.diagnostics.route",
       "legacy": true,
@@ -5111,6 +5465,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 29,
       "description": "Protects the legacy runtime env loading contract.",
       "id": "legacy.runtime.env.loading",
       "legacy": true,
@@ -5122,6 +5477,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 18,
       "description": "Protects the legacy runtime local env materialization contract.",
       "id": "legacy.runtime.local.env.materialization",
       "legacy": true,
@@ -5133,6 +5489,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 42,
       "description": "Protects the legacy scale seed framework contract.",
       "id": "legacy.scale.seed.framework",
       "legacy": true,
@@ -5146,6 +5503,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 35,
       "description": "Protects the legacy search adapter rebuild service conversion contract.",
       "id": "legacy.search.adapter.rebuild.service.conversion",
       "legacy": true,
@@ -5159,6 +5517,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 70,
       "description": "Protects the legacy search api contract.",
       "id": "legacy.search.api",
       "legacy": true,
@@ -5172,6 +5531,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 185,
       "description": "Protects the legacy search contract contract.",
       "id": "legacy.search.contract",
       "legacy": true,
@@ -5186,6 +5546,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 18,
       "description": "Protects the legacy search fts repair contract.",
       "id": "legacy.search.fts.repair",
       "legacy": true,
@@ -5199,6 +5560,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 61,
       "description": "Protects the legacy search fts seam contract.",
       "id": "legacy.search.fts.seam",
       "legacy": true,
@@ -5212,6 +5574,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 43,
       "description": "Protects the legacy search index jobs contract.",
       "id": "legacy.search.index.jobs",
       "legacy": true,
@@ -5226,6 +5589,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 43,
       "description": "Protects the legacy search index sync contract.",
       "id": "legacy.search.index.sync",
       "legacy": true,
@@ -5239,6 +5603,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 26,
       "description": "Protects the legacy search lifecycle contract.",
       "id": "legacy.search.lifecycle",
       "legacy": true,
@@ -5252,6 +5617,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 34,
       "description": "Protects the legacy search rebuild contract.",
       "id": "legacy.search.rebuild",
       "legacy": true,
@@ -5265,6 +5631,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 41,
       "description": "Protects the legacy search results page contract.",
       "id": "legacy.search.results.page",
       "legacy": true,
@@ -5276,6 +5643,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 41,
       "description": "Protects the legacy search shell contract.",
       "id": "legacy.search.shell",
       "legacy": true,
@@ -5289,6 +5657,7 @@
     },
     {
       "area": "search",
+      "assertionCount": 28,
       "description": "Protects the legacy search workflow contract.",
       "id": "legacy.search.workflow",
       "legacy": true,
@@ -5302,6 +5671,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 45,
       "description": "Protects the legacy separate worker end to end contract.",
       "id": "legacy.separate.worker.end.to.end",
       "legacy": true,
@@ -5317,6 +5687,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 24,
       "description": "Protects the legacy shared icons contract.",
       "id": "legacy.shared.icons",
       "legacy": true,
@@ -5328,6 +5699,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 41,
       "description": "Protects the legacy sqlite connection hardening contract.",
       "id": "legacy.sqlite.connection.hardening",
       "legacy": true,
@@ -5341,6 +5713,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 21,
       "description": "Protects the legacy sqlite small office performance contract.",
       "id": "legacy.sqlite.small.office.performance",
       "legacy": true,
@@ -5354,6 +5727,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 40,
       "description": "Protects the legacy sqlite small office readout contract.",
       "id": "legacy.sqlite.small.office.readout",
       "legacy": true,
@@ -5365,6 +5739,7 @@
     },
     {
       "area": "database",
+      "assertionCount": 33,
       "description": "Protects the legacy startup maintenance compatibility contract.",
       "id": "legacy.startup.maintenance.compatibility",
       "legacy": true,
@@ -5379,6 +5754,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 18,
       "description": "Protects the legacy surface adoption pass contract.",
       "id": "legacy.surface.adoption.pass",
       "legacy": true,
@@ -5390,6 +5766,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 13,
       "description": "Protects the legacy surface token contract contract.",
       "id": "legacy.surface.token.contract",
       "legacy": true,
@@ -5403,6 +5780,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 55,
       "description": "Protects the legacy tag bulk assignment contract.",
       "id": "legacy.tag.bulk.assignment",
       "legacy": true,
@@ -5416,6 +5794,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 19,
       "description": "Protects the legacy tag core records contract.",
       "id": "legacy.tag.core.records",
       "legacy": true,
@@ -5429,6 +5808,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 30,
       "description": "Protects the legacy tag inline picker contract.",
       "id": "legacy.tag.inline.picker",
       "legacy": true,
@@ -5440,6 +5820,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 19,
       "description": "Protects the legacy tag management page contract.",
       "id": "legacy.tag.management.page",
       "legacy": true,
@@ -5451,6 +5832,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 19,
       "description": "Protects the legacy tag propagation contract contract.",
       "id": "legacy.tag.propagation.contract",
       "legacy": true,
@@ -5465,6 +5847,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 30,
       "description": "Protects the legacy tag propagation foundation contract.",
       "id": "legacy.tag.propagation.foundation",
       "legacy": true,
@@ -5478,6 +5861,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 18,
       "description": "Protects the legacy tag propagation paths contract.",
       "id": "legacy.tag.propagation.paths",
       "legacy": true,
@@ -5491,6 +5875,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 34,
       "description": "Protects the legacy tag propagation service conversion contract.",
       "id": "legacy.tag.propagation.service.conversion",
       "legacy": true,
@@ -5504,6 +5889,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 25,
       "description": "Protects the legacy tag record workflow contract.",
       "id": "legacy.tag.record.workflow",
       "legacy": true,
@@ -5515,6 +5901,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 22,
       "description": "Protects the legacy tag service contract.",
       "id": "legacy.tag.service",
       "legacy": true,
@@ -5528,6 +5915,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 32,
       "description": "Protects the legacy tag usability ui contract.",
       "id": "legacy.tag.usability.ui",
       "legacy": true,
@@ -5539,6 +5927,7 @@
     },
     {
       "area": "tags",
+      "assertionCount": 37,
       "description": "Protects the legacy tags repository conversion contract.",
       "id": "legacy.tags.repository.conversion",
       "legacy": true,
@@ -5552,6 +5941,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 19,
       "description": "Protects the legacy task activity metrics contract.",
       "id": "legacy.task.activity.metrics",
       "legacy": true,
@@ -5565,6 +5955,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 35,
       "description": "Protects the legacy task bulk due tags contract.",
       "id": "legacy.task.bulk.due.tags",
       "legacy": true,
@@ -5578,6 +5969,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 44,
       "description": "Protects the legacy task canonical query contract.",
       "id": "legacy.task.canonical.query",
       "legacy": true,
@@ -5591,6 +5983,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 12,
       "description": "Protects the legacy task checklist editor display contract.",
       "id": "legacy.task.checklist.editor.display",
       "legacy": true,
@@ -5602,6 +5995,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 59,
       "description": "Protects the legacy task checklist contract.",
       "id": "legacy.task.checklist",
       "legacy": true,
@@ -5615,6 +6009,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 34,
       "description": "Protects the legacy task checklists repository conversion contract.",
       "id": "legacy.task.checklists.repository.conversion",
       "legacy": true,
@@ -5628,6 +6023,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 22,
       "description": "Protects the legacy task list canonical ui contract.",
       "id": "legacy.task.list.canonical.ui",
       "legacy": true,
@@ -5639,6 +6035,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 19,
       "description": "Protects the legacy task list density contract.",
       "id": "legacy.task.list.density",
       "legacy": true,
@@ -5650,6 +6047,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 30,
       "description": "Protects the legacy task modal compact layout contract.",
       "id": "legacy.task.modal.compact.layout",
       "legacy": true,
@@ -5663,6 +6061,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 32,
       "description": "Protects the legacy task modal complete action contract.",
       "id": "legacy.task.modal.complete.action",
       "legacy": true,
@@ -5674,6 +6073,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 39,
       "description": "Protects the legacy task modal followup contract.",
       "id": "legacy.task.modal.followup",
       "legacy": true,
@@ -5687,6 +6087,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 39,
       "description": "Protects the legacy task modal reflow contract.",
       "id": "legacy.task.modal.reflow",
       "legacy": true,
@@ -5700,6 +6101,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 21,
       "description": "Protects the legacy task options payload contract.",
       "id": "legacy.task.options.payload",
       "legacy": true,
@@ -5713,6 +6115,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 44,
       "description": "Protects the legacy task qol closeout contract.",
       "id": "legacy.task.qol.closeout",
       "legacy": true,
@@ -5727,6 +6130,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 12,
       "description": "Protects the legacy task recurrence checklist propagation contract.",
       "id": "legacy.task.recurrence.checklist.propagation",
       "legacy": true,
@@ -5741,6 +6145,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 51,
       "description": "Proves recurrence completion continuity, checklist-template seeding, safe feedback, and durable sweep recovery across every completion surface.",
       "id": "tasks.recurrence-completion-continuity",
       "legacy": false,
@@ -5757,6 +6162,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 29,
       "description": "Protects the legacy task recurrence frequency contract.",
       "id": "legacy.task.recurrence.frequency",
       "legacy": true,
@@ -5771,6 +6177,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 15,
       "description": "Protects the legacy task recurrence linked note propagation contract.",
       "id": "legacy.task.recurrence.linked.note.propagation",
       "legacy": true,
@@ -5785,6 +6192,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 33,
       "description": "Protects the legacy task recurrence reminders repository conversion contract.",
       "id": "legacy.task.recurrence.reminders.repository.conversion",
       "legacy": true,
@@ -5799,6 +6207,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 41,
       "description": "Protects the legacy task relationships contract.",
       "id": "legacy.task.relationships",
       "legacy": true,
@@ -5812,6 +6221,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 41,
       "description": "Protects the legacy task relationships repository conversion contract.",
       "id": "legacy.task.relationships.repository.conversion",
       "legacy": true,
@@ -5825,6 +6235,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 30,
       "description": "Protects the legacy task reminder notification delivery contract.",
       "id": "legacy.task.reminder.notification.delivery",
       "legacy": true,
@@ -5839,6 +6250,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 32,
       "description": "Protects the legacy task reminder scheduling horizon contract.",
       "id": "legacy.task.reminder.scheduling.horizon",
       "legacy": true,
@@ -5853,6 +6265,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 82,
       "description": "Protects the legacy task resume context contract.",
       "id": "legacy.task.resume.context",
       "legacy": true,
@@ -5866,6 +6279,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 43,
       "description": "Protects the legacy task timer status contract.",
       "id": "legacy.task.timer.status",
       "legacy": true,
@@ -5879,6 +6293,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 44,
       "description": "Protects the legacy tasks bulk lifecycle toolbar contract.",
       "id": "legacy.tasks.bulk.lifecycle.toolbar",
       "legacy": true,
@@ -5890,6 +6305,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 71,
       "description": "Protects the legacy tasks bulk nondestructive toolbar contract.",
       "id": "legacy.tasks.bulk.nondestructive.toolbar",
       "legacy": true,
@@ -5901,6 +6317,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 23,
       "description": "Protects the legacy tasks bulk toolbar shell contract.",
       "id": "legacy.tasks.bulk.toolbar.shell",
       "legacy": true,
@@ -5912,6 +6329,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 25,
       "description": "Protects the legacy tasks canonical editor opener contract.",
       "id": "legacy.tasks.canonical.editor.opener",
       "legacy": true,
@@ -5923,6 +6341,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 20,
       "description": "Protects the legacy tasks checklist escape hatch contract.",
       "id": "legacy.tasks.checklist.escape.hatch",
       "legacy": true,
@@ -5934,6 +6353,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 39,
       "description": "Protects the legacy tasks declarative readonly surface contract.",
       "id": "legacy.tasks.declarative.readonly.surface",
       "legacy": true,
@@ -5945,6 +6365,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 23,
       "description": "Protects the legacy tasks detail read panel contract.",
       "id": "legacy.tasks.detail.read.panel",
       "legacy": true,
@@ -5956,6 +6377,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 29,
       "description": "Protects the legacy tasks filter sidebar anatomy contract.",
       "id": "legacy.tasks.filter.sidebar.anatomy",
       "legacy": true,
@@ -5967,6 +6389,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 32,
       "description": "Protects the legacy tasks lifecycle action descriptor contract.",
       "id": "legacy.tasks.lifecycle.action.descriptor",
       "legacy": true,
@@ -5978,6 +6401,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 29,
       "description": "Protects the legacy tasks list surface boundary contract.",
       "id": "legacy.tasks.list.surface.boundary",
       "legacy": true,
@@ -5989,6 +6413,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 29,
       "description": "Protects the legacy tasks modal context sections contract.",
       "id": "legacy.tasks.modal.context.sections",
       "legacy": true,
@@ -6000,6 +6425,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 32,
       "description": "Protects the legacy tasks modal shell contract.",
       "id": "legacy.tasks.modal.shell",
       "legacy": true,
@@ -6011,6 +6437,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 29,
       "description": "Protects the legacy tasks primary repository conversion contract.",
       "id": "legacy.tasks.primary.repository.conversion",
       "legacy": true,
@@ -6024,6 +6451,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 36,
       "description": "Protects the legacy tasks readonly list binding contract.",
       "id": "legacy.tasks.readonly.list.binding",
       "legacy": true,
@@ -6035,6 +6463,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 20,
       "description": "Protects the legacy tasks recurrence reminder escape hatch contract.",
       "id": "legacy.tasks.recurrence.reminder.escape.hatch",
       "legacy": true,
@@ -6048,6 +6477,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 41,
       "description": "Protects the legacy tasks relationship linked context contract.",
       "id": "legacy.tasks.relationship.linked.context",
       "legacy": true,
@@ -6059,6 +6489,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 27,
       "description": "Protects the legacy tasks server side list paging contract.",
       "id": "legacy.tasks.server.side.list.paging",
       "legacy": true,
@@ -6072,6 +6503,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 40,
       "description": "Protects the legacy tasks strict guardrail inventory contract.",
       "id": "legacy.tasks.strict.guardrail.inventory",
       "legacy": true,
@@ -6085,6 +6517,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 31,
       "description": "Protects the legacy tasks tags files child dialog contract.",
       "id": "legacy.tasks.tags.files.child.dialog",
       "legacy": true,
@@ -6098,6 +6531,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 64,
       "description": "Protects the legacy tasks timer utility escape hatch contract.",
       "id": "legacy.tasks.timer.utility.escape.hatch",
       "legacy": true,
@@ -6109,6 +6543,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 25,
       "description": "Protects the legacy tasks view selector query contract contract.",
       "id": "legacy.tasks.view.selector.query.contract",
       "legacy": true,
@@ -6123,6 +6558,7 @@
     },
     {
       "area": "tasks",
+      "assertionCount": 40,
       "description": "Protects the legacy tasks workflow action descriptor contract.",
       "id": "legacy.tasks.workflow.action.descriptor",
       "legacy": true,
@@ -6134,6 +6570,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 32,
       "description": "Protects the legacy time entries repository conversion contract.",
       "id": "legacy.time.entries.repository.conversion",
       "legacy": true,
@@ -6147,6 +6584,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 75,
       "description": "Protects the legacy time entries screen contract.",
       "id": "legacy.time.entries.screen",
       "legacy": true,
@@ -6158,6 +6596,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 39,
       "description": "Protects the legacy time tracking create timer modal contract.",
       "id": "legacy.time.tracking.create.timer.modal",
       "legacy": true,
@@ -6169,6 +6608,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 33,
       "description": "Protects the legacy timer resume metadata contract.",
       "id": "legacy.timer.resume.metadata",
       "legacy": true,
@@ -6182,6 +6622,7 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 10,
       "description": "Protects the legacy timer timestamp integrity contract.",
       "id": "legacy.timer.timestamp.integrity",
       "legacy": true,
@@ -6195,6 +6636,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 51,
       "description": "Protects the legacy ui contract contract.",
       "id": "legacy.ui.contract",
       "legacy": true,
@@ -6208,6 +6650,7 @@
     },
     {
       "area": "framework",
+      "assertionCount": 84,
       "description": "Protects the legacy user theme auto mode contract.",
       "id": "legacy.user.theme.auto.mode",
       "legacy": true,
@@ -6219,6 +6662,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 13,
       "description": "Protects the legacy view builder contract contract.",
       "id": "legacy.view.builder.contract",
       "legacy": true,
@@ -6232,6 +6676,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 38,
       "description": "Protects the legacy view builder converted surface contract.",
       "id": "legacy.view.builder.converted.surface",
       "legacy": true,
@@ -6243,6 +6688,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 102,
       "description": "Protects the legacy view builder helper contract.",
       "id": "legacy.view.builder.helper",
       "legacy": true,
@@ -6256,6 +6702,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 16,
       "description": "Protects the legacy view descriptor bootstrap contract.",
       "id": "legacy.view.descriptor.bootstrap",
       "legacy": true,
@@ -6267,6 +6714,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 114,
       "description": "Protects the legacy view descriptor declarative contract.",
       "id": "legacy.view.descriptor.declarative",
       "legacy": true,
@@ -6278,6 +6726,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 25,
       "description": "Protects the legacy view descriptor manifest contract.",
       "id": "legacy.view.descriptor.manifest",
       "legacy": true,
@@ -6289,6 +6738,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 8,
       "description": "Protects the legacy view descriptor reference contract.",
       "id": "legacy.view.descriptor.reference",
       "legacy": true,
@@ -6300,6 +6750,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 15,
       "description": "Protects the legacy view descriptor terminology contract.",
       "id": "legacy.view.descriptor.terminology",
       "legacy": true,
@@ -6311,6 +6762,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 28,
       "description": "Protects the legacy view index primitive contract.",
       "id": "legacy.view.index.primitive",
       "legacy": true,
@@ -6322,6 +6774,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 23,
       "description": "Protects the legacy view renderer actions contract.",
       "id": "legacy.view.renderer.actions",
       "legacy": true,
@@ -6333,6 +6786,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 27,
       "description": "Protects the legacy view renderer data binding contract.",
       "id": "legacy.view.renderer.data.binding",
       "legacy": true,
@@ -6344,6 +6798,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 94,
       "description": "Protects the legacy view renderer shell contract.",
       "id": "legacy.view.renderer.shell",
       "legacy": true,
@@ -6355,6 +6810,7 @@
     },
     {
       "area": "views",
+      "assertionCount": 35,
       "description": "Protects the legacy view shared capabilities contract.",
       "id": "legacy.view.shared.capabilities",
       "legacy": true,
@@ -6366,6 +6822,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 51,
       "description": "Protects the legacy work candidate service contract.",
       "id": "legacy.work.candidate.service",
       "legacy": true,
@@ -6379,6 +6836,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 177,
       "description": "Protects the legacy work focus modes contract.",
       "id": "legacy.work.focus.modes",
       "legacy": true,
@@ -6392,6 +6850,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 33,
       "description": "Protects the legacy work resume state api contract.",
       "id": "legacy.work.resume.state.api",
       "legacy": true,
@@ -6405,6 +6864,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 27,
       "description": "Protects the legacy work resume state closeout contract.",
       "id": "legacy.work.resume.state.closeout",
       "legacy": true,
@@ -6419,6 +6879,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 27,
       "description": "Protects the legacy work resume state conversion contract.",
       "id": "legacy.work.resume.state.conversion",
       "legacy": true,
@@ -6432,6 +6893,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 29,
       "description": "Protects the legacy work resume state initial producers contract.",
       "id": "legacy.work.resume.state.initial.producers",
       "legacy": true,
@@ -6445,6 +6907,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 19,
       "description": "Protects the legacy work resume state producer contract.",
       "id": "legacy.work.resume.state.producer",
       "legacy": true,
@@ -6458,6 +6921,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 25,
       "description": "Protects the legacy work resume state service contract.",
       "id": "legacy.work.resume.state.service",
       "legacy": true,
@@ -6471,6 +6935,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 23,
       "description": "Protects the legacy workbench collapsible sections contract.",
       "id": "legacy.workbench.collapsible.sections",
       "legacy": true,
@@ -6482,6 +6947,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 28,
       "description": "Protects the legacy workbench guided ui contract.",
       "id": "legacy.workbench.guided.ui",
       "legacy": true,
@@ -6493,6 +6959,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 12,
       "description": "Protects the legacy workbench host status copy contract.",
       "id": "legacy.workbench.host.status.copy",
       "legacy": true,
@@ -6504,6 +6971,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 24,
       "description": "Protects the legacy workbench in place open work contract.",
       "id": "legacy.workbench.in.place.open.work",
       "legacy": true,
@@ -6515,6 +6983,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 31,
       "description": "Protects the legacy workbench inspector panel contract.",
       "id": "legacy.workbench.inspector.panel",
       "legacy": true,
@@ -6526,6 +6995,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 32,
       "description": "Protects the legacy workbench recommended cycling contract.",
       "id": "legacy.workbench.recommended.cycling",
       "legacy": true,
@@ -6537,6 +7007,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 21,
       "description": "Protects the legacy workbench remove all tasks list contract.",
       "id": "legacy.workbench.remove.all.tasks.list",
       "legacy": true,
@@ -6548,6 +7019,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 14,
       "description": "Protects the legacy workbench remove quick notes contract.",
       "id": "legacy.workbench.remove.quick.notes",
       "legacy": true,
@@ -6559,6 +7031,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 27,
       "description": "Protects the legacy workbench service dehardcode contract.",
       "id": "legacy.workbench.service.dehardcode",
       "legacy": true,
@@ -6570,6 +7043,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 13,
       "description": "Protects the legacy workbench split focus filters contract.",
       "id": "legacy.workbench.split.focus.filters",
       "legacy": true,
@@ -6581,6 +7055,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 27,
       "description": "Protects the legacy workbench task focus checklist contract.",
       "id": "legacy.workbench.task.focus.checklist",
       "legacy": true,
@@ -6592,6 +7067,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 18,
       "description": "Protects the legacy workbench task focus linked note view contract.",
       "id": "legacy.workbench.task.focus.linked.note.view",
       "legacy": true,
@@ -6603,6 +7079,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 48,
       "description": "Protects the legacy workbench task focus related context contract.",
       "id": "legacy.workbench.task.focus.related.context",
       "legacy": true,
@@ -6614,6 +7091,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 23,
       "description": "Protects the legacy workbench task focus related context ui contract.",
       "id": "legacy.workbench.task.focus.related.context.ui",
       "legacy": true,
@@ -6625,6 +7103,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 37,
       "description": "Protects the legacy workbench task focus surface contract.",
       "id": "legacy.workbench.task.focus.surface",
       "legacy": true,
@@ -6636,6 +7115,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 51,
       "description": "Protects the legacy workbench task focus timer contract.",
       "id": "legacy.workbench.task.focus.timer",
       "legacy": true,
@@ -6647,6 +7127,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 6,
       "description": "Protects the legacy workbench task ordering contract.",
       "id": "legacy.workbench.task.ordering",
       "legacy": true,
@@ -6658,6 +7139,7 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 29,
       "description": "Protects the legacy workbench view state contract.",
       "id": "legacy.workbench.view.state",
       "legacy": true,
@@ -6669,6 +7151,7 @@
     },
     {
       "area": "jobs",
+      "assertionCount": 72,
       "description": "Protects the legacy worker runner contract.",
       "id": "legacy.worker.runner",
       "legacy": true,
@@ -6683,6 +7166,7 @@
     },
     {
       "area": "files",
+      "assertionCount": 7,
       "description": "Protects the legacy workspace storage contract.",
       "id": "legacy.workspace.storage",
       "legacy": true,
@@ -6714,6 +7198,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/fast-check-pipeline.regression.mjs"
+        ]
+      },
       "id": "legacy.check.js",
       "area": "release",
       "tier": "slow",
@@ -6891,6 +7382,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "legacy.regression.coverage.ratchet",
       "area": "release",
       "tier": "release-gate",
@@ -6915,6 +7413,14 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 21,
+        "creditedAssertionReduction": 21,
+        "ownerPaths": [
+          "scripts/regressions/docs/docs-ownership-routing.regression.mjs",
+          "scripts/regressions/release/roadmap-cursor-floor.regression.mjs"
+        ]
+      },
       "id": "docs.short-term-cleanup-closeout",
       "area": "docs",
       "tier": "focused",
@@ -6943,6 +7449,16 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+          "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs",
+          "scripts/regressions/views/dashboard-es-module-entry.regression.mjs"
+        ]
+      },
       "id": "release.maintainability-closeout",
       "area": "release",
       "tier": "release-gate",
@@ -6974,6 +7490,15 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
+          "scripts/regressions/framework/typecheck-seams.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "release.typescript-seam-branch-closeout",
       "area": "release",
       "tier": "release-gate",
@@ -7019,6 +7544,14 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 0,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+          "scripts/regressions/release/regression-manifest-generation.regression.mjs"
+        ]
+      },
       "id": "legacy.static.contract.closeout",
       "area": "release",
       "tier": "focused",
@@ -7078,6 +7611,13 @@
         "npm run verify:slice"
       ],
       "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/version-literal-guardrail-regression.mjs"
+        ]
+      },
       "id": "legacy.version.literal.guardrail",
       "area": "release",
       "tier": "release-gate",

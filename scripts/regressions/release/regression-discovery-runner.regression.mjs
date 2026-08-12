@@ -27,13 +27,9 @@ const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-s
 const coveragePolicy = JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8"));
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
 
-const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
-  entry.floorCredit === true && entry.legacy === true
-)).length;
-assert.equal(
-  legacySnapshot.scripts.length + creditedLegacyRetirements,
-  coveragePolicy.legacyMetadataException.expectedScripts,
-  "migration snapshot plus reviewed credits should preserve the recorded legacy baseline",
+assert.ok(
+  legacySnapshot.scripts.length <= coveragePolicy.legacyMetadataException.maximumScripts,
+  "legacy discovery must stay at or below its shrink-only ceiling",
 );
 for (const entry of legacySnapshot.scripts) {
   assert.ok(discoveredPaths.has(entry.path), `${entry.path} must survive metadata discovery`);
