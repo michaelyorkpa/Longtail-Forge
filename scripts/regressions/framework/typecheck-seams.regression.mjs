@@ -26,6 +26,41 @@ const BROWSER_CHECKED_FILES = [
   "public/js/shared/view-surface-descriptor.js",
 ];
 const RESERVED_CLEAN_FILE_PATHS = new Set();
+const SLICE_38_ROUTE_EXCLUSIONS = new Set([
+  "src/routes/files.routes.js",
+  "src/routes/private-feeds.routes.js",
+  "src/routes/search-index.routes.js",
+  "src/routes/search.routes.js",
+  "src/routes/users.routes.js",
+  "src/routes/work-resume.routes.js",
+]);
+const SLICE_38_ROUTE_TIERS = new Set([
+  "framework-protected-administration-routes",
+  "framework-protected-work-surface-routes",
+  "framework-public-operational-routes",
+]);
+const SLICE_38_ROUTE_FILES = [
+  "src/routes/account-export-recovery.routes.js",
+  "src/routes/api-keys.routes.js",
+  "src/routes/app-info.routes.js",
+  "src/routes/app-shell.routes.js",
+  "src/routes/audit.routes.js",
+  "src/routes/auth.routes.js",
+  "src/routes/dashboard.routes.js",
+  "src/routes/help.routes.js",
+  "src/routes/jobs.routes.js",
+  "src/routes/notifications.routes.js",
+  "src/routes/operational-health.routes.js",
+  "src/routes/permissions.routes.js",
+  "src/routes/public-api.routes.js",
+  "src/routes/public-demo-account.routes.js",
+  "src/routes/reporting.routes.js",
+  "src/routes/runtime-diagnostics.routes.js",
+  "src/routes/settings.routes.js",
+  "src/routes/static.routes.js",
+  "src/routes/tags.routes.js",
+  "src/routes/workbench.routes.js",
+];
 const EXPECTED_TYPECHECK_INCLUDES = [
   "server.js",
   "worker.js",
@@ -256,6 +291,7 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "AuthenticatedIdentity",
   "SupportViewSession",
   "RequestSession",
+  "LogoutSession",
   "SupportViewRequestSession",
   "PrivateFeedAuthorizationSession",
   "PermissionSession",
@@ -270,6 +306,20 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SupportViewGateOutcome",
   "SupportViewGateReasonClass",
   "HttpIdentityRequest",
+];
+const ROUTE_CONTRACT_TYPE_EXPORTS = [
+  "RouteRequest",
+  "RouteResponse",
+  "RouteNext",
+  "AuthenticatedRouteRequest",
+  "WorkspaceRouteRequest",
+  "ApiKeyRouteRequest",
+  "AsyncRouteResult",
+  "AsyncRouteHandler",
+  "AuthenticatedAsyncRouteHandler",
+  "WorkspaceAsyncRouteHandler",
+  "ApiKeyAsyncRouteHandler",
+  "AsyncRouteAdapter",
 ];
 const PRIVATE_FEED_CONTRACT_TYPE_EXPORTS = [
   "PrivateFeedScopeType",
@@ -384,8 +434,8 @@ const cleanFilePassPaths = [];
 for (const pass of cleanFilePassInventory.passes) {
   assert.match(
     pass.slice,
-    /^18(?:\.\d+)?$/,
-    "bounded clean-file pass IDs must remain under the slice 18 family",
+    /^(?:18(?:\.\d+)?|38)$/,
+    "bounded clean-file pass IDs must remain under an explicitly owned checking slice",
   );
   assert.ok(
     typeof pass.ownershipTier === "string" && pass.ownershipTier.length > 0,
@@ -409,6 +459,20 @@ for (const pass of cleanFilePassInventory.passes) {
       );
     }
   }
+  if (pass.slice === "38") {
+    assert.ok(
+      SLICE_38_ROUTE_TIERS.has(pass.ownershipTier),
+      `slice ${pass.slice} must stay within one of its three recorded route tiers`,
+    );
+    assert.ok(pass.files.length <= 20, "each slice 38 route pass must contain at most 20 files");
+    for (const filePath of pass.files) {
+      assert.match(filePath, /^src\/routes\/[^/]+\.routes\.js$/, "slice 38 passes must contain only route adapters");
+      assert.ok(
+        !SLICE_38_ROUTE_EXCLUSIONS.has(filePath),
+        `${filePath} must remain with its separately scoped route owner`,
+      );
+    }
+  }
   for (const filePath of pass.files) {
     assert.ok(
       !RESERVED_CLEAN_FILE_PATHS.has(filePath),
@@ -425,6 +489,14 @@ assert.equal(
   cleanFilePassPaths.length,
   new Set(cleanFilePassPaths).size,
   "a checked file may belong to only one bounded clean-file pass",
+);
+assert.deepEqual(
+  cleanFilePassInventory.passes
+    .filter((pass) => pass.slice === "38")
+    .flatMap((pass) => pass.files)
+    .sort(),
+  SLICE_38_ROUTE_FILES,
+  "slice 38 must retain its exact 20-file framework route ownership boundary",
 );
 
 const discoveredCheckedFiles = [
@@ -882,6 +954,14 @@ for (const typeName of HTTP_CONTRACT_TYPE_EXPORTS) {
     `http-contracts.d.ts must export ${typeName}`,
   );
 }
+const routeContractSource = readFileSync("src/types/route-contracts.d.ts", "utf8");
+for (const typeName of ROUTE_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    routeContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `route-contracts.d.ts must export ${typeName}`,
+  );
+}
 assert.match(
   httpContractSource,
   /export type PermissionSession = RequestSession \| PrivateFeedAuthorizationSession;/,
@@ -1042,13 +1122,103 @@ assert.match(
   /@returns \{Promise<unknown>\}[\s\S]{0,120}function readJsonBody/,
   "readJsonBody must preserve unknown at the checked request-body boundary",
 );
+assert.match(
+  httpUtilitySource,
+  /@returns \{Promise<Record<string, unknown>>\}[\s\S]{0,180}async function readJsonObjectBody\(request, options = \{\}\)[\s\S]{0,120}readJsonBody\(request, options\)/,
+  "object-bound routes must narrow the shared unknown JSON boundary through readJsonObjectBody",
+);
+for (const [wrapperName, requestGuard] of [
+  ["authenticatedAsyncRoute", "isAuthenticatedRouteRequest"],
+  ["workspaceAsyncRoute", "isWorkspaceRouteRequest"],
+  ["apiKeyAsyncRoute", "isApiKeyRouteRequest"],
+]) {
+  assert.match(
+    httpUtilitySource,
+    new RegExp(`function ${wrapperName}\\(handler\\)[\\s\\S]{0,240}if \\(!${requestGuard}\\(request\\)\\)`),
+    `${wrapperName} must keep its defensive runtime request refinement`,
+  );
+}
+for (const filePath of SLICE_38_ROUTE_FILES) {
+  const source = readFileSync(filePath, "utf8");
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain opted in to the checked route tier`);
+  assert.doesNotMatch(source, /@typedef[^\n]*\bany\b/, `${filePath} must not terminate route contracts through any`);
+}
+assert.match(
+  readFileSync("src/routes/public-api.routes.js", "utf8"),
+  /apiKeyAsyncRoute as asyncRoute/,
+  "public API routes must refine their API-key session before dispatch",
+);
+for (const filePath of [
+  "src/routes/account-export-recovery.routes.js",
+  "src/routes/static.routes.js",
+]) {
+  assert.match(
+    readFileSync(filePath, "utf8"),
+    /authenticatedAsyncRoute as asyncRoute/,
+    `${filePath} must admit authenticated recovery sessions without inventing a workspace`,
+  );
+}
+for (const filePath of SLICE_38_ROUTE_FILES.filter((filePath) => ![
+  "src/routes/account-export-recovery.routes.js",
+  "src/routes/app-info.routes.js",
+  "src/routes/auth.routes.js",
+  "src/routes/operational-health.routes.js",
+  "src/routes/public-api.routes.js",
+  "src/routes/public-demo-account.routes.js",
+  "src/routes/static.routes.js",
+].includes(filePath))) {
+  assert.match(
+    readFileSync(filePath, "utf8"),
+    /workspaceAsyncRoute as asyncRoute/,
+    `${filePath} must refine its workspace session before service dispatch`,
+  );
+}
+const errorHandlerSource = readFileSync("src/middleware/error-handler.js", "utf8");
+assert.match(errorHandlerSource, /^\/\/ @ts-check\r?\n/, "the final error middleware must remain checked");
+assert.match(errorHandlerSource, /@param \{unknown\} error/, "the final error boundary must receive unknown thrown values");
+for (const boundaryToken of [
+  "response.headersSent",
+  "getRequestContext(request)",
+  "isApiRequest(request)",
+  "isBrowserDocumentRequest(request)",
+  "readErrorProperty(error",
+  "sendApiError(request, response, {",
+  "sendBrowserError(request, response, {",
+]) {
+  assert.ok(errorHandlerSource.includes(boundaryToken), `the final error middleware must retain ${boundaryToken}`);
+}
+for (const filePath of ["src/middleware/require-api-key.js", "src/middleware/require-auth.js"]) {
+  const source = readFileSync(filePath, "utf8");
+  assert.match(source, /RouteResponse/, `${filePath} must use the shared response contract`);
+  assert.match(source, /RouteNext/, `${filePath} must use the shared next contract`);
+}
 const checkedJsonBodyConsumers = CHECKED_SEAM_FILES.filter((filePath) => (
   filePath !== "src/utils/http.js" && readFileSync(filePath, "utf8").includes("readJsonBody")
 ));
 assert.deepEqual(
   checkedJsonBodyConsumers,
-  ["src/routes/private-feeds.routes.js", "src/routes/support-view.routes.js"],
+  [
+    "src/routes/api-keys.routes.js",
+    "src/routes/auth.routes.js",
+    "src/routes/private-feeds.routes.js",
+    "src/routes/public-api.routes.js",
+    "src/routes/settings.routes.js",
+    "src/routes/support-view.routes.js",
+    "src/routes/workbench.routes.js",
+  ],
   "every checked readJsonBody consumer must be inventoried for explicit unknown narrowing",
+);
+const checkedJsonObjectBodyConsumers = CHECKED_SEAM_FILES.filter((filePath) => (
+  filePath !== "src/utils/http.js" && readFileSync(filePath, "utf8").includes("readJsonObjectBody")
+));
+assert.deepEqual(
+  checkedJsonObjectBodyConsumers,
+  [
+    "src/routes/notifications.routes.js",
+    "src/routes/permissions.routes.js",
+    "src/routes/tags.routes.js",
+  ],
+  "every checked object-body consumer must remain explicitly inventoried",
 );
 assert.match(
   privateFeedServiceSource,
@@ -1147,7 +1317,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + PRIVATE_FEED_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + ROUTE_CONTRACT_TYPE_EXPORTS.length + PRIVATE_FEED_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {

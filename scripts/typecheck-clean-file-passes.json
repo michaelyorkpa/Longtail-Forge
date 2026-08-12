@@ -26,6 +26,44 @@
         "src/services/help.service.js",
         "src/services/static.service.js"
       ]
+    },
+    {
+      "slice": "38",
+      "ownershipTier": "framework-public-operational-routes",
+      "files": [
+        "src/routes/app-info.routes.js",
+        "src/routes/auth.routes.js",
+        "src/routes/operational-health.routes.js",
+        "src/routes/public-api.routes.js",
+        "src/routes/public-demo-account.routes.js"
+      ]
+    },
+    {
+      "slice": "38",
+      "ownershipTier": "framework-protected-administration-routes",
+      "files": [
+        "src/routes/account-export-recovery.routes.js",
+        "src/routes/api-keys.routes.js",
+        "src/routes/audit.routes.js",
+        "src/routes/jobs.routes.js",
+        "src/routes/permissions.routes.js",
+        "src/routes/runtime-diagnostics.routes.js",
+        "src/routes/settings.routes.js"
+      ]
+    },
+    {
+      "slice": "38",
+      "ownershipTier": "framework-protected-work-surface-routes",
+      "files": [
+        "src/routes/app-shell.routes.js",
+        "src/routes/dashboard.routes.js",
+        "src/routes/help.routes.js",
+        "src/routes/notifications.routes.js",
+        "src/routes/reporting.routes.js",
+        "src/routes/static.routes.js",
+        "src/routes/tags.routes.js",
+        "src/routes/workbench.routes.js"
+      ]
     }
   ]
 }

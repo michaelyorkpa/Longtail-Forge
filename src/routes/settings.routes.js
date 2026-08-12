@@ -1,9 +1,11 @@
+// @ts-check
+
 import { Router } from "express";
 import { settingsCatalogService } from "../services/settings-catalog.service.js";
 import { settingsService } from "../services/settings.service.js";
 import { workspaceBackupsService } from "../services/workspace-backups.service.js";
 import { workspaceDeletionService } from "../services/workspace-deletion.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { readJsonBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const settingsRoutes = Router();
 

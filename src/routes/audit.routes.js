@@ -1,8 +1,10 @@
+// @ts-check
+
 import { Router } from "express";
 import { createWorkspacePermissionResource } from "../core/permission-resource.js";
 import { auditService } from "../services/audit.service.js";
 import { permissionsService } from "../services/permissions.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 
 const auditRoutes = Router();
 

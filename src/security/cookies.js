@@ -26,6 +26,7 @@ function buildExpiredSessionCookie(request = null) {
   });
 }
 
+/** @param {string} token @param {object | null} [request] */
 function buildCsrfCookie(token, request = null) {
   return buildCookie(config.cookies.csrfName, token, {
     domain: config.cookies.domain,
@@ -36,6 +37,7 @@ function buildCsrfCookie(token, request = null) {
   });
 }
 
+/** @param {object | null} [request] */
 function buildExpiredCsrfCookie(request = null) {
   return buildCookie(config.cookies.csrfName, "", {
     domain: config.cookies.domain,
@@ -46,6 +48,7 @@ function buildExpiredCsrfCookie(request = null) {
   });
 }
 
+/** @param {unknown} themeMode @param {object | null} [request] */
 function buildThemeCookie(themeMode, request = null) {
   return buildCookie(config.cookies.themeName, normalizeThemeMode(themeMode), {
     domain: config.cookies.domain,
@@ -56,6 +59,7 @@ function buildThemeCookie(themeMode, request = null) {
   });
 }
 
+/** @param {unknown} themeAutoSource @param {object | null} [request] */
 function buildThemeAutoSourceCookie(themeAutoSource, request = null) {
   return buildCookie(config.cookies.themeAutoSourceName, normalizeThemeAutoSource(themeAutoSource), {
     domain: config.cookies.domain,
@@ -66,6 +70,7 @@ function buildThemeAutoSourceCookie(themeAutoSource, request = null) {
   });
 }
 
+/** @param {object | null} [request] */
 function buildExpiredThemeCookie(request = null) {
   return buildCookie(config.cookies.themeName, "", {
     domain: config.cookies.domain,
@@ -76,6 +81,7 @@ function buildExpiredThemeCookie(request = null) {
   });
 }
 
+/** @param {object | null} [request] */
 function buildExpiredThemeAutoSourceCookie(request = null) {
   return buildCookie(config.cookies.themeAutoSourceName, "", {
     domain: config.cookies.domain,

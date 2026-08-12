@@ -1,3 +1,13 @@
+## Version 0.33.32.38 - 2026-08-11
+
+- Checked 20 sub-150-line framework route adapters across three exact public/operational, protected-administration, and protected-work-surface tiers, plus the final error middleware; the checked inventory floor rises from 111 to 132 files.
+- Added shared structural request, response, next, and async-handler contracts with defensive authenticated, active-workspace, and API-key refinements while preserving route mounts, middleware order, rejected-Promise handling, and service authority.
+- Made object-bound notification, permission, and tag payloads reject JSON `null`, arrays, and scalars through one fixed safe 400 while valid objects retain their existing service-owned validation and behavior.
+- Preserved request-ID correlation, safe production messages and diagnostics, API/browser classification, headers-already-sent delegation, authentication/account-recovery contexts, permissions, and valid route responses through focused HTTP and checked-seam proof.
+- Deferred the checker-exposed Work Resume nullable post-dismiss result to the explicit `0.33.32.38.1` owner rather than hiding it with a cast or changing lifecycle behavior inside the mechanical route pass.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and module workflows, valid route payloads/responses, permissions, database schema/migrations, runtime configuration, deployment, and public API fields are unchanged.
+
 ## Version 0.33.32.37 - 2026-08-11
 
 - Checked the complete private calendar-feed service and route edge against explicit bearer-token, repository-row, scope, lifecycle, provider-dispatch, permission-session, request, and response contracts.

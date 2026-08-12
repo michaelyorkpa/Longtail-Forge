@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.38`.
+Active cursor: `0.33.32.38.1`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -58,19 +58,18 @@ Completion-review evidence:
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
 
-## Version 0.33.32.38 - Bounded framework route and error-middleware passes
+## Version 0.33.32.38.1 - Work Resume route persistence-result boundary
 
-**Model: High Effort** — Thin route adapters are mechanically similar, but collectively expose authentication, validation, response, and error boundaries.
+**Model: High Effort** — The post-dismiss route response crosses workspace/user scoping and a nullable persistence read, so its result contract must be resolved without a cast or guessed lifecycle behavior.
 
-- [ ] Recount unchecked `src/routes/*.js` and partition remaining sub-150-line framework adapters into exact ownership-coherent passes of at most 20 files; exclude Search, private feeds, Files, and large module-owned routes.
-- [ ] Check each pass against shared request/session/body/query/params/response contracts without changing middleware order or service authority.
-- [ ] Deepen the already-checked authentication middleware's `response` and `next` parameters to the same shared HTTP contracts so the route pass does not leave its immediate middleware boundary as `any`.
-- [ ] Check `error-handler.js`, including unknown thrown values, headers-already-sent, request IDs, safe production messages, and API/browser classification.
-- [ ] Create a separate owner slice if a route reveals non-mechanical permission, destructive, schema, or cross-module drift.
+- [ ] Reproduce the checked `work-resume.routes.js` failure where the dismiss service's post-update `readById()` result remains nullable and its declared projection omits the response's `resume_state_id` field.
+- [ ] Decide and encode the honest service/persistence result: either return a proven non-null updated projection or handle concurrent disappearance explicitly before the route shapes its response; do not assertion-cast the row.
+- [ ] Check the Work Resume route against named params/query/body/session/response contracts while preserving workspace/user scope, list/read/dismiss behavior, dual-cased compatibility fields, ranking, action fields, empty state, and existing not-found semantics.
+- [ ] Retain focused Work Resume lifecycle, permission, concurrency/result, and checked-seam regressions without changing schema or moving module policy into the route.
 
 Acceptance criteria:
 
-- Recorded thin-route tiers and final error middleware typecheck without suppression or HTTP behavior drift.
+- The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
 ## Version 0.33.32.39 - Files route checked boundary
 

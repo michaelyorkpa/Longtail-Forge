@@ -82,6 +82,8 @@ Client-error messages are exposed only when they are deliberately approved as sa
 
 Asynchronous route work uses the shared `asyncRoute` boundary unless a reviewed framework change deliberately relies on Express 5 forwarding. A failure reaches the final error middleware exactly once and no route writes a second response afterward. The shared streaming JSON reader returns `unknown`; checked routes must narrow it before property access so malformed JSON and wrong-shape values become deliberate generic 4xx responses rather than TypeError-backed 500s. As of 0.33.32.2.1, Support View start rejects JSON `null` and every other non-object body with its existing confirmation 400 contract.
 
+As of 0.33.32.38, checked framework routes may select the shared authenticated, active-workspace, or API-key async adapter when that context is already required by the mounted route. Each adapter rejects a missing trusted context through the same final error path and otherwise preserves the handler, middleware order, and service authority. Object-bound routes without a more specific schema may use `readJsonObjectBody()`; valid objects pass unchanged, while JSON `null`, arrays, and scalars receive the fixed safe 400 message `Request body must contain a JSON object.` The final checked error middleware accepts unknown thrown values, delegates immediately when headers were already sent, and retains the existing request-ID, safe-message, diagnostic, and API/browser classification contracts.
+
 ## Framework and Module Responsibilities
 
 Modules own workflow meaning:
