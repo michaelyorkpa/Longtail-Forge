@@ -11,11 +11,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
+import { createStaticRegressionExecutionPlan } from "../../lib/static-regression-execution.mjs";
 
 const audit = JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8"));
 const staticAudit = JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8"));
 const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
+const staticExecution = readFileSync("scripts/lib/static-regression-execution.mjs", "utf8");
 const scheduler = readFileSync("scripts/test-support/regression-runner-scheduler.mjs", "utf8");
 const roadmap = readFileSync("ROADMAP.md", "utf8");
 const roadmapArchive = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
@@ -113,6 +115,15 @@ const staticDimensions = [
   "environment",
   "singletonRuntime",
 ];
+const staticExecutionDimensions = [
+  "environment",
+  "globalState",
+  "timers",
+  "listeners",
+  "cache",
+  "process",
+  "fileSystem",
+];
 assert.equal(staticAudit.schemaVersion, 1);
 assert.equal(staticAudit.targetRunMode, "static");
 assert.deepEqual(staticAudit.resourceDimensions, staticDimensions);
@@ -139,9 +150,46 @@ for (const entry of staticAudit.entries) {
   assert.ok(entry.rationale.length >= 80);
   assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
 }
+assert.equal(staticAudit.execution.schemaVersion, 1);
+assert.equal(staticAudit.execution.defaultDecision, "child-process");
+assert.deepEqual(staticAudit.execution.resourceDimensions, staticExecutionDimensions);
+assert.deepEqual(Object.keys(staticAudit.execution.defaultResources), staticExecutionDimensions);
+assert.equal(staticAudit.execution.entries.length, 6);
+for (const entry of staticAudit.execution.entries) {
+  assert.ok(["worker-parallel", "worker-sequential"].includes(entry.decision));
+  assert.equal(entry.fallback, "child-process");
+  assert.deepEqual(Object.keys(entry.resources), staticExecutionDimensions);
+  assert.ok(entry.rationale.length >= 80);
+  assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
+}
+assert.equal(staticAudit.execution.entries.filter((entry) => entry.decision === "worker-sequential").length, 1);
+assert.equal(staticAudit.execution.measurements.scripts, REGRESSION_ENTRIES.length);
+assert.equal(staticAudit.execution.measurements.staticScripts, REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static").length);
+assert.equal(staticAudit.execution.measurements.certifiedWorkers, staticAudit.execution.entries.length);
+assert.equal(staticAudit.execution.measurements.fullRuns.length, 3);
+for (const measurement of staticAudit.execution.measurements.fullRuns) {
+  assert.equal(measurement.failures, 0);
+  assert.equal(measurement.recoveredFlakes, 0);
+  assert.ok(measurement.wallSeconds > 0);
+}
+const staticExecutionPlan = createStaticRegressionExecutionPlan({ audit: staticAudit, entries: REGRESSION_ENTRIES, env: {} });
+const discoveredStaticEntries = REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static");
+assert.equal(staticExecutionPlan.decisions.size, discoveredStaticEntries.length, "every static owner must receive an audited worker or explicit child-process fallback decision");
+assert.equal(staticExecutionPlan.workerCount, staticAudit.execution.entries.length);
+assert.equal(staticExecutionPlan.fallbackCount, discoveredStaticEntries.length - staticAudit.execution.entries.length);
+for (const entry of discoveredStaticEntries) {
+  const decision = staticExecutionPlan.decisions.get(entry.path);
+  assert.ok(decision, `${entry.path} must have an execution decision`);
+  assert.equal(decision.fallback, "child-process");
+  assert.deepEqual(Object.keys(decision.resources), staticExecutionDimensions);
+}
 
 assert.match(runner, /ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions"/);
 assert.match(runner, /resolveIsolatedFilesParallelism/);
+assert.match(staticExecution, /LTF_STATIC_EXECUTION_MODE/);
+assert.match(runner, /staticDecision\?\.decision === "worker-parallel"/);
+assert.match(runner, /staticDecision\?\.decision === "worker-sequential"/);
+assert.match(runner, /executionMode: "worker"/);
 assert.match(scheduler, /LTF_ISOLATED_FILES_PARALLELISM/);
 assert.match(runner, /bucket\.name === ISOLATED_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "only isolated database regressions may use the retry scheduler");
 assert.doesNotMatch(runner, /bucket\.name === ISOLATED_FILES_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "Files regressions must not gain retry masking");
