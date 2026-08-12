@@ -87,6 +87,21 @@ try {
   const initialCollection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
   assert.deepEqual(initialCollection.body.subscriptions, []);
 
+  const malformedLifecycleMarker = "ltf_feed_leak_probe_private_feed_payload";
+  for (const malformedPayload of [malformedLifecycleMarker, [malformedLifecycleMarker], null]) {
+    const malformedLifecycle = await api.post(
+      "/api/private-feeds/calendar-subscriptions",
+      malformedPayload,
+      { cookie: sessionCookie },
+    );
+    assert.equal(malformedLifecycle.status, 400, "non-object lifecycle JSON must fail through the safe service validation path");
+    assert.equal(
+      JSON.stringify(malformedLifecycle.body).includes(malformedLifecycleMarker),
+      false,
+      "malformed lifecycle input must not be reflected into the response",
+    );
+  }
+
   const generated = await api.post("/api/private-feeds/calendar-subscriptions", {
     name: "Initial workspace & planning / North",
     scopeType: "workspace",

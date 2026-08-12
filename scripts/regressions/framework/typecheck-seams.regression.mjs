@@ -25,9 +25,7 @@ const BROWSER_CHECKED_FILES = [
   "public/js/shared/view-response-records.js",
   "public/js/shared/view-surface-descriptor.js",
 ];
-const RESERVED_CLEAN_FILE_PATHS = new Set([
-  "src/routes/private-feeds.routes.js",
-]);
+const RESERVED_CLEAN_FILE_PATHS = new Set();
 const EXPECTED_TYPECHECK_INCLUDES = [
   "server.js",
   "worker.js",
@@ -259,6 +257,8 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SupportViewSession",
   "RequestSession",
   "SupportViewRequestSession",
+  "PrivateFeedAuthorizationSession",
+  "PermissionSession",
   "ApiSession",
   "PermissionResource",
   "ActiveApiKey",
@@ -270,6 +270,33 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "SupportViewGateOutcome",
   "SupportViewGateReasonClass",
   "HttpIdentityRequest",
+];
+const PRIVATE_FEED_CONTRACT_TYPE_EXPORTS = [
+  "PrivateFeedScopeType",
+  "PrivateFeedManagementSession",
+  "PrivateFeedScope",
+  "PrivateFeedSubscriptionDescriptor",
+  "PrivateFeedSubscriptionDescriptorInput",
+  "PrivateFeedProviderRenderContext",
+  "PrivateFeedProviderRender",
+  "PrivateFeedProviderDefinition",
+  "PrivateFeedProvider",
+  "PrivateFeedTokenRow",
+  "PrivateFeedTokenCreateInput",
+  "PrivateFeedTokenListFilters",
+  "PrivateFeedTokenMutationResult",
+  "PrivateFeedTokenRevokeResult",
+  "PrivateFeedSubscriptionPayload",
+  "ParsedPrivateFeedToken",
+  "PrivateFeedEligibility",
+  "PrivateFeedReconcileOptions",
+  "PrivateFeedReconcileResult",
+  "PrivateFeedPublicSubscription",
+  "PrivateFeedAuthentication",
+  "PrivateFeedCollectionResponse",
+  "PrivateFeedCreateResponse",
+  "PrivateFeedRemoveResponse",
+  "PrivateFeedPermissionResource",
 ];
 
 const normalizersSource = readFileSync("src/utils/normalizers.js", "utf8");
@@ -855,6 +882,52 @@ for (const typeName of HTTP_CONTRACT_TYPE_EXPORTS) {
     `http-contracts.d.ts must export ${typeName}`,
   );
 }
+assert.match(
+  httpContractSource,
+  /export type PermissionSession = RequestSession \| PrivateFeedAuthorizationSession;/,
+  "permission evaluation must admit the narrow private-feed authorization identity without widening browser request sessions",
+);
+const privateFeedContractSource = readFileSync("src/types/private-feed-contracts.d.ts", "utf8");
+for (const typeName of PRIVATE_FEED_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    privateFeedContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `private-feed-contracts.d.ts must export ${typeName}`,
+  );
+}
+const privateFeedServiceSource = readFileSync("src/services/private-feeds.service.js", "utf8");
+const privateFeedRouteSource = readFileSync("src/routes/private-feeds.routes.js", "utf8");
+for (const [filePath, source] of [
+  ["src/services/private-feeds.service.js", privateFeedServiceSource],
+  ["src/routes/private-feeds.routes.js", privateFeedRouteSource],
+]) {
+  assert.match(source, /^\/\/ @ts-check\r?\n/, `${filePath} must remain opted in to the checked public-feed edge`);
+  assert.doesNotMatch(source, /@typedef[^\n]*\bany\b/, `${filePath} must not terminate private-feed contracts through any`);
+}
+assert.ok(
+  !RESERVED_CLEAN_FILE_PATHS.has("src/routes/private-feeds.routes.js"),
+  "slice 37 must keep the private-feed route claimed from the reserved-path list",
+);
+assert.match(
+  privateFeedServiceSource,
+  /@returns \{PrivateFeedAuthorizationSession\}[\s\S]*?function sessionFromToken/,
+  "private-feed permission checks must use the explicit sessionless authorization identity",
+);
+assert.match(
+  privateFeedServiceSource,
+  /createPrivateFeedSubscriptionDescriptor\(\{[\s\S]*?ownerUserId:[\s\S]*?subscriptionId:[\s\S]*?workspaceId:/,
+  "provider dispatch must receive the secret-free subscription descriptor",
+);
+assert.match(
+  privateFeedRouteSource,
+  /function requirePrivateFeedManagementSession\(request\)[\s\S]*?session\?\.workspace_id/,
+  "management routes must refine the authenticated active-workspace session before service dispatch",
+);
+assert.match(
+  privateFeedRouteSource,
+  /response\.status\(404\)\.send\("Calendar feed not found\."\)/,
+  "public token failures must retain one generic response",
+);
 const supportViewServiceSource = readFileSync("src/services/support-view.service.js", "utf8");
 const supportViewGateSource = readFileSync("src/middleware/support-view-request-gate.js", "utf8");
 assert.match(
@@ -974,8 +1047,13 @@ const checkedJsonBodyConsumers = CHECKED_SEAM_FILES.filter((filePath) => (
 ));
 assert.deepEqual(
   checkedJsonBodyConsumers,
-  ["src/routes/support-view.routes.js"],
+  ["src/routes/private-feeds.routes.js", "src/routes/support-view.routes.js"],
   "every checked readJsonBody consumer must be inventoried for explicit unknown narrowing",
+);
+assert.match(
+  privateFeedServiceSource,
+  /@param \{unknown\} payloadValue[\s\S]*?readSubscriptionPayload\(payloadValue\)/,
+  "private-feed lifecycle payloads must stay unknown until the service performs explicit object-shape narrowing",
 );
 assert.match(
   readFileSync("src/routes/support-view.routes.js", "utf8"),
@@ -1069,7 +1147,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + PRIVATE_FEED_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {

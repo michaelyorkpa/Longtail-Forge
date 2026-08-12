@@ -2,7 +2,7 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.37`.
+Active cursor: `0.33.32.38`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
@@ -49,7 +49,7 @@ Non-goals:
 - Do not flip `checkJs` or `noImplicitAny` globally, convert runtime files to `.ts`, add a runtime build step, duplicate Zod validation, weaken a runtime schema, or rewrite tests for checker satisfaction.
 - Do not pursue majority-of-files coverage or spend release ceremony on low-value clean-file counts. Slice 18 is repeatable to preserve worthwhile clean ownership tiers, not to manufacture a percentage target.
 - Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-24 introduce and harden checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
-- Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. Do not absorb `src/routes/private-feeds.routes.js` into a generic slice-18/38 clean-file pass: slice 37 is its explicit Calendar/security-owned exception and must reconcile the reserved-path guardrail before opt-in. Slice 8 remains limited to the injected repository transaction-client contract.
+- Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. `src/routes/private-feeds.routes.js` was claimed and checked by the archived Calendar/security-owned slice 37; it remains excluded from generic slice-18/38 clean-file passes. Slice 8 remains limited to the injected repository transaction-client contract.
 - Do not add `scripts/` to the typecheck program.
 
 Completion-review evidence:
@@ -57,19 +57,6 @@ Completion-review evidence:
 - The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
 - The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
 - Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.37 - Private calendar-feed service and route trust boundary
-
-**Model: High Effort** — An unauthenticated token-in-URL calendar surface combines bearer credentials, task visibility, recurrence, and serialization.
-
-- [ ] Check `private-feeds.service.js` and `private-feeds.routes.js` against explicit token, feed-scope, task-calendar, request, and response contracts.
-- [ ] Reconcile the promoted scope before opt-in: amend the branch non-goal, remove `src/routes/private-feeds.routes.js` from `RESERVED_CLEAN_FILE_PATHS` using the same claimed-owner mechanism as slice 23, and confirm the former TODO deferral remains removed.
-- [ ] Preserve generic invalid/revoked/expired behavior, token secrecy, workspace/module/status filtering, recurrence bounds, timezone formatting, escaping, cache headers, and audit/security behavior.
-- [ ] Prove malformed input and inaccessible records cannot leak token, task, workspace, or user details.
-
-Acceptance criteria:
-
-- The complete public feed edge is checked without weakening bearer-token secrecy or valid calendar output.
 
 ## Version 0.33.32.38 - Bounded framework route and error-middleware passes
 

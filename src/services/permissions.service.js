@@ -19,6 +19,7 @@ import {
 } from "../utils/normalizers.js";
 
 /** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
+/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /**
@@ -652,7 +653,7 @@ function decorateDelegatedAssignment(assignment) {
 }
 
 /**
- * @param {RequestSession | null | undefined} session
+ * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource} resource
  */
@@ -687,7 +688,7 @@ async function can(session, action, resource) {
 }
 
 /**
- * @param {RequestSession | null | undefined} session
+ * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource} resource
  */
@@ -701,7 +702,7 @@ async function assertCan(session, action, resource) {
 }
 
 /**
- * @param {RequestSession | null | undefined} session
+ * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource} [resource]
  */
@@ -715,7 +716,7 @@ async function assertCanInAnyScope(session, action, resource) {
 }
 
 /**
- * @param {RequestSession | null | undefined} session
+ * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource | undefined} resource
  */
@@ -739,7 +740,7 @@ async function recordAuthorizationDenied(session, action, resource) {
 }
 
 /**
- * @param {RequestSession | null | undefined} session
+ * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource} [resource]
  */

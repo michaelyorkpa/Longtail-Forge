@@ -1,3 +1,5 @@
+// @ts-check
+
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { config } from "../config.js";
@@ -15,11 +17,32 @@ import { AppError } from "../utils/app-error.js";
 import { normalizeTimezone } from "../utils/normalizers.js";
 import { permissionsService } from "./permissions.service.js";
 
+/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/http-contracts.js").PrivateFeedAuthorizationSession} PrivateFeedAuthorizationSession */
+/** @typedef {import("../types/private-feed-contracts.js").ParsedPrivateFeedToken} ParsedPrivateFeedToken */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedAuthentication} PrivateFeedAuthentication */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedCollectionResponse} PrivateFeedCollectionResponse */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedCreateResponse} PrivateFeedCreateResponse */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedEligibility} PrivateFeedEligibility */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedManagementSession} PrivateFeedManagementSession */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedPermissionResource} PrivateFeedPermissionResource */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedPublicSubscription} PrivateFeedPublicSubscription */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedReconcileOptions} PrivateFeedReconcileOptions */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedReconcileResult} PrivateFeedReconcileResult */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedRemoveResponse} PrivateFeedRemoveResponse */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedScope} PrivateFeedScope */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedSubscriptionPayload} PrivateFeedSubscriptionPayload */
+/** @typedef {import("../types/private-feed-contracts.js").PrivateFeedTokenRow} PrivateFeedTokenRow */
+
 const PRIVATE_CALENDAR_PROVIDER_ID = "tasks.calendar";
 const RAW_TOKEN_PREFIX = "ltf_feed";
 const DUMMY_TOKEN_HASH = createHash("sha256").update("longtail-forge-private-feed-dummy").digest();
 const VALID_SCOPE_TYPES = new Set(["workspace", "client", "project"]);
 
+/**
+ * @param {PrivateFeedManagementSession} session
+ * @returns {Promise<PrivateFeedCollectionResponse>}
+ */
 async function listCalendarSubscriptions(session) {
   assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
@@ -32,9 +55,16 @@ async function listCalendarSubscriptions(session) {
   };
 }
 
-async function createCalendarSubscription(payload, session, requestOrigin) {
+/**
+ * @param {unknown} payloadValue
+ * @param {PrivateFeedManagementSession} session
+ * @param {string} requestOrigin
+ * @returns {Promise<PrivateFeedCreateResponse>}
+ */
+async function createCalendarSubscription(payloadValue, session, requestOrigin) {
   assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
+  const payload = readSubscriptionPayload(payloadValue);
   const scope = await resolveScope(payload, session);
   const rawToken = createRawToken();
   const parsedToken = parseRawToken(rawToken);
@@ -49,6 +79,9 @@ async function createCalendarSubscription(payload, session, requestOrigin) {
     userId: session.user_id,
     workspaceId: session.workspace_id,
   });
+  if (!token) {
+    throw new AppError("The calendar subscription could not be created.", 500);
+  }
   await recordLifecycleSecurityEvent(session, "security.private_feed.created", "create", scope.type);
   return {
     feedUrl: buildFeedUrl(rawToken, token.name, requestOrigin),
@@ -56,6 +89,12 @@ async function createCalendarSubscription(payload, session, requestOrigin) {
   };
 }
 
+/**
+ * @param {unknown} subscriptionId
+ * @param {PrivateFeedManagementSession} session
+ * @param {string} requestOrigin
+ * @returns {Promise<PrivateFeedCreateResponse>}
+ */
 async function rotateCalendarSubscription(subscriptionId, session, requestOrigin) {
   assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
@@ -81,7 +120,7 @@ async function rotateCalendarSubscription(subscriptionId, session, requestOrigin
     parsedToken.selector,
     hashTokenSecret(parsedToken.secret).toString("hex"),
   );
-  if (!result.changed) {
+  if (!result.changed || !result.token) {
     throw new AppError("The calendar subscription is not active.", 409);
   }
   await recordLifecycleSecurityEvent(session, "security.private_feed.rotated", "rotate", current.scope_type);
@@ -91,6 +130,11 @@ async function rotateCalendarSubscription(subscriptionId, session, requestOrigin
   };
 }
 
+/**
+ * @param {unknown} subscriptionId
+ * @param {PrivateFeedManagementSession} session
+ * @returns {Promise<PrivateFeedRemoveResponse>}
+ */
 async function removeCalendarSubscription(subscriptionId, session) {
   assertPublicDemoCapabilityAllowed("private_feeds");
   await assertCanManageCalendarSubscriptions(session);
@@ -116,6 +160,10 @@ async function removeCalendarSubscription(subscriptionId, session) {
   };
 }
 
+/**
+ * @param {unknown} rawToken
+ * @returns {Promise<string | null>}
+ */
 async function renderCalendar(rawToken) {
   assertPublicDemoCapabilityAllowed("private_feeds");
   const authentication = await authenticateToken(rawToken, PRIVATE_CALENDAR_PROVIDER_ID);
@@ -141,6 +189,11 @@ async function renderCalendar(rawToken) {
   return content;
 }
 
+/**
+ * @param {unknown} rawToken
+ * @param {string} providerId
+ * @returns {Promise<PrivateFeedAuthentication | null>}
+ */
 async function authenticateToken(rawToken, providerId) {
   const parsedToken = parseRawToken(rawToken);
   const row = await privateFeedTokensRepository.readForAuthentication(providerId, parsedToken.selector);
@@ -178,6 +231,10 @@ async function authenticateToken(rawToken, providerId) {
   };
 }
 
+/**
+ * @param {PrivateFeedReconcileOptions} [options]
+ * @returns {Promise<PrivateFeedReconcileResult>}
+ */
 async function reconcileCalendarSubscriptions(options = {}) {
   try {
     return await reconcileCalendarSubscriptionsUnsafe(options);
@@ -187,18 +244,24 @@ async function reconcileCalendarSubscriptions(options = {}) {
   }
 }
 
+/**
+ * @param {PrivateFeedReconcileOptions} [options]
+ * @returns {Promise<PrivateFeedReconcileResult>}
+ */
 async function reconcileCalendarSubscriptionsUnsafe({ workspaceId, userId, reason = "entitlement_removed", session } = {}) {
   const rows = await privateFeedTokensRepository.listActive(PRIVATE_CALENDAR_PROVIDER_ID, {
     userId,
     workspaceId,
   });
+  /** @type {Map<string, PrivateFeedTokenRow[]>} */
   const invalidByReason = new Map();
   for (const row of rows) {
     const eligibility = await readEligibility(row);
     if (!eligibility.allowed) {
       const invalidReason = eligibility.reason || reason;
-      if (!invalidByReason.has(invalidReason)) invalidByReason.set(invalidReason, []);
-      invalidByReason.get(invalidReason).push(row);
+      const invalidRows = invalidByReason.get(invalidReason) || [];
+      invalidRows.push(row);
+      invalidByReason.set(invalidReason, invalidRows);
     }
   }
   let revokedCount = 0;
@@ -208,6 +271,10 @@ async function reconcileCalendarSubscriptionsUnsafe({ workspaceId, userId, reaso
   return { revokedCount };
 }
 
+/**
+ * @param {PrivateFeedTokenRow} row
+ * @returns {Promise<PrivateFeedEligibility>}
+ */
 async function readEligibility(row) {
   if (row.user_status !== "active") return { allowed: false, reason: "owner_inactive" };
   if (row.membership_status !== "active") return { allowed: false, reason: "membership_inactive" };
@@ -225,6 +292,12 @@ async function readEligibility(row) {
   return { allowed, reason: allowed ? null : "tasks_permission_removed" };
 }
 
+/**
+ * @param {PrivateFeedTokenRow[]} rows
+ * @param {string} reason
+ * @param {PermissionSession} [session]
+ * @returns {Promise<number>}
+ */
 async function revokeAutomatically(rows, reason, session) {
   const result = await privateFeedTokensRepository.revokeMany(
     rows.map((row) => row.private_feed_token_id),
@@ -251,11 +324,17 @@ async function revokeAutomatically(rows, reason, session) {
   return result.changed;
 }
 
+/**
+ * @param {PrivateFeedSubscriptionPayload} payload
+ * @param {PrivateFeedManagementSession} session
+ * @returns {Promise<PrivateFeedScope>}
+ */
 async function resolveScope(payload, session) {
-  const scopeType = String(payload?.scopeType || payload?.scope_type || "workspace").trim().toLowerCase();
-  if (!VALID_SCOPE_TYPES.has(scopeType)) {
+  const scopeTypeValue = String(payload?.scopeType || payload?.scope_type || "workspace").trim().toLowerCase();
+  if (!VALID_SCOPE_TYPES.has(scopeTypeValue)) {
     throw new AppError("Choose a workspace, client, or project calendar scope.", 400);
   }
+  const scopeType = readScopeType(scopeTypeValue);
   if ((await modulesService.readModuleStatus(session.workspace_id, "tasks")) !== "enabled") {
     throw new AppError("Enable the Tasks module before creating a calendar subscription.", 409);
   }
@@ -266,7 +345,9 @@ async function resolveScope(payload, session) {
     }
   }
 
+  /** @type {string | null} */
   let clientId = null;
+  /** @type {string | null} */
   let projectId = null;
   if (scopeType === "client") {
     clientId = normalizeRequiredId(payload?.clientId || payload?.client_id, "Choose an active client.");
@@ -295,6 +376,10 @@ async function resolveScope(payload, session) {
   return { clientId, projectId, type: scopeType };
 }
 
+/**
+ * @param {PrivateFeedTokenRow} row
+ * @returns {PrivateFeedPermissionResource}
+ */
 function permissionResource(row) {
   return {
     client_id: row.scope_type === "project"
@@ -306,6 +391,10 @@ function permissionResource(row) {
   };
 }
 
+/**
+ * @param {PrivateFeedTokenRow} row
+ * @returns {PrivateFeedAuthorizationSession}
+ */
 function sessionFromToken(row) {
   return {
     active_workspace_id: row.workspace_id,
@@ -320,6 +409,7 @@ function sessionFromToken(row) {
   };
 }
 
+/** @param {PrivateFeedManagementSession} session */
 async function assertCanManageCalendarSubscriptions(session) {
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     operation: "update",
@@ -327,6 +417,11 @@ async function assertCanManageCalendarSubscriptions(session) {
   });
 }
 
+/**
+ * @param {unknown} subscriptionId
+ * @param {PrivateFeedManagementSession} session
+ * @returns {Promise<PrivateFeedTokenRow>}
+ */
 async function readManagedSubscription(subscriptionId, session) {
   const normalizedId = String(subscriptionId || "").trim();
   const token = normalizedId && await privateFeedTokensRepository.readById(
@@ -338,24 +433,38 @@ async function readManagedSubscription(subscriptionId, session) {
   return token;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeName(value) {
   const name = String(value || "").trim();
   if (!name || name.length > 120) throw new AppError("Enter a calendar subscription name up to 120 characters.", 400);
   return name;
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} message
+ * @returns {string}
+ */
 function normalizeRequiredId(value, message) {
   const id = String(value || "").trim();
   if (!id) throw new AppError(message, 400);
   return id;
 }
 
+/** @returns {string} */
 function createRawToken() {
   const selector = randomBytes(12).toString("base64url");
   const secret = randomBytes(32).toString("base64url");
   return `${RAW_TOKEN_PREFIX}_${selector}_${secret}`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {ParsedPrivateFeedToken}
+ */
 function parseRawToken(value) {
   const token = String(value || "");
   const match = /^ltf_feed_([A-Za-z0-9_-]{16})_([A-Za-z0-9_-]{43})$/.exec(token);
@@ -366,25 +475,43 @@ function parseRawToken(value) {
   };
 }
 
+/**
+ * @param {unknown} secret
+ * @returns {Buffer}
+ */
 function hashTokenSecret(secret) {
   return createHash("sha256").update(String(secret || "")).digest();
 }
 
+/**
+ * @param {unknown} value
+ * @returns {Buffer}
+ */
 function readStoredHash(value) {
-  const hash = /^[a-f0-9]{64}$/i.test(String(value || "")) ? Buffer.from(value, "hex") : DUMMY_TOKEN_HASH;
+  const serializedHash = String(value || "");
+  const hash = /^[a-f0-9]{64}$/i.test(serializedHash) ? Buffer.from(serializedHash, "hex") : DUMMY_TOKEN_HASH;
   return hash.length === DUMMY_TOKEN_HASH.length ? hash : DUMMY_TOKEN_HASH;
 }
 
+/**
+ * @param {string} rawToken
+ * @param {unknown} calendarName
+ * @param {string} requestOrigin
+ * @returns {string}
+ */
 function buildFeedUrl(rawToken, calendarName, requestOrigin) {
   const baseUrl = String(config.publicUrl || requestOrigin || "").replace(/\/+$/, "");
   if (!baseUrl) throw new AppError("The private calendar feed URL could not be resolved.", 500);
   return `${baseUrl}/feeds/calendar/${encodeURIComponent(rawToken)}/${encodeURI(calendarFeedFilename(calendarName))}.ics`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function calendarFeedFilename(value) {
   const fallback = "Longtail Forge Calendar";
-  const name = String(value || fallback)
-    .toWellFormed()
+  const name = toWellFormedText(value || fallback)
     .normalize("NFKC")
     .replace(/[\u0000-\u001f\u007f/\\?#%[\]]+/g, " - ")
     .replace(/\s+/g, " ")
@@ -392,6 +519,21 @@ function calendarFeedFilename(value) {
   return name || fallback;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function toWellFormedText(value) {
+  return Array.from(String(value), (character) => (
+    character.length === 1 && /[\ud800-\udfff]/.test(character) ? "\ufffd" : character
+  )).join("");
+}
+
+/**
+ * @param {PrivateFeedTokenRow} token
+ * @param {PrivateFeedManagementSession} session
+ * @returns {PrivateFeedPublicSubscription}
+ */
 function toPublicSubscription(token, session) {
   return {
     createdAt: token?.created_at || null,
@@ -409,11 +551,15 @@ function toPublicSubscription(token, session) {
       type: token?.scope_type || "workspace",
     },
     status: token?.status || "revoked",
-    subscriptionId: token?.private_feed_token_id || null,
+    subscriptionId: token.private_feed_token_id,
     timezone: normalizeTimezone(token?.timezone),
   };
 }
 
+/**
+ * @param {PrivateFeedTokenRow} token
+ * @returns {string}
+ */
 function scopeLabel(token) {
   if (token?.scope_type === "client") return token.scope_client_name || "Unavailable client";
   if (token?.scope_type === "project") {
@@ -423,6 +569,12 @@ function scopeLabel(token) {
   return "Workspace";
 }
 
+/**
+ * @param {PrivateFeedManagementSession} session
+ * @param {string} eventType
+ * @param {string} operation
+ * @param {string} scopeType
+ */
 async function recordLifecycleSecurityEvent(session, eventType, operation, scopeType) {
   await securityEventsService.record({
     eventType,
@@ -435,6 +587,23 @@ async function recordLifecycleSecurityEvent(session, eventType, operation, scope
     },
     session,
   });
+}
+
+/**
+ * @param {unknown} value
+ * @returns {PrivateFeedSubscriptionPayload}
+ */
+function readSubscriptionPayload(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+/**
+ * @param {string} value
+ * @returns {import("../types/private-feed-contracts.js").PrivateFeedScopeType}
+ */
+function readScopeType(value) {
+  if (value === "client" || value === "project") return value;
+  return "workspace";
 }
 
 export const privateFeedsService = {
