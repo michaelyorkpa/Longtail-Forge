@@ -71,18 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.41 - Password and application-startup checked core
-
-**Model: High Effort** — Password primitives and startup/shutdown orchestration are security- and availability-critical framework boundaries.
-
-- [ ] Check `src/security/passwords.js` against explicit hash, verification, rehash, policy, and unknown-error contracts without algorithm/parameter/dummy-hash/timing changes.
-- [ ] Check `src/core/app.js` against Express server, startup phase, worker lifecycle, database close, signal, timer, and unknown-error contracts.
-- [ ] Preserve middleware/router order, readiness timing, startup jobs, graceful shutdown, safe logging, and exit behavior; slice 26 remains the worker rejection authority.
-
-Acceptance criteria:
-
-- Password/app lifecycle core typechecks without suppression and credential/startup/readiness/shutdown behavior remains green.
-
 ## Version 0.33.32.42 - Markdown checked core boundary
 
 **Model: High Effort** — Shared Markdown rendering is a content-safety boundary consumed by Notes, Help, Files preview, and future Support Tickets.

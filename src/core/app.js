@@ -1,3 +1,5 @@
+// @ts-check
+
 import express from "express";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -61,6 +63,10 @@ import { requirePublicDemoCapability } from "./public-demo-enforcement.js";
 import { createPublicDemoPerimeterMiddlewares } from "./public-demo-perimeter.js";
 import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 
+/** @typedef {import("node:http").Server} HttpServer */
+/** @typedef {{ id: string, durationMs: number, errorType?: string, lifecycle: string, owner: string, status: string }} StartupPhaseEvent */
+
+/** @returns {ReturnType<typeof express>} */
 function createApp() {
   const app = express();
   registerFrameworkHelpSearchIndexers();
@@ -140,10 +146,11 @@ function createApp() {
   return app;
 }
 
+/** @returns {Promise<void>} */
 async function startServer() {
   try {
     logRuntimeConfigWarnings(config.environment === "production"
-      ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
+      ? () => operationalLogger.warn("runtime.configuration.unsafe_override", {})
       : console.warn);
     await assertPublicDemoRuntimeReady();
     await assertRuntimeDataPathsReady();
@@ -173,15 +180,16 @@ async function startServer() {
     registerGracefulShutdown(server);
   } catch (error) {
     if (config.environment === "production") {
-      operationalLogger.error("application.startup.failed", { errorType: error?.name || "Error" });
+      operationalLogger.error("application.startup.failed", { errorType: readUnknownErrorType(error) });
     } else {
       console.error("Longtail Forge could not be started.");
-      console.error(error.message || error);
+      console.error(readUnknownErrorMessage(error));
     }
     process.exitCode = 1;
   }
 }
 
+/** @returns {void} */
 function startConfiguredInlineWorker() {
   if (config.worker.mode === "separate") {
     console.log("[job-worker] mode=separate state=external");
@@ -200,10 +208,11 @@ function startConfiguredInlineWorker() {
     console.log(formatJobWorkerStatus(status));
   }).catch((error) => {
     console.warn("[job-worker] Inline worker failed to start.");
-    console.warn(error.message || error);
+    console.warn(readUnknownErrorMessage(error));
   });
 }
 
+/** @param {StartupPhaseEvent} event @returns {void} */
 function reportStartupPhase(event) {
   if (config.environment === "production") {
     operationalLogger.info("startup.phase", {
@@ -220,8 +229,10 @@ function reportStartupPhase(event) {
   console.log(formatStartupPhase(event));
 }
 
+/** @param {HttpServer} server @returns {void} */
 function registerGracefulShutdown(server) {
   let shuttingDown = false;
+  /** @param {NodeJS.Signals} signal */
   const shutdown = (signal) => {
     if (shuttingDown) {
       return;
@@ -238,7 +249,7 @@ function registerGracefulShutdown(server) {
       process.exitCode = 0;
     })().catch((error) => {
       console.error("[app-shutdown] Graceful shutdown failed.");
-      console.error(error.message || error);
+      console.error(readUnknownErrorMessage(error));
       process.exitCode = 1;
     });
   };
@@ -247,6 +258,7 @@ function registerGracefulShutdown(server) {
   process.once("SIGTERM", shutdown);
 }
 
+/** @returns {void} */
 function queueStartupJobRetentionPrune() {
   setTimeout(async () => {
     try {
@@ -255,11 +267,12 @@ function queueStartupJobRetentionPrune() {
       console.log(`[job-retention] prune=complete completed_deleted=${result.completed.deleted} dead_deleted=${result.dead.deleted}`);
     } catch (error) {
       console.warn("[job-retention] Job history pruning failed.");
-      console.warn(error.message || error);
+      console.warn(readUnknownErrorMessage(error));
     }
   }, 0);
 }
 
+/** @returns {void} */
 function queueStartupSearchIndexRebuildIfEmpty() {
   setTimeout(async () => {
     try {
@@ -272,12 +285,30 @@ function queueStartupSearchIndexRebuildIfEmpty() {
         return;
       }
 
-      console.log(`[search-index-startup] rebuild_queue=${result.queueAction} job_id=${result.jobId}`);
+      if ("queueAction" in result && "jobId" in result) {
+        console.log(`[search-index-startup] rebuild_queue=${result.queueAction} job_id=${result.jobId}`);
+      }
     } catch (error) {
       console.warn("[search-index-startup] Search index rebuild queue failed.");
-      console.warn(error.message || error);
+      console.warn(readUnknownErrorMessage(error));
     }
   }, 0);
+}
+
+/** @param {unknown} error @returns {unknown} */
+function readUnknownErrorMessage(error) {
+  if (error && typeof error === "object" && "message" in error && error.message) {
+    return error.message;
+  }
+  return error;
+}
+
+/** @param {unknown} error @returns {string} */
+function readUnknownErrorType(error) {
+  if (error && typeof error === "object" && "name" in error && error.name) {
+    return String(error.name);
+  }
+  return "Error";
 }
 
 export { createApp, startServer };

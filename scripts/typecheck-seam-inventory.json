@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 145,
+  "minimumOptedInFiles": 147,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -11,6 +11,7 @@
     "public/js/shared/records.js",
     "public/js/shared/view-response-records.js",
     "public/js/shared/view-surface-descriptor.js",
+    "src/core/app.js",
     "src/core/asset-version.js",
     "src/core/bounded-pagination.js",
     "src/core/corresponding-source.js",
@@ -118,6 +119,7 @@
     "src/routes/support-view.routes.js",
     "src/routes/tags.routes.js",
     "src/routes/workbench.routes.js",
+    "src/security/passwords.js",
     "src/security/sessions.js",
     "src/services/api-keys.service.js",
     "src/services/app-shell.service.js",
