@@ -576,6 +576,7 @@ for (const filePath of SEARCH_INDEXER_FILES) {
   );
 }
 const searchRouteSource = readFileSync("src/routes/search.routes.js", "utf8");
+const searchServiceSource = readFileSync("src/services/search.service.js", "utf8");
 assert.match(searchRouteSource, /^\/\/ @ts-check\r?\n/, "Search route must remain opted in to the checked permission-safe query seam");
 for (const contractName of [
   "BrowserSearchResult",
@@ -597,9 +598,45 @@ assert.match(
 );
 assert.match(
   searchRouteSource,
+  /isPlainObject[\s\S]*Express[\s\S]*extended query parser/,
+  "Search query-shape guards must document their application-owned extended-parser provenance",
+);
+assert.match(
+  searchRouteSource,
   /canReadSearchResult\(session, rawResult, target\)[\s\S]*skippedVisible < requestedOffset[\s\S]*toBrowserSearchResult/,
   "Search route must prune permissions before visible offset accounting and browser shaping",
 );
+assert.match(
+  searchServiceSource,
+  /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.RequestSession\} RequestSession/,
+  "Search service must consume the shared request-session contract",
+);
+assert.match(
+  searchServiceSource,
+  /@typedef \{RequestSession & \{ workspace_id: string \}\} WorkspaceRequestSession/,
+  "Search service must make its active-workspace refinement explicit",
+);
+assert.doesNotMatch(
+  searchServiceSource,
+  /session\??:\s*any|searchableType:\s*any/,
+  "Search permission-safe composers must not terminate session or declaration checking at any",
+);
+assert.match(
+  searchServiceSource,
+  /@returns \{NormalizedSearchRecordReference\}[\s\S]*function normalizeSearchRecordReference/,
+  "the Search record-reference producer must expose its explicit normalized contract",
+);
+const normalizedSearchReferenceDeclaration = searchServiceSource.match(
+  /@typedef \{Object\} NormalizedSearchRecordReference([\s\S]*?)\*\//,
+);
+assert.ok(normalizedSearchReferenceDeclaration, "Search service must declare its normalized record-reference result");
+for (const fieldName of ["searchIndexId", "workspaceId", "moduleId", "recordType", "recordId"]) {
+  assert.match(
+    normalizedSearchReferenceDeclaration[1],
+    new RegExp(`@property \\{string\\} ${fieldName}(?:\\r?\\n|$)`),
+    `NormalizedSearchRecordReference.${fieldName} must remain a required canonical camelCase field`,
+  );
+}
 const resumeStateReadChecksSource = readFileSync("src/services/work-resume-state-read-checks.js", "utf8");
 assert.match(
   resumeStateReadChecksSource,

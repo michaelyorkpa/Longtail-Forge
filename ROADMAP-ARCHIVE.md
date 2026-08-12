@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.31 - Search parser provenance and session deepening
+
+Completed on 2026-08-11. Search query parsing now names and enforces its application-owned Express provenance, permission-safe composition carries the shared session shape through the service boundary, and the active roadmap advances to `0.33.32.32` for cross-shell backup-drill archive operands.
+
+**Model: High Effort** - Search query and session shapes participate in authorization; their assumptions must be explicit at the Express edge and service boundary.
+
+- [x] Documented at the Search route's `isPlainObject` guard that repeated arrays and bracketed nested objects come from `createApp()`'s Express `extended` parser, and pinned that exact setting inside the live Search API regression.
+- [x] Replaced the permission-safe composers' session and searchable-declaration `any` boundaries with the shared nullable request session, an active-workspace refinement, and the validated Search contribution contract; named filter-presence flags replaced the open `any` catch-all.
+- [x] Gave `normalizeSearchRecordReference` an explicit required camelCase result contract while retaining the established snake_case adapter/result aliases.
+- [x] Added checked guardrails plus runtime producer proof for canonical identity and compatibility aliases; the first-party indexer callback remains camelCase-only.
+- [x] Retained scalar, repeated, nested, bounded-cursor, ranking, active-module, workspace, and permission-pruning behavior through the existing live Search route and contract regressions.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`, `docs/runtime-configuration.md`. No docs change needed: user-facing Help, HTTP error envelopes, operational security procedures, public API behavior, database schema/migrations, deployment, and module-owned Search behavior are unchanged.
+
+Acceptance criteria:
+
+- Parser mode and Search query guards form one enforced contract and Search session typing reaches the service boundary without `any`.
+
 ## Version 0.33.32.30 - Shared browser API failure fallback
 
 Completed on 2026-08-11. The shared API client now fails visibly when its canonical error parser is unavailable, normal envelopes retain safe diagnostic identity, and the active roadmap advances to `0.33.32.31` for Search parser provenance and session deepening.
