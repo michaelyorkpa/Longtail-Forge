@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.4 - Register the permission harness and retire text proxies
+
+**Model: High Effort** - The strongest authorization proof entered discovery without duplicating its expensive run or changing isolation.
+
+- [x] Gave `scripts/permission-regression.mjs` canonical metadata, discovery membership, an owned area/tier/run mode, and floor protection.
+- [x] Ensured `verify:slice`, full runs, and permission-owned routing execute its 409 HTTP checks exactly once.
+- [x] Retired the three static regressions that inspected the harness as text after their live expectations moved to behavioral owners.
+- [x] Retired every remaining source-text proxy over other executable tests, including Playwright configuration/spec readers and the Vitest suite-source reader, once each proxied expectation had a running behavioral owner.
+- [x] Preserved temporary database isolation, eight-role coverage, fail-fast reporting, and the independently runnable `npm run test:permissions` command.
+
 ## Version 0.33.33.3 - Reform coverage floors around behavior and assertion ownership
 
 **Model: High Effort** - The ratchet is a release authority; changing its unit can silently weaken coverage if implemented incorrectly.
