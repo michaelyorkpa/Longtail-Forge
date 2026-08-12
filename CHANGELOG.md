@@ -1,3 +1,13 @@
+## Version 0.33.32.33 - 2026-08-11
+
+- Checked the complete Support View service against named operator, target, support-session, workspace, event/audit, session-rotation, and permission contracts.
+- Replaced the permissive request-session refinement with a normal-or-Support-View union, letting the central gate narrow actor/effective identity through `support_view` without an assertion cast.
+- Added explicit nullable repository projections and callback-scoped transaction contracts while preserving enumeration-resistant target eligibility and actor restoration.
+- Retained entry, exit, logout, expiry, revocation, generic denial, action attribution, audit/export, proxy, and public-demo behavior; both focused Support View regressions and all 409 permission checks pass.
+- Raised the checked inventory floor from 104 to 105 files.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, permission grants, Support View UI/workflow, operational security procedures, public-demo policy, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.32 - 2026-08-11
 
 - Reproduced Git Bash/GNU tar treating the backup drill's absolute Windows drive-letter archive as a remote-shell operand, followed by its absolute staging-directory failure.

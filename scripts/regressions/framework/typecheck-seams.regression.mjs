@@ -753,6 +753,43 @@ for (const typeName of HTTP_CONTRACT_TYPE_EXPORTS) {
     `http-contracts.d.ts must export ${typeName}`,
   );
 }
+const supportViewServiceSource = readFileSync("src/services/support-view.service.js", "utf8");
+const supportViewGateSource = readFileSync("src/middleware/support-view-request-gate.js", "utf8");
+assert.match(
+  httpContractSource,
+  /export type RequestSession = NormalRequestSession \| SupportViewRequestSession;/,
+  "request sessions must be a real normal-or-Support-View union",
+);
+assert.match(
+  httpContractSource,
+  /export interface NormalRequestSession[\s\S]*?support_view\?: undefined;/,
+  "normal sessions must discriminate Support View identity by an absent support_view field",
+);
+assert.match(
+  httpContractSource,
+  /export interface SupportViewRequestSession[\s\S]*?support_view: SupportViewSession;/,
+  "Support View sessions must require their actor/effective projection",
+);
+assert.match(
+  supportViewServiceSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the Support View service must remain in the checked seam inventory",
+);
+assert.doesNotMatch(
+  supportViewServiceSource,
+  /@ts-(?:ignore|nocheck)|\bany\b/,
+  "the Support View service must not terminate checking through suppressions or any",
+);
+assert.doesNotMatch(
+  supportViewGateSource,
+  /@type \{SupportViewRequestSession\}/,
+  "the central gate must narrow the request-session union without an assertion cast",
+);
+assert.match(
+  supportViewGateSource,
+  /const session = request\.session;[\s\S]*if \(!session\?\.support_view\)/,
+  "the central gate must narrow Support View identity through its discriminant",
+);
 const permissionResourceDeclaration = httpContractSource.match(/export interface PermissionResource \{([\s\S]*?)\n\}/);
 assert.ok(permissionResourceDeclaration, "http-contracts.d.ts must declare PermissionResource");
 assert.match(

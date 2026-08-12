@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.33 - Support View checked service boundary
+
+Completed on 2026-08-11. Support View's service, repository projections, and request-session identity are checked as one actor/effective-identity boundary, and the active roadmap advances to `0.33.32.34` for the Users service checked boundary.
+
+**Model: High Effort** - Support View changes effective identity and intersects permissions, making its untyped service the highest-risk uncovered mid-tier seam.
+
+- [x] Checked `src/services/support-view.service.js` against explicit operator, target-user, support-session, workspace, event/audit, session-rotation, and effective-permission contracts.
+- [x] Replaced the permissive refinement interface with a normal-or-Support-View request-session union; the central request gate now narrows through `support_view` and no longer assertion-casts effective identity.
+- [x] Added named nullable eligibility/session/audit row projections and callback-scoped transaction contracts, with explicit control-flow narrowing before actor restoration or target use.
+- [x] Retained start/end/expiry, invalidation, generic 403/404 denial, action/security attribution, audit/export, proxy, and public-demo behavior through both focused Support View regressions and all 409 permission checks.
+- [x] Raised the checked inventory floor from 104 to 105 files and ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, permission grants, Support View UI/workflow, operational security procedures, public-demo policy, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Support View identity lifecycle is checked end to end and every authorization, privacy, expiry, and audit invariant remains green.
+
 ## Version 0.33.32.32 - Cross-shell backup-drill archive operands
 
 Completed on 2026-08-11. The destructive restore drill now shares the production local-archive command boundary, its internal staging directory is also shell-portable, and the active roadmap advances to `0.33.32.33` for the Support View checked service boundary.

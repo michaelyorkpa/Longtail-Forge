@@ -7,8 +7,6 @@ import { supportViewService } from "../services/support-view.service.js";
 /** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
 /** @typedef {import("../types/http-contracts.js").SupportViewGateOutcome} SupportViewGateOutcome */
 /** @typedef {import("../types/http-contracts.js").SupportViewGateReasonClass} SupportViewGateReasonClass */
-/** @typedef {import("../types/http-contracts.js").SupportViewRequestSession} SupportViewRequestSession */
-
 /** @typedef {{ id: string, path: string, pattern: RegExp }} SupportViewRouteDefinition */
 
 const SUPPORT_VIEW_SENSITIVE_READ_ROUTES = Object.freeze([
@@ -129,7 +127,10 @@ async function supportViewRequestGate(request, response, next) {
 
 /** @param {HttpIdentityRequest} request */
 async function enforceSupportViewRequest(request, response) {
-  const session = /** @type {SupportViewRequestSession} */ (request.session);
+  const session = request.session;
+  if (!session?.support_view) {
+    return true;
+  }
   const method = String(request.method || "").toUpperCase();
   const pathname = requestPath(request);
   let matched = findRoute(SUPPORT_VIEW_SENSITIVE_READ_ROUTES, pathname)

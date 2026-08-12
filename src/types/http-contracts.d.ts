@@ -20,24 +20,28 @@ export interface SupportViewSession {
   expiresAt: string;
 }
 
-export interface RequestSession extends AuthenticatedIdentity {
+export interface RequestSessionBase extends AuthenticatedIdentity {
   active_workspace_id: string | null;
   home_workspace_id: string | null;
   timezone: string;
   ip_address: string;
   password_change_required: boolean;
   session_mode: SessionMode;
-  actor_user_id?: string;
-  actor_username?: string;
-  effective_user_id?: string;
-  effective_username?: string;
-  effective_workspace_id?: string;
-  support_view?: SupportViewSession;
 }
 
-export interface SupportViewRequestSession extends RequestSession {
+export interface NormalRequestSession extends RequestSessionBase {
+  actor_user_id?: undefined;
+  actor_username?: undefined;
+  effective_user_id?: undefined;
+  effective_username?: undefined;
+  effective_workspace_id?: undefined;
+  support_view?: undefined;
+}
+
+export interface SupportViewRequestSession extends RequestSessionBase {
   workspace_id: string;
   active_workspace_id: string;
+  session_mode: "normal";
   user_id: string;
   actor_user_id: string;
   actor_username: string;
@@ -46,6 +50,8 @@ export interface SupportViewRequestSession extends RequestSession {
   effective_workspace_id: string;
   support_view: SupportViewSession;
 }
+
+export type RequestSession = NormalRequestSession | SupportViewRequestSession;
 
 export interface ApiSession extends AuthenticatedIdentity {
   workspace_id: string;
