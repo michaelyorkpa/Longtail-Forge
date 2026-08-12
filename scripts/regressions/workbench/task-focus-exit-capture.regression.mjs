@@ -16,7 +16,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const navigationSource = await fs.readFile(path.join(root, "public/js/navigation.js"), "utf8");
 const workbenchSource = await fs.readFile(path.join(root, "public/js/workbench.js"), "utf8");
-const renderedSpec = await fs.readFile(path.join(root, "tests/e2e/task-focus-exit-capture.spec.mjs"), "utf8");
 
 assert.match(navigationSource, /createNavigationIntentController\(\)[\s\S]*navigationIntent =/, "the app shell should own one navigation-intent controller");
 assert.match(navigationSource, /document\.addEventListener\("click"[\s\S]*a\[href\][\s\S]*request\(intent\)/, "same-origin app-shell and notification links should converge on the intent controller");
@@ -41,11 +40,6 @@ assert.match(workbenchSource, /function recoverPendingTaskFocusDrift[\s\S]*clear
 assert.doesNotMatch(extractFunctionSource(workbenchSource, "recoverPendingTaskFocusDrift"), /activeOrPausedTimers|taskTimerMatches/, "hard-exit recovery must not require a timer");
 assert.match(workbenchSource, /function consumeTaskFocusResumeNote[\s\S]*taskResumeNoteCapture\?\.consume/, "successful Task Focus entry should consume the prior resume note");
 assert.match(workbenchSource, /text: `Resume note: \$\{resumeNote\}`/, "Start here should label a candidate handoff with the exact Resume note prefix");
-
-assert.match(renderedSpec, /Change Focus[\s\S]*Add resume note\?[\s\S]*Continue with the captured context/, "rendered coverage should exercise Change Focus and a Yes write");
-assert.match(renderedSpec, /dashboard\.html[\s\S]*Add resume note\?[\s\S]*No/, "rendered coverage should exercise a real app-shell link and No continuation");
-assert.match(renderedSpec, /became Blocked[\s\S]*not\.toBeVisible[\s\S]*focus-selection/, "rendered coverage should prove a task blocked during handoff exits without a resume-note prompt");
-assert.match(renderedSpec, /testInfo\.project\.name/, "the rendered contract should run in the configured desktop and mobile projects");
 
 await assertControllerDeduplication();
 await assertHistoryTraversalInterception();

@@ -119,8 +119,6 @@ jobs:
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
-      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: npm audit --audit-level=high
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "packaging" -- npm run artifact:build -- --source-branch nightly

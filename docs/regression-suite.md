@@ -277,20 +277,20 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 461 |
+| Active discovered regressions | 459 |
 | Legacy-snapshot regressions | 308 |
-| Convention-path metadata regressions | 153 |
-| Credited retirements | 7 |
+| Convention-path metadata regressions | 151 |
+| Credited retirements | 10 |
 | Active release-gate regressions | 75 |
-| Required active release-gate IDs | 45 |
-| Active regression ceiling | 461 |
+| Required active release-gate IDs | 46 |
+| Active regression ceiling | 459 |
 | Legacy regression ceiling | 308 |
-| Active regression assertions | 18055 |
+| Active regression assertions | 18316 |
 | Vitest owner assertions | 40 |
-| Direct owner assertions | 18 |
-| Credited reviewed assertion reductions | 65 |
-| Effective assertion floor | 18178 |
-| Release-gate ratchet floor | 79 |
+| Direct owner assertions | 72 |
+| Credited reviewed assertion reductions | 133 |
+| Effective assertion floor | 18561 |
+| Release-gate ratchet floor | 80 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
@@ -307,7 +307,7 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | `tags` | 12 | 0 | 12 |
 | `time-tracking` | 13 | 0 | 13 |
 | `database` | 47 | 0 | 47 |
-| `permissions` | 13 | 0 | 13 |
+| `permissions` | 11 | 3 | 14 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
 | `release` | 34 | 6 | 40 |
@@ -317,18 +317,18 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 209 |
+| `focused` | 207 |
 | `integration` | 169 |
 | `release-gate` | 75 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 235 |
+| `static` | 232 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
-| `isolated-database` | 192 |
+| `isolated-database` | 193 |
 
 | Coverage family | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |

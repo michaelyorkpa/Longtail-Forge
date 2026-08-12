@@ -24,7 +24,6 @@ const [
   privateFeedRepository,
   staticService,
   appShellService,
-  renderedSpec,
   settingsHelp,
   calendarSettingsView,
   userSettingsView,
@@ -43,7 +42,6 @@ const [
   readText("src/repositories/private-feed-tokens.repo.js"),
   readText("src/services/static.service.js"),
   readText("src/services/app-shell.service.js"),
-  readText("tests/e2e/calendar-subscription-settings.spec.mjs"),
   readText("help/framework/settings-and-user-preferences.md"),
   readText("views/protected/calendar-settings.html"),
   readText("views/protected/user-settings.html"),
@@ -129,14 +127,6 @@ assert.match(frameworkCss, /\.calendar-subscription-table-wrap\s*\{[^}]*max-widt
 assert.match(frameworkCss, /\.calendar-subscription-row-actions\s*\{[^}]*flex-wrap: wrap/, "row actions should wrap on narrow screens");
 assert.match(frameworkCss, /\[data-calendar-subscription-url\]\s*\{[^}]*min-width: 0;[^}]*width: 100%;/, "long subscription URLs should stay bounded");
 assert.match(frameworkCss, /\.calendar-subscription-secret-warning\s*\{[^}]*color: var\(--color-danger\);[^}]*font-weight: 700;/, "the one-time-link warning should be prominent and theme-safe");
-
-assert.match(renderedSpec, /Calendar subscriptions support Workspace, Client, and Project lifecycle/, "Playwright should render the complete administrator lifecycle");
-assert.match(renderedSpec, /Personal and Family Calendar Settings offer Workspace and Project without Client[^]*Readable Project[^]*clientProjectOptionRequests[^]*toBe\(2\)/, "Playwright should prove non-Business workspaces expose Project but never Client scope");
-assert.match(renderedSpec, /toHaveAttribute\("type", "password"\)[^]*toHaveAttribute\("type", "text"\)/, "rendered proof should cover reveal masking");
-assert.match(renderedSpec, /Longtail Forge will not show this link again[^]*toHaveCSS\("color", "rgb\(143, 47, 45\)"\)/, "rendered proof should cover the standalone red one-time warning");
-assert.match(renderedSpec, /another owner[^]*Rotate[^]*toHaveCount\(0\)/i, "rendered proof should preserve another owner's secret boundary");
-assert.match(renderedSpec, /Old calendar[^]*Delete[^]*Delete calendar subscription\?[^]*toHaveCount\(0\)/, "rendered proof should delete an existing revoked row");
-assert.match(renderedSpec, /scrollWidth[^]*innerWidth/, "rendered proof should check page overflow");
 
 assert.match(settingsHelp, /## Calendar subscription/i, "Help should document the shipped subscription workflow");
 assert.match(settingsHelp, /Settings[^]*Admin[^]*Modules[^]*Calendar/i, "Help should direct administrators to the dedicated destination");

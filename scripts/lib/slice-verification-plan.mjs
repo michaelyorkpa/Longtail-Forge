@@ -5,7 +5,7 @@ const CLOSEOUT_COMMAND = "npm run closeout";
 const FAST_CHECK_COMMAND = "npm run check:fast";
 const FULL_CHECK_COMMAND = "npm run check";
 const FULL_REGRESSION_COMMAND = "npm run test:regressions";
-const PERMISSION_HARNESS_COMMAND = "npm run test:permissions";
+const PERMISSION_REGRESSION_COMMAND = "npm run test:regressions:permissions";
 
 function createSliceVerificationPlan(changedRegressionPlan) {
   if (!changedRegressionPlan || !Array.isArray(changedRegressionPlan.commands)) {
@@ -13,17 +13,18 @@ function createSliceVerificationPlan(changedRegressionPlan) {
   }
 
   const fullCheckIncluded = changedRegressionPlan.mode === "full-check";
-  const permissionHarnessIncluded = changedRegressionPlan.areas.includes("permissions");
   const regressionCommands = fullCheckIncluded
     ? [FULL_REGRESSION_COMMAND]
     : changedRegressionPlan.commands;
+  const permissionHarnessIncluded = regressionCommands.some((command) => (
+    command === FULL_REGRESSION_COMMAND || command === PERMISSION_REGRESSION_COMMAND
+  ));
   const stages = Object.freeze([
     stage("context", "Context/setup", null, true, "changed paths and routing plan collected"),
     stage("closeout", "Closeout gates", CLOSEOUT_COMMAND, true),
     stage("fast-checks", "Typecheck/unit/lint", FAST_CHECK_COMMAND, fullCheckIncluded, "not required by focused routing"),
     ...regressionCommands.map((command, index) => stage(`regressions-${index + 1}`, "Regression buckets", command, true)),
     ...(regressionCommands.length === 0 ? [stage("regressions", "Regression buckets", null, false, "no changed files selected")] : []),
-    stage("permissions", "Permission checks", PERMISSION_HARNESS_COMMAND, permissionHarnessIncluded, "no permission-sensitive path selected"),
     stage("browser", "Browser checks", null, false, "separate rendered gate"),
     stage("packaging", "Packaging", null, false, "not part of ordinary slice verification"),
   ]);
@@ -91,7 +92,7 @@ function formatSliceVerificationSummary(plan, result) {
     lines.push(`- [${item.outcome.toUpperCase()}] ${item.label}: ${item.seconds.toFixed(2)}s${item.reason && item.outcome === "skipped" ? ` (${item.reason})` : ""}`);
   }
   lines.push(`Full-check escalation included: ${plan.fullCheckIncluded ? "yes" : "no"}`);
-  lines.push(`Permission harness included: ${plan.permissionHarnessIncluded ? "yes" : "no"}`);
+  lines.push(`Permission harness discovered through regression buckets: ${plan.permissionHarnessIncluded ? "yes" : "no"}`);
   lines.push(`Status: ${result.status === 0 ? "passed" : "failed"}`);
   if (result.status === 0) {
     lines.push("This result is valid only for the unchanged working-tree state inspected by this run.");
@@ -111,7 +112,7 @@ export {
   FAST_CHECK_COMMAND,
   FULL_CHECK_COMMAND,
   FULL_REGRESSION_COMMAND,
-  PERMISSION_HARNESS_COMMAND,
+  PERMISSION_REGRESSION_COMMAND,
   createSliceVerificationPlan,
   executeSliceVerificationPlan,
   formatSliceVerificationPlan,

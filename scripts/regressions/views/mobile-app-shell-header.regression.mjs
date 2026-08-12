@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const navigationSource = await fs.readFile(path.join(root, "public/js/navigation.js"), "utf8");
 const frameworkCss = await fs.readFile(path.join(root, "public/css/longtail-forge.css"), "utf8");
-const mobileNavSpec = await fs.readFile(path.join(root, "tests/e2e/mobile-nav.spec.mjs"), "utf8");
 
 const buildSiteHeaderSource = extractFunction(navigationSource, "buildSiteHeader");
 const renderNavigationSource = extractFunction(navigationSource, "renderNavigation");
@@ -47,14 +46,6 @@ assert.match(navigationSource, /navDrawerOverlay\?\.addEventListener\("click"/, 
 assert.match(navigationSource, /event\.key !== "Escape" \|\| !navDrawerIsOpen\(\)/, "Escape close behavior must remain wired");
 assert.match(navigationSource, /document\.addEventListener\("focusin"/, "drawer focus containment must remain wired");
 assert.match(navigationSource, /document\.body\.classList\.toggle\("nav-drawer-open", isOpen\)/, "drawer scroll-lock state must remain wired");
-assert.match(
-  mobileNavSpec,
-  /expect\(menu\.locator\("\[data-global-search-shell\], \[data-notification-bell\]"\)\)\.toHaveCount\(0\)/,
-  "the rendered mobile regression must prove Search and Notifications are absent from the drawer",
-);
-assert.match(mobileNavSpec, /expect\(searchInput\)\.toBeFocused\(\)/, "the rendered mobile regression must prove Search focus behavior");
-assert.match(mobileNavSpec, /expect\(notificationPanel\)\.toBeVisible\(\)/, "the rendered mobile regression must prove notification-panel behavior");
-
 console.log("Mobile app-shell header regression passed.");
 
 function extractFunction(source, name) {

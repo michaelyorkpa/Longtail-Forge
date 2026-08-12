@@ -36,16 +36,16 @@ describe("slice verification planning", () => {
     expect(plan.fullCheckIncluded).toBe(true);
   });
 
-  it("fully escalates permission changes and adds the separate permission harness exactly once", () => {
+  it("fully escalates permission changes and discovers the permission harness exactly once", () => {
     const plan = planFor(["src/services/permissions.service.js"]);
 
     expect(plan.commands).toEqual([
       "npm run closeout",
       "npm run check:fast",
       "npm run test:regressions",
-      "npm run test:permissions",
     ]);
-    expect(plan.commands.filter((command) => command === "npm run test:permissions")).toHaveLength(1);
+    expect(plan.permissionHarnessIncluded).toBe(true);
+    expect(plan.commands).not.toContain("npm run test:permissions");
   });
 
   it("combines full-check escalation and permissions without duplicates or area commands", () => {
@@ -55,7 +55,6 @@ describe("slice verification planning", () => {
       "npm run closeout",
       "npm run check:fast",
       "npm run test:regressions",
-      "npm run test:permissions",
     ]);
     expect(new Set(plan.commands).size).toBe(plan.commands.length);
     expect(plan.commands.some((command) => command.startsWith("npm run test:regressions:"))).toBe(false);
@@ -94,7 +93,7 @@ describe("slice verification planning", () => {
     expect(summary).toMatch(/\[PASSED\] Typecheck\/unit\/lint/);
     expect(summary).toMatch(/\[PASSED\] Regression buckets/);
     expect(summary).toMatch(/Full-check escalation included: yes/);
-    expect(summary).toMatch(/Permission harness included: yes/);
+    expect(summary).toMatch(/Permission harness discovered through regression buckets: yes/);
     expect(summary).toMatch(/Do not run an equivalent local verification command again unless files change/);
   });
 });

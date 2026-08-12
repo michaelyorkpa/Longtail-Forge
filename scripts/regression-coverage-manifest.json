@@ -3,7 +3,7 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 461,
+    "discoveredScripts": 459,
     "legacyScripts": 308,
     "releaseGateScripts": 75,
     "areaCounts": {
@@ -17,7 +17,7 @@
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 13,
+      "permissions": 11,
       "public-api": 3,
       "release": 34,
       "search": 12,
@@ -28,16 +28,16 @@
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 209,
+      "focused": 207,
       "integration": 169,
       "release-gate": 75,
       "slow": 8
     },
     "runModeCounts": {
-      "isolated-database": 192,
+      "isolated-database": 193,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 235
+      "static": 232
     }
   },
   "coverageFamilies": [
@@ -85,16 +85,20 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18055,
-    "creditedAssertionReduction": 65,
-    "directOwnerAssertionCount": 18,
+    "activeAssertionCount": 18316,
+    "creditedAssertionReduction": 133,
+    "directOwnerAssertionCount": 72,
     "directOwners": [
       {
         "path": "scripts/version-literal-guardrail-regression.mjs",
         "assertionCount": 18
+      },
+      {
+        "path": "tests/e2e/settings-admin-navigation.spec.mjs",
+        "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18178,
+    "effectiveAssertionCount": 18561,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -2582,6 +2586,24 @@
     },
     {
       "area": "permissions",
+      "assertionCount": 352,
+      "description": "Executes the complete eight-role HTTP authorization matrix against one isolated application server and disposable database.",
+      "id": "permissions.http-authorization-matrix",
+      "legacy": false,
+      "path": "scripts/permission-regression.mjs",
+      "releaseGate": true,
+      "runMode": "isolated-database",
+      "tags": [
+        "authorization",
+        "http",
+        "permissions",
+        "roles",
+        "security"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "permissions",
       "assertionCount": 74,
       "description": "Protects the legacy personal family workspace scope contract.",
       "id": "legacy.personal.family.workspace.scope",
@@ -3292,7 +3314,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 79,
+      "assertionCount": 72,
       "description": "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
       "id": "framework.calendar-subscription-settings",
       "legacy": false,
@@ -3940,7 +3962,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 88,
+      "assertionCount": 83,
       "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
       "id": "framework.support-view-request-enforcement",
       "legacy": false,
@@ -4255,25 +4277,6 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 36,
-      "description": "Pins the dedicated exact-account Role Assignments browser surface without reopening full User Administration.",
-      "id": "permissions.delegated-role-assignment-browser",
-      "legacy": false,
-      "path": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "accessibility",
-        "app-shell",
-        "browser",
-        "modules",
-        "permissions",
-        "users"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "permissions",
       "assertionCount": 24,
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
       "id": "permissions.permission-resource-catalog",
@@ -4339,41 +4342,6 @@
         "demo",
         "permissions",
         "seed"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "permissions",
-      "assertionCount": 22,
-      "description": "Pins any-scope Client/Project Settings navigation and server-shaped scoped project affordances.",
-      "id": "permissions.scope-aware-admin-navigation",
-      "legacy": false,
-      "path": "scripts/regressions/permissions/scope-aware-admin-navigation.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "app-shell",
-        "clients",
-        "navigation",
-        "permissions",
-        "projects"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "permissions",
-      "assertionCount": 10,
-      "description": "Proves any-scope workspace permission hints drive declarative action visibility without replacing record capabilities or server authorization.",
-      "id": "permissions.view-surface-permission-wiring",
-      "legacy": false,
-      "path": "scripts/regressions/permissions/view-surface-permission-wiring.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "browser",
-        "permissions",
-        "scope",
-        "views"
       ],
       "tier": "release-gate"
     },
@@ -4463,7 +4431,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 49,
+      "assertionCount": 56,
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
       "id": "release.developer-verification-throughput",
       "legacy": false,
@@ -4531,7 +4499,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 55,
+      "assertionCount": 60,
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
       "id": "release.github-release-operations",
       "legacy": false,
@@ -4653,7 +4621,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 52,
+      "assertionCount": 37,
       "description": "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
@@ -4875,7 +4843,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 35,
+      "assertionCount": 36,
       "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
       "id": "release.validation-single-ownership",
       "legacy": false,
@@ -5287,7 +5255,7 @@
     },
     {
       "area": "views",
-      "assertionCount": 16,
+      "assertionCount": 13,
       "description": "Pins the mobile app-shell header boundary: Search and Notifications stay outside the primary-menu drawer, the phone wordmark is hidden, and the established drawer lifecycle remains intact.",
       "id": "views.mobile-app-shell-header",
       "legacy": false,
@@ -5391,7 +5359,7 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 35,
+      "assertionCount": 31,
       "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
@@ -5439,7 +5407,7 @@
     },
     {
       "area": "framework",
-      "assertionCount": 75,
+      "assertionCount": 73,
       "description": "Protects the legacy runtime configuration contract contract.",
       "id": "legacy.runtime.configuration.contract",
       "legacy": true,
@@ -7428,6 +7396,119 @@
         "closeout",
         "roadmap",
         "todo"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static browser-source inventory duplicated the live delegated-role authorization matrix and could pass while the Role Assignments page failed to render or operate.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes dedicated-page access, full User Admin separation, calm exact-account lookup, delegated scope disclosure, stale-revision denial, and hidden-assignment protection across the reviewed roles; the Settings Playwright owner renders the dedicated exact-account surface and exclusion of full User Admin controls.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "npm exec playwright test tests/e2e/settings-admin-navigation.spec.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 36,
+        "creditedAssertionReduction": 36,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "tests/e2e/settings-admin-navigation.spec.mjs"
+        ]
+      },
+      "id": "permissions.delegated-role-assignment-browser",
+      "area": "permissions",
+      "tier": "focused",
+      "tags": [
+        "accessibility",
+        "app-shell",
+        "browser",
+        "modules",
+        "permissions",
+        "users"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/scope-aware-admin-navigation.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static owner duplicated live Client and Project administrator navigation and scope checks by asserting that named permission-harness strings still existed.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes the Client Administrator, Project Administrator, unscoped, and Workspace Administrator navigation/data outcomes; the child-create and action-registration owners retain server-shaped project and client affordances.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix",
+        "permissions.client-child-create-scope",
+        "legacy.clients.projects.action.registration"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "node scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+        "node scripts/clients-projects-action-registration-regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+          "scripts/clients-projects-action-registration-regression.mjs"
+        ]
+      },
+      "id": "permissions.scope-aware-admin-navigation",
+      "area": "permissions",
+      "tier": "focused",
+      "tags": [
+        "app-shell",
+        "clients",
+        "navigation",
+        "permissions",
+        "projects"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/view-surface-permission-wiring.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static owner duplicated live scoped authorization checks by reading the permission harness as text and repeated declarative renderer and child-client contracts already owned by executable regressions.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes scoped grant, session bootstrap, top-level denial, and eight-role HTTP behavior; legacy.view.renderer.actions and permissions.client-child-create-scope retain declarative action filtering and record-capability integration without inspecting another test program.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix",
+        "legacy.view.renderer.actions",
+        "permissions.client-child-create-scope"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "node scripts/view-renderer-actions-regression.mjs",
+        "node scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 10,
+        "creditedAssertionReduction": 10,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "scripts/view-renderer-actions-regression.mjs",
+          "scripts/regressions/permissions/client-child-create-scope.regression.mjs"
+        ]
+      },
+      "id": "permissions.view-surface-permission-wiring",
+      "area": "permissions",
+      "tier": "release-gate",
+      "tags": [
+        "browser",
+        "permissions",
+        "scope",
+        "views"
       ],
       "legacy": false
     },
