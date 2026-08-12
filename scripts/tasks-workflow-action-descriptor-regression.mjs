@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksRoutes = readText("src/modules/tasks/tasks.routes.js");
@@ -81,14 +84,6 @@ assert.match(tasksRoutes, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*tas
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the workflow descriptor cache key");
 
 console.log("Tasks workflow action descriptor regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function constBlock(source, constName) {
   const start = source.indexOf(`const ${constName}`);

@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
-const root = process.cwd();
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
@@ -13,7 +12,6 @@ const moduleContractDocs = readText("docs/module-contract.md");
 const moduleDevelopmentDocs = readText("docs/module-development.md");
 const viewContractDocs = readText("docs/view-building-contract.md");
 const declarativeViewDocs = readText("docs/declarative-view-surfaces.md");
-
 
 assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*fails only when runtime source introduces an unreviewed legacy helper call or template-interpolated database operation[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should publish the baseline-driven parameter-binding ratchet");
 assert.match(auditDocs, /## Dialect Adoption Guardrail[\s\S]*Current totals as of 0\.33\.5\.28\.2:[\s\S]*Remaining raw seam-backed dialect sites at application call sites: 0/, "audit docs should publish the final dialect ratchet");
@@ -33,9 +31,4 @@ assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.27 - Database extraction con
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.33 - Docs, decisions, 0\.40\.0 reconciliation, and closeout/, "live roadmap should not keep the completed closeout slice body");
 assert.match(roadmap, /Database extraction layer - PostgreSQL adapter and dual-backend support[\s\S]*completed 0\.33\.5\.27 agnostic-by-contract conversion\/seam branch[\s\S]*interpolation and raw-dialect ratchets enforced at zero[\s\S]*not an app-wide SQL rewrite[\s\S]*consume the closed 0\.33\.5\.27 decisions/, "0.40.0 should be reduced to PostgreSQL implementation and proof behind the established seams");
 
-
 console.log("Database agnostic contract closeout regression passed.");
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}

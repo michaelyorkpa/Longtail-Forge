@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasks = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
@@ -26,7 +28,3 @@ assert.match(styles, /\.task-row-actions\s*\{[\s\S]*justify-content:\s*flex-end/
 assert.match(styles, /\.task-scope-cell,[\s\S]*\.task-assignee-cell\s*\{[\s\S]*max-width:\s*11rem/, "Mobile scope and assignee metadata should truncate harder");
 
 console.log("Task list density regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

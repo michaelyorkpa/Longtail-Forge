@@ -1,12 +1,15 @@
 /* global fetch */
 
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-diagnostics-"));
@@ -63,7 +66,6 @@ function assertStaticContracts() {
   const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-
 
   assert.match(runtimeDiagnosticsSource, /readSafeStorageHealth/, "runtime diagnostics should own a safe storage health read");
   assert.match(runtimeDiagnosticsSource, /getFileStorageAdapter/, "runtime diagnostics should resolve the configured Files storage adapter");
@@ -251,12 +253,4 @@ function normalizePath(value) {
   return String(value || "")
     .replaceAll("\\", "/")
     .replace(/\/+/g, "/");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

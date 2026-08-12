@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const iconHelper = readText("public/js/shared/icons.js");
 const tasks = readText("public/js/tasks.js");
@@ -32,7 +34,3 @@ assert.match(css, /\[data-stopwatch-controls\] button\s*\{[\s\S]*min-width:\s*44
 assert.doesNotMatch(css, /\.task-row-actions button\s*\{[\s\S]*min-width:\s*104px/, "Tasks row actions must not keep the old wide text-button minimum");
 
 console.log("Icon control conversion regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

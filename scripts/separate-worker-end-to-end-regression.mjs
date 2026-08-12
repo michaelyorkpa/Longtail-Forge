@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { clearTimeout, setTimeout } from "node:timers";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-separate-worker-e2e-"));
@@ -611,10 +613,6 @@ function functionBlock(source, functionName) {
   const pattern = new RegExp(`async function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
   const match = source.match(pattern);
   return match ? match[0] : "";
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
 }
 
 function cleanEnv(overrides = {}) {

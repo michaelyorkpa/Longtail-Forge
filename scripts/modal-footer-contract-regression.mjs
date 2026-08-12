@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const styles = readText("public/css/longtail-forge.css");
 const tasksView = readText("views/protected/tasks.html");
@@ -61,7 +63,3 @@ assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks view must load the fo
 assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

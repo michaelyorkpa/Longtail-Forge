@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const overlayHost = readText("public/js/shared/overlay-host.js");
 const tasksView = readText("views/protected/tasks.html");
@@ -34,7 +36,3 @@ assert.match(tasksView, /js\/shared\/overlay-host\.js[\s\S]*js\/task-dialog\.js/
 assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks view should load the overlay-host stylesheet cache key");
 
 console.log("Overlay host contract regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

@@ -10,12 +10,13 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
@@ -326,10 +327,6 @@ async function writeFixtureModule(fixtureRoot, directoryName) {
   const moduleDir = path.join(fixtureRoot, "src", "modules", directoryName);
   await fsPromises.mkdir(moduleDir, { recursive: true });
   await fsPromises.writeFile(path.join(moduleDir, "module.js"), "export const moduleEntry = {};\n", "utf8");
-}
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(rootDir, relativePath), "utf8");
 }
 
 console.log(`Bundled module registry regression passed ${checks} checks.`);

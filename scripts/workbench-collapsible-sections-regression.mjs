@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
@@ -119,10 +121,6 @@ assert.match(
 );
 
 console.log("Workbench collapsible sections regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}(`);

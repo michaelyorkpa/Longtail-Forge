@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
 
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);

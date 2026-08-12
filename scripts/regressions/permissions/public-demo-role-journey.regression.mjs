@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -122,8 +123,4 @@ async function writeCredentials(passwords) {
     passwords,
     version: 2,
   }, null, 2)}\n`, "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

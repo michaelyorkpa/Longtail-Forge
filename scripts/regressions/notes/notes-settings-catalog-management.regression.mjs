@@ -11,8 +11,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-settings-catalogs-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "notes-settings-catalogs.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -182,8 +183,4 @@ LIMIT 1;
     username: rows[0].username,
     workspace_id: rows[0].workspace_id,
   };
-}
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
 }

@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const iconHelper = readText("public/js/shared/icons.js");
 const dashboardEntry = readText("public/js/dashboard.entry.js");
@@ -56,11 +59,3 @@ protectedViews.forEach((viewName) => {
 });
 
 console.log("Shared icons regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

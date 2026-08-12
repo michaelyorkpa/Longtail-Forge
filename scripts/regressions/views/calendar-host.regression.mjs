@@ -8,11 +8,9 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const calendarHtml = await readText("views/protected/calendar.html");
 const calendarJs = await readText("public/js/calendar.js");
@@ -191,7 +189,3 @@ assert.ok(!workbenchJs.includes("calendar-grid"), "Workbench must not rebuild ca
 checks += 10;
 
 console.log(`Calendar host guardrail passed ${checks} checks.`);
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}

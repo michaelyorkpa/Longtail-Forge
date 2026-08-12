@@ -1,8 +1,9 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 
-const root = process.cwd();
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const appShellService = readText("src/services/app-shell.service.js");
 const footer = readText("public/js/footer.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
@@ -86,14 +87,6 @@ check("documentation and suite registration cover the 0.33.6.12j boundary", () =
 });
 
 console.log(`Quick Action opener rollout regression passed ${checks} checks.`);
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function actionDefinitionBlock(source, actionId) {
   const start = source.indexOf(`id: "${actionId}"`);

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -51,7 +53,6 @@ function assertStaticContracts() {
   const configSource = readText("src/config.js");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
-
 
   assert.match(configSource, /FILE_SCANNER_MODES = new Set\(\["none", "noop", "clamd", "clamscan"\]\)/, "config should formalize scanner modes");
   assert.match(configSource, /LONGTAIL_FILE_SCANNER[\s\S]*FILE_SCANNER_MODES/, "config should validate scanner mode");
@@ -307,10 +308,6 @@ function cleanEnv(overrides = {}) {
     ...env,
     ...overrides,
   };
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }
 
 function functionBlock(source, functionName) {

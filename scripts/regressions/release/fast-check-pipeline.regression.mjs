@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 
@@ -111,7 +112,3 @@ for (const testFile of INITIAL_UNIT_TEST_FILES) {
 }
 
 console.log("fast-check pipeline regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

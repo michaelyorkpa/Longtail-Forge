@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const iconHelper = readText("public/js/shared/icons.js");
 const css = readText("public/css/longtail-forge.css");
@@ -54,10 +56,6 @@ assert.match(accessibilityDocs, /Icon-Only Controls/, "accessibility docs must d
 assert.match(accessibilityDocs, /aria-label/, "accessibility docs must require labels for icon-only controls");
 
 console.log("Icon accessibility contract regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function findFunctionCallBlocks(source, functionName) {
   const blocks = [];

@@ -1,8 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 
-const root = process.cwd();
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -10,7 +10,6 @@ const scannerDocs = readText("docs/file-scanner-setup.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const envExample = readText(".env.example");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-
 
 assert.match(scannerDocs, /^# File Scanner Setup/m, "scanner setup docs should exist");
 assert.match(scannerDocs, /## Linux Service Setup[\s\S]*LONGTAIL_FILE_SCANNER=clamd[\s\S]*LONGTAIL_CLAMD_HOST=127\.0\.0\.1[\s\S]*LONGTAIL_CLAMD_PORT=3310/, "scanner docs should cover Linux clamd service setup");
@@ -46,11 +45,3 @@ for (const scriptName of [
 }
 
 console.log("File scanner setup docs regression passed.");
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

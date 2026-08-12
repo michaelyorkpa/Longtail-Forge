@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
@@ -119,7 +120,3 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 
 console.log("Regression suite inventory contract passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
+
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { buildParameterBindingBaseline, evaluateParameterBindingBaseline, formatParameterBindingAudit, scanParameterBindings, serializeParameterBindingBaseline } from "./lib/parameter-binding-audit.mjs";
 import { lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const baseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
@@ -18,7 +19,6 @@ assert.ok(report.safeBoundSites > 0, "audit should report safe bound sites");
 assert.ok(result.knownBaselineExceptions.length > 0, "current reviewed dynamic SQL composition should be baseline-managed");
 assert.deepEqual(result.newViolations, [], "live runtime source should introduce no unreviewed parameter-binding findings");
 assert.deepEqual(result.resolvedLegacyFindings, [], "checked-in baseline should be current at adoption");
-
 
 const unsafeReport = scanParameterBindings({ entries: [{
   filePath: "src/repositories/unsafe-example.repo.js",
@@ -118,8 +118,4 @@ function listSourceMatches(pattern) {
     }
   }
   return matches;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

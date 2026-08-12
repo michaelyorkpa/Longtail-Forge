@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract-"));
@@ -110,7 +112,7 @@ try {
 function assertDirectSqliteImportInventory() {
   const allowed = new Set(["src/db/adapters/sqlite-adapter.js"]);
   const offenders = listSourceFiles(["src", "scripts"])
-    .filter((filePath) => /from\s+["'][^"']*sqlite\.js["']/.test(readText(filePath)))
+    .filter((filePath) => /from\s+["'][^"']*sqlite\.js["']/.test(readText(normalizePath(filePath))))
     .map(normalizePath)
     .filter((filePath) => !allowed.has(filePath));
 
@@ -197,10 +199,6 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-function readText(filePath) {
-  return readFileSync(path.isAbsolute(filePath) ? filePath : path.join(root, filePath), "utf8");
 }
 
 function normalizePath(filePath) {

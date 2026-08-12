@@ -1,6 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 import { MARKDOWN_RENDER_MODES, createMarkdownExcerpt, isSafeMarkdownUrl, markdownService, markdownToPlainText, normalizeMarkdownSource, renderMarkdownToHtml } from "../src/core/markdown/markdown.service.js";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const packageJson = JSON.parse(await readText("package.json"));
 const roadmap = await readText("ROADMAP.md");
@@ -129,11 +131,3 @@ assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contr
 assert.match(contract, /As of 0\.33\.30\.5, the reviewed runtime baseline is `markdown-it` 15\.0/, "contract should record the reviewed Markdown-it 15 baseline");
 
 console.log("Markdown renderer service regression passed.");
-
-async function readText(filePath) {
-  return fs.readFile(filePath, "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

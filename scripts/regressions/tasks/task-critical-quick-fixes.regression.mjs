@@ -8,11 +8,10 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
+
 const css = await readText("public/css/longtail-forge.css");
 const capturePrompt = await readText("public/js/shared/capture-prompt.js");
 const tags = await readText("public/js/shared/tags.js");
@@ -120,10 +119,6 @@ assert.match(
 );
 
 console.log("Task critical quick-fixes regression passed.");
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

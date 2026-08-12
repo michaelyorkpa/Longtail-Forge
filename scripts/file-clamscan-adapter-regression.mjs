@@ -1,14 +1,17 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable, Writable } from "node:stream";
 import { clearInterval, setImmediate, setInterval } from "node:timers";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -52,7 +55,6 @@ function assertStaticContracts() {
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
-
 
   assert.match(scannerAdapterSource, /function createClamscanFileScannerAdapter/, "scanner adapter module should expose clamscan");
   assert.match(scannerAdapterSource, /CLAMSCAN_HEALTH_ARGS = Object\.freeze\(\["--version"\]\)/, "clamscan health should probe --version");
@@ -460,12 +462,4 @@ function cleanEnv() {
   }
 
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

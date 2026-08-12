@@ -1,11 +1,11 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import vm from "node:vm";
 import { listModules } from "../src/core/modules/registry.js";
-import {
-  listFrameworkProtectedViews,
-  listFrameworkViewSurfaces,
-} from "../src/core/view-surfaces/framework-view-surfaces.js";
+import { listFrameworkProtectedViews, listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -497,10 +497,6 @@ assert.match(changelog, /## Version 0\.33\.5\.16\.12 - /, "Changelog should incl
 nodeReport(inventory);
 console.log("View descriptor declarative guardrails passed.");
 
-function readText(relativePath) {
-  return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}
-
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }
@@ -597,8 +593,4 @@ function inferModuleId(fileName) {
     return "tasks";
   }
   return fileName.replace(/\.html$/, "");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

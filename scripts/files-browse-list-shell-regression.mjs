@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const styles = readText("public/css/longtail-forge.css");
 const icons = readText("public/js/shared/icons.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
-
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files host should reference the compact reset stylesheet");
 assert.match(filesHtml, /js\/shared\/icons\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the referenceed icon helper, shared preview, and Files adapter after the renderer");
@@ -111,12 +112,7 @@ assert.doesNotMatch(styles, /\.files-truncate\[data-full-text\]:hover[\s\S]*over
 assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*10000[\s\S]*pointer-events:\s*none/, "Files truncated labels should reveal through one fixed floating tooltip above overflow containers");
 assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap[\s\S]*justify-content:\s*flex-end/, "Files actions should stay compact, wrapped, and right-aligned");
 
-
 console.log("Files browse list shell regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

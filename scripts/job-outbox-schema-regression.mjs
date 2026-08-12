@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const migrationVersion = "065";
 const migrationFile = "src/db/migrations/065_job_outbox_schema.sql";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-outbox-schema-"));
@@ -231,8 +232,4 @@ async function readWorkspaceId() {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "job/outbox schema database should pass integrity check");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

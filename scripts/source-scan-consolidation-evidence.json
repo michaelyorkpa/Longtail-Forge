@@ -1,6 +1,14 @@
 {
   "schemaVersion": 1,
   "measurement": "source-scan-consolidation",
+  "checkpoint": "0.33.33.5",
+  "migration": {
+    "plannedEscapeRegExpBaseline": 81,
+    "escapeRegExpDefinitionsAtCheckpointStart": 79,
+    "escapeRegExpConsumersMigrated": 78,
+    "localProjectReadersMigrated": 242,
+    "createBrowserContextDefinitionsMigrated": 11
+  },
   "pattern": "[\\s\\S]* or [^]*",
   "targetedFiles": [
     {
@@ -20,11 +28,15 @@
     }
   ],
   "sharedOwner": "scripts/test-support/source-scan.mjs",
+  "fakeDomOwner": "scripts/test-support/fake-dom.mjs",
+  "contractOwner": "tests/unit/test-support-harnesses.test.mjs",
   "sharedBehavior": [
     "explicit repository-relative source and Markdown reads",
-    "per-process hot-file caching",
+    "UTF-8 sync and async reads with per-process hot-file caching",
     "balanced named-function extraction",
-    "ordered literal checks without unbounded greedy regex"
+    "ordered literal checks without unbounded greedy regex",
+    "regular-expression literal escaping",
+    "fake DOM tree, attribute, dataset, class-list, focus, event, and reviewed selector semantics"
   ],
   "untouchedMeasuredCases": [
     {

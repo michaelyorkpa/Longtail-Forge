@@ -1,9 +1,12 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const envExample = readText(".env.example");
@@ -207,7 +210,6 @@ assert.ok(custom.dataDir.endsWith(`${path.sep}custom-data`), "relative data dir 
 
 assertConfigFails({ PORT: "not-a-number" }, /PORT must be an integer/);
 
-
 console.log("Runtime configuration contract regression passed.");
 } finally {
   await closeDatabase();
@@ -268,12 +270,4 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

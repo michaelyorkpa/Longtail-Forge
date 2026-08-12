@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workbench-related-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workbench-related-context.db");
@@ -359,10 +361,6 @@ LIMIT 1;
     username: user.username || `workbench-related-context-${randomUUID()}@example.test`,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
-}
-
-function readText(filePath) {
-  return readFileSync(new URL(`../${filePath}`, import.meta.url), "utf8");
 }
 
 function localDateKey(date, timezone = "America/New_York") {

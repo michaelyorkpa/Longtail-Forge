@@ -1,9 +1,11 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
-import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -78,14 +80,19 @@ assert.deepEqual(
 );
 assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
-const clientsContext = createBrowserContext({
+const clientsContext = createFakeBrowserContext({
   responses: [{
     clients: [
       clientRecord({ id: "client-parent", name: "Acme Parent", depth: 0 }),
       clientRecord({ id: "client-child", name: "Acme Child", parent_client_id: "client-parent", depth: 1 }),
     ],
   }],
-  permissions: ["clients.manage"],
+  workspaceContext: {
+    permissionIds: ["clients.manage"],
+    workspaceId: "clients-projects-read-anatomy",
+    workspaceType: "business",
+  },
+  iconButton: { iconClass: false },
 });
 vm.runInNewContext(surfaceDescriptor, clientsContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, clientsContext, { filename: "view-builder.js" });
@@ -120,14 +127,19 @@ assert.deepEqual(clientActionCalls, [
   { behavior: "client-projects.clients.edit", recordId: "client-parent" },
 ], "Clients page and row actions should dispatch module-owned behavior handlers with safe record context");
 
-const projectsContext = createBrowserContext({
+const projectsContext = createFakeBrowserContext({
   responses: [{
     projects: [
       projectRecord({ id: "project-parent", name: "Buildout", depth: 0 }),
       projectRecord({ id: "project-child", name: "Launch", parent_project_id: "project-parent", depth: 1 }),
     ],
   }],
-  permissions: ["projects.manage"],
+  workspaceContext: {
+    permissionIds: ["projects.manage"],
+    workspaceId: "clients-projects-read-anatomy",
+    workspaceType: "business",
+  },
+  iconButton: { iconClass: false },
 });
 vm.runInNewContext(surfaceDescriptor, projectsContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, projectsContext, { filename: "view-builder.js" });
@@ -263,216 +275,4 @@ function findFieldControl(root, fieldName) {
   return root.querySelectorAll("input")
     .concat(root.querySelectorAll("select"))
     .find((candidate) => candidate.getAttribute("data-view-input") === fieldName);
-}
-
-function createBrowserContext({ responses, permissions }) {
-  const document = new FakeDocument();
-  const queue = [...responses];
-  const calls = [];
-  const window = {
-    document,
-    LongtailForge: {
-      workspaceContext: {
-        permissionIds: permissions,
-        workspaceId: "clients-projects-read-anatomy",
-        workspaceType: "business",
-      },
-      api: {
-        calls,
-        async getJson(url) {
-          calls.push(url);
-          return queue.length ? queue.shift() : responses[responses.length - 1];
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          button.textContent = options.iconOnly ? "" : options.text || options.label || "";
-          if (options.label) {
-            button.setAttribute("aria-label", options.label);
-          }
-          if (options.title) {
-            button.title = options.title;
-          }
-          return button;
-        },
-      },
-    },
-  };
-  document.body = document.createElement("body");
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.listeners = {};
-  this._textContent = "";
-  this.disabled = false;
-  this.hidden = false;
-  this.open = false;
-  this.type = "";
-  this.value = "";
-  this.colSpan = 1;
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    if (child === null || child === undefined || child === false) {
-      return child;
-    }
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.replaceChildren = (...children) => {
-    this.children.forEach((child) => {
-      child.parentNode = null;
-    });
-    this.children = [];
-    this.append(...children);
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "value") {
-      this.value = String(value);
-    }
-    if (name === "disabled") {
-      this.disabled = true;
-    }
-    if (name === "hidden") {
-      this.hidden = true;
-    }
-  };
-
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "hidden") {
-      this.hidden = false;
-    }
-    if (name === "disabled") {
-      this.disabled = false;
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = (eventName, handler) => {
-    this.listeners[eventName] = handler;
-  };
-
-  this.click = async () => {
-    if (!this.disabled && this.listeners.click) {
-      await this.listeners.click({ currentTarget: this, preventDefault() {} });
-    }
-  };
-
-  this.showModal = () => {
-    this.open = true;
-  };
-
-  this.focus = () => {};
-
-  this.querySelector = (selector) => findElement(this, selector);
-  this.querySelectorAll = (selector) => findElements(this, selector);
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "options", {
-    get: () => this.children.filter((child) => child.tagName === "OPTION"),
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => this._textContent || this.children.map((child) => child.textContent).join(""),
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function findElement(root, selector) {
-  return findElements(root, selector)[0] || null;
-}
-
-function findElements(root, selector) {
-  const queue = [...root.children];
-  const matches = [];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

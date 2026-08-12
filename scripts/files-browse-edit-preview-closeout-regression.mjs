@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
@@ -45,7 +47,3 @@ assert.match(changelog, /Files browse\/edit\/preview closeout/, "Changelog shoul
 assert.match(changelog, /0\.33\.5\.18\.12 handoff/, "Changelog should describe the next-branch handoff");
 
 console.log("Files browse/edit/preview closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

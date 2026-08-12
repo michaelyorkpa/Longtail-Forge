@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
@@ -9,7 +11,6 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const architecture = readText("docs/architecture.md");
 const viewContract = readText("docs/view-building-contract.md");
 const helpModules = readText("help/framework/modules-and-optional-features.md");
-
 
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.14 - /m, "live roadmap should not keep completed branch bodies");
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "Completed 0.33.5.15 should be archived out of the live roadmap after 0.33.5.16 closes");
@@ -29,7 +30,3 @@ assert.match(helpModules, /Shared framework view patterns/, "Help should describ
 assert.match(changelog, /## Version 0\.33\.5\.15\.6 - /, "Changelog should include the closeout version");
 
 console.log("View builder closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

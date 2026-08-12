@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
@@ -7,7 +9,6 @@ const filesService = readText("src/services/files.service.js");
 const styles = readText("public/css/longtail-forge.css");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files host should reference the stylesheet for the compact reset");
 assert.match(filesHtml, /js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the compact-reset adapter after the renderer and shared preview");
@@ -112,10 +113,6 @@ assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S
 assert.doesNotMatch(regressionSuite, /scripts\/files-detail-summary-regression\.mjs/, "Regression suite should not keep the replaced detail summary regression");
 
 console.log("Files browse compact reset regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

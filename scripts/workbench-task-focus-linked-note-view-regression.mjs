@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const changelog = readText("CHANGELOG.md");
 const moduleActionsSource = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const relatedContextService = readText("src/services/workbench-task-focus-related-context.service.js");
 const workbenchScript = readText("public/js/workbench.js");
-
 
 assert.match(
   relatedContextService,
@@ -97,10 +98,6 @@ assert.match(
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus linked-note view regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBody(source, name) {
   const starts = [

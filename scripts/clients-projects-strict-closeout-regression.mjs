@@ -1,7 +1,9 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
@@ -108,12 +110,4 @@ function assertMinimalStrictHost(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.match(body, /data-client-projects-host/, `${label} host should expose the descriptor host`);
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} protected host should not ship page anatomy`);
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

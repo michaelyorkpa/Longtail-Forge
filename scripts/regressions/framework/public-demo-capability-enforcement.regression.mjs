@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -250,8 +251,4 @@ function assertDeclaredActions(value, pathLabel) {
     }
     assertDeclaredActions(item, pathLabel + "." + key);
   }
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }

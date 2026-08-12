@@ -13,6 +13,7 @@
 // regressions; call assertRoadmapCursorAtLeast with the cursor value that is
 // current when the branch closes.
 
+import { escapeRegExp } from "../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -106,10 +107,6 @@ function isDocumentedOutOfOrderRoadmapCloseout(completedVersion, options = {}) {
 
 function versionHeadingPattern(version) {
   return new RegExp(`^## Version ${escapeRegExp(version)}(?:\\s+-|\\s*$)`, "m");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseDottedVersion(value) {

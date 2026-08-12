@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
-import {
-  resolveModuleDefinitionTerminology,
-} from "../src/core/modules/terminology.js";
+import { resolveModuleDefinitionTerminology } from "../src/core/modules/terminology.js";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
@@ -116,7 +115,3 @@ assert.match(surfaceContract, /Declarative `viewSurfaces` descriptors are the ma
 assert.match(surfaceContract, /Terminology changes display text only; surface IDs, module IDs, view IDs, routes, permission IDs, data bindings, behavior IDs, and workflow rules remain stable/, "Surface contract should keep terminology display-only");
 
 console.log("View descriptor terminology regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

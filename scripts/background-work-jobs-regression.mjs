@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-background-work-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-background-work-jobs.db");
@@ -334,8 +335,4 @@ function localDateTimeParts(date, timeZone) {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     time: `${parts.hour === "24" ? "00" : parts.hour}:${parts.minute}`,
   };
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
 }

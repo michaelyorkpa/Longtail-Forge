@@ -285,11 +285,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 459 |
 | Legacy regression ceiling | 308 |
-| Active regression assertions | 18316 |
+| Active regression assertions | 18325 |
 | Vitest owner assertions | 40 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 133 |
-| Effective assertion floor | 18561 |
+| Effective assertion floor | 18570 |
 | Release-gate ratchet floor | 80 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -337,6 +337,12 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 The runner no longer uses hand-maintained arrays as its source of truth. Discovery reads the frozen legacy snapshot, scans top-level `scripts/*-regression.mjs` files that opt into metadata, and recursively scans `scripts/regressions/**/*.regression.mjs`. The generated coverage manifest and explicit policy retain count floors, required release gates, coverage families, and retirement checks.
 
+### Shared static-test support
+
+Static regressions read repository text through `scripts/test-support/source-scan.mjs`. Its project reader resolves repository-relative paths from the checkout root, reads UTF-8 text synchronously or asynchronously, caches each normalized path per reader, rejects absolute and parent-traversal paths, and provides the single `escapeRegExp` implementation. Do not recreate local `readText`, `readProjectFile`, or `escapeRegExp` helpers in regression programs.
+
+Browser-runtime source regressions use `scripts/test-support/fake-dom.mjs` for their deliberately bounded non-rendered DOM contract. It supports the tree, text, attributes/dataset, class-list, focus, modal, listener/once/cancellation, and reviewed tag/class/ID/attribute/descendant/comma/attribute-negation selector behavior exercised by those regressions. Unsupported selector shapes fail explicitly. This harness is not a browser emulator and does not replace Playwright rendering, accessibility, focus, console, or overflow coverage.
+
 ### Fast-fail bucket order
 
 The default full run stays cheap-first: static/source checks, serial default-database checks, the retained serial Files safety bucket, isolated Files checks, and isolated-database checks. Each bucket prints actual wall time as well as summed script time and its longest script. The runner executes buckets sequentially and stops after the first failing bucket.
@@ -357,7 +363,7 @@ The suite gives every non-static bucket a per-script fixture through `scripts/te
 
 `npm run closeout -- --fix` first runs only `regressions:manifest`, `regressions:inventory:write`, `modules:registry:generate`, and `db:schema:refresh`, stopping if deterministic regeneration fails, then performs normal validation. This mode does not ratchet policy floors and never edits exceptions, roadmap, changelog, decisions, or arbitrary documentation. `npm run closeout -- --fail-fast` stops validation after the first hard failure; without that option the complete report remains the default. The options may be combined.
 
-The closeout conductor remains a bookkeeping command and does not itself run the discovered regression suite or ESLint. `npm run verify:slice` is the ordinary local final conductor around it: it runs closeout exactly once, stops before regressions on a hard closeout failure, executes the existing changed-regression plan exactly once, and adds `npm run test:permissions` exactly once when routing selected permissions. The underlying commands remain independently runnable. The auto-discovered closeout regression still injects pass, hard-failure, and warning-only outcomes without deliberately breaking repository state.
+The closeout conductor remains a bookkeeping command and does not itself run the discovered regression suite or ESLint. `npm run verify:slice` is the ordinary local final conductor around it: it runs closeout exactly once, stops before regressions on a hard closeout failure, and executes the existing changed-regression plan exactly once. The 409-check permission harness is a discovered isolated-database regression, so full and permission-area plans execute it once through their normal regression bucket instead of adding a duplicate command; `npm run test:permissions` remains independently runnable for focused diagnosis. The auto-discovered closeout regression still injects pass, hard-failure, and warning-only outcomes without deliberately breaking repository state.
 
 ### Pre-TypeScript maintenance baseline
 

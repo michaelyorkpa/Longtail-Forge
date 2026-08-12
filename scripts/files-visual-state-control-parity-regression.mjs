@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
@@ -14,7 +15,6 @@ const changelog = readText("CHANGELOG.md");
 const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-
 
 assert.match(filesHtml, /css\/longtail-forge\.css/, "Files page should reference the visual parity stylesheet");
 assert.match(filesHtml, /js\/shared\/icons\.js/, "Files page should reference the shared action icons");
@@ -116,10 +116,6 @@ assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual state
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("Files visual state and control parity regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

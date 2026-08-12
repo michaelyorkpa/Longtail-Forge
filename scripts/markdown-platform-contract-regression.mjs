@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const contract = await readText("docs/markdown-platform-contract.md");
 const roadmap = await readText("ROADMAP.md");
@@ -8,7 +9,6 @@ const helpService = await readText("src/services/help.service.js");
 const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
-
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
@@ -44,7 +44,3 @@ assert.match(notesJs, /command:\s*"underline",\s*text:\s*"U",\s*label:\s*"Underl
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract/, "completed Markdown platform roadmap slices should be archived out of the live roadmap");
 
 console.log("Markdown platform contract regression passed.");
-
-async function readText(filePath) {
-  return fs.readFile(filePath, "utf8");
-}

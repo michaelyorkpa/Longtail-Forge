@@ -7,12 +7,15 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import { getPublicDemoCapability } from "../../../src/core/public-demo-capabilities.js";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: read } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("public-demo-files-ingress");
 try {
@@ -152,12 +155,4 @@ async function listFiles(directory, extensions) {
     if (entry.isFile() && extensions.some((extension) => entry.name.endsWith(extension))) files.push(entryPath);
   }
   return files.sort();
-}
-
-function read(filePath) {
-  return fs.readFile(path.resolve(filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

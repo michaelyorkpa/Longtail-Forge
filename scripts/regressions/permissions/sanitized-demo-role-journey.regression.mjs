@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -73,8 +74,4 @@ try {
   console.log("Sanitized-demo complete role permission journey regression passed.");
 } finally {
   await fs.rm(temporaryDirectory, { force: true, recursive: true });
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

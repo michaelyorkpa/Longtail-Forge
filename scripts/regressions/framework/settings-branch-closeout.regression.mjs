@@ -7,8 +7,11 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const files = Object.freeze({
   settingsHost: readText("public/js/shared/settings-host.js"),
@@ -87,14 +90,6 @@ assert.match(files.settingsControlDocs, /A new ordinary module setting requires 
 assert.match(files.moduleContractDocs, /A new ordinary module setting should require only this manifest contribution/);
 console.log("Settings branch closeout regression passed.");
 
-function readText(path) {
-  return readFileSync(path, "utf8");
-}
-
 function firstPartySettingKnowledge() {
   return /defaultBillingRate|billingPeriod(?:Type|StartDay)?|fiscalYear(?:StartMonth|StartDay)?|billingRounding(?:Enabled|Increment)?|taskTimersEnabled|taskReminder|fileTypePolicyMode|allowedExtensions|blockedExtensions|StorageLimitBytes|developerExampleHintsEnabled/i;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

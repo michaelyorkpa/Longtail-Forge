@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -104,8 +105,4 @@ LIMIT 1;
 
   assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
   return rows[0].workspace_id;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

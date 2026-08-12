@@ -1,13 +1,14 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const workbenchScript = readText("public/js/workbench.js");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
-
 
 assert.match(clientsHtml, /clients-projects\.js/, "Clients host should load the action-registration adapter cache key");
 assert.match(projectsHtml, /clients-projects\.js/, "Projects host should load the action-registration adapter cache key");
@@ -75,13 +76,4 @@ assert.match(
 );
 assert.doesNotMatch(clientsHtml, /data-client-modal|data-client-form|data-new-client-name/, "Clients host should not include static or compatibility Add Client form hooks");
 
-
 console.log("Clients/Projects action registration regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

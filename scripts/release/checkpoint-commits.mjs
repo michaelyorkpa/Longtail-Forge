@@ -1,3 +1,4 @@
+import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -151,10 +152,6 @@ function result(kind, errors, paths) {
     kind,
     paths: Object.freeze(paths),
   });
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function runGit(args, cwd = process.cwd()) {

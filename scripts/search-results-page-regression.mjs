@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 import { REGRESSION_COMMANDS } from "./regression-suite.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const html = await readProjectFile("views/protected/search.html");
 const script = await readProjectFile("public/js/search.js");
@@ -57,7 +58,3 @@ assert.ok(
 );
 
 console.log("Search results page regression passed.");
-
-function readProjectFile(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}

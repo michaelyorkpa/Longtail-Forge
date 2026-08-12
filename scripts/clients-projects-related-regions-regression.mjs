@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientsProjectsScript = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-
 
 assert.match(
   readFunctionBody(clientsProjectsScript, "openClientDetailDialog"),
@@ -51,10 +51,6 @@ assert.match(css, /\.client-projects-related-context\s*\{[\s\S]*grid-column:\s*1
 assert.match(css, /\.client-projects-related-region/, "Related Project regions should have shared styling hooks");
 
 console.log("Clients/Projects related regions regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function readFunctionBody(source, functionName) {
   const markers = [`function ${functionName}(`, `async function ${functionName}(`];

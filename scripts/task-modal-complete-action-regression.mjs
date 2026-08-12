@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
@@ -193,8 +195,4 @@ LIMIT 1;
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
-}
-
-function readText(pathname) {
-  return readFileSync(new URL(`../${pathname}`, import.meta.url), "utf8");
 }

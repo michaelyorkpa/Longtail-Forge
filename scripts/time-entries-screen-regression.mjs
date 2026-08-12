@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const moduleSource = readText("src/modules/time-tracking/module.js");
 const stylesheet = readText("public/css/longtail-forge.css");
@@ -128,10 +130,6 @@ check("time entry dialog sizing avoids horizontal modal overflow", () => {
 });
 
 console.log(`Time Entries screen regression passed ${checks} checks.`);
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function readArrayLiteral(source, propertyName) {
   const marker = `${propertyName}: [`;

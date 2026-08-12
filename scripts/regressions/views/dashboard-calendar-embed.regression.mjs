@@ -8,15 +8,13 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("dashboard-calendar-embed-regression");
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 const dashboardHtml = await readText("views/protected/dashboard.html");
 const dashboardEntry = await readText("public/js/dashboard.entry.js");
@@ -172,7 +170,3 @@ console.log(`Dashboard calendar embed guardrail passed ${checks} checks.`);
 const { closeDatabase } = await import("../../../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}

@@ -19,6 +19,8 @@ import {
 import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
 import { filterRegressionBuckets } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_COMMANDS, REGRESSION_ENTRIES } from "./regression-suite.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const runner = await readProjectFile("scripts/run-regressions.mjs");
 const bucketOrchestratorSupport = await readProjectFile("scripts/test-support/regression-bucket-orchestrator.mjs");
@@ -368,10 +370,6 @@ function bucketByName(name) {
 
   assert.ok(bucket, `${name} bucket should exist`);
   return bucket;
-}
-
-function readProjectFile(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
 function delay(milliseconds) {

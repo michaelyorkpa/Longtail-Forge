@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksView = readText("views/protected/tasks.html");
 const taskDialogScript = readText("public/js/task-dialog.js");
@@ -40,7 +42,3 @@ assert.match(stylesheet, /@media \(max-width: 700px\) \{[\s\S]*\.task-details-gr
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module version should consume the canonical app version");
 
 console.log("Task modal compact layout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

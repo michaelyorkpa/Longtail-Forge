@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -75,7 +76,3 @@ assert.doesNotMatch(notesService, /client\.name \|\| client\.id|project\.name \|
 assert.match(notesHtml, /js\/notes\.js/);
 
 console.log("Notes context terminology regression passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

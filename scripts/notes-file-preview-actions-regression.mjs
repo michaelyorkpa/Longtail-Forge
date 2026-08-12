@@ -1,6 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const notesDocs = readText("docs/notes-module.md");
@@ -12,7 +14,6 @@ const filesView = readText("views/protected/files.html");
 const notesView = readText("views/protected/notes.html");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
-
 
 assert.match(filePreviewScript, /namespace\.filePreview = Object\.freeze\(\{[\s\S]*normalizeFilePreviewRow[\s\S]*openFilePreview[\s\S]*previewAvailabilityForRow[\s\S]*previewKindForExtension[\s\S]*previewUnavailableLabel/,
   "Shared file preview helper should expose the preview modal and eligibility helpers");
@@ -79,10 +80,6 @@ assert.match(moduleContract, /As of 0\.33\.5\.21\.9\.3[\s\S]*public\/js\/shared\
   "Module contract should document the shared preview helper boundary");
 console.log("Notes file preview actions regression passed.");
 
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);
   assert.notEqual(start, -1, `${name} should exist`);
@@ -115,8 +112,4 @@ function functionBlock(source, name) {
   }
 
   throw new Error(`${name} body should close`);
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { readFileSync } from "node:fs";
+
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-batched-list-enrichment-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-batched-list-enrichment.db");
@@ -204,8 +206,4 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(relativePath) {
-  return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }

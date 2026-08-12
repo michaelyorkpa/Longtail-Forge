@@ -1,5 +1,6 @@
 /* global fetch */
 
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
@@ -8,8 +9,9 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-streamed-validation-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -388,12 +390,4 @@ function closeServer(serverInstance) {
 
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
-}
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

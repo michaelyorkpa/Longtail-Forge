@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
@@ -17,7 +18,6 @@ const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
-
 
 const fileRow = functionBlock(filesScript, "fileRow");
 assert.match(fileRow, /reportable: canReportFileRow\(attachment, file, fileId, status\)/, "Files rows should shape report visibility through an action helper");
@@ -107,10 +107,6 @@ assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.4/, "Declarative surf
 });
 
 console.log("Files row and attachment action wiring regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

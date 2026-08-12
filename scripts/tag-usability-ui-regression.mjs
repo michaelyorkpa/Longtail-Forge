@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const repo = readText("src/repositories/tags.repo.js");
 const service = readText("src/services/tags.service.js");
@@ -57,7 +59,3 @@ assert.match(css, /\.tag-chip-inherited/, "Inherited tag chips should be styled"
 assert.match(css, /\.tag-picker-suppress/, "Suppression control should be styled");
 
 console.log("Tag usability UI regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

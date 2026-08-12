@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const appShellService = readText("src/services/app-shell.service.js");
 const changelog = readText("CHANGELOG.md");
@@ -17,7 +18,6 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
 const architectureDocs = readText("docs/architecture.md");
-
 
 const timerQuickAction = actionDefinitionBlock(appShellService, "timer");
 assert.match(
@@ -159,10 +159,6 @@ assert.match(
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Time Tracking Create Timer modal regression passed.");
-
-function readText(relativePath) {
-  return readFileSync(relativePath, "utf8");
-}
 
 function actionDefinitionBlock(source, id) {
   const marker = `id: "${id}"`;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesScript = readText("public/js/files.js");
 const filePreviewScript = readText("public/js/shared/file-preview.js");
@@ -10,7 +11,6 @@ const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const inventoryDoc = readText("docs/files-strict-guardrail-inventory.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-
 
 const strictSetMatch = declarativeGuardrails.match(/const strictDeclarativeSurfaceIds = new Set\(\[([^\]]*)\]\)/);
 assert.ok(strictSetMatch, "Declarative guardrails should expose the strict surface set");
@@ -140,10 +140,6 @@ assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.6[\s\S]*F
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.6[\s\S]*Files strict declarative guardrail enforcement/,
   "Module contract should document the Files strict enforcement boundary");
 console.log(`Files strict declarative guardrail enforcement passed. Direct DOM construction: files.js=${countMatches(filesScript, /document\.createElement/g)}, file-attachments.js=${countMatches(attachmentHelper, /document\.createElement/g)} centralized fallback.`);
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;

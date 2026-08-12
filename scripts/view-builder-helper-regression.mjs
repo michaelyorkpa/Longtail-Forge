@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 
-
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
 assert.match(helper, /global\.LongtailForge = root/, "view builder should expose the shared namespace");
 assert.match(helper, /root\.view = Object\.freeze/, "view builder namespace should be frozen");
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext();
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
@@ -231,166 +233,3 @@ assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\
 assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");
 
 console.log("View builder helper regression passed.");
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          if (options.iconOnly !== false && !options.text) {
-            button.classList.add("icon-button");
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          if (options.text) {
-            button.textContent = options.text;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.colSpan = 1;
-  this.type = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = () => {};
-
-  this.querySelector = (selector) => findElement(this, selector);
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function findElement(root, selector) {
-  const parts = String(selector).trim().split(/\s+/).filter(Boolean);
-  if (parts.length > 1) {
-    return findDescendantMatch(root, parts, 0);
-  }
-
-  const queue = [...root.children];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      return element;
-    }
-    queue.push(...element.children);
-  }
-  return null;
-}
-
-function findDescendantMatch(root, parts, index) {
-  const queue = [...root.children];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, parts[index])) {
-      if (index === parts.length - 1) {
-        return element;
-      }
-      const nested = findDescendantMatch(element, parts, index + 1);
-      if (nested) {
-        return nested;
-      }
-    }
-    queue.push(...element.children);
-  }
-  return null;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

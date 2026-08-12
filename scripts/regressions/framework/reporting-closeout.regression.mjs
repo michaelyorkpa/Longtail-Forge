@@ -8,10 +8,10 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
-const baseUrl = new URL("../../../", import.meta.url);
-const readText = (path) => readFileSync(new URL(path, baseUrl), "utf8");
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const permissionCatalog = readText("src/core/permissions/framework-permission-catalog.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const modulesService = readText("src/core/modules/modules.service.js");

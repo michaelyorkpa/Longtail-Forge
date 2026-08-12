@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const envExample = readText(".env.example");
@@ -11,7 +11,6 @@ const roadmap = readText("ROADMAP.md");
 const configSource = readText("src/config.js");
 const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
-
 
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(envExample, /^LONGTAIL_INITIAL_WORKSPACE_NAME=Longtail Forge Workspace$/m, ".env.example should document the generic initial workspace name");
@@ -36,7 +35,6 @@ const customConfig = readConfig({
 });
 assert.equal(customConfig.initialWorkspaceName, "Acme Local Workspace");
 assert.equal(customConfig.superAdminDisplayName, "Primary Admin");
-
 
 console.log("Runtime local .env materialization regression passed.");
 
@@ -79,8 +77,4 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-function readText(filePath) {
-  return fs.readFileSync(path.join(root, filePath), "utf8");
 }

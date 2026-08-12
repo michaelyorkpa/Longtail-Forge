@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -272,8 +273,4 @@ function readJson(path) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/tags.js");
 const css = readText("public/css/longtail-forge.css");
@@ -37,7 +39,3 @@ assert.match(css, /\.tag-chip-remove/, "removable tag chip styles must exist");
 assert.match(css, /\.tag-picker-status\.is-error/, "inline picker error status styles must exist");
 
 console.log("Tag inline picker regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

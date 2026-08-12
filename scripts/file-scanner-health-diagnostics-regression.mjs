@@ -1,11 +1,14 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -56,7 +59,6 @@ function assertStaticContracts() {
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-
 
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "disabled"/, "none scanner should expose safe disabled health");
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "pass_through"/, "noop scanner should expose safe pass-through health");
@@ -154,12 +156,4 @@ function cleanEnv() {
   }
 
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

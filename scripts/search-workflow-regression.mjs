@@ -6,6 +6,8 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-workflow-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-workflow-test.db");
@@ -525,10 +527,6 @@ function closeServer(activeServer) {
       resolve();
     });
   });
-}
-
-function readProjectFile(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
 async function checkAsync(name, assertion) {

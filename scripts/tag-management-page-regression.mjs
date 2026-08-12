@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const view = readText("views/protected/tags.html");
 const script = readText("public/js/tags.js");
@@ -30,7 +32,3 @@ assert.match(css, /\.tag-row-usage/, "Tag usage count styles must exist");
 assert.match(css, /\.tag-conflict-message/, "Tag conflict message styles must exist");
 
 console.log("Tag management page regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

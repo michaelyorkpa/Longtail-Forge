@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientProjectsModule = readText("src/modules/client-projects/module.js");
 const clientsService = readText("src/modules/client-projects/clients.service.js");
@@ -17,7 +18,6 @@ const surfaceContract = readText("docs/ui-surface-contract.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-
 
 assert.match(
   clientProjectsModule,
@@ -171,7 +171,3 @@ assert.match(
 );
 
 console.log("Clients/Projects hierarchy reparent regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

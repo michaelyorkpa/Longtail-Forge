@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const taskDialogScript = readText("public/js/task-dialog.js");
@@ -42,7 +43,3 @@ assert.doesNotMatch(stylesheet, /task-core-details-field|task-assignment-schedul
 assert.doesNotMatch(stylesheet, /\.task-detail-dialog\s*\{[\s\S]*width:/, "Task modal should use the framework wide modal width rather than a narrower Task-only override");
 
 console.log("Tasks modal context sections regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

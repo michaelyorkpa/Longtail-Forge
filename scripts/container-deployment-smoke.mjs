@@ -1,4 +1,5 @@
 /* global Blob, FormData, fetch */
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -919,10 +920,6 @@ function quoteCaddyPath(filePath) {
 
 function dockerPath(value) {
   return path.resolve(value).replaceAll("\\", "/");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function delay(milliseconds) {

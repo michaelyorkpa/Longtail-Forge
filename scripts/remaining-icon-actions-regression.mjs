@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const iconHelper = readText("public/js/shared/icons.js");
 const tags = readText("public/js/tags.js");
@@ -36,7 +38,3 @@ assert.match(clientsProjects, /createClientProjectActionButton\("Move down", "do
 assert.match(css, /\.tag-row-actions \.icon-button,[\s\S]*\.project-default-sort-row \.icon-button\s*\{[\s\S]*width:\s*44px/, "Pass 3 icon-only row controls must stay compact");
 
 console.log("Remaining icon actions regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

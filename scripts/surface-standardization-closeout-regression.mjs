@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
@@ -35,7 +37,3 @@ assert.match(tasksHelp, /Footer icons open task tags and files inside the task w
 assert.doesNotMatch(tasksHelp, /overlay host|surface-modal|surface-main-panel|framework-owned UI surface/, "Product Help should not expose developer-only surface internals");
 
 console.log("Surface standardization closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

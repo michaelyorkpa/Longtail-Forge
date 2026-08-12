@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
+
 import { extractCallExpression, lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const helperDefinitionFile = "src/db/sql-literals.js";
@@ -13,7 +14,6 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-
 
 const currentViolations = findInterpolationViolations(readRuntimeSourceEntries({ root }));
 assert.equal(
@@ -125,8 +125,4 @@ function formatViolations(violations) {
   return violations
     .map((violation) => `${violation.filePath}:${violation.line} ${violation.kind} ${violation.helper}`)
     .join("\n");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

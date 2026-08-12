@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const renderer = readText("public/js/shared/view-renderer.js");
 const styles = readText("public/css/longtail-forge.css");
-
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"[\s\S]*className:\s*"tasks-main-list-region"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks descriptor should bind the task list to a labeled main-panel detail region");
@@ -62,11 +63,6 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");
 
 console.log("Tasks read-only list binding regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);

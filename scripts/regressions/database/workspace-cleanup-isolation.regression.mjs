@@ -8,17 +8,16 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import Database from "better-sqlite3";
-import {
-  captureCanonicalWorkspaceInventory,
-  assertCanonicalWorkspaceInventoryUnchanged,
-} from "../../test-support/canonical-workspace-inventory.mjs";
+import { captureCanonicalWorkspaceInventory, assertCanonicalWorkspaceInventoryUnchanged } from "../../test-support/canonical-workspace-inventory.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-cleanup-isolation-"));
@@ -333,10 +332,6 @@ function runNode(args, options = {}) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("close", (exitCode) => resolve({ exitCode, stderr, stdout }));
   });
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
 }
 
 function now() {

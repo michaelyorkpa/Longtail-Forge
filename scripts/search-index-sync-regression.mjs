@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("search-index-sync-regression");
 const { clearSearchIndexersForTests, registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");
@@ -250,10 +252,6 @@ async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
   checks += 1;
-}
-
-function readText(relativePath) {
-  return readFileSync(relativePath, "utf8");
 }
 
 function readPublicJavascript() {

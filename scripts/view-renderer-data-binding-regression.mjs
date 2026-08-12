@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -8,7 +11,6 @@ const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const staticService = readText("src/services/static.service.js");
 const changelog = readText("CHANGELOG.md");
-
 
 assert.match(renderer, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
 assert.match(renderer, /appendFilterQuery\(descriptor\.dataSource\.route/, "Renderer should derive the fetch route from the descriptor dataSource route");
@@ -31,7 +33,7 @@ assert.deepEqual(plain(readResponseRecords({ records: [{ id: "legacy" }] })), [{
 assert.deepEqual(plain(readResponseRecords([{ id: "array" }], "records")), [{ id: "array" }], "Top-level array responses should remain compatible");
 assert.deepEqual(plain(readResponseRecords({ resultSet: [{ id: "first-array" }] })), [{ id: "first-array" }], "Unknown legacy envelope keys should retain the first-array fallback");
 
-const context = createBrowserContext([
+const context = createFakeBrowserContext({ responses: [
   {
     records: [{ record_id: "compatibility-decoy", name: "Wrong envelope" }],
     samples: [
@@ -48,7 +50,7 @@ const context = createBrowserContext([
     ],
   },
   { records: [{ record_id: "compatibility-decoy" }], samples: [] },
-]);
+], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
@@ -72,7 +74,7 @@ assert.match(surface.textContent, /First item/, "Bound item collections should r
 await surface.refresh();
 assert.match(surface.textContent, /No sample records/, "Empty responses should render descriptor empty states");
 
-const errorContext = createBrowserContext([new Error("Data unavailable")]);
+const errorContext = createFakeBrowserContext({ responses: [new Error("Data unavailable")], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, errorContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
@@ -82,7 +84,7 @@ const errorSurface = errorContext.window.LongtailForge.view.renderSurface(descri
 await errorSurface.refresh();
 assert.match(errorSurface.textContent, /Data unavailable/, "Renderer should render framework-owned error states");
 
-const noSelectionContext = createBrowserContext([
+const noSelectionContext = createFakeBrowserContext({ responses: [
   {
     samples: [
       {
@@ -92,7 +94,7 @@ const noSelectionContext = createBrowserContext([
       },
     ],
   },
-]);
+], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, noSelectionContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
@@ -197,136 +199,4 @@ function noInitialSelectionDescriptor() {
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
-}
-
-function createBrowserContext(responses) {
-  const document = new FakeDocument();
-  const queue = [...responses];
-  const calls = [];
-  const window = {
-    document,
-    LongtailForge: {
-      api: {
-        calls,
-        async getJson(url) {
-          calls.push(url);
-          const next = queue.length > 0 ? queue.shift() : responses[responses.length - 1];
-          if (next instanceof Error) {
-            throw next;
-          }
-          return next;
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          button.textContent = options.text || options.label || "";
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.colSpan = 1;
-  this.type = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = () => {};
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

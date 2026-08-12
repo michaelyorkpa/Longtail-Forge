@@ -8,10 +8,12 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import vm from "node:vm";
+import { createFakeBrowserContext } from "../../test-support/fake-dom.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const readText = (path) => readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
 const builderSource = readText("public/js/shared/view-builder.js");
 const rendererSource = readText("public/js/shared/view-renderer.js");
 const reportingSource = readText("public/js/reporting.js");
@@ -25,7 +27,7 @@ const settingsViews = [
   readText("views/protected/time-tracking-settings.html"),
 ];
 
-const context = createBrowserContext();
+const context = createFakeBrowserContext({ globals: { Date, Object, Set, String } });
 vm.runInNewContext(builderSource, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
@@ -276,124 +278,3 @@ assert.equal(context.window.LongtailForge.settingsRenderer.validate(settingsCont
 assert.equal(limitField.viewParts.message.textContent, "Choose a valid limit.");
 
 console.log("View field factory regression passed.");
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = { document, LongtailForge: {} };
-  return { window, document, Date, Object, Set, String };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.querySelector = () => null;
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.checked = false;
-  this.disabled = false;
-  this.hidden = false;
-  this.multiple = false;
-  this.required = false;
-  this.value = "";
-  this._listeners = new Map();
-
-  this.append = (...children) => children.forEach((child) => this.appendChild(child));
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-  this.replaceChildren = (...children) => {
-    this.children = [];
-    this._textContent = "";
-    children.forEach((child) => this.appendChild(child));
-  };
-  this.setAttribute = (name, value) => {
-    const normalized = String(value);
-    this.attributes.set(name, normalized);
-    if (name === "id" || name === "name" || name === "type" || name === "value") {
-      this[name] = normalized;
-    }
-    if (name === "disabled" || name === "hidden" || name === "multiple" || name === "required") {
-      this[name] = true;
-    }
-  };
-  this.getAttribute = (name) => this.attributes.has(name) ? this.attributes.get(name) : null;
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-  };
-  this.addEventListener = (type, listener) => {
-    if (!this._listeners.has(type)) {
-      this._listeners.set(type, []);
-    }
-    this._listeners.get(type).push(listener);
-  };
-  this.dispatchEvent = (event) => {
-    (this._listeners.get(event?.type) || []).forEach((listener) => listener.call(this, event));
-    return true;
-  };
-  this.matches = (selector) => matchesSelector(this, selector);
-  this.querySelectorAll = (selector) => {
-    const matches = [];
-    const visit = (node) => {
-      for (const child of node.children || []) {
-        if (matchesSelector(child, selector)) {
-          matches.push(child);
-        }
-        visit(child);
-      }
-    };
-    visit(this);
-    return matches;
-  };
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-  Object.defineProperty(this, "textContent", {
-    get: () => this._textContent || this.children.map((child) => child.textContent).join(""),
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-  Object.defineProperty(this, "options", {
-    get: () => this.children.filter((child) => child.tagName === "OPTION"),
-  });
-  Object.defineProperty(this, "selectedOptions", {
-    get: () => this.options.filter((option) => option.selected),
-  });
-}
-
-function FakeClassList(element) {
-  this.values = new Set();
-  this.add = (...names) => names.filter(Boolean).forEach((name) => this.values.add(String(name)));
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-  this.element = element;
-}
-
-function matchesSelector(element, selector) {
-  const dataAttribute = String(selector).match(/^\[data-([a-z0-9-]+)\]$/i);
-  if (dataAttribute) {
-    const datasetKey = dataAttribute[1].replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
-    return element.attributes.has(`data-${dataAttribute[1]}`) || Object.prototype.hasOwnProperty.call(element.dataset, datasetKey);
-  }
-  return false;
-}

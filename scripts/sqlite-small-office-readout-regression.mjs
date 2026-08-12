@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 
@@ -12,7 +14,6 @@ const workspaceSettingsView = readText("views/protected/workspace-settings.html"
 const settingsHostScript = readText("public/js/shared/settings-host.js");
 const workspaceSettingsScript = readText("public/js/workspace-settings.js");
 const styles = readText("public/css/longtail-forge.css");
-
 
 assert.match(sqliteDocs, /# SQLite Small-Office Mode/, "SQLite small-office docs should exist");
 assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite docs should state one app server/process");
@@ -61,7 +62,3 @@ assert.match(styles, /\.runtime-diagnostics-warning/, "styles should cover runti
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("SQLite small-office readout regression passed.");
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}

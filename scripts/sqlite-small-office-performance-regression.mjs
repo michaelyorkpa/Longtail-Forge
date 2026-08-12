@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import path from "node:path";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const expectedRouteIds = Object.freeze([
@@ -92,8 +93,4 @@ function cleanEnv(overrides = {}) {
   delete env.LONGTAIL_DATA_DIR;
   delete env.LONGTAIL_DATABASE_PROVIDER;
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

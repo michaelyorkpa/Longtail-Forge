@@ -1,10 +1,12 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-clients-projects-descriptor-host-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-clients-projects-descriptor-host.db");
@@ -189,7 +191,6 @@ try {
     (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
     "Clients read should remain Business-only in Family workspaces",
   );
-
 
   console.log("Clients/Projects read descriptor and minimal host regression passed.");
 } finally {
@@ -409,8 +410,4 @@ function sessionFor(workspaceId, userId) {
     user_id: userId,
     username: userId,
   };
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const css = readText("public/css/longtail-forge.css");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
-
 
 assert.match(
   workbenchHtml,
@@ -164,10 +165,6 @@ assert.match(
 assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench recommended-action cycling regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
 
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}(`);

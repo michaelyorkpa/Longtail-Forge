@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const html = readText("views/protected/notes.html");
 const notesModule = readText("src/modules/notes/module.js");
@@ -7,7 +9,6 @@ const notesJs = readText("public/js/notes.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
-
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
@@ -105,7 +106,3 @@ assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.3 - Notes Declarative Re
 assert.match(changelog, /## Version 0\.33\.5\.18\.3 - /, "Changelog should record the Notes read-only proof");
 
 console.log("Notes declarative read-only surface regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
