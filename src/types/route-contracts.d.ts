@@ -4,6 +4,7 @@ import type {
   HttpIdentityRequest,
   JsonBodyRequest,
   RequestSession,
+  WorkspaceRequestSession,
 } from "./http-contracts.js";
 
 export interface RouteRequest extends HttpIdentityRequest, JsonBodyRequest {
@@ -12,10 +13,11 @@ export interface RouteRequest extends HttpIdentityRequest, JsonBodyRequest {
   get?(name: string): string | undefined;
 }
 
-export interface RouteResponse {
+export interface RouteResponse extends NodeJS.WritableStream {
   headersSent: boolean;
   statusCode: number;
   append(name: string, value: string | readonly string[]): RouteResponse;
+  destroy(error?: Error): RouteResponse;
   end(contents?: unknown): RouteResponse;
   json(payload: unknown): RouteResponse;
   once(event: "finish", listener: () => void): RouteResponse;
@@ -35,7 +37,7 @@ export interface AuthenticatedRouteRequest extends RouteRequest {
 }
 
 export interface WorkspaceRouteRequest extends AuthenticatedRouteRequest {
-  session: RequestSession & { workspace_id: string };
+  session: WorkspaceRequestSession;
 }
 
 export interface ApiKeyRouteRequest extends RouteRequest {

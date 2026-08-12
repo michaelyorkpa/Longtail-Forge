@@ -35,6 +35,18 @@ try {
     assert.equal(response.status, 401);
   });
 
+  await checkAsync("object-bound Files routes reject arrays before service policy", async () => {
+    for (const [method, routePath] of [
+      ["put", "/api/files/settings"],
+      ["post", "/api/files/unreachable/report"],
+      ["post", "/api/files/unreachable/quarantine"],
+    ]) {
+      const response = await api[method](routePath, [], { cookie: fixtures.adminSessionId });
+      assert.equal(response.status, 400, `${routePath} should reject array JSON`);
+      assert.equal(response.body.error.message, "Request body must contain a JSON object.");
+    }
+  });
+
   await checkAsync("POST /api/files uploads, queues scan, stores, and attaches a pending text file", async () => {
     const response = await api.post("/api/files", uploadPayload(fixtures.taskId), { cookie: fixtures.adminSessionId });
 
@@ -646,6 +658,7 @@ function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
+    put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
   };
 }
 

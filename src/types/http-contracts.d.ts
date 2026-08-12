@@ -52,6 +52,7 @@ export interface SupportViewRequestSession extends RequestSessionBase {
 }
 
 export type RequestSession = NormalRequestSession | SupportViewRequestSession;
+export type WorkspaceRequestSession = RequestSession & { workspace_id: string };
 
 export interface PrivateFeedAuthorizationSession extends AuthenticatedIdentity {
   workspace_id: string;
@@ -108,10 +109,8 @@ export interface SessionInvalidationState {
   sessionInvalidated?: true;
 }
 
-export interface JsonBodyRequest {
-  on(event: "data", listener: (chunk: string | Buffer) => void): unknown;
-  on(event: "end", listener: () => void): unknown;
-  destroy(): void;
+export interface JsonBodyRequest extends NodeJS.ReadableStream {
+  destroy(error?: Error): this;
   publicDemoBudgetPayloadValidator?: (payload: unknown) => void | Promise<void>;
 }
 

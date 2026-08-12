@@ -4456,7 +4456,7 @@
     },
     {
       "area": "release",
-      "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, that closeout regressions use floors instead of exact pins, and that a future cursor advance requires no edits to prior closeout regressions.",
+      "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, accepts only documented out-of-order completion evidence below a floor, keeps closeout regressions on floors instead of exact pins, and lets future cursor advances pass without prior-regression edits.",
       "id": "release.roadmap-cursor-floor",
       "legacy": false,
       "path": "scripts/regressions/release/roadmap-cursor-floor.regression.mjs",

@@ -291,6 +291,7 @@ const HTTP_CONTRACT_TYPE_EXPORTS = [
   "AuthenticatedIdentity",
   "SupportViewSession",
   "RequestSession",
+  "WorkspaceRequestSession",
   "LogoutSession",
   "SupportViewRequestSession",
   "PrivateFeedAuthorizationSession",
@@ -1116,6 +1117,16 @@ assert.match(
   /namespace Express[\s\S]+interface Request extends SessionRotationState, SessionInvalidationState/,
   "the HTTP contract must augment Express.Request with identity and session lifecycle state",
 );
+assert.match(
+  httpContractSource,
+  /export interface JsonBodyRequest extends NodeJS\.ReadableStream/,
+  "streaming JSON and multipart requests must retain the shared readable-stream boundary",
+);
+assert.match(
+  routeContractSource,
+  /export interface RouteResponse extends NodeJS\.WritableStream[\s\S]*?destroy\(error\?: Error\): RouteResponse;/,
+  "streaming download and preview responses must retain the shared writable-response boundary",
+);
 const httpUtilitySource = readFileSync("src/utils/http.js", "utf8");
 assert.match(
   httpUtilitySource,
@@ -1173,6 +1184,61 @@ for (const filePath of SLICE_38_ROUTE_FILES.filter((filePath) => ![
     `${filePath} must refine its workspace session before service dispatch`,
   );
 }
+const filesRouteSource = readFileSync("src/routes/files.routes.js", "utf8");
+const filesServiceSource = readFileSync("src/services/files.service.js", "utf8");
+assert.match(filesRouteSource, /^\/\/ @ts-check\r?\n/, "the complete Files route must remain checked");
+assert.doesNotMatch(
+  filesRouteSource,
+  /@ts-(?:ignore|nocheck)|@typedef[^\n]*\bany\b|\bas\s+(?:unknown|any)\b/,
+  "the Files route must not suppress or cast across its checked boundary",
+);
+assert.match(
+  filesRouteSource,
+  /workspaceAsyncRoute as asyncRoute/,
+  "every Files handler must receive a defensively refined workspace session",
+);
+assert.equal(
+  (filesRouteSource.match(/readJsonBody\(request/g) || []).length,
+  4,
+  "the four Files Zod-owned JSON edges must preserve unknown until service parsing",
+);
+assert.equal(
+  (filesRouteSource.match(/readJsonObjectBody\(request/g) || []).length,
+  3,
+  "the settings, report, and quarantine routes must require object-shaped JSON",
+);
+for (const functionName of [
+  "attachExistingFile",
+  "updateAttachmentContext",
+  "uploadAndAttach",
+  "uploadBatchAndAttach",
+]) {
+  assert.match(
+    filesServiceSource,
+    new RegExp(`@param \\{unknown\\} (?:payload|rawPayload)[\\s\\S]{0,140}async function ${functionName}\\(`),
+    `${functionName} must advertise its Zod-owned unknown input boundary to checked callers`,
+  );
+}
+assert.match(
+  filesRouteSource,
+  /function multipartBatchErrorMessage\(error\)[\s\S]{0,120}error instanceof AppError \? error\.message : "Upload failed\."/,
+  "multipart partial failures must expose only reviewed AppError copy",
+);
+assert.match(
+  filesRouteSource,
+  /response\.status\(result\.failed > 0 \? 207 : 201\)\.json\(result\)/,
+  "Files batch transports must preserve partial-success 207 responses",
+);
+assert.equal(
+  (filesRouteSource.match(/result\.stream\.on\("error"[\s\S]{0,100}result\.stream\.pipe\(response\)/g) || []).length,
+  2,
+  "download and preview streams must keep response-destroy forwarding before piping",
+);
+assert.doesNotMatch(
+  filesRouteSource,
+  /storageKey|storagePath|sha256Hash|scanReason|signedUrl/i,
+  "the checked Files route must not shape protected storage, integrity, scanner, or signed-URL fields",
+);
 const errorHandlerSource = readFileSync("src/middleware/error-handler.js", "utf8");
 assert.match(errorHandlerSource, /^\/\/ @ts-check\r?\n/, "the final error middleware must remain checked");
 assert.match(errorHandlerSource, /@param \{unknown\} error/, "the final error boundary must receive unknown thrown values");
@@ -1200,6 +1266,7 @@ assert.deepEqual(
   [
     "src/routes/api-keys.routes.js",
     "src/routes/auth.routes.js",
+    "src/routes/files.routes.js",
     "src/routes/private-feeds.routes.js",
     "src/routes/public-api.routes.js",
     "src/routes/settings.routes.js",
@@ -1214,6 +1281,7 @@ const checkedJsonObjectBodyConsumers = CHECKED_SEAM_FILES.filter((filePath) => (
 assert.deepEqual(
   checkedJsonObjectBodyConsumers,
   [
+    "src/routes/files.routes.js",
     "src/routes/notifications.routes.js",
     "src/routes/permissions.routes.js",
     "src/routes/tags.routes.js",
