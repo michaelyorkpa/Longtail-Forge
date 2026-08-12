@@ -26,6 +26,83 @@
       { "scripts": 424, "wallSeconds": 150.93, "failures": 0, "recoveredFlakes": 0 }
     ]
   },
+  "execution": {
+    "schemaVersion": 1,
+    "defaultDecision": "child-process",
+    "resourceDimensions": [
+      "environment",
+      "globalState",
+      "timers",
+      "listeners",
+      "cache",
+      "process",
+      "fileSystem"
+    ],
+    "defaultResources": {
+      "environment": "unreviewed; child process required",
+      "globalState": "unreviewed; child process required",
+      "timers": "unreviewed; child process required",
+      "listeners": "unreviewed; child process required",
+      "cache": "unreviewed; child process required",
+      "process": "unreviewed; child process required",
+      "fileSystem": "unreviewed; child process required"
+    },
+    "measurements": {
+      "scripts": 458,
+      "staticScripts": 231,
+      "certifiedWorkers": 6,
+      "childProcessFallbacks": 225,
+      "fullRuns": [
+        { "mode": "child-process", "wallSeconds": 151.60, "failures": 0, "recoveredFlakes": 0 },
+        { "mode": "audited-workers", "wallSeconds": 145.37, "failures": 0, "recoveredFlakes": 0 },
+        { "mode": "audited-workers", "wallSeconds": 141.23, "failures": 0, "recoveredFlakes": 0 }
+      ]
+    },
+    "entries": [
+      {
+        "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
+        "decision": "worker-parallel",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Imports only assertions and the read-only project source reader, performs bounded text checks, and creates no mutable environment, process, timer, listener, cache, or filesystem resource."
+      },
+      {
+        "path": "scripts/help-markdown-source-layout-regression.mjs",
+        "decision": "worker-parallel",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Uses promises-based reads and directory listings against checked-in Help and source files only; all imported modules and caches remain local to its disposable worker isolate."
+      },
+      {
+        "path": "scripts/task-modal-compact-layout-regression.mjs",
+        "decision": "worker-parallel",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Imports only assertions and the read-only project source reader, performs bounded Task source checks, and leaves environment, process, timers, listeners, cache, and filesystem unchanged."
+      },
+      {
+        "path": "scripts/task-modal-followup-regression.mjs",
+        "decision": "worker-parallel",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Imports only assertions and the read-only project source reader, checks current Task dialog text, and owns no mutable environment, process, timer, listener, cache, or filesystem state."
+      },
+      {
+        "path": "scripts/task-modal-reflow-regression.mjs",
+        "decision": "worker-parallel",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Imports only assertions and the read-only project source reader, checks bounded Task layout sources, and leaves environment, process, timers, listeners, cache, and filesystem unchanged."
+      },
+      {
+        "path": "scripts/file-scanner-setup-docs-regression.mjs",
+        "decision": "worker-sequential",
+        "fallback": "child-process",
+        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "rationale": "Reads scanner documentation and source membership without starting a scanner or writing storage; sequential worker admission retains an intentionally conservative boundary for this former serial Files owner."
+      }
+    ]
+  },
   "entries": [
     {
       "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",

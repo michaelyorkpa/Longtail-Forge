@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.6. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.7, the static execution audit assigns every discovered static owner either a reviewed worker decision or an explicit child-process fallback across environment, global state, timers, listeners, cache, process, and filesystem resources. Six read-only source owners are certified: five use the bounded parallel worker lane and the former serial Files documentation owner uses the sequential worker lane. Every unreviewed static owner, all stateful database and Files owners, environment-sensitive scripts, and child-spawning scripts remain child processes. `LTF_STATIC_EXECUTION_MODE=child-process` forces the complete control path. Worker output remains buffered per script, timing JSON records `executionMode`, Node compile-cache configuration is inherited, and worker failures are reported without a masking child rerun. Bucket order, fail-fast scheduling, and isolated-database-only retry behavior are unchanged.
 
 As of 0.33.33.6, deterministic matrices have direct Vitest owners while stateful regressions retain only the integration seams that need their heavier fixtures. Asset-version and runtime-configuration movements remain pinned; client/project hierarchy and comparator behavior now lives in `tests/unit/client-project-options.test.mjs`; SQLite health formatting, work-candidate normalization/ranking, and resume-producer sanitization live in their named unit owners. The legacy client-picker entry point is retired with its page/consumer wiring moved to `framework.client-project-options-projection`; the SQLite, candidate, and producer regressions remain discovered for startup, database, module, permission, event, and repository behavior. `test:contracts`, `test:tasks`, and `test:time-tracking` name their exact owned files without `--passWithNoTests`, so missing narrow coverage fails closed. Internal checkpoint validation permits a script-only `package.json` edit only when the package version and every non-script field are unchanged; package-lock, release-identity, changelog, and durable-policy changes remain deferred to branch closeout. `check:fast` still runs typecheck, the complete Vitest suite, and cached ESLint before stateful regressions.
 
@@ -287,11 +289,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 458 |
 | Legacy regression ceiling | 307 |
-| Active regression assertions | 18296 |
+| Active regression assertions | 18324 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 133 |
-| Effective assertion floor | 18602 |
+| Effective assertion floor | 18630 |
 | Release-gate ratchet floor | 80 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -549,6 +551,8 @@ node scripts/run-regressions.mjs --area release --list
 - `--dry-run` prints selected buckets and paths without executing regressions or preparing database fixtures.
 
 Area, tag, and tier filters combine with logical AND. They also combine with the existing `LTF_REGRESSION_BUCKET` and bounded `LTF_REGRESSION_REPEAT` environment controls. An unknown option, invalid canonical value, missing option value, or empty result fails with a useful error instead of silently running or skipping a different set.
+
+`LTF_STATIC_EXECUTION_MODE=audited-workers` is the default and permits only the exact entries certified in `scripts/regression-static-isolation-audit.json`. `LTF_STATIC_EXECUTION_MODE=child-process` forces every static owner through the retained child-process path for diagnosis and comparison; no value can widen worker eligibility beyond the checked-in audit.
 
 ## Narrow Commands and Changed-File Routing
 

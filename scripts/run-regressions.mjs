@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { Worker } from "node:worker_threads";
 import { prepareRegressionBaselineDatabase } from "./test-support/database-fixture.mjs";
 import {
   resolveIsolatedFilesParallelism,
@@ -19,12 +20,14 @@ import {
   captureCanonicalWorkspaceInventory,
 } from "./test-support/canonical-workspace-inventory.mjs";
 import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regression-runner-options.mjs";
-import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
+import { loadStaticRegressionExecutionPlan } from "./lib/static-regression-execution.mjs";
+import { REGRESSION_BUCKETS, REGRESSION_ENTRIES, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
 const ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions";
 const STATIC_BUCKET_NAME = "static/source regressions";
 const VERIFIED_BASELINE_PRELOADER = "./scripts/test-support/regression-child-bootstrap.mjs";
+const STATIC_WORKER_BOOTSTRAP = new URL("./test-support/static-regression-worker.mjs", import.meta.url);
 const DEFAULT_REPEAT_COUNT = 1;
 const MAX_REGRESSION_REPEAT_COUNT = 5;
 
@@ -35,9 +38,12 @@ let regressionBaseline = null;
 let regressionBaselinePromise = null;
 let nodeCompileCacheDirectory = null;
 let scheduledScriptRuns = REGRESSION_SCRIPTS.length;
+let staticExecutionPlan = null;
+let staticSequentialWorkerTail = Promise.resolve();
 
 try {
   assertUniqueScripts();
+  staticExecutionPlan = await loadStaticRegressionExecutionPlan({ entries: REGRESSION_ENTRIES });
   const runOptions = resolveRunOptions(REGRESSION_BUCKETS, process.env, process.argv.slice(2));
   scheduledScriptRuns = countScheduledScriptRuns(runOptions);
 
@@ -54,7 +60,9 @@ try {
     if (runOptions.buckets.some((bucket) => bucket.name !== STATIC_BUCKET_NAME || bucket.entries.some((entry) => entry.tags.includes("baseline-fixture")))) {
       void getRegressionBaseline().catch(() => {});
     }
+    const selectedStaticExecution = summarizeSelectedStaticExecution(runOptions.buckets);
     console.log(`Running ${scheduledScriptRuns} regression script run(s).`);
+    console.log(`Static execution: ${selectedStaticExecution.workerCount} audited worker(s), ${selectedStaticExecution.fallbackCount} child-process fallback(s) (${staticExecutionPlan.mode}).`);
     if (runOptions.bucketFilter) {
       console.log(`Bucket filter: ${runOptions.bucketFilter}`);
     }
@@ -173,6 +181,22 @@ async function runIsolatedWithRetry(bucket, concurrency, runContext, bucketLabel
 }
 
 async function runScript(entry, bucket, scriptIndex, runContext) {
+  const staticDecision = bucket.name === STATIC_BUCKET_NAME
+    ? staticExecutionPlan.decisions.get(entry.path)
+    : null;
+  if (staticDecision?.decision === "worker-parallel") {
+    return runScriptWorker(entry, bucket, runContext);
+  }
+  if (staticDecision?.decision === "worker-sequential") {
+    const run = staticSequentialWorkerTail.then(() => runScriptWorker(entry, bucket, runContext));
+    staticSequentialWorkerTail = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  return runScriptChild(entry, bucket, scriptIndex, runContext);
+}
+
+async function runScriptChild(entry, bucket, scriptIndex, runContext) {
   const script = entry.path;
   const started = performance.now();
   const launch = await createScriptLaunch(entry, bucket, scriptIndex, runContext);
@@ -225,6 +249,64 @@ async function runScript(entry, bucket, scriptIndex, runContext) {
       printResult(result);
       resolve(result);
     });
+  });
+}
+
+async function runScriptWorker(entry, bucket, runContext) {
+  const script = entry.path;
+  const started = performance.now();
+
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    let worker;
+
+    try {
+      worker = new Worker(STATIC_WORKER_BOOTSTRAP, {
+        env: createChildProcessEnv(),
+        stderr: true,
+        stdout: true,
+        workerData: { script },
+      });
+    } catch (error) {
+      stderr = `${error?.stack || error?.message || error}\n`;
+      finish(1);
+      return;
+    }
+
+    worker.stdout.setEncoding("utf8");
+    worker.stderr.setEncoding("utf8");
+    worker.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    worker.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    worker.on("error", (error) => {
+      stderr += `${error?.stack || error?.message || error}\n`;
+    });
+    worker.on("exit", finish);
+
+    function finish(exitCode) {
+      if (settled) return;
+      settled = true;
+      const result = {
+        attemptNumber: runContext.attemptNumber || 1,
+        bucketName: bucket.name,
+        executionMode: "worker",
+        exitCode,
+        runIndex: runContext.runIndex,
+        runLabel: formatRunLabel(runContext),
+        retry: Boolean(runContext.retry),
+        script,
+        seconds: (performance.now() - started) / 1000,
+        stderr,
+        stdout,
+      };
+      printResult(result);
+      resolve(result);
+    }
   });
 }
 
@@ -347,10 +429,11 @@ async function writeTimingReport(results) {
     flakyRecoveries: results
       .filter((result) => result.flakyRecovered)
       .map((result) => ({ attemptCount: result.attemptCount, script: result.script })),
-    scripts: results.map(({ attemptCount, attempts, bucketName, exitCode, flakyRecovered, retrySerial, runLabel, script, seconds }) => ({
+    scripts: results.map(({ attemptCount, attempts, bucketName, executionMode, exitCode, flakyRecovered, retrySerial, runLabel, script, seconds }) => ({
       attemptCount: attemptCount || 1,
       attempts: attempts || [],
       bucketName,
+      executionMode: executionMode || "child-process",
       exitCode,
       flakyRecovered: Boolean(flakyRecovered),
       retrySerial: Boolean(retrySerial),
@@ -460,6 +543,20 @@ function resolveRunOptions(buckets, env, args = []) {
 function countScheduledScriptRuns(runOptions) {
   const scriptsPerPass = runOptions.buckets.reduce((sum, bucket) => sum + bucket.scripts.length, 0);
   return scriptsPerPass * runOptions.repeatCount;
+}
+
+function summarizeSelectedStaticExecution(buckets) {
+  const staticEntries = buckets.find((bucket) => bucket.name === STATIC_BUCKET_NAME)?.entries || [];
+  let workerCount = 0;
+  for (const entry of staticEntries) {
+    if (staticExecutionPlan.decisions.get(entry.path)?.decision.startsWith("worker-")) {
+      workerCount += 1;
+    }
+  }
+  return {
+    fallbackCount: staticEntries.length - workerCount,
+    workerCount,
+  };
 }
 
 function filterBuckets(buckets, bucketFilter) {

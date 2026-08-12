@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.7 - Add audit-gated in-process static execution
-
-**Model: High Effort** - Runner changes affect global state, output isolation, failure propagation, and every static owner.
-
-- [ ] Extend the static-isolation audit with complete environment, global, timer, listener, cache, process, and filesystem resource classifications.
-- [ ] Run only certified static owners in-process through bounded worker/sequential isolation; keep an explicit child-process fallback per entry.
-- [ ] Preserve bucket order, buffered output, fail-fast behavior, timing JSON, Node compile cache, and the isolated-database-only retry rule.
-- [ ] Record three comparable full runs and retain the old path if process or global-state proof is inconclusive.
-
 ### 0.33.33.8 - Consolidate release, roadmap, and documentation static owners
 
 **Model: High Effort** - Many historical assertions move at once and must not erase a current release contract.

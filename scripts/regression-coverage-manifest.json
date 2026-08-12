@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18296,
+    "activeAssertionCount": 18324,
     "creditedAssertionReduction": 133,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -98,7 +98,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18602,
+    "effectiveAssertionCount": 18630,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -4514,7 +4514,7 @@
     },
     {
       "area": "release",
-      "assertionCount": 72,
+      "assertionCount": 100,
       "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
       "id": "release.files-regression-isolation-audit",
       "legacy": false,
