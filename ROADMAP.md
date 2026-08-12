@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.5 - Consolidate shared source-scan and fake-DOM harnesses
-
-**Model: High Effort** - High-fan-in test support changes can alter hundreds of assertions despite having no product behavior.
-
-- [ ] Export one canonical reader and `escapeRegExp` implementation from test support and migrate all 81 helper copies plus local read helpers.
-- [ ] Replace the 11 divergent `createBrowserContext()` implementations with one audited fake-DOM harness whose supported semantics are explicit.
-- [ ] Add contract tests for paths, encoding, caching, DOM events, selectors, attributes, and failure behavior used by migrated owners.
-- [ ] Do not broaden the harness into a browser emulator or replace Playwright rendering coverage.
-
 ### 0.33.33.6 - Move duplicated pure contracts to Vitest owners
 
 **Model: High Effort** - Retirement is safe only when pure behavior and remaining integration seams are separated precisely.

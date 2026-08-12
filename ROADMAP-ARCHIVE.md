@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.5 - Consolidate shared source-scan and fake-DOM harnesses
+
+**Model: High Effort** - High-fan-in test support changed hundreds of static owners while preserving their executable behavior.
+
+- [x] Exported one canonical project reader and `escapeRegExp` implementation from test support, migrated the remaining 78 local regex helpers from the planned 81-helper baseline, and removed 242 local project-reader helpers.
+- [x] Replaced the 11 divergent `createBrowserContext()` implementations and their local fake-DOM types with one audited fake-DOM harness whose supported semantics are explicit.
+- [x] Added contract tests for repository-relative paths, UTF-8 encoding, synchronous/asynchronous caching, DOM events, selectors, attributes, focus, and failure behavior used by migrated owners.
+- [x] Kept the fake DOM deliberately bounded and retained Playwright as the rendered browser, accessibility, focus, console, and overflow owner.
+
 ## Version 0.33.33.4 - Register the permission harness and retire text proxies
 
 **Model: High Effort** - The strongest authorization proof entered discovery without duplicating its expensive run or changing isolation.
