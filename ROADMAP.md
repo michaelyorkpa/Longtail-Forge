@@ -46,16 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.4 - Register the permission harness and retire text proxies
-
-**Model: High Effort** - The strongest authorization proof must enter discovery without duplicating its expensive run or changing isolation.
-
-- [ ] Give `scripts/permission-regression.mjs` canonical metadata, discovery membership, an owned area/tier/run mode, and floor protection.
-- [ ] Ensure `verify:slice`, full runs, and permission-owned routing execute its 409 HTTP checks exactly once.
-- [ ] Retire the three static regressions that inspect the harness as text after their live expectations move to the behavioral owner.
-- [ ] Retire every remaining source-text proxy over other executable tests — including the nine programs reading `tests/e2e/**` or `playwright.config.js` as text and any reader of Vitest suite source — once each proxied expectation has a running behavioral owner.
-- [ ] Preserve temporary database isolation, eight-role coverage, fail-fast reporting, and the independently runnable `npm run test:permissions` command.
-
 ### 0.33.33.5 - Consolidate shared source-scan and fake-DOM harnesses
 
 **Model: High Effort** - High-fan-in test support changes can alter hundreds of assertions despite having no product behavior.

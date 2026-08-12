@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "maximumActiveScripts": 461,
-  "minimumAssertionCount": 18178,
+  "maximumActiveScripts": 459,
+  "minimumAssertionCount": 18561,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 47,
@@ -13,7 +13,7 @@
     "lists": 12,
     "notes": 40,
     "notifications": 3,
-    "permissions": 13,
+    "permissions": 14,
     "public-api": 3,
     "release": 40,
     "search": 12,
@@ -23,7 +23,7 @@
     "views": 33,
     "workbench": 32
   },
-  "minimumReleaseGateScripts": 79,
+  "minimumReleaseGateScripts": 80,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -50,6 +50,7 @@
     "framework.http-error-contract",
     "framework.http-error-development-guardrails",
     "framework.bundled-module-registry",
+    "permissions.http-authorization-matrix",
     "release.regression-discovery-runner",
     "release.changed-regression-auto-run",
     "release.github-only-docs-workflow-routing",
@@ -696,6 +697,119 @@
         "docs",
         "release",
         "typecheck"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/view-surface-permission-wiring.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static owner duplicated live scoped authorization checks by reading the permission harness as text and repeated declarative renderer and child-client contracts already owned by executable regressions.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes scoped grant, session bootstrap, top-level denial, and eight-role HTTP behavior; legacy.view.renderer.actions and permissions.client-child-create-scope retain declarative action filtering and record-capability integration without inspecting another test program.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix",
+        "legacy.view.renderer.actions",
+        "permissions.client-child-create-scope"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "node scripts/view-renderer-actions-regression.mjs",
+        "node scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 10,
+        "creditedAssertionReduction": 10,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "scripts/view-renderer-actions-regression.mjs",
+          "scripts/regressions/permissions/client-child-create-scope.regression.mjs"
+        ]
+      },
+      "id": "permissions.view-surface-permission-wiring",
+      "area": "permissions",
+      "tier": "release-gate",
+      "tags": [
+        "browser",
+        "permissions",
+        "scope",
+        "views"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/scope-aware-admin-navigation.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static owner duplicated live Client and Project administrator navigation and scope checks by asserting that named permission-harness strings still existed.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes the Client Administrator, Project Administrator, unscoped, and Workspace Administrator navigation/data outcomes; the child-create and action-registration owners retain server-shaped project and client affordances.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix",
+        "permissions.client-child-create-scope",
+        "legacy.clients.projects.action.registration"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "node scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+        "node scripts/clients-projects-action-registration-regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 22,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "scripts/regressions/permissions/client-child-create-scope.regression.mjs",
+          "scripts/clients-projects-action-registration-regression.mjs"
+        ]
+      },
+      "id": "permissions.scope-aware-admin-navigation",
+      "area": "permissions",
+      "tier": "focused",
+      "tags": [
+        "app-shell",
+        "clients",
+        "navigation",
+        "permissions",
+        "projects"
+      ],
+      "legacy": false
+    },
+    {
+      "script": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
+      "retiredInVersion": "0.33.33.4",
+      "retirementType": "assertions-moved",
+      "rationale": "The static browser-source inventory duplicated the live delegated-role authorization matrix and could pass while the Role Assignments page failed to render or operate.",
+      "assertionDisposition": "permissions.http-authorization-matrix executes dedicated-page access, full User Admin separation, calm exact-account lookup, delegated scope disclosure, stale-revision denial, and hidden-assignment protection across the reviewed roles; the Settings Playwright owner renders the dedicated exact-account surface and exclusion of full User Admin controls.",
+      "retainedCoverageOwners": [
+        "permissions.http-authorization-matrix"
+      ],
+      "verificationPerformed": [
+        "npm run test:permissions",
+        "npm exec playwright test tests/e2e/settings-admin-navigation.spec.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 36,
+        "creditedAssertionReduction": 36,
+        "ownerPaths": [
+          "scripts/permission-regression.mjs",
+          "tests/e2e/settings-admin-navigation.spec.mjs"
+        ]
+      },
+      "id": "permissions.delegated-role-assignment-browser",
+      "area": "permissions",
+      "tier": "focused",
+      "tags": [
+        "accessibility",
+        "app-shell",
+        "browser",
+        "modules",
+        "permissions",
+        "users"
       ],
       "legacy": false
     }

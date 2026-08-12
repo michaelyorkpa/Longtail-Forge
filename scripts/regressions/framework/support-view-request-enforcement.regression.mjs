@@ -343,7 +343,7 @@ async function assertReadRouteDeclarations() {
     "Support View route IDs must be unique",
   );
 
-  const [navigationSource, entryScriptSource, entryHtml, auditHtml, staticSource, authRoutesSource, supportRoutesSource, appShellSource, appSource, browserJourneySource] = await Promise.all([
+  const [navigationSource, entryScriptSource, entryHtml, auditHtml, staticSource, authRoutesSource, supportRoutesSource, appShellSource, appSource] = await Promise.all([
     fs.readFile(path.join(root, "public", "js", "navigation.js"), "utf8"),
     fs.readFile(path.join(root, "public", "js", "support-view.js"), "utf8"),
     fs.readFile(path.join(root, "views", "protected", "support-view.html"), "utf8"),
@@ -353,7 +353,6 @@ async function assertReadRouteDeclarations() {
     fs.readFile(path.join(root, "src", "routes", "support-view.routes.js"), "utf8"),
     fs.readFile(path.join(root, "src", "services", "app-shell.service.js"), "utf8"),
     fs.readFile(path.join(root, "src", "core", "app.js"), "utf8"),
-    fs.readFile(path.join(root, "tests", "e2e", "support-view.spec.mjs"), "utf8"),
   ]);
   assert.match(navigationSource, /dataset\.supportViewBanner/);
   assert.match(navigationSource, /effectiveUserLabel/);
@@ -380,11 +379,6 @@ async function assertReadRouteDeclarations() {
     appSource.indexOf("app.use(supportViewRequestGate)") < appSource.indexOf('app.use("/api", supportViewRoutes)'),
     "Support View targets/start/audit routes must remain behind the central request gate",
   );
-  assert.match(browserJourneySource, /support_view_read_only/);
-  assert.match(browserJourneySource, /End Support View/);
-  assert.match(browserJourneySource, /Log Out/);
-  assert.match(browserJourneySource, /data-framework-permission-denied/);
-  assert.match(browserJourneySource, /toBeFocused/);
 }
 
 async function createSecureNote(session) {

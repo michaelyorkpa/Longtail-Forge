@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
 
@@ -103,20 +103,6 @@ for (const requiredPath of REQUIRED_HARNESS_FILES) {
   assert.ok(existsSync(requiredPath), `${requiredPath} must exist in clean clones`);
 }
 
-const playwrightConfig = readFileSync("playwright.config.js", "utf8");
-assert.match(playwrightConfig, /testDir: "tests\/e2e"/, "the e2e suite must stay in the dedicated tests/e2e folder");
-assert.match(playwrightConfig, /name: "desktop"/, "the named desktop viewport project must remain");
-assert.match(playwrightConfig, /name: "mobile"/, "the named mobile viewport project must remain");
-assert.match(playwrightConfig, /dependencies: \["setup"\]/, "viewport projects must retain the authenticated setup dependency");
-assert.match(playwrightConfig, /storageState: E2E_STORAGE_STATE_PATH/, "viewport projects must retain the saved authenticated state");
-assert.match(playwrightConfig, /grepInvert: \/@mobile\//, "the desktop project must exclude explicitly mobile-only tests before setup");
-assert.match(playwrightConfig, /grepInvert: \/@desktop\//, "the mobile project must exclude explicitly desktop-only tests before setup");
-assert.match(playwrightConfig, /retries: isCI \? 1 : 0/, "CI must retry browser failures once while local runs remain single-attempt");
-assert.match(playwrightConfig, /workers: 2/, "browser execution must stay at the measured shared-server-safe two-worker bound");
-assert.match(playwrightConfig, /trace: isCI \? "on-first-retry" : "retain-on-failure"/, "CI retries and local failures must retain actionable traces");
-assert.match(playwrightConfig, /screenshot: "only-on-failure"/, "browser failures must retain screenshots");
-assert.doesNotMatch(playwrightConfig, /webServer:/, "the config must not delegate Windows process-tree teardown to Playwright's shell wrapper");
-
 assert.equal(scripts["test:e2e"], "node scripts/run-playwright-e2e.mjs", "the canonical browser command must own managed-server cleanup");
 assert.equal(scripts["test:e2e:ui"], "node scripts/run-playwright-e2e.mjs --ui", "UI mode must use the same managed-server owner");
 assert.equal(
@@ -128,18 +114,6 @@ const playwrightRunner = readFileSync("scripts/run-playwright-e2e.mjs", "utf8");
 assert.match(playwrightRunner, /spawn\(process\.execPath/, "the managed server and Playwright CLI must launch without a shell wrapper");
 assert.match(playwrightRunner, /await stopManagedServer\(managedServer\)/, "the managed runner must always await server cleanup");
 assert.match(playwrightRunner, /child\.kill\("SIGKILL"\)/, "managed cleanup must have a bounded forced fallback");
-
-const e2eSpecSource = readdirSync("tests/e2e", { withFileTypes: true })
-  .filter((entry) => entry.isFile() && entry.name.endsWith(".spec.mjs"))
-  .map((entry) => readFileSync(`tests/e2e/${entry.name}`, "utf8"))
-  .join("\n");
-assert.doesNotMatch(
-  e2eSpecSource,
-  /test\.skip\s*\(/,
-  "project selection must happen through explicit tags instead of in-body test.skip calls",
-);
-assert.equal((e2eSpecSource.match(/tag: "@mobile"/g) || []).length, 9, "all nine mobile-only tests must be tagged explicitly");
-assert.equal((e2eSpecSource.match(/tag: "@desktop"/g) || []).length, 11, "all eleven desktop-only tests must be tagged explicitly");
 
 const developmentWorkflow = readFileSync(".github/workflows/development-pr.yml", "utf8");
 assert.match(

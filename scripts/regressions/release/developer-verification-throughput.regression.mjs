@@ -47,15 +47,23 @@ const focused = createChangedRegressionPlan(["src/modules/tasks/tasks.service.js
 const focusedSlice = createSliceVerificationPlan(focused);
 assert.equal(focusedSlice.stages.find(({ id }) => id === "fast-checks").included, false);
 assert.equal(focusedSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions:tasks");
+assert.equal(focusedSlice.permissionHarnessIncluded, false);
 const fullSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/db/schema/current.sql"]));
 assert.equal(fullSlice.stages.find(({ id }) => id === "fast-checks").included, true);
 assert.equal(fullSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions");
+assert.equal(fullSlice.permissionHarnessIncluded, true, "the discovered harness should run once inside every full registry");
+assert.equal(fullSlice.commands.filter((command) => command === "npm run test:regressions").length, 1);
+assert.ok(!fullSlice.commands.includes("npm run test:permissions"), "slice verification must not run the discovered harness a second time");
+const permissionSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/routes/permissions.routes.js"]));
+assert.equal(permissionSlice.permissionHarnessIncluded, true);
+assert.deepEqual(permissionSlice.commands.filter((command) => /permission/.test(command)), [], "permission routing should reach the harness through the one full registry command");
 const executed = executeSliceVerificationPlan(focusedSlice, { contextSeconds: 0.25, runCommand: () => ({ status: 0 }) });
 const summary = formatSliceVerificationSummary(focusedSlice, executed);
-for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Regression buckets", "Permission checks", "Browser checks", "Packaging"]) {
+for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Regression buckets", "Browser checks", "Packaging"]) {
   assert.match(summary, new RegExp(label.replace("/", "\\/")), `${label} timing/status must stay visible`);
 }
 assert.match(summary, /\[SKIPPED\]/);
+assert.match(summary, /Permission harness discovered through regression buckets: no/);
 
 for (const workflowPath of [
   ".github/workflows/development-pr.yml",

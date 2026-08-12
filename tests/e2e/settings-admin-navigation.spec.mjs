@@ -1,5 +1,20 @@
 import { expect, test } from "@playwright/test";
 
+test("Role Assignments renders the dedicated exact-account surface", async ({ page }) => {
+  const response = await page.goto("/role-assignments.html");
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1, name: "Role Assignments" })).toBeVisible();
+  await expect(page.locator("[data-role-account-email]")).toHaveAttribute("type", "email");
+  await expect(page.locator("[data-role-assignment-status]")).toHaveAttribute("aria-live", "polite");
+  await expect(page.locator("[data-role-target]")).toHaveAttribute("aria-labelledby", "delegated-role-target-heading");
+  await expect(page.locator("[data-delegated-role-list]")).toHaveCount(1);
+  await expect(page.locator("[data-add-delegated-role]")).toHaveCount(1);
+  await expect(page.getByText("Workspace Memberships", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Active Sessions", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Reset Password", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Delete User", { exact: true })).toHaveCount(0);
+});
+
 test("Workspace groups optional modules and repaired Files Settings host loads", async ({ page }) => {
   const workspaceResponse = await page.goto("/workspace-settings.html");
   expect(workspaceResponse.status()).toBe(200);

@@ -57,7 +57,15 @@ for (const [family, expectedOwner] of Object.entries({
   }
 }
 
+const EXECUTABLE_TEST_TEXT_PROXY_PATTERNS = Object.freeze([
+  ["permission harness text proxy", /\b(?:read|readText|readFileSync)\s*\(\s*["']scripts\/permission-regression\.mjs/],
+  ["Playwright spec text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*(?:tests\/e2e|["']tests["'][^;\n]*["']e2e["'])/],
+  ["Playwright config text proxy", /\b(?:readFileSync|readText)\s*\(\s*["']playwright\.config\.js/],
+  ["Playwright directory text proxy", /\breaddirSync\s*\(\s*["']tests\/e2e["']/],
+  ["Vitest source text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*tests\/(?:contracts|files|tasks|unit)\/[^"'`\n]+\.test\.mjs/],
+]);
 const duplicateErrors = [];
+const executableTestProxyErrors = [];
 for (const entry of REGRESSION_ENTRIES) {
   const source = reader.readText(entry.path);
   if (/assert\.equal\([^\n]*(?:packageJson\.version|packageLock\.version|packageLock\.packages\[""\]\.version)[^\n]*(?:appVersion|packageJson\.version)/.test(source)) {
@@ -72,8 +80,18 @@ for (const entry of REGRESSION_ENTRIES) {
   if (/assert\.equal\([^\n]*(?:packageJson|repoPackage)\.scripts(?:\[|\.)/.test(source)) {
     duplicateErrors.push(`${entry.path}: exact package-script pin`);
   }
+  if (entry.id !== regressionMeta.id) {
+    for (const [label, pattern] of EXECUTABLE_TEST_TEXT_PROXY_PATTERNS) {
+      if (pattern.test(source)) executableTestProxyErrors.push(`${entry.path}: ${label}`);
+    }
+  }
 }
 assert.deepEqual(duplicateErrors, [], `duplicate validation owners should stay retired:\n${duplicateErrors.join("\n")}`);
+assert.deepEqual(
+  executableTestProxyErrors,
+  [],
+  `regressions must execute behavioral owners instead of reading executable test source:\n${executableTestProxyErrors.join("\n")}`,
+);
 
 const closeoutSource = reader.readText("scripts/lib/closeout-gates.mjs");
 for (const command of [

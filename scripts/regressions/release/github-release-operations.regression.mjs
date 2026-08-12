@@ -69,12 +69,13 @@ for (const requirement of [
   /name: Release gate/,
   /npm run closeout/,
   /npm run check/,
-  /npm run test:permissions/,
+  /npm run test:regressions/,
   /npm audit --audit-level=high/,
   /name: Browser gate/,
   /name: Packaging and recovery/,
   /npm run container:smoke/,
 ]) assert.match(promotion, requirement);
+assert.doesNotMatch(promotion, /npm run test:permissions/, "promotion should execute the discovered permission harness only through the full regression registry");
 assert.match(
   promotion,
   /name: Container recovery proof[\s\S]*name: Install pinned Caddy container-smoke binary[\s\S]*CADDY_VERSION: 2\.11\.4[\s\S]*sha512sum --check --strict[\s\S]*npm run container:smoke/,
@@ -86,6 +87,8 @@ assert.match(nightly, /schedule:[\s\S]*cron:/);
 assert.match(nightly, /name: GitHub-only docs - no runtime artifact/);
 assert.match(nightly, /release-metadata\.json/);
 assert.match(nightly, /name: Publish exact-SHA nightly proof/);
+assert.match(nightly, /npm run test:regressions/);
+assert.doesNotMatch(nightly, /npm run test:permissions/, "Nightly should execute the discovered permission harness only through the full regression registry");
 assert.doesNotMatch(nightly, /environment: demo-development|DEPLOY_ENABLED|DEPLOY_TRANSPORT|deploy-via-ssh/);
 assert.doesNotMatch(nightly, /friends-and-family-preview/);
 
@@ -135,6 +138,8 @@ for (const requirement of [
   /--mode compose-rollback/,
 ]) assert.match(manualPreview, requirement);
 assert.doesNotMatch(manualPreview, /^\s*push:/m);
+assert.match(manualPreview, /npm run test:regressions/);
+assert.doesNotMatch(manualPreview, /npm run test:permissions/, "manual preview should execute the discovered permission harness only through the full regression registry");
 
 assert.equal(
   (codeql.match(new RegExp(`github/codeql-action/init@${REVIEWED_CODEQL_SHA}`, "g")) || []).length,

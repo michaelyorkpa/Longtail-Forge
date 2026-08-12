@@ -20,7 +20,6 @@ const authenticationThrottleRepositorySource = readText("src/repositories/authen
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
-const pureContractTest = readText("tests/unit/runtime-configuration.test.mjs");
 const coveragePolicy = JSON.parse(readText("scripts/regression-coverage-exceptions.json"));
 const fixture = await createDisposableDatabaseFixture("runtime-configuration-contract-regression");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
@@ -181,9 +180,6 @@ assert.match(usersService, /config\.envOverrides\.workspaceTypeLimit/, "workspac
 assert.match(secureCrypto, /readRuntimeSecret\("LONGTAIL_SECURE_NOTES_MASTER_KEY"\)/, "secure notes should read the preferred runtime secret name through config helpers");
 assert.match(secureCrypto, /readRuntimeSecret\("SECURE_NOTES_MASTER_KEY"\)/, "secure notes should preserve the legacy runtime secret name");
 assert.match(localStorageAdapter, /const LOCAL_FILE_STORAGE_ROOT = config\.storage\.localRoot/, "local file storage root should come from runtime config");
-
-assert.match(pureContractTest, /PURE_ASSERTION_INVENTORY[\s\S]*142/, "Vitest should retain the complete 142-case pure configuration inventory");
-assert.match(pureContractTest, /createConfig\(overrides\)/, "Vitest should own direct expected-error validation without child processes");
 
 const assertionMovement = coveragePolicy.assertionMovements.find((entry) => (
   entry.sourceRegression === "scripts/runtime-configuration-contract-regression.mjs"

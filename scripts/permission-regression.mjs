@@ -1,3 +1,12 @@
+export const regressionMeta = Object.freeze({
+  id: "permissions.http-authorization-matrix",
+  area: "permissions",
+  tier: "release-gate",
+  tags: ["authorization", "http", "permissions", "roles", "security"],
+  description: "Executes the complete eight-role HTTP authorization matrix against one isolated application server and disposable database.",
+  runMode: "isolated-database",
+});
+
 /* global fetch */
 
 import assert from "node:assert/strict";
@@ -47,6 +56,7 @@ try {
   await runWorkspaceCreationModuleSettingTests(api, fixtures);
   await runWorkspaceOwnerLifecycleTests(api, fixtures);
 
+  assert.ok(results.length >= 409, "permission harness should retain at least the reviewed 409-check authorization floor");
   console.log(`Permission regression harness passed ${results.length} checks.`);
 } finally {
   if (server) {
