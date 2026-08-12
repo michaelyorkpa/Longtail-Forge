@@ -38,8 +38,6 @@
     }
   ],
   "retainedCloseoutOwners": [
-    "framework.reporting-closeout",
-    "framework.settings-branch-closeout",
     "legacy.async.recurrence.response.closeout",
     "legacy.better.sqlite3.driver.closeout",
     "legacy.client.project.hierarchy.branch.closeout",
