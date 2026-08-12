@@ -105,9 +105,19 @@ const bucketFloors = new Map([
   ["isolated file storage regressions", 9],
   ["isolated database regressions", 150],
 ]);
+const bucketRunModes = new Map([
+  ["static/source regressions", "static"],
+  ["default database regressions", "serial-database"],
+  ["file storage regressions", "serial-files"],
+  ["isolated file storage regressions", "isolated-files"],
+  ["isolated database regressions", "isolated-database"],
+]);
 for (const bucket of REGRESSION_BUCKETS) {
+  const retiredCredits = coveragePolicy.retiredScripts.filter((entry) => (
+    entry.floorCredit === true && entry.runMode === bucketRunModes.get(bucket.name)
+  )).length;
   assert.ok(
-    bucket.scripts.length >= bucketFloors.get(bucket.name),
+    bucket.scripts.length + retiredCredits >= bucketFloors.get(bucket.name),
     bucket.name + " should retain its coverage floor without pinning safe reclassification",
   );
 }

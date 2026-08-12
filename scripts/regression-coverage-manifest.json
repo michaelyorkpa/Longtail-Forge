@@ -6853,7 +6853,8 @@
       "tags": [
         "permissions"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/check-js.mjs",
@@ -6914,7 +6915,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/client-picker-hierarchy-regression.mjs",
@@ -7011,7 +7013,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
@@ -7090,7 +7093,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/markdown-closeout-regression.mjs",
@@ -7138,7 +7142,8 @@
         "contract",
         "docs"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/markdown-renderer-service-regression.mjs",
@@ -7168,7 +7173,8 @@
       "tags": [
         "docs"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/modal-action-standardization-contract-regression.mjs",
@@ -7198,7 +7204,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/modal-footer-contract-regression.mjs",
@@ -7228,7 +7235,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/modal-section-contract-regression.mjs",
@@ -7258,7 +7266,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/module-file-closeout-regression.mjs",
@@ -7339,7 +7348,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/regression-coverage-ratchet.mjs",
@@ -7471,7 +7481,8 @@
         "tasks",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/framework/reporting-closeout.regression.mjs",
@@ -7505,7 +7516,8 @@
         "reporting",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/framework/reporting-host.regression.mjs",
@@ -7538,7 +7550,8 @@
         "reporting",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/framework/settings-branch-closeout.regression.mjs",
@@ -7570,7 +7583,8 @@
         "settings",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/framework/settings-page-actions.regression.mjs",
@@ -7603,7 +7617,8 @@
         "settings",
         "ui"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
@@ -7929,7 +7944,8 @@
         "guardrail",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
@@ -7963,7 +7979,8 @@
         "guardrail",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/dashboard-client-bootstrap.regression.mjs",
@@ -7997,7 +8014,8 @@
         "sequencing",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/dashboard-es-module-entry.regression.mjs",
@@ -8032,7 +8050,8 @@
         "guardrail",
         "keyboard"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/field-factory.regression.mjs",
@@ -8065,7 +8084,8 @@
         "fields",
         "reporting"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/mobile-app-shell-header.regression.mjs",
@@ -8099,7 +8119,8 @@
         "responsive",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/views/mobile-foundation.regression.mjs",
@@ -8132,7 +8153,8 @@
         "responsive",
         "views"
       ],
-      "legacy": false
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/remaining-icon-actions-regression.mjs",
@@ -8160,7 +8182,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
@@ -8205,7 +8228,8 @@
       "area": "framework",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/static-contract-closeout-regression.mjs",
@@ -8267,7 +8291,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/surface-standardization-closeout-regression.mjs",
@@ -8314,7 +8339,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/tasks-conversion-closeout-regression.mjs",
@@ -8361,7 +8387,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/version-literal-guardrail-regression.mjs",
@@ -8439,7 +8466,8 @@
       "tags": [
         "contract"
       ],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-builder-converted-surface-guardrails.mjs",
@@ -8467,7 +8495,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-conversion-branch-closeout-regression.mjs",
@@ -8512,7 +8541,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-descriptor-terminology-regression.mjs",
@@ -8540,7 +8570,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-index-primitive-regression.mjs",
@@ -8568,7 +8599,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-renderer-data-binding-regression.mjs",
@@ -8596,7 +8628,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/view-renderer-shell-regression.mjs",
@@ -8624,7 +8657,8 @@
       "area": "views",
       "tier": "focused",
       "tags": [],
-      "legacy": true
+      "legacy": true,
+      "runMode": "static"
     }
   ]
 }
