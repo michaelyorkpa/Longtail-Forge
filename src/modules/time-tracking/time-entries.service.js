@@ -22,6 +22,8 @@ import {
 /** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
 /** @typedef {import("zod").infer<typeof BrowserTimeEntryCreateSchema>} BrowserTimeEntryCreatePayload */
 /** @typedef {(TimeEntryInput | BrowserTimeEntryCreatePayload) & { tagIds?: unknown[], tag_ids?: unknown[] }} TimeEntryCreateInput */
+/** @typedef {{ tagIds?: unknown, tag_ids?: unknown, tags?: unknown }} TimeEntryListQuery */
+/** @typedef {{ create: typeof create, createFromActiveTimer: typeof createFromActiveTimer, hasTaskTime: typeof hasTaskTime, list: typeof list, remove: typeof remove, update: typeof update }} TimeEntriesService */
 
 const MODULE_ID = "time-tracking";
 
@@ -184,6 +186,7 @@ async function update(rawPayload, entryId, session) {
   return { entry: taggedEntry, storage: "database" };
 }
 
+/** @param {string} entryId @param {WorkspaceRequestSession} session */
 async function remove(entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
@@ -228,6 +231,7 @@ async function remove(entryId, session) {
   return { entry_id: decodedEntryId, deleted: true };
 }
 
+/** @param {WorkspaceRequestSession} session @param {TimeEntryListQuery} [query] */
 async function list(session, query = {}) {
   const [storedEntries, settings] = await Promise.all([
     timeEntriesRepository.readAll(session.workspace_id),
@@ -249,6 +253,7 @@ async function list(session, query = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasTaskTime(workspaceId, taskId) {
   return timeEntriesRepository.hasForTask(workspaceId, taskId);
 }
@@ -384,6 +389,7 @@ async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
   });
 }
 
+/** @type {TimeEntriesService} */
 export const timeEntriesService = {
   create,
   createFromActiveTimer,

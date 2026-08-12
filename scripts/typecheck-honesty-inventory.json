@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "reviewedSlice": "checked-program-honesty",
+  "checkedProgram": {
+    "command": "npm run typecheck",
+    "optedInFiles": 149,
+    "errors": 0,
+    "remainingExplicitAnyByOwner": {
+      "src/core/events/event-summaries.js": 10,
+      "src/core/jobs/job-runner.js": 1,
+      "src/modules/lists/search-indexers.js": 4,
+      "src/repositories/account-export-recovery.repo.js": 1,
+      "src/repositories/authentication-throttle.repo.js": 6,
+      "src/services/notifications.service.js": 8,
+      "src/services/tags.service.js": 1,
+      "src/services/work-candidate.service.js": 1,
+      "src/services/work-resume-state-initial-producers.js": 5
+    },
+    "declarationResiduals": {
+      "src/types/framework-contracts.d.ts": {
+        "count": 2,
+        "owner": "Jobs payload-schema hardening"
+      }
+    },
+    "futureOwner": "Framework service/repository interior hardening; module-specific entries stay with their module hardening pass"
+  },
+  "strictServerAndTestProbe": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit --checkJs --pretty false",
+    "errors": 867,
+    "files": 91,
+    "byOwner": {
+      "src/modules/notes/": 208,
+      "src/modules/lists/": 118,
+      "src/modules/tasks/": 123,
+      "src/modules/time-tracking/": 11,
+      "src/modules/client-projects/": 31,
+      "src/modules/developer-example/": 2,
+      "src/core/": 62,
+      "src/db/": 21,
+      "src/routes/": 29,
+      "src/services/": 68,
+      "tests/e2e/": 156,
+      "tests/unit/": 28,
+      "tests/contracts/": 8,
+      "scripts/": 2
+    },
+    "productionErrors": 673,
+    "testOnlyErrors": 192,
+    "scriptErrors": 2,
+    "testDisposition": "Deferred as non-production test hardening; no production coverage credit is claimed."
+  },
+  "strictPublicBrowserProbe": {
+    "command": "PowerShell: $publicFiles = Get-ChildItem public/js -Recurse -Filter *.js; tsc --ignoreConfig --noEmit --allowJs --checkJs --skipLibCheck --moduleResolution bundler --module preserve --target es2023 --lib es2023,dom,dom.iterable @publicFiles",
+    "errors": 11134,
+    "files": 69,
+    "largestOwners": {
+      "public/js/notes.js": 1306,
+      "public/js/task-dialog.js": 984,
+      "public/js/workbench.js": 895,
+      "public/js/lists.js": 696,
+      "public/js/tasks.js": 661,
+      "public/js/clients-projects.js": 520,
+      "public/js/shared/view-builder.js": 492,
+      "public/js/shared/view-renderer.js": 404,
+      "public/js/user-admin.js": 387,
+      "public/js/files.js": 380
+    },
+    "futureOwner": "Deferred client-hardening branch after a checked element-lookup helper; no production coverage credit is claimed."
+  },
+  "namedDebtClosed": [
+    "PermissionResource and ActiveApiKey reject excess properties",
+    "CatalogContribution and ModuleEventHook use explicit contribution vocabulary",
+    "resume and internal-event sessions use RequestSession",
+    "Files and Tasks Zod edge parsers preserve schema-specific output",
+    "billing, time-entry, and task-timer exported service objects retain explicit callable contracts",
+    "permission-assignment wildcard parameters and double casts remain absent"
+  ]
+}

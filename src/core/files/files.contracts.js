@@ -184,10 +184,11 @@ const FileStorageAdapterConfigSchema = z.object({
  * fields (Zod object default), and converts the first validation issue into
  * the existing AppError envelope.
  *
- * @param {import("zod").ZodType} schema
+ * @template {import("zod").ZodType} Schema
+ * @param {Schema} schema
  * @param {unknown} payload
  * @param {{ status?: number }} [options]
- * @returns {any} the parsed, stripped payload
+ * @returns {import("zod").output<Schema>} the parsed, stripped payload
  */
 function parseFilesEdgePayload(schema, payload, options = {}) {
   const status = options.status || 400;

@@ -51,12 +51,12 @@ import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
 
 /** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
+/** @typedef {import("../../types/framework-contracts.js").CatalogContribution} CatalogContribution */
+/** @typedef {import("../../types/framework-contracts.js").ModuleEventHook} ModuleEventHook */
+/** @typedef {import("../../types/framework-contracts.js").ApiScopeCatalogEntry} ApiScopeCatalogEntry */
 /** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
 /** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
-/** @typedef {Record<string, any> & {id?: string, moduleId?: string, requiredPermissions?: string[], requiredWorkspaceCapabilities?: string[], requiresEnabledModules?: string[], requiredModules?: string[], workspaceTypes?: string[]}} CatalogContribution */
-/** @typedef {CatalogContribution & {event: string, handler: (context: Record<string, any>) => unknown | Promise<unknown>}} ModuleEventHook */
-/** @typedef {CatalogContribution & {scope: string, moduleId: string, label: string, description: string, access: string, publicDemoCapability?: string}} ApiScopeCatalogEntry */
 
 const MODULE_INSERT_COLUMNS = [
   "module_id",
@@ -230,7 +230,7 @@ function listModuleApiScopes() {
 
 /** @returns {ApiScopeCatalogEntry[]} */
 function listModuleApiScopeEntries() {
-  return /** @type {ApiScopeCatalogEntry[]} */ (listRegisteredModuleApiScopeEntries());
+  return listRegisteredModuleApiScopeEntries();
 }
 
 function listModuleAuditRecordTypes() {
@@ -243,7 +243,7 @@ function listModuleEventHooks() {
 
 /** @returns {ModuleEventHook[]} */
 function registeredModuleEventHooks() {
-  return /** @type {ModuleEventHook[]} */ (listRegisteredModuleEventHooks());
+  return listRegisteredModuleEventHooks();
 }
 
 function listModuleEventSummaries() {
@@ -935,6 +935,9 @@ function registerModuleEventHooks(options = {}) {
   for (const hook of registeredModuleEventHooks()) {
     moduleEventHookUnsubscribers.push(internalEventBus.on(hook.event, async (event) => {
       const moduleDefinition = getModule(hook.moduleId);
+      if (!moduleDefinition) {
+        return;
+      }
       await hook.handler({
         event,
         module: moduleDefinition,

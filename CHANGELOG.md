@@ -1,3 +1,15 @@
+## Version 0.33.32.44 - 2026-08-12
+
+- Published a reviewable honesty inventory separating the clean 149-file configured program from 867 strict server/test errors across 91 files and 11,134 strict public-browser errors across 69 files, with explicit future owners and no nominal production-coverage credit.
+- Replaced open-ended module catalog and event-hook intersections with explicit contribution vocabulary, removed assertion-only catalog casts, and terminated Work Resume/internal-event session contracts in the shared request-session union.
+- Closed `PermissionResource` and `ActiveApiKey` against excess-property typos and added positive plus misspelled-field compile fixtures.
+- Made Files and Tasks Zod edge helpers preserve schema-specific output and added checked callable contracts for exported billing, time-entry, and task-timer services.
+- Added `framework.typecheck-honesty-inventory`, raising the credited active regression floor to 466 and release-gate floor to 77 while preserving the 149-file checked floor.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, module workflows, runtime configuration, deployment, database schema/migrations, and public API behavior are unchanged.
+- No docs change needed: Tasks, Files, and Time Tracking runtime behavior is unchanged; this slice only tightens their existing checked service and parser contracts.
+
 ## Version 0.33.32.43 - 2026-08-12
 
 - Checked the framework migration runner against explicit source, file, repair, database-row, applied-migration, callback, filesystem-error, rollback-error, checksum, and result contracts, raising the checked inventory floor from 148 to 149 files.

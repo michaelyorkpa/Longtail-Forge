@@ -71,21 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.44 - Checked-program honesty and residual inventory
-
-**Model: High Effort** — The branch must distinguish meaningful contracts from pragma-only or `any`-terminated coverage without making percentage the goal.
-
-- [ ] Re-run source/test probes after slices 24-43 and publish exact residuals by owner, including checked files ending in `any`, wildcard parameters, double casts, or unannotated exports.
-- [ ] Remove named production honesty debt not already owned above: pragma-only billing/time-entry/task-timer exports, permission assignment wildcards, dead-end session types, and assertion-only casts.
-- [ ] Replace `modules.service.js`'s `CatalogContribution`/`ModuleEventHook` `Record<string, any>` plus optional-everything intersections with explicit catalog projection and event-hook contracts that Support Tickets can author against without erasing contribution vocabulary.
-- [ ] Remove the open `[key: string]: unknown` signatures from `PermissionResource` and `ActiveApiKey`, or replace them with explicit extension points proven to retain excess-property typo detection; add compile fixtures for misspelled permission/API-key fields.
-- [ ] Either convert one coherent high-value e2e helper/spec tier or explicitly record remaining test-only errors as non-production test hardening; do not inflate production coverage nominally.
-- [ ] Align checked inventory, bounded passes, guardrail fixtures, `docs/module-development.md`, and `DECISIONS.md` with exact achieved coverage and remaining owner-scoped work.
-
-Acceptance criteria:
-
-- Claimed production seams enforce their contracts, inventories match reality, and every remaining probe error has an explicit future owner without weaker checking dials.
-
 ## Version 0.33.32.45 - Branch completion audit and archive handoff
 
 **Model: High Effort** — Final closeout must reconcile a previously integrated branch, independent-review findings, protected verification, version records, and the next cursor.

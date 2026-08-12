@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 462,
+    "discoveredScripts": 463,
     "legacyScripts": 309,
-    "releaseGateScripts": 74,
+    "releaseGateScripts": 75,
     "areaCounts": {
       "dashboard": 2,
       "database": 47,
       "docs": 10,
       "files": 44,
-      "framework": 84,
+      "framework": 85,
       "jobs": 8,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 211,
       "integration": 169,
-      "release-gate": 74,
+      "release-gate": 75,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 236
+      "static": 237
     }
   },
   "coverageFamilies": [
@@ -3763,6 +3763,22 @@
     },
     {
       "area": "framework",
+      "description": "Pins the checked-program honesty inventory, named contract cleanup, and explicit future ownership for strict production, browser, and test residuals.",
+      "id": "framework.typecheck-honesty-inventory",
+      "legacy": false,
+      "path": "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "framework",
+        "release",
+        "typecheck"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
       "description": "Proves the server and browser typecheck programs, bounded clean-file passes, complete checked-seam inventory, and escape-hatch prohibitions stay intact.",
       "id": "framework.typecheck-seams",
       "legacy": false,
@@ -4002,7 +4018,7 @@
     },
     {
       "area": "permissions",
-      "description": "Proves permission resources require workspace scope and the Audit/Search route call sites construct that shared checked contract.",
+      "description": "Proves permission and active API-key contracts reject missing or misspelled fields while Audit/Search routes construct the shared checked resource.",
       "id": "permissions.permission-resource-types",
       "legacy": false,
       "path": "scripts/regressions/permissions/permission-resource-types.regression.mjs",
