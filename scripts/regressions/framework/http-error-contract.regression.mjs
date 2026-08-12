@@ -32,7 +32,7 @@ assert.match(
   /injectErrorBoundaryScripts\(contents\)[\s\S]*\/js\/shared\/error-contract\.js/,
   "served HTML should install the shared browser error parser before page callers run",
 );
-await assertBrowserParser();
+await assertBrowserApiContract();
 
 const diagnostics = [];
 const logger = {
@@ -180,7 +180,20 @@ try {
 
 console.log("HTTP error contract regression passed.");
 
-async function assertBrowserParser() {
+async function assertBrowserApiContract() {
+  const apiClientSource = await fs.readFile("public/js/shared/api-client.js", "utf8");
+  const missingParserContext = vm.createContext({
+    Error,
+    fetch: async () => ({ ok: true, status: 200, text: async () => "{}" }),
+    window: { LongtailForge: {} },
+  });
+  assert.throws(
+    () => vm.runInContext(apiClientSource, missingParserContext, { filename: "api-client.js" }),
+    /requires the shared error contract/i,
+    "api-client must fail visibly when the canonical parser is unavailable",
+  );
+  assert.equal(missingParserContext.window.LongtailForge.api, undefined);
+
   const context = vm.createContext({
     Error,
     fetch: async () => ({
@@ -203,7 +216,7 @@ async function assertBrowserParser() {
     { filename: "error-contract.js" },
   );
   vm.runInContext(
-    await fs.readFile("public/js/shared/api-client.js", "utf8"),
+    apiClientSource,
     context,
     { filename: "api-client.js" },
   );
@@ -214,6 +227,8 @@ async function assertBrowserParser() {
   assert.equal(error.code, "conflict");
   assert.equal(error.requestId, "browser-request-id");
   assert.equal(error.status, 409);
+  assert.equal(error.method, "GET");
+  assert.equal(error.body.error.code, "conflict");
 }
 
 function assertOrdered(source, snippets) {
