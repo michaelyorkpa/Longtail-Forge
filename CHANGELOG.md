@@ -1,3 +1,13 @@
+## Version 0.33.32.43 - 2026-08-12
+
+- Checked the framework migration runner against explicit source, file, repair, database-row, applied-migration, callback, filesystem-error, rollback-error, checksum, and result contracts, raising the checked inventory floor from 148 to 149 files.
+- Narrowed unknown database columns and filesystem failures at their real boundaries without editing applied migrations, changing checksums, or changing the generated schema snapshot.
+- Preserved migration locking, deterministic core/module ordering, fresh baseline and existing-database adoption, line-ending-compatible checksums, validation-before-apply, explicit begin/commit/rollback ownership, and foreign-key repair/check/re-enable behavior.
+- Added `database.migration-runner-checked-boundary`, raising the Database area floor to 47 and retaining fresh/repeat startup, adoption, contention, checksum mismatch, schema-snapshot, foreign-key, and SQLite integrity proof.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, schema contents, applied migrations, runtime configuration, deployment, permissions, and public API behavior are unchanged.
+
 ## Version 0.33.32.42 - 2026-08-12
 
 - Checked the shared Markdown core against explicit parser, renderer, token, inline-state, environment, render-mode, preference, link, and safe-output contracts, raising the checked inventory floor from 147 to 148 files.

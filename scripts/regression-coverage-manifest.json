@@ -3,12 +3,12 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 461,
+    "discoveredScripts": 462,
     "legacyScripts": 309,
-    "releaseGateScripts": 73,
+    "releaseGateScripts": 74,
     "areaCounts": {
       "dashboard": 2,
-      "database": 46,
+      "database": 47,
       "docs": 10,
       "files": 44,
       "framework": 84,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 211,
       "integration": 169,
-      "release-gate": 73,
+      "release-gate": 74,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 235
+      "static": 236
     }
   },
   "coverageFamilies": [
@@ -2657,6 +2657,24 @@
         "permissions",
         "seed",
         "sqlite"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "database",
+      "description": "Proves the checked migration runner keeps explicit source, row, checksum, ordering, locking, transaction, rollback, and foreign-key contracts.",
+      "id": "database.migration-runner-checked-boundary",
+      "legacy": false,
+      "path": "scripts/regressions/database/migration-runner-checked-boundary.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "checksums",
+        "contracts",
+        "database",
+        "migrations",
+        "transactions",
+        "typecheck"
       ],
       "tier": "release-gate"
     },

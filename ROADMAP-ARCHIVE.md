@@ -1,5 +1,29 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.43 - Migration-runner checked boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The framework migration runner now checks against explicit source, file, repair, database-row, applied-migration, callback, filesystem-error, and rollback-error contracts at the 149-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Migration ordering, locking, checksums, baselines, and transactions are database-integrity contracts.
+
+- [x] Checked `src/db/migrations.js` against explicit migration-file, version, lock, checksum, adapter, transaction, and result contracts.
+- [x] Narrowed filesystem and database state without editing applied migrations, changing checksums, or adding schema for checker satisfaction.
+- [x] Retained fresh/repeat startup, adoption, contention, checksum mismatch, rollback, snapshot, foreign-key, and integrity proof.
+
+Acceptance criteria:
+
+- [x] Migration runner typechecks and every ordering, lock, checksum, rollback, and schema-integrity behavior remains unchanged.
+
+Closeout notes:
+
+- Reproduce-first checking exposed seven errors: three nullable/unknown SQL-text reads, one filesystem error-code read, one baseline checksum read, one generic database-column comparison, and one rollback-error annotation. The pre-fix failing output was recorded before the boundary was narrowed.
+- Named migration-source/file, repair, applied-row, rollback annotation, callback, checksum, and result contracts cover the runner; generic query values are narrowed once through `readTextColumn`, and caught filesystem failures use a guarded error-code check.
+- The runner still acquires the migration lock before baseline/repair/migration work, sorts by version then module ID, filters and sorts SQL files, validates checksums before applying pending versions, owns explicit begin/commit/rollback, and restores foreign-key enforcement after parent rebuilds.
+- No applied migration or schema snapshot changed. The focused guard rejects checker suppressions and freezes ordering, checksum, transaction, rollback, foreign-key, and bound-recording structure.
+- Focused proof covered the 149-file typecheck boundary, fresh/repeat startup, baseline adoption, lock contention, compatibility and checksum mismatch, generated schema drift, foreign-key enforcement, rollback ownership, and SQLite integrity before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/database.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, schema contents, applied migrations, runtime configuration, deployment, permissions, and public API behavior are unchanged.
+
 ## Version 0.33.32.42 - Markdown checked core boundary
 
 Completed on 2026-08-12 out of numeric order at the operator's request. The shared Markdown renderer now checks against explicit parser, renderer, token, preference, link, environment, and safe-output contracts at the 148-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
