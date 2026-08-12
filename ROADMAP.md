@@ -50,10 +50,10 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Release-policy and validation-owner changes must preserve traceability and package identity exactly.
 
-- [ ] Define structured checkpoint trailers carrying slice ID, summary, and documentation disposition.
-- [ ] Move package/lock version bump, rolled-up changelog, durable decision/docs prose, roadmap archive handoff, and runtime identity proof to branch closeout while retaining `verify:slice` per checkpoint.
-- [ ] Adjust only the version/changelog owners that assume per-checkpoint release identity; keep exact-SHA CI, Nightly, promotion, artifact, and deployment contracts unchanged.
-- [ ] Prove the next checkpoint can complete with no more than two ceremony-file changes and a machine-readable trailer.
+- [x] Define structured checkpoint trailers carrying slice ID, summary, and documentation disposition.
+- [x] Move package/lock version bump, rolled-up changelog, durable decision/docs prose, roadmap archive handoff, and runtime identity proof to branch closeout while retaining `verify:slice` per checkpoint.
+- [x] Adjust only the version/changelog owners that assume per-checkpoint release identity; keep exact-SHA CI, Nightly, promotion, artifact, and deployment contracts unchanged.
+- [x] Prove the next checkpoint can complete with no more than two ceremony-file changes and a machine-readable trailer.
 
 ### 0.33.33.2 - Archive historical closeout evidence and retire paperwork gates
 
