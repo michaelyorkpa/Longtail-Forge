@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.6 - Move duplicated pure contracts to Vitest owners
+
+**Model: High Effort** - Retirement is safe only when pure behavior and remaining integration seams are separated precisely.
+
+- [x] Confirmed the existing asset-version and runtime-configuration Vitest dispositions, then moved duplicated SQLite formatter, client/project hierarchy comparator, work-candidate ranking, and resume-producer sanitization matrices to direct Vitest owners.
+- [x] Retained spawned integration checks only for environment materialization, startup/import propagation, database, HTTP, consumer wiring, permission, event, repository, or artifact behavior that Vitest does not own.
+- [x] Used the assertion-movement policy to retire the redundant client-picker entry point with complete Vitest and integration dispositions, zero duplicate-assertion floor credit, and a shrink-only 458-script ceiling.
+- [x] Removed `--passWithNoTests` from `test:contracts`, `test:tasks`, and `test:time-tracking`; every narrow alias now names its owned files and fails if coverage disappears.
+- [x] Kept Vitest ahead of stateful regressions in `check:fast` so deterministic failures remain cheap and fail-fast.
+
 ## Version 0.33.33.5 - Consolidate shared source-scan and fake-DOM harnesses
 
 **Model: High Effort** - High-fan-in test support changed hundreds of static owners while preserving their executable behavior.

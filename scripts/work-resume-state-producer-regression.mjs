@@ -16,11 +16,9 @@ const {
 } = await import("../src/services/work-resume-state-read-checks.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 const {
-  buildSafeProducerPayload,
   registerResumeStateProducer,
   registerResumeStateProducerEventHandlers,
   resetResumeStateProducersForTests,
-  sanitizeMetadata,
 } = await import("../src/services/work-resume-state-producers.js");
 
 try {
@@ -31,7 +29,6 @@ try {
   resetResumeStateProducersForTests();
   registerResumeStateReadResolver("tasks", "task", async () => ({ readable: true, status: "active" }));
 
-  await assertProducerPayloadContractScrubsUnsafeFields(session);
   await assertEventSubscriptionWritesCurrentUserResumeState(session);
   await assertDisabledModuleProducerNoops(session);
   await assertProducerCanRemoveRows(session);
@@ -43,53 +40,6 @@ try {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
-
-async function assertProducerPayloadContractScrubsUnsafeFields(session) {
-  const event = resumeEvent(session, {
-    eventName: "task.updated",
-    newValue: {
-      body_markdown: "Do not copy body text.",
-      description: "Allowed elsewhere, but the producer must choose explicit fields.",
-      title: "Fallback title",
-    },
-    recordId: `payload-task-${randomUUID()}`,
-  });
-  const payload = buildSafeProducerPayload({
-    id: "test.payload",
-    moduleId: "tasks",
-    recordType: "task",
-  }, event, {
-    body_excerpt: "Unsafe excerpt",
-    metadata: {
-      body_markdown: "Unsafe body",
-      nested: {
-        secure_payload: "encrypted text",
-        safe: "kept",
-      },
-    },
-    moduleId: "tasks",
-    nextAction: "Use the explicit safe next action.",
-    recordId: event.record_id,
-    recordType: "task",
-    title: "Explicit title",
-  });
-
-  assert.equal(payload.title, "Explicit title");
-  assert.equal(payload.nextAction, "Use the explicit safe next action.");
-  assert.equal(payload.body_excerpt, undefined);
-  assert.equal(payload.metadata.body_markdown, undefined);
-  assert.equal(payload.metadata.nested.secure_payload, undefined);
-  assert.equal(payload.metadata.nested.safe, "kept");
-
-  assert.deepEqual(sanitizeMetadata({
-    attachment_url: "hidden",
-    comments: "hidden",
-    safe_context: "visible",
-  }), {
-    safe_context: "visible",
-  });
-}
-
 async function assertEventSubscriptionWritesCurrentUserResumeState(session) {
   const taskId = `event-task-${randomUUID()}`;
 
@@ -219,23 +169,6 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 
   assert.deepEqual(rows, []);
-}
-
-function resumeEvent(session, options = {}) {
-  return {
-    actor_user_id: session.user_id,
-    emitted_at: "2026-06-13T16:30:00.000Z",
-    metadata: options.metadata || {},
-    module_id: "tasks",
-    name: options.eventName || "task.updated",
-    new_value: options.newValue || {},
-    previous_value: options.previousValue || {},
-    record_id: options.recordId || randomUUID(),
-    record_type: "task",
-    session,
-    source: "manual",
-    workspace_id: session.workspace_id,
-  };
 }
 
 async function readSeedSession() {

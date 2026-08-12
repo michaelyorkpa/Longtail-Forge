@@ -16,24 +16,29 @@ const scripts = packageJson.scripts;
 
 // npm start stays a pure Node runtime boot with no compile/typecheck step.
 
-// Fast-check commands exist and run the expected tools.
-for (const narrow of ["test:contracts", "test:tasks"]) {
-  assert.match(
-    String(scripts[narrow] || ""),
-    /^vitest run --passWithNoTests /,
-    `${narrow} must run a filtered Vitest pass that tolerates an empty match until its module lands`,
-  );
+// Narrow aliases name every owned file and fail closed if that coverage moves
+// or disappears.
+const narrowVitestOwners = {
+  "test:contracts": [
+    "tests/contracts/files-contracts.test.mjs",
+    "tests/contracts/normalizers-timezones.test.mjs",
+    "tests/contracts/tasks-contracts.test.mjs",
+    "tests/contracts/time-tracking-contracts.test.mjs",
+  ],
+  "test:files": ["tests/contracts/files-contracts.test.mjs"],
+  "test:tasks": ["tests/contracts/tasks-contracts.test.mjs"],
+  "test:time-tracking": [
+    "tests/contracts/time-tracking-contracts.test.mjs",
+    "tests/time-tracking/time-tracking-billing.test.mjs",
+  ],
+};
+for (const [scriptName, owners] of Object.entries(narrowVitestOwners)) {
+  assert.equal(scripts[scriptName], `vitest run ${owners.join(" ")}`, `${scriptName} must name its owned Vitest coverage exactly`);
+  assert.doesNotMatch(scripts[scriptName], /--passWithNoTests/, `${scriptName} must fail when its owned coverage disappears`);
+  for (const owner of owners) {
+    assert.ok(statSync(owner).isFile(), `${scriptName} owner ${owner} must exist`);
+  }
 }
-assert.equal(
-  scripts["test:files"],
-  "vitest run tests/contracts/files-contracts.test.mjs",
-  "test:files must name its real Files contract suite and fail when that suite disappears",
-);
-assert.doesNotMatch(
-  scripts["test:files"],
-  /--passWithNoTests/,
-  "test:files must not turn missing Files coverage into a successful no-op",
-);
 
 // npm run check fails fast: typecheck, unit tests, and the syntax/lint owner all
 // run before the stateful regression suite.
@@ -103,8 +108,10 @@ const INITIAL_UNIT_TEST_FILES = [
   "tests/contracts/tasks-contracts.test.mjs",
   "tests/unit/asset-version.test.mjs",
   "tests/unit/bounded-pagination.test.mjs",
+  "tests/unit/client-project-options.test.mjs",
   "tests/unit/focus-mode-resolution.test.mjs",
   "tests/unit/resume-producer-payload.test.mjs",
+  "tests/unit/sqlite-health-formatter.test.mjs",
   "tests/unit/work-candidate-ranking.test.mjs",
 ];
 for (const testFile of INITIAL_UNIT_TEST_FILES) {

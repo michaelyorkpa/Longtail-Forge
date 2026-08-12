@@ -162,6 +162,34 @@ for (const filePath of ["package.json", "package-lock.json", "CHANGELOG.md"]) {
   assert.match(deferredIdentity.errors.join("\n"), new RegExp(`${filePath.replace(".", "\\.")} is reserved for`));
 }
 
+const packageScriptCheckpoint = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.6",
+    docs: "No docs change needed: exact narrow command ownership changed without durable prose.",
+    summary: "Make narrow Vitest aliases fail when their owned suites disappear",
+  }),
+  packageBeforeSource: JSON.stringify({ name: "longtail-forge", scripts: { "test:tasks": "vitest run --passWithNoTests tasks" }, version: "9.8.7.6" }),
+  packageAfterSource: JSON.stringify({ name: "longtail-forge", scripts: { "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs" }, version: "9.8.7.6" }),
+  paths: ["package.json"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.deepEqual(packageScriptCheckpoint.errors, [], "internal checkpoints may change package scripts without changing release identity");
+
+const packageVersionCheckpoint = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.6",
+    docs: "No docs change needed: synthetic release-identity rejection.",
+    summary: "Attempt an early package version change",
+  }),
+  packageBeforeSource: JSON.stringify({ name: "longtail-forge", scripts: {}, version: "9.8.7.6" }),
+  packageAfterSource: JSON.stringify({ name: "longtail-forge", scripts: {}, version: "9.8.7.7" }),
+  paths: ["package.json"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.match(packageVersionCheckpoint.errors.join("\n"), /package\.json is reserved/);
+
 const earlyDurableDocs = validateCheckpointCommit({
   message: checkpointMessage({ checkpoint: "0.33.33.2", docs: "Docs updated: docs/versioning.md.", summary: "Attempt an early durable documentation change" }),
   paths: ["docs/versioning.md"],

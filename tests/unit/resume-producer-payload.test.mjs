@@ -40,6 +40,14 @@ describe("sanitizeMetadata", () => {
     });
     expect(sanitized).toEqual({ ok_key: "fine", nested: { safe: 1 } });
   });
+
+  it("removes attachment and comment content while retaining safe context", () => {
+    expect(sanitizeMetadata({
+      attachment_url: "hidden",
+      comments: "hidden",
+      safe_context: "visible",
+    })).toEqual({ safe_context: "visible" });
+  });
 });
 
 describe("buildSafeProducerPayload (allowlist)", () => {
@@ -66,6 +74,33 @@ describe("buildSafeProducerPayload (allowlist)", () => {
     expect(payload).not.toHaveProperty("body");
     expect(payload).not.toHaveProperty("renderedHtml");
     expect(payload).not.toHaveProperty("unknown_junk");
+  });
+
+  it("scrubs the complete nested producer payload matrix", () => {
+    const payload = buildSafeProducerPayload(definition, event, {
+      body_excerpt: "Unsafe excerpt",
+      metadata: {
+        body_markdown: "Unsafe body",
+        nested: {
+          secure_payload: "encrypted text",
+          safe: "kept",
+        },
+      },
+      moduleId: "tasks",
+      nextAction: "Use the explicit safe next action.",
+      recordId: event.record_id,
+      recordType: "task",
+      title: "Explicit title",
+    });
+
+    expect(payload.title).toBe("Explicit title");
+    expect(payload.nextAction).toBe("Use the explicit safe next action.");
+    expect(payload).not.toHaveProperty("body_excerpt");
+    expect(payload.metadata).toEqual({
+      event: "task.updated",
+      nested: { safe: "kept" },
+      producer_id: "producer-1",
+    });
   });
 
   it("keeps the dual-cased allowlist stable for both casings", () => {

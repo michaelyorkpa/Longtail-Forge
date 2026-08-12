@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "maximumActiveScripts": 459,
-  "minimumAssertionCount": 18570,
+  "maximumActiveScripts": 458,
+  "minimumAssertionCount": 18602,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 47,
@@ -104,7 +104,7 @@
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "maximumScripts": 308,
+    "maximumScripts": 307,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "assertionMovements": [
@@ -217,9 +217,87 @@
         "node scripts/regressions/framework/asset-cache-version.regression.mjs",
         "npm run verify:slice"
       ]
+    },
+    {
+      "sourceRegression": "scripts/better-sqlite3-helper-core-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 1,
+      "rationale": "SQLite health string formatting is deterministic and does not need a disposable database process.",
+      "assertionDisposition": "tests/unit/sqlite-health-formatter.test.mjs owns complete and unavailable health formatting; the discovered source regression retains driver startup, PRAGMA, statement, and connection-reopen integration.",
+      "movedTo": "tests/unit/sqlite-health-formatter.test.mjs",
+      "retainedIntegrationOwner": "scripts/better-sqlite3-helper-core-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/sqlite-health-formatter.test.mjs",
+        "node scripts/better-sqlite3-helper-core-regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/work-candidate-service-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 17,
+      "rationale": "Candidate normalization, ranking comparators, and recurring-created bucket selection are deterministic service contracts and do not require a migrated disposable database.",
+      "assertionDisposition": "tests/unit/work-candidate-ranking.test.mjs owns the complete normalization and ranking matrices; the discovered source regression retains resume-row shaping, module gates, live timer repositories, permissions, and database integration.",
+      "movedTo": "tests/unit/work-candidate-ranking.test.mjs",
+      "retainedIntegrationOwner": "scripts/work-candidate-service-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/work-candidate-ranking.test.mjs",
+        "node scripts/work-candidate-service-regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "scripts/work-resume-state-producer-regression.mjs",
+      "movedInVersion": "0.33.33.6",
+      "movementType": "pure-contract-to-vitest",
+      "assertionCount": 7,
+      "rationale": "Producer allowlist and recursive metadata scrubbing are deterministic payload transformations and do not need database initialization.",
+      "assertionDisposition": "tests/unit/resume-producer-payload.test.mjs owns the complete unsafe-field matrix; the discovered source regression retains event subscription, module disablement, current-user writes, row removal, and database integration.",
+      "movedTo": "tests/unit/resume-producer-payload.test.mjs",
+      "retainedIntegrationOwner": "scripts/work-resume-state-producer-regression.mjs",
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/resume-producer-payload.test.mjs",
+        "node scripts/work-resume-state-producer-regression.mjs",
+        "npm run verify:slice"
+      ]
     }
   ],
   "retiredScripts": [
+    {
+      "script": "scripts/client-picker-hierarchy-regression.mjs",
+      "retiredInVersion": "0.33.33.6",
+      "retirementType": "pure-contract-to-vitest",
+      "rationale": "The legacy entry point mixed a deterministic hierarchy/comparator matrix with static consumer wiring that already belongs beside the live options projection integration.",
+      "assertionDisposition": "tests/unit/client-project-options.test.mjs owns parent-first client and project ordering, indentation, and readable workspace labels; framework.client-project-options-projection retains helper load order, consumer adoption, timer rendering, payload identity, and database/query budgets.",
+      "retainedCoverageOwners": [
+        "framework.client-project-options-projection"
+      ],
+      "verificationPerformed": [
+        "npm exec vitest run tests/unit/client-project-options.test.mjs",
+        "node scripts/regressions/framework/client-project-options-projection.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "tests/unit/client-project-options.test.mjs",
+          "scripts/regressions/framework/client-project-options-projection.regression.mjs"
+        ]
+      },
+      "vitestOwner": "tests/unit/client-project-options.test.mjs",
+      "integrationCoverageOwners": [
+        "framework.client-project-options-projection"
+      ],
+      "id": "legacy.client.picker.hierarchy",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true
+    },
     {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
