@@ -71,19 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.40 - Bounded framework repository passes
-
-**Model: High Effort** — Repository annotations can expose nullable-row and binding drift across security, permissions, audit, notifications, tags, sessions, and workspace lifecycle.
-
-- [ ] Recount unchecked `src/repositories/*.js` and record exact non-overlapping passes by owner: credential/session, permission/audit/activity, and workspace lifecycle.
-- [ ] Use named row projections over the slice-27 unknown-valued base, explicit nullable reads, named parameters, and correct adapter/transaction authority.
-- [ ] Reproduce query/nullability/uniqueness/scope/lifecycle drift before runtime or SQL changes; do not combine typing with schema migrations.
-- [ ] Retain focused repository, permission, fresh-database, and SQLite integrity proof.
-
-Acceptance criteria:
-
-- Recorded repository tiers typecheck with explicit rows/nullability and no unproven SQL, scope, or lifecycle behavior change.
-
 ## Version 0.33.32.41 - Password and application-startup checked core
 
 **Model: High Effort** — Password primitives and startup/shutdown orchestration are security- and availability-critical framework boundaries.

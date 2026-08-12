@@ -1,4 +1,10 @@
+// @ts-check
+
 import { db } from "../core/database.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {DatabaseRow & { setting_key: string, setting_value: string }} AppSettingRow */
+/** @typedef {DatabaseRow & { can_create_workspaces: unknown, allowed_workspace_types_json: unknown }} WorkspaceCreationPermissionRow */
 
 const DEFAULT_APP_SETTINGS = {
   workspace_creation_enabled: "true",
@@ -17,12 +23,14 @@ const DEFAULT_APP_SETTING_INSERT_SQL = db.dialect.conflict.buildInsertOnConflict
   },
 });
 
+/** @returns {Promise<Record<string, string>>} */
 async function readAll() {
-  const rows = await db.query(`
+  const rows = /** @type {AppSettingRow[]} */ (await db.query(`
 SELECT setting_key, setting_value
 FROM app_settings
 ORDER BY setting_key;
-`);
+`));
+  /** @type {Record<string, string>} */
   const settings = { ...DEFAULT_APP_SETTINGS };
 
   rows.forEach((row) => {
@@ -32,6 +40,7 @@ ORDER BY setting_key;
   return settings;
 }
 
+/** @returns {Promise<void>} */
 async function ensureDefaults() {
   const now = new Date().toISOString();
 
@@ -47,13 +56,14 @@ async function ensureDefaults() {
   });
 }
 
+/** @param {string} userId */
 async function readWorkspaceCreationPermission(userId) {
-  const row = await db.get(`
+  const row = /** @type {WorkspaceCreationPermissionRow | null} */ (await db.get(`
 SELECT can_create_workspaces, allowed_workspace_types_json
 FROM user_workspace_creation_permissions
 WHERE user_id = :userId
 LIMIT 1;
-`, { userId });
+`, { userId }));
 
   if (!row) {
     return {
@@ -68,12 +78,13 @@ LIMIT 1;
   };
 }
 
+/** @param {unknown} value @returns {string[]} */
 function parseWorkspaceTypes(value) {
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(String(value ?? ""));
 
     return Array.isArray(parsed)
-      ? parsed.filter((type) => ["business", "personal", "family"].includes(type))
+      ? parsed.filter((type) => typeof type === "string" && ["business", "personal", "family"].includes(type))
       : [];
   } catch {
     return [];

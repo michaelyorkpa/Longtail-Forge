@@ -1,5 +1,15 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {{ workspaceId: string, createdByUserId: string, name: string, keyHash: string, keyPrefix: string, scopes: string[] }} ApiKeyCreateInput */
+/** @typedef {DatabaseRow & { api_key_id: string, workspace_id: string, created_by_user_id: string, name: string, key_prefix: string, status: string, created_at: string, last_used_at: string | null, revoked_at: string | null }} ApiKeyRow */
+/** @typedef {ApiKeyRow & { key_hash: string }} ApiKeyHashRow */
+/** @typedef {DatabaseRow & { api_key_id: string, scope: string }} ApiKeyScopeRow */
+/** @typedef {ApiKeyRow & { scopes: string[] }} ApiKeyRecord */
+/** @typedef {ApiKeyHashRow & { scopes: string[] }} ApiKeyHashRecord */
 
 const API_KEY_COLUMNS = [
   "api_key_id",
@@ -31,6 +41,7 @@ VALUES (
 );
 `;
 
+/** @param {ApiKeyCreateInput} input @returns {Promise<ApiKeyRecord | null>} */
 async function create({ workspaceId, createdByUserId, name, keyHash, keyPrefix, scopes }) {
   const apiKeyId = createRecordId();
   const now = new Date().toISOString();
@@ -61,8 +72,9 @@ VALUES (:apiKeyId, :scope);
   return readById(workspaceId, apiKeyId);
 }
 
+/** @param {string} keyHash @returns {Promise<ApiKeyHashRecord | null>} */
 async function readByHash(keyHash) {
-  const row = await db.get(`
+  const row = /** @type {ApiKeyHashRow | null} */ (await db.get(`
 SELECT
   api_keys.api_key_id,
   api_keys.workspace_id,
@@ -79,7 +91,7 @@ INNER JOIN workspaces ON workspaces.workspace_id = api_keys.workspace_id
 WHERE key_hash = :keyHash
   AND lower(workspaces.status) = 'active'
 LIMIT 1;
-`, { keyHash: text(keyHash) });
+`, { keyHash: text(keyHash) }));
 
   if (!row) {
     return null;
@@ -91,8 +103,9 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @param {string} apiKeyId @returns {Promise<ApiKeyRecord | null>} */
 async function readById(workspaceId, apiKeyId) {
-  const row = await db.get(`
+  const row = /** @type {ApiKeyRow | null} */ (await db.get(`
 SELECT
   api_key_id,
   workspace_id,
@@ -110,7 +123,7 @@ LIMIT 1;
 `, {
     apiKeyId: text(apiKeyId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   if (!row) {
     return null;
@@ -122,8 +135,9 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @returns {Promise<ApiKeyRecord[]>} */
 async function readAll(workspaceId) {
-  const keys = await db.query(`
+  const keys = /** @type {ApiKeyRow[]} */ (await db.query(`
 SELECT
   api_key_id,
   workspace_id,
@@ -137,8 +151,8 @@ SELECT
 FROM api_keys
 WHERE workspace_id = :workspaceId
 ORDER BY created_at DESC;
-`, { workspaceId: text(workspaceId) });
-  const scopes = await db.query(`
+`, { workspaceId: text(workspaceId) }));
+  const scopes = /** @type {ApiKeyScopeRow[]} */ (await db.query(`
 SELECT api_key_id, scope
 FROM api_key_scopes
 WHERE api_key_id IN (
@@ -147,7 +161,8 @@ WHERE api_key_id IN (
   WHERE workspace_id = :workspaceId
 )
 ORDER BY scope;
-`, { workspaceId: text(workspaceId) });
+`, { workspaceId: text(workspaceId) }));
+  /** @type {Map<string, string[]>} */
   const scopesByKeyId = scopes.reduce((map, row) => {
     if (!map.has(row.api_key_id)) {
       map.set(row.api_key_id, []);
@@ -163,6 +178,7 @@ ORDER BY scope;
   }));
 }
 
+/** @param {string} apiKeyId @returns {Promise<void>} */
 async function updateLastUsed(apiKeyId) {
   await db.run(`
 UPDATE api_keys
@@ -174,6 +190,7 @@ WHERE api_key_id = :apiKeyId;
   });
 }
 
+/** @param {string} workspaceId @param {string} apiKeyId @returns {Promise<ApiKeyRecord | null>} */
 async function revoke(workspaceId, apiKeyId) {
   const now = new Date().toISOString();
 
@@ -193,17 +210,19 @@ WHERE workspace_id = :workspaceId
   return readById(workspaceId, apiKeyId);
 }
 
+/** @param {string} apiKeyId @returns {Promise<string[]>} */
 async function readScopes(apiKeyId) {
-  const rows = await db.query(`
+  const rows = /** @type {ApiKeyScopeRow[]} */ (await db.query(`
 SELECT scope
 FROM api_key_scopes
 WHERE api_key_id = :apiKeyId
 ORDER BY scope;
-`, { apiKeyId: text(apiKeyId) });
+`, { apiKeyId: text(apiKeyId) }));
 
   return rows.map((row) => row.scope);
 }
 
+/** @param {unknown} value @returns {string} */
 function text(value) {
   return String(value ?? "");
 }

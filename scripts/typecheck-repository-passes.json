@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "passes": [
+    {
+      "id": "credential-session",
+      "paths": [
+        "src/repositories/api-keys.repo.js",
+        "src/repositories/sessions.repo.js",
+        "src/repositories/support-sessions.repo.js"
+      ]
+    },
+    {
+      "id": "permission-audit-activity",
+      "paths": [
+        "src/repositories/audit-logs.repo.js",
+        "src/repositories/notifications.repo.js",
+        "src/repositories/permissions.repo.js",
+        "src/repositories/tags.repo.js"
+      ]
+    },
+    {
+      "id": "workspace-lifecycle",
+      "paths": [
+        "src/repositories/app-settings.repo.js",
+        "src/repositories/user-workspaces.repo.js",
+        "src/repositories/workspace-backup-exports.repo.js",
+        "src/repositories/workspace-deletion-lifecycle.repo.js",
+        "src/repositories/workspace-purge.repo.js"
+      ]
+    }
+  ]
+}

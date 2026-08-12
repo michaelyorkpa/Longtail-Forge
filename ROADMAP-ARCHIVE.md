@@ -1,5 +1,29 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.40 - Bounded framework repository passes
+
+Completed on 2026-08-12 out of numeric order at the operator's request. All 18 framework repositories are now checked; the final 12 are recorded as exact credential/session, permission/audit/activity, and workspace-lifecycle passes at the 145-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Repository annotations can expose nullable-row and binding drift across security, permissions, audit, notifications, tags, sessions, and workspace lifecycle.
+
+- [x] Recounted the 12 unchecked `src/repositories/*.js` files and recorded exact sorted, non-overlapping passes of 3 credential/session, 4 permission/audit/activity, and 5 workspace-lifecycle repositories.
+- [x] Added named row projections over the slice-27 unknown-valued base, explicit nullable reads and named inputs/bindings, plus callback-scoped `TransactionClient` authority where atomic helpers participate in existing transactions.
+- [x] Recorded the pre-fix checker failures for unknown query fields, nullable/count projections, support-session parameter bags, opaque run results, and workspace-purge lifecycle rows; no SQL, schema, uniqueness, scope, permission, or lifecycle behavior change was required.
+- [x] Added the `database.repository-checked-passes` guardrail and retained repository-signature, fresh-database, 409-check permission, workspace final-purge, and SQLite integrity proof.
+
+Acceptance criteria:
+
+- [x] Recorded repository tiers typecheck with explicit rows/nullability and no unproven SQL, scope, or lifecycle behavior change.
+
+Closeout notes:
+
+- `scripts/typecheck-repository-passes.json` is the reviewable owner inventory; all paths are unique, sorted within each pass, checked, and present in the monotonic seam inventory.
+- Notification and Tags row mappers narrow selected database rows at their existing application-value boundaries; API key, session, Support View, audit, permission, Settings, membership, backup, deletion, and purge repositories expose their nullable and transaction shapes directly.
+- The new guard rejects checker suppressions, double assertions, missing named projections, schema DDL, pass overlap, and inventory drift.
+- Focused proof covered repository signatures, clean database creation, all 409 permission checks, final workspace purge, and SQLite integrity before canonical closeout.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and workflows, permission grants, database schema/migrations, SQL behavior, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.39 - Files route checked boundary
 
 Completed on 2026-08-12 out of numeric order at the operator's request. The complete Files route surface now checks against explicit workspace, raw-body, multipart, streaming-response, and partial-result contracts at the 133-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.

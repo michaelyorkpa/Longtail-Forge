@@ -1,8 +1,12 @@
+// @ts-check
+
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+
 /**
- * @typedef {Object} UserWorkspaceMembershipRow
+ * @typedef {DatabaseRow & Object} UserWorkspaceMembershipRow
  * @property {string} user_workspace_id
  * @property {string} user_id
  * @property {string} workspace_id
@@ -12,13 +16,15 @@ import { createRecordId } from "../core/identifiers.js";
  * @property {string} updated_at
  */
 /**
- * @typedef {Object} AssignableWorkspaceRow
+ * @typedef {DatabaseRow & Object} AssignableWorkspaceRow
  * @property {string} workspace_id
  * @property {string} workspace_name
  * @property {string} workspace_type
  * @property {string | null} owner_user_id
  * @property {string | null} owner_username
  */
+/** @typedef {DatabaseRow & { workspace_id: string, workspace_name: string }} InstallSecurityWorkspaceRow */
+/** @typedef {DatabaseRow & { count: unknown }} WorkspaceMembershipCountRow */
 
 const USER_WORKSPACE_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
   columns: ["user_workspace_id", "user_id", "workspace_id", "status", "created_at", "updated_at"],
@@ -94,8 +100,9 @@ ORDER BY name;
 `));
 }
 
+/** @returns {Promise<InstallSecurityWorkspaceRow | null>} */
 async function readInstallSecurityWorkspace() {
-  return db.get(`
+  return /** @type {Promise<InstallSecurityWorkspaceRow | null>} */ (db.get(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name
@@ -108,17 +115,17 @@ ORDER BY
   workspaces.created_at,
   workspaces.workspace_id
 LIMIT 1;
-`);
+`));
 }
 
 /** @param {string} workspaceId @returns {Promise<number>} */
 async function countActiveForWorkspace(workspaceId) {
-  const row = await db.get(`
+  const row = /** @type {WorkspaceMembershipCountRow | null} */ (await db.get(`
 SELECT COUNT(1) AS count
 FROM user_workspaces
 WHERE workspace_id = :workspaceId
   AND status = 'active';
-`, { workspaceId });
+`, { workspaceId }));
 
   return Number(row?.count) || 0;
 }
@@ -204,6 +211,7 @@ WHERE user_id = :userId
   });
 }
 
+/** @param {string} status @returns {"active" | "inactive"} */
 function normalizeStatus(status) {
   return status === "inactive" ? "inactive" : "active";
 }
