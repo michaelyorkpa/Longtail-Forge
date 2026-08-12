@@ -1,5 +1,78 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32 - TypeScript Seam Expansion
+
+Completed on 2026-08-12 at package release `0.33.32.45`. The branch expanded the checked program from its 22-file planning baseline to a clean, behavior-proven 150-file seam and advanced the live roadmap to `0.33.33`.
+
+**Model: High Effort** - The branch targeted high-value trusted seams; identity, permissions, database access, billing, and framework-wide browser contracts exposed live behavioral drift that was resolved with regression proof rather than suppressed.
+
+Purpose:
+
+Expand checked TypeScript-annotated JavaScript at seams Support Tickets and future modules will depend on, while preserving the 0.33.7.4 runtime and checking model. Coverage percentage is not the goal: a file earns opt-in when its contract catches meaningful drift or gives checked consumers useful guarantees.
+
+Audit evidence:
+
+- The 2026-08-06 read-only probe at 0.33.30.3 found 1,057 errors in 116 files and 206 included files already clean. A 2026-08-07 recount at the planning baseline found 22 first-party runtime/test JavaScript files carrying `// @ts-check`. Separately, `public/` remained 74 JavaScript files and about 53k lines outside the typecheck program.
+- The original eleven-slice draft was not session-safe. Its Time Tracking slice combined four defect investigations across roughly 3,700 lines; its implementation-closure slice crossed Search, resume state, jobs, and events; its clean-file slice proposed about 200 files at once; and its client slices combined 1,700-2,100-line files with framework behavior changes.
+- The checked contracts identified high-value drift, including Search indexers destructuring camelCase from a snake_case `SearchReference` and auth/session consumers inferring different shapes for the same trusted identity.
+- `--noImplicitAny` remained off because enabling it would add broad annotation work without comparable near-term contract value.
+
+Decision:
+
+- Preserve the 0.33.7.4 regime: `strict` on, `noImplicitAny` off, `checkJs` per-file opt-in, no `@ts-nocheck` or `@ts-ignore`, no runtime `.ts` imports, and no compile/build step in `npm start`. Zod remains the untrusted-edge validator.
+- Put the coverage inventory and monotonic opted-in floor first so every later slice extends one standing guardrail. Do not mass-add pragmas merely to reach a percentage target.
+- When checking exposes possible runtime drift, the owning slice reproduces the named behavior before changing it. Checker findings do not authorize unrelated cleanup or silent behavior changes.
+- Dual-cased or dual-typed shapes remain honestly represented until a separately proven runtime change removes compatibility.
+- Treat parsed JSON as untrusted: `readJsonBody()` returns `unknown`, and checked consumers narrow through an existing schema or an explicit shape guard before property access.
+- Consciously defer whole-file checking of the giant declarative view runtimes, but protect their Support Tickets-critical descriptor fields with checked boundary adapters.
+
+Delivery and sizing rule:
+
+- Every numbered slice had one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
+- A slice could type one large file, one small cohesive cluster, or adjudicate one behavior risk. It did not absorb another listed slice because nearby checker errors looked convenient.
+- Slice 1 preceded all others; slice 2 preceded slices 2.1 and 16-17; slice 3 preceded slices 4-7; slice 8 preceded slices 9-10; slice 11 preceded slice 12; slices 13 and 17 preceded slice 23; slice 19 preceded slices 20-24 and 30; slice 21 preceded slices 22 and 24; slice 24 cleared the immediate promotion/deployment blocker; slice 44 followed the corrective and checked-seam passes; and slice 45 closed the branch.
+
+Final boundary:
+
+- The closing configured program is clean at 150 files. The dated strict probes retain 864 server/test errors across 90 files and 11,134 public-browser errors across 69 files as future-work routing evidence, not production coverage.
+- Whole-file Notes, Lists, Tasks, Clients/Projects, Files-service, giant browser-controller, broad test, framework-interior, and Jobs-payload hardening remains explicitly deferred in `TODO.md`.
+- No global `checkJs`/`noImplicitAny` flip, runtime `.ts` conversion, build step, speculative schema, broad test rewrite, or giant page-controller conversion was introduced.
+- `src/routes/private-feeds.routes.js` was explicitly claimed by slice 37 and remains excluded from generic bounded route passes. The branch retained module and framework ownership boundaries throughout.
+
+Completion-review evidence:
+
+- The 2026-08-11 independent review's permission-restricted descriptor blocker was reproduced and fixed in slice 24, with delivered descriptor mutation plus restricted desktop/mobile and unchanged super-admin proof.
+- Auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge/timezone semantics, browser error handling, Search parser/session contracts, backup portability, remaining checked services/routes/repositories/cores, and annotation honesty each retained a named slice and executable owner.
+- The final slice-45 audit verifies all 47 numbered slices exactly once, the reproduce-first ledger, zero checked-program errors, the refreshed residual totals, every explicit deferral, generated regression inventory, and the 0.33.33 handoff.
+
+## Version 0.33.32.45 - Branch completion audit and archive handoff
+
+Completed on 2026-08-12. The complete TypeScript seam-expansion plan is archived, all completion-review findings and intentional deferrals have one owner, and the active roadmap advances to `0.33.33`.
+
+**Model: High Effort** - Final closeout reconciled a previously integrated branch, independent-review findings, protected verification, version records, and the next cursor.
+
+- [x] Re-ran the independent-review matrix over slices 1-44: suppressions/runtime TS imports, checked floor, raw/delivered descriptors, restricted-role browser paths, behavior ledger, residual probes, backup shells, permissions, and release gates.
+- [x] Made reproduce-before-fix auditable for every runtime correction through archived pre-fix commands/output or an inspectable baseline/fix commit pair; the release gate rejects a correction supported only by post-fix green proof.
+- [x] Confirmed no finding was lost, duplicated, or closed only by source matching; every intentional deferral remains explicit in `TODO.md`.
+- [x] Completed version/changelog/decisions/owning docs/generated inventories/runtime identity and the canonical plus exceptional verification matrix.
+- [x] Published through the protected pull-request workflow and required exact-head merge plus exact-SHA Nightly integration before treating the branch as complete.
+- [x] Moved the complete 0.33.32 plan to this archive, advanced the cursor to `0.33.33`, and aligned package and running identity.
+
+Acceptance criteria:
+
+- [x] Every accepted review item is executable-proof complete, no type-contract honesty debt is unrecorded, exact-SHA Nightly proof is green, and 0.33.32 is archived with 0.33.33 active.
+
+Closeout notes:
+
+- The checked program is green at the exact 150-file floor. The refreshed strict server/test probe reports 864 errors across 90 files: 670 production, 192 test-only, and 2 scripts. The refreshed public-browser probe remains 11,134 errors across 69 files. `scripts/typecheck-honesty-inventory.json` and `TODO.md` agree on these dated routing results.
+- `release.typescript-seam-branch-closeout` composes the registered typecheck, descriptor, permissions, session-revocation, job-worker, Time Tracking, browser-error, backup, Search, and Work Resume behavior owners. It requires all 47 numbered slices once, checked acceptance, the archived branch contract, and the 0.33.33 live handoff.
+- Reproduce-first ledger: slice 4 compares baseline `9c548459` with fix merge `5be99809` for hours-only public API duration; slice 5 compares `5be99809` with `6a552494` for boolean `billable: false`; slice 6 compares `6a552494` with `625d5874` for contradictory missing-timer duration; slice 7 compares `625d5874` with `319c0acf` for the Los Angeles month boundary; and slice 13 compares `6e30f672` with `1c70cbf1` for the Search reference casing mismatch. Their archived slice records name the failing inputs and their registered Time Tracking/Search owners execute the corrected outcomes.
+- Completion-review correction ledger: baseline `077f9c8f` contains the delivered `primaryAction: null` mismatch and fix merge `49af0cc4` omits that unavailable action; baseline `49af0cc4` shows missing exception identity falling back to `revokeAllForUser`, while fix merge `012152ed` fails closed and preserves one named session; baseline `012152ed` dereferences arbitrary shutdown rejection `.message`, so `null` raises a `TypeError`, while fix merge `bfe5871d` executes the non-Error matrix; baseline `a47b2e2c` lacks the sourced timer Zod/boolean edge fixed by `94f18a2f`; and baseline `94f18a2f` reaches unsupported billing timezone data before fix merge `a361c0ed` applies the canonical fallback.
+- Browser/backup/Work Resume ledger: baseline `a361c0ed` retains `error.code = ""` and blank request-ID fallback assignments, while fix merge `8422f95b` makes missing/reversed parser order fail visibly and preserves the normal envelope; baseline `f61dd417` passes the absolute Windows drive-letter archive operand to tar, while fix merge `ee2517ba` proves supported Windows and GNU/Linux shells; and the archived 0.33.32.38.1 closeout retains the exact pre-fix compiler command/output plus temporary-trigger proof for post-dismiss disappearance before fix merge `d07c81cb`.
+- The restricted Clients/Projects Playwright spec remains untagged so both configured `desktop` and `mobile` Chromium projects execute the unavailable-action and unchanged-super-admin journeys.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, runtime configuration, deployment topology, database schema/migrations, public API behavior, and module workflows are unchanged; this slice closes and proves the existing branch contracts.
+
 ## Version 0.33.32.38.1 - Work Resume route persistence-result boundary
 
 Completed on 2026-08-12 as package release `0.33.32.44.1`, preserving monotonic Nightly identity after slices 39-44 had already been completed out of numeric order. The active roadmap cursor advances to `0.33.32.45`.

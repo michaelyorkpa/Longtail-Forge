@@ -2,76 +2,10 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.32.45`.
+Active cursor: `0.33.33`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
-
-## Version 0.33.32 - TypeScript Seam Expansion
-
-**Model: High Effort** — The branch targets high-value trusted seams; identity, permissions, database access, billing, and framework-wide browser contracts can expose live behavioral drift that must be resolved with regression proof rather than suppressed.
-
-Purpose:
-
-Expand checked TypeScript-annotated JavaScript at seams Support Tickets and future modules will depend on, while preserving the 0.33.7.4 runtime and checking model. Coverage percentage is not the goal: a file earns opt-in when its contract catches meaningful drift or gives checked consumers useful guarantees.
-
-Audit evidence:
-
-- The 2026-08-06 read-only probe at 0.33.30.3 found 1,057 errors in 116 files and 206 included files already clean. A 2026-08-07 recount at the current planning baseline found 22 first-party runtime/test JavaScript files carrying `// @ts-check`. Separately, `public/` remains 74 JavaScript files and about 53k lines outside the typecheck program.
-- The original eleven-slice draft was not session-safe. Its time-tracking slice combined four defect investigations across roughly 3,700 lines; its implementation-closure slice crossed Search, resume state, jobs, and events; its clean-file slice proposed about 200 files at once; and its client slices combined 1,700-2,100-line files with framework behavior changes.
-- The checked contracts still identify high-value drift: Search indexers destructure camelCase from a snake_case `SearchReference`, and auth/session consumers infer different shapes for the same trusted identity.
-- `--noImplicitAny` remains off because enabling it would add broad annotation work without comparable near-term contract value.
-
-Decision:
-
-- Preserve the 0.33.7.4 regime: `strict` on, `noImplicitAny` off, `checkJs` per-file opt-in, no `@ts-nocheck` or `@ts-ignore`, no runtime `.ts` imports, and no compile/build step in `npm start`. Zod remains the untrusted-edge validator.
-- Put the coverage inventory and monotonic opted-in floor first so every later slice extends one standing guardrail. Do not mass-add pragmas merely to reach a percentage target.
-- When checking exposes possible runtime drift, the owning slice reproduces the named behavior before changing it. Checker findings do not authorize unrelated cleanup or silent behavior changes.
-- Dual-cased or dual-typed shapes remain honestly represented until a separately proven runtime change removes compatibility.
-- Treat parsed JSON as untrusted: `readJsonBody()` returns `unknown`, and checked consumers must narrow through an existing schema or an explicit shape guard before property access.
-- Consciously defer whole-file checking of the giant declarative view runtimes, but do not defer their descriptor-field contract past Support Tickets. A small checked adapter must own descriptor reads before `0.34` starts.
-
-Delivery and sizing rule:
-
-- Every numbered slice has one primary blast radius, one bounded verification plan, and scope intended to complete, document, version, and close in one working session.
-- A slice may type one large file, one small cohesive cluster, or adjudicate one behavior risk. It must not absorb another listed slice because nearby checker errors look convenient.
-- Dependencies: slice 1 precedes all others; slice 2 precedes slices 2.1 and 16-17; slice 3 precedes slices 4-7; slice 8 precedes slices 9-10; slice 11 precedes slice 12; slice 13 and slice 17 precede slice 23; slice 19 precedes slices 20-24 and 30; and slice 21 precedes slices 22 and 24. Slice 24 is the immediate promotion/deployment blocker. Slices 25-43 may be reordered where their stated dependencies permit; slice 44 follows the named corrective and checked-seam passes; slice 45 is the final branch audit and archive handoff.
-
-Priority guidance:
-
-- The minimum worthwhile audit-remediation tranche is slices 1-8, including numeric follow-on slice 2.1, plus slice 13: the ratchet, trusted HTTP identity and raw-body boundary, canonical time-entry shapes, four isolated money-path adjudications, the transaction-client distinction, and the proven Search casing drift.
-- Slice 24 has cleared the immediate promotion/deployment blocker by making permission-restricted Clients/Projects descriptor delivery executable and checked.
-- Before `0.34` begins declarative Support Tickets UI work, complete slice 30; slice 24 already established executable delivered-descriptor variants, and slice 30 must do the same for the shared browser failure boundary.
-- Slices 25-44 are branch-completion work grounded by the 2026-08-11 independent review. They may be reordered only within the dependency rule above; none may be silently dropped from the final slice-45 inventory.
-
-Non-goals:
-
-- Do not flip `checkJs` or `noImplicitAny` globally, convert runtime files to `.ts`, add a runtime build step, duplicate Zod validation, weaken a runtime schema, or rewrite tests for checker satisfaction.
-- Do not pursue majority-of-files coverage or spend release ceremony on low-value clean-file counts. Slice 18 is repeatable to preserve worthwhile clean ownership tiers, not to manufacture a percentage target.
-- Do not opt the giant module page controllers (`notes.js`, `workbench.js`, `clients-projects.js`, `task-dialog.js`) or the 1,700-2,100-line `navigation.js`, `view-renderer.js`, and `view-builder.js` files into whole-file checking. Slices 20-24 introduce and harden checked boundary helpers that those runtimes consume; whole-file client conversion remains a separately audited client-hardening branch after the Support Tickets-critical descriptor seams are protected.
-- Do not pull `notes.service.js`, `lists.service.js`, `tasks.service.js`, or `files.service.js` into this seam branch; their whole-file conversion remains module-owned future work. `src/routes/private-feeds.routes.js` was claimed and checked by the archived Calendar/security-owned slice 37; it remains excluded from generic slice-18/38 clean-file passes. Slice 8 remains limited to the injected repository transaction-client contract.
-- Do not add `scripts/` to the typecheck program.
-
-Completion-review evidence:
-
-- The 2026-08-11 independent branch review reproduced one P1 at the slice-23 baseline after all existing gates passed: `public/js/clients-projects.js` emitted `pageHeader.primaryAction: null` for users without top-level create authority, while the checked slice-22 descriptor projection accepted only an action object. Slice 24 fixed and archived that blocker by omitting the optional action, executing the delivered mutation, and adding restricted desktop/mobile plus unchanged super-admin proof.
-- The same review confirmed 457/457 regressions, 135/135 rendered browser checks, the 100-file checked floor, zero checker suppressions/runtime TypeScript imports, and no other unproven behavior change in slices 19-23. Those results remain useful baseline evidence, not proof that the reproduced restricted-role rendering path is safe.
-- Additional findings fall into distinct owners: auth/session revocation, job-worker shutdown, database type-environment honesty, Time Tracking edge and timezone semantics, browser error handling, Search parser/session contracts, backup-drill portability, uncovered service/route/repository/core seams, and final annotation/inventory honesty. The slices below keep those blast radii separate.
-
-## Version 0.33.32.45 - Branch completion audit and archive handoff
-
-**Model: High Effort** — Final closeout must reconcile a previously integrated branch, independent-review findings, protected verification, version records, and the next cursor.
-
-- [ ] Re-run the independent-review matrix over slices 1-44: suppressions/runtime TS imports, checked floor, raw/delivered descriptors, restricted-role browser paths, behavior ledger, residual probes, backup shells, permissions, and release gates.
-- [ ] Make reproduce-before-fix auditable for every runtime correction: retain the pre-fix failing command/output in the slice closeout record or use an inspectable red-then-green commit pair, and have this audit reject fixes supported only by post-fix green proof.
-- [ ] Confirm no finding was lost, duplicated, or closed only by source matching; record every intentional deferral in `TODO.md`.
-- [ ] Complete version/changelog/decisions/owning docs/generated inventories/runtime identity; run `npm run verify:slice` once plus exceptional browser/permission/backup proof required above.
-- [ ] Publish through protected PR/checks/exact-head merge to `nightly`, then require exact-SHA Nightly integration before any promotion/deployment decision.
-- [ ] Move the complete 0.33.32 plan to `ROADMAP-ARCHIVE.md`, advance the cursor to `0.33.33`, and prove local/running identity matches.
-
-Acceptance criteria:
-
-- Every accepted review item is executable-proof complete, no type-contract honesty debt is unrecorded, exact-SHA Nightly proof is green, and 0.33.32 is archived with 0.33.33 active.
 
 ## Version 0.33.33 - Public Demo Analytics, Privacy, and Interest Capture
 

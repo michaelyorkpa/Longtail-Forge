@@ -3,9 +3,9 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 463,
+    "discoveredScripts": 464,
     "legacyScripts": 309,
-    "releaseGateScripts": 75,
+    "releaseGateScripts": 76,
     "areaCounts": {
       "dashboard": 2,
       "database": 47,
@@ -19,7 +19,7 @@
       "notifications": 3,
       "permissions": 13,
       "public-api": 3,
-      "release": 35,
+      "release": 36,
       "search": 12,
       "tags": 12,
       "tasks": 58,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 211,
       "integration": 169,
-      "release-gate": 75,
+      "release-gate": 76,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 237
+      "static": 238
     }
   },
   "coverageFamilies": [
@@ -46,7 +46,7 @@
       "matchTags": [
         "closeout"
       ],
-      "minimumActiveScripts": 16,
+      "minimumActiveScripts": 17,
       "activeRegressionIds": [
         "docs.short-term-cleanup-closeout",
         "framework.settings-branch-closeout",
@@ -63,6 +63,7 @@
         "release.maintainability-closeout",
         "release.playwright-dev-only-boundary",
         "release.roadmap-cursor-floor",
+        "release.typescript-seam-branch-closeout",
         "release.validation-single-ownership"
       ],
       "retiredScripts": [
@@ -4568,6 +4569,23 @@
         "packaging",
         "release",
         "runtime"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "release",
+      "description": "Proves the complete 0.33.32 checked-seam branch is archived once, retains auditable correction evidence, and hands off every residual to an executable or explicit future owner.",
+      "id": "release.typescript-seam-branch-closeout",
+      "legacy": false,
+      "path": "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "closeout",
+        "contracts",
+        "docs",
+        "release",
+        "typecheck"
       ],
       "tier": "release-gate"
     },
