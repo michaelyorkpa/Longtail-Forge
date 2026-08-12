@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.38.1 - Work Resume route persistence-result boundary
+
+Completed on 2026-08-12 as package release `0.33.32.44.1`, preserving monotonic Nightly identity after slices 39-44 had already been completed out of numeric order. The active roadmap cursor advances to `0.33.32.45`.
+
+**Model: High Effort** - The post-dismiss route response crosses workspace/user scoping and a nullable persistence read, so its result contract must be resolved without a cast or guessed lifecycle behavior.
+
+- [x] Reproduced the checked `work-resume.routes.js` failure where the dismiss service's post-update `readById()` result remained nullable and its declared projection omitted the response's `resume_state_id` field.
+- [x] Encoded an honest non-null dismissal result with an exact persistence projection and an explicit existing-404 outcome when the scoped row disappears between update and reread; no assertion cast was added.
+- [x] Checked the Work Resume route against the shared active-workspace request/session/response boundary and named list/item response projections while preserving query aliases, dual-cased inputs, ranking, actions, empty state, and dismiss output.
+- [x] Retained focused Work Resume lifecycle, permission, API, concurrency/result, and checked-seam regressions without schema changes or route-owned module policy.
+
+Acceptance criteria:
+
+- [x] The checked Work Resume route consumes an honest non-null dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
+
+Closeout notes:
+
+- Reproduce-first proof: `node node_modules/typescript/bin/tsc --ignoreConfig --allowJs --checkJs --noEmit --strict --noImplicitAny false --skipLibCheck --types node --module nodenext --moduleResolution nodenext --target es2023 src/routes/work-resume.routes.js` failed before the fix with `TS18047` twice for the nullable dismiss result and `TS2339` for the missing `resume_state_id` projection.
+- `dismissResumeState()` now returns an exact five-field `ResumeStateDismissResult`. Both the pre-update missing row and a post-update disappearance return the established `Resume state was not found.` 404; workspace and user predicates remain on every read and update.
+- The route now uses the defensive `workspaceAsyncRoute` adapter, narrows unknown list rows through an object guard, and retains the established camelCase response, query aliases, empty state, ranking hint, metadata, and primary action fields.
+- A temporary SQLite trigger reproduces disappearance after the scoped dismissal update. The service and API regressions pass, and the checked-seam guard records the one-file `38.1` ownership pass without checker suppression or assertion casts.
+- The configured program is green at the 150-file floor. The strict server/test residual probe is now 864 errors across 90 files: 670 production, 192 test-only, and 2 script errors; the Work Resume route contributes zero residuals and the remaining route owner contributes 26.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, Workbench workflow, database schema/migrations, permissions, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.44 - Checked-program honesty and residual inventory
 
 Completed on 2026-08-12 out of numeric order at the operator's request. The checked program remains clean at the honest 149-file floor, while strict source/test and browser probes now publish exact residuals and future owners instead of treating a pragma or percentage as completion. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
