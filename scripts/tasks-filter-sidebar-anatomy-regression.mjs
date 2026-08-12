@@ -7,7 +7,7 @@ const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
 const styles = readText("public/css/longtail-forge.css");
-const rendererShellRegression = readText("scripts/view-renderer-shell-regression.mjs");
+const rendererShellRegression = readText("scripts/regression-contracts/views/view-renderer-shell.contract.mjs");
 
 const sidebarPanels = sourceSlice(tasksModule, "sidebarPanels: [", "      ],");
 assert.match(sidebarPanels, /id:\s*"tasks-view-selector"[\s\S]*title:\s*"Saved Task Views"[\s\S]*behavior:\s*"tasks\.sidebar\.view-selector"[\s\S]*collapsible:\s*false/, "Tasks descriptor should put a non-collapsible Saved Task Views selector first");

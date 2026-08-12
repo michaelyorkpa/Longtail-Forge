@@ -7,7 +7,7 @@ const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const styles = readText("public/css/longtail-forge.css");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
-const rendererShellRegression = readText("scripts/view-renderer-shell-regression.mjs");
+const rendererShellRegression = readText("scripts/regression-contracts/views/view-renderer-shell.contract.mjs");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should stay a minimal descriptor host");
 assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the client/project provider helper, renderer, and shared preview before the Files adapter");

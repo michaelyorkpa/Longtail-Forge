@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.9 - Consolidate framework and view static owners
-
-**Model: High Effort** - Framework/view assertions span shared anatomy, accessibility, security headers, and browser contracts.
-
-- [ ] Consolidate source-only framework, view anatomy, settings anatomy, security-header, and HTML-accessibility families into table-driven owners.
-- [ ] Keep behavioral HTTP, permission, session, CSP, and Playwright owners separate and unchanged.
-- [ ] Preserve exact per-surface exceptions as data with a named reason rather than bespoke entry points.
-- [ ] Prove no assertion loss and retain independently runnable area commands.
-
 ### 0.33.33.10 - Consolidate workflow-module static owners
 
 **Model: High Effort** - Cross-module mechanical consolidation still risks losing module-specific workflow assertions.

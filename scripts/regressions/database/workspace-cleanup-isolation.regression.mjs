@@ -68,7 +68,7 @@ function assertStaticContracts() {
     "scripts/view-descriptor-reference-regression.mjs",
     "scripts/view-shared-capabilities-regression.mjs",
     "scripts/regressions/framework/asset-cache-version.regression.mjs",
-    "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
+    "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
   ]) {
     const source = readText(script);
     assert.match(source, /createDisposableDatabaseFixture/, `${script} should select a disposable database`);

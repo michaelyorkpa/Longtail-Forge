@@ -3,41 +3,41 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 456,
-    "legacyScripts": 307,
-    "releaseGateScripts": 73,
+    "discoveredScripts": 424,
+    "legacyScripts": 285,
+    "releaseGateScripts": 71,
     "areaCounts": {
       "dashboard": 2,
       "database": 47,
       "docs": 9,
       "files": 44,
-      "framework": 84,
+      "framework": 78,
       "jobs": 8,
       "licensing": 1,
       "lists": 12,
       "notes": 40,
       "notifications": 3,
-      "permissions": 11,
+      "permissions": 10,
       "public-api": 3,
       "release": 32,
       "search": 12,
       "tags": 12,
       "tasks": 58,
       "time-tracking": 13,
-      "views": 33,
+      "views": 8,
       "workbench": 32
     },
     "tierCounts": {
-      "focused": 206,
+      "focused": 176,
       "integration": 169,
-      "release-gate": 73,
+      "release-gate": 71,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 193,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 229
+      "static": 197
     }
   },
   "coverageFamilies": [
@@ -48,7 +48,6 @@
       ],
       "minimumActiveScripts": 17,
       "activeRegressionIds": [
-        "framework.settings-branch-closeout",
         "legacy.async.recurrence.response.closeout",
         "legacy.better.sqlite3.driver.closeout",
         "legacy.client.project.hierarchy.branch.closeout",
@@ -73,6 +72,7 @@
         "scripts/notes-import-closeout-regression.mjs",
         "scripts/notes-slideout-closeout-regression.mjs",
         "scripts/regressions/docs/short-term-cleanup-closeout.regression.mjs",
+        "scripts/regressions/framework/settings-branch-closeout.regression.mjs",
         "scripts/regressions/release/maintainability-closeout.regression.mjs",
         "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
         "scripts/runtime-database-foundation-closeout-regression.mjs",
@@ -85,10 +85,146 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18264,
+    "activeAssertionCount": 17028,
     "creditedAssertionReduction": 193,
-    "directOwnerAssertionCount": 72,
+    "directOwnerAssertionCount": 1329,
     "directOwners": [
+      {
+        "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
+        "assertionCount": 69
+      },
+      {
+        "path": "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
+        "assertionCount": 28
+      },
+      {
+        "path": "scripts/regression-contracts/framework/reporting-host.contract.mjs",
+        "assertionCount": 39
+      },
+      {
+        "path": "scripts/regression-contracts/framework/settings-branch-closeout.contract.mjs",
+        "assertionCount": 34
+      },
+      {
+        "path": "scripts/regression-contracts/framework/settings-page-actions.contract.mjs",
+        "assertionCount": 79
+      },
+      {
+        "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
+        "assertionCount": 9
+      },
+      {
+        "path": "scripts/regression-contracts/views/calendar-host.contract.mjs",
+        "assertionCount": 60
+      },
+      {
+        "path": "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs",
+        "assertionCount": 34
+      },
+      {
+        "path": "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
+        "assertionCount": 30
+      },
+      {
+        "path": "scripts/regression-contracts/views/dashboard-client-bootstrap.contract.mjs",
+        "assertionCount": 19
+      },
+      {
+        "path": "scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs",
+        "assertionCount": 43
+      },
+      {
+        "path": "scripts/regression-contracts/views/drawer-main-surface.contract.mjs",
+        "assertionCount": 16
+      },
+      {
+        "path": "scripts/regression-contracts/views/field-factory.contract.mjs",
+        "assertionCount": 94
+      },
+      {
+        "path": "scripts/regression-contracts/views/icon-control-conversion.contract.mjs",
+        "assertionCount": 17
+      },
+      {
+        "path": "scripts/regression-contracts/views/markdown-platform.contract.mjs",
+        "assertionCount": 30
+      },
+      {
+        "path": "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
+        "assertionCount": 56
+      },
+      {
+        "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
+        "assertionCount": 13
+      },
+      {
+        "path": "scripts/regression-contracts/views/mobile-foundation.contract.mjs",
+        "assertionCount": 10
+      },
+      {
+        "path": "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
+        "assertionCount": 46
+      },
+      {
+        "path": "scripts/regression-contracts/views/modal-footer.contract.mjs",
+        "assertionCount": 21
+      },
+      {
+        "path": "scripts/regression-contracts/views/modal-section.contract.mjs",
+        "assertionCount": 34
+      },
+      {
+        "path": "scripts/regression-contracts/views/overlay-host.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/views/remaining-icon-actions.contract.mjs",
+        "assertionCount": 18
+      },
+      {
+        "path": "scripts/regression-contracts/views/shared-icons.contract.mjs",
+        "assertionCount": 24
+      },
+      {
+        "path": "scripts/regression-contracts/views/surface-adoption-pass.contract.mjs",
+        "assertionCount": 18
+      },
+      {
+        "path": "scripts/regression-contracts/views/surface-token.contract.mjs",
+        "assertionCount": 13
+      },
+      {
+        "path": "scripts/regression-contracts/views/ui.contract.mjs",
+        "assertionCount": 51
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
+        "assertionCount": 38
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-builder.contract.mjs",
+        "assertionCount": 13
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
+        "assertionCount": 114
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs",
+        "assertionCount": 15
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-index-primitive.contract.mjs",
+        "assertionCount": 28
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
+        "assertionCount": 27
+      },
+      {
+        "path": "scripts/regression-contracts/views/view-renderer-shell.contract.mjs",
+        "assertionCount": 94
+      },
       {
         "path": "scripts/version-literal-guardrail-regression.mjs",
         "assertionCount": 18
@@ -98,7 +234,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18630,
+    "effectiveAssertionCount": 18651,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -270,24 +406,10 @@
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "maximumScripts": 307,
+    "maximumScripts": 285,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "regressions": [
-    {
-      "area": "permissions",
-      "assertionCount": 9,
-      "description": "Protects the legacy accessibility contract.",
-      "id": "legacy.accessibility",
-      "legacy": true,
-      "path": "scripts/accessibility-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "permissions"
-      ],
-      "tier": "focused"
-    },
     {
       "area": "time-tracking",
       "assertionCount": 30,
@@ -468,18 +590,6 @@
         "release"
       ],
       "tier": "release-gate"
-    },
-    {
-      "area": "views",
-      "assertionCount": 34,
-      "description": "Protects the legacy client modal footer actions contract.",
-      "id": "legacy.client.modal.footer.actions",
-      "legacy": true,
-      "path": "scripts/client-modal-footer-actions-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "framework",
@@ -786,20 +896,6 @@
       "id": "legacy.dialect.enforcement.guardrail",
       "legacy": true,
       "path": "scripts/dialect-enforcement-guardrail-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 16,
-      "description": "Protects the legacy drawer main surface contract contract.",
-      "id": "legacy.drawer.main.surface.contract",
-      "legacy": true,
-      "path": "scripts/drawer-main-surface-contract-regression.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [
@@ -1626,18 +1722,6 @@
       "tier": "focused"
     },
     {
-      "area": "views",
-      "assertionCount": 17,
-      "description": "Protects the legacy icon control conversion contract.",
-      "id": "legacy.icon.control.conversion",
-      "legacy": true,
-      "path": "scripts/icon-control-conversion-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
       "area": "database",
       "assertionCount": 11,
       "description": "Protects the legacy interpolation enforcement guardrail contract.",
@@ -1985,35 +2069,6 @@
       "tier": "focused"
     },
     {
-      "area": "framework",
-      "assertionCount": 30,
-      "description": "Protects the legacy markdown platform contract contract.",
-      "id": "legacy.markdown.platform.contract",
-      "legacy": true,
-      "path": "scripts/markdown-platform-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract",
-        "docs"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 56,
-      "description": "Protects the legacy markdown renderer service contract.",
-      "id": "legacy.markdown.renderer.service",
-      "legacy": true,
-      "path": "scripts/markdown-renderer-service-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "docs"
-      ],
-      "tier": "focused"
-    },
-    {
       "area": "database",
       "assertionCount": 37,
       "description": "Protects the legacy migration compatibility contract.",
@@ -2027,48 +2082,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "views",
-      "assertionCount": 46,
-      "description": "Protects the legacy modal action standardization contract contract.",
-      "id": "legacy.modal.action.standardization.contract",
-      "legacy": true,
-      "path": "scripts/modal-action-standardization-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 21,
-      "description": "Protects the legacy modal footer contract contract.",
-      "id": "legacy.modal.footer.contract",
-      "legacy": true,
-      "path": "scripts/modal-footer-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 34,
-      "description": "Protects the legacy modal section contract contract.",
-      "id": "legacy.modal.section.contract",
-      "legacy": true,
-      "path": "scripts/modal-section-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
     },
     {
       "area": "framework",
@@ -2551,20 +2564,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "views",
-      "assertionCount": 23,
-      "description": "Protects the legacy overlay host contract contract.",
-      "id": "legacy.overlay.host.contract",
-      "legacy": true,
-      "path": "scripts/overlay-host-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
     },
     {
       "area": "database",
@@ -3347,25 +3346,6 @@
     },
     {
       "area": "framework",
-      "assertionCount": 69,
-      "description": "Pins the administrator-only Calendar lifecycle manager, Business-only Client scope, all-workspace Project scope, one-time bearer URLs, User Settings removal, and framework/Tasks ownership boundary.",
-      "id": "framework.calendar-subscription-settings",
-      "legacy": false,
-      "path": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "calendar",
-        "help",
-        "security",
-        "settings",
-        "tasks",
-        "views"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "framework",
       "assertionCount": 22,
       "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
       "id": "framework.client-project-options-projection",
@@ -3398,6 +3378,25 @@
         "security"
       ],
       "tier": "focused"
+    },
+    {
+      "area": "framework",
+      "assertionCount": 7,
+      "description": "Runs source-only Settings and Reporting anatomy contracts through one table-driven framework owner.",
+      "id": "framework.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/framework/current-static-contracts.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "anatomy",
+        "contracts",
+        "guardrail",
+        "reporting",
+        "settings",
+        "views"
+      ],
+      "tier": "release-gate"
     },
     {
       "area": "framework",
@@ -3841,24 +3840,6 @@
     },
     {
       "area": "framework",
-      "assertionCount": 28,
-      "description": "Locks framework Reporting permission/navigation ownership, minimal host anatomy, and first-party-module-neutral framework code.",
-      "id": "framework.reporting-closeout",
-      "legacy": false,
-      "path": "scripts/regressions/framework/reporting-closeout.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "guardrail",
-        "navigation",
-        "permissions",
-        "reporting",
-        "views"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "framework",
       "assertionCount": 42,
       "description": "Proves the data-only report manifest contract, Reporting asset ownership, and enabled/permission-filtered report listing seam.",
       "id": "framework.reporting-contribution-contract",
@@ -3871,23 +3852,6 @@
         "modules",
         "permissions",
         "reporting"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "framework",
-      "assertionCount": 39,
-      "description": "Proves the minimal catalog-driven Reporting host, metadata filters, allowed renderer loading, and Time Tracking-owned hierarchical result renderer.",
-      "id": "framework.reporting-host",
-      "legacy": false,
-      "path": "scripts/regressions/framework/reporting-host.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "browser",
-        "catalog",
-        "reporting",
-        "views"
       ],
       "tier": "focused"
     },
@@ -3946,22 +3910,6 @@
     },
     {
       "area": "framework",
-      "assertionCount": 34,
-      "description": "Locks the Settings branch closeout guardrails, converted-host inventory, and documented consumer map.",
-      "id": "framework.settings-branch-closeout",
-      "legacy": false,
-      "path": "scripts/regressions/framework/settings-branch-closeout.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "closeout",
-        "settings",
-        "views"
-      ],
-      "tier": "release-gate"
-    },
-    {
-      "area": "framework",
       "assertionCount": 61,
       "description": "Proves the data-only settings manifest contract, protected framework boundary, and shared eligibility-filtered listing seam.",
       "id": "framework.settings-contribution-contract",
@@ -3975,23 +3923,6 @@
         "settings"
       ],
       "tier": "focused"
-    },
-    {
-      "area": "framework",
-      "assertionCount": 79,
-      "description": "Proves every Settings host uses dual universal Save and Revert actions while lifecycle forms stay outside dirty-state transactions.",
-      "id": "framework.settings-page-actions",
-      "legacy": false,
-      "path": "scripts/regressions/framework/settings-page-actions.regression.mjs",
-      "releaseGate": true,
-      "runMode": "static",
-      "tags": [
-        "dirty-state",
-        "navigation-guard",
-        "settings",
-        "ui"
-      ],
-      "tier": "release-gate"
     },
     {
       "area": "framework",
@@ -5166,127 +5097,22 @@
     },
     {
       "area": "views",
-      "assertionCount": 60,
-      "description": "Pins the framework-owned Calendar host boundary: minimal protected shell, framework view primitives for page/header/filter/status anatomy, one shared task-calendar render path with quiet recurring projection, canonical Task editor opener, read-only bounded data path, no calendar event/iCal/external-sync behavior, and the Workbench link staying a link.",
-      "id": "views.calendar-host",
+      "assertionCount": 14,
+      "description": "Runs source-only view anatomy, accessibility, icon, renderer, and dashboard contracts through one table-driven owner.",
+      "id": "views.current-static-contracts",
       "legacy": false,
-      "path": "scripts/regressions/views/calendar-host.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "anatomy",
-        "calendar",
-        "guardrail",
-        "views"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 30,
-      "description": "Pins the Dashboard calendar embed: hidden-by-default status anatomy, calendar region ordered below Workspace Pulse and Needs Attention, a gated Tasks module contribution, and rendering through the shared task-calendar path instead of duplicated grid logic.",
-      "id": "views.dashboard-calendar-embed",
-      "legacy": false,
-      "path": "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "anatomy",
-        "calendar",
-        "dashboard",
-        "guardrail",
-        "views"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 19,
-      "description": "Pins Dashboard warm-first bootstrap sequencing, route-promise reuse, parallel asset loading, the rendered first-fetch gap budget, and lazy Task editor delivery.",
-      "id": "views.dashboard-client-bootstrap",
-      "legacy": false,
-      "path": "scripts/regressions/views/dashboard-client-bootstrap.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "assets",
-        "dashboard",
-        "performance",
-        "sequencing",
-        "views"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 43,
-      "description": "Proves the Dashboard native ES-module entry, versioned local compatibility imports, contribution-owned module scripts and styles, and preserved accessible calendar controls.",
-      "id": "views.dashboard-es-module-entry",
-      "legacy": false,
-      "path": "scripts/regressions/views/dashboard-es-module-entry.regression.mjs",
+      "path": "scripts/regressions/views/current-static-contracts.regression.mjs",
       "releaseGate": true,
       "runMode": "static",
       "tags": [
         "accessibility",
-        "assets",
-        "dashboard",
-        "es-modules",
+        "anatomy",
+        "contracts",
         "guardrail",
-        "keyboard"
+        "settings",
+        "views"
       ],
       "tier": "release-gate"
-    },
-    {
-      "area": "views",
-      "assertionCount": 94,
-      "description": "Proves field-factory metadata, editable grids, typed collection, message channels, raw-anatomy guardrails, and renderer, Reporting, and Settings adoption.",
-      "id": "views.field-factory",
-      "legacy": false,
-      "path": "scripts/regressions/views/field-factory.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "browser",
-        "contracts",
-        "fields",
-        "reporting"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 13,
-      "description": "Pins the mobile app-shell header boundary: Search and Notifications stay outside the primary-menu drawer, the phone wordmark is hidden, and the established drawer lifecycle remains intact.",
-      "id": "views.mobile-app-shell-header",
-      "legacy": false,
-      "path": "scripts/regressions/views/mobile-app-shell-header.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "app-shell",
-        "mobile",
-        "navigation",
-        "responsive",
-        "views"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 10,
-      "description": "Pins the mobile foundation: exact viewport meta on every view, shared breakpoint/tap-target tokens, base media constraints, and a frozen media-query allowlist in the framework CSS.",
-      "id": "views.mobile-foundation",
-      "legacy": false,
-      "path": "scripts/regressions/views/mobile-foundation.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "css",
-        "mobile",
-        "responsive",
-        "views"
-      ],
-      "tier": "focused"
     },
     {
       "area": "workbench",
@@ -5391,18 +5217,6 @@
         "performance",
         "progressive-render"
       ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 18,
-      "description": "Protects the legacy remaining icon actions contract.",
-      "id": "legacy.remaining.icon.actions",
-      "legacy": true,
-      "path": "scripts/remaining-icon-actions-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
       "tier": "focused"
     },
     {
@@ -5654,18 +5468,6 @@
       "tier": "slow"
     },
     {
-      "area": "framework",
-      "assertionCount": 24,
-      "description": "Protects the legacy shared icons contract.",
-      "id": "legacy.shared.icons",
-      "legacy": true,
-      "path": "scripts/shared-icons-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
       "area": "database",
       "assertionCount": 41,
       "description": "Protects the legacy sqlite connection hardening contract.",
@@ -5719,32 +5521,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "views",
-      "assertionCount": 18,
-      "description": "Protects the legacy surface adoption pass contract.",
-      "id": "legacy.surface.adoption.pass",
-      "legacy": true,
-      "path": "scripts/surface-adoption-pass-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 13,
-      "description": "Protects the legacy surface token contract contract.",
-      "id": "legacy.surface.token.contract",
-      "legacy": true,
-      "path": "scripts/surface-token-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
     },
     {
       "area": "tags",
@@ -6603,52 +6379,12 @@
       "tier": "integration"
     },
     {
-      "area": "views",
-      "assertionCount": 51,
-      "description": "Protects the legacy ui contract contract.",
-      "id": "legacy.ui.contract",
-      "legacy": true,
-      "path": "scripts/ui-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
       "area": "framework",
       "assertionCount": 84,
       "description": "Protects the legacy user theme auto mode contract.",
       "id": "legacy.user.theme.auto.mode",
       "legacy": true,
       "path": "scripts/user-theme-auto-mode-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 13,
-      "description": "Protects the legacy view builder contract contract.",
-      "id": "legacy.view.builder.contract",
-      "legacy": true,
-      "path": "scripts/view-builder-contract-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 38,
-      "description": "Protects the legacy view builder converted surface contract.",
-      "id": "legacy.view.builder.converted.surface",
-      "legacy": true,
-      "path": "scripts/view-builder-converted-surface-guardrails.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [],
@@ -6682,18 +6418,6 @@
     },
     {
       "area": "views",
-      "assertionCount": 114,
-      "description": "Protects the legacy view descriptor declarative contract.",
-      "id": "legacy.view.descriptor.declarative",
-      "legacy": true,
-      "path": "scripts/view-descriptor-declarative-guardrails.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
       "assertionCount": 25,
       "description": "Protects the legacy view descriptor manifest contract.",
       "id": "legacy.view.descriptor.manifest",
@@ -6718,59 +6442,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 15,
-      "description": "Protects the legacy view descriptor terminology contract.",
-      "id": "legacy.view.descriptor.terminology",
-      "legacy": true,
-      "path": "scripts/view-descriptor-terminology-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 28,
-      "description": "Protects the legacy view index primitive contract.",
-      "id": "legacy.view.index.primitive",
-      "legacy": true,
-      "path": "scripts/view-index-primitive-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
       "assertionCount": 23,
       "description": "Protects the legacy view renderer actions contract.",
       "id": "legacy.view.renderer.actions",
       "legacy": true,
       "path": "scripts/view-renderer-actions-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 27,
-      "description": "Protects the legacy view renderer data binding contract.",
-      "id": "legacy.view.renderer.data.binding",
-      "legacy": true,
-      "path": "scripts/view-renderer-data-binding-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "views",
-      "assertionCount": 94,
-      "description": "Protects the legacy view renderer shell contract.",
-      "id": "legacy.view.renderer.shell",
-      "legacy": true,
-      "path": "scripts/view-renderer-shell-regression.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [],
@@ -7150,6 +6826,37 @@
   ],
   "retiredRegressions": [
     {
+      "script": "scripts/accessibility-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 9 source assertions remain in scripts/regression-contracts/views/accessibility.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 9,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/accessibility.contract.mjs"
+        ]
+      },
+      "id": "legacy.accessibility",
+      "area": "permissions",
+      "tier": "focused",
+      "tags": [
+        "permissions"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/check-js.mjs",
       "retiredInVersion": "0.33.18.7",
       "retirementType": "assertions-moved",
@@ -7181,6 +6888,35 @@
         "slow"
       ],
       "legacy": true
+    },
+    {
+      "script": "scripts/client-modal-footer-actions-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 34 source assertions remain in scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 34,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs"
+        ]
+      },
+      "id": "legacy.client.modal.footer.actions",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/client-picker-hierarchy-regression.mjs",
@@ -7250,6 +6986,37 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/drawer-main-surface-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 16 source assertions remain in scripts/regression-contracts/views/drawer-main-surface.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 16,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/drawer-main-surface.contract.mjs"
+        ]
+      },
+      "id": "legacy.drawer.main.surface.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7301,6 +7068,35 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/icon-control-conversion-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 17 source assertions remain in scripts/regression-contracts/views/icon-control-conversion.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 17,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/icon-control-conversion.contract.mjs"
+        ]
+      },
+      "id": "legacy.icon.control.conversion",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/markdown-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7316,6 +7112,162 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/markdown-platform-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 30 source assertions remain in scripts/regression-contracts/views/markdown-platform.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 30,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/markdown-platform.contract.mjs"
+        ]
+      },
+      "id": "legacy.markdown.platform.contract",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [
+        "contract",
+        "docs"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/markdown-renderer-service-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 56 source assertions remain in scripts/regression-contracts/views/markdown-renderer-service.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 56,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs"
+        ]
+      },
+      "id": "legacy.markdown.renderer.service",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "docs"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/modal-action-standardization-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 46 source assertions remain in scripts/regression-contracts/views/modal-action-standardization.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 46,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/modal-action-standardization.contract.mjs"
+        ]
+      },
+      "id": "legacy.modal.action.standardization.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/modal-footer-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 21 source assertions remain in scripts/regression-contracts/views/modal-footer.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 21,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/modal-footer.contract.mjs"
+        ]
+      },
+      "id": "legacy.modal.footer.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/modal-section-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 34 source assertions remain in scripts/regression-contracts/views/modal-section.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 34,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/modal-section.contract.mjs"
+        ]
+      },
+      "id": "legacy.modal.section.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/module-file-closeout-regression.mjs",
@@ -7367,6 +7319,37 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/overlay-host-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/views/overlay-host.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/overlay-host.contract.mjs"
+        ]
+      },
+      "id": "legacy.overlay.host.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/regression-coverage-ratchet.mjs",
@@ -7464,6 +7447,178 @@
         "todo"
       ],
       "legacy": false
+    },
+    {
+      "script": "scripts/regressions/framework/calendar-subscription-settings.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 69 source assertions remain in scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs and execute through framework.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "framework.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/framework/current-static-contracts.regression.mjs",
+        "npm run test:regressions:framework",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 69,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs"
+        ]
+      },
+      "id": "framework.calendar-subscription-settings",
+      "area": "framework",
+      "tier": "release-gate",
+      "tags": [
+        "calendar",
+        "help",
+        "security",
+        "settings",
+        "tasks",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/reporting-closeout.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 28 source assertions remain in scripts/regression-contracts/framework/reporting-closeout.contract.mjs and execute through framework.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "framework.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/framework/current-static-contracts.regression.mjs",
+        "npm run test:regressions:framework",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 28,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/framework/reporting-closeout.contract.mjs"
+        ]
+      },
+      "id": "framework.reporting-closeout",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [
+        "guardrail",
+        "navigation",
+        "permissions",
+        "reporting",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/reporting-host.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/framework/reporting-host.contract.mjs and execute through framework.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "framework.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/framework/current-static-contracts.regression.mjs",
+        "npm run test:regressions:framework",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/framework/reporting-host.contract.mjs"
+        ]
+      },
+      "id": "framework.reporting-host",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [
+        "browser",
+        "catalog",
+        "reporting",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/settings-branch-closeout.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 34 source assertions remain in scripts/regression-contracts/framework/settings-branch-closeout.contract.mjs and execute through framework.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "framework.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/framework/current-static-contracts.regression.mjs",
+        "npm run test:regressions:framework",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 34,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/framework/settings-branch-closeout.contract.mjs"
+        ]
+      },
+      "id": "framework.settings-branch-closeout",
+      "area": "framework",
+      "tier": "release-gate",
+      "tags": [
+        "closeout",
+        "settings",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/settings-page-actions.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 79 source assertions remain in scripts/regression-contracts/framework/settings-page-actions.contract.mjs and execute through framework.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "framework.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/framework/current-static-contracts.regression.mjs",
+        "npm run test:regressions:framework",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 79,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/framework/settings-page-actions.contract.mjs"
+        ]
+      },
+      "id": "framework.settings-page-actions",
+      "area": "framework",
+      "tier": "release-gate",
+      "tags": [
+        "dirty-state",
+        "navigation-guard",
+        "settings",
+        "ui"
+      ],
+      "legacy": false,
+      "runMode": "static"
     },
     {
       "script": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
@@ -7688,7 +7843,7 @@
         "database.startup-maintenance-lifecycle",
         "framework.bundled-module-registry",
         "release.regression-manifest-generation",
-        "views.dashboard-es-module-entry"
+        "views.current-static-contracts"
       ],
       "verificationPerformed": [
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
@@ -7703,7 +7858,7 @@
           "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
           "scripts/regressions/framework/bundled-module-registry.regression.mjs",
           "scripts/regressions/release/regression-manifest-generation.regression.mjs",
-          "scripts/regressions/views/dashboard-es-module-entry.regression.mjs"
+          "scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs"
         ]
       },
       "id": "release.maintainability-closeout",
@@ -7759,6 +7914,278 @@
       "legacy": false
     },
     {
+      "script": "scripts/regressions/views/calendar-host.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 60 source assertions remain in scripts/regression-contracts/views/calendar-host.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 60,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/calendar-host.contract.mjs"
+        ]
+      },
+      "id": "views.calendar-host",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "anatomy",
+        "calendar",
+        "guardrail",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 30 source assertions remain in scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 30,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs"
+        ]
+      },
+      "id": "views.dashboard-calendar-embed",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "anatomy",
+        "calendar",
+        "dashboard",
+        "guardrail",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/dashboard-client-bootstrap.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 19 source assertions remain in scripts/regression-contracts/views/dashboard-client-bootstrap.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 19,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/dashboard-client-bootstrap.contract.mjs"
+        ]
+      },
+      "id": "views.dashboard-client-bootstrap",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "assets",
+        "dashboard",
+        "performance",
+        "sequencing",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/dashboard-es-module-entry.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 43 source assertions remain in scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 43,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs"
+        ]
+      },
+      "id": "views.dashboard-es-module-entry",
+      "area": "views",
+      "tier": "release-gate",
+      "tags": [
+        "accessibility",
+        "assets",
+        "dashboard",
+        "es-modules",
+        "guardrail",
+        "keyboard"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/field-factory.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 94 source assertions remain in scripts/regression-contracts/views/field-factory.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 94,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/field-factory.contract.mjs"
+        ]
+      },
+      "id": "views.field-factory",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "browser",
+        "contracts",
+        "fields",
+        "reporting"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/mobile-app-shell-header.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 13 source assertions remain in scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs"
+        ]
+      },
+      "id": "views.mobile-app-shell-header",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "app-shell",
+        "mobile",
+        "navigation",
+        "responsive",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/views/mobile-foundation.regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 10 source assertions remain in scripts/regression-contracts/views/mobile-foundation.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 10,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/mobile-foundation.contract.mjs"
+        ]
+      },
+      "id": "views.mobile-foundation",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "css",
+        "mobile",
+        "responsive",
+        "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/remaining-icon-actions-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 18 source assertions remain in scripts/regression-contracts/views/remaining-icon-actions.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/remaining-icon-actions.contract.mjs"
+        ]
+      },
+      "id": "legacy.remaining.icon.actions",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/runtime-database-foundation-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7774,6 +8201,35 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/shared-icons-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 24 source assertions remain in scripts/regression-contracts/views/shared-icons.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 24,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/shared-icons.contract.mjs"
+        ]
+      },
+      "id": "legacy.shared.icons",
+      "area": "framework",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/static-contract-closeout-regression.mjs",
@@ -7810,6 +8266,35 @@
       "legacy": true
     },
     {
+      "script": "scripts/surface-adoption-pass-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 18 source assertions remain in scripts/regression-contracts/views/surface-adoption-pass.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/surface-adoption-pass.contract.mjs"
+        ]
+      },
+      "id": "legacy.surface.adoption.pass",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/surface-standardization-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7827,6 +8312,37 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/surface-token-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 13 source assertions remain in scripts/regression-contracts/views/surface-token.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/surface-token.contract.mjs"
+        ]
+      },
+      "id": "legacy.surface.token.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/tasks-conversion-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7842,6 +8358,37 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/ui-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 51 source assertions remain in scripts/regression-contracts/views/ui.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 51,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/ui.contract.mjs"
+        ]
+      },
+      "id": "legacy.ui.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/version-literal-guardrail-regression.mjs",
@@ -7892,6 +8439,66 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/view-builder-contract-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 13 source assertions remain in scripts/regression-contracts/views/view-builder.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-builder.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.builder.contract",
+      "area": "views",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/view-builder-converted-surface-guardrails.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 38 source assertions remain in scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 38,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.builder.converted.surface",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/view-conversion-branch-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7907,6 +8514,151 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/view-descriptor-declarative-guardrails.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 114 source assertions remain in scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 114,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.descriptor.declarative",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/view-descriptor-terminology-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 15 source assertions remain in scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 15,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.descriptor.terminology",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/view-index-primitive-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 28 source assertions remain in scripts/regression-contracts/views/view-index-primitive.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 28,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-index-primitive.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.index.primitive",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/view-renderer-data-binding-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 27 source assertions remain in scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 27,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.renderer.data.binding",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/view-renderer-shell-regression.mjs",
+      "retiredInVersion": "0.33.33.9",
+      "retirementType": "assertions-moved",
+      "rationale": "The source-only assertion body moved unchanged into a non-discovered contract module under one table-driven framework or view owner.",
+      "assertionDisposition": "All 94 source assertions remain in scripts/regression-contracts/views/view-renderer-shell.contract.mjs and execute through views.current-static-contracts; behavioral HTTP, permission, session, CSP, and Playwright owners remain separate.",
+      "retainedCoverageOwners": [
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "npm run test:regressions:views",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 94,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/views/view-renderer-shell.contract.mjs"
+        ]
+      },
+      "id": "legacy.view.renderer.shell",
+      "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     }
   ]
 }

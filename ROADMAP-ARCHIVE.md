@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.9 - Consolidate framework and view static owners
+
+**Model: High Effort** - Framework/view assertions spanned shared anatomy, accessibility, security headers, and browser contracts.
+
+- [x] Consolidated 34 source-only framework, view anatomy, Settings anatomy, icon, Markdown, and HTML-accessibility entry points behind `framework.current-static-contracts` and `views.current-static-contracts` while preserving all 1,257 assertion bodies in directly inventoried contract modules.
+- [x] Kept behavioral HTTP, permission, session, CSP, and Playwright owners separate; the mixed security-header/CSP owner remains unchanged because its live HTTP probes make it behavioral rather than a source-only consolidation candidate.
+- [x] Recorded every moved surface as table data with a stable exception ID, named reason, exact source path, contract-module path, assertion count, and retained owner.
+- [x] Ratcheted active discovery from 456 to 424 scripts and effective assertion coverage from 18,630 to 18,651, retained independently runnable Framework and Views area commands, and redirected dependent source inventories without losing their checks.
+
 ## Version 0.33.33.8 - Consolidate release, roadmap, and documentation static owners
 
 **Model: High Effort** - Many historical assertions moved at once without erasing a current release contract.

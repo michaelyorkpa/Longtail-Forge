@@ -26,8 +26,8 @@
       "id": "release.maintainability-closeout",
       "path": "scripts/regressions/release/maintainability-closeout.regression.mjs",
       "reason": "The program mixed archived roadmap and changelog pins with verbatim mirrors of live regression source and one stale cross-file SHA.",
-      "retainedOwners": ["database.startup-maintenance-lifecycle", "framework.bundled-module-registry", "release.regression-manifest-generation", "views.dashboard-es-module-entry"],
-      "liveFragments": ["Bundled module inventory and side-effect behavior remain with framework.bundled-module-registry.", "Startup ordering, repair idempotence, and integrity remain with database.startup-maintenance-lifecycle.", "Dashboard module loading and focus behavior remain with views.dashboard-es-module-entry.", "Manifest membership remains with release.regression-manifest-generation."]
+      "retainedOwners": ["database.startup-maintenance-lifecycle", "framework.bundled-module-registry", "release.regression-manifest-generation", "views.current-static-contracts"],
+      "liveFragments": ["Bundled module inventory and side-effect behavior remain with framework.bundled-module-registry.", "Startup ordering, repair idempotence, and integrity remain with database.startup-maintenance-lifecycle.", "Dashboard module loading and focus behavior remain with views.current-static-contracts.", "Manifest membership remains with release.regression-manifest-generation."]
     },
     {
       "id": "release.typescript-seam-branch-closeout",
@@ -38,8 +38,6 @@
     }
   ],
   "retainedCloseoutOwners": [
-    "framework.reporting-closeout",
-    "framework.settings-branch-closeout",
     "legacy.async.recurrence.response.closeout",
     "legacy.better.sqlite3.driver.closeout",
     "legacy.client.project.hierarchy.branch.closeout",

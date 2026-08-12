@@ -25,7 +25,10 @@ assert.deepEqual(consolidation.after, { discoveredScripts: 456, releaseDocsStati
 assert.equal(consolidation.movements.reduce((total, movement) => total + movement.assertionCount, 0), 60);
 assert.equal(consolidation.trueDuplicates.reduce((total, duplicate) => total + duplicate.assertionCount, 0), 45);
 assert.equal(new Set(consolidation.trueDuplicates.map((duplicate) => duplicate.path)).size, consolidation.trueDuplicates.length);
-assert.equal(REGRESSION_ENTRIES.length, consolidation.after.discoveredScripts);
+assert.ok(
+  REGRESSION_ENTRIES.length <= consolidation.after.discoveredScripts,
+  `later consolidations may shrink active discovery below the recorded 0.33.33.8 post-state`,
+);
 assert.equal(
   REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static" && ["docs", "release"].includes(entry.area)).length,
   consolidation.after.releaseDocsStaticScripts,
