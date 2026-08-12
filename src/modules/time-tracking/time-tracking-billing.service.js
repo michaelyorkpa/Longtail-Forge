@@ -14,6 +14,8 @@ import { timeTrackingSettingsService } from "./time-tracking-settings.service.js
 import { timeEntriesService } from "./time-entries.service.js";
 
 /** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{ endDate?: unknown, end_date?: unknown, period?: unknown, projectIds?: unknown, project_ids?: unknown, scopeId?: unknown, scope_id?: unknown, startDate?: unknown, start_date?: unknown, tagIds?: unknown, tag_ids?: unknown, tags?: unknown, taskId?: unknown, task_id?: unknown, taskIds?: unknown, task_ids?: unknown }} BillingReportQuery */
+/** @typedef {{ readDashboardBillingSummary: typeof readDashboardBillingSummary, readProjectSummary: typeof readProjectSummary, readReportingBootstrap: typeof readReportingBootstrap, runProjectTimeBillingReport: typeof runProjectTimeBillingReport }} TimeTrackingBillingService */
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
 
@@ -78,7 +80,7 @@ async function readReportingBootstrap(session) {
   };
 }
 
-/** @param {WorkspaceRequestSession} session */
+/** @param {WorkspaceRequestSession} session @param {BillingReportQuery} [query] */
 async function readProjectSummary(session, query = {}) {
   const { settings, scopes } = await readProjectTimeBillingContext(session);
   const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
@@ -115,6 +117,7 @@ async function readProjectSummary(session, query = {}) {
   };
 }
 
+/** @param {{ filters?: BillingReportQuery, session: WorkspaceRequestSession }} input */
 async function runProjectTimeBillingReport({ filters, session }) {
   return readProjectSummary(session, filters);
 }
@@ -879,6 +882,7 @@ export {
   summarizeProjectBillingRows,
 };
 
+/** @type {TimeTrackingBillingService} */
 export const timeTrackingBillingService = {
   readDashboardBillingSummary,
   readProjectSummary,

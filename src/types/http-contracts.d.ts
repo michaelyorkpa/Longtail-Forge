@@ -83,7 +83,6 @@ export interface PermissionResource {
   client_id?: string | null;
   project_id?: string | null;
   operation?: string;
-  [key: string]: unknown;
 }
 
 export interface ActiveApiKey {
@@ -93,7 +92,6 @@ export interface ActiveApiKey {
   key_prefix: string;
   status: string;
   scopes: string[];
-  [key: string]: unknown;
 }
 
 export interface SessionRotation {

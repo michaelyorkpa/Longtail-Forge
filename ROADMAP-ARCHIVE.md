@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.44 - Checked-program honesty and residual inventory
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The checked program remains clean at the honest 149-file floor, while strict source/test and browser probes now publish exact residuals and future owners instead of treating a pragma or percentage as completion. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - The branch must distinguish meaningful contracts from pragma-only or `any`-terminated coverage without making percentage the goal.
+
+- [x] Re-ran source/test probes after slices 24-43 and published exact residuals by owner, including checked files ending in `any`, wildcard parameters, double casts, and exported service boundaries.
+- [x] Removed the named production honesty debt: billing/time-entry/task-timer exports now have callable contracts, permission-assignment wildcards and double casts remain absent, session types terminate in `RequestSession`, and module catalog projections no longer rely on assertion-only casts.
+- [x] Replaced `modules.service.js`'s `CatalogContribution`/`ModuleEventHook` `Record<string, any>` intersections with explicit catalog, API-scope, resource, event-type, and event-hook vocabulary suitable for future Support Tickets contributions.
+- [x] Removed open index signatures from `PermissionResource` and `ActiveApiKey`; compile fixtures require misspelled permission/API-key fields to fail excess-property checking.
+- [x] Recorded the remaining 192 strict test-only errors as non-production test hardening instead of converting an arbitrary e2e tier or inflating production coverage.
+- [x] Aligned the checked inventory, guardrail fixtures, owner docs, and decisions with exact achieved coverage and remaining owner-scoped work.
+
+Acceptance criteria:
+
+- [x] Claimed production seams enforce their contracts, inventories match reality, and every remaining probe error has an explicit future owner without weaker checking dials.
+
+Closeout notes:
+
+- Reproduce-first proof recorded 867 strict server/test errors across 91 files: 673 production, 192 test-only, and 2 script errors. The largest module owners are Notes (208), Tasks (123), Lists (118), Time Tracking (11), and Clients/Projects (31); framework/core, route, service, database, and developer-example residuals retain their named owners in `scripts/typecheck-honesty-inventory.json`.
+- The separate strict browser probe recorded 11,134 errors across 69 files. The deferred client-hardening branch owns that work after a checked element-lookup helper; this slice claims no coverage credit for it.
+- The configured server/browser programs remain green at 149 checked files. Nine checked implementation files retain explicitly inventoried `any` terminals, and the framework declaration retains two Jobs payload terminals; each now has a future framework/module or Jobs payload-schema owner.
+- `PermissionResource` and `ActiveApiKey` are closed contracts with positive and misspelled-field compile fixtures. Files and Tasks Zod edge helpers now preserve schema-specific output, matching Time Tracking's settled contract.
+- Module catalog and hook projections use explicit contribution vocabulary, live hook sessions use `RequestSession`, and exported billing, time-entry, and task-timer service objects have checked callable contracts. No runtime workflow, permission decision, schema, API, or UI behavior changed.
+- Docs updated: `DECISIONS.md`, `TODO.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, module workflows, runtime configuration, deployment, database schema/migrations, and public API behavior are unchanged.
+- No docs change needed: Tasks, Files, and Time Tracking runtime behavior is unchanged; this slice only tightens their existing checked service and parser contracts.
+
 ## Version 0.33.32.43 - Migration-runner checked boundary
 
 Completed on 2026-08-12 out of numeric order at the operator's request. The framework migration runner now checks against explicit source, file, repair, database-row, applied-migration, callback, filesystem-error, and rollback-error contracts at the 149-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.

@@ -15,20 +15,26 @@ import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 /** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /** @typedef {{ task_id: string, title: string }} TaskTimerSourceTask */
 /** @typedef {{ billable?: unknown }} TaskTimerBillableTask */
+/** @typedef {{ accumulated_elapsed_seconds?: string | number | null, active_timer_id?: string | null, active_task_timer_id?: string | null, last_active_start_time?: import("../../utils/timezones.js").DateTimeInput, timer_status?: string | null }} TaskTimerSavePayload */
+/** @typedef {{ timer_slot?: unknown, timerSlot?: unknown }} TaskTimerLinkPayload */
+/** @typedef {{ finalize: typeof finalize, hasActiveTaskTimers: typeof hasActiveTaskTimers, linkManualTimer: typeof linkManualTimer, list: typeof list, pauseRunningForBlockedTask: typeof pauseRunningForBlockedTask, remove: typeof remove, save: typeof save }} TaskTimersService */
 
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
+/** @param {WorkspaceRequestSession} session */
 async function list(session) {
   return {
     timers: await taskTimersRepository.readAllForUser(session.workspace_id, session.user_id),
   };
 }
 
+/** @param {TaskTimerSourceTask} task @param {WorkspaceRequestSession} session */
 async function pauseRunningForBlockedTask(task, session) {
   return activeTimersService.pauseRunningSourced(taskTimerSource(task), session);
 }
 
+/** @param {string} taskId @param {TaskTimerSavePayload} payload @param {WorkspaceRequestSession} session */
 async function save(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -39,7 +45,7 @@ async function save(taskId, payload, session) {
   const transition = timerStatus === "running"
     ? await transitionTaskToInProgressForTimerStart(task, existingTimer, session)
     : taskTimerTransitionMetadata(existingTimer);
-  const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
+  const elapsedSeconds = Math.max(0, Number.parseInt(String(payload?.accumulated_elapsed_seconds ?? ""), 10) || 0);
   let result;
 
   try {
@@ -76,6 +82,7 @@ async function save(taskId, payload, session) {
   };
 }
 
+/** @param {string} taskId @param {TaskTimerLinkPayload} payload @param {WorkspaceRequestSession} session */
 async function linkManualTimer(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -159,6 +166,7 @@ async function linkManualTimer(taskId, payload, session) {
   };
 }
 
+/** @param {string} taskId @param {WorkspaceRequestSession} session */
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
@@ -224,6 +232,7 @@ async function finalize(taskId, payload, session) {
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasActiveTaskTimers(workspaceId, taskId) {
   return taskTimersRepository.hasActiveForTask(workspaceId, taskId);
 }
@@ -468,6 +477,7 @@ function taskTimerFromUnified(timer, task) {
   };
 }
 
+/** @type {TaskTimersService} */
 export const taskTimersService = {
   finalize,
   hasActiveTaskTimers,

@@ -938,8 +938,8 @@ assert.match(
 );
 assert.match(
   modulesServiceSource,
-  /function registeredModuleEventHooks\(\)[\s\S]*?@type \{ModuleEventHook\[\]\}/,
-  "event hook execution must retain its checked private catalog projection",
+  /@typedef \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleEventHook\} ModuleEventHook[\s\S]*?@returns \{ModuleEventHook\[\]\}[\s\S]*?function registeredModuleEventHooks\(\) \{\s*return listRegisteredModuleEventHooks\(\);/,
+  "event hook execution must retain its explicit checked catalog projection without an assertion cast",
 );
 const terminologySource = readFileSync("src/core/modules/terminology.js", "utf8");
 assert.match(

@@ -182,9 +182,10 @@ const TaskRecurrenceMaterializeSchema = z.object({
  * server-managed audit) fields and converts the first validation issue into
  * the existing AppError envelope.
  *
- * @param {import("zod").ZodType} schema
+ * @template {import("zod").ZodType} Schema
+ * @param {Schema} schema
  * @param {unknown} payload
- * @returns {any} the parsed, stripped payload
+ * @returns {import("zod").output<Schema>} the parsed, stripped payload
  */
 function parseTasksEdgePayload(schema, payload) {
   const result = schema.safeParse(payload ?? {});

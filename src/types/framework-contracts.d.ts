@@ -1,3 +1,5 @@
+import type { RequestSession } from "./http-contracts.js";
+
 /**
  * Framework contract shapes (type-only).
  *
@@ -47,25 +49,11 @@ export interface ModuleManifest {
   permissions?: unknown[];
   requiredPermissions?: string[];
   defaultRolePermissions?: { roleId: string; permissions: string[] }[];
-  resourceDefinitions?: unknown[];
+  resourceDefinitions?: ResourceDefinitionContribution[];
   publicApiEndpoints?: unknown[];
-  apiScopes?: unknown[];
-  auditRecordTypes?: readonly {
-    recordType: string;
-    moduleId: string;
-    label: string;
-    description: string;
-    terminology?: TerminologyMap;
-    [key: string]: unknown;
-  }[];
-  eventTypes?: readonly {
-    event: string;
-    moduleId: string;
-    label: string;
-    description: string;
-    recordType?: string;
-    [key: string]: unknown;
-  }[];
+  apiScopes?: readonly (string | ApiScopeContribution)[];
+  auditRecordTypes?: readonly AuditRecordTypeContribution[];
+  eventTypes?: readonly EventTypeContribution[];
   eventSummaries?: Record<string, unknown> | readonly unknown[];
   timerSources?: unknown[];
   workItemSources?: unknown[];
@@ -84,14 +72,83 @@ export interface ModuleManifest {
     [key: string]: unknown;
   };
   hooks?: {
-    events?: readonly Record<string, any>[];
-    [key: string]: unknown;
+    events?: readonly ModuleEventHookContribution[];
   };
   frameworkDependencies?: string[];
   moduleDependencies?: string[];
   seedHooks?: unknown[];
   repairHooks?: unknown[];
   workspaceCapabilityRequirements?: string[];
+}
+
+export interface CatalogContribution {
+  id?: string;
+  moduleId?: string;
+  label?: string;
+  description?: string;
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+  requiresEnabledModules?: string[];
+  requiredModules?: string[];
+  workspaceTypes?: string[];
+  publicDemoCapability?: string;
+  path?: string;
+  terminology?: TerminologyMap;
+}
+
+export interface ResourceDefinitionContribution extends CatalogContribution {
+  key: string;
+  operations: string[];
+}
+
+export interface ApiScopeContribution extends CatalogContribution {
+  id: string;
+  access?: string;
+}
+
+export interface ApiScopeCatalogEntry extends ApiScopeContribution {
+  moduleId: string;
+  scope: string;
+  label: string;
+  description: string;
+  access: string;
+}
+
+export interface AuditRecordTypeContribution extends CatalogContribution {
+  recordType: string;
+  moduleId: string;
+  label: string;
+  description: string;
+}
+
+export interface EventTypeContribution extends CatalogContribution {
+  event: string;
+  moduleId: string;
+  label: string;
+  description: string;
+  recordType?: string;
+}
+
+export interface ModuleEventHookContext {
+  event: InternalEvent;
+  module: ModuleManifest;
+  modulesService: ModuleEventHookModulesService;
+}
+
+export interface ModuleEventHookModulesService {
+  canReadModule(workspaceId: string, moduleId: string): Promise<boolean>;
+  canWriteModule(workspaceId: string, moduleId: string): Promise<boolean>;
+  getModule(moduleId: string): ModuleManifest | null;
+}
+
+export interface ModuleEventHookContribution extends CatalogContribution {
+  event: string;
+  handler: (context: ModuleEventHookContext) => unknown | Promise<unknown>;
+}
+
+export interface ModuleEventHook extends ModuleEventHookContribution {
+  id: string;
+  moduleId: string;
 }
 
 export interface ProtectedContentConsumerContribution {
@@ -725,7 +782,7 @@ export interface ResumeStateReadResolverContext {
   recordId: string;
   recordType: string;
   row: Record<string, unknown>;
-  session: Record<string, any>;
+  session: RequestSession;
   userId: string;
   workspaceId: string;
 }
@@ -733,7 +790,7 @@ export interface ResumeStateReadResolverContext {
 export interface ResumeStateBatchReadResolverContext {
   recordIds: string[];
   rows: Array<Record<string, unknown>>;
-  session: Record<string, any>;
+  session: RequestSession;
   workspaceId: string;
 }
 
@@ -898,11 +955,11 @@ export interface InternalEvent {
   recordId?: string;
   record_label?: string;
   recordLabel?: string;
-  previous_value?: Record<string, any> | null;
-  new_value?: Record<string, any> | null;
+  previous_value?: Record<string, unknown> | null;
+  new_value?: Record<string, unknown> | null;
   source?: string;
-  metadata?: Record<string, any>;
-  session?: Record<string, any> | null;
+  metadata?: Record<string, unknown>;
+  session?: RequestSession | null;
   emitted_at?: string;
 }
 

@@ -1632,6 +1632,8 @@ Current runtime database behavior is documented in [database.md](database.md) an
 
 As of 0.33.32.43, `src/db/migrations.js` is a checked framework boundary. Named source, migration-file, repair, applied-row, and transaction-callback contracts cover the runner, and generic database rows are narrowed where they enter it. This is a type-safety boundary only: the migration lock, deterministic version/module ordering, baseline adoption and line-ending-compatible checksums, validate-before-apply sequence, explicit begin/commit/rollback ownership, foreign-key repair protocol, and generated schema workflow are unchanged.
 
+As of 0.33.32.44, the 149-file checked seam is described by both the membership inventory and `scripts/typecheck-honesty-inventory.json`. The latter separates configured-program success from dated strict residual probes and owner-scoped future work. Module catalog projections now use explicit resource, API-scope, audit-type, event-type, and event-hook contracts; permission resources and active API keys are closed shapes; and framework resume/event sessions use the shared request-session union. This is contract hardening only and does not change module activation, catalog filtering, hook dispatch, permissions, API-key behavior, or runtime workflows.
+
 ---
 
 ## File and Folder Boundaries

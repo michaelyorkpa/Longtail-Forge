@@ -124,6 +124,8 @@ As of 0.33.32.42, `framework.markdown-checked-core` requires checked ownership a
 
 As of 0.33.32.43, `database.migration-runner-checked-boundary` requires checked ownership and explicit migration source/file, repair, database-row, applied-migration, callback, filesystem-error, and rollback-error contracts. It freezes version/module ordering, SQL-file selection, checksum normalization and validate-before-apply ordering, migration locking, explicit transaction/rollback ownership, foreign-key repair sequencing, and bound migration recording while rejecting checker escapes. The complete checked inventory floor is 149 files, the credited active regression floor is 465 scripts, the release-gate floor is 76 scripts, and the Database area floor is 47 scripts. Fresh/repeat startup, baseline adoption, contention, compatibility/checksum mismatch, generated schema, foreign-key, and SQLite integrity regressions remain the executable behavior owners.
 
+As of 0.33.32.44, `framework.typecheck-honesty-inventory` pins the zero-error 149-file configured program separately from dated strict source/test and public-browser residuals, exact remaining checked-file `any` terminals, and their future owners. It rejects wildcard parameters and double casts across the checked inventory and freezes schema-specific Files/Tasks Zod outputs, explicit module catalog/hook vocabulary, request-session termination, and callable billing/time-entry/task-timer exports. `permissions.permission-resource-types` additionally compiles valid permission/API-key fixtures and requires misspelled fields to fail excess-property checking. The credited active regression floor is 466 scripts, the release-gate floor is 77 scripts, and no broad module, client, or test-only error is counted as production coverage.
+
 As of 0.33.32.14, `framework.typecheck-seams` raises the complete checked inventory to 69 files and pins the first-party Work Resume State producer and read-resolver assembly to shared payload, resolver-context, batch-resolver, and lifecycle-result contracts. The initial-producer, producer, service, and conversion regressions independently prove registration, permission and lifecycle pruning, unavailable states, active/history filtering, ranking, and emitted recovery payloads remain unchanged. `framework.identifier-authority` excludes dot-prefixed transient regression workspaces from its package-import scan so concurrently removed compile fixtures cannot invalidate an otherwise stable tracked-source audit.
 
 As of 0.33.32.15, `framework.typecheck-seams` raises the complete checked inventory to 73 files and pins Jobs enqueue/persisted-row/handler-envelope/worker-state contracts plus normalized internal-event and declared summary-resolver contracts. The Jobs area proves schema, dedupe, claims, locking, retries, idempotency, retention, and separate-worker execution; event-bus and audit-extensibility coverage prove hook isolation, safe summary/redaction/fallback behavior; Notifications coverage proves queued delivery and inbox/preference lifecycles remain unchanged.
@@ -271,18 +273,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 462 |
+| Active discovered regressions | 463 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 153 |
+| Convention-path metadata regressions | 154 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 74 |
+| Active release-gate regressions | 75 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 465 |
-| Release-gate ratchet floor | 76 |
+| Global ratchet floor | 466 |
+| Release-gate ratchet floor | 77 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 84 | 0 | 84 |
+| `framework` | 85 | 0 | 85 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -307,12 +309,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 211 |
 | `integration` | 169 |
-| `release-gate` | 74 |
+| `release-gate` | 75 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 236 |
+| `static` | 237 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |
