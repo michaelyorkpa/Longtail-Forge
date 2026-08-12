@@ -3,15 +3,15 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 460,
+    "discoveredScripts": 461,
     "legacyScripts": 309,
-    "releaseGateScripts": 72,
+    "releaseGateScripts": 73,
     "areaCounts": {
       "dashboard": 2,
       "database": 46,
       "docs": 10,
       "files": 44,
-      "framework": 83,
+      "framework": 84,
       "jobs": 8,
       "licensing": 1,
       "lists": 12,
@@ -30,14 +30,14 @@
     "tierCounts": {
       "focused": 211,
       "integration": 169,
-      "release-gate": 72,
+      "release-gate": 73,
       "slow": 8
     },
     "runModeCounts": {
       "isolated-database": 192,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 234
+      "static": 235
     }
   },
   "coverageFamilies": [
@@ -3188,6 +3188,23 @@
         "identifiers",
         "security",
         "static"
+      ],
+      "tier": "release-gate"
+    },
+    {
+      "area": "framework",
+      "description": "Proves the shared Markdown core remains checked against explicit parser, token, preference, URL, and safe-output contracts.",
+      "id": "framework.markdown-checked-core",
+      "legacy": false,
+      "path": "scripts/regressions/framework/markdown-checked-core.regression.mjs",
+      "releaseGate": true,
+      "runMode": "static",
+      "tags": [
+        "content-safety",
+        "contracts",
+        "markdown",
+        "security",
+        "typecheck"
       ],
       "tier": "release-gate"
     },
