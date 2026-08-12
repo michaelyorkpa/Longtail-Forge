@@ -6,6 +6,12 @@ Maintained deployment paths supply a validated `LONGTAIL_RELEASE_BRANCH`. Runtim
 
 Database adapter `contractVersion` fields are independent provider-contract markers. They change only when their adapter contract changes and must not be updated merely because the application version changes.
 
+## Version-wide Internal Checkpoints
+
+An active roadmap may explicitly group numbered implementation checkpoints inside one version-wide branch. In that model, an internal checkpoint is verified work but not a separately packaged application release. It retains one canonical `npm run verify:slice`, focused review, and protected pull-request CI. The package/lock version bump, rolled-up changelog, durable decision and documentation prose, roadmap archive handoff, and runtime identity proof occur once at the roadmap's named branch-closeout checkpoint. Exact-SHA Nightly, promotion, artifact, and deployment contracts do not change.
+
+Each non-merge implementation commit carries exactly one `LTF-Checkpoint`, `LTF-Summary`, and `LTF-Docs` Git trailer. `LTF-Checkpoint` names the declared numeric roadmap slice, `LTF-Summary` records one single-line outcome, and `LTF-Docs` contains the normal `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` disposition. The protected pull-request Development gate validates every commit in the complete base-to-head range, matches any declared documentation paths to the diff, rejects early package/lock, changelog, durable-decision, documentation, or roadmap-archive ceremony, and enforces the roadmap's two-ceremony-file ceiling. The first policy checkpoint may update these governing instructions; later internal checkpoints defer durable prose. A roadmap-only planning commit may establish the version-wide branch before the first implementation checkpoint.
+
 ## Asset Cache Version
 
 The browser asset cache version is derived directly from the same application version through `src/core/asset-version.js`; it is not an independently bumped release value. The static view service rewrites every local JavaScript and CSS reference in served public/protected HTML to the canonical version, injects version metadata plus the shared browser helper in the page head, and leaves the existing first-paint theme attribute contract intact. Runtime-injected Footer and Workbench dependencies use `LongtailForge.assetVersion.url(...)`, and normalized module `browserAssets` paths use the server helper.

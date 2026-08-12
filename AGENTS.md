@@ -304,6 +304,20 @@ No direct static file downloads. Downloads go through permission-checked routes.
 
 ## Development Workflow
 
+### Version-wide internal checkpoints
+
+When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, archive roadmap sections, or perform runtime identity proof. The branch-closeout checkpoint rolls those deferred items up once.
+
+Every non-merge implementation commit on that branch must end with exactly one machine-readable trailer of each form:
+
+```text
+LTF-Checkpoint: <slice-id>
+LTF-Summary: <single-line outcome>
+LTF-Docs: <documentation disposition>
+```
+
+Use either `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` as the complete `LTF-Docs` value. Internal checkpoints normally change no more than two ceremony files. The first policy checkpoint may update the governing agent/versioning instructions that establish this rule; later internal checkpoints defer durable documentation. A roadmap-only planning commit may precede implementation; it is not a completed checkpoint. The protected pull-request Development gate validates the complete base-to-head commit range. Exact-SHA Nightly, promotion, artifact, and deployment contracts remain unchanged.
+
 For every implementation slice:
 
 1. Confirm the current version in `package.json`.

@@ -7,7 +7,485 @@ Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.33 - Public Demo Analytics, Privacy, and Interest Capture
+## Version 0.33.33 - Lean Core, Full Strict TypeScript, and Verification Simplification
+
+**Model: High Effort** - This branch changes release policy, regression ownership, compiler coverage, and high-fan-in source boundaries across the repository; subtle losses could hide behavior or type debt.
+
+Purpose:
+
+Make Longtail Forge materially cheaper to change before Support Tickets begins: remove historical and duplicate verification weight without weakening live protections, place every first-party JavaScript file in a full-strict TypeScript program, and cut only source boundaries whose dependency edges genuinely improve.
+
+Confirmed planning baseline:
+
+- [ ] Treat the source-backed audit at revision `375ecb52` as the branch baseline. Fresh probes reproduce `864` current-dial and `9,734` full-strict server/test errors, `4,909` current-dial and `11,134` full-strict browser errors, and `3,824` current-dial and `11,625` full-strict script-only errors.
+- [ ] Start from `982` first-party JavaScript/MJS files, only `150` checked through file pragmas, no real checker suppressions, and `832` unchecked files. The scripts program does not exist yet and the browser program covers only nine shared files.
+- [ ] Start from `464` discovered regressions: 238 static, 192 isolated-database, 28 isolated-files, and 6 serial-database. The latest measured CI regression wall is 107 seconds and the full gate is about 2.5 minutes; this is a maintenance-weight and process-model release, not a claim that CI is slow.
+- [ ] Preserve the audit's load-bearing/deadweight distinction: roughly half of assertion calls are regex-on-text, 192 programs inspect planning/history/documentation surfaces, 11 fake-DOM harnesses and 81 `escapeRegExp` helpers are duplicated, and the 3,815-line/409-check permission harness is outside discovery. These facts justify consolidation, but no test is removable merely because it is large, static, or slow.
+- [ ] Treat the missing Notes/Lists edge schemas, classic-script browser global collisions, four browser descriptor fallbacks, Workbench loader coupling, oversized service seams, file-count coverage floors, and repeated per-slice ceremony as confirmed change drivers.
+- [ ] Measure success by meaning density and dependency locality. Honest JSDoc/contracts will grow `src/` and `public/`; expected net line reduction belongs primarily to `scripts/`, not application source.
+
+Branch delivery contract:
+
+- [ ] Open one version-wide `0.33.33` topic branch before implementation and retain it through 0.33.33.48. Publish each internal numbered checkpoint through a focused protected pull request from that branch into `nightly`; checkpoints are reviewable integration units, not separately packaged application releases.
+- [ ] Land ceremony and verification-infrastructure savings first so later checkpoints use the cheaper rules. Each checkpoint still runs one canonical `npm run verify:slice` against its final tree and protected CI still supplies clean-Linux proof.
+- [ ] Use checked JavaScript, JSDoc, runtime Zod schemas, and `.d.ts` contracts. Do not mass-rename existing runtime files to `.ts`, introduce a compile/serve step, change `npm start`, add browser bundling, or convert classic browser delivery to ES modules in this branch.
+- [ ] Finish all three programs under unqualified `strict: true` with `checkJs: true` and `noImplicitAny` enabled inside `0.33.33`. There is no `0.33.34.1` TypeScript overflow; Public Demo Analytics now owns `0.33.34`.
+- [ ] Keep one monotonic generated error ledger only while debt remains. It must fail on a new unchecked file, new error, per-file increase, unjustified explicit `any`, or suppression; delete the ledger and retire its temporary gate when all three programs reach zero.
+- [ ] Burn each owner to full strict once after the shared cascade fixes land instead of touching the same files in separate current-dial and `noImplicitAny` passes.
+- [ ] Retain child-process isolation for database, Files, serial, environment-sensitive, and child-spawning regressions. In-process static execution is audit-gated and opt-in with a child-process fallback; do not merge isolated-database programs or move slow tiers without measured runtime evidence.
+- [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
+- [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
+
+Release-wide measurable acceptance:
+
+- [ ] Every first-party server, test, script, and browser JavaScript file belongs to its owning checked program with no file omitted from the combined program universe, file pragmas, `@ts-ignore`, `@ts-nocheck`, or unexplained `any`; `npm run typecheck` is green under full strict.
+- [ ] Every retired or consolidated regression has a machine-checked assertion disposition and named continuing owner. Assertion inventory is at least the baseline minus reviewed true duplicates, and protected behavioral owners remain intact.
+- [ ] No active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content. Fewer than 40 surviving programs read planning/history documents, and each survivor owns a current live contract.
+- [ ] The static estate uses one shared source reader, one `escapeRegExp`, and one fake-DOM harness. The permission harness is discovered and floor-counted.
+- [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees.
+- [ ] Internal checkpoints normally touch no more than two ceremony files; release version, changelog rollup, durable decision/docs updates, roadmap archival, and runtime identity proof batch at branch closeout.
+- [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
+
+### 0.33.33.1 - Rebase internal checkpoint ceremony
+
+**Model: High Effort** - Release-policy and validation-owner changes must preserve traceability and package identity exactly.
+
+- [ ] Define structured checkpoint trailers carrying slice ID, summary, and documentation disposition.
+- [ ] Move package/lock version bump, rolled-up changelog, durable decision/docs prose, roadmap archive handoff, and runtime identity proof to branch closeout while retaining `verify:slice` per checkpoint.
+- [ ] Adjust only the version/changelog owners that assume per-checkpoint release identity; keep exact-SHA CI, Nightly, promotion, artifact, and deployment contracts unchanged.
+- [ ] Prove the next checkpoint can complete with no more than two ceremony-file changes and a machine-readable trailer.
+
+### 0.33.33.2 - Archive historical closeout evidence and retire paperwork gates
+
+**Model: High Effort** - A large careful retirement must separate inert historical assertions from live protections embedded in the same files.
+
+- [ ] Inventory every branch-closeout/history-pinned regression and extract its live fragments to retained owners before retirement.
+- [ ] Preserve cursor-floor behavior, anti-current-pin scanning, manifest registration, and other live safeguards; archive only evidence that can fail solely when history is tidied.
+- [ ] Replace verbatim package-script mirrors and stale cross-file hashes with targeted single-ownership checks.
+- [ ] Record credited retirements and one evidence index without rewriting historical changelog or roadmap archive content.
+
+### 0.33.33.3 - Reform coverage floors around behavior and assertion ownership
+
+**Model: High Effort** - The ratchet is a release authority; changing its unit can silently weaken coverage if implemented incorrectly.
+
+- [ ] Replace the legacy exact-equality file count with a shrink-only ceiling and make consolidation credit depend on generated assertion inventories plus named behavior owners.
+- [ ] Permit a pure-contract source regression to retire only when its Vitest owner exists, `check:fast` runs it earlier, and integration coverage remains named where needed.
+- [ ] Keep global, area, release-gate, protected-family, and required-ID protection without requiring dead entry-point IDs to remain active forever.
+- [ ] Add synthetic positive/negative proof for assertion loss, stale inventories, floor decreases, malformed retirements, and protected-owner removal.
+
+### 0.33.33.4 - Register the permission harness and retire text proxies
+
+**Model: High Effort** - The strongest authorization proof must enter discovery without duplicating its expensive run or changing isolation.
+
+- [ ] Give `scripts/permission-regression.mjs` canonical metadata, discovery membership, an owned area/tier/run mode, and floor protection.
+- [ ] Ensure `verify:slice`, full runs, and permission-owned routing execute its 409 HTTP checks exactly once.
+- [ ] Retire the three static regressions that inspect the harness as text after their live expectations move to the behavioral owner.
+- [ ] Retire every remaining source-text proxy over other executable tests — including the nine programs reading `tests/e2e/**` or `playwright.config.js` as text and any reader of Vitest suite source — once each proxied expectation has a running behavioral owner.
+- [ ] Preserve temporary database isolation, eight-role coverage, fail-fast reporting, and the independently runnable `npm run test:permissions` command.
+
+### 0.33.33.5 - Consolidate shared source-scan and fake-DOM harnesses
+
+**Model: High Effort** - High-fan-in test support changes can alter hundreds of assertions despite having no product behavior.
+
+- [ ] Export one canonical reader and `escapeRegExp` implementation from test support and migrate all 81 helper copies plus local read helpers.
+- [ ] Replace the 11 divergent `createBrowserContext()` implementations with one audited fake-DOM harness whose supported semantics are explicit.
+- [ ] Add contract tests for paths, encoding, caching, DOM events, selectors, attributes, and failure behavior used by migrated owners.
+- [ ] Do not broaden the harness into a browser emulator or replace Playwright rendering coverage.
+
+### 0.33.33.6 - Move duplicated pure contracts to Vitest owners
+
+**Model: High Effort** - Retirement is safe only when pure behavior and remaining integration seams are separated precisely.
+
+- [ ] Move duplicated asset-version, runtime-configuration, formatter, comparator, and similar deterministic matrices to direct Vitest owners.
+- [ ] Retain spawned integration checks only for environment materialization, startup/import propagation, database, HTTP, or artifact behavior that Vitest does not own.
+- [ ] Use the new assertion-movement policy to retire redundant entry points with complete dispositions and no floor fiction.
+- [ ] Remove `--passWithNoTests` from the narrow Vitest aliases (`test:contracts`, `test:tasks`, `test:time-tracking`) and make each alias name its owned coverage so a moved or deleted suite fails its command instead of passing vacuously.
+- [ ] Keep Vitest ahead of stateful regressions in `check:fast` so deterministic failures remain cheap and fail-fast.
+
+### 0.33.33.7 - Add audit-gated in-process static execution
+
+**Model: High Effort** - Runner changes affect global state, output isolation, failure propagation, and every static owner.
+
+- [ ] Extend the static-isolation audit with complete environment, global, timer, listener, cache, process, and filesystem resource classifications.
+- [ ] Run only certified static owners in-process through bounded worker/sequential isolation; keep an explicit child-process fallback per entry.
+- [ ] Preserve bucket order, buffered output, fail-fast behavior, timing JSON, Node compile cache, and the isolated-database-only retry rule.
+- [ ] Record three comparable full runs and retain the old path if process or global-state proof is inconclusive.
+
+### 0.33.33.8 - Consolidate release, roadmap, and documentation static owners
+
+**Model: High Effort** - Many historical assertions move at once and must not erase a current release contract.
+
+- [ ] Fold pure release/docs source checks into table-driven current-contract owners on the shared harness.
+- [ ] Remove historical heading, archived SHA, test-title-string, and obsolete-file pins while retaining live cursor, version, documentation-ownership, and workflow rules.
+- [ ] Prove every moved assertion through the generated before/after inventory and reviewed true-duplicate list.
+- [ ] End with no active release gate reading archived roadmap or changelog history as product evidence.
+
+### 0.33.33.9 - Consolidate framework and view static owners
+
+**Model: High Effort** - Framework/view assertions span shared anatomy, accessibility, security headers, and browser contracts.
+
+- [ ] Consolidate source-only framework, view anatomy, settings anatomy, security-header, and HTML-accessibility families into table-driven owners.
+- [ ] Keep behavioral HTTP, permission, session, CSP, and Playwright owners separate and unchanged.
+- [ ] Preserve exact per-surface exceptions as data with a named reason rather than bespoke entry points.
+- [ ] Prove no assertion loss and retain independently runnable area commands.
+
+### 0.33.33.10 - Consolidate workflow-module static owners
+
+**Model: High Effort** - Cross-module mechanical consolidation still risks losing module-specific workflow assertions.
+
+- [ ] Consolidate pure source owners for Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, and Notifications by contract family.
+- [ ] Keep database, service, permission, lifecycle, job, and browser-rendered owners separate.
+- [ ] Preserve module-specific expectations as table rows with stable IDs and descriptions.
+- [ ] Prove the assertion inventory and changed-area routing for every affected module.
+
+### 0.33.33.11 - Consolidate data, Files, and security static owners
+
+**Model: High Effort** - Static cleanup near high-risk data/security contracts must not disturb their executable guarantees.
+
+- [ ] Consolidate only source-text duplicates around database, Files, jobs, authentication, and security contracts.
+- [ ] Leave attestation, migration, backup/restore/purge, workspace isolation, Files storage/scanner/streaming, and security behavior programs in their existing isolated owners.
+- [ ] Close the static-estate reduction with measured entry-point, assertion, history-reader, process, line-count, and wall-time evidence.
+- [ ] Stop rather than force the numeric reduction target if continuing ownership cannot be proved.
+
+### 0.33.33.12 - Establish three-program full-strict governance
+
+**Model: High Effort** - The temporary debt ledger becomes a hard repository-wide compiler authority.
+
+- [ ] Define server/tests, browser, and scripts TypeScript programs with `allowJs`, `checkJs`, full `strict`, correct Node/DOM environments, and no first-party file omitted from its owning program.
+- [ ] Assign the root executable configuration files (`eslint.config.js`, `playwright.config.js`, `vitest.config.mjs`) to an owning checked program so no first-party root file sits outside the combined universe.
+- [ ] Generate the exact per-file, per-code error ledger for the consolidated tree and fail on growth, new unchecked files, suppressions, or unjustified explicit `any`.
+- [ ] Make the ordinary typecheck conductor accept only diagnostics that exactly match the temporary ledger; direct program output remains visibly nonzero until its owner slices close it.
+- [ ] Migrate the live `framework.typecheck-seams` gate and the seam/clean-file/repository-pass inventories to ledger authority with credited retirements at this checkpoint, so later pragma removal and program flips cannot fight superseded per-file floors mid-branch.
+- [ ] Prove first-party `.d.ts` contract files are themselves error-free through a scoped declaration probe, since `skipLibCheck` otherwise exempts them; keep the `skipLibCheck` justification scoped to third-party declarations.
+- [ ] Keep negative compile fixtures and third-party ambient declarations as the only narrow, documented exceptions.
+- [ ] Make newly created or scaffolded files strict-clean from birth while existing debt can only shrink.
+
+### 0.33.33.13 - Type Node entry points, HTTP core, and shared route seams
+
+**Model: High Effort** - Request/session/error types are shared security boundaries across all server routes.
+
+- [ ] Type `server.js`, `worker.js`, HTTP/error helpers, request sessions, body/query parsing, and route composition under full strict.
+- [ ] Narrow untrusted request bodies and Express query shapes before service calls; do not replace runtime validation with TypeScript assertions.
+- [ ] Preserve API/browser/operational response classes, non-enumeration, and safe error projection.
+- [ ] Reduce the server ledger for these owners to zero with focused HTTP/session regressions.
+
+### 0.33.33.14 - Type database adapters and repository row projections
+
+**Model: High Effort** - Database result shapes, transactions, and provider boundaries carry data-integrity risk.
+
+- [ ] Add named row/result projections for database adapters and framework repositories instead of broad casts or inferred `{}`/`never` containers.
+- [ ] Preserve parameter binding, transaction semantics, SQLite behavior, migration ownership, and the future provider-neutral boundary.
+- [ ] Type nullable and optional database results explicitly without changing not-found behavior.
+- [ ] Reduce the database/repository server ledger to zero and retain schema, dialect, binding, and integrity proofs.
+
+### 0.33.33.15 - Type framework core and shared services
+
+**Model: High Effort** - Framework services feed many modules and contain permission, Files, Search, job, and resume-state contracts.
+
+- [ ] Close full-strict debt in remaining `src/core/`, shared `src/services/`, and framework repositories after the HTTP/database foundations.
+- [ ] Replace empty-container inference and implicit payload shapes with named contracts; narrow `unknown` at real boundaries.
+- [ ] Preserve module independence and avoid module-specific types in framework helpers.
+- [ ] Reduce these owner sections to zero without increasing explicit-`any` inventory.
+
+### 0.33.33.16 - Add Notes edge schemas and extract the link-target directory
+
+**Model: High Effort** - Notes input validation, Secure Notes fields, and cross-module target visibility are permission-sensitive.
+
+- [ ] Add module-owned Zod edge schemas following liberal-strip workflow calibration and strict rejection for security-sensitive Secure Notes fields.
+- [ ] Preserve current accepted/rejected payload behavior with a captured contract corpus before wiring schemas at service entry.
+- [ ] Extract the link-target directory/read-summary seam so Notes no longer owns five cross-module row shapes directly.
+- [ ] Close full-strict debt for the edge and extracted service with Notes and permission coverage.
+
+### 0.33.33.17 - Extract Notes collections and finish Notes strict typing
+
+**Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.
+
+- [ ] Extract collection tree/path/count/catalog behavior into a cohesive service while keeping Notes routes and permission behavior stable.
+- [ ] Type remaining Notes service, repository, route, Markdown, revision, link, and secure-note contracts under full strict.
+- [ ] Preserve transaction, encryption, visibility, search, attachment, and revision behavior.
+- [ ] Reduce the Notes server ledger to zero.
+
+### 0.33.33.18 - Add Lists edge schemas, split aggregates, and finish Lists typing
+
+**Model: High Effort** - Lists payload validation and list/catalog item aggregates share workflow data but have distinct ownership.
+
+- [ ] Add module-owned Zod edge schemas with the current workflow acceptance corpus.
+- [ ] Separate list-item and catalog-item subaggregates where the verified service seam reduces dependency edges.
+- [ ] Type remaining Lists service, repository, routes, providers, and integrations under full strict.
+- [ ] Preserve Lists as an operational execution aid and reduce its server ledger to zero without new workflow behavior.
+
+### 0.33.33.19 - Make the Tasks recurrence service boundary real
+
+**Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
+
+- [ ] Route the three direct recurrence-repository consumers through `taskRecurrenceService` and expose only named service operations.
+- [ ] Type recurrence templates, projections, jobs, feed serialization, completion continuity, and materialization under full strict.
+- [ ] Preserve recurrence, reminder, timezone, feed, job, and permission behavior.
+- [ ] Remove the direct-import baseline entries only with module-boundary and recurrence proof.
+
+### 0.33.33.20 - Extract the Tasks filter and sort engine
+
+**Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
+
+- [ ] Extract the pure filter/sort engine behind a typed contract without moving canonical decisions into browser code.
+- [ ] Cover status, date, hierarchy, visibility, paging, stable ordering, and empty/null normalization with direct unit cases plus retained integration owners.
+- [ ] Preserve query-count and hot-endpoint budgets.
+- [ ] Close full-strict debt in the extracted engine and its callers.
+
+### 0.33.33.21 - Extract the Tasks block/recover state machine and finish Tasks typing
+
+**Model: High Effort** - Blocking, recovery, checklist, timer, and recurrence interactions can silently corrupt workflow state.
+
+- [ ] Extract the auto-block/recover transition engine with explicit inputs, outputs, and side-effect boundaries.
+- [ ] Type remaining Tasks service, repository, routes, contracts, jobs, and providers under full strict.
+- [ ] Preserve timer pause, blocking-child rollup, completion, recurrence, reminder, and resume-context behavior.
+- [ ] Reduce the Tasks server ledger to zero with existing lifecycle and permission owners.
+
+### 0.33.33.22 - Extract the Files repository and storage accounting
+
+**Model: High Effort** - Files SQL and quota/accounting behavior are framework-owned data and security boundaries.
+
+- [ ] Move inline SQL, dynamic WHERE composition, and named row projections from `files.service.js` into a Files repository.
+- [ ] Isolate storage-accounting/quota calculations behind a typed service seam while preserving transaction ownership.
+- [ ] Keep storage keys, paths, scanner internals, and hidden labels out of browser contracts.
+- [ ] Prove quotas, paging, lifecycle, permission, and provider behavior before reducing these ledger sections to zero.
+
+### 0.33.33.23 - Extract the Files scanner job service
+
+**Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
+
+- [ ] Extract scanner-job orchestration from Files policy/read behavior with explicit provider-safe inputs and results.
+- [ ] Preserve fail-closed production posture, quarantine lifecycle, retry/idempotency, worker behavior, and redacted diagnostics.
+- [ ] Do not add a module-owned job path or expose scanner configuration.
+- [ ] Close full-strict debt for the scanner seam with existing Files/job proofs.
+
+### 0.33.33.24 - Extract Files preview and finish Files strict typing
+
+**Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
+
+- [ ] Extract the preview read/projection seam without changing the compact Files listing or modal workflow.
+- [ ] Type remaining Files services, routes, contracts, storage adapters, and attachment helpers under full strict.
+- [ ] Preserve supported image/text/Markdown behavior, download-only unsupported files, safe labels, and protected metadata exclusions.
+- [ ] Reduce the Files server ledger to zero.
+
+### 0.33.33.25 - Finish strict typing for remaining server modules and root runtime
+
+**Model: High Effort** - A cross-module mechanical pass must respect each module's public entry and permission boundary.
+
+- [ ] Close full-strict debt for Clients/Projects, Time Tracking, Users, Tags, developer example, Search, Notifications, Jobs, and remaining root runtime owners.
+- [ ] Close the two framework Jobs payload `any` terminals with a typed per-job-type payload registry, without changing queue dedupe, retry, worker, or handler behavior.
+- [ ] Use module public entries instead of adding deep imports and keep framework/module ownership unchanged.
+- [ ] Add named projections and contracts rather than broad casts or speculative shared abstractions.
+- [ ] Leave only test-owned server-program debt in the ledger.
+
+### 0.33.33.26 - Type tests and close the server/test program
+
+**Model: High Effort** - Test fixtures and e2e helpers must become strict without weakening the cases they express.
+
+- [ ] Type unit, contract, e2e, and shared test helpers with explicit fixture/session/response shapes.
+- [ ] Preserve deliberate negative compile fixtures as isolated documented cases.
+- [ ] Remove server/test `@ts-check` pragmas, enable direct program-level `checkJs` and `noImplicitAny`, and delete the server ledger section at zero.
+- [ ] Prove `npm run typecheck` and all affected test owners without changing runtime startup.
+
+### 0.33.33.27 - Type script libraries, test support, and the regression runner
+
+**Model: High Effort** - Shared script APIs and runner control flow affect every verification owner.
+
+- [ ] Type `scripts/lib/`, `scripts/test-support/`, discovery, routing, manifests, closeout, and runner orchestration under full strict.
+- [ ] Add the shared assertion-helper signature that removes the repeated implicit-`this` error family.
+- [ ] Preserve spawn isolation, bucket order, retries, timing, cleanup, and independently runnable package commands.
+- [ ] Reduce shared script infrastructure debt to zero before typing its consumers.
+
+### 0.33.33.28 - Type operational, backup, deployment, and release scripts
+
+**Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
+
+- [ ] Close full-strict debt in backup/restore, migration, demo reset, artifact, container, release, deployment, audit, and maintenance tooling.
+- [ ] Type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly.
+- [ ] Preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts.
+- [ ] Keep operational scripts directly executable without transpilation.
+
+### 0.33.33.29 - Type release, docs, and consolidated static regression owners
+
+**Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.
+
+- [ ] Type release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict.
+- [ ] Preserve every retained assertion ID and current-contract failure message.
+- [ ] Avoid typing retired files or reintroducing one-file-per-assertion structure.
+- [ ] Reduce this scripts-ledger cohort to zero.
+
+### 0.33.33.30 - Type framework, views, and permission regression owners
+
+**Model: High Effort** - These owners cover shared UI, sessions, authentication, authorization, and browser safety.
+
+- [ ] Close full-strict debt in framework, views, permissions, and registered permission-harness support code.
+- [ ] Type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof.
+- [ ] Preserve security, accessibility, permission, and module-enablement expectations.
+- [ ] Reduce this scripts-ledger cohort to zero.
+
+### 0.33.33.31 - Type database, Files, and jobs regression owners
+
+**Model: High Effort** - Stateful fixtures, attestation descriptors, workers, and storage providers require exact shapes.
+
+- [ ] Close full-strict debt in database, Files, jobs, migration, recovery, storage, scanner, and worker regressions.
+- [ ] Type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly.
+- [ ] Preserve real child/database isolation and do not merge processes merely to satisfy a target.
+- [ ] Reduce this scripts-ledger cohort to zero.
+
+### 0.33.33.32 - Type product regressions and close the scripts program
+
+**Model: High Effort** - The remaining legacy and module estate is mechanically large and must retain complete coverage metadata.
+
+- [ ] Close full-strict debt in Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, public API, and remaining legacy owners.
+- [ ] Keep the scripts estate free of file-local pragmas; do not add excludes or blanket `any` while closing the ledger.
+- [ ] Enable direct scripts-program `checkJs` and `noImplicitAny`, delete the scripts ledger section at zero, and keep every operational entry directly runnable.
+- [ ] Re-run the assertion/entry-point/process inventory after strict closure.
+
+### 0.33.33.33 - Isolate classic browser controllers with IIFEs
+
+**Model: High Effort** - Mechanical wrapping can break implicit globals and page initialization across many surfaces.
+
+- [ ] IIFE-wrap the fourteen audited bare controllers and explicitly publish only supported `window.LongtailForge.*` surfaces.
+- [ ] Preserve classic-script loading and Workbench dynamic `import()` compatibility without adding modules, bundling, or script-order changes.
+- [ ] Remove real and compiler-visible global lexical collisions, including the `api`/`view`/`state` family.
+- [ ] Prove every affected page through focused view contracts and Playwright before accepting the browser ledger change.
+
+### 0.33.33.34 - Extract the Workbench module-action loader and Files bridge
+
+**Model: High Effort** - The loader is shared framework machinery whose dependency table controls several module controllers.
+
+- [ ] Move the hard-coded action dependency table and loader to `public/js/shared/` behind a typed stable contract.
+- [ ] Remove Workbench's inline `filesDialog` stub once the canonical File Context/preview helper is loadable.
+- [ ] Preserve asset versioning, lazy loading, module enablement, failure messaging, and action registration.
+- [ ] Do not broaden the loader into a plugin system or change Workbench workflow behavior.
+
+### 0.33.33.35 - Remove descriptor fallbacks and isolate view-renderer responsibilities
+
+**Model: High Effort** - Shared declarative view interpretation is security- and behavior-relevant across many pages.
+
+- [ ] Delete the four module-local Notes/Lists/Files/Tasks descriptor fallbacks and use the established null-and-skip contract for unavailable server descriptors.
+- [ ] Extract descriptor-action permission/route interpolation, search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
+- [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
+- [ ] Preserve server authority, action visibility, focus return, and current module surface anatomy.
+
+### 0.33.33.36 - Share the Notes/Lists linked-context picker
+
+**Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
+
+- [ ] Replace the duplicated Notes and Lists implementations with one shared typed picker contract.
+- [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behavior, and saved selection rules.
+- [ ] Keep module-owned payload meaning and save behavior outside the shared helper.
+- [ ] Remove both old implementations only after Notes and Lists browser regressions pass.
+
+### 0.33.33.37 - Share the Task action policy
+
+**Model: High Effort** - Triplicated permission and lifecycle rules can expose invalid actions if consolidated incorrectly.
+
+- [ ] Replace Tasks, Workbench, and Task Dialog action-policy copies with one typed shared policy module.
+- [ ] Preserve permission, status, timer, blocking, recurrence, and module-enablement visibility rules.
+- [ ] Keep rendering and workflow dispatch local to each surface.
+- [ ] Prove identical action matrices at all three consumers before deleting the copies.
+
+### 0.33.33.38 - Add typed DOM, API-response, and page-state browser contracts
+
+**Model: High Effort** - These shared contracts collapse most browser error cascades and can encode unsafe assumptions if too broad.
+
+- [ ] Add checked DOM lookup/assert helpers that return the correct element subtype or fail explicitly; do not turn required elements into optional no-ops.
+- [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at network and view boundaries.
+- [ ] Add page-state typedefs that prevent `{}`, `never[]`, and nullable-element cascades without inventing runtime data.
+- [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.
+
+### 0.33.33.39 - Type shared browser framework code
+
+**Model: High Effort** - Shared browser helpers have broad fan-in and include descriptor, recovery, modal, API, and shell behavior.
+
+- [ ] Close full-strict debt in `public/js/shared/`, app-shell/bootstrap, navigation, dialogs, formatters, records, and view helpers.
+- [ ] Use the new DOM/API/state contracts and narrow event targets explicitly.
+- [ ] Preserve accessibility, focus, recovery, cache-version, CSP, and frozen namespace behavior.
+- [ ] Reduce shared-browser ledger debt to zero.
+
+### 0.33.33.40 - Type the Notes browser controller
+
+**Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
+
+- [ ] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts.
+- [ ] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus.
+- [ ] Do not redesign the Notes surface or split new classic-script subsystems.
+- [ ] Reduce the Notes browser ledger to zero with focused desktop/mobile proof.
+
+### 0.33.33.41 - Type Tasks and Task Dialog browser controllers
+
+**Model: High Effort** - Task lifecycle, recurrence, reminders, checklist, timers, and editor state share one high-risk workflow.
+
+- [ ] Close full-strict debt in Tasks, Task Dialog, and task-owned browser helpers.
+- [ ] Preserve list authority, canonical editor behavior, recurrence scope, blocking recovery, timer state, checklist saves, and action policy.
+- [ ] Keep Task Dialog's shared closure intact except for already-authorized policy extraction.
+- [ ] Reduce this browser ledger cohort to zero with rendered lifecycle coverage.
+
+### 0.33.33.42 - Type Workbench and extract Task Focus
+
+**Model: High Effort** - Workbench is a live orchestration surface with dynamic modules, timers, resume state, and recovery behavior.
+
+- [ ] Extract the self-contained Task Focus mode behind typed inputs/events while preserving Workbench ownership of the live surface.
+- [ ] Close full-strict debt in Workbench, action loading, candidate rendering, timers, and resume/recovery state.
+- [ ] Preserve module contribution boundaries, no-raw-ID labels, focus capture, blocking recovery, and fallback navigation.
+- [ ] Reduce the Workbench browser ledger to zero.
+
+### 0.33.33.43 - Type Lists, Files, and Clients/Projects browser controllers
+
+**Model: High Effort** - Three large operational surfaces share hierarchy and view helpers but retain distinct workflows.
+
+- [ ] Close full-strict debt in Lists, Files, Clients/Projects, and their settings/helpers after shared extraction lands.
+- [ ] Preserve server-side filtering, compact Files listing/modal rules, Lists execution/detail purpose, and hierarchy permissions.
+- [ ] Use shared contracts without merging module-owned state or payload meaning.
+- [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
+
+### 0.33.33.44 - Type remaining browser controllers and close the browser program
+
+**Model: High Effort** - The final cross-surface pass must eliminate every remaining dial exception without hiding edge cases.
+
+- [ ] Close full-strict debt in settings, admin, Search, Notifications, Help, calendar, support, recovery, footer/splash, and remaining page controllers.
+- [ ] Remove browser `@ts-check` pragmas, enable direct all-file `checkJs` and `noImplicitAny`, and delete the browser ledger section at zero.
+- [ ] Confirm all classic pages and the Dashboard bridge retain their existing delivery modes.
+- [ ] Prove the three-program `npm run typecheck` is green with zero suppressions, first-party omissions, or unexplained explicit `any`.
+
+### 0.33.33.45 - Extract proven module-development helper defaults
+
+**Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
+
+- [ ] Centralize the byte-identical public API response helpers and repeated record-indexer control flow with at least two existing consumers each.
+- [ ] Default proven `createModuleEntry` constants only where all current consumers agree; do not hide meaningful module declarations.
+- [ ] Keep route/service behavior explicit and do not create a route DSL, new manifest fields, empty concern files, or plugin hooks.
+- [ ] Compose the oversized Time Tracking manifest only where current 500-line/75-line thresholds prove cohesive concern owners.
+
+### 0.33.33.46 - Add the strict-clean module scaffold
+
+**Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
+
+- [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and regression-area home.
+- [ ] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
+- [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
+- [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
+
+### 0.33.33.47 - Establish dependency and module-locality ratchets
+
+**Model: High Effort** - New architecture metrics become lasting gates and must distinguish useful signals from count theater.
+
+- [ ] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet.
+- [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
+- [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
+- [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
+
+### 0.33.33.48 - Lean Core branch closeout
+
+**Model: High Effort** - Final closure must prove that reduced machinery retains every protected behavior and that no type debt remains hidden.
+
+- [ ] Delete the temporary compiler ledger and retire superseded honesty/seam/pragma inventories only after all three direct full-strict programs are green.
+- [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
+- [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
+- [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
+
+## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
 
