@@ -513,6 +513,16 @@ assert.doesNotMatch(
   "api-client must delegate framework error-envelope parsing to error-contract",
 );
 assert.match(
+  browserApiSource,
+  /function requireErrorContract[\s\S]*typeof createError !== "function"[\s\S]*requires the shared error contract/,
+  "api-client must fail visibly when its canonical error parser is unavailable",
+);
+assert.doesNotMatch(
+  browserApiSource,
+  /error\.(?:body|code|requestId|status)\s*=/,
+  "api-client must not retain a partial standalone error fallback",
+);
+assert.match(
   appShellBootstrapSource,
   /@typedef \{import\("\.\.\/\.\.\/\.\.\/src\/types\/framework-contracts\.js"\)\.AppShellBootstrap\}/,
   "the browser bootstrap adapter must consume the framework-owned app-shell envelope",

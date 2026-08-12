@@ -1,3 +1,13 @@
+## Version 0.33.32.30 - 2026-08-11
+
+- Reproduced the shared API client silently installing a degraded fallback when `error-contract.js` was unavailable, erasing safe error code and request-ID identity.
+- Chose fail-fast ownership: API-client initialization now captures the canonical parser or throws fixed safe copy before installing the client or issuing a request.
+- Removed the partial standalone error construction and retained `error-contract.js` as the sole browser owner for safe message, code, request ID, status, parsed body, and method behavior.
+- Added executable missing/reversed-order and normal-order envelope proof plus checked guardrails that reject duplicate parsing or fallback field assignments.
+- Preserved the framework parser-before-page-assets preamble, classic-script runtime, browser recovery behavior, and server/public API error envelopes.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help, operational-security procedures, public API contracts, runtime configuration, database schema/migrations, permissions, and deployment are unchanged.
+
 ## Version 0.33.32.29 - 2026-08-11
 
 - Reproduced and fixed malformed or unsupported persisted session timezones crashing Time Tracking billing/Dashboard reads inside `Intl.DateTimeFormat`; both billing consumers now use the canonical `America/New_York` fallback boundary.

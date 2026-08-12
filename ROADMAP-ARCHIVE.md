@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.30 - Shared browser API failure fallback
+
+Completed on 2026-08-11. The shared API client now fails visibly when its canonical error parser is unavailable, normal envelopes retain safe diagnostic identity, and the active roadmap advances to `0.33.32.31` for Search parser provenance and session deepening.
+
+**Model: Medium Effort** - The shared fallback is small and well specified, but it must fail visibly when its canonical error parser is unavailable.
+
+- [x] Chose fail-fast ownership instead of retaining a second parser: `api-client.js` captures `error-contract.js` during initialization and throws fixed safe copy before installing the API client when the parser is missing.
+- [x] Removed the partial standalone error construction that forced `code` and `requestId` to empty strings; no fallback reads response-envelope fields or exposes raw server details.
+- [x] Extended the checked browser guardrail to require the fail-fast dependency and reject fallback field assignments while retaining sole parser ownership in `error-contract.js`.
+- [x] Added executable missing/reversed-order and normal-order proof. Missing infrastructure fails before a request or API installation; normal errors retain message, code, request ID, status, parsed safe body, and method.
+- [x] Retained the framework preamble's parser-before-page-assets contract without runtime imports, modules, bundling, whole-file page conversion, or error-envelope behavior changes.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/http-errors.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help, operational-security procedures, public API contracts, runtime configuration, database schema/migrations, permissions, and deployment are unchanged.
+
+Acceptance criteria:
+
+- Missing shared error infrastructure cannot silently erase safe diagnostic identity and normal errors retain message/code/request-ID/status.
+
 ## Version 0.33.32.29 - Billing timezone compatibility and DST-period proof
 
 Completed on 2026-08-11. Billing now validates persisted session timezone data before calendar arithmetic, historical absolute instants remain unchanged, and the active roadmap advances to `0.33.32.30` for the shared browser API failure fallback.

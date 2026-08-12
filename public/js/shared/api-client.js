@@ -1,10 +1,24 @@
 // @ts-check
 
 /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApiError} ClientBrowserApiError */
+/** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 /** @typedef {import("../../../src/types/browser-contracts.js").BrowserJsonRequestOptions} BrowserJsonRequestOptions */
 
 (function () {
   const namespace = window.LongtailForge || {};
+  const createErrorFromContract = requireErrorContract(namespace.errors?.createError);
+
+  /**
+   * @param {BrowserErrorContract["createError"] | undefined} createError
+   * @returns {BrowserErrorContract["createError"]}
+   */
+  function requireErrorContract(createError) {
+    if (typeof createError !== "function") {
+      throw new Error("Longtail Forge API client requires the shared error contract.");
+    }
+
+    return createError;
+  }
 
   /**
    * @param {string} url
@@ -41,16 +55,7 @@
    * @returns {ClientBrowserApiError}
    */
   function createApiError(body, fallback, status) {
-    if (namespace.errors?.createError) {
-      return namespace.errors.createError(body, fallback, status);
-    }
-
-    const error = /** @type {ClientBrowserApiError} */ (new Error(fallback));
-    error.body = body;
-    error.code = "";
-    error.requestId = "";
-    error.status = status;
-    return error;
+    return createErrorFromContract(body, fallback, status);
   }
 
   /**
