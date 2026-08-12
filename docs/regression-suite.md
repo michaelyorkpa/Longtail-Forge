@@ -120,6 +120,8 @@ As of 0.33.32.40, `database.repository-checked-passes` freezes the exact three-p
 
 As of 0.33.32.41, `framework.password-startup-checked-core` requires checked ownership of the password-security and application-lifecycle cores, explicit hash and startup boundary vocabulary, the established password policy constants, asynchronous KDF and timing-safe comparison, and exact middleware, startup, and graceful-shutdown sequencing. It rejects checker suppressions, explicit `any`, and double assertions in both files. The complete checked inventory floor is 147 files, the active regression floor is 463 scripts, and the Framework area floor is 83 scripts. `framework.password-hashing-modernization`, `framework.operational-security-basics`, `database.startup-maintenance-lifecycle`, `jobs.job-worker-shutdown-rejection`, S3 provider registration, and the Express 5 HTTP contract remain the executable behavior owners.
 
+As of 0.33.32.42, `framework.markdown-checked-core` requires checked ownership and explicit Markdown-it/application parser, renderer, inline-state, token, environment, render-mode, preference, link, and safe-output contracts. It freezes CommonMark mode, tables, strikethrough exclusion, exact safe schemes/relative prefixes, image opt-in, user-authored aliases, underline tokenization, and generated task-list output while rejecting checker escapes. The complete checked inventory floor is 148 files, the active regression floor is 464 scripts, and the Framework area floor is 84 scripts. Renderer/platform, Notes preference/soft-line, closeout, Help, Files preview, and cross-role editable-content regressions retain executable output and integration ownership.
+
 As of 0.33.32.14, `framework.typecheck-seams` raises the complete checked inventory to 69 files and pins the first-party Work Resume State producer and read-resolver assembly to shared payload, resolver-context, batch-resolver, and lifecycle-result contracts. The initial-producer, producer, service, and conversion regressions independently prove registration, permission and lifecycle pruning, unavailable states, active/history filtering, ranking, and emitted recovery payloads remain unchanged. `framework.identifier-authority` excludes dot-prefixed transient regression workspaces from its package-import scan so concurrently removed compile fixtures cannot invalidate an otherwise stable tracked-source audit.
 
 As of 0.33.32.15, `framework.typecheck-seams` raises the complete checked inventory to 73 files and pins Jobs enqueue/persisted-row/handler-envelope/worker-state contracts plus normalized internal-event and declared summary-resolver contracts. The Jobs area proves schema, dedupe, claims, locking, retries, idempotency, retention, and separate-worker execution; event-bus and audit-extensibility coverage prove hook isolation, safe summary/redaction/fallback behavior; Notifications coverage proves queued delivery and inbox/preference lifecycles remain unchanged.
@@ -267,18 +269,18 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 460 |
+| Active discovered regressions | 461 |
 | Legacy-snapshot regressions | 309 |
-| Convention-path metadata regressions | 151 |
+| Convention-path metadata regressions | 152 |
 | Credited retirements | 3 |
-| Active release-gate regressions | 72 |
+| Active release-gate regressions | 73 |
 | Required release-gate IDs | 47 |
-| Global ratchet floor | 463 |
-| Release-gate ratchet floor | 74 |
+| Global ratchet floor | 464 |
+| Release-gate ratchet floor | 75 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 83 | 0 | 83 |
+| `framework` | 84 | 0 | 84 |
 | `views` | 33 | 0 | 33 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 32 | 0 | 32 |
@@ -303,12 +305,12 @@ Ratchet floors include credited retirements; validation subtracts the matching c
 | `unit-like` | 0 |
 | `focused` | 211 |
 | `integration` | 169 |
-| `release-gate` | 72 |
+| `release-gate` | 73 |
 | `slow` | 8 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 234 |
+| `static` | 235 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

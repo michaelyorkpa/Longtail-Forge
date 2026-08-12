@@ -1,5 +1,28 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.42 - Markdown checked core boundary
+
+Completed on 2026-08-12 out of numeric order at the operator's request. The shared Markdown renderer now checks against explicit parser, renderer, token, preference, link, environment, and safe-output contracts at the 148-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.
+
+**Model: High Effort** - Shared Markdown rendering is a content-safety boundary consumed by Notes, Help, Files preview, and future Support Tickets.
+
+- [x] Checked `src/core/markdown/markdown.service.js` with explicit renderer, token, link, preference, and sanitized output contracts.
+- [x] Preserved HTML policy, safe schemes, link preferences, current integrations, empty/error behavior, and protected-data safety.
+
+Acceptance criteria:
+
+- [x] Shared Markdown is checked and produces the same safe output across current consumers.
+
+Closeout notes:
+
+- Reproduce-first checking exposed only Markdown-it's nullable token-attribute collection and `string | number` attribute values; the service now reads link attributes through the library accessor and null-safely removes an unsafe destination without changing reachable output.
+- Public input and URL helpers accept `unknown` and normalize at the established string boundary; parser preferences retain document/user-authored modes, the soft-line alias, and explicit image opt-in.
+- Named parser, renderer, inline-state, token, environment, preference, render-mode, and safe-HTML contracts cover the complete core without checker suppression, explicit `any`, assertion chains, runtime TypeScript, or a boot-path change.
+- `framework.markdown-checked-core` freezes checked ownership and the exact CommonMark, table, strikethrough exclusion, URL scheme, image, render-mode, underline-token, and task-list policies. Existing renderer, platform, Notes preference/soft-line, closeout, Help, Files preview, and cross-role content-safety regressions retain executable output and integration ownership.
+- The slice also makes the preceding password/startup guard's checked-floor assertion monotonic so later checked seams do not require rewriting a completed slice's behavior proof.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/markdown-platform-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and Markdown syntax, editable-content safety policy/sink inventory, Notes/Help/Files workflows, permissions, stored source, schema/migrations, runtime configuration, and deployment are unchanged.
+
 ## Version 0.33.32.41 - Password and application-startup checked core
 
 Completed on 2026-08-12 out of numeric order at the operator's request. Password hashing and application startup/shutdown now check against explicit security and lifecycle contracts at the 147-file floor. The active roadmap cursor remains `0.33.32.38.1`; this closeout does not skip or replace the Work Resume persistence-result slice.

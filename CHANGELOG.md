@@ -1,3 +1,14 @@
+## Version 0.33.32.42 - 2026-08-12
+
+- Checked the shared Markdown core against explicit parser, renderer, token, inline-state, environment, render-mode, preference, link, and safe-output contracts, raising the checked inventory floor from 147 to 148 files.
+- Narrowed Markdown-it's nullable and string-or-number token attributes at the library boundary without changing reachable HTML, unsafe-link degradation, image rendering, or plain-text output.
+- Preserved CommonMark mode, tables, generated task lists, safe underline, raw-HTML exclusion, the bounded URL scheme set, explicit image opt-in, document/user-authored modes, source normalization, excerpts, and empty/error behavior.
+- Added `framework.markdown-checked-core` to freeze checked ownership and parser/security policy; retained renderer, platform, Notes preference/soft-line, closeout, Help, Files preview, and cross-role hostile-content regressions as executable behavior owners.
+- Made the preceding password/startup regression's checked-floor assertion monotonic so later checked seams do not rewrite completed behavior proof.
+- Archived the completed slice out of numeric order while leaving `0.33.32.38.1` as the active roadmap cursor.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/markdown-platform-contract.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help and Markdown syntax, editable-content safety policy/sink inventory, Notes/Help/Files workflows, permissions, stored source, schema/migrations, runtime configuration, and deployment are unchanged.
+
 ## Version 0.33.32.41 - 2026-08-12
 
 - Checked the password-security and application-startup cores against explicit hash, verification, policy, HTTP server, startup-phase, signal, timer, queue-result, and unknown-error contracts, raising the checked inventory floor from 145 to 147 files.

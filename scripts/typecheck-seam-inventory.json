@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumOptedInFiles": 147,
+  "minimumOptedInFiles": 148,
   "checkedFiles": [
     "public/js/shared/api-client.js",
     "public/js/shared/app-shell-bootstrap.js",
@@ -24,6 +24,7 @@
     "src/core/jobs/job-queue.js",
     "src/core/jobs/job-runner.js",
     "src/core/list-enrichment.js",
+    "src/core/markdown/markdown.service.js",
     "src/core/modules/manifest-contract.js",
     "src/core/modules/module-entry.js",
     "src/core/modules/module-runtime.js",

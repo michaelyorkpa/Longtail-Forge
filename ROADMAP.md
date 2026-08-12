@@ -71,17 +71,6 @@ Acceptance criteria:
 
 - The checked Work Resume route consumes an honest non-null or explicitly nullable dismiss result without a cast, and every existing scope, lifecycle, compatibility, and response contract remains green.
 
-## Version 0.33.32.42 - Markdown checked core boundary
-
-**Model: High Effort** — Shared Markdown rendering is a content-safety boundary consumed by Notes, Help, Files preview, and future Support Tickets.
-
-- [ ] Check `src/core/markdown/markdown.service.js` with explicit renderer, token, link, preference, and sanitized output contracts.
-- [ ] Preserve HTML policy, safe schemes, link preferences, current integrations, empty/error behavior, and protected-data safety.
-
-Acceptance criteria:
-
-- Shared Markdown is checked and produces the same safe output across current consumers.
-
 ## Version 0.33.32.43 - Migration-runner checked boundary
 
 **Model: High Effort** — Migration ordering, locking, checksums, baselines, and transactions are database-integrity contracts.

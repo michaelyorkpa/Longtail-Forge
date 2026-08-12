@@ -25,7 +25,7 @@ for (const [filePath, source] of [
   assert.ok(seamInventory.checkedFiles.includes(filePath), `${filePath} must stay in the checked seam inventory`);
   assert.doesNotMatch(source, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/, `${filePath} must not suppress or guess across its checked boundary`);
 }
-assert.equal(seamInventory.minimumOptedInFiles, 147);
+assert.ok(seamInventory.minimumOptedInFiles >= 147);
 
 assert.match(passwordSource, /@typedef \{"argon2id" \| "pbkdf2_sha256" \| "unknown"\} PasswordHashAlgorithm/);
 assert.match(passwordSource, /@typedef \{ParsedArgon2Hash \| ParsedPbkdf2Hash\} ParsedPasswordHash/);
