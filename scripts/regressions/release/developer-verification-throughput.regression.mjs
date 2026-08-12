@@ -80,6 +80,7 @@ assert.match(brief.stdout, /Documentation owners/);
 assert.match(brief.stdout, /Likely test commands/);
 
 const roadmapSource = readFileSync("ROADMAP.md", "utf8");
+const roadmapArchiveSource = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const versioning = readFileSync("docs/versioning.md", "utf8");
@@ -97,6 +98,7 @@ const firstCheckpoint = validateCheckpointCommit({
     "scripts/release/checkpoint-commits.mjs",
     "scripts/regressions/release/developer-verification-throughput.regression.mjs",
   ],
+  roadmapArchiveSource,
   roadmapSource,
 });
 assert.equal(firstCheckpoint.kind, "checkpoint");
@@ -110,12 +112,27 @@ const nextCheckpoint = validateCheckpointCommit({
     summary: "Retire inert historical evidence while retaining live owners",
   }),
   paths: ["scripts/regressions/release/example.regression.mjs", "scripts/regression-coverage-manifest.json"],
+  roadmapArchiveSource,
   roadmapSource,
 });
 assert.equal(nextCheckpoint.kind, "checkpoint");
 assert.deepEqual(nextCheckpoint.errors, []);
 assert.ok(nextCheckpoint.ceremonyPaths.length <= 2, "the next checkpoint must fit the ceremony ceiling without release identity files");
-assert.ok(!nextCheckpoint.paths.some((filePath) => ["package.json", "package-lock.json", "CHANGELOG.md", "ROADMAP-ARCHIVE.md"].includes(filePath)));
+assert.ok(!nextCheckpoint.paths.some((filePath) => ["package.json", "package-lock.json", "CHANGELOG.md"].includes(filePath)));
+
+const archivedCheckpoint = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.1",
+    docs: "No docs change needed: completed checkpoint moved to roadmap archive.",
+    summary: "Archive the completed checkpoint after protected merge proof",
+  }),
+  paths: ["ROADMAP.md", "ROADMAP-ARCHIVE.md"],
+  roadmapArchiveSource,
+  roadmapSource: roadmapSource.replace(/^### 0\.33\.33\.1[\s\S]*?(?=^### 0\.33\.33\.2)/m, ""),
+});
+assert.equal(archivedCheckpoint.kind, "checkpoint");
+assert.deepEqual(archivedCheckpoint.errors, []);
+assert.deepEqual(archivedCheckpoint.ceremonyPaths, ["ROADMAP-ARCHIVE.md", "ROADMAP.md"]);
 
 const parsedTrailers = parseCheckpointTrailers(firstCheckpointMessage);
 assert.equal(parsedTrailers.values.get(TRAILER_NAMES.checkpoint), "0.33.33.1");
@@ -173,7 +190,7 @@ assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
 assert.match(agentGuide, /LTF-Summary: <single-line outcome>/);
 assert.match(agentGuide, /LTF-Docs: <documentation disposition>/);
 assert.match(versioning, /Version-wide Internal Checkpoints/);
-assert.match(versioning, /package\/lock version bump, rolled-up changelog, durable decision and documentation prose, roadmap archive handoff, and runtime identity proof/);
+assert.match(versioning, /Completed numbered checkpoints move from `ROADMAP\.md` to `ROADMAP-ARCHIVE\.md` after their protected merge/);
 
 console.log("Developer verification throughput regression passed.");
 

@@ -13,7 +13,6 @@ const TRAILER_NAMES = Object.freeze({
 const DEFERRED_RELEASE_PATHS = new Set([
   "CHANGELOG.md",
   "DECISIONS.md",
-  "ROADMAP-ARCHIVE.md",
   "package-lock.json",
   "package.json",
 ]);
@@ -37,6 +36,7 @@ function validateCheckpointCommit({
   message,
   parentCount = 1,
   paths = [],
+  roadmapArchiveSource = "",
   roadmapSource = "",
   series = CHECKPOINT_SERIES,
   closeoutCheckpoint = CLOSEOUT_CHECKPOINT,
@@ -68,8 +68,10 @@ function validateCheckpointCommit({
   if (summary.length < 10 || summary.length > 200 || /[\r\n]/.test(summary)) {
     errors.push(`${TRAILER_NAMES.summary} must be a single-line 10-200 character outcome`);
   }
-  if (checkpointPattern.test(checkpoint) && !new RegExp(`^### ${escapeRegExp(checkpoint)}(?: -|$)`, "m").test(roadmapSource)) {
-    errors.push(`${checkpoint} is not a declared numbered checkpoint in ROADMAP.md`);
+  const liveHeading = new RegExp(`^### ${escapeRegExp(checkpoint)}(?: -|$)`, "m");
+  const archivedHeading = new RegExp(`^## Version ${escapeRegExp(checkpoint)}(?: -|$)`, "m");
+  if (checkpointPattern.test(checkpoint) && !liveHeading.test(roadmapSource) && !archivedHeading.test(roadmapArchiveSource)) {
+    errors.push(`${checkpoint} is not a declared numbered checkpoint in ROADMAP.md or ROADMAP-ARCHIVE.md`);
   }
 
   const documentationPaths = normalizedPaths.filter(isDocumentationPath);
@@ -130,6 +132,7 @@ function isDocumentationPath(filePath) {
 function isCeremonyPath(filePath) {
   return DEFERRED_RELEASE_PATHS.has(filePath)
     || filePath === "ROADMAP.md"
+    || filePath === "ROADMAP-ARCHIVE.md"
     || isDocumentationPath(filePath);
 }
 
@@ -156,17 +159,24 @@ function runGit(args, cwd = process.cwd()) {
   return String(completed.stdout || "");
 }
 
-function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", roadmapSource } = {}) {
+function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", roadmapArchiveSource, roadmapSource } = {}) {
   if (!/^[a-f0-9]{40}$/i.test(String(baseSha || ""))) {
     throw new Error("LTF_CHECKPOINT_BASE_SHA must be a full 40-character commit SHA.");
   }
   const roadmap = roadmapSource ?? readFileSync(path.join(cwd, "ROADMAP.md"), "utf8");
+  const roadmapArchive = roadmapArchiveSource ?? readFileSync(path.join(cwd, "ROADMAP-ARCHIVE.md"), "utf8");
   const commits = runGit(["rev-list", "--reverse", `${baseSha}..${head}`], cwd).split(/\r?\n/).filter(Boolean);
   return Object.freeze(commits.map((sha) => {
     const parents = runGit(["show", "-s", "--format=%P", sha], cwd).trim().split(/\s+/).filter(Boolean);
     const message = runGit(["show", "-s", "--format=%B", sha], cwd);
     const paths = runGit(["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "--find-renames", sha], cwd).split(/\r?\n/).filter(Boolean);
-    return Object.freeze({ sha, validation: validateCheckpointCommit({ message, parentCount: parents.length, paths, roadmapSource: roadmap }) });
+    return Object.freeze({ sha, validation: validateCheckpointCommit({
+      message,
+      parentCount: parents.length,
+      paths,
+      roadmapArchiveSource: roadmapArchive,
+      roadmapSource: roadmap,
+    }) });
   }));
 }
 
