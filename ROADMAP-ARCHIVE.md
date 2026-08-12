@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.32.35 - Help and static-delivery checked services
+
+Completed on 2026-08-11. Help/static delivery now consumes one explicit read-only contract family, the exact ownership tier is recorded as bounded pass `18.1`, and the active roadmap advances to `0.33.32.36` for the Search-index rebuild checked service.
+
+**Model: Medium Effort** - These are cohesive read/delivery services with low mutation risk, but protected paths and contribution filtering remain exact security contracts.
+
+- [x] Checked `help.service.js` and `static.service.js` as one read-only tier with explicit Help contribution, protected-page, asset, response, and nullable lookup shapes.
+- [x] Reproduced the checker baseline across unknown filesystem errors, nullable section/view/path resolution, recursive Help navigation, static Buffer/string responses, and theme workspace identity, then narrowed those shapes without changing runtime decisions.
+- [x] Preserved module/permission/capability filtering, safe local Help resolution, public/protected separation, content safety, protected-page caching, asset decoration, generic not-found behavior, and first-paint theme injection.
+- [x] Recorded the exact two-file `framework-read-delivery-services` tier as bounded pass `18.1`, raised the checked inventory floor from 106 to 108 files, and retained the separately scoped private-feed reservation.
+- [x] Ran `npm run docs:suggest`. Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`. No docs change needed: user-facing Help content, module manifests, permissions, routes, HTTP error envelopes, UI/workflows, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
+Acceptance criteria:
+
+- Help/static delivery typechecks without changing visible content, eligibility, protected paths, or asset resolution.
+
 ## Version 0.33.32.34 - Users service checked boundary
 
 Completed on 2026-08-11. The Users service now consumes named identity, profile, membership, workspace, lifecycle-context, module-setting, and response contracts, and the active roadmap advances to `0.33.32.35` for the Help/static-delivery checked-services pass.

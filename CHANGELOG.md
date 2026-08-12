@@ -1,3 +1,11 @@
+## Version 0.33.32.35 - 2026-08-11
+
+- Checked the framework Help and static-delivery services against explicit contribution, navigation, hydrated content, nullable section, Search document, protected-view, path-resolution, response, and initial-theme contracts.
+- Preserved active module/permission/capability filtering, safe Help-root Markdown resolution, public/protected separation, generic not-found behavior, protected-page `no-store`, versioned asset injection, and first-paint theme decoration without changing visible content or delivery behavior.
+- Recorded `help.service.js` and `static.service.js` as bounded clean-file pass `18.1` (`framework-read-delivery-services`) and raised the checked inventory floor from 106 to 108 files.
+- Docs updated: `DECISIONS.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help content, module manifests, permissions, routes, HTTP error envelopes, UI/workflows, runtime configuration, database schema/migrations, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.34 - 2026-08-11
 
 - Checked the Users service against named request-session, input, nullable identity, membership, workspace, owner-transfer, module-setting, lifecycle-context, and response contracts.

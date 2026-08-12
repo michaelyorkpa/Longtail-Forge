@@ -18,6 +18,14 @@
         "src/core/transport-security.js",
         "src/core/version.js"
       ]
+    },
+    {
+      "slice": "18.1",
+      "ownershipTier": "framework-read-delivery-services",
+      "files": [
+        "src/services/help.service.js",
+        "src/services/static.service.js"
+      ]
     }
   ]
 }

@@ -1,3 +1,5 @@
+// @ts-check
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +12,23 @@ import { validateHelpContribution } from "../core/modules/manifest-contract.js";
 import { AppError } from "../utils/app-error.js";
 import { correspondingSourceUrl, trackedSourceUrl } from "../core/corresponding-source.js";
 
+/** @typedef {import("../types/help-static-contracts.js").HelpArticle} HelpArticle */
+/** @typedef {import("../types/help-static-contracts.js").HelpArticleDetailPayload} HelpArticleDetailPayload */
+/** @typedef {import("../types/help-static-contracts.js").HelpArticleListPayload} HelpArticleListPayload */
+/** @typedef {import("../types/help-static-contracts.js").HelpContribution} HelpContribution */
+/** @typedef {import("../types/help-static-contracts.js").HelpListResponse} HelpListResponse */
+/** @typedef {import("../types/help-static-contracts.js").HelpNavigation} HelpNavigation */
+/** @typedef {import("../types/help-static-contracts.js").HelpNavigationItem} HelpNavigationItem */
+/** @typedef {import("../types/help-static-contracts.js").HelpRequestSession} HelpRequestSession */
+/** @typedef {import("../types/help-static-contracts.js").HelpReadResponse} HelpReadResponse */
+/** @typedef {import("../types/help-static-contracts.js").HelpSearchDocument} HelpSearchDocument */
+/** @typedef {import("../types/help-static-contracts.js").HelpSearchIndexOptions} HelpSearchIndexOptions */
+/** @typedef {import("../types/help-static-contracts.js").HelpSection} HelpSection */
+/** @typedef {import("../types/help-static-contracts.js").HelpSectionPayload} HelpSectionPayload */
+/** @typedef {import("../types/help-static-contracts.js").HydratedHelpArticle} HydratedHelpArticle */
+/** @typedef {import("../types/help-static-contracts.js").HydratedHelpContribution} HydratedHelpContribution */
+/** @typedef {import("../types/framework-contracts.js").SearchableTypeContribution} SearchableTypeContribution */
+
 const HELP_SEARCH_INDEXER_ID = "framework.help-articles";
 const HELP_SEARCH_RECORD_TYPE = "help_article";
 const HELP_SEARCH_SOURCE = "Help";
@@ -18,6 +37,7 @@ const HELP_CONTENT_ROOT = fileURLToPath(new URL("../../help/", import.meta.url))
 const HELP_TOC_PATH = path.join(HELP_CONTENT_ROOT, "toc.md");
 const THIRD_PARTY_NOTICES_PATH = fileURLToPath(new URL("../../THIRD_PARTY_NOTICES.md", import.meta.url));
 
+/** @type {HelpSection} */
 const FRAMEWORK_HELP_SECTION = {
   id: "framework.help-center",
   ownerType: "framework",
@@ -28,6 +48,7 @@ const FRAMEWORK_HELP_SECTION = {
   tags: ["framework", "help"],
 };
 
+/** @type {HelpArticle[]} */
 const FRAMEWORK_HELP_ARTICLES = [
     {
       id: "framework.help-center",
@@ -304,6 +325,7 @@ const FRAMEWORK_HELP_ARTICLES = [
     },
 ];
 
+/** @type {HelpContribution} */
 const FRAMEWORK_HELP_CONTRIBUTION = {
   sections: [FRAMEWORK_HELP_SECTION],
   articles: FRAMEWORK_HELP_ARTICLES,
@@ -320,6 +342,7 @@ if (frameworkHelpValidation.length > 0) {
   throw new Error(`Invalid framework Help configuration:\n- ${frameworkHelpValidation.join("\n- ")}`);
 }
 
+/** @param {HelpRequestSession} session @returns {Promise<HelpListResponse>} */
 async function list(session) {
   const contribution = await listVisibleContributions(session);
   const navigation = await buildHelpNavigation(contribution);
@@ -333,6 +356,7 @@ async function list(session) {
   };
 }
 
+/** @param {HelpRequestSession} session @param {unknown} articleIdOrSlug @returns {Promise<HelpReadResponse>} */
 async function readArticle(session, articleIdOrSlug) {
   const lookup = String(articleIdOrSlug || "").trim();
 
@@ -356,6 +380,7 @@ async function readArticle(session, articleIdOrSlug) {
   };
 }
 
+/** @param {HelpRequestSession} session @param {unknown} articleId @returns {Promise<boolean>} */
 async function canReadIndexedArticle(session, articleId) {
   if (!articleId) {
     return false;
@@ -365,6 +390,7 @@ async function canReadIndexedArticle(session, articleId) {
   return contribution.articles.some((article) => article.id === articleId);
 }
 
+/** @returns {SearchableTypeContribution[]} */
 function listSearchableTypes() {
   const ownerModuleIds = new Set([FRAMEWORK_HELP_MODULE_ID]);
 
@@ -377,6 +403,7 @@ function listSearchableTypes() {
   return [...ownerModuleIds].sort().map(helpSearchableType);
 }
 
+/** @param {string} workspaceId @returns {Promise<SearchableTypeContribution[]>} */
 async function listActiveSearchableTypes(workspaceId) {
   if (!(await workspaceExists(workspaceId))) {
     return [];
@@ -388,6 +415,7 @@ async function listActiveSearchableTypes(workspaceId) {
   return [...ownerModuleIds].sort().map(helpSearchableType);
 }
 
+/** @param {string} workspaceId @param {HelpSearchIndexOptions} [options] @returns {Promise<HelpSearchDocument[]>} */
 async function listSearchIndexDocuments(workspaceId, options = {}) {
   const contribution = await listIndexableContributions(workspaceId);
   const declarationModuleId = String(options.moduleId || options.module_id || "").trim();
@@ -397,11 +425,19 @@ async function listSearchIndexDocuments(workspaceId, options = {}) {
   return contribution.articles
     .filter((article) => !declarationModuleId || searchModuleIdForArticle(article) === declarationModuleId)
     .filter((article) => !recordId || article.id === recordId || article.slug === recordId)
-    .map((article) => articleSearchDocument(workspaceId, article, sectionsById.get(article.sectionId) || null));
+    .map((article) => articleSearchDocument(
+      workspaceId,
+      article,
+      article.sectionId ? sectionsById.get(article.sectionId) || null : null,
+    ));
 }
 
+/** @param {HelpRequestSession} session @returns {Promise<HydratedHelpContribution>} */
 async function listVisibleContributions(session) {
-  const moduleContributions = await modulesService.listActiveHelpContributions(
+  const listActiveHelpContributions = /** @type {(workspaceId: string, session: HelpRequestSession | null) => Promise<HelpContribution>} */ (
+    modulesService.listActiveHelpContributions
+  );
+  const moduleContributions = await listActiveHelpContributions(
     session.workspace_id,
     session,
   );
@@ -424,8 +460,12 @@ async function listVisibleContributions(session) {
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<HydratedHelpContribution>} */
 async function listIndexableContributions(workspaceId) {
-  const moduleContributions = await modulesService.listActiveHelpContributions(workspaceId, null);
+  const listActiveHelpContributions = /** @type {(workspaceId: string, session: HelpRequestSession | null) => Promise<HelpContribution>} */ (
+    modulesService.listActiveHelpContributions
+  );
+  const moduleContributions = await listActiveHelpContributions(workspaceId, null);
   const sections = [
     ...FRAMEWORK_HELP_CONTRIBUTION.sections.map((section) => normalizeFrameworkItem(section)),
     ...moduleContributions.sections,
@@ -441,6 +481,7 @@ async function listIndexableContributions(workspaceId) {
   });
 }
 
+/** @param {string} moduleId @returns {SearchableTypeContribution} */
 function helpSearchableType(moduleId) {
   return {
     recordType: HELP_SEARCH_RECORD_TYPE,
@@ -458,6 +499,7 @@ function helpSearchableType(moduleId) {
   };
 }
 
+/** @param {string} workspaceId @param {HydratedHelpArticle} article @param {HelpSection | null} section @returns {HelpSearchDocument} */
 function articleSearchDocument(workspaceId, article, section) {
   const moduleId = searchModuleIdForArticle(article);
   const sectionTitle = section?.title || "";
@@ -490,6 +532,7 @@ function articleSearchDocument(workspaceId, article, section) {
   };
 }
 
+/** @param {HelpContribution} contribution @returns {Promise<HydratedHelpContribution>} */
 async function hydrateHelpContribution(contribution) {
   assertUniqueContentPaths(contribution.articles);
 
@@ -499,6 +542,7 @@ async function hydrateHelpContribution(contribution) {
   };
 }
 
+/** @param {HydratedHelpContribution} contribution @returns {Promise<HelpNavigation>} */
 async function buildHelpNavigation(contribution) {
   const toc = await readHelpToc();
   const articlesByPath = new Map();
@@ -516,19 +560,22 @@ async function buildHelpNavigation(contribution) {
   };
 }
 
+/** @returns {Promise<string>} */
 async function readHelpToc() {
   try {
     return await fs.readFile(HELP_TOC_PATH, "utf8");
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
       return "";
     }
     throw error;
   }
 }
 
+/** @param {string} toc @returns {HelpNavigationItem[]} */
 function parseHelpToc(toc) {
-  const root = { children: [], depth: 0 };
+  /** @type {HelpNavigationItem & { depth: number }} */
+  const root = { children: [], depth: 0, title: "", type: "group" };
   const stack = [root];
 
   for (const rawLine of String(toc || "").split(/\r?\n/)) {
@@ -543,17 +590,17 @@ function parseHelpToc(toc) {
       const depth = heading[1].length;
       const item = tocGroupItem(heading[2].trim(), depth);
 
-      while (stack.length > 1 && stack.at(-1).depth >= depth) {
+      while (stack.length > 1 && (stack.at(-1)?.depth || 0) >= depth) {
         stack.pop();
       }
-      stack.at(-1).children.push(item);
+      stack.at(-1)?.children.push(item);
       stack.push(item);
       continue;
     }
 
     const link = line.match(/^[-*]\s+\[([^\]]+)]\(([^)]+\.md)\)\s*$/i);
     if (link) {
-      stack.at(-1).children.push({
+      stack.at(-1)?.children.push({
         articlePath: normalizeHelpContentPath(link[2]),
         children: [],
         title: link[1].trim(),
@@ -565,6 +612,7 @@ function parseHelpToc(toc) {
   return root.children;
 }
 
+/** @param {string} text @param {number} depth @returns {HelpNavigationItem & { depth: number }} */
 function tocGroupItem(text, depth) {
   const link = text.match(/^\[([^\]]+)]\(([^)]+\.md)\)$/i);
 
@@ -577,6 +625,13 @@ function tocGroupItem(text, depth) {
   };
 }
 
+/**
+ * @param {HelpNavigationItem[]} items
+ * @param {HydratedHelpContribution} contribution
+ * @param {Map<string, HydratedHelpArticle>} articlesByPath
+ * @param {Set<string>} usedArticleIds
+ * @returns {HelpNavigationItem[]}
+ */
 function filterNavigationItems(items, contribution, articlesByPath, usedArticleIds) {
   const visibleArticlesByPath = new Map();
 
@@ -591,14 +646,20 @@ function filterNavigationItems(items, contribution, articlesByPath, usedArticleI
 
   return items
     .map((item) => filterNavigationItem(item, visibleArticlesByPath, usedArticleIds))
-    .filter(Boolean);
+    .filter((item) => item !== null);
 }
 
+/**
+ * @param {HelpNavigationItem} item
+ * @param {Map<string, HydratedHelpArticle>} visibleArticlesByPath
+ * @param {Set<string>} usedArticleIds
+ * @returns {HelpNavigationItem | null}
+ */
 function filterNavigationItem(item, visibleArticlesByPath, usedArticleIds) {
   const article = item.articlePath ? visibleArticlesByPath.get(item.articlePath) : null;
   const children = (item.children || [])
     .map((child) => filterNavigationItem(child, visibleArticlesByPath, usedArticleIds))
-    .filter(Boolean);
+    .filter((item) => item !== null);
 
   if (item.type === "article") {
     if (!article) {
@@ -624,6 +685,7 @@ function filterNavigationItem(item, visibleArticlesByPath, usedArticleIds) {
   };
 }
 
+/** @param {HydratedHelpArticle[]} articles @param {Set<string>} usedArticleIds @returns {HelpNavigationItem[]} */
 function fallbackNavigationItems(articles, usedArticleIds) {
   return articles
     .filter((article) => !usedArticleIds.has(article.id))
@@ -631,6 +693,7 @@ function fallbackNavigationItems(articles, usedArticleIds) {
     .map((article) => navigationArticleItem(article));
 }
 
+/** @param {HelpNavigationItem[]} children @returns {HelpNavigationItem} */
 function fallbackNavigationGroup(children) {
   return {
     children,
@@ -639,6 +702,14 @@ function fallbackNavigationGroup(children) {
   };
 }
 
+/**
+ * @param {string} toc
+ * @param {HydratedHelpContribution} contribution
+ * @param {Map<string, HydratedHelpArticle>} articlesByPath
+ * @param {HelpNavigationItem[]} navigationItems
+ * @param {HelpNavigationItem[]} fallbackItems
+ * @returns {HydratedHelpArticle | HelpNavigationItem | null}
+ */
 function resolveDefaultArticle(toc, contribution, articlesByPath, navigationItems, fallbackItems) {
   const defaultPath = String(toc || "").match(/^default:\s*(\S+)\s*$/im)?.[1] || "";
   const defaultArticle = defaultPath ? articlesByPath.get(normalizeHelpContentPath(defaultPath)) : null;
@@ -652,6 +723,7 @@ function resolveDefaultArticle(toc, contribution, articlesByPath, navigationItem
     null;
 }
 
+/** @param {HelpNavigationItem[]} items @returns {HelpNavigationItem | null} */
 function firstNavigationArticle(items) {
   for (const item of items || []) {
     if (item.type === "article" && item.id) {
@@ -665,6 +737,7 @@ function firstNavigationArticle(items) {
   return null;
 }
 
+/** @param {HelpArticle} article @param {string} [title] @returns {HelpNavigationItem} */
 function navigationArticleItem(article, title = "") {
   return {
     ...articleNavigationFields(article),
@@ -674,6 +747,7 @@ function navigationArticleItem(article, title = "") {
   };
 }
 
+/** @param {HelpArticle} article */
 function articleNavigationFields(article) {
   return {
     id: article.id,
@@ -684,6 +758,7 @@ function articleNavigationFields(article) {
   };
 }
 
+/** @param {HelpArticle} article @returns {Promise<HydratedHelpArticle>} */
 async function hydrateHelpArticle(article) {
   return {
     ...article,
@@ -691,6 +766,7 @@ async function hydrateHelpArticle(article) {
   };
 }
 
+/** @param {HelpArticle} article @returns {Promise<string>} */
 async function readHelpArticleBody(article) {
   const contentPath = String(article.contentPath || "").trim();
 
@@ -705,13 +781,14 @@ async function readHelpArticleBody(article) {
     const hydrated = await hydrateTrackedLegalContent(article, body);
     return hydrated;
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
       throw new AppError(`Help article content file is missing for '${article.id}'.`, 500);
     }
     throw error;
   }
 }
 
+/** @param {HelpArticle} article @param {string} body @returns {Promise<string>} */
 async function hydrateTrackedLegalContent(article, body) {
   if (article.id === "framework.third-party-notices") {
     return fs.readFile(THIRD_PARTY_NOTICES_PATH, "utf8");
@@ -738,6 +815,7 @@ async function hydrateTrackedLegalContent(article, body) {
   return hydrated;
 }
 
+/** @param {HelpArticle[]} articles */
 function assertUniqueContentPaths(articles) {
   const seen = new Map();
 
@@ -755,6 +833,7 @@ function assertUniqueContentPaths(articles) {
   }
 }
 
+/** @param {string} contentPath @param {string} articleId @returns {string} */
 function resolveHelpContentPath(contentPath, articleId) {
   const normalizedPath = normalizeHelpContentPath(contentPath);
 
@@ -772,6 +851,7 @@ function resolveHelpContentPath(contentPath, articleId) {
   return absolutePath;
 }
 
+/** @param {unknown} contentPath @returns {string} */
 function normalizeHelpContentPath(contentPath) {
   const normalizedPath = String(contentPath || "").trim().replaceAll("\\", "/");
 
@@ -785,12 +865,14 @@ function normalizeHelpContentPath(contentPath) {
     .join("/");
 }
 
+/** @param {HelpArticle} article @returns {string} */
 function searchModuleIdForArticle(article) {
   return article.ownerType === "framework" || !article.moduleId
     ? FRAMEWORK_HELP_MODULE_ID
     : article.moduleId;
 }
 
+/** @param {string} workspaceId @returns {Promise<boolean>} */
 async function workspaceExists(workspaceId) {
   const normalizedWorkspaceId = String(workspaceId || "").trim();
 
@@ -808,6 +890,7 @@ LIMIT 1;
   return Boolean(row);
 }
 
+/** @template {HelpSection | HelpArticle} T @param {T} item @returns {T & { ownerType: "framework", moduleId: "" }} */
 function normalizeFrameworkItem(item) {
   return {
     ...item,
@@ -816,6 +899,7 @@ function normalizeFrameworkItem(item) {
   };
 }
 
+/** @template {HelpSection | HelpArticle} T @param {T} item @returns {T & { ownerType: import("../types/help-static-contracts.js").HelpOwnerType, sourceLabel: string }} */
 function decorateHelpItem(item) {
   const moduleDefinition = item.moduleId ? modulesService.getModule(item.moduleId) : null;
 
@@ -828,12 +912,13 @@ function decorateHelpItem(item) {
   };
 }
 
+/** @param {HelpSection} section @returns {HelpSectionPayload} */
 function sectionPayload(section) {
   return {
     id: section.id,
     title: section.title,
     description: section.description || "",
-    sortOrder: Number.isFinite(section.sortOrder) ? section.sortOrder : 0,
+    sortOrder: typeof section.sortOrder === "number" && Number.isFinite(section.sortOrder) ? section.sortOrder : 0,
     audience: section.audience || "",
     tags: normalizeTags(section.tags),
     ownerType: section.ownerType || "module",
@@ -842,6 +927,7 @@ function sectionPayload(section) {
   };
 }
 
+/** @param {HelpArticle} article @returns {HelpArticleListPayload} */
 function articleListPayload(article) {
   return {
     id: article.id,
@@ -850,7 +936,7 @@ function articleListPayload(article) {
     title: article.title,
     summary: article.summary || article.description || "",
     description: article.description || "",
-    sortOrder: Number.isFinite(article.sortOrder) ? article.sortOrder : 0,
+    sortOrder: typeof article.sortOrder === "number" && Number.isFinite(article.sortOrder) ? article.sortOrder : 0,
     audience: article.audience || "",
     tags: normalizeTags(article.tags),
     relatedArticleIds: normalizeTags(article.relatedArticleIds),
@@ -860,6 +946,7 @@ function articleListPayload(article) {
   };
 }
 
+/** @param {HydratedHelpArticle} article @param {HelpSection | null} section @returns {HelpArticleDetailPayload} */
 function articleDetailPayload(article, section) {
   const bodyMarkdown = article.body || "";
 
@@ -874,10 +961,12 @@ function articleDetailPayload(article, section) {
   };
 }
 
+/** @param {unknown} tags @returns {string[]} */
 function normalizeTags(tags) {
   return Array.isArray(tags) ? tags.filter((tag) => typeof tag === "string" && tag.trim()) : [];
 }
 
+/** @param {HelpSection | HelpArticle} left @param {HelpSection | HelpArticle} right @returns {number} */
 function sortHelpItems(left, right) {
   return Number(left.sortOrder || 0) - Number(right.sortOrder || 0) ||
     String(left.title || "").localeCompare(String(right.title || "")) ||
