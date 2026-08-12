@@ -50,6 +50,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Validate version-wide checkpoint commits
+        env:
+          LTF_CHECKPOINT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/release/checkpoint-commits.mjs
       - name: Context/setup timing
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - name: Closeout gate timing
