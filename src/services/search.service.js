@@ -18,6 +18,7 @@ import { resolveClientProjectFilterScope } from "../core/client-project-filter-s
 /** @typedef {import("../types/framework-contracts.js").SearchExecutionResult} SearchExecutionResult */
 /** @typedef {import("../types/framework-contracts.js").SearchableTypeContribution} SearchableTypeContribution */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /**
  * Canonical camelCase Search record reference plus the live persistence aliases
@@ -126,6 +127,7 @@ async function repairSearchBackendIndex(scope = {}, options = {}) {
   });
 }
 
+/** @returns {ActiveSearchableTypeDeclaration[]} */
 function listSearchableTypes() {
   return [
     ...modulesService.listSearchableTypes(),
@@ -133,6 +135,10 @@ function listSearchableTypes() {
   ].map(normalizeSearchableType);
 }
 
+/**
+ * @param {string} workspaceId
+ * @returns {Promise<ActiveSearchableTypeDeclaration[]>}
+ */
 async function listActiveSearchableTypes(workspaceId) {
   return [
     ...(await modulesService.listActiveSearchableTypes(workspaceId)),
@@ -569,6 +575,10 @@ function resolveSearchableType(recordReference = {}) {
   return declaration;
 }
 
+/**
+ * @param {SearchableTypeContribution} [declaration]
+ * @returns {ActiveSearchableTypeDeclaration}
+ */
 function normalizeSearchableType(declaration = {}) {
   return {
     recordType: normalizeString(declaration.recordType),

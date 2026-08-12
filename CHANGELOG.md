@@ -1,3 +1,12 @@
+## Version 0.33.32.36 - 2026-08-11
+
+- Checked the Search-index rebuild service against explicit active-declaration, canonical indexer-reference, scope/options, progress-count, target, failure, audit-session, and result-summary contracts.
+- Made active searchable-type normalization an explicit checked producer, narrowed generic database rows and unknown failures at the rebuild boundary, and preserved malformed indexer results on the existing failure path.
+- Preserved app/workspace/module and dry-run rebuilds, disabled-module filtering, idempotent upserts, stale/inactive row removal, durable job failure propagation, backend FTS repair and indexed-LIKE fallback, audit summaries, and workspace isolation.
+- Raised the checked inventory floor from 108 to 109 files; focused rebuild, durable-job, lifecycle, FTS-repair, and typecheck-seam proofs pass.
+- Docs updated: `DECISIONS.md`, `docs/architecture.md`, `docs/module-development.md`, `docs/regression-suite.md`.
+- No docs change needed: user-facing Help/Search behavior, module declarations, permissions, routes and HTTP responses, database schema/migrations, runtime configuration, deployment, and public API behavior are unchanged.
+
 ## Version 0.33.32.35 - 2026-08-11
 
 - Checked the framework Help and static-delivery services against explicit contribution, navigation, hydrated content, nullable section, Search document, protected-view, path-resolution, response, and initial-theme contracts.

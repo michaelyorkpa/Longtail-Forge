@@ -194,6 +194,24 @@ const HELP_STATIC_CONTRACT_TYPE_EXPORTS = [
   "StaticResolvedPath",
   "StaticThemeSession",
 ];
+const SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS = [
+  "ActiveSearchableTypeDeclaration",
+  "InactiveSearchRowsInput",
+  "SearchBackendRepairSummary",
+  "SearchIndexerDocument",
+  "SearchIndexerDocumentEnvelope",
+  "SearchRebuildCounts",
+  "SearchRebuildError",
+  "SearchRebuildOptions",
+  "SearchRebuildReference",
+  "SearchRebuildScope",
+  "SearchRebuildSession",
+  "SearchRebuildSummary",
+  "SearchRebuildSummaryInput",
+  "SearchRebuildTargetSummary",
+  "SearchRebuildTypeInput",
+  "StaleSearchRecordIdsInput",
+];
 const BROWSER_CONTRACT_TYPE_EXPORTS = [
   "BrowserApi",
   "BrowserApiError",
@@ -427,6 +445,14 @@ for (const typeName of HELP_STATIC_CONTRACT_TYPE_EXPORTS) {
     `help-static-contracts.d.ts must export ${typeName}`,
   );
 }
+const searchRebuildContractSource = readFileSync("src/types/search-rebuild-contracts.d.ts", "utf8");
+for (const typeName of SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS) {
+  assert.match(
+    searchRebuildContractSource,
+    new RegExp(`export (interface|type) ${typeName}\\b`),
+    `search-rebuild-contracts.d.ts must export ${typeName}`,
+  );
+}
 assert.match(
   helpStaticContractSource,
   /export type StaticPathResolution = StaticResolvedPath \| StaticDeniedPath;/,
@@ -617,6 +643,7 @@ for (const filePath of SEARCH_INDEXER_FILES) {
 }
 const searchRouteSource = readFileSync("src/routes/search.routes.js", "utf8");
 const searchServiceSource = readFileSync("src/services/search.service.js", "utf8");
+const searchRebuildServiceSource = readFileSync("src/services/search-index-rebuild.service.js", "utf8");
 assert.match(searchRouteSource, /^\/\/ @ts-check\r?\n/, "Search route must remain opted in to the checked permission-safe query seam");
 for (const contractName of [
   "BrowserSearchResult",
@@ -650,6 +677,41 @@ assert.match(
   searchServiceSource,
   /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.RequestSession\} RequestSession/,
   "Search service must consume the shared request-session contract",
+);
+assert.match(
+  searchServiceSource,
+  /@returns \{Promise<ActiveSearchableTypeDeclaration\[\]>\}[\s\S]*function listActiveSearchableTypes/,
+  "active Search declaration discovery must expose the normalized rebuild input contract",
+);
+assert.match(
+  searchRebuildServiceSource,
+  /^\/\/ @ts-check\r?\n/,
+  "the Search rebuild service must remain in the checked seam inventory",
+);
+assert.doesNotMatch(
+  searchRebuildServiceSource,
+  /@ts-(?:ignore|nocheck)|\bany\b/,
+  "the Search rebuild service must not terminate checking through suppressions or any",
+);
+assert.match(
+  searchRebuildServiceSource,
+  /@returns \{Promise<SearchRebuildSummary>\}[\s\S]*async function rebuildWorkspace/,
+  "workspace rebuilds must return the named job progress and result summary",
+);
+assert.match(
+  searchRebuildServiceSource,
+  /@type \{SearchRebuildReference\}[\s\S]*declaration: searchableType,[\s\S]*rebuild: true,[\s\S]*searchService,[\s\S]*workspaceId/,
+  "rebuild indexers must receive the canonical checked camelCase Search reference",
+);
+assert.doesNotMatch(
+  searchRebuildServiceSource,
+  /const reference = \{[\s\S]{0,240}\b(?:workspace_id|module_id|record_type|record_id)\b/,
+  "rebuild indexer references must not regain persistence casing aliases",
+);
+assert.match(
+  searchRebuildServiceSource,
+  /catch \(error\)[\s\S]{0,320}message: getErrorMessage\(error\)/,
+  "rebuild failures must narrow unknown errors before returning the checked result",
 );
 assert.match(
   searchServiceSource,
@@ -1007,7 +1069,7 @@ assert.deepEqual(violations.tsIgnore, [], "no runtime file may silence errors wi
 assert.deepEqual(violations.runtimeTsImports, [], "runtime JavaScript must not import .ts files");
 
 console.log(
-  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
+  `Typecheck seams guardrail passed: server and ${BROWSER_CHECKED_FILES.length}-file browser programs, ${cleanFilePassInventory.passes.length} bounded clean-file passes recorded, ${CHECKED_SEAM_FILES.length} files inventoried at floor ${seamInventory.minimumOptedInFiles}, ${checkedTestFiles.length} tests explicitly opted in, ${CONTRACT_TYPE_EXPORTS.length + DATABASE_CONTRACT_TYPE_EXPORTS.length + HELP_STATIC_CONTRACT_TYPE_EXPORTS.length + SEARCH_REBUILD_CONTRACT_TYPE_EXPORTS.length + HTTP_CONTRACT_TYPE_EXPORTS.length + BROWSER_CONTRACT_TYPE_EXPORTS.length} contract types exported, no checker escapes.`,
 );
 
 function readStringUnion(source, typeName) {
