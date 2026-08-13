@@ -163,10 +163,10 @@ for (const retainedCase of [
 }
 
 const currentStaticContracts = reader.readText("scripts/regressions/release/current-static-contracts.regression.mjs");
-const typecheckRegression = reader.readText("scripts/regressions/framework/typecheck-seams.regression.mjs");
-assert.doesNotMatch(currentStaticContracts, /tsconfig\.compilerOptions/, "the current release owner should rely on the typecheck-seams owner");
-assert.match(typecheckRegression, /tsconfig\.compilerOptions\.noEmit/);
-assert.match(typecheckRegression, /tsconfig\.compilerOptions\.strict/);
+const typecheckRegression = reader.readText("scripts/regressions/framework/full-strict-governance.regression.mjs");
+assert.doesNotMatch(currentStaticContracts, /tsconfig\.compilerOptions/, "the current release owner should rely on the full-strict governance owner");
+assert.match(typecheckRegression, /config\.compilerOptions\.noEmit/);
+assert.match(typecheckRegression, /config\.compilerOptions\.strict/);
 
 for (const target of scanEvidence.targetedFiles) {
   const source = reader.readText(resolveCurrentSourcePath(target.path));

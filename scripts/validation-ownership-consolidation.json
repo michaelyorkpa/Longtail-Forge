@@ -439,9 +439,9 @@
     "tsconfigFacts": {
       "assertionCount": 5,
       "sourcePaths": [
-        "scripts/regressions/framework/typecheck-seams.regression.mjs"
+        "scripts/regressions/framework/full-strict-governance.regression.mjs"
       ],
-      "retainedOwner": "scripts/regressions/framework/typecheck-seams.regression.mjs"
+      "retainedOwner": "scripts/regressions/framework/full-strict-governance.regression.mjs"
     },
     "pureAssetVersion": {
       "assertionCount": 5,

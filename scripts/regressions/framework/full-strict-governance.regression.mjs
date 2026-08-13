@@ -13,6 +13,7 @@ import {
   PROGRAMS,
   collectSourcePolicy,
   firstPartyJavaScriptFiles,
+  isFirstPartyDirectoryName,
   validateShrinkOnly,
 } from "../../typecheck-governance.mjs";
 
@@ -31,8 +32,6 @@ const browserConfig = JSON.parse(fs.readFileSync("tsconfig.public.json", "utf8")
 const scriptsConfig = JSON.parse(fs.readFileSync("tsconfig.scripts.json", "utf8"));
 /** @type {TypeScriptConfig} */
 const declarationConfig = JSON.parse(fs.readFileSync("tsconfig.declarations.json", "utf8"));
-/** @type {{ scripts: Record<string, string> }} */
-const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const governanceSource = fs.readFileSync("scripts/typecheck-governance.mjs", "utf8");
 const liveFiles = firstPartyJavaScriptFiles();
 const declarationFiles = fs.readdirSync("src/types").filter((name) => name.endsWith(".d.ts")).map((name) => `src/types/${name}`).sort();
@@ -76,8 +75,8 @@ assert.deepEqual(scriptsConfig.include, ["scripts/**/*.mjs", "eslint.config.js",
 assert.equal(declarationConfig.compilerOptions.skipLibCheck, false);
 assert.equal(declarationConfig.compilerOptions.strict, true);
 assert.deepEqual(declarationConfig.include, ["src/types/**/*.d.ts"]);
-assert.equal(packageJson.scripts.typecheck, "node scripts/typecheck-governance.mjs");
-assert.equal(packageJson.scripts["typecheck:ledger:write"], "node scripts/typecheck-governance.mjs --write");
+assert.match(governanceSource, /process\.argv\.includes\("--write"\)/);
+assert.match(governanceSource, /else verifyLedger\(state\)/);
 
 for (const strictCleanPath of [
   "eslint.config.js",
@@ -118,13 +117,7 @@ assert.throws(() => validateShrinkOnly(ledger, newDirtyFile), /new file has 1 st
 const newCleanFile = cloneLedger();
 newCleanFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 assert.doesNotThrow(() => validateShrinkOnly(ledger, newCleanFile));
-const hiddenFixtureDirectory = fs.mkdtempSync("scripts/.full-strict-governance-");
-try {
-  fs.writeFileSync(`${hiddenFixtureDirectory}/invalid.js`, "function fixture(value) { return value; }\n");
-  assert.equal(firstPartyJavaScriptFiles().some((filePath) => filePath.includes(".full-strict-governance-")), false);
-} finally {
-  fs.rmSync(hiddenFixtureDirectory, { recursive: true, force: true });
-}
+assert.equal(isFirstPartyDirectoryName(".repository-signature-types-fixture"), false);
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

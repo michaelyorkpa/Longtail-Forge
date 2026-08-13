@@ -93,12 +93,17 @@ function walkJavaScriptFiles(directory) {
   for (const entry of fs.readdirSync(path.join(rootDir, directory), { withFileTypes: true })) {
     const relativePath = `${directory}/${entry.name}`;
     if (entry.isDirectory()) {
-      if (entry.name.startsWith(".")) continue;
+      if (!isFirstPartyDirectoryName(entry.name)) continue;
       files.push(...walkJavaScriptFiles(relativePath));
     }
     else if (/\.(?:js|mjs)$/.test(entry.name)) files.push(relativePath);
   }
   return files;
+}
+
+/** @param {string} name */
+function isFirstPartyDirectoryName(name) {
+  return !name.startsWith(".");
 }
 
 /** @param {string[]} files @returns {{ explicitAnyByFile: Record<string, number>, expectedErrorDirectives: string[] }} */
@@ -247,4 +252,4 @@ if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { PROGRAMS, collectGovernanceState, collectSourcePolicy, firstPartyJavaScriptFiles, validateShrinkOnly };
+export { PROGRAMS, collectGovernanceState, collectSourcePolicy, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, validateShrinkOnly };
