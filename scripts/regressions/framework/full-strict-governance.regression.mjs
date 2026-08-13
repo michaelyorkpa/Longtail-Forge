@@ -104,19 +104,24 @@ assert.match(governanceSource, /new file introduces explicit any/);
 assert.match(governanceSource, /forbidden checker suppression/);
 assert.match(governanceSource, /Full-strict diagnostics exactly match/);
 assert.match(governanceSource, /tsconfig\.declarations\.json/);
-assert.doesNotThrow(() => validateShrinkOnly(structuredClone(ledger), structuredClone(ledger)));
-const increasedDiagnostic = structuredClone(ledger);
+assert.doesNotThrow(() => validateShrinkOnly(cloneLedger(), cloneLedger()));
+const increasedDiagnostic = cloneLedger();
 increasedDiagnostic.programs["server-tests"].diagnostics["src/config.js"][0].count += 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /2339 increased/);
-const increasedAny = structuredClone(ledger);
+const increasedAny = cloneLedger();
 increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);
-const newDirtyFile = structuredClone(ledger);
+const newDirtyFile = cloneLedger();
 newDirtyFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 newDirtyFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 7006, count: 1 }];
 assert.throws(() => validateShrinkOnly(ledger, newDirtyFile), /new file has 1 strict diagnostic/);
-const newCleanFile = structuredClone(ledger);
+const newCleanFile = cloneLedger();
 newCleanFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 assert.doesNotThrow(() => validateShrinkOnly(ledger, newCleanFile));
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
+
+/** @returns {GovernanceLedger} */
+function cloneLedger() {
+  return JSON.parse(JSON.stringify(ledger));
+}
