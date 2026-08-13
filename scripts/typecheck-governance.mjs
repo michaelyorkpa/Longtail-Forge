@@ -92,7 +92,10 @@ function walkJavaScriptFiles(directory) {
   const files = [];
   for (const entry of fs.readdirSync(path.join(rootDir, directory), { withFileTypes: true })) {
     const relativePath = `${directory}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...walkJavaScriptFiles(relativePath));
+    if (entry.isDirectory()) {
+      if (entry.name.startsWith(".")) continue;
+      files.push(...walkJavaScriptFiles(relativePath));
+    }
     else if (/\.(?:js|mjs)$/.test(entry.name)) files.push(relativePath);
   }
   return files;

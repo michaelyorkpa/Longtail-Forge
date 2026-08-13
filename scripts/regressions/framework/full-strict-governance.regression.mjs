@@ -118,6 +118,13 @@ assert.throws(() => validateShrinkOnly(ledger, newDirtyFile), /new file has 1 st
 const newCleanFile = cloneLedger();
 newCleanFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 assert.doesNotThrow(() => validateShrinkOnly(ledger, newCleanFile));
+const hiddenFixtureDirectory = fs.mkdtempSync("scripts/.full-strict-governance-");
+try {
+  fs.writeFileSync(`${hiddenFixtureDirectory}/invalid.js`, "function fixture(value) { return value; }\n");
+  assert.equal(firstPartyJavaScriptFiles().some((filePath) => filePath.includes(".full-strict-governance-")), false);
+} finally {
+  fs.rmSync(hiddenFixtureDirectory, { recursive: true, force: true });
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

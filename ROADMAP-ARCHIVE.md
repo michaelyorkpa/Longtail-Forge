@@ -8,7 +8,7 @@
 - [x] Assigned `eslint.config.js`, `playwright.config.js`, and `vitest.config.mjs` to the scripts program and proved those root executables, the governance conductor, and its regression owner remain strict-clean.
 - [x] Generated an exact per-file, per-code ledger for 31,305 diagnostics and 47 explicit-`any` nodes; growth, unchecked files, checker suppressions, and new explicit `any` now fail the ordinary conductor.
 - [x] Replaced the ordinary typecheck command with exact ledger verification while preserving visibly nonzero program debt: 9,713 server/tests, 11,134 browser, and 10,458 scripts diagnostics.
-- [x] Retired the seam, clean-file, repository-pass, and honesty inventories plus their superseded owners with 303 credited assertions transferred to the 45-assertion `framework.full-strict-governance` gate.
+- [x] Retired the seam, clean-file, repository-pass, and honesty inventories plus their superseded owners with 303 credited assertions transferred to the 46-assertion `framework.full-strict-governance` gate.
 - [x] Added a separate no-`skipLibCheck` declaration probe and corrected the shared route response contract so all 10 first-party `.d.ts` files compile with zero errors.
 - [x] Kept the four approved `@ts-expect-error` directives confined to three negative compile fixtures and scoped `skipLibCheck` to third-party ambient declarations in the three JavaScript programs.
 - [x] Added positive and negative shrink-policy proofs so a new strict-clean file is admitted while new diagnostics, per-code growth, or explicit `any` are rejected from birth.
