@@ -27,27 +27,11 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/sqlite-small-office-readout-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/parameter-binding-audit-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/parameter-binding-layer-regression.mjs",
       "runMode": "static"
     },
     {
       "path": "scripts/parameter-binding-conversion-wave-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/interpolation-enforcement-guardrail-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/dialect-enforcement-guardrail-regression.mjs",
       "runMode": "static"
     },
     {
@@ -72,10 +56,6 @@
     },
     {
       "path": "scripts/regression-clean-clone-contract.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/file-ui-integration-regression.mjs",
       "runMode": "static"
     },
     {
@@ -120,50 +100,6 @@
     },
     {
       "path": "scripts/files-descriptor-host-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-filter-sidebar-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-browse-list-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-browse-compact-reset-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-edit-modal-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-edit-modal-save-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-preview-modal-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-upload-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-attachment-panel-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-row-attachment-actions-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-visual-state-control-parity-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/files-strict-guardrail-inventory-regression.mjs",
       "runMode": "static"
     },
     {
@@ -279,10 +215,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/icon-accessibility-contract-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/search-contract-regression.mjs",
       "runMode": "serial-database"
     },
@@ -376,10 +308,6 @@
     },
     {
       "path": "scripts/file-clamd-adapter-regression.mjs",
-      "runMode": "serial-files"
-    },
-    {
-      "path": "scripts/file-scanner-setup-docs-regression.mjs",
       "runMode": "serial-files"
     },
     {
@@ -760,10 +688,6 @@
     },
     {
       "path": "scripts/client-projects-repositories-conversion-regression.mjs",
-      "runMode": "isolated-database"
-    },
-    {
-      "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
       "runMode": "isolated-database"
     },
     {

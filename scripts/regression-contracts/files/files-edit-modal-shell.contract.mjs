@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -132,3 +132,4 @@ assert.doesNotMatch(editorSource, /rename|replacement|storageProvider|storageKey
 assert.doesNotMatch(functionBlock(filesScript, "createFileActions"), /openFileEditor/, "Files row actions should not open the editor in this slice");
 
 console.log("Files edit modal shell regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

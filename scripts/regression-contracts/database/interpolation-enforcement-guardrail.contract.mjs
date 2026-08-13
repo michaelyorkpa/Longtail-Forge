@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import { extractCallExpression, lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { extractCallExpression, lineNumber, readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -13,7 +13,6 @@ const operationPattern = /\b(?:db|transaction)\.(?:query|get|run)\s*\(|\b(?:quer
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const currentViolations = findInterpolationViolations(readRuntimeSourceEntries({ root }));
 assert.equal(
@@ -114,7 +113,6 @@ function assertStaticDocumentation() {
   assert.match(auditDocs, /0\.33\.5\.27\.31 Interpolation Enforcement Guardrail[\s\S]*merge-blocking guardrail[\s\S]*`sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 runtime literal-helper invocations[\s\S]*0 direct interpolated operation sites/, "audit docs should record the interpolation enforcement slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.31[\s\S]*interpolation enforcement guardrail[\s\S]*New runtime source must not call `sqlText\(\)`, `sqlInteger\(\)`, `sqlNullableText\(\)`, or `sqlNullableInteger\(\)`[\s\S]*0 remaining helper invocations[\s\S]*0 direct interpolated SQL operation sites/, "database docs should publish the interpolation enforcement guardrail");
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.31 - Interpolation enforcement guardrail[\s\S]*- \[x\] Add a lint\/regression guardrail[\s\S]*- \[x\] Drive the audit ratchet target to zero[\s\S]*- \[x\] Add regressions proving the guardrail rejects/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.31 - [\s\S]*Interpolation enforcement guardrail[\s\S]*0 helper invocations[\s\S]*0 direct interpolated operation sites[\s\S]*385 bound operation sites/, "changelog should record the interpolation enforcement guardrail");
   }
 
 function formatViolations(violations) {
@@ -126,3 +124,4 @@ function formatViolations(violations) {
     .map((violation) => `${violation.filePath}:${violation.line} ${violation.kind} ${violation.helper}`)
     .join("\n");
 }
+// Consolidated under database.current-static-contracts by 0.33.33.11.

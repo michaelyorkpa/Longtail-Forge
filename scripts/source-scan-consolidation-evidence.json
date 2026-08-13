@@ -19,7 +19,7 @@
     {
       "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
       "before": 138,
-      "after": 121
+      "after": 117
     },
     {
       "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",

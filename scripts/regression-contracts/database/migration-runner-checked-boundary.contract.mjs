@@ -45,3 +45,4 @@ assert.match(migrationSource, /RECORD_MIGRATION_SQL[\s\S]*?checksum: migration\.
 assert.match(migrationSource, /readAppliedMigrations[\s\S]*?version: readTextColumn\(row, "version"\)[\s\S]*?checksum: readTextColumn\(row, "checksum"\)/);
 
 console.log("Migration runner checked-boundary regression passed.");
+// Consolidated under database.current-static-contracts by 0.33.33.11.

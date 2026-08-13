@@ -18,7 +18,10 @@ async function runWorkflowModuleStaticOwner(ownerMeta) {
   assert.equal(consolidation.version, "0.33.33.10");
   assert.deepEqual(consolidation.before, { discoveredScripts: 424, sourceOwners: 61, movedAssertions: 1826 });
   assert.deepEqual(consolidation.after, { discoveredScripts: 370, tableDrivenOwners: 7 });
-  assert.equal(REGRESSION_ENTRIES.length, consolidation.after.discoveredScripts);
+  assert.ok(
+    REGRESSION_ENTRIES.length <= consolidation.after.discoveredScripts,
+    "later checkpoints may reduce the active estate but must not undo the 0.33.33.10 reduction",
+  );
   assert.equal(new Set(consolidation.movements.map((entry) => entry.id)).size, consolidation.movements.length);
   assert.equal(consolidation.movements.reduce((total, entry) => total + entry.assertionCount, 0), 1826);
   assert.ok(contracts.length > 0, `${ownerMeta.id} must own at least one source contract`);

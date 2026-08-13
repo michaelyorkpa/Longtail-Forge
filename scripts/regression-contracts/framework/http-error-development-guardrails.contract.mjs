@@ -140,3 +140,4 @@ function assertOrdered(source, snippets) {
     previousIndex = index;
   }
 }
+// Consolidated under framework.current-static-contracts by 0.33.33.11.

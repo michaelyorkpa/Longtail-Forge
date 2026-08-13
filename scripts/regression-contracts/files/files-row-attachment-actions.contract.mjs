@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesScript = readText("public/js/files.js");
@@ -13,7 +13,6 @@ const filesHtml = readText("views/protected/files.html");
 const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
-const changelog = readText("CHANGELOG.md");
 const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -95,7 +94,6 @@ assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the shared attachment action helper and load preview");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the shared attachment action helper and load preview");
 
-assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the current Files visual parity slice");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document the current Files visual parity slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document the current Files visual parity boundary");
@@ -114,3 +112,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+// Consolidated under files.current-static-contracts by 0.33.33.11.

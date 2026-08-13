@@ -1,7 +1,7 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
@@ -9,7 +9,7 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const scannerDocs = readText("docs/file-scanner-setup.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const envExample = readText(".env.example");
-const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
+const regressionSuite = readText("scripts/regression-coverage-manifest.json");
 
 assert.match(scannerDocs, /^# File Scanner Setup/m, "scanner setup docs should exist");
 assert.match(scannerDocs, /## Linux Service Setup[\s\S]*LONGTAIL_FILE_SCANNER=clamd[\s\S]*LONGTAIL_CLAMD_HOST=127\.0\.0\.1[\s\S]*LONGTAIL_CLAMD_PORT=3310/, "scanner docs should cover Linux clamd service setup");
@@ -35,7 +35,7 @@ for (const scriptName of [
   "file-scanner-health-diagnostics-regression.mjs",
   "file-clamscan-adapter-regression.mjs",
   "file-clamd-adapter-regression.mjs",
-  "file-scanner-setup-docs-regression.mjs",
+  "regressions/files/current-static-contracts.regression.mjs",
 ]) {
   assert.match(
     regressionSuite,
@@ -45,3 +45,4 @@ for (const scriptName of [
 }
 
 console.log("File scanner setup docs regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

@@ -24,7 +24,7 @@ const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js"
 const jobQueueSource = readText("src/core/jobs/job-queue.js");
 const jobRunnerSource = readText("src/core/jobs/job-runner.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
-const parameterAuditRegression = readText("scripts/parameter-binding-audit-regression.mjs");
+const parameterAuditRegression = readText("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
 
 const {
   closeDatabase,

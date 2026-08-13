@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -128,3 +128,4 @@ assert.ok(filesService.includes("filters.clientId"), "Files service should filte
 assert.ok(filesService.includes("filters.projectId"), "Files service should filter browse results by project.");
 
 console.log("File UI integration regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

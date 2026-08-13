@@ -95,3 +95,4 @@ assert.match(
 );
 
 console.log("Client child-create scope regression passed.");
+// Consolidated under permissions.current-static-contracts by 0.33.33.11.

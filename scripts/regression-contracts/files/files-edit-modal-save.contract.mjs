@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -119,3 +119,4 @@ assert.match(viewContract, /0\.33\.5\.18\.11\.9[\s\S]*Enter[\s\S]*Space[\s\S]*PA
 assert.match(viewContract, /0\.33\.5\.18\.11\.9[\s\S]*row-open[\s\S]*Save[\s\S]*PATCH [`']?\/api\/files\/attachments\/:fileAttachmentId\/context/, "View-building contract should document the Files row-open and Save wiring");
 
 console.log("Files edit modal save regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.
