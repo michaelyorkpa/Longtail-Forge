@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.11 - Consolidate data, Files, and security static owners
-
-**Model: High Effort** - Static cleanup near high-risk data/security contracts must not disturb their executable guarantees.
-
-- [ ] Consolidate only source-text duplicates around database, Files, jobs, authentication, and security contracts.
-- [ ] Leave attestation, migration, backup/restore/purge, workspace isolation, Files storage/scanner/streaming, and security behavior programs in their existing isolated owners.
-- [ ] Close the static-estate reduction with measured entry-point, assertion, history-reader, process, line-count, and wall-time evidence.
-- [ ] Stop rather than force the numeric reduction target if continuing ownership cannot be proved.
-
 ### 0.33.33.12 - Establish three-program full-strict governance
 
 **Model: High Effort** - The temporary debt ledger becomes a hard repository-wide compiler authority.
