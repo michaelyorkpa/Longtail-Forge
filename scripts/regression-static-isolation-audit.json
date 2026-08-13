@@ -20,10 +20,25 @@
     "recoveredFlakes": 0
   },
   "fullSuiteMeasurements": {
-    "baseline": { "scripts": 424, "wallSeconds": 171.76, "failures": 0, "recoveredFlakes": 0 },
+    "baseline": {
+      "scripts": 424,
+      "wallSeconds": 171.76,
+      "failures": 0,
+      "recoveredFlakes": 0
+    },
     "postChange": [
-      { "scripts": 424, "wallSeconds": 155.66, "failures": 0, "recoveredFlakes": 0 },
-      { "scripts": 424, "wallSeconds": 150.93, "failures": 0, "recoveredFlakes": 0 }
+      {
+        "scripts": 424,
+        "wallSeconds": 155.66,
+        "failures": 0,
+        "recoveredFlakes": 0
+      },
+      {
+        "scripts": 424,
+        "wallSeconds": 150.93,
+        "failures": 0,
+        "recoveredFlakes": 0
+      }
     ]
   },
   "execution": {
@@ -53,9 +68,24 @@
       "certifiedWorkers": 6,
       "childProcessFallbacks": 225,
       "fullRuns": [
-        { "mode": "child-process", "wallSeconds": 151.60, "failures": 0, "recoveredFlakes": 0 },
-        { "mode": "audited-workers", "wallSeconds": 145.37, "failures": 0, "recoveredFlakes": 0 },
-        { "mode": "audited-workers", "wallSeconds": 141.23, "failures": 0, "recoveredFlakes": 0 }
+        {
+          "mode": "child-process",
+          "wallSeconds": 151.6,
+          "failures": 0,
+          "recoveredFlakes": 0
+        },
+        {
+          "mode": "audited-workers",
+          "wallSeconds": 145.37,
+          "failures": 0,
+          "recoveredFlakes": 0
+        },
+        {
+          "mode": "audited-workers",
+          "wallSeconds": 141.23,
+          "failures": 0,
+          "recoveredFlakes": 0
+        }
       ]
     },
     "entries": [
@@ -63,42 +93,90 @@
         "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
         "rationale": "Imports only assertions and the read-only project source reader, performs bounded text checks, and creates no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
         "path": "scripts/help-markdown-source-layout-regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
         "rationale": "Uses promises-based reads and directory listings against checked-in Help and source files only; all imported modules and caches remain local to its disposable worker isolate."
       },
       {
-        "path": "scripts/task-modal-compact-layout-regression.mjs",
+        "path": "scripts/regressions/notes/current-static-contracts.regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
-        "rationale": "Imports only assertions and the read-only project source reader, performs bounded Task source checks, and leaves environment, process, timers, listeners, cache, and filesystem unchanged."
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
+        "rationale": "Imports only assertions, the movement table, and read-only source contracts; all Notes contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
-        "path": "scripts/task-modal-followup-regression.mjs",
+        "path": "scripts/regressions/tasks/current-static-contracts.regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
-        "rationale": "Imports only assertions and the read-only project source reader, checks current Task dialog text, and owns no mutable environment, process, timer, listener, cache, or filesystem state."
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
+        "rationale": "Imports only assertions, the movement table, and read-only source contracts; all Tasks contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
-        "path": "scripts/task-modal-reflow-regression.mjs",
+        "path": "scripts/regressions/workbench/current-static-contracts.regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
-        "rationale": "Imports only assertions and the read-only project source reader, checks bounded Task layout sources, and leaves environment, process, timers, listeners, cache, and filesystem unchanged."
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
+        "rationale": "Imports only assertions, the movement table, and read-only source contracts; all Workbench contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
         "path": "scripts/file-scanner-setup-docs-regression.mjs",
         "decision": "worker-sequential",
         "fallback": "child-process",
-        "resources": { "environment": "none", "globalState": "worker-local", "timers": "none", "listeners": "none", "cache": "worker-local module cache", "process": "read-only cwd and platform", "fileSystem": "read-only repository files" },
+        "resources": {
+          "environment": "none",
+          "globalState": "worker-local",
+          "timers": "none",
+          "listeners": "none",
+          "cache": "worker-local module cache",
+          "process": "read-only cwd and platform",
+          "fileSystem": "read-only repository files"
+        },
         "rationale": "Reads scanner documentation and source membership without starting a scanner or writing storage; sequential worker admission retains an intentionally conservative boundary for this former serial Files owner."
       }
     ]
@@ -108,49 +186,60 @@
       "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
       "sourceRunMode": "isolated-database",
       "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only repository files", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "resources": {
+        "database": "none",
+        "fileSystem": "read-only repository files",
+        "networkPort": "none",
+        "process": "none",
+        "scanner": "none",
+        "environment": "none",
+        "singletonRuntime": "none"
+      },
       "rationale": "Reads package, documentation, view, source, roadmap, changelog, and legacy-registry text only; its version import has no runtime or database side effect."
     },
     {
       "path": "scripts/help-markdown-source-layout-regression.mjs",
       "sourceRunMode": "isolated-database",
       "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only Help and source files", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "resources": {
+        "database": "none",
+        "fileSystem": "read-only Help and source files",
+        "networkPort": "none",
+        "process": "none",
+        "scanner": "none",
+        "environment": "none",
+        "singletonRuntime": "none"
+      },
       "rationale": "Reads the declared Help Markdown, table-of-contents, module declaration, and service source inventory without importing runtime modules or creating mutable state."
-    },
-    {
-      "path": "scripts/task-modal-compact-layout-regression.mjs",
-      "sourceRunMode": "isolated-database",
-      "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only view, browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
-      "rationale": "Performs bounded read-only source and documentation assertions for Task modal anatomy and creates no database, server, process, scanner, or temporary file."
-    },
-    {
-      "path": "scripts/task-modal-reflow-regression.mjs",
-      "sourceRunMode": "isolated-database",
-      "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only view, browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
-      "rationale": "Performs read-only Task modal source, stylesheet, documentation, and release-metadata assertions with no runtime import or mutable external resource."
-    },
-    {
-      "path": "scripts/task-modal-followup-regression.mjs",
-      "sourceRunMode": "isolated-database",
-      "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only browser source, CSS, docs, and metadata", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
-      "rationale": "Performs read-only Task dialog and stylesheet contract assertions and does not import the application, create data, open a port, or spawn a child."
     },
     {
       "path": "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
       "sourceRunMode": "isolated-database",
       "decision": "static",
-      "resources": { "database": "process-local in-memory SQLite only", "fileSystem": "one read-only migration file", "networkPort": "none", "process": "none", "scanner": "none", "environment": "none", "singletonRuntime": "none" },
+      "resources": {
+        "database": "process-local in-memory SQLite only",
+        "fileSystem": "one read-only migration file",
+        "networkPort": "none",
+        "process": "none",
+        "scanner": "none",
+        "environment": "none",
+        "singletonRuntime": "none"
+      },
       "rationale": "Executes one reviewed migration against a process-local in-memory SQLite database, closes it in a finally block, and touches no external database or mutable file."
     },
     {
       "path": "scripts/file-scanner-setup-docs-regression.mjs",
       "sourceRunMode": "serial-files",
       "decision": "static",
-      "resources": { "database": "none", "fileSystem": "read-only docs, environment example, metadata, and source", "networkPort": "none", "process": "none", "scanner": "documentation assertions only", "environment": "none", "singletonRuntime": "none" },
+      "resources": {
+        "database": "none",
+        "fileSystem": "read-only docs, environment example, metadata, and source",
+        "networkPort": "none",
+        "process": "none",
+        "scanner": "documentation assertions only",
+        "environment": "none",
+        "singletonRuntime": "none"
+      },
       "rationale": "Checks scanner documentation and static source membership only; it never starts a scanner, opens a port, spawns a process, or writes storage state."
     }
   ]

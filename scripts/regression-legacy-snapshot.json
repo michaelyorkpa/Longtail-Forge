@@ -63,10 +63,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/search-results-page-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/regression-runner-regression.mjs",
       "runMode": "static"
     },
@@ -79,43 +75,11 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/tag-usability-ui-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tag-inline-picker-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tag-record-workflow-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tag-management-page-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/file-ui-integration-regression.mjs",
       "runMode": "static"
     },
     {
-      "path": "scripts/notes-developer-docs-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/notes-context-terminology-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/notes-modal-stack-guardrails-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/notes-tags-stacked-modal-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/notes-files-stacked-modal-regression.mjs",
       "runMode": "static"
     },
     {
@@ -140,10 +104,6 @@
     },
     {
       "path": "scripts/view-builder-helper-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/lists-view-builder-pilot-regression.mjs",
       "runMode": "static"
     },
     {
@@ -215,18 +175,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/lists-declarative-readonly-surface-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/lists-items-modals-descriptor-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/lists-workflow-linked-layout-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/batched-list-enrichment-regression.mjs",
       "runMode": "static"
     },
@@ -236,10 +184,6 @@
     },
     {
       "path": "scripts/sqlite-small-office-performance-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/notes-declarative-readonly-surface-regression.mjs",
       "runMode": "static"
     },
     {
@@ -267,10 +211,6 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/notes-file-preview-actions-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/user-theme-auto-mode-regression.mjs",
       "runMode": "static"
     },
@@ -291,95 +231,7 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/workbench-guided-ui-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-split-focus-filters-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-collapsible-sections-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-remove-all-tasks-list-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-remove-quick-notes-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-recommended-cycling-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-host-status-copy-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-in-place-open-work-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-view-state-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-inspector-panel-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-focus-surface-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-focus-checklist-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-focus-timer-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/workbench-task-focus-related-context-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-focus-related-context-ui-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-focus-linked-note-view-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/time-tracking-create-timer-modal-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/task-list-density-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/task-list-canonical-ui-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-declarative-readonly-surface-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-readonly-list-binding-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-bulk-toolbar-shell-regression.mjs",
       "runMode": "static"
     },
     {
@@ -391,67 +243,7 @@
       "runMode": "static"
     },
     {
-      "path": "scripts/tasks-lifecycle-action-descriptor-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-workflow-action-descriptor-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-detail-read-panel-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-relationship-linked-context-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-list-surface-boundary-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-modal-shell-regression.mjs",
-      "runMode": "static"
-    },
-    {
       "path": "scripts/task-modal-complete-action-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-checklist-escape-hatch-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/task-checklist-editor-display-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-canonical-editor-opener-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-modal-context-sections-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/tasks-tags-files-child-dialog-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/notes-tasks-modal-footer-visual-parity-regression.mjs",
       "runMode": "static"
     },
     {
@@ -480,14 +272,6 @@
     },
     {
       "path": "scripts/clients-projects-hierarchy-reparent-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/time-entries-screen-regression.mjs",
-      "runMode": "static"
-    },
-    {
-      "path": "scripts/workbench-task-ordering-regression.mjs",
       "runMode": "static"
     },
     {
@@ -1036,18 +820,6 @@
     },
     {
       "path": "scripts/task-bulk-due-tags-regression.mjs",
-      "runMode": "isolated-database"
-    },
-    {
-      "path": "scripts/task-modal-compact-layout-regression.mjs",
-      "runMode": "isolated-database"
-    },
-    {
-      "path": "scripts/task-modal-reflow-regression.mjs",
-      "runMode": "isolated-database"
-    },
-    {
-      "path": "scripts/task-modal-followup-regression.mjs",
       "runMode": "isolated-database"
     },
     {

@@ -100,9 +100,6 @@ const expectedStaticMoves = [
   "scripts/file-scanner-setup-docs-regression.mjs",
   "scripts/help-markdown-source-layout-regression.mjs",
   "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
-  "scripts/task-modal-compact-layout-regression.mjs",
-  "scripts/task-modal-followup-regression.mjs",
-  "scripts/task-modal-reflow-regression.mjs",
 ];
 const staticDimensions = [
   "database",

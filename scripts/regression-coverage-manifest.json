@@ -3,8 +3,8 @@
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
-    "discoveredScripts": 424,
-    "legacyScripts": 285,
+    "discoveredScripts": 370,
+    "legacyScripts": 228,
     "releaseGateScripts": 71,
     "areaCounts": {
       "dashboard": 2,
@@ -14,22 +14,22 @@
       "framework": 78,
       "jobs": 8,
       "licensing": 1,
-      "lists": 12,
-      "notes": 40,
+      "lists": 9,
+      "notes": 33,
       "notifications": 3,
       "permissions": 10,
       "public-api": 3,
       "release": 32,
       "search": 12,
-      "tags": 12,
-      "tasks": 58,
-      "time-tracking": 13,
+      "tags": 9,
+      "tasks": 34,
+      "time-tracking": 12,
       "views": 8,
-      "workbench": 32
+      "workbench": 16
     },
     "tierCounts": {
-      "focused": 176,
-      "integration": 169,
+      "focused": 125,
+      "integration": 166,
       "release-gate": 71,
       "slow": 8
     },
@@ -37,7 +37,7 @@
       "isolated-database": 193,
       "isolated-files": 28,
       "serial-database": 6,
-      "static": 197
+      "static": 143
     }
   },
   "coverageFamilies": [
@@ -85,9 +85,9 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 17028,
+    "activeAssertionCount": 15209,
     "creditedAssertionReduction": 193,
-    "directOwnerAssertionCount": 1329,
+    "directOwnerAssertionCount": 3155,
     "directOwners": [
       {
         "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
@@ -108,6 +108,182 @@
       {
         "path": "scripts/regression-contracts/framework/settings-page-actions.contract.mjs",
         "assertionCount": 79
+      },
+      {
+        "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
+        "assertionCount": 39
+      },
+      {
+        "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
+        "assertionCount": 40
+      },
+      {
+        "path": "scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs",
+        "assertionCount": 29
+      },
+      {
+        "path": "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
+        "assertionCount": 41
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
+        "assertionCount": 24
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs",
+        "assertionCount": 17
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs",
+        "assertionCount": 85
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-developer-docs.contract.mjs",
+        "assertionCount": 8
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
+        "assertionCount": 25
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
+        "assertionCount": 24
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-tags-stacked-modal.contract.mjs",
+        "assertionCount": 20
+      },
+      {
+        "path": "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/search/search-results-page.contract.mjs",
+        "assertionCount": 41
+      },
+      {
+        "path": "scripts/regression-contracts/tags/tag-inline-picker.contract.mjs",
+        "assertionCount": 30
+      },
+      {
+        "path": "scripts/regression-contracts/tags/tag-management-page.contract.mjs",
+        "assertionCount": 19
+      },
+      {
+        "path": "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",
+        "assertionCount": 25
+      },
+      {
+        "path": "scripts/regression-contracts/tags/tag-usability-ui.contract.mjs",
+        "assertionCount": 32
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
+        "assertionCount": 12
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+        "assertionCount": 52
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
+        "assertionCount": 17
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs",
+        "assertionCount": 22
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-list-density.contract.mjs",
+        "assertionCount": 19
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-modal-compact-layout.contract.mjs",
+        "assertionCount": 30
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-modal-followup.contract.mjs",
+        "assertionCount": 39
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/task-modal-reflow.contract.mjs",
+        "assertionCount": 39
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs",
+        "assertionCount": 25
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
+        "assertionCount": 20
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
+        "assertionCount": 39
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
+        "assertionCount": 29
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
+        "assertionCount": 32
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
+        "assertionCount": 29
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs",
+        "assertionCount": 29
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-modal-shell.contract.mjs",
+        "assertionCount": 32
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
+        "assertionCount": 36
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs",
+        "assertionCount": 20
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
+        "assertionCount": 41
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
+        "assertionCount": 40
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
+        "assertionCount": 31
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs",
+        "assertionCount": 64
+      },
+      {
+        "path": "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
+        "assertionCount": 40
+      },
+      {
+        "path": "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs",
+        "assertionCount": 75
+      },
+      {
+        "path": "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs",
+        "assertionCount": 39
       },
       {
         "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -226,6 +402,74 @@
         "assertionCount": 94
       },
       {
+        "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
+        "assertionCount": 18
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs",
+        "assertionCount": 28
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs",
+        "assertionCount": 12
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
+        "assertionCount": 24
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
+        "assertionCount": 31
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
+        "assertionCount": 32
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
+        "assertionCount": 21
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
+        "assertionCount": 14
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs",
+        "assertionCount": 13
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+        "assertionCount": 27
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+        "assertionCount": 18
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+        "assertionCount": 23
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+        "assertionCount": 37
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+        "assertionCount": 51
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs",
+        "assertionCount": 6
+      },
+      {
+        "path": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+        "assertionCount": 29
+      },
+      {
         "path": "scripts/version-literal-guardrail-regression.mjs",
         "assertionCount": 18
       },
@@ -234,7 +478,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18651,
+    "effectiveAssertionCount": 18658,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -342,6 +586,22 @@
       ]
     },
     {
+      "sourceRegression": "scripts/regressions/tasks/current-static-contracts.regression.mjs",
+      "movedInVersion": "0.33.27.7.5",
+      "movementType": "duplicate-contract-to-regression",
+      "assertionCount": 534,
+      "rationale": "Package, lock-root, and lock-package current-version equality was repeated across legacy regressions even though the direct version guard already owns the canonical runtime and metadata relationship.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; tasks.current-static-contracts remains the discovered workflow-module source owner and release.closeout-conductor runs the direct version gate once.",
+      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
+      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
+      "sourceInventory": "scripts/validation-ownership-consolidation.json",
+      "verificationPerformed": [
+        "npm run version:guard",
+        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "scripts/runtime-configuration-contract-regression.mjs",
       "movedInVersion": "0.33.19.4",
       "movementType": "pure-contract-to-vitest",
@@ -354,22 +614,6 @@
         "npm exec vitest run tests/unit/runtime-configuration.test.mjs",
         "node scripts/runtime-configuration-contract-regression.mjs",
         "node scripts/regression-coverage-ratchet.mjs",
-        "npm run verify:slice"
-      ]
-    },
-    {
-      "sourceRegression": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
-      "movedInVersion": "0.33.27.7.5",
-      "movementType": "duplicate-contract-to-regression",
-      "assertionCount": 534,
-      "rationale": "Package, lock-root, and lock-package current-version equality was repeated across legacy regressions even though the direct version guard already owns the canonical runtime and metadata relationship.",
-      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; release.closeout-conductor runs that direct gate once.",
-      "movedTo": "scripts/version-literal-guardrail-regression.mjs",
-      "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
-      "sourceInventory": "scripts/validation-ownership-consolidation.json",
-      "verificationPerformed": [
-        "npm run version:guard",
-        "node scripts/regressions/release/validation-single-ownership.regression.mjs",
         "npm run verify:slice"
       ]
     },
@@ -406,7 +650,7 @@
   ],
   "legacyMetadataException": {
     "snapshotPath": "scripts/regression-legacy-snapshot.json",
-    "maximumScripts": 285,
+    "maximumScripts": 228,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "regressions": [
@@ -1952,18 +2196,6 @@
     },
     {
       "area": "lists",
-      "assertionCount": 39,
-      "description": "Protects the legacy lists declarative readonly surface contract.",
-      "id": "legacy.lists.declarative.readonly.surface",
-      "legacy": true,
-      "path": "scripts/lists-declarative-readonly-surface-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "lists",
       "assertionCount": 44,
       "description": "Protects the legacy lists foundation contract.",
       "id": "legacy.lists.foundation",
@@ -1975,18 +2207,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "lists",
-      "assertionCount": 40,
-      "description": "Protects the legacy lists items modals descriptor contract.",
-      "id": "legacy.lists.items.modals.descriptor",
-      "legacy": true,
-      "path": "scripts/lists-items-modals-descriptor-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "lists",
@@ -2043,30 +2263,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "lists",
-      "assertionCount": 29,
-      "description": "Protects the legacy lists view builder pilot contract.",
-      "id": "legacy.lists.view.builder.pilot",
-      "legacy": true,
-      "path": "scripts/lists-view-builder-pilot-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "lists",
-      "assertionCount": 41,
-      "description": "Protects the legacy lists workflow linked layout contract.",
-      "id": "legacy.lists.workflow.linked.layout",
-      "legacy": true,
-      "path": "scripts/lists-workflow-linked-layout-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "database",
@@ -2155,44 +2351,6 @@
     },
     {
       "area": "notes",
-      "assertionCount": 24,
-      "description": "Protects the legacy notes context terminology contract.",
-      "id": "legacy.notes.context.terminology",
-      "legacy": true,
-      "path": "scripts/notes-context-terminology-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
-      "assertionCount": 85,
-      "description": "Protects the legacy notes declarative readonly surface contract.",
-      "id": "legacy.notes.declarative.readonly.surface",
-      "legacy": true,
-      "path": "scripts/notes-declarative-readonly-surface-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
-      "assertionCount": 8,
-      "description": "Protects the legacy notes developer docs contract.",
-      "id": "legacy.notes.developer.docs",
-      "legacy": true,
-      "path": "scripts/notes-developer-docs-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "docs"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
       "assertionCount": 47,
       "description": "Protects the legacy notes external markdown links preference contract.",
       "id": "legacy.notes.external.markdown.links.preference",
@@ -2202,20 +2360,6 @@
       "runMode": "static",
       "tags": [
         "docs"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
-      "assertionCount": 25,
-      "description": "Protects the legacy notes file preview actions contract.",
-      "id": "legacy.notes.file.preview.actions",
-      "legacy": true,
-      "path": "scripts/notes-file-preview-actions-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "files"
       ],
       "tier": "focused"
     },
@@ -2231,20 +2375,6 @@
       "tags": [
         "files",
         "permissions"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
-      "assertionCount": 24,
-      "description": "Protects the legacy notes files stacked modal contract.",
-      "id": "legacy.notes.files.stacked.modal",
-      "legacy": true,
-      "path": "scripts/notes-files-stacked-modal-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "files"
       ],
       "tier": "focused"
     },
@@ -2446,18 +2576,6 @@
     },
     {
       "area": "notes",
-      "assertionCount": 20,
-      "description": "Protects the legacy notes tags stacked modal contract.",
-      "id": "legacy.notes.tags.stacked.modal",
-      "legacy": true,
-      "path": "scripts/notes-tags-stacked-modal-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "notes",
       "assertionCount": 38,
       "description": "Protects the legacy notes task context contract.",
       "id": "legacy.notes.task.context",
@@ -2469,18 +2587,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "notes",
-      "assertionCount": 23,
-      "description": "Protects the legacy notes tasks modal footer visual parity contract.",
-      "id": "legacy.notes.tasks.modal.footer.visual.parity",
-      "legacy": true,
-      "path": "scripts/notes-tasks-modal-footer-visual-parity-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "notes",
@@ -4106,21 +4212,36 @@
       "tier": "release-gate"
     },
     {
-      "area": "notes",
-      "assertionCount": 17,
-      "description": "Pins the current Notes quick-fix contracts for permission-safe metadata bulk editing and create-save continuity with an explicit Save and Close path.",
-      "id": "notes.notes-critical-quick-fixes",
+      "area": "lists",
+      "assertionCount": 1,
+      "description": "Runs source-only Lists anatomy and workflow contracts through one table-driven owner.",
+      "id": "lists.current-static-contracts",
       "legacy": false,
-      "path": "scripts/regressions/notes/notes-critical-quick-fixes.regression.mjs",
+      "path": "scripts/regressions/lists/current-static-contracts.regression.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [
-        "bulk-edit",
-        "collections",
-        "modal",
+        "anatomy",
+        "contracts",
+        "lists",
+        "workflow"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "notes",
+      "assertionCount": 1,
+      "description": "Runs source-only Notes anatomy, context, files, and modal contracts through one table-driven owner.",
+      "id": "notes.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/notes/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "anatomy",
+        "contracts",
         "notes",
-        "permissions",
-        "selection"
+        "workflow"
       ],
       "tier": "focused"
     },
@@ -4790,6 +4911,56 @@
       "tier": "release-gate"
     },
     {
+      "area": "search",
+      "assertionCount": 1,
+      "description": "Runs the source-only Search results-page contract through one table-driven owner.",
+      "id": "search.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/search/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "results",
+        "search"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tags",
+      "assertionCount": 1,
+      "description": "Runs source-only Tags picker, management, record, and usability contracts through one table-driven owner.",
+      "id": "tags.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/tags/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "tags",
+        "ui",
+        "workflow"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "tasks",
+      "assertionCount": 1,
+      "description": "Runs source-only Tasks list, editor, modal, relationship, and Workbench-handoff contracts through one table-driven owner.",
+      "id": "tasks.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/tasks/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "tasks",
+        "ui",
+        "workflow"
+      ],
+      "tier": "focused"
+    },
+    {
       "area": "tasks",
       "assertionCount": 23,
       "description": "Pins Tasks dashboard-summary to permission-shaped SQL count groups, bounded ranked row candidates, one precompiled permission evaluator, exact output, and constant statement/enrichment cost as terminal Task volume grows.",
@@ -4861,44 +5032,6 @@
         "permissions",
         "reminders",
         "tasks"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 52,
-      "description": "Pins the current Tasks quick-fix contracts for checklist keys and spacing, searchable tag controls, parent-child creation and list anatomy, create-save continuity, workspace project narrowing, and reason-capture Block flows.",
-      "id": "tasks.task-critical-quick-fixes",
-      "legacy": false,
-      "path": "scripts/regressions/tasks/task-critical-quick-fixes.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "blocked-reason",
-        "checklist",
-        "modal",
-        "parent-child",
-        "tags",
-        "tasks",
-        "workbench"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 17,
-      "description": "Pins the task editor's icon-only Open in Workbench handoff: placed immediately left of the notification bell, edit-mode only, accessible icon-only anatomy, and navigation through the canonical workbench.html?taskId= deep-link contract.",
-      "id": "tasks.task-editor-workbench-handoff",
-      "legacy": false,
-      "path": "scripts/regressions/tasks/task-editor-workbench-handoff.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "deep-link",
-        "guardrail",
-        "modal",
-        "tasks",
-        "workbench"
       ],
       "tier": "focused"
     },
@@ -5012,6 +5145,23 @@
     },
     {
       "area": "time-tracking",
+      "assertionCount": 1,
+      "description": "Runs source-only Time Tracking entry-screen and timer-modal contracts through one table-driven owner.",
+      "id": "time-tracking.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/time-tracking/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "time-tracking",
+        "timer",
+        "ui"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "time-tracking",
       "assertionCount": 20,
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
       "id": "time-tracking.dashboard-effort-summary-budgets",
@@ -5116,6 +5266,23 @@
     },
     {
       "area": "workbench",
+      "assertionCount": 1,
+      "description": "Runs source-only Workbench focus, recovery, layout, and task-context contracts through one table-driven owner.",
+      "id": "workbench.current-static-contracts",
+      "legacy": false,
+      "path": "scripts/regressions/workbench/current-static-contracts.regression.mjs",
+      "releaseGate": false,
+      "runMode": "static",
+      "tags": [
+        "contracts",
+        "focus",
+        "recovery",
+        "workbench"
+      ],
+      "tier": "focused"
+    },
+    {
+      "area": "workbench",
       "assertionCount": 25,
       "description": "Proves Task completion closes directly, preserves recurrence continuity, and never promotes a completed Next Action into Workbench.",
       "id": "workbench.direct-task-completion",
@@ -5162,24 +5329,6 @@
         "payload",
         "performance",
         "query-count"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 18,
-      "description": "Pins the one-shot Workbench task-focus deep-link contract: taskId/taskID are removed without disturbing other URL state, readable Tasks enter Task Focus, and every failure uses one privacy-safe Focus Selection fallback.",
-      "id": "workbench.task-focus-deep-link",
-      "legacy": false,
-      "path": "scripts/regressions/workbench/task-focus-deep-link.regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "dashboard",
-        "deep-link",
-        "guardrail",
-        "tasks",
-        "workbench"
       ],
       "tier": "focused"
     },
@@ -5414,18 +5563,6 @@
     {
       "area": "search",
       "assertionCount": 41,
-      "description": "Protects the legacy search results page contract.",
-      "id": "legacy.search.results.page",
-      "legacy": true,
-      "path": "scripts/search-results-page-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "search",
-      "assertionCount": 41,
       "description": "Protects the legacy search shell contract.",
       "id": "legacy.search.shell",
       "legacy": true,
@@ -5552,30 +5689,6 @@
     },
     {
       "area": "tags",
-      "assertionCount": 30,
-      "description": "Protects the legacy tag inline picker contract.",
-      "id": "legacy.tag.inline.picker",
-      "legacy": true,
-      "path": "scripts/tag-inline-picker-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tags",
-      "assertionCount": 19,
-      "description": "Protects the legacy tag management page contract.",
-      "id": "legacy.tag.management.page",
-      "legacy": true,
-      "path": "scripts/tag-management-page-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tags",
       "assertionCount": 19,
       "description": "Protects the legacy tag propagation contract contract.",
       "id": "legacy.tag.propagation.contract",
@@ -5633,18 +5746,6 @@
     },
     {
       "area": "tags",
-      "assertionCount": 25,
-      "description": "Protects the legacy tag record workflow contract.",
-      "id": "legacy.tag.record.workflow",
-      "legacy": true,
-      "path": "scripts/tag-record-workflow-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tags",
       "assertionCount": 22,
       "description": "Protects the legacy tag service contract.",
       "id": "legacy.tag.service",
@@ -5656,18 +5757,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "tags",
-      "assertionCount": 32,
-      "description": "Protects the legacy tag usability ui contract.",
-      "id": "legacy.tag.usability.ui",
-      "legacy": true,
-      "path": "scripts/tag-usability-ui-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "tags",
@@ -5727,18 +5816,6 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 12,
-      "description": "Protects the legacy task checklist editor display contract.",
-      "id": "legacy.task.checklist.editor.display",
-      "legacy": true,
-      "path": "scripts/task-checklist-editor-display-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
       "assertionCount": 59,
       "description": "Protects the legacy task checklist contract.",
       "id": "legacy.task.checklist",
@@ -5767,44 +5844,6 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 22,
-      "description": "Protects the legacy task list canonical ui contract.",
-      "id": "legacy.task.list.canonical.ui",
-      "legacy": true,
-      "path": "scripts/task-list-canonical-ui-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 19,
-      "description": "Protects the legacy task list density contract.",
-      "id": "legacy.task.list.density",
-      "legacy": true,
-      "path": "scripts/task-list-density-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 30,
-      "description": "Protects the legacy task modal compact layout contract.",
-      "id": "legacy.task.modal.compact.layout",
-      "legacy": true,
-      "path": "scripts/task-modal-compact-layout-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "database"
-      ],
-      "tier": "integration"
-    },
-    {
-      "area": "tasks",
       "assertionCount": 32,
       "description": "Protects the legacy task modal complete action contract.",
       "id": "legacy.task.modal.complete.action",
@@ -5814,34 +5853,6 @@
       "runMode": "static",
       "tags": [],
       "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 39,
-      "description": "Protects the legacy task modal followup contract.",
-      "id": "legacy.task.modal.followup",
-      "legacy": true,
-      "path": "scripts/task-modal-followup-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "database"
-      ],
-      "tier": "integration"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 39,
-      "description": "Protects the legacy task modal reflow contract.",
-      "id": "legacy.task.modal.reflow",
-      "legacy": true,
-      "path": "scripts/task-modal-reflow-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "database"
-      ],
-      "tier": "integration"
     },
     {
       "area": "tasks",
@@ -6061,126 +6072,6 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 23,
-      "description": "Protects the legacy tasks bulk toolbar shell contract.",
-      "id": "legacy.tasks.bulk.toolbar.shell",
-      "legacy": true,
-      "path": "scripts/tasks-bulk-toolbar-shell-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 25,
-      "description": "Protects the legacy tasks canonical editor opener contract.",
-      "id": "legacy.tasks.canonical.editor.opener",
-      "legacy": true,
-      "path": "scripts/tasks-canonical-editor-opener-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 20,
-      "description": "Protects the legacy tasks checklist escape hatch contract.",
-      "id": "legacy.tasks.checklist.escape.hatch",
-      "legacy": true,
-      "path": "scripts/tasks-checklist-escape-hatch-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 39,
-      "description": "Protects the legacy tasks declarative readonly surface contract.",
-      "id": "legacy.tasks.declarative.readonly.surface",
-      "legacy": true,
-      "path": "scripts/tasks-declarative-readonly-surface-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 23,
-      "description": "Protects the legacy tasks detail read panel contract.",
-      "id": "legacy.tasks.detail.read.panel",
-      "legacy": true,
-      "path": "scripts/tasks-detail-read-panel-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 29,
-      "description": "Protects the legacy tasks filter sidebar anatomy contract.",
-      "id": "legacy.tasks.filter.sidebar.anatomy",
-      "legacy": true,
-      "path": "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 32,
-      "description": "Protects the legacy tasks lifecycle action descriptor contract.",
-      "id": "legacy.tasks.lifecycle.action.descriptor",
-      "legacy": true,
-      "path": "scripts/tasks-lifecycle-action-descriptor-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 29,
-      "description": "Protects the legacy tasks list surface boundary contract.",
-      "id": "legacy.tasks.list.surface.boundary",
-      "legacy": true,
-      "path": "scripts/tasks-list-surface-boundary-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 29,
-      "description": "Protects the legacy tasks modal context sections contract.",
-      "id": "legacy.tasks.modal.context.sections",
-      "legacy": true,
-      "path": "scripts/tasks-modal-context-sections-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 32,
-      "description": "Protects the legacy tasks modal shell contract.",
-      "id": "legacy.tasks.modal.shell",
-      "legacy": true,
-      "path": "scripts/tasks-modal-shell-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
       "assertionCount": 29,
       "description": "Protects the legacy tasks primary repository conversion contract.",
       "id": "legacy.tasks.primary.repository.conversion",
@@ -6192,44 +6083,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 36,
-      "description": "Protects the legacy tasks readonly list binding contract.",
-      "id": "legacy.tasks.readonly.list.binding",
-      "legacy": true,
-      "path": "scripts/tasks-readonly-list-binding-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 20,
-      "description": "Protects the legacy tasks recurrence reminder escape hatch contract.",
-      "id": "legacy.tasks.recurrence.reminder.escape.hatch",
-      "legacy": true,
-      "path": "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "jobs"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 41,
-      "description": "Protects the legacy tasks relationship linked context contract.",
-      "id": "legacy.tasks.relationship.linked.context",
-      "legacy": true,
-      "path": "scripts/tasks-relationship-linked-context-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "tasks",
@@ -6247,46 +6100,6 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 40,
-      "description": "Protects the legacy tasks strict guardrail inventory contract.",
-      "id": "legacy.tasks.strict.guardrail.inventory",
-      "legacy": true,
-      "path": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "contract"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 31,
-      "description": "Protects the legacy tasks tags files child dialog contract.",
-      "id": "legacy.tasks.tags.files.child.dialog",
-      "legacy": true,
-      "path": "scripts/tasks-tags-files-child-dialog-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [
-        "files"
-      ],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
-      "assertionCount": 64,
-      "description": "Protects the legacy tasks timer utility escape hatch contract.",
-      "id": "legacy.tasks.timer.utility.escape.hatch",
-      "legacy": true,
-      "path": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "tasks",
       "assertionCount": 25,
       "description": "Protects the legacy tasks view selector query contract contract.",
       "id": "legacy.tasks.view.selector.query.contract",
@@ -6301,18 +6114,6 @@
       "tier": "integration"
     },
     {
-      "area": "tasks",
-      "assertionCount": 40,
-      "description": "Protects the legacy tasks workflow action descriptor contract.",
-      "id": "legacy.tasks.workflow.action.descriptor",
-      "legacy": true,
-      "path": "scripts/tasks-workflow-action-descriptor-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
       "area": "time-tracking",
       "assertionCount": 32,
       "description": "Protects the legacy time entries repository conversion contract.",
@@ -6325,30 +6126,6 @@
         "database"
       ],
       "tier": "integration"
-    },
-    {
-      "area": "time-tracking",
-      "assertionCount": 75,
-      "description": "Protects the legacy time entries screen contract.",
-      "id": "legacy.time.entries.screen",
-      "legacy": true,
-      "path": "scripts/time-entries-screen-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "time-tracking",
-      "assertionCount": 39,
-      "description": "Protects the legacy time tracking create timer modal contract.",
-      "id": "legacy.time.tracking.create.timer.modal",
-      "legacy": true,
-      "path": "scripts/time-tracking-create-timer-modal-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
     },
     {
       "area": "time-tracking",
@@ -6579,102 +6356,6 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 23,
-      "description": "Protects the legacy workbench collapsible sections contract.",
-      "id": "legacy.workbench.collapsible.sections",
-      "legacy": true,
-      "path": "scripts/workbench-collapsible-sections-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 28,
-      "description": "Protects the legacy workbench guided ui contract.",
-      "id": "legacy.workbench.guided.ui",
-      "legacy": true,
-      "path": "scripts/workbench-guided-ui-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 12,
-      "description": "Protects the legacy workbench host status copy contract.",
-      "id": "legacy.workbench.host.status.copy",
-      "legacy": true,
-      "path": "scripts/workbench-host-status-copy-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 24,
-      "description": "Protects the legacy workbench in place open work contract.",
-      "id": "legacy.workbench.in.place.open.work",
-      "legacy": true,
-      "path": "scripts/workbench-in-place-open-work-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 31,
-      "description": "Protects the legacy workbench inspector panel contract.",
-      "id": "legacy.workbench.inspector.panel",
-      "legacy": true,
-      "path": "scripts/workbench-inspector-panel-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 32,
-      "description": "Protects the legacy workbench recommended cycling contract.",
-      "id": "legacy.workbench.recommended.cycling",
-      "legacy": true,
-      "path": "scripts/workbench-recommended-cycling-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 21,
-      "description": "Protects the legacy workbench remove all tasks list contract.",
-      "id": "legacy.workbench.remove.all.tasks.list",
-      "legacy": true,
-      "path": "scripts/workbench-remove-all-tasks-list-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 14,
-      "description": "Protects the legacy workbench remove quick notes contract.",
-      "id": "legacy.workbench.remove.quick.notes",
-      "legacy": true,
-      "path": "scripts/workbench-remove-quick-notes-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
       "assertionCount": 27,
       "description": "Protects the legacy workbench service dehardcode contract.",
       "id": "legacy.workbench.service.dehardcode",
@@ -6687,107 +6368,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 13,
-      "description": "Protects the legacy workbench split focus filters contract.",
-      "id": "legacy.workbench.split.focus.filters",
-      "legacy": true,
-      "path": "scripts/workbench-split-focus-filters-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 27,
-      "description": "Protects the legacy workbench task focus checklist contract.",
-      "id": "legacy.workbench.task.focus.checklist",
-      "legacy": true,
-      "path": "scripts/workbench-task-focus-checklist-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 18,
-      "description": "Protects the legacy workbench task focus linked note view contract.",
-      "id": "legacy.workbench.task.focus.linked.note.view",
-      "legacy": true,
-      "path": "scripts/workbench-task-focus-linked-note-view-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
       "assertionCount": 48,
       "description": "Protects the legacy workbench task focus related context contract.",
       "id": "legacy.workbench.task.focus.related.context",
       "legacy": true,
       "path": "scripts/workbench-task-focus-related-context-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 23,
-      "description": "Protects the legacy workbench task focus related context ui contract.",
-      "id": "legacy.workbench.task.focus.related.context.ui",
-      "legacy": true,
-      "path": "scripts/workbench-task-focus-related-context-ui-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 37,
-      "description": "Protects the legacy workbench task focus surface contract.",
-      "id": "legacy.workbench.task.focus.surface",
-      "legacy": true,
-      "path": "scripts/workbench-task-focus-surface-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 51,
-      "description": "Protects the legacy workbench task focus timer contract.",
-      "id": "legacy.workbench.task.focus.timer",
-      "legacy": true,
-      "path": "scripts/workbench-task-focus-timer-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 6,
-      "description": "Protects the legacy workbench task ordering contract.",
-      "id": "legacy.workbench.task.ordering",
-      "legacy": true,
-      "path": "scripts/workbench-task-ordering-regression.mjs",
-      "releaseGate": false,
-      "runMode": "static",
-      "tags": [],
-      "tier": "focused"
-    },
-    {
-      "area": "workbench",
-      "assertionCount": 29,
-      "description": "Protects the legacy workbench view state contract.",
-      "id": "legacy.workbench.view.state",
-      "legacy": true,
-      "path": "scripts/workbench-view-state-regression.mjs",
       "releaseGate": false,
       "runMode": "static",
       "tags": [],
@@ -7097,6 +6682,122 @@
       "runMode": "static"
     },
     {
+      "script": "scripts/lists-declarative-readonly-surface-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs and execute through lists.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "lists.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/lists/current-static-contracts.regression.mjs",
+        "npm run test:regressions:lists",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs"
+        ]
+      },
+      "id": "legacy.lists.declarative.readonly.surface",
+      "area": "lists",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/lists-items-modals-descriptor-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 40 source assertions remain in scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs and execute through lists.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "lists.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/lists/current-static-contracts.regression.mjs",
+        "npm run test:regressions:lists",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 40,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs"
+        ]
+      },
+      "id": "legacy.lists.items.modals.descriptor",
+      "area": "lists",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/lists-view-builder-pilot-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 29 source assertions remain in scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs and execute through lists.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "lists.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/lists/current-static-contracts.regression.mjs",
+        "npm run test:regressions:lists",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 29,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs"
+        ]
+      },
+      "id": "legacy.lists.view.builder.pilot",
+      "area": "lists",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/lists-workflow-linked-layout-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 41 source assertions remain in scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs and execute through lists.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "lists.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/lists/current-static-contracts.regression.mjs",
+        "npm run test:regressions:lists",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 41,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs"
+        ]
+      },
+      "id": "legacy.lists.workflow.linked.layout",
+      "area": "lists",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/markdown-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7287,6 +6988,157 @@
       "floorCredit": false
     },
     {
+      "script": "scripts/notes-context-terminology-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 24 source assertions remain in scripts/regression-contracts/notes/notes-context-terminology.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 24,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.context.terminology",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/notes-declarative-readonly-surface-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 85 source assertions remain in scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 85,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.declarative.readonly.surface",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/notes-developer-docs-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 8 source assertions remain in scripts/regression-contracts/notes/notes-developer-docs.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 8,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-developer-docs.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.developer.docs",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [
+        "docs"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/notes-file-preview-actions-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 25 source assertions remain in scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 25,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.file.preview.actions",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [
+        "files"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/notes-files-stacked-modal-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 24 source assertions remain in scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 24,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.files.stacked.modal",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [
+        "files"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/notes-import-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -7319,6 +7171,64 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/notes-tags-stacked-modal-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 20 source assertions remain in scripts/regression-contracts/notes/notes-tags-stacked-modal.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 20,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-tags-stacked-modal.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.tags.stacked.modal",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/notes-tasks-modal-footer-visual-parity-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs"
+        ]
+      },
+      "id": "legacy.notes.tasks.modal.footer.visual.parity",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/overlay-host-contract-regression.mjs",
@@ -7621,6 +7531,42 @@
       "runMode": "static"
     },
     {
+      "script": "scripts/regressions/notes/notes-critical-quick-fixes.regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 17 source assertions remain in scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs and execute through notes.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "npm run test:regressions:notes",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 17,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs"
+        ]
+      },
+      "id": "notes.notes-critical-quick-fixes",
+      "area": "notes",
+      "tier": "focused",
+      "tags": [
+        "bulk-edit",
+        "collections",
+        "modal",
+        "notes",
+        "permissions",
+        "selection"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/regressions/permissions/delegated-role-assignment-browser.regression.mjs",
       "retiredInVersion": "0.33.33.4",
       "retirementType": "assertions-moved",
@@ -7914,6 +7860,78 @@
       "legacy": false
     },
     {
+      "script": "scripts/regressions/tasks/task-critical-quick-fixes.regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 52 source assertions remain in scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 52,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs"
+        ]
+      },
+      "id": "tasks.task-critical-quick-fixes",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [
+        "blocked-reason",
+        "checklist",
+        "modal",
+        "parent-child",
+        "tags",
+        "tasks",
+        "workbench"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/tasks/task-editor-workbench-handoff.regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 17 source assertions remain in scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 17,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs"
+        ]
+      },
+      "id": "tasks.task-editor-workbench-handoff",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [
+        "deep-link",
+        "guardrail",
+        "modal",
+        "tasks",
+        "workbench"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/regressions/views/calendar-host.regression.mjs",
       "retiredInVersion": "0.33.33.9",
       "retirementType": "assertions-moved",
@@ -8157,6 +8175,41 @@
       "runMode": "static"
     },
     {
+      "script": "scripts/regressions/workbench/task-focus-deep-link.regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 18 source assertions remain in scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs"
+        ]
+      },
+      "id": "workbench.task-focus-deep-link",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [
+        "dashboard",
+        "deep-link",
+        "guardrail",
+        "tasks",
+        "workbench"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/remaining-icon-actions-regression.mjs",
       "retiredInVersion": "0.33.33.9",
       "retirementType": "assertions-moved",
@@ -8201,6 +8254,35 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/search-results-page-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 41 source assertions remain in scripts/regression-contracts/search/search-results-page.contract.mjs and execute through search.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "search.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/search/current-static-contracts.regression.mjs",
+        "npm run test:regressions:search",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 41,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/search/search-results-page.contract.mjs"
+        ]
+      },
+      "id": "legacy.search.results.page",
+      "area": "search",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/shared-icons-regression.mjs",
@@ -8343,6 +8425,389 @@
       "runMode": "static"
     },
     {
+      "script": "scripts/tag-inline-picker-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 30 source assertions remain in scripts/regression-contracts/tags/tag-inline-picker.contract.mjs and execute through tags.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tags.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tags/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tags",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 30,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tags/tag-inline-picker.contract.mjs"
+        ]
+      },
+      "id": "legacy.tag.inline.picker",
+      "area": "tags",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tag-management-page-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 19 source assertions remain in scripts/regression-contracts/tags/tag-management-page.contract.mjs and execute through tags.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tags.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tags/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tags",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 19,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tags/tag-management-page.contract.mjs"
+        ]
+      },
+      "id": "legacy.tag.management.page",
+      "area": "tags",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tag-record-workflow-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 25 source assertions remain in scripts/regression-contracts/tags/tag-record-workflow.contract.mjs and execute through tags.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tags.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tags/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tags",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 25,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs"
+        ]
+      },
+      "id": "legacy.tag.record.workflow",
+      "area": "tags",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tag-usability-ui-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 32 source assertions remain in scripts/regression-contracts/tags/tag-usability-ui.contract.mjs and execute through tags.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tags.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tags/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tags",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 32,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tags/tag-usability-ui.contract.mjs"
+        ]
+      },
+      "id": "legacy.tag.usability.ui",
+      "area": "tags",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-checklist-editor-display-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 12 source assertions remain in scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 12,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.checklist.editor.display",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-list-canonical-ui-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 22 source assertions remain in scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 22,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.list.canonical.ui",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-list-density-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 19 source assertions remain in scripts/regression-contracts/tasks/task-list-density.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 19,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-list-density.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.list.density",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-modal-compact-layout-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 30 source assertions remain in scripts/regression-contracts/tasks/task-modal-compact-layout.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 30,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-modal-compact-layout.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.modal.compact.layout",
+      "area": "tasks",
+      "tier": "integration",
+      "tags": [
+        "database"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-modal-followup-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/tasks/task-modal-followup.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-modal-followup.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.modal.followup",
+      "area": "tasks",
+      "tier": "integration",
+      "tags": [
+        "database"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/task-modal-reflow-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/tasks/task-modal-reflow.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/task-modal-reflow.contract.mjs"
+        ]
+      },
+      "id": "legacy.task.modal.reflow",
+      "area": "tasks",
+      "tier": "integration",
+      "tags": [
+        "database"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-bulk-toolbar-shell-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.bulk.toolbar.shell",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-canonical-editor-opener-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 25 source assertions remain in scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 25,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.canonical.editor.opener",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-checklist-escape-hatch-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 20 source assertions remain in scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 20,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.checklist.escape.hatch",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
       "script": "scripts/tasks-conversion-closeout-regression.mjs",
       "retiredInVersion": "0.33.5.29.5",
       "retirementType": "assertions-moved",
@@ -8358,6 +8823,476 @@
         "npm run verify:slice"
       ],
       "floorCredit": false
+    },
+    {
+      "script": "scripts/tasks-declarative-readonly-surface-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.declarative.readonly.surface",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-detail-read-panel-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.detail.read.panel",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 29 source assertions remain in scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 29,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.filter.sidebar.anatomy",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-lifecycle-action-descriptor-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 32 source assertions remain in scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 32,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.lifecycle.action.descriptor",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-list-surface-boundary-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 29 source assertions remain in scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 29,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.list.surface.boundary",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-modal-context-sections-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 29 source assertions remain in scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 29,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.modal.context.sections",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-modal-shell-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 32 source assertions remain in scripts/regression-contracts/tasks/tasks-modal-shell.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 32,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-modal-shell.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.modal.shell",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-readonly-list-binding-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 36 source assertions remain in scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 36,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.readonly.list.binding",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 20 source assertions remain in scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 20,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.recurrence.reminder.escape.hatch",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [
+        "jobs"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-relationship-linked-context-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 41 source assertions remain in scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 41,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.relationship.linked.context",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 40 source assertions remain in scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 40,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.strict.guardrail.inventory",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [
+        "contract"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-tags-files-child-dialog-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 31 source assertions remain in scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 31,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.tags.files.child.dialog",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [
+        "files"
+      ],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 64 source assertions remain in scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 64,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.timer.utility.escape.hatch",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/tasks-workflow-action-descriptor-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 40 source assertions remain in scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs and execute through tasks.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "npm run test:regressions:tasks",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 40,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs"
+        ]
+      },
+      "id": "legacy.tasks.workflow.action.descriptor",
+      "area": "tasks",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/time-entries-screen-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 75 source assertions remain in scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs and execute through time-tracking.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "time-tracking.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/time-tracking/current-static-contracts.regression.mjs",
+        "npm run test:regressions:time-tracking",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 75,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs"
+        ]
+      },
+      "id": "legacy.time.entries.screen",
+      "area": "time-tracking",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/time-tracking-create-timer-modal-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 39 source assertions remain in scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs and execute through time-tracking.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "time-tracking.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/time-tracking/current-static-contracts.regression.mjs",
+        "npm run test:regressions:time-tracking",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 39,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs"
+        ]
+      },
+      "id": "legacy.time.tracking.create.timer.modal",
+      "area": "time-tracking",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
     },
     {
       "script": "scripts/ui-contract-regression.mjs",
@@ -8655,6 +9590,470 @@
       },
       "id": "legacy.view.renderer.shell",
       "area": "views",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-collapsible-sections-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.collapsible.sections",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-guided-ui-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 28 source assertions remain in scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 28,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.guided.ui",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-host-status-copy-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 12 source assertions remain in scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 12,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.host.status.copy",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-in-place-open-work-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 24 source assertions remain in scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 24,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.in.place.open.work",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-inspector-panel-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 31 source assertions remain in scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 31,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.inspector.panel",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-recommended-cycling-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 32 source assertions remain in scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 32,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.recommended.cycling",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-remove-all-tasks-list-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 21 source assertions remain in scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 21,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.remove.all.tasks.list",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-remove-quick-notes-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 14 source assertions remain in scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 14,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.remove.quick.notes",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-split-focus-filters-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 13 source assertions remain in scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 13,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.split.focus.filters",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-focus-checklist-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 27 source assertions remain in scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 27,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.focus.checklist",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-focus-linked-note-view-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 18 source assertions remain in scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 18,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.focus.linked.note.view",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-focus-related-context-ui-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 23 source assertions remain in scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 23,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.focus.related.context.ui",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-focus-surface-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 37 source assertions remain in scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 37,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.focus.surface",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-focus-timer-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 51 source assertions remain in scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 51,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.focus.timer",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-task-ordering-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 6 source assertions remain in scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 6,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.task.ordering",
+      "area": "workbench",
+      "tier": "focused",
+      "tags": [],
+      "legacy": true,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/workbench-view-state-regression.mjs",
+      "retiredInVersion": "0.33.33.10",
+      "retirementType": "assertions-moved",
+      "rationale": "The pure source assertion body moved unchanged into a non-discovered contract module under one table-driven workflow-module owner.",
+      "assertionDisposition": "All 29 source assertions remain in scripts/regression-contracts/workbench/workbench-view-state.contract.mjs and execute through workbench.current-static-contracts; database, service, permission, lifecycle, job, and browser-rendered owners remain separate.",
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "npm run test:regressions:workbench",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 29,
+        "creditedAssertionReduction": 0,
+        "ownerPaths": [
+          "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs"
+        ]
+      },
+      "id": "legacy.workbench.view.state",
+      "area": "workbench",
       "tier": "focused",
       "tags": [],
       "legacy": true,
