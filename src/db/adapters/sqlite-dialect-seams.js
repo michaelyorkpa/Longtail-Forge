@@ -102,6 +102,7 @@ function createSqliteDialectSeams() {
   });
 }
 
+/** @param {string} tableName */
 function insertOrIgnoreInto(tableName) {
   return `INSERT OR IGNORE INTO ${normalizeSqlIdentifier(tableName, "table name")}`;
 }
@@ -149,10 +150,12 @@ function buildInsertOnAnyConflictDoUpdate(options) {
   ]);
 }
 
+/** @param {readonly string[]} conflictColumns */
 function onConflictDoNothing(conflictColumns) {
   return `ON CONFLICT(${normalizeIdentifierList(conflictColumns, "conflict column")}) DO NOTHING`;
 }
 
+/** @param {readonly string[]} conflictColumns @param {readonly string[]} updateColumns */
 function onConflictDoUpdateSet(conflictColumns, updateColumns) {
   const assignments = normalizeIdentifierArray(updateColumns, "update column")
     .map((column) => `${column} = excluded.${column}`)
@@ -161,6 +164,7 @@ function onConflictDoUpdateSet(conflictColumns, updateColumns) {
   return `ON CONFLICT(${normalizeIdentifierList(conflictColumns, "conflict column")}) DO UPDATE SET ${assignments}`;
 }
 
+/** @param {readonly string[]} updateColumns */
 function onAnyConflictDoUpdateSet(updateColumns) {
   const assignments = normalizeIdentifierArray(updateColumns, "update column")
     .map((column) => `${column} = excluded.${column}`)
@@ -169,15 +173,18 @@ function onAnyConflictDoUpdateSet(updateColumns) {
   return `ON CONFLICT DO UPDATE SET ${assignments}`;
 }
 
+/** @param {string} columnName */
 function excludedColumn(columnName) {
   const column = normalizeSqlIdentifier(columnName, "excluded column");
   return `excluded.${column}`;
 }
 
+/** @param {string} expressionSql */
 function collateNoCase(expressionSql) {
   return `${normalizeSqlFragment(expressionSql, "case-insensitive expression")} COLLATE NOCASE`;
 }
 
+/** @param {string} leftSql @param {string} rightSql */
 function equalsNoCase(leftSql, rightSql) {
   return `${normalizeSqlFragment(leftSql, "case-insensitive left expression")} = ${collateNoCase(rightSql)}`;
 }
@@ -335,24 +342,29 @@ function readSqliteBooleanFields(row, fieldNames, options = {}) {
   return /** @type {import("../../types/database-contracts.js").DatabaseBooleanReadFields<RecordType, FieldName>} */ (nextRow);
 }
 
+/** @param {string} laterExpressionSql @param {string} earlierExpressionSql */
 function secondsBetween(laterExpressionSql, earlierExpressionSql) {
   const later = normalizeSqlFragment(laterExpressionSql, "later timestamp expression");
   const earlier = normalizeSqlFragment(earlierExpressionSql, "earlier timestamp expression");
   return `CAST((julianday(${later}) - julianday(${earlier})) * 86400 AS INTEGER)`;
 }
 
+/** @param {string} laterExpressionSql @param {string} earlierExpressionSql */
 function nonNegativeSecondsBetween(laterExpressionSql, earlierExpressionSql) {
   return `MAX(0, ${secondsBetween(laterExpressionSql, earlierExpressionSql)})`;
 }
 
+/** @param {string} timestampExpressionSql @param {string} [referenceExpressionSql] */
 function elapsedSecondsSince(timestampExpressionSql, referenceExpressionSql = ":now") {
   return nonNegativeSecondsBetween(referenceExpressionSql, timestampExpressionSql);
 }
 
+/** @param {string} tableName @param {string} queryExpressionSql */
 function match(tableName, queryExpressionSql) {
   return `${normalizeSqlIdentifier(tableName, "FTS table name")} MATCH ${normalizeSqlFragment(queryExpressionSql, "FTS query expression")}`;
 }
 
+/** @param {string} tableName */
 function rank(tableName) {
   return `bm25(${normalizeSqlIdentifier(tableName, "FTS table name")})`;
 }
@@ -366,10 +378,12 @@ function createVirtualTable(tableName, columns) {
   return `CREATE VIRTUAL TABLE IF NOT EXISTS ${normalizeSqlIdentifier(tableName, "FTS table name")} USING fts5(\n  ${columnDefinitions}\n)`;
 }
 
+/** @param {string} tableName */
 function dropVirtualTable(tableName) {
   return `DROP TABLE IF EXISTS ${normalizeSqlIdentifier(tableName, "FTS table name")}`;
 }
 
+/** @param {readonly string[]} returningColumns */
 function columns(returningColumns) {
   return `RETURNING ${normalizeIdentifierList(returningColumns, "returning column")}`;
 }
@@ -430,6 +444,7 @@ function compileOptions() {
   return "PRAGMA compile_options;";
 }
 
+/** @param {string} tableName */
 function tableInfo(tableName) {
   return `PRAGMA table_info(${normalizeSqlIdentifier(tableName, "table name")});`;
 }
@@ -438,6 +453,7 @@ function tableNames() {
   return "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
 }
 
+/** @param {string} tableName @param {string} scopeColumn */
 function scopedTableRows(tableName, scopeColumn) {
   const normalizedTable = normalizeSqlIdentifier(tableName, "table name");
   const normalizedScopeColumn = normalizeSqlIdentifier(scopeColumn, "scope column");
@@ -489,13 +505,14 @@ function normalizeInsertValues(columnNames, valueExpressions) {
   }
 
   if (typeof valueExpressions === "object") {
+    const expressionsByColumn = /** @type {Readonly<Record<string, string>>} */ (valueExpressions);
     return columnNames
       .map((columnName) => {
-        if (!Object.hasOwn(valueExpressions, columnName)) {
+        if (!Object.hasOwn(expressionsByColumn, columnName)) {
           throw new Error(`Missing insert value expression for column ${columnName}.`);
         }
 
-        return normalizeSqlFragment(valueExpressions[columnName], "insert value expression");
+        return normalizeSqlFragment(expressionsByColumn[columnName], "insert value expression");
       })
       .join(", ");
   }
@@ -503,16 +520,19 @@ function normalizeInsertValues(columnNames, valueExpressions) {
   throw new Error("insert value expressions must be an array or object keyed by insert column.");
 }
 
+/** @param {readonly unknown[]} lines */
 function composeSqlLines(lines) {
   return lines
     .filter((line) => String(line || "").trim())
     .join("\n");
 }
 
+/** @param {readonly string[]} identifiers @param {string} label */
 function normalizeIdentifierList(identifiers, label) {
   return normalizeIdentifierArray(identifiers, label).join(", ");
 }
 
+/** @param {readonly string[]} identifiers @param {string} label */
 function normalizeIdentifierArray(identifiers, label) {
   if (!Array.isArray(identifiers) || identifiers.length === 0) {
     throw new Error(`${label} list must contain at least one identifier.`);
@@ -521,6 +541,7 @@ function normalizeIdentifierArray(identifiers, label) {
   return identifiers.map((identifier) => normalizeSqlIdentifier(identifier, label));
 }
 
+/** @param {readonly DatabaseFtsColumn[]} columns */
 function normalizeFtsColumnDefinitions(columns) {
   if (!Array.isArray(columns) || columns.length === 0) {
     throw new Error("FTS column list must contain at least one column.");
@@ -542,6 +563,7 @@ function normalizeFtsColumnDefinitions(columns) {
   });
 }
 
+/** @param {readonly PropertyKey[]} fieldNames @param {string} label */
 function normalizeFieldNameArray(fieldNames, label) {
   if (!Array.isArray(fieldNames) || fieldNames.length === 0) {
     throw new Error(`${label} list must contain at least one field name.`);
@@ -550,6 +572,7 @@ function normalizeFieldNameArray(fieldNames, label) {
   return fieldNames.map((fieldName) => normalizeObjectFieldName(fieldName, label));
 }
 
+/** @param {unknown} fieldName @param {string} [label] */
 function normalizeObjectFieldName(fieldName, label = "field name") {
   const text = String(fieldName || "").trim();
 
@@ -560,6 +583,7 @@ function normalizeObjectFieldName(fieldName, label = "field name") {
   return text;
 }
 
+/** @param {unknown} identifier @param {string} [label] */
 function normalizeSqlIdentifier(identifier, label = "SQL identifier") {
   const text = String(identifier || "").trim();
 
@@ -570,6 +594,7 @@ function normalizeSqlIdentifier(identifier, label = "SQL identifier") {
   return text;
 }
 
+/** @param {unknown} fragment @param {string} [label] */
 function normalizeSqlFragment(fragment, label = "SQL fragment") {
   const text = String(fragment || "").trim();
 
@@ -584,6 +609,7 @@ function normalizeSqlFragment(fragment, label = "SQL fragment") {
   return text;
 }
 
+/** @param {DatabaseSortDirection | undefined} direction */
 function normalizeSortDirection(direction) {
   const text = String(direction || "ASC").trim().toUpperCase();
 
@@ -594,6 +620,7 @@ function normalizeSortDirection(direction) {
   throw new Error(`Invalid sort direction: ${direction}.`);
 }
 
+/** @param {unknown} [value] */
 function normalizeLikeEscapeCharacter(value = "\\") {
   const text = String(value || "\\");
 
@@ -604,6 +631,7 @@ function normalizeLikeEscapeCharacter(value = "\\") {
   return text;
 }
 
+/** @param {unknown} value */
 function normalizeLikePatternMode(value) {
   const text = String(value || "contains").trim().toLowerCase();
 
@@ -623,6 +651,7 @@ function normalizeLikePatternMode(value) {
   throw new Error(`Invalid LIKE pattern mode: ${value}.`);
 }
 
+/** @param {DatabaseBooleanInput} value @returns {DatabaseBooleanReadValue} */
 function normalizeLogicalBoolean(value) {
   if (value === null || value === undefined) {
     return null;
@@ -654,6 +683,7 @@ function normalizeLogicalBoolean(value) {
   throw new Error("Boolean value must be null, boolean, numeric, or a recognized boolean string.");
 }
 
+/** @param {unknown} value */
 function quoteSqlStringLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }

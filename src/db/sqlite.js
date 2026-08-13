@@ -12,8 +12,12 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterInput} DatabaseParameterInput */
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterToken} DatabaseParameterToken */
 /** @typedef {import("../types/database-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").NormalizedDatabaseParameters} NormalizedDatabaseParameters */
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {DatabaseParameterValue[] | Record<string, DatabaseParameterValue | DatabaseParameterValue[] | undefined>} SqliteStatementBindings */
 
 /**
  * @typedef {Object} SqliteHealth
@@ -31,9 +35,9 @@ import {
 /**
  * @typedef {Object} SqliteStatement
  * @property {boolean} reader
- * @property {(bindings?: DatabaseParameterValue[]) => unknown} run
- * @property {(bindings?: DatabaseParameterValue[]) => DatabaseRow[]} all
- * @property {(bindings?: DatabaseParameterValue[]) => DatabaseRow | undefined} get
+ * @property {(bindings?: SqliteStatementBindings) => unknown} run
+ * @property {(bindings?: SqliteStatementBindings) => DatabaseRow[]} all
+ * @property {(bindings?: SqliteStatementBindings) => DatabaseRow | undefined} get
  */
 /**
  * @typedef {Object} SqliteDatabase
@@ -79,6 +83,7 @@ async function runSql(sql, params = undefined, analysis = undefined) {
  * @param {string} sql
  * @param {DatabaseParameterValue[]} [params]
  * @param {PreparedStatementAnalysis} [analysis]
+ * @returns {Promise<DatabaseRow[]>}
  */
 async function querySql(sql, params = undefined, analysis = undefined) {
   return executeQuerySql(sql, normalizeSqliteParameters(params), analysis);
@@ -88,6 +93,7 @@ async function querySql(sql, params = undefined, analysis = undefined) {
  * @param {string} sql
  * @param {DatabaseParameterValue[]} [params]
  * @param {PreparedStatementAnalysis} [analysis]
+ * @returns {Promise<DatabaseRow | null>}
  */
 async function getSql(sql, params = undefined, analysis = undefined) {
   return executeGetSql(sql, normalizeSqliteParameters(params), analysis);
@@ -140,7 +146,8 @@ async function readSqliteHealth() {
     querySql("PRAGMA temp_store;"),
     querySql("PRAGMA mmap_size;"),
   ]);
-  const databaseFile = databaseRows.find((row) => row.name === "main")?.file || config.databaseFile;
+  const databaseFileValue = databaseRows.find((row) => row.name === "main")?.file;
+  const databaseFile = typeof databaseFileValue === "string" ? databaseFileValue : config.databaseFile;
 
   return {
     provider: "sqlite",
@@ -156,16 +163,19 @@ async function readSqliteHealth() {
   };
 }
 
+/** @param {unknown} value */
 function sqliteSynchronousModeName(value) {
   const names = ["off", "normal", "full", "extra"];
   return names[Number(value)] || "unknown";
 }
 
+/** @param {unknown} value */
 function sqliteTempStoreName(value) {
   const names = ["default", "file", "memory"];
   return names[Number(value)] || "unknown";
 }
 
+/** @param {unknown} cacheSize @param {unknown} pageSize @returns {number | null} */
 function sqliteCacheSizeKib(cacheSize, pageSize) {
   const value = Number(cacheSize);
 
@@ -260,6 +270,7 @@ function applyStartupPragmas(database) {
 }
 
 /** @param {PreparedStatementAnalysis} [analysis] */
+/** @param {string} sql @param {NormalizedDatabaseParameters} parameters @param {PreparedStatementAnalysis} [analysis] */
 function executeRunSql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -289,6 +300,7 @@ function executeRunSql(sql, parameters, analysis = undefined) {
 }
 
 /** @param {PreparedStatementAnalysis} [analysis] */
+/** @param {string} sql @param {NormalizedDatabaseParameters} parameters @param {PreparedStatementAnalysis} [analysis] @returns {DatabaseRow[]} */
 function executeQuerySql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -322,6 +334,7 @@ function executeQuerySql(sql, parameters, analysis = undefined) {
 }
 
 /** @param {PreparedStatementAnalysis} [analysis] */
+/** @param {string} sql @param {NormalizedDatabaseParameters} parameters @param {PreparedStatementAnalysis} [analysis] @returns {DatabaseRow | null} */
 function executeGetSql(sql, parameters, analysis = undefined) {
   const text = String(sql || "").trim();
 
@@ -354,6 +367,7 @@ function executeGetSql(sql, parameters, analysis = undefined) {
   return executePreparedGet(text);
 }
 
+/** @param {string} sql @param {SqliteStatementBindings} [bindings] */
 function executePreparedRun(sql, bindings = undefined) {
   const statement = prepareCachedStatement(sql);
 
@@ -365,6 +379,7 @@ function executePreparedRun(sql, bindings = undefined) {
   runStatement(statement, bindings);
 }
 
+/** @param {string} sql @param {SqliteStatementBindings} [bindings] @returns {DatabaseRow[]} */
 function executePreparedQuery(sql, bindings = undefined) {
   const statement = prepareCachedStatement(sql);
 
@@ -376,6 +391,7 @@ function executePreparedQuery(sql, bindings = undefined) {
   return allStatement(statement, bindings);
 }
 
+/** @param {string} sql @param {SqliteStatementBindings} [bindings] @returns {DatabaseRow | null} */
 function executePreparedGet(sql, bindings = undefined) {
   const statement = prepareCachedStatement(sql);
 
@@ -388,6 +404,7 @@ function executePreparedGet(sql, bindings = undefined) {
   return row === undefined ? null : row;
 }
 
+/** @param {SqliteStatement} statement @param {SqliteStatementBindings | undefined} bindings */
 function runStatement(statement, bindings) {
   if (bindings === undefined) {
     return statement.run();
@@ -396,6 +413,7 @@ function runStatement(statement, bindings) {
   return statement.run(bindings);
 }
 
+/** @param {SqliteStatement} statement @param {SqliteStatementBindings | undefined} bindings */
 function allStatement(statement, bindings) {
   if (bindings === undefined) {
     return statement.all();
@@ -404,6 +422,7 @@ function allStatement(statement, bindings) {
   return statement.all(bindings);
 }
 
+/** @param {SqliteStatement} statement @param {SqliteStatementBindings | undefined} bindings */
 function getStatement(statement, bindings) {
   if (bindings === undefined) {
     return statement.get();
@@ -412,6 +431,7 @@ function getStatement(statement, bindings) {
   return statement.get(bindings);
 }
 
+/** @param {Record<string, DatabaseParameterInput> | DatabaseParameterInput[] | null | undefined} params @returns {NormalizedDatabaseParameters} */
 function normalizeSqliteParameters(params) {
   if (params === undefined || params === null) {
     return {
@@ -444,6 +464,7 @@ function normalizeSqliteParameters(params) {
 }
 
 /** @param {PreparedStatementAnalysis} [analysis] */
+/** @param {string} sql @param {NormalizedDatabaseParameters} parameters @param {PreparedStatementAnalysis} [analysis] */
 function resolveStatementBindings(sql, parameters, analysis = undefined) {
   if (analysis) {
     return resolvePreparedStatementBindings(parameters, analysis);
@@ -478,6 +499,7 @@ function resolveStatementBindings(sql, parameters, analysis = undefined) {
   };
 }
 
+/** @param {NormalizedDatabaseParameters} parameters @param {PreparedStatementAnalysis} analysis */
 function resolvePreparedStatementBindings(parameters, analysis) {
   const statementCount = analysis.statementCount;
 
@@ -501,6 +523,7 @@ function resolvePreparedStatementBindings(parameters, analysis) {
   };
 }
 
+/** @param {DatabaseParameterToken[]} tokens */
 function summarizeSqlParameterTokens(tokens) {
   const named = new Set();
   let positionalCount = 0;
@@ -520,6 +543,7 @@ function summarizeSqlParameterTokens(tokens) {
   };
 }
 
+/** @param {Set<string>} expectedNames @param {NormalizedDatabaseParameters} parameters */
 function resolveNamedStatementBindings(expectedNames, parameters) {
   const firstName = [...expectedNames][0];
 
@@ -545,6 +569,7 @@ function resolveNamedStatementBindings(expectedNames, parameters) {
   };
 }
 
+/** @param {number} expectedCount @param {NormalizedDatabaseParameters} parameters */
 function resolvePositionalStatementBindings(expectedCount, parameters) {
   if (parameters.kind !== "array") {
     throw new Error("SQLite positional parameters require an array.");
@@ -564,6 +589,7 @@ function resolvePositionalStatementBindings(expectedCount, parameters) {
   };
 }
 
+/** @param {NormalizedDatabaseParameters} parameters */
 function assertNoProvidedParameters(parameters) {
   if (parameters.kind === "object" && parameters.values.size > 0) {
     throw new Error(`Unknown database query parameter: ${parameters.values.keys().next().value}.`);
@@ -574,6 +600,7 @@ function assertNoProvidedParameters(parameters) {
   }
 }
 
+/** @param {unknown} name */
 function normalizeSqliteParameterName(name) {
   const text = String(name || "").trim();
   const bareName = text.match(/^[:@$]?([A-Za-z_][A-Za-z0-9_]*)$/)?.[1];
@@ -585,6 +612,7 @@ function normalizeSqliteParameterName(name) {
   return bareName;
 }
 
+/** @param {DatabaseParameterInput} value @returns {DatabaseParameterValue} */
 function normalizeSqliteParameterValue(value) {
   if (value === undefined || value === null) {
     return null;

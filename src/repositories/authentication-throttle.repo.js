@@ -2,7 +2,14 @@
 import { db } from "../core/database.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
 /** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {{ dimension: string, keyHash: string, scope: string }} AuthenticationThrottleKey */
+/** @typedef {{ dimension: string, failureCount: number, lockedUntil: number, newlyLocked: boolean }} AuthenticationThrottleFailureResult */
+/** @typedef {{ failureLimit: number, keys: AuthenticationThrottleKey[], lockoutMilliseconds: number, now: number, trackedKeyLimit: number, windowMilliseconds: number }} AuthenticationThrottleFailureOptions */
+/** @typedef {{ currentKeys: AuthenticationThrottleKey[], now: number, trackedKeyLimit: number }} AuthenticationThrottleLimitOptions */
+/** @typedef {DatabaseRow & { dimension: string, key_hash: string, scope: string }} AuthenticationThrottleKeyRow */
+/** @typedef {DatabaseRow & { count: unknown }} AuthenticationThrottleCountRow */
 /**
  * @typedef {Object} AuthenticationThrottleRow
  * @property {string} scope
@@ -52,7 +59,7 @@ const UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
 });
 
 /**
- * @param {any[]} keys
+ * @param {AuthenticationThrottleKey[]} keys
  * @param {number} now
  * @param {DatabaseAdapter} [database]
  */
@@ -71,8 +78,9 @@ async function readEntries(keys, now, database = db) {
 }
 
 /**
- * @param {any} options
+ * @param {AuthenticationThrottleFailureOptions} options
  * @param {DatabaseAdapter} [database]
+ * @returns {Promise<AuthenticationThrottleFailureResult[]>}
  */
 async function recordFailures({
   failureLimit,
@@ -132,7 +140,7 @@ async function recordFailures({
 }
 
 /**
- * @param {any[]} keys
+ * @param {AuthenticationThrottleKey[]} keys
  * @param {DatabaseAdapter} [database]
  */
 async function removeEntries(keys, database = db) {
@@ -157,7 +165,7 @@ async function cleanup(now, database = db) {
 }
 
 /**
- * @param {any} key
+ * @param {AuthenticationThrottleKey} key
  * @param {TransactionClient} database
  * @returns {Promise<AuthenticationThrottleRow | null>}
  */
@@ -182,7 +190,7 @@ LIMIT 1;
 }
 
 /**
- * @param {any} key
+ * @param {AuthenticationThrottleKey} key
  * @param {TransactionClient} database
  */
 async function removeEntry(key, database) {
@@ -199,13 +207,13 @@ WHERE scope = :scope
  * @param {TransactionClient} database
  */
 async function pruneExpired(now, database) {
-  const expired = await database.query(`
+  const expired = /** @type {AuthenticationThrottleKeyRow[]} */ (await database.query(`
 SELECT scope, dimension, key_hash
 FROM authentication_throttle_entries
 WHERE expires_at <= :now
 ORDER BY expires_at, updated_at
 LIMIT :limit;
-`, { limit: CLEANUP_BATCH_SIZE, now });
+`, { limit: CLEANUP_BATCH_SIZE, now }));
   for (const row of expired) {
     await removeEntry({
       dimension: row.dimension,
@@ -217,21 +225,21 @@ LIMIT :limit;
 }
 
 /**
- * @param {any} options
+ * @param {AuthenticationThrottleLimitOptions} options
  * @param {TransactionClient} database
  */
 async function enforceTrackedKeyLimit({ currentKeys, now, trackedKeyLimit }, database) {
-  const countRow = await database.get(`
+  const countRow = /** @type {AuthenticationThrottleCountRow | null} */ (await database.get(`
 SELECT COUNT(1) AS count
 FROM authentication_throttle_entries;
-`);
+`));
   let overflow = Math.max(0, Number(countRow?.count || 0) - trackedKeyLimit);
   if (overflow === 0) {
     return;
   }
 
   const protectedKeys = new Set(currentKeys.map(keyIdentity));
-  const candidates = await database.query(`
+  const candidates = /** @type {AuthenticationThrottleKeyRow[]} */ (await database.query(`
 SELECT scope, dimension, key_hash
 FROM authentication_throttle_entries
 WHERE locked_until <= :now
@@ -240,7 +248,7 @@ LIMIT :limit;
 `, {
     limit: overflow + protectedKeys.size,
     now,
-  });
+  }));
   for (const row of candidates) {
     const key = {
       dimension: row.dimension,
@@ -254,6 +262,7 @@ LIMIT :limit;
   }
 }
 
+/** @param {AuthenticationThrottleKey} key */
 function keyBindings(key) {
   return {
     dimension: key.dimension,
@@ -262,6 +271,7 @@ function keyBindings(key) {
   };
 }
 
+/** @param {AuthenticationThrottleKey} key */
 function keyIdentity(key) {
   return `${key.scope}:${key.dimension}:${key.keyHash}`;
 }

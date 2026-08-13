@@ -1,4 +1,9 @@
+// @ts-check
 import { createHash, randomBytes } from "node:crypto";
+
+/** @typedef {{ baselineDatabaseFile: string, baselineSha256: string, baselineSize: number, foreignKeyCheckPassed: true, integrityCheckPassed: true, migrationCount: number, migrationIdentitySha256: string, nonce: string, protocol: string, runnerPid: number }} VerifiedBaselineAttestation */
+/** @typedef {VerifiedBaselineAttestation & { attestationSha256: string }} VerifiedBaselineHandshake */
+/** @typedef {{ fastPathUsed: boolean, reason: string }} VerifiedBaselineDecision */
 import fsConstants from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -7,10 +12,14 @@ import path from "node:path";
 const VERIFIED_REGRESSION_BASELINE_PROTOCOL = "ltf-regression-baseline-v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
+/** @type {VerifiedBaselineHandshake | null} */
 let registeredHandshake = null;
+/** @type {string | null} */
 let materializedDatabaseFile = null;
+/** @type {Readonly<VerifiedBaselineDecision>} */
 let lastDecision = Object.freeze({ fastPathUsed: false, reason: "not-evaluated" });
 
+/** @param {{ baselineDatabaseFile: string, migrationCount: number, migrationIdentitySha256: string }} options */
 async function createVerifiedRegressionBaselineHandshake({
   baselineDatabaseFile,
   migrationCount,
@@ -39,6 +48,7 @@ async function createVerifiedRegressionBaselineHandshake({
   });
 }
 
+/** @param {unknown} handshake */
 function registerVerifiedRegressionBaselineHandshake(handshake) {
   if (registeredHandshake) {
     throw new Error("Verified regression baseline handshake was registered more than once.");
@@ -56,6 +66,7 @@ function hasRegisteredVerifiedRegressionBaselineHandshake() {
   return Boolean(registeredHandshake);
 }
 
+/** @param {{ databaseFile: string, databaseProvider: string }} options */
 async function materializeVerifiedRegressionBaseline({ databaseFile, databaseProvider }) {
   const handshake = registeredHandshake;
   registeredHandshake = null;
@@ -112,10 +123,11 @@ async function materializeVerifiedRegressionBaseline({ databaseFile, databasePro
     return true;
   } catch (error) {
     setDecision(false, "handshake-rejected");
-    throw new Error(`Verified regression baseline handshake rejected: ${error.message || error}`);
+    throw new Error(`Verified regression baseline handshake rejected: ${errorMessage(error)}`);
   }
 }
 
+/** @param {string} databaseFile */
 function consumeMaterializedVerifiedRegressionBaseline(databaseFile) {
   const resolvedDatabaseFile = path.resolve(databaseFile);
   if (!materializedDatabaseFile || materializedDatabaseFile !== resolvedDatabaseFile) {
@@ -130,37 +142,47 @@ function readVerifiedRegressionBaselineDecision() {
   return lastDecision;
 }
 
+/** @param {unknown} handshake @returns {asserts handshake is VerifiedBaselineHandshake} */
 function validateHandshakeShape(handshake) {
+  if (!handshake || typeof handshake !== "object") {
+    throw new Error("Verified regression baseline handshake is incomplete or malformed.");
+  }
+  const candidate = /** @type {Record<string, unknown>} */ (handshake);
   if (
-    !handshake
-    || handshake.protocol !== VERIFIED_REGRESSION_BASELINE_PROTOCOL
-    || !Number.isInteger(handshake.runnerPid)
-    || handshake.runnerPid <= 0
-    || typeof handshake.baselineDatabaseFile !== "string"
-    || !SHA256_PATTERN.test(String(handshake.baselineSha256 || ""))
-    || !Number.isSafeInteger(handshake.baselineSize)
-    || handshake.baselineSize <= 0
-    || !Number.isSafeInteger(handshake.migrationCount)
-    || handshake.migrationCount <= 0
-    || !SHA256_PATTERN.test(String(handshake.migrationIdentitySha256 || ""))
-    || !/^[a-f0-9]{64}$/.test(String(handshake.nonce || ""))
-    || handshake.integrityCheckPassed !== true
-    || handshake.foreignKeyCheckPassed !== true
-    || !SHA256_PATTERN.test(String(handshake.attestationSha256 || ""))
+    !candidate
+    || candidate.protocol !== VERIFIED_REGRESSION_BASELINE_PROTOCOL
+    || typeof candidate.runnerPid !== "number"
+    || !Number.isInteger(candidate.runnerPid)
+    || candidate.runnerPid <= 0
+    || typeof candidate.baselineDatabaseFile !== "string"
+    || !SHA256_PATTERN.test(String(candidate.baselineSha256 || ""))
+    || typeof candidate.baselineSize !== "number"
+    || !Number.isSafeInteger(candidate.baselineSize)
+    || candidate.baselineSize <= 0
+    || typeof candidate.migrationCount !== "number"
+    || !Number.isSafeInteger(candidate.migrationCount)
+    || candidate.migrationCount <= 0
+    || !SHA256_PATTERN.test(String(candidate.migrationIdentitySha256 || ""))
+    || !/^[a-f0-9]{64}$/.test(String(candidate.nonce || ""))
+    || candidate.integrityCheckPassed !== true
+    || candidate.foreignKeyCheckPassed !== true
+    || !SHA256_PATTERN.test(String(candidate.attestationSha256 || ""))
   ) {
     throw new Error("Verified regression baseline handshake is incomplete or malformed.");
   }
 
-  const { attestationSha256, ...attestation } = handshake;
+  const { attestationSha256, ...attestation } = candidate;
   if (hashHandshakeAttestation(attestation) !== attestationSha256) {
     throw new Error("Verified regression baseline handshake attestation does not match its contents.");
   }
 }
 
+/** @param {Record<string, unknown> | VerifiedBaselineAttestation} attestation */
 function hashHandshakeAttestation(attestation) {
   return createHash("sha256").update(JSON.stringify(attestation)).digest("hex");
 }
 
+/** @param {string} filePath */
 async function hashFile(filePath) {
   const hash = createHash("sha256");
   const handle = await fs.open(filePath, "r");
@@ -174,16 +196,18 @@ async function hashFile(filePath) {
   return hash.digest("hex");
 }
 
+/** @param {string} filePath */
 async function pathExists(filePath) {
   try {
     await fs.access(filePath);
     return true;
   } catch (error) {
-    if (error.code === "ENOENT") return false;
+    if (errorCode(error) === "ENOENT") return false;
     throw error;
   }
 }
 
+/** @param {string} candidatePath @param {string} label */
 function assertTemporaryPath(candidatePath, label) {
   const relativePath = path.relative(path.resolve(os.tmpdir()), candidatePath);
   if (
@@ -196,6 +220,17 @@ function assertTemporaryPath(candidatePath, label) {
   }
 }
 
+/** @param {unknown} error @returns {string} */
+function errorCode(error) {
+  return error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
+}
+
+/** @param {unknown} error @returns {string} */
+function errorMessage(error) {
+  return error && typeof error === "object" && "message" in error ? String(error.message || error) : String(error);
+}
+
+/** @param {boolean} fastPathUsed @param {string} reason */
 function setDecision(fastPathUsed, reason) {
   lastDecision = Object.freeze({ fastPathUsed, reason });
 }

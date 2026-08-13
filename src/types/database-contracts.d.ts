@@ -236,6 +236,54 @@ export interface DatabaseDialect {
   };
 }
 
+export type DatabaseStartupLifecycle =
+  | "background-job"
+  | "every-boot-coordination"
+  | "explicit-admin-cli-maintenance"
+  | "first-install-bootstrap"
+  | "health-readiness-assertion"
+  | "recurring-lightweight-check"
+  | "one-time-migration-versioned-repair";
+
+export interface DatabaseStartupContext extends Record<string, unknown> {
+  databaseHealth?: DatabaseHealth;
+}
+
+export interface DatabaseStartupOutcome {
+  reason?: string;
+  status?: "completed" | "skipped";
+}
+
+export interface DatabaseStartupAction<ContextType extends Record<string, unknown> = DatabaseStartupContext> {
+  id: string;
+  lifecycle: DatabaseStartupLifecycle;
+  owner: string;
+  run(context: ContextType): unknown | Promise<unknown>;
+}
+
+export type DatabaseStartupStatus = "completed" | "failed" | "skipped" | "started";
+
+export interface DatabaseStartupPhaseEvent {
+  durationMs: number;
+  errorType?: string;
+  id: string;
+  lifecycle: DatabaseStartupLifecycle;
+  owner: string;
+  reason?: string;
+  status: DatabaseStartupStatus;
+}
+
+export interface DatabaseStartupOptions<ContextType extends Record<string, unknown> = DatabaseStartupContext> {
+  context?: ContextType;
+  now?: () => number;
+  report?: (event: DatabaseStartupPhaseEvent) => void;
+}
+
+export interface DatabaseStartupResult<ContextType extends Record<string, unknown> = DatabaseStartupContext> {
+  context: ContextType;
+  results: DatabaseStartupPhaseEvent[];
+}
+
 export interface TransactionClient {
   readonly capabilities: Record<string, unknown>;
   readonly dialect: DatabaseDialect;

@@ -8,6 +8,8 @@ import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
+/** @typedef {{ workspace_id: string }} WorkspaceIdProjection */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-wave-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
@@ -83,7 +85,7 @@ function assertConvertedSourceShape() {
 async function assertConvertedRepositoriesRuntime() {
   await initializeDatabase();
 
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  const workspace = /** @type {WorkspaceIdProjection | null} */ (await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"));
   assert.ok(workspace?.workspace_id, "fresh database should create the default workspace");
 
   const hostileSuffix = `'; DROP TABLE users; -- ${randomUUID()}`;

@@ -4,6 +4,20 @@ import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {{ id: string, label?: string, description?: string }} PermissionContractInput */
+/** @typedef {{ roleId: string, permissions?: string[] }} RolePermissionDefaultInput */
+/** @typedef {{ role_id: string, scope_type: string, scope_id?: string | null, client_id?: string | null, project_id?: string | null, permission_overrides_json?: string | null }} PermissionAssignmentInput */
+/** @typedef {PermissionAssignmentInput & { assignment_id: string, workspace_id: string, user_id: string, created_at: string, updated_at: string }} PermissionAssignmentInsertRow */
+/** @typedef {DatabaseRow & { assignment_id: string }} SuperAdminAssignmentRow */
+/** @typedef {DatabaseRow & { user_id: string, username: string, display_name: string | null, assignment_id: string, created_at: string }} OldestRoleAssignmentRow */
+/** @typedef {DatabaseRow & { workspace_id: string, workspace_type: string, status: string }} PermissionWorkspaceRow */
+/** @typedef {DatabaseRow & { user_id: string, username: string, display_name?: string | null, user_status: string, protected_user: string, membership_status: string | null }} PermissionUserRow */
+/** @typedef {DatabaseRow & { id: string, workspace_id: string, name: string, status: string }} PermissionClientRow */
+/** @typedef {DatabaseRow & { id: string, workspace_id: string, client_id: string, name: string, status: string }} PermissionProjectRow */
+/** @typedef {{ actor: PermissionUserRow | null, actorAssignments: PermissionAssignmentRow[], clients: PermissionClientRow[], previousAssignments: PermissionAssignmentRow[], projects: PermissionProjectRow[], roles: PermissionRoleRow[], targetUser: PermissionUserRow | null, workspace: PermissionWorkspaceRow | null }} PermissionMutationState */
+/** @typedef {{ assignmentIdsToDelete?: string[], assignmentsToInsert?: PermissionAssignmentInput[], fullAdministrator: boolean, manageableKeys: Set<string>, safePreviousAssignments: unknown[] }} PermissionMutationPlan */
+/** @typedef {{ actorUserId: string, planMutation: (state: PermissionMutationState) => PermissionMutationPlan | Promise<PermissionMutationPlan>, userId: string, workspaceId: string }} PermissionMutationOptions */
 /** @typedef {DatabaseRow & { permission_id: string }} PermissionIdRow */
 /** @typedef {DatabaseRow & { permission_id: string, role_id: string }} RolePermissionRow */
 /** @typedef {DatabaseRow & { role_id: string, role_name: string, description: string, assignable_scope_type: string }} PermissionRoleRow */
@@ -49,19 +63,21 @@ ORDER BY permission_id;
   return rows.map((row) => row.permission_id);
 }
 
+/** @param {string} userId */
 async function hasSuperAdminAssignment(userId) {
-  const row = await db.get(`
+  const row = /** @type {SuperAdminAssignmentRow | null} */ (await db.get(`
 SELECT assignment_id
 FROM user_role_assignments
 WHERE user_id = :userId
   AND role_id = 'super_admin'
   AND scope_type = 'all'
 LIMIT 1;
-`, { userId });
+`, { userId }));
 
   return Boolean(row);
 }
 
+/** @param {PermissionContractInput[]} permissions @param {RolePermissionDefaultInput[]} roleDefaults */
 async function ensurePermissionContracts(permissions, roleDefaults) {
   await db.transaction(async (transaction) => {
     for (const permission of permissions) {
@@ -139,8 +155,9 @@ ORDER BY updated_at DESC, assignment_id;
 `, { userId, workspaceId }));
 }
 
+/** @param {string} workspaceId @param {string} roleId @param {string} scopeType @param {string | null} scopeId @returns {Promise<OldestRoleAssignmentRow | null>} */
 async function readOldestActiveUserForRoleScope(workspaceId, roleId, scopeType, scopeId) {
-  return db.get(`
+  return /** @type {Promise<OldestRoleAssignmentRow | null>} */ (db.get(`
 SELECT
   user_role_assignments.user_id,
   users.username,
@@ -162,9 +179,10 @@ LIMIT 1;
     scopeId,
     scopeType,
     workspaceId,
-  });
+  }));
 }
 
+/** @param {string} workspaceId @param {string} userId @param {PermissionAssignmentInput[]} assignments */
 async function replaceUserAssignments(workspaceId, userId, assignments) {
   const now = new Date().toISOString();
 
@@ -220,6 +238,7 @@ VALUES (
   });
 }
 
+/** @param {PermissionMutationOptions} options */
 async function mutateUserAssignmentsAtomically({
   actorUserId,
   planMutation,
@@ -228,13 +247,13 @@ async function mutateUserAssignmentsAtomically({
 }) {
   return db.transaction(async (transaction) => {
     const [workspace, actor, targetUser, roles, actorAssignments, previousAssignments, clients, projects] = await Promise.all([
-      transaction.get(`
+      /** @type {Promise<PermissionWorkspaceRow | null>} */ (transaction.get(`
 SELECT workspace_id, workspace_type, status
 FROM workspaces
 WHERE workspace_id = :workspaceId
 LIMIT 1;
-`, { workspaceId }),
-      transaction.get(`
+`, { workspaceId })),
+      /** @type {Promise<PermissionUserRow | null>} */ (transaction.get(`
 SELECT
   users.user_id,
   users.username,
@@ -247,8 +266,8 @@ LEFT JOIN user_workspaces
   AND user_workspaces.workspace_id = :workspaceId
 WHERE users.user_id = :actorUserId
 LIMIT 1;
-`, { actorUserId, workspaceId }),
-      transaction.get(`
+`, { actorUserId, workspaceId })),
+      /** @type {Promise<PermissionUserRow | null>} */ (transaction.get(`
 SELECT
   users.user_id,
   users.username,
@@ -262,13 +281,13 @@ LEFT JOIN user_workspaces
   AND user_workspaces.workspace_id = :workspaceId
 WHERE users.user_id = :userId
 LIMIT 1;
-`, { userId, workspaceId }),
-      transaction.query(`
+`, { userId, workspaceId })),
+      /** @type {Promise<PermissionRoleRow[]>} */ (transaction.query(`
 SELECT role_id, role_name, description, assignable_scope_type
 FROM roles
 ORDER BY sort_order, role_name;
-`),
-      transaction.query(`
+`)),
+      /** @type {Promise<PermissionAssignmentRow[]>} */ (transaction.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -288,20 +307,20 @@ WHERE user_id = :actorUserId
     OR (role_id = 'super_admin' AND scope_type = 'all')
   )
 ORDER BY updated_at DESC, assignment_id;
-`, { actorUserId, workspaceId }),
+`, { actorUserId, workspaceId })),
       readAssignmentsWithClient(transaction, workspaceId, userId),
-      transaction.query(`
+      /** @type {Promise<PermissionClientRow[]>} */ (transaction.query(`
 SELECT id, workspace_id, name, status
 FROM clients
 WHERE workspace_id = :workspaceId
 ORDER BY id;
-`, { workspaceId }),
-      transaction.query(`
+`, { workspaceId })),
+      /** @type {Promise<PermissionProjectRow[]>} */ (transaction.query(`
 SELECT id, workspace_id, client_id, name, status
 FROM projects
 WHERE workspace_id = :workspaceId
 ORDER BY id;
-`, { workspaceId }),
+`, { workspaceId })),
     ]);
     const plan = await planMutation({
       actor,
@@ -345,8 +364,9 @@ WHERE assignment_id = :assignmentId
   });
 }
 
+/** @param {TransactionClient} transaction @param {string} workspaceId @param {string} userId @returns {Promise<PermissionAssignmentRow[]>} */
 function readAssignmentsWithClient(transaction, workspaceId, userId) {
-  return transaction.query(`
+  return /** @type {Promise<PermissionAssignmentRow[]>} */ (transaction.query(`
 SELECT
   assignment_id,
   workspace_id,
@@ -363,9 +383,10 @@ FROM user_role_assignments
 WHERE workspace_id = :workspaceId
   AND user_id = :userId
 ORDER BY updated_at DESC, assignment_id;
-`, { userId, workspaceId });
+`, { userId, workspaceId }));
 }
 
+/** @param {TransactionClient} transaction @param {PermissionAssignmentInsertRow} assignment */
 async function insertAssignment(transaction, assignment) {
   await transaction.run(`
 INSERT INTO user_role_assignments (

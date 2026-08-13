@@ -65,7 +65,7 @@ import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 
 /** @typedef {import("node:http").Server} HttpServer */
 /** @typedef {import("../types/route-contracts.js").RouterContract} RouterContract */
-/** @typedef {{ id: string, durationMs: number, errorType?: string, lifecycle: string, owner: string, status: string }} StartupPhaseEvent */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupPhaseEvent} StartupPhaseEvent */
 
 /** @returns {ReturnType<typeof express>} */
 function createApp() {
