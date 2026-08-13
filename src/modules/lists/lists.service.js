@@ -151,6 +151,9 @@ async function create(payload, session) {
   }
 
   const listRecord = await listsRepository.create(session.workspace_id, normalized);
+  if (!listRecord) {
+    throw new AppError("List creation did not return a record.", 500);
+  }
   await recordListAudit(session, "list_created", "create", null, listRecord);
   await emitListEvent("lists.list.created", session, null, listRecord);
   await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.created");
@@ -172,6 +175,9 @@ async function update(listId, payload, session) {
   await assertCanAccessList(session, normalized, "update");
 
   const listRecord = await listsRepository.update(session.workspace_id, normalized);
+  if (!listRecord) {
+    throw new AppError("List update did not return a record.", 500);
+  }
   await recordListAudit(session, "list_updated", "update", previousList, listRecord);
   await emitListEvent("lists.list.updated", session, previousList, listRecord);
   await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.updated");
@@ -284,6 +290,9 @@ async function duplicate(listId, payload = {}, session) {
     archived_at: null,
     deleted_at: null,
   });
+  if (!createdList) {
+    throw new AppError("List duplication did not return a record.", 500);
+  }
 
   const copiedItems = [];
   for (const [index, item] of sourceItems.entries()) {

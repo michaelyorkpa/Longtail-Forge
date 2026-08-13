@@ -421,8 +421,8 @@ async function readResultContext(workspaceId, results) {
       id: project.id,
       name: project.name,
       status: project.status,
-      clientId: project.client_id || project.clientId || "",
-      clientName: project.client_name || project.clientName || "",
+      clientId: project.client_id || "",
+      clientName: project.client_name || "",
     });
   }
 

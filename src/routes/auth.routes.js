@@ -21,10 +21,12 @@ import { enforceSupportViewRequest } from "../middleware/support-view-request-ga
 import { AppError } from "../utils/app-error.js";
 
 /** @typedef {import("../types/http-contracts.js").LogoutSession} LogoutSession */
+/** @typedef {import("../types/route-contracts.js").RouteRequest} RouteRequest */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
 
 const authRoutes = Router();
 
-authRoutes.get("/csrf-token", (request, response) => {
+authRoutes.get("/csrf-token", /** @param {RouteRequest} request @param {RouteResponse} response */ (request, response) => {
   const csrfToken = createCsrfToken();
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("Set-Cookie", buildCsrfCookie(csrfToken, request));
@@ -125,6 +127,7 @@ authRoutes.post("/session/workspace", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+/** @param {RouteRequest} request @param {RouteResponse} response @returns {void} */
 function applyRequestSessionRotation(request, response) {
   if (request.sessionRotation) {
     response.append("Set-Cookie", buildSessionCookie(

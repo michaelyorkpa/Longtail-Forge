@@ -123,6 +123,16 @@ export type SupportViewGateReasonClass =
   | "declared_read_safe"
   | "undeclared_read_denied";
 
+export interface RequestContext {
+  hostname: string;
+  ipAddress: string;
+  isSecure: boolean;
+  origin: string;
+  protocol: string;
+  requestId: string;
+  socketPeerAddress: string;
+}
+
 export interface HttpIdentityRequest extends Express.Request {
   method: string;
   path: string;

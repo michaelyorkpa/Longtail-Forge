@@ -50,6 +50,7 @@ auditRoutes.get("/security-events/export.csv", asyncRoute(async (request, respon
   response.end(csv);
 }));
 
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @returns {Promise<void>} */
 async function assertCanViewSecurityEvents(session) {
   const resource = createWorkspacePermissionResource(session.workspace_id, "read");
   await permissionsService.assertCan(session, "audit_logs.view", resource);

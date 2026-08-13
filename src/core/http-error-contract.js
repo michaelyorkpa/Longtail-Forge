@@ -1,5 +1,14 @@
+// @ts-check
 import { getRequestContext } from "./request-context.js";
 
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest & { get?: (name: string) => string | undefined }} HttpErrorRequest */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
+/** @typedef {{ code?: string, fields?: unknown[], message?: string, statusCode?: unknown }} HttpErrorOptions */
+/** @typedef {{ code: string, fields?: unknown[], message: string, requestId: string }} ApiErrorValue */
+/** @typedef {{ code?: string, message?: string, requestPath?: string }} BrowserRecoveryOptions */
+/** @typedef {{ actionHref: string, actionLabel: string, kind: string, message: string, showRequestId: boolean, title: string }} BrowserRecoverySurface */
+
+/** @type {Readonly<Record<number, string>>} */
 const ERROR_CODE_BY_STATUS = Object.freeze({
   400: "bad_request",
   401: "authentication_required",
@@ -15,6 +24,7 @@ const ERROR_CODE_BY_STATUS = Object.freeze({
   503: "service_unavailable",
 });
 
+/** @type {Readonly<Record<number, string>>} */
 const SAFE_MESSAGE_BY_STATUS = Object.freeze({
   400: "The request could not be processed.",
   401: "Login required.",
@@ -32,16 +42,20 @@ const SAFE_MESSAGE_BY_STATUS = Object.freeze({
 
 const THEME_COOKIE_NAME = "lf_theme";
 
+/** @param {number} statusCode @returns {string} */
 function errorCodeForStatus(statusCode) {
   return ERROR_CODE_BY_STATUS[statusCode] || "request_error";
 }
 
+/** @param {number} statusCode @returns {string} */
 function safeMessageForStatus(statusCode) {
   return SAFE_MESSAGE_BY_STATUS[statusCode] || "The request could not be completed.";
 }
 
+/** @param {HttpErrorRequest} request @param {HttpErrorOptions} [options] */
 function apiErrorPayload(request, options = {}) {
   const statusCode = normalizeStatusCode(options.statusCode);
+  /** @type {ApiErrorValue} */
   const error = {
     code: options.code || errorCodeForStatus(statusCode),
     message: options.message || safeMessageForStatus(statusCode),
@@ -62,6 +76,7 @@ function apiErrorPayload(request, options = {}) {
   return { error };
 }
 
+/** @param {HttpErrorRequest} request @param {RouteResponse} response @param {HttpErrorOptions} [options] @returns {void} */
 function sendApiError(request, response, options = {}) {
   const statusCode = normalizeStatusCode(options.statusCode);
   response.status(statusCode).json(apiErrorPayload(request, {
@@ -70,6 +85,7 @@ function sendApiError(request, response, options = {}) {
   }));
 }
 
+/** @param {HttpErrorRequest} request @param {RouteResponse} response @returns {void} */
 function apiRouteBoundary(request, response) {
   const statusCode = ["GET", "HEAD"].includes(String(request.method || "").toUpperCase())
     ? 404
@@ -77,6 +93,7 @@ function apiRouteBoundary(request, response) {
   sendApiError(request, response, { statusCode });
 }
 
+/** @param {HttpErrorRequest} request @param {RouteResponse} response @returns {void} */
 function browserNotFound(request, response) {
   if (!isBrowserDocumentRequest(request)) {
     response.status(404).type("text").send("Not found.");
@@ -89,6 +106,7 @@ function browserNotFound(request, response) {
   });
 }
 
+/** @param {HttpErrorRequest} request @param {RouteResponse} response @param {HttpErrorOptions} [options] @returns {void} */
 function sendBrowserError(request, response, options = {}) {
   const statusCode = normalizeStatusCode(options.statusCode);
   const code = options.code || errorCodeForStatus(statusCode);
@@ -162,16 +180,19 @@ function sendBrowserError(request, response, options = {}) {
 </html>`);
 }
 
+/** @param {HttpErrorRequest} request @returns {boolean} */
 function isApiRequest(request) {
   const pathname = requestPath(request);
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
+/** @param {HttpErrorRequest} request @returns {boolean} */
 function isPublicApiRequest(request) {
   const pathname = requestPath(request);
   return pathname === "/api/v1" || pathname.startsWith("/api/v1/");
 }
 
+/** @param {HttpErrorRequest} request @returns {boolean} */
 function isBrowserDocumentRequest(request) {
   if (!["GET", "HEAD"].includes(String(request.method || "").toUpperCase())) {
     return false;
@@ -185,6 +206,7 @@ function isBrowserDocumentRequest(request) {
     || !/\.[a-z0-9]{1,12}$/i.test(pathname);
 }
 
+/** @param {HttpErrorRequest} request @returns {string} */
 function requestPath(request) {
   const rawPath = String(request.originalUrl || request.url || request.path || "/");
   try {
@@ -194,11 +216,13 @@ function requestPath(request) {
   }
 }
 
+/** @param {unknown} value @returns {number} */
 function normalizeStatusCode(value) {
-  const statusCode = Number.parseInt(value, 10);
+  const statusCode = Number.parseInt(String(value), 10);
   return statusCode >= 400 && statusCode <= 599 ? statusCode : 500;
 }
 
+/** @param {HttpErrorRequest} request */
 function browserThemePreference(request) {
   const themeMode = normalizeThemeMode(readRequestCookie(request, THEME_COOKIE_NAME));
   return {
@@ -208,10 +232,12 @@ function browserThemePreference(request) {
   };
 }
 
+/** @param {unknown} value @returns {"light" | "auto" | "dark"} */
 function normalizeThemeMode(value) {
-  return ["light", "auto", "dark"].includes(value) ? value : "light";
+  return value === "light" || value === "auto" || value === "dark" ? value : "light";
 }
 
+/** @param {HttpErrorRequest} request @param {string} name @returns {string} */
 function readRequestCookie(request, name) {
   const cookieHeader = String(request.headers?.cookie || "");
   const encodedValue = cookieHeader
@@ -233,6 +259,7 @@ function readRequestCookie(request, name) {
   }
 }
 
+/** @param {number} statusCode @param {BrowserRecoveryOptions} [options] @returns {BrowserRecoverySurface} */
 function browserRecoverySurface(statusCode, options = {}) {
   if (statusCode === 401) {
     return {
@@ -288,6 +315,7 @@ function browserRecoverySurface(statusCode, options = {}) {
   };
 }
 
+/** @param {unknown} value @returns {string} */
 function safeRetryPath(value) {
   const pathname = String(value || "");
   return pathname.startsWith("/") && !pathname.startsWith("//")
@@ -295,6 +323,7 @@ function safeRetryPath(value) {
     : "/dashboard.html";
 }
 
+/** @param {unknown} value @returns {string} */
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")

@@ -4,7 +4,9 @@ import { sendApiError, sendBrowserError } from "../core/http-error-contract.js";
 import { operationalLogger } from "../core/operational-logger.js";
 import { supportViewService } from "../services/support-view.service.js";
 
-/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/route-contracts.js").RouteRequest} RouteRequest */
+/** @typedef {import("../types/route-contracts.js").RouteNext} RouteNext */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
 /** @typedef {import("../types/http-contracts.js").SupportViewGateOutcome} SupportViewGateOutcome */
 /** @typedef {import("../types/http-contracts.js").SupportViewGateReasonClass} SupportViewGateReasonClass */
 /** @typedef {{ id: string, path: string, pattern: RegExp }} SupportViewRouteDefinition */
@@ -113,7 +115,7 @@ const SUPPORT_VIEW_READ_ROUTES = Object.freeze([
   route("framework.static", "/{*staticPath}"),
 ]);
 
-/** @param {HttpIdentityRequest} request */
+/** @param {RouteRequest} request @param {RouteResponse} response @param {RouteNext} next @returns {Promise<void>} */
 async function supportViewRequestGate(request, response, next) {
   if (!request.session?.support_view) {
     next();
@@ -125,7 +127,7 @@ async function supportViewRequestGate(request, response, next) {
   }
 }
 
-/** @param {HttpIdentityRequest} request */
+/** @param {RouteRequest} request @param {RouteResponse} response @returns {Promise<boolean>} */
 async function enforceSupportViewRequest(request, response) {
   const session = request.session;
   if (!session?.support_view) {
@@ -194,6 +196,7 @@ async function enforceSupportViewRequest(request, response) {
   return false;
 }
 
+/** @param {RouteRequest} request @param {RouteResponse} response @returns {void} */
 function denyNotFound(request, response) {
   if (request.path?.startsWith("/api/") || request.originalUrl?.startsWith("/api/")) {
     sendApiError(request, response, { statusCode: 404 });
@@ -202,16 +205,17 @@ function denyNotFound(request, response) {
   sendBrowserError(request, response, { code: "not_found", statusCode: 404 });
 }
 
-/** @param {readonly SupportViewRouteDefinition[]} routes */
+/** @param {readonly SupportViewRouteDefinition[]} routes @param {string} pathname */
 function findRoute(routes, pathname) {
   return routes.find((entry) => entry.pattern.test(pathname)) || null;
 }
 
-/** @returns {Readonly<SupportViewRouteDefinition>} */
+/** @param {string} id @param {string} path @returns {Readonly<SupportViewRouteDefinition>} */
 function route(id, path) {
   return Object.freeze({ id, path, pattern: compilePath(path) });
 }
 
+/** @param {string} path @returns {RegExp} */
 function compilePath(path) {
   if (path === "/{*staticPath}") {
     return /^\/(?!api(?:\/|$)).*/;
@@ -232,6 +236,7 @@ function escapeRegExp(value) {
 }
 */
 
+/** @param {string} value @returns {string} */
 function escapeRouteLiteral(value) {
   const special = new Set([92, 94, 36, 46, 42, 43, 63, 40, 41, 91, 93, 123, 125, 124]);
   return [...String(value)].map((character) => {
@@ -242,6 +247,7 @@ function escapeRouteLiteral(value) {
   }).join("");
 }
 
+/** @param {RouteRequest} request @returns {string} */
 function requestPath(request) {
   try {
     return new URL(request.originalUrl || request.url || request.path || "/", "http://localhost").pathname;
