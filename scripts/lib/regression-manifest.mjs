@@ -1,24 +1,37 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../data-files-security-static-consolidation.mjs";
+import { FRAMEWORK_VIEW_STATIC_CONSOLIDATION } from "../framework-view-static-consolidation.mjs";
+import { WORKFLOW_MODULE_STATIC_CONSOLIDATION } from "../workflow-module-static-consolidation.mjs";
 
-const MANIFEST_SCHEMA_VERSION = 4;
+const MANIFEST_SCHEMA_VERSION = 5;
 const MANIFEST_GENERATOR = "node scripts/generate-regression-manifest.mjs";
 const POLICY_SOURCE = "scripts/regression-coverage-exceptions.json";
+const CONTRACT_MODULE_ROOT = "scripts/regression-contracts";
+/** @typedef {{ modulePath: string, retainedOwner: string }} ContractMovement */
+/** @typedef {{ area: string, description: string, id: string, legacy?: boolean, path: string, runMode: string, tags: readonly string[], tier: string }} RegressionOwner */
+/** @typedef {{ assertionCount: number, path: string }} ContractAssertionModule */
+/** @typedef {(filePath: string, encoding: "utf8") => string} SourceReader */
+/** @type {SourceReader} */
+const readUtf8Source = (filePath, _encoding) => readFileSync(filePath, "utf8");
+/** @type {readonly ContractMovement[]} */
+const DEFAULT_CONTRACT_MOVEMENTS = Object.freeze([
+  ...FRAMEWORK_VIEW_STATIC_CONSOLIDATION.movements,
+  ...WORKFLOW_MODULE_STATIC_CONSOLIDATION.movements,
+  ...DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements,
+].map((movement) => ({
+  modulePath: String(movement.modulePath),
+  retainedOwner: String(movement.retainedOwner),
+})));
 
-function buildRegressionManifest({ entries, policy, readSource = readFileSync } = {}) {
+/**
+ * @param {{ entries: readonly RegressionOwner[], policy: ReturnType<typeof cloneJson>, readSource?: SourceReader }} options
+ */
+function buildRegressionManifest({ entries, policy, readSource = readUtf8Source }) {
   validateUniqueEntryIdentity(entries);
+  const contractOwnership = buildContractOwnership({ entries, readSource, contractMovements: DEFAULT_CONTRACT_MOVEMENTS });
   const regressions = [...entries]
-    .map((entry) => Object.freeze({
-      area: entry.area,
-      assertionCount: countAssertions(readSource(entry.path, "utf8")),
-      description: entry.description,
-      id: entry.id,
-      legacy: Boolean(entry.legacy),
-      path: entry.path,
-      releaseGate: entry.tier === "release-gate",
-      runMode: entry.runMode,
-      tags: [...entry.tags],
-      tier: entry.tier,
-    }))
+    .map((entry) => buildOwnedAssertionEntry(entry, contractOwnership, readSource))
     .sort((left, right) => left.path.localeCompare(right.path));
   const retiredRegressions = [...(policy.retiredScripts || [])]
     .map((entry) => cloneJson(entry))
@@ -51,7 +64,7 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function collectRegressionCoverageErrors({ entries, manifest, packageScripts = readPackageScripts(), policy, readSource = readFileSync }) {
+function collectRegressionCoverageErrors({ entries, manifest, packageScripts = readPackageScripts(), policy, readSource = readUtf8Source }) {
   const errors = [];
   const activeEntries = Array.isArray(entries) ? entries : [];
   const retiredEntries = Array.isArray(policy?.retiredScripts) ? policy.retiredScripts : [];
@@ -70,6 +83,11 @@ function collectRegressionCoverageErrors({ entries, manifest, packageScripts = r
     "assertion movement sources and targets",
     assertionMovements.map((entry) => `${entry?.sourceRegression || ""}->${entry?.movedTo || ""}`),
   );
+  errors.push(...collectContractOwnershipErrors({
+    entries: activeEntries,
+    contractMovements: DEFAULT_CONTRACT_MOVEMENTS,
+    contractModulePaths: listContractModulePaths(),
+  }));
 
   for (const retiredEntry of retiredEntries) {
     validateRetirementEntry({ activeIds, activePaths, errors, packageScripts, readSource, retiredEntry });
@@ -81,7 +99,12 @@ function collectRegressionCoverageErrors({ entries, manifest, packageScripts = r
   if (Number.isInteger(policy?.maximumActiveScripts) && activeEntries.length > policy.maximumActiveScripts) {
     errors.push(`active regression count ${activeEntries.length} exceeds shrink-only ceiling ${policy.maximumActiveScripts}`);
   }
-  const assertionInventory = buildAssertionInventory({ entries: activeEntries, policy, readSource });
+  const assertionInventory = buildAssertionInventory({
+    entries: activeEntries,
+    policy,
+    readSource,
+    contractMovements: DEFAULT_CONTRACT_MOVEMENTS,
+  });
   if (Number.isInteger(policy?.minimumAssertionCount)
     && assertionInventory.effectiveAssertionCount < policy.minimumAssertionCount) {
     errors.push(
@@ -107,7 +130,7 @@ function collectRegressionCoverageErrors({ entries, manifest, packageScripts = r
   return errors;
 }
 
-function buildRatchetedCoveragePolicy({ entries, policy, readSource = readFileSync }) {
+function buildRatchetedCoveragePolicy({ entries, policy, readSource = readUtf8Source }) {
   const nextPolicy = cloneJson(policy);
   const targets = buildCoverageFloorTargets({ entries, policy, readSource });
   const loweringErrors = [];
@@ -165,7 +188,7 @@ function buildRatchetedCoveragePolicy({ entries, policy, readSource = readFileSy
   return nextPolicy;
 }
 
-function collectCoverageFloorDriftErrors({ entries, policy, readSource = readFileSync }) {
+function collectCoverageFloorDriftErrors({ entries, policy, readSource = readUtf8Source }) {
   if (!policy || typeof policy !== "object") {
     return [];
   }
@@ -195,7 +218,7 @@ function collectCoverageFloorDriftErrors({ entries, policy, readSource = readFil
   return errors;
 }
 
-function buildCoverageFloorTargets({ entries, policy, readSource = readFileSync }) {
+function buildCoverageFloorTargets({ entries, policy, readSource = readUtf8Source }) {
   const activeEntries = Array.isArray(entries) ? entries : [];
   const creditedRetirements = Array.isArray(policy?.retiredScripts)
     ? policy.retiredScripts.filter((entry) => entry?.floorCredit === true)
@@ -279,14 +302,22 @@ function validateRegressionCoverage({ entries, manifest, policy }) {
   }
 }
 
-function buildAssertionInventory({ entries, policy, readSource = readFileSync } = {}) {
+function buildAssertionInventory({ entries, policy, readSource = readUtf8Source } = {}) {
   const activePaths = new Set(entries.map((entry) => entry.path));
+  const contractOwnership = buildContractOwnership({ entries, readSource, contractMovements: DEFAULT_CONTRACT_MOVEMENTS });
+  const contractModulePaths = new Set(DEFAULT_CONTRACT_MOVEMENTS.map((entry) => entry.modulePath));
   const active = entries
-    .map((entry) => ({
-      id: entry.id,
-      path: entry.path,
-      assertionCount: countAssertions(readSource(entry.path, "utf8")),
-    }))
+    .map((entry) => {
+      const owned = buildOwnedAssertionEntry(entry, contractOwnership, readSource);
+      return Object.freeze({
+        id: owned.id,
+        path: owned.path,
+        assertionCount: owned.assertionCount,
+        contractAssertionCount: owned.contractAssertionCount,
+        contractModules: owned.contractModules,
+        entryPointAssertionCount: owned.entryPointAssertionCount,
+      });
+    })
     .sort((left, right) => left.path.localeCompare(right.path));
   const vitestPaths = new Set();
   const directOwnerPaths = new Set();
@@ -300,7 +331,7 @@ function buildAssertionInventory({ entries, policy, readSource = readFileSync } 
     if (typeof retirement.vitestOwner === "string") vitestPaths.add(retirement.vitestOwner);
     for (const ownerPath of retirement?.assertionInventory?.ownerPaths || []) {
       if (/^tests\/.+\.test\.mjs$/.test(ownerPath)) vitestPaths.add(ownerPath);
-      else if (!activePaths.has(ownerPath)) directOwnerPaths.add(ownerPath);
+      else if (!activePaths.has(ownerPath) && !contractModulePaths.has(ownerPath)) directOwnerPaths.add(ownerPath);
     }
   }
   const vitest = buildExternalAssertionEntries(vitestPaths, readSource);
@@ -323,6 +354,100 @@ function buildAssertionInventory({ entries, policy, readSource = readFileSync } 
     vitest,
     vitestAssertionCount,
   });
+}
+
+/**
+ * @param {RegressionOwner} entry
+ * @param {Map<string, readonly ContractAssertionModule[]>} contractOwnership
+ * @param {SourceReader} readSource
+ */
+function buildOwnedAssertionEntry(entry, contractOwnership, readSource) {
+  const entryPointAssertionCount = countAssertions(readSource(entry.path, "utf8"));
+  const contractModules = contractOwnership.get(entry.id) || [];
+  const contractAssertionCount = sumAssertions(contractModules);
+  return Object.freeze({
+    area: entry.area,
+    assertionCount: entryPointAssertionCount + contractAssertionCount,
+    contractAssertionCount,
+    contractModules,
+    description: entry.description,
+    entryPointAssertionCount,
+    id: entry.id,
+    legacy: Boolean(entry.legacy),
+    path: entry.path,
+    releaseGate: entry.tier === "release-gate",
+    runMode: entry.runMode,
+    tags: [...entry.tags],
+    tier: entry.tier,
+  });
+}
+
+/**
+ * @param {{ entries: readonly RegressionOwner[], readSource: SourceReader, contractMovements: readonly ContractMovement[] }} options
+ */
+function buildContractOwnership({ entries, readSource, contractMovements }) {
+  const activeIds = new Set(entries.map((entry) => entry.id));
+  /** @type {Map<string, ContractAssertionModule[]>} */
+  const ownership = new Map();
+  for (const movement of contractMovements) {
+    if (!activeIds.has(movement.retainedOwner)) continue;
+    const modules = ownership.get(movement.retainedOwner) || [];
+    modules.push(Object.freeze({
+      path: movement.modulePath,
+      assertionCount: countAssertions(readSource(movement.modulePath, "utf8")),
+    }));
+    ownership.set(movement.retainedOwner, modules);
+  }
+  for (const [owner, modules] of ownership) {
+    ownership.set(owner, modules.sort((left, right) => left.path.localeCompare(right.path)));
+  }
+  return ownership;
+}
+
+/**
+ * @param {{ entries: readonly RegressionOwner[], contractMovements: readonly ContractMovement[], contractModulePaths: readonly string[] }} options
+ */
+function collectContractOwnershipErrors({ entries, contractMovements, contractModulePaths }) {
+  /** @type {string[]} */
+  const errors = [];
+  const activeIds = new Set(entries.map((entry) => entry.id));
+  /** @type {Map<string, string[]>} */
+  const movementsByModule = new Map();
+  for (const movement of contractMovements) {
+    const owners = movementsByModule.get(movement.modulePath) || [];
+    owners.push(movement.retainedOwner);
+    movementsByModule.set(movement.modulePath, owners);
+    if (!activeIds.has(movement.retainedOwner)) {
+      errors.push(`${movement.modulePath} contract owner ${movement.retainedOwner} should remain discovered`);
+    }
+  }
+  for (const modulePath of contractModulePaths) {
+    const owners = movementsByModule.get(modulePath) || [];
+    if (owners.length === 0) {
+      errors.push(`${modulePath} contract module is imported by no discovered owner`);
+    } else if (owners.length > 1) {
+      errors.push(`${modulePath} contract module should have exactly one discovered owner, found ${owners.join(", ")}`);
+    }
+  }
+  for (const modulePath of movementsByModule.keys()) {
+    if (!contractModulePaths.includes(modulePath)) {
+      errors.push(`${modulePath} owned contract module should exist under ${CONTRACT_MODULE_ROOT}`);
+    }
+  }
+  return errors;
+}
+
+/** @param {string} root @returns {string[]} */
+function listContractModulePaths(root = CONTRACT_MODULE_ROOT) {
+  if (!existsSync(root)) return [];
+  /** @type {string[]} */
+  const paths = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const entryPath = join(root, entry.name).replaceAll("\\", "/");
+    if (entry.isDirectory()) paths.push(...listContractModulePaths(entryPath));
+    else if (entryPath.endsWith(".contract.mjs")) paths.push(entryPath);
+  }
+  return paths.sort((left, right) => left.localeCompare(right));
 }
 
 function buildExternalAssertionEntries(paths, readSource) {
@@ -675,6 +800,7 @@ export {
   buildAssertionInventory,
   buildRegressionManifest,
   buildRatchetedCoveragePolicy,
+  collectContractOwnershipErrors,
   collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
   countAssertions,

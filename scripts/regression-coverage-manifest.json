@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "generatedBy": "node scripts/generate-regression-manifest.mjs",
   "policySource": "scripts/regression-coverage-exceptions.json",
   "summary": {
@@ -85,490 +85,10 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 14026,
+    "activeAssertionCount": 18051,
     "creditedAssertionReduction": 496,
-    "directOwnerAssertionCount": 4081,
+    "directOwnerAssertionCount": 72,
     "directOwners": [
-      {
-        "path": "scripts/regression-contracts/database/clients-projects-strict-guardrail-inventory.contract.mjs",
-        "assertionCount": 86
-      },
-      {
-        "path": "scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs",
-        "assertionCount": 26
-      },
-      {
-        "path": "scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs",
-        "assertionCount": 10
-      },
-      {
-        "path": "scripts/regression-contracts/database/migration-runner-checked-boundary.contract.mjs",
-        "assertionCount": 17
-      },
-      {
-        "path": "scripts/regression-contracts/database/parameter-binding-audit.contract.mjs",
-        "assertionCount": 27
-      },
-      {
-        "path": "scripts/regression-contracts/database/sqlite-small-office-readout.contract.mjs",
-        "assertionCount": 40
-      },
-      {
-        "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
-        "assertionCount": 17
-      },
-      {
-        "path": "scripts/regression-contracts/files/file-ui-integration.contract.mjs",
-        "assertionCount": 57
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
-        "assertionCount": 66
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
-        "assertionCount": 37
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs",
-        "assertionCount": 61
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
-        "assertionCount": 47
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
-        "assertionCount": 38
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
-        "assertionCount": 38
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
-        "assertionCount": 60
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
-        "assertionCount": 60
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
-        "assertionCount": 47
-      },
-      {
-        "path": "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
-        "assertionCount": 52
-      },
-      {
-        "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
-        "assertionCount": 69
-      },
-      {
-        "path": "scripts/regression-contracts/framework/http-error-development-guardrails.contract.mjs",
-        "assertionCount": 7
-      },
-      {
-        "path": "scripts/regression-contracts/framework/identifier-authority.contract.mjs",
-        "assertionCount": 26
-      },
-      {
-        "path": "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs",
-        "assertionCount": 14
-      },
-      {
-        "path": "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",
-        "assertionCount": 19
-      },
-      {
-        "path": "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
-        "assertionCount": 28
-      },
-      {
-        "path": "scripts/regression-contracts/framework/reporting-host.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/framework/settings-branch-closeout.contract.mjs",
-        "assertionCount": 34
-      },
-      {
-        "path": "scripts/regression-contracts/framework/settings-page-actions.contract.mjs",
-        "assertionCount": 79
-      },
-      {
-        "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
-        "assertionCount": 40
-      },
-      {
-        "path": "scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs",
-        "assertionCount": 29
-      },
-      {
-        "path": "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
-        "assertionCount": 41
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
-        "assertionCount": 24
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs",
-        "assertionCount": 17
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs",
-        "assertionCount": 85
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-developer-docs.contract.mjs",
-        "assertionCount": 8
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
-        "assertionCount": 25
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
-        "assertionCount": 24
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-tags-stacked-modal.contract.mjs",
-        "assertionCount": 20
-      },
-      {
-        "path": "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/permissions/client-child-create-scope.contract.mjs",
-        "assertionCount": 14
-      },
-      {
-        "path": "scripts/regression-contracts/permissions/icon-accessibility-contract.contract.mjs",
-        "assertionCount": 21
-      },
-      {
-        "path": "scripts/regression-contracts/search/search-results-page.contract.mjs",
-        "assertionCount": 41
-      },
-      {
-        "path": "scripts/regression-contracts/tags/tag-inline-picker.contract.mjs",
-        "assertionCount": 30
-      },
-      {
-        "path": "scripts/regression-contracts/tags/tag-management-page.contract.mjs",
-        "assertionCount": 19
-      },
-      {
-        "path": "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",
-        "assertionCount": 25
-      },
-      {
-        "path": "scripts/regression-contracts/tags/tag-usability-ui.contract.mjs",
-        "assertionCount": 32
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
-        "assertionCount": 12
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
-        "assertionCount": 52
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
-        "assertionCount": 17
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs",
-        "assertionCount": 22
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-list-density.contract.mjs",
-        "assertionCount": 19
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-modal-compact-layout.contract.mjs",
-        "assertionCount": 30
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-modal-followup.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/task-modal-reflow.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs",
-        "assertionCount": 25
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
-        "assertionCount": 20
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
-        "assertionCount": 29
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
-        "assertionCount": 32
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
-        "assertionCount": 29
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs",
-        "assertionCount": 29
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-modal-shell.contract.mjs",
-        "assertionCount": 32
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
-        "assertionCount": 36
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs",
-        "assertionCount": 20
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
-        "assertionCount": 41
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
-        "assertionCount": 40
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
-        "assertionCount": 31
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs",
-        "assertionCount": 64
-      },
-      {
-        "path": "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
-        "assertionCount": 40
-      },
-      {
-        "path": "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs",
-        "assertionCount": 75
-      },
-      {
-        "path": "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs",
-        "assertionCount": 39
-      },
-      {
-        "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
-        "assertionCount": 9
-      },
-      {
-        "path": "scripts/regression-contracts/views/calendar-host.contract.mjs",
-        "assertionCount": 60
-      },
-      {
-        "path": "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs",
-        "assertionCount": 34
-      },
-      {
-        "path": "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
-        "assertionCount": 30
-      },
-      {
-        "path": "scripts/regression-contracts/views/dashboard-client-bootstrap.contract.mjs",
-        "assertionCount": 19
-      },
-      {
-        "path": "scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs",
-        "assertionCount": 43
-      },
-      {
-        "path": "scripts/regression-contracts/views/drawer-main-surface.contract.mjs",
-        "assertionCount": 16
-      },
-      {
-        "path": "scripts/regression-contracts/views/field-factory.contract.mjs",
-        "assertionCount": 94
-      },
-      {
-        "path": "scripts/regression-contracts/views/icon-control-conversion.contract.mjs",
-        "assertionCount": 17
-      },
-      {
-        "path": "scripts/regression-contracts/views/markdown-platform.contract.mjs",
-        "assertionCount": 30
-      },
-      {
-        "path": "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
-        "assertionCount": 56
-      },
-      {
-        "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
-        "assertionCount": 13
-      },
-      {
-        "path": "scripts/regression-contracts/views/mobile-foundation.contract.mjs",
-        "assertionCount": 10
-      },
-      {
-        "path": "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
-        "assertionCount": 46
-      },
-      {
-        "path": "scripts/regression-contracts/views/modal-footer.contract.mjs",
-        "assertionCount": 21
-      },
-      {
-        "path": "scripts/regression-contracts/views/modal-section.contract.mjs",
-        "assertionCount": 34
-      },
-      {
-        "path": "scripts/regression-contracts/views/overlay-host.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/views/remaining-icon-actions.contract.mjs",
-        "assertionCount": 18
-      },
-      {
-        "path": "scripts/regression-contracts/views/shared-icons.contract.mjs",
-        "assertionCount": 24
-      },
-      {
-        "path": "scripts/regression-contracts/views/surface-adoption-pass.contract.mjs",
-        "assertionCount": 18
-      },
-      {
-        "path": "scripts/regression-contracts/views/surface-token.contract.mjs",
-        "assertionCount": 13
-      },
-      {
-        "path": "scripts/regression-contracts/views/ui.contract.mjs",
-        "assertionCount": 51
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
-        "assertionCount": 38
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-builder.contract.mjs",
-        "assertionCount": 13
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
-        "assertionCount": 114
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs",
-        "assertionCount": 15
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-index-primitive.contract.mjs",
-        "assertionCount": 28
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
-        "assertionCount": 27
-      },
-      {
-        "path": "scripts/regression-contracts/views/view-renderer-shell.contract.mjs",
-        "assertionCount": 94
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
-        "assertionCount": 18
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs",
-        "assertionCount": 28
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs",
-        "assertionCount": 12
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
-        "assertionCount": 24
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
-        "assertionCount": 31
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
-        "assertionCount": 32
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
-        "assertionCount": 21
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
-        "assertionCount": 14
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs",
-        "assertionCount": 13
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
-        "assertionCount": 27
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
-        "assertionCount": 18
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
-        "assertionCount": 23
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
-        "assertionCount": 37
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
-        "assertionCount": 51
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs",
-        "assertionCount": 6
-      },
-      {
-        "path": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
-        "assertionCount": 29
-      },
       {
         "path": "scripts/typecheck-debt-ledger.json",
         "assertionCount": 0
@@ -586,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18704,
+    "effectiveAssertionCount": 18720,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -797,7 +317,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 30,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy active timers repository conversion contract.",
+      "entryPointAssertionCount": 30,
       "id": "legacy.active.timers.repository.conversion",
       "legacy": true,
       "path": "scripts/active-timers-repository-conversion-regression.mjs",
@@ -811,7 +334,10 @@
     {
       "area": "framework",
       "assertionCount": 49,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy admin job observability contract.",
+      "entryPointAssertionCount": 49,
       "id": "legacy.admin.job.observability",
       "legacy": true,
       "path": "scripts/admin-job-observability-regression.mjs",
@@ -826,7 +352,10 @@
     {
       "area": "public-api",
       "assertionCount": 11,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy api key scope audit contract.",
+      "entryPointAssertionCount": 11,
       "id": "legacy.api.key.scope.audit",
       "legacy": true,
       "path": "scripts/api-key-scope-audit-regression.mjs",
@@ -841,7 +370,10 @@
     {
       "area": "framework",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy app shell navigation contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.app.shell.navigation",
       "legacy": true,
       "path": "scripts/app-shell-navigation-regression.mjs",
@@ -853,7 +385,10 @@
     {
       "area": "framework",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy async recurrence response closeout contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.async.recurrence.response.closeout",
       "legacy": true,
       "path": "scripts/async-recurrence-response-closeout-regression.mjs",
@@ -869,7 +404,10 @@
     {
       "area": "framework",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy audit extensibility contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.audit.extensibility",
       "legacy": true,
       "path": "scripts/audit-extensibility-regression.mjs",
@@ -881,7 +419,10 @@
     {
       "area": "jobs",
       "assertionCount": 54,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy background work jobs contract.",
+      "entryPointAssertionCount": 54,
       "id": "legacy.background.work.jobs",
       "legacy": true,
       "path": "scripts/background-work-jobs-regression.mjs",
@@ -896,7 +437,10 @@
     {
       "area": "database",
       "assertionCount": 14,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy baseline adoption contract.",
+      "entryPointAssertionCount": 14,
       "id": "legacy.baseline.adoption",
       "legacy": true,
       "path": "scripts/baseline-adoption-regression.mjs",
@@ -911,7 +455,10 @@
     {
       "area": "framework",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy batched list enrichment contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.batched.list.enrichment",
       "legacy": true,
       "path": "scripts/batched-list-enrichment-regression.mjs",
@@ -923,7 +470,10 @@
     {
       "area": "database",
       "assertionCount": 20,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy better sqlite3 driver closeout contract.",
+      "entryPointAssertionCount": 20,
       "id": "legacy.better.sqlite3.driver.closeout",
       "legacy": true,
       "path": "scripts/better-sqlite3-driver-closeout-regression.mjs",
@@ -938,7 +488,10 @@
     {
       "area": "database",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy better sqlite3 helper core contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.better.sqlite3.helper.core",
       "legacy": true,
       "path": "scripts/better-sqlite3-helper-core-regression.mjs",
@@ -952,7 +505,10 @@
     {
       "area": "database",
       "assertionCount": 20,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy better sqlite3 install smoke contract.",
+      "entryPointAssertionCount": 20,
       "id": "legacy.better.sqlite3.install.smoke",
       "legacy": true,
       "path": "scripts/better-sqlite3-install-smoke.mjs",
@@ -964,7 +520,10 @@
     {
       "area": "release",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy bump version contract.",
+      "entryPointAssertionCount": 24,
       "id": "legacy.bump.version",
       "legacy": true,
       "path": "scripts/bump-version-regression.mjs",
@@ -978,7 +537,10 @@
     {
       "area": "framework",
       "assertionCount": 57,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy client project hierarchy branch closeout contract.",
+      "entryPointAssertionCount": 57,
       "id": "legacy.client.project.hierarchy.branch.closeout",
       "legacy": true,
       "path": "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
@@ -992,7 +554,10 @@
     {
       "area": "framework",
       "assertionCount": 12,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy client projects bugfix contract.",
+      "entryPointAssertionCount": 12,
       "id": "legacy.client.projects.bugfix",
       "legacy": true,
       "path": "scripts/client-projects-bugfix-regression.mjs",
@@ -1006,7 +571,10 @@
     {
       "area": "framework",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy client projects canonical payload contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.client.projects.canonical.payload",
       "legacy": true,
       "path": "scripts/client-projects-canonical-payload-regression.mjs",
@@ -1020,7 +588,10 @@
     {
       "area": "framework",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy client projects repositories conversion contract.",
+      "entryPointAssertionCount": 56,
       "id": "legacy.client.projects.repositories.conversion",
       "legacy": true,
       "path": "scripts/client-projects-repositories-conversion-regression.mjs",
@@ -1034,7 +605,10 @@
     {
       "area": "framework",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects action registration contract.",
+      "entryPointAssertionCount": 22,
       "id": "legacy.clients.projects.action.registration",
       "legacy": true,
       "path": "scripts/clients-projects-action-registration-regression.mjs",
@@ -1046,7 +620,10 @@
     {
       "area": "framework",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects bulk toolbar contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.clients.projects.bulk.toolbar",
       "legacy": true,
       "path": "scripts/clients-projects-bulk-toolbar-regression.mjs",
@@ -1058,7 +635,10 @@
     {
       "area": "framework",
       "assertionCount": 57,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects framework read anatomy contract.",
+      "entryPointAssertionCount": 57,
       "id": "legacy.clients.projects.framework.read.anatomy",
       "legacy": true,
       "path": "scripts/clients-projects-framework-read-anatomy-regression.mjs",
@@ -1070,7 +650,10 @@
     {
       "area": "framework",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects hierarchy reparent contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.clients.projects.hierarchy.reparent",
       "legacy": true,
       "path": "scripts/clients-projects-hierarchy-reparent-regression.mjs",
@@ -1082,7 +665,10 @@
     {
       "area": "views",
       "assertionCount": 62,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects read descriptor host contract.",
+      "entryPointAssertionCount": 62,
       "id": "legacy.clients.projects.read.descriptor.host",
       "legacy": true,
       "path": "scripts/clients-projects-read-descriptor-host-regression.mjs",
@@ -1094,7 +680,10 @@
     {
       "area": "framework",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy clients projects related regions contract.",
+      "entryPointAssertionCount": 19,
       "id": "legacy.clients.projects.related.regions",
       "legacy": true,
       "path": "scripts/clients-projects-related-regions-regression.mjs",
@@ -1106,7 +695,10 @@
     {
       "area": "dashboard",
       "assertionCount": 128,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy dashboard workbench contract.",
+      "entryPointAssertionCount": 128,
       "id": "legacy.dashboard.workbench",
       "legacy": true,
       "path": "scripts/dashboard-workbench-regression.mjs",
@@ -1118,7 +710,10 @@
     {
       "area": "database",
       "assertionCount": 51,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database adapter contract contract.",
+      "entryPointAssertionCount": 51,
       "id": "legacy.database.adapter.contract",
       "legacy": true,
       "path": "scripts/database-adapter-contract-regression.mjs",
@@ -1133,7 +728,10 @@
     {
       "area": "database",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database boolean time seam contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.database.boolean.time.seam",
       "legacy": true,
       "path": "scripts/database-boolean-time-seam-regression.mjs",
@@ -1147,7 +745,10 @@
     {
       "area": "database",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database case insensitive seam contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.database.case.insensitive.seam",
       "legacy": true,
       "path": "scripts/database-case-insensitive-seam-regression.mjs",
@@ -1161,7 +762,10 @@
     {
       "area": "database",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database conflict identity seam contract.",
+      "entryPointAssertionCount": 42,
       "id": "legacy.database.conflict.identity.seam",
       "legacy": true,
       "path": "scripts/database-conflict-identity-seam-regression.mjs",
@@ -1175,7 +779,10 @@
     {
       "area": "database",
       "assertionCount": 72,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database dialect seam scaffold contract.",
+      "entryPointAssertionCount": 72,
       "id": "legacy.database.dialect.seam.scaffold",
       "legacy": true,
       "path": "scripts/database-dialect-seam-scaffold-regression.mjs",
@@ -1189,7 +796,10 @@
     {
       "area": "database",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database introspection boundary contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.database.introspection.boundary",
       "legacy": true,
       "path": "scripts/database-introspection-boundary-regression.mjs",
@@ -1203,7 +813,10 @@
     {
       "area": "database",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database migration locking contract.",
+      "entryPointAssertionCount": 37,
       "id": "legacy.database.migration.locking",
       "legacy": true,
       "path": "scripts/database-migration-locking-regression.mjs",
@@ -1218,7 +831,10 @@
     {
       "area": "database",
       "assertionCount": 55,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database parameterized query pilot contract.",
+      "entryPointAssertionCount": 55,
       "id": "legacy.database.parameterized.query.pilot",
       "legacy": true,
       "path": "scripts/database-parameterized-query-pilot-regression.mjs",
@@ -1232,7 +848,10 @@
     {
       "area": "database",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database result fidelity contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.database.result.fidelity",
       "legacy": true,
       "path": "scripts/database-result-fidelity-regression.mjs",
@@ -1246,7 +865,10 @@
     {
       "area": "database",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy database transaction helper contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.database.transaction.helper",
       "legacy": true,
       "path": "scripts/database-transaction-helper-regression.mjs",
@@ -1261,7 +883,10 @@
     {
       "area": "framework",
       "assertionCount": 15,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy event bus contract.",
+      "entryPointAssertionCount": 15,
       "id": "legacy.event.bus",
       "legacy": true,
       "path": "scripts/event-bus-regression.mjs",
@@ -1273,7 +898,10 @@
     {
       "area": "files",
       "assertionCount": 84,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file api lifecycle contract.",
+      "entryPointAssertionCount": 84,
       "id": "legacy.file.api.lifecycle",
       "legacy": true,
       "path": "scripts/file-api-lifecycle-regression.mjs",
@@ -1288,7 +916,10 @@
     {
       "area": "files",
       "assertionCount": 57,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file clamd adapter contract.",
+      "entryPointAssertionCount": 57,
       "id": "legacy.file.clamd.adapter",
       "legacy": true,
       "path": "scripts/file-clamd-adapter-regression.mjs",
@@ -1304,7 +935,10 @@
     {
       "area": "files",
       "assertionCount": 55,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file clamscan adapter contract.",
+      "entryPointAssertionCount": 55,
       "id": "legacy.file.clamscan.adapter",
       "legacy": true,
       "path": "scripts/file-clamscan-adapter-regression.mjs",
@@ -1320,7 +954,10 @@
     {
       "area": "files",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file framework contract contract.",
+      "entryPointAssertionCount": 36,
       "id": "legacy.file.framework.contract",
       "legacy": true,
       "path": "scripts/file-framework-contract-regression.mjs",
@@ -1336,7 +973,10 @@
     {
       "area": "files",
       "assertionCount": 84,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file multipart batch upload helper contract.",
+      "entryPointAssertionCount": 84,
       "id": "legacy.file.multipart.batch.upload.helper",
       "legacy": true,
       "path": "scripts/file-multipart-batch-upload-helper-regression.mjs",
@@ -1352,7 +992,10 @@
     {
       "area": "files",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file multipart upload route contract.",
+      "entryPointAssertionCount": 56,
       "id": "legacy.file.multipart.upload.route",
       "legacy": true,
       "path": "scripts/file-multipart-upload-route-regression.mjs",
@@ -1367,7 +1010,10 @@
     {
       "area": "files",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file s3 diagnostics signed url boundary contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.file.s3.diagnostics.signed.url.boundary",
       "legacy": true,
       "path": "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
@@ -1382,7 +1028,10 @@
     {
       "area": "files",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file s3 object operation proof contract.",
+      "entryPointAssertionCount": 42,
       "id": "legacy.file.s3.object.operation.proof",
       "legacy": true,
       "path": "scripts/file-s3-object-operation-proof-regression.mjs",
@@ -1397,7 +1046,10 @@
     {
       "area": "files",
       "assertionCount": 50,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file s3 provider registration contract.",
+      "entryPointAssertionCount": 50,
       "id": "legacy.file.s3.provider.registration",
       "legacy": true,
       "path": "scripts/file-s3-provider-registration-regression.mjs",
@@ -1412,7 +1064,10 @@
     {
       "area": "files",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file scan job handoff contract.",
+      "entryPointAssertionCount": 24,
       "id": "legacy.file.scan.job.handoff",
       "legacy": true,
       "path": "scripts/file-scan-job-handoff-regression.mjs",
@@ -1428,7 +1083,10 @@
     {
       "area": "files",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file scanner health diagnostics contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.file.scanner.health.diagnostics",
       "legacy": true,
       "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
@@ -1444,7 +1102,10 @@
     {
       "area": "files",
       "assertionCount": 40,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file scanner mode resolver contract.",
+      "entryPointAssertionCount": 40,
       "id": "legacy.file.scanner.mode.resolver",
       "legacy": true,
       "path": "scripts/file-scanner-mode-resolver-regression.mjs",
@@ -1460,7 +1121,10 @@
     {
       "area": "files",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file settings contract.",
+      "entryPointAssertionCount": 23,
       "id": "legacy.file.settings",
       "legacy": true,
       "path": "scripts/file-settings-regression.mjs",
@@ -1475,7 +1139,10 @@
     {
       "area": "files",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file storage accounting contract.",
+      "entryPointAssertionCount": 22,
       "id": "legacy.file.storage.accounting",
       "legacy": true,
       "path": "scripts/file-storage-accounting-regression.mjs",
@@ -1490,7 +1157,10 @@
     {
       "area": "files",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file storage diagnostics contract.",
+      "entryPointAssertionCount": 25,
       "id": "legacy.file.storage.diagnostics",
       "legacy": true,
       "path": "scripts/file-storage-diagnostics-regression.mjs",
@@ -1505,7 +1175,10 @@
     {
       "area": "files",
       "assertionCount": 18,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file storage provider configuration contract.",
+      "entryPointAssertionCount": 18,
       "id": "legacy.file.storage.provider.configuration",
       "legacy": true,
       "path": "scripts/file-storage-provider-configuration-regression.mjs",
@@ -1520,7 +1193,10 @@
     {
       "area": "files",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file storage quota enforcement contract.",
+      "entryPointAssertionCount": 22,
       "id": "legacy.file.storage.quota.enforcement",
       "legacy": true,
       "path": "scripts/file-storage-quota-enforcement-regression.mjs",
@@ -1535,7 +1211,10 @@
     {
       "area": "files",
       "assertionCount": 17,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file storage streaming contract contract.",
+      "entryPointAssertionCount": 17,
       "id": "legacy.file.storage.streaming.contract",
       "legacy": true,
       "path": "scripts/file-storage-streaming-contract-regression.mjs",
@@ -1551,7 +1230,10 @@
     {
       "area": "files",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file streamed validation download metadata contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.file.streamed.validation.download.metadata",
       "legacy": true,
       "path": "scripts/file-streamed-validation-download-metadata-regression.mjs",
@@ -1566,7 +1248,10 @@
     {
       "area": "files",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy file upload compatibility error hardening contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.file.upload.compatibility.error.hardening",
       "legacy": true,
       "path": "scripts/file-upload-compatibility-error-hardening-regression.mjs",
@@ -1581,7 +1266,10 @@
     {
       "area": "files",
       "assertionCount": 62,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files attachable target options contract.",
+      "entryPointAssertionCount": 62,
       "id": "legacy.files.attachable.target.options",
       "legacy": true,
       "path": "scripts/files-attachable-target-options-regression.mjs",
@@ -1596,7 +1284,10 @@
     {
       "area": "files",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files attachment context route contract.",
+      "entryPointAssertionCount": 45,
       "id": "legacy.files.attachment.context.route",
       "legacy": true,
       "path": "scripts/files-attachment-context-route-regression.mjs",
@@ -1611,7 +1302,10 @@
     {
       "area": "files",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files attachment readmodel contract.",
+      "entryPointAssertionCount": 23,
       "id": "legacy.files.attachment.readmodel",
       "legacy": true,
       "path": "scripts/files-attachment-readmodel-regression.mjs",
@@ -1626,7 +1320,10 @@
     {
       "area": "files",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files browse attachment reads conversion contract.",
+      "entryPointAssertionCount": 31,
       "id": "legacy.files.browse.attachment.reads.conversion",
       "legacy": true,
       "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
@@ -1641,7 +1338,10 @@
     {
       "area": "files",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files context targets conversion contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.files.context.targets.conversion",
       "legacy": true,
       "path": "scripts/files-context-targets-conversion-regression.mjs",
@@ -1656,7 +1356,10 @@
     {
       "area": "files",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files descriptor host contract.",
+      "entryPointAssertionCount": 31,
       "id": "legacy.files.descriptor.host",
       "legacy": true,
       "path": "scripts/files-descriptor-host-regression.mjs",
@@ -1670,7 +1373,10 @@
     {
       "area": "files",
       "assertionCount": 48,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files lifecycle settings quota conversion contract.",
+      "entryPointAssertionCount": 48,
       "id": "legacy.files.lifecycle.settings.quota.conversion",
       "legacy": true,
       "path": "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
@@ -1685,7 +1391,10 @@
     {
       "area": "files",
       "assertionCount": 52,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files preview availability route contract.",
+      "entryPointAssertionCount": 52,
       "id": "legacy.files.preview.availability.route",
       "legacy": true,
       "path": "scripts/files-preview-availability-route-regression.mjs",
@@ -1700,7 +1409,10 @@
     {
       "area": "files",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files preview content route contract.",
+      "entryPointAssertionCount": 56,
       "id": "legacy.files.preview.content.route",
       "legacy": true,
       "path": "scripts/files-preview-content-route-regression.mjs",
@@ -1715,7 +1427,10 @@
     {
       "area": "files",
       "assertionCount": 14,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy files time tracking qol closeout contract.",
+      "entryPointAssertionCount": 14,
       "id": "legacy.files.time.tracking.qol.closeout",
       "legacy": true,
       "path": "scripts/files-time-tracking-qol-closeout-regression.mjs",
@@ -1731,7 +1446,10 @@
     {
       "area": "framework",
       "assertionCount": 55,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy framework admin low count repositories conversion contract.",
+      "entryPointAssertionCount": 55,
       "id": "legacy.framework.admin.low.count.repositories.conversion",
       "legacy": true,
       "path": "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
@@ -1745,7 +1463,10 @@
     {
       "area": "database",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy fresh database contract.",
+      "entryPointAssertionCount": 19,
       "id": "legacy.fresh.database",
       "legacy": true,
       "path": "scripts/fresh-database-regression.mjs",
@@ -1760,7 +1481,10 @@
     {
       "area": "docs",
       "assertionCount": 73,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help center surface contract.",
+      "entryPointAssertionCount": 73,
       "id": "legacy.help.center.surface",
       "legacy": true,
       "path": "scripts/help-center-surface-regression.mjs",
@@ -1775,7 +1499,10 @@
     {
       "area": "docs",
       "assertionCount": 50,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help content contract.",
+      "entryPointAssertionCount": 50,
       "id": "legacy.help.content",
       "legacy": true,
       "path": "scripts/help-content-regression.mjs",
@@ -1790,7 +1517,10 @@
     {
       "area": "docs",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help contract contract.",
+      "entryPointAssertionCount": 23,
       "id": "legacy.help.contract",
       "legacy": true,
       "path": "scripts/help-contract-regression.mjs",
@@ -1806,7 +1536,10 @@
     {
       "area": "docs",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help markdown source layout contract.",
+      "entryPointAssertionCount": 21,
       "id": "legacy.help.markdown.source.layout",
       "legacy": true,
       "path": "scripts/help-markdown-source-layout-regression.mjs",
@@ -1821,7 +1554,10 @@
     {
       "area": "docs",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help navigation boundary contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.help.navigation.boundary",
       "legacy": true,
       "path": "scripts/help-navigation-boundary-regression.mjs",
@@ -1836,7 +1572,10 @@
     {
       "area": "docs",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help search contract.",
+      "entryPointAssertionCount": 39,
       "id": "legacy.help.search",
       "legacy": true,
       "path": "scripts/help-search-regression.mjs",
@@ -1851,7 +1590,10 @@
     {
       "area": "docs",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy help workflow contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.help.workflow",
       "legacy": true,
       "path": "scripts/help-workflow-regression.mjs",
@@ -1866,7 +1608,10 @@
     {
       "area": "framework",
       "assertionCount": 66,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy high volume admin lists contract.",
+      "entryPointAssertionCount": 66,
       "id": "legacy.high.volume.admin.lists",
       "legacy": true,
       "path": "scripts/high-volume-admin-lists-regression.mjs",
@@ -1878,7 +1623,10 @@
     {
       "area": "jobs",
       "assertionCount": 66,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy job claiming locking contract.",
+      "entryPointAssertionCount": 66,
       "id": "legacy.job.claiming.locking",
       "legacy": true,
       "path": "scripts/job-claiming-locking-regression.mjs",
@@ -1893,7 +1641,10 @@
     {
       "area": "jobs",
       "assertionCount": 30,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy job idempotency at least once contract.",
+      "entryPointAssertionCount": 30,
       "id": "legacy.job.idempotency.at.least.once",
       "legacy": true,
       "path": "scripts/job-idempotency-at-least-once-regression.mjs",
@@ -1908,7 +1659,10 @@
     {
       "area": "jobs",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy job outbox schema contract.",
+      "entryPointAssertionCount": 25,
       "id": "legacy.job.outbox.schema",
       "legacy": true,
       "path": "scripts/job-outbox-schema-regression.mjs",
@@ -1923,7 +1677,10 @@
     {
       "area": "jobs",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy job retention pruning contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.job.retention.pruning",
       "legacy": true,
       "path": "scripts/job-retention-pruning-regression.mjs",
@@ -1938,7 +1695,10 @@
     {
       "area": "release",
       "assertionCount": 7,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy legacy cleanup contract.",
+      "entryPointAssertionCount": 7,
       "id": "legacy.legacy.cleanup",
       "legacy": true,
       "path": "scripts/legacy-cleanup-regression.mjs",
@@ -1953,7 +1713,10 @@
     {
       "area": "notes",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context client project label sort contract.",
+      "entryPointAssertionCount": 32,
       "id": "legacy.linked.context.client.project.label.sort",
       "legacy": true,
       "path": "scripts/linked-context-client-project-label-sort-regression.mjs",
@@ -1967,7 +1730,10 @@
     {
       "area": "notes",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context client scope picker contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.linked.context.client.scope.picker",
       "legacy": true,
       "path": "scripts/linked-context-client-scope-picker-regression.mjs",
@@ -1982,7 +1748,10 @@
     {
       "area": "notes",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context note list label contract.",
+      "entryPointAssertionCount": 39,
       "id": "legacy.linked.context.note.list.label",
       "legacy": true,
       "path": "scripts/linked-context-note-list-label-regression.mjs",
@@ -1996,7 +1765,10 @@
     {
       "area": "notes",
       "assertionCount": 63,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context picker shell contract.",
+      "entryPointAssertionCount": 63,
       "id": "legacy.linked.context.picker.shell",
       "legacy": true,
       "path": "scripts/linked-context-picker-shell-regression.mjs",
@@ -2008,7 +1780,10 @@
     {
       "area": "notes",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context provider contract contract.",
+      "entryPointAssertionCount": 22,
       "id": "legacy.linked.context.provider.contract",
       "legacy": true,
       "path": "scripts/linked-context-provider-contract-regression.mjs",
@@ -2022,7 +1797,10 @@
     {
       "area": "notes",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context task label sort contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.linked.context.task.label.sort",
       "legacy": true,
       "path": "scripts/linked-context-task-label-sort-regression.mjs",
@@ -2036,7 +1814,10 @@
     {
       "area": "notes",
       "assertionCount": 13,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy linked context unavailable fallback contract.",
+      "entryPointAssertionCount": 13,
       "id": "legacy.linked.context.unavailable.fallback",
       "legacy": true,
       "path": "scripts/linked-context-unavailable-fallback-regression.mjs",
@@ -2050,7 +1831,10 @@
     {
       "area": "lists",
       "assertionCount": 125,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists api contract.",
+      "entryPointAssertionCount": 125,
       "id": "legacy.lists.api",
       "legacy": true,
       "path": "scripts/lists-api-regression.mjs",
@@ -2064,7 +1848,10 @@
     {
       "area": "lists",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists catalog links repository conversion contract.",
+      "entryPointAssertionCount": 56,
       "id": "legacy.lists.catalog.links.repository.conversion",
       "legacy": true,
       "path": "scripts/lists-catalog-links-repository-conversion-regression.mjs",
@@ -2078,7 +1865,10 @@
     {
       "area": "lists",
       "assertionCount": 53,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists closeout contract.",
+      "entryPointAssertionCount": 53,
       "id": "legacy.lists.closeout",
       "legacy": true,
       "path": "scripts/lists-closeout-regression.mjs",
@@ -2093,7 +1883,10 @@
     {
       "area": "lists",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists foundation contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.lists.foundation",
       "legacy": true,
       "path": "scripts/lists-foundation-regression.mjs",
@@ -2107,7 +1900,10 @@
     {
       "area": "lists",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists query suggestions contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.lists.query.suggestions",
       "legacy": true,
       "path": "scripts/lists-query-suggestions-regression.mjs",
@@ -2121,7 +1917,10 @@
     {
       "area": "lists",
       "assertionCount": 64,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists records items repository conversion contract.",
+      "entryPointAssertionCount": 64,
       "id": "legacy.lists.records.items.repository.conversion",
       "legacy": true,
       "path": "scripts/lists-records-items-repository-conversion-regression.mjs",
@@ -2135,7 +1934,10 @@
     {
       "area": "lists",
       "assertionCount": 129,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists service contract.",
+      "entryPointAssertionCount": 129,
       "id": "legacy.lists.service",
       "legacy": true,
       "path": "scripts/lists-service-regression.mjs",
@@ -2149,7 +1951,10 @@
     {
       "area": "lists",
       "assertionCount": 200,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy lists ui workflow contract.",
+      "entryPointAssertionCount": 200,
       "id": "legacy.lists.ui.workflow",
       "legacy": true,
       "path": "scripts/lists-ui-workflow-regression.mjs",
@@ -2163,7 +1968,10 @@
     {
       "area": "database",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy migration compatibility contract.",
+      "entryPointAssertionCount": 37,
       "id": "legacy.migration.compatibility",
       "legacy": true,
       "path": "scripts/migration-compatibility-regression.mjs",
@@ -2178,7 +1986,10 @@
     {
       "area": "framework",
       "assertionCount": 86,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy module actions contract.",
+      "entryPointAssertionCount": 86,
       "id": "legacy.module.actions",
       "legacy": true,
       "path": "scripts/module-actions-regression.mjs",
@@ -2190,7 +2001,10 @@
     {
       "area": "framework",
       "assertionCount": 84,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy module sanity contract.",
+      "entryPointAssertionCount": 84,
       "id": "legacy.module.sanity",
       "legacy": true,
       "path": "scripts/module-sanity-check.mjs",
@@ -2204,7 +2018,10 @@
     {
       "area": "notes",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes access contract contract.",
+      "entryPointAssertionCount": 41,
       "id": "legacy.notes.access.contract",
       "legacy": true,
       "path": "scripts/notes-access-contract-regression.mjs",
@@ -2220,7 +2037,10 @@
     {
       "area": "notes",
       "assertionCount": 73,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes api service contract.",
+      "entryPointAssertionCount": 73,
       "id": "legacy.notes.api.service",
       "legacy": true,
       "path": "scripts/notes-api-service-regression.mjs",
@@ -2234,7 +2054,10 @@
     {
       "area": "notes",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes collections contract.",
+      "entryPointAssertionCount": 32,
       "id": "legacy.notes.collections",
       "legacy": true,
       "path": "scripts/notes-collections-regression.mjs",
@@ -2248,7 +2071,10 @@
     {
       "area": "notes",
       "assertionCount": 47,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes external markdown links preference contract.",
+      "entryPointAssertionCount": 47,
       "id": "legacy.notes.external.markdown.links.preference",
       "legacy": true,
       "path": "scripts/notes-external-markdown-links-preference-regression.mjs",
@@ -2262,7 +2088,10 @@
     {
       "area": "notes",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes files hierarchy scope contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.notes.files.hierarchy.scope",
       "legacy": true,
       "path": "scripts/notes-files-hierarchy-scope-regression.mjs",
@@ -2277,7 +2106,10 @@
     {
       "area": "notes",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes foundation contract.",
+      "entryPointAssertionCount": 31,
       "id": "legacy.notes.foundation",
       "legacy": true,
       "path": "scripts/notes-foundation-regression.mjs",
@@ -2291,7 +2123,10 @@
     {
       "area": "notes",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes integration closeout contract.",
+      "entryPointAssertionCount": 39,
       "id": "legacy.notes.integration.closeout",
       "legacy": true,
       "path": "scripts/notes-integration-closeout-regression.mjs",
@@ -2306,7 +2141,10 @@
     {
       "area": "notes",
       "assertionCount": 72,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes linked panel contract.",
+      "entryPointAssertionCount": 72,
       "id": "legacy.notes.linked.panel",
       "legacy": true,
       "path": "scripts/notes-linked-panel-regression.mjs",
@@ -2320,7 +2158,10 @@
     {
       "area": "public-api",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes lists tags api scope contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.notes.lists.tags.api.scope",
       "legacy": true,
       "path": "scripts/notes-lists-tags-api-scope-regression.mjs",
@@ -2335,7 +2176,10 @@
     {
       "area": "notes",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes markdown revision contract.",
+      "entryPointAssertionCount": 45,
       "id": "legacy.notes.markdown.revision",
       "legacy": true,
       "path": "scripts/notes-markdown-revision-regression.mjs",
@@ -2350,7 +2194,10 @@
     {
       "area": "notes",
       "assertionCount": 10,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes markdown soft break contract.",
+      "entryPointAssertionCount": 10,
       "id": "legacy.notes.markdown.soft.break",
       "legacy": true,
       "path": "scripts/notes-markdown-soft-break-regression.mjs",
@@ -2365,7 +2212,10 @@
     {
       "area": "notes",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes modal stack guardrails contract.",
+      "entryPointAssertionCount": 36,
       "id": "legacy.notes.modal.stack.guardrails",
       "legacy": true,
       "path": "scripts/notes-modal-stack-guardrails-regression.mjs",
@@ -2379,7 +2229,10 @@
     {
       "area": "notes",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes notification follow contract.",
+      "entryPointAssertionCount": 42,
       "id": "legacy.notes.notification.follow",
       "legacy": true,
       "path": "scripts/notes-notification-follow-regression.mjs",
@@ -2391,7 +2244,10 @@
     {
       "area": "notes",
       "assertionCount": 71,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes preview editor contract.",
+      "entryPointAssertionCount": 71,
       "id": "legacy.notes.preview.editor",
       "legacy": true,
       "path": "scripts/notes-preview-editor-regression.mjs",
@@ -2405,7 +2261,10 @@
     {
       "area": "notes",
       "assertionCount": 67,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes primary context contract.",
+      "entryPointAssertionCount": 67,
       "id": "legacy.notes.primary.context",
       "legacy": true,
       "path": "scripts/notes-primary-context-regression.mjs",
@@ -2419,7 +2278,10 @@
     {
       "area": "notes",
       "assertionCount": 49,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes records filters repository conversion contract.",
+      "entryPointAssertionCount": 49,
       "id": "legacy.notes.records.filters.repository.conversion",
       "legacy": true,
       "path": "scripts/notes-records-filters-repository-conversion-regression.mjs",
@@ -2431,7 +2293,10 @@
     {
       "area": "notes",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes search help contract.",
+      "entryPointAssertionCount": 36,
       "id": "legacy.notes.search.help",
       "legacy": true,
       "path": "scripts/notes-search-help-regression.mjs",
@@ -2446,7 +2311,10 @@
     {
       "area": "notes",
       "assertionCount": 61,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes secure contract.",
+      "entryPointAssertionCount": 61,
       "id": "legacy.notes.secure",
       "legacy": true,
       "path": "scripts/notes-secure-regression.mjs",
@@ -2461,7 +2329,10 @@
     {
       "area": "notes",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes server side list paging contract.",
+      "entryPointAssertionCount": 42,
       "id": "legacy.notes.server.side.list.paging",
       "legacy": true,
       "path": "scripts/notes-server-side-list-paging-regression.mjs",
@@ -2473,7 +2344,10 @@
     {
       "area": "notes",
       "assertionCount": 38,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes task context contract.",
+      "entryPointAssertionCount": 38,
       "id": "legacy.notes.task.context",
       "legacy": true,
       "path": "scripts/notes-task-context-regression.mjs",
@@ -2487,7 +2361,10 @@
     {
       "area": "notes",
       "assertionCount": 249,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes ui workflow contract.",
+      "entryPointAssertionCount": 249,
       "id": "legacy.notes.ui.workflow",
       "legacy": true,
       "path": "scripts/notes-ui-workflow-regression.mjs",
@@ -2501,7 +2378,10 @@
     {
       "area": "notes",
       "assertionCount": 53,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notes writes revisions links collections repository conversion contract.",
+      "entryPointAssertionCount": 53,
       "id": "legacy.notes.writes.revisions.links.collections.repository.conversion",
       "legacy": true,
       "path": "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
@@ -2513,7 +2393,10 @@
     {
       "area": "notifications",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notification jobs contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.notification.jobs",
       "legacy": true,
       "path": "scripts/notification-jobs-regression.mjs",
@@ -2528,7 +2411,10 @@
     {
       "area": "framework",
       "assertionCount": 238,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notification contract.",
+      "entryPointAssertionCount": 238,
       "id": "legacy.notification",
       "legacy": true,
       "path": "scripts/notification-regression.mjs",
@@ -2542,7 +2428,10 @@
     {
       "area": "notifications",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notifications inbox lifecycle conversion contract.",
+      "entryPointAssertionCount": 36,
       "id": "legacy.notifications.inbox.lifecycle.conversion",
       "legacy": true,
       "path": "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
@@ -2556,7 +2445,10 @@
     {
       "area": "notifications",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy notifications preferences subscriptions conversion contract.",
+      "entryPointAssertionCount": 43,
       "id": "legacy.notifications.preferences.subscriptions.conversion",
       "legacy": true,
       "path": "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
@@ -2570,7 +2462,10 @@
     {
       "area": "database",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy parameter binding conversion wave contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.parameter.binding.conversion.wave",
       "legacy": true,
       "path": "scripts/parameter-binding-conversion-wave-regression.mjs",
@@ -2582,7 +2477,10 @@
     {
       "area": "database",
       "assertionCount": 88,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy parameter binding layer contract.",
+      "entryPointAssertionCount": 88,
       "id": "legacy.parameter.binding.layer",
       "legacy": true,
       "path": "scripts/parameter-binding-layer-regression.mjs",
@@ -2594,7 +2492,10 @@
     {
       "area": "framework",
       "assertionCount": 7,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy performance contract.",
+      "entryPointAssertionCount": 7,
       "id": "legacy.performance",
       "legacy": true,
       "path": "scripts/performance-regression.mjs",
@@ -2609,7 +2510,10 @@
     {
       "area": "permissions",
       "assertionCount": 352,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Executes the complete eight-role HTTP authorization matrix against one isolated application server and disposable database.",
+      "entryPointAssertionCount": 352,
       "id": "permissions.http-authorization-matrix",
       "legacy": false,
       "path": "scripts/permission-regression.mjs",
@@ -2627,7 +2531,10 @@
     {
       "area": "permissions",
       "assertionCount": 74,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy personal family workspace scope contract.",
+      "entryPointAssertionCount": 74,
       "id": "legacy.personal.family.workspace.scope",
       "legacy": true,
       "path": "scripts/personal-family-workspace-scope-regression.mjs",
@@ -2642,7 +2549,10 @@
     {
       "area": "tasks",
       "assertionCount": 7,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy project default assignee contract.",
+      "entryPointAssertionCount": 7,
       "id": "legacy.project.default.assignee",
       "legacy": true,
       "path": "scripts/project-default-assignee-regression.mjs",
@@ -2656,7 +2566,10 @@
     {
       "area": "framework",
       "assertionCount": 12,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy project hierarchy move contract.",
+      "entryPointAssertionCount": 12,
       "id": "legacy.project.hierarchy.move",
       "legacy": true,
       "path": "scripts/project-hierarchy-move-regression.mjs",
@@ -2668,7 +2581,10 @@
     {
       "area": "public-api",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy public api client project write contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.public.api.client.project.write",
       "legacy": true,
       "path": "scripts/public-api-client-project-write-regression.mjs",
@@ -2682,7 +2598,10 @@
     {
       "area": "framework",
       "assertionCount": 65,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy quick action capture contract.",
+      "entryPointAssertionCount": 65,
       "id": "legacy.quick.action.capture",
       "legacy": true,
       "path": "scripts/quick-action-capture-regression.mjs",
@@ -2694,7 +2613,10 @@
     {
       "area": "framework",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy quick action opener rollout contract.",
+      "entryPointAssertionCount": 39,
       "id": "legacy.quick.action.opener.rollout",
       "legacy": true,
       "path": "scripts/quick-action-opener-rollout-regression.mjs",
@@ -2706,7 +2628,10 @@
     {
       "area": "release",
       "assertionCount": 3,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy regression clean clone contract contract.",
+      "entryPointAssertionCount": 3,
       "id": "legacy.regression.clean.clone.contract",
       "legacy": true,
       "path": "scripts/regression-clean-clone-contract.mjs",
@@ -2721,7 +2646,10 @@
     {
       "area": "release",
       "assertionCount": 109,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy regression runner contract.",
+      "entryPointAssertionCount": 109,
       "id": "legacy.regression.runner",
       "legacy": true,
       "path": "scripts/regression-runner-regression.mjs",
@@ -2735,7 +2663,10 @@
     {
       "area": "release",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy regression suite inventory contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.regression.suite.inventory",
       "legacy": true,
       "path": "scripts/regression-suite-inventory-regression.mjs",
@@ -2749,7 +2680,10 @@
     {
       "area": "dashboard",
       "assertionCount": 9,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins HTTP timing, statement-count, and payload budgets for the three Dashboard data routes and proves unrelated Task/time-entry growth does not expand their steady-state cost.",
+      "entryPointAssertionCount": 9,
       "id": "dashboard.hot-endpoint-budgets",
       "legacy": false,
       "path": "scripts/regressions/dashboard/hot-endpoint-budgets.regression.mjs",
@@ -2768,7 +2702,10 @@
     {
       "area": "database",
       "assertionCount": 14,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves Windows drive-letter archive paths become local basename operands without changing backup or restore archive semantics.",
+      "entryPointAssertionCount": 14,
       "id": "database.backup-archive-portability",
       "legacy": false,
       "path": "scripts/regressions/database/backup-archive-portability.regression.mjs",
@@ -2785,7 +2722,10 @@
     {
       "area": "database",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the versioned SQLite plus Files backup format, Secure Notes prerequisite, destructive restore safeguards, and disposable restore drill.",
+      "entryPointAssertionCount": 21,
       "id": "database.backup-restore-foundation",
       "legacy": false,
       "path": "scripts/regressions/database/backup-restore-foundation.regression.mjs",
@@ -2803,7 +2743,10 @@
     {
       "area": "database",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
+      "entryPointAssertionCount": 31,
       "id": "database.better-sqlite3-13-data-compatibility",
       "legacy": false,
       "path": "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
@@ -2823,8 +2766,40 @@
     },
     {
       "area": "database",
-      "assertionCount": 1,
+      "assertionCount": 207,
+      "contractAssertionCount": 206,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/database/clients-projects-strict-guardrail-inventory.contract.mjs",
+          "assertionCount": 86
+        },
+        {
+          "path": "scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs",
+          "assertionCount": 26
+        },
+        {
+          "path": "scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs",
+          "assertionCount": 10
+        },
+        {
+          "path": "scripts/regression-contracts/database/migration-runner-checked-boundary.contract.mjs",
+          "assertionCount": 17
+        },
+        {
+          "path": "scripts/regression-contracts/database/parameter-binding-audit.contract.mjs",
+          "assertionCount": 27
+        },
+        {
+          "path": "scripts/regression-contracts/database/repository-checked-passes.contract.mjs",
+          "assertionCount": 0
+        },
+        {
+          "path": "scripts/regression-contracts/database/sqlite-small-office-readout.contract.mjs",
+          "assertionCount": 40
+        }
+      ],
       "description": "Runs source-only database, binding, repository, and data guardrails through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "database.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/database/current-static-contracts.regression.mjs",
@@ -2841,7 +2816,10 @@
     {
       "area": "database",
       "assertionCount": 13,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves dialect option bags, row identity, boolean field transforms, and scalar/array parameter bindings remain checked discriminated contracts.",
+      "entryPointAssertionCount": 13,
       "id": "database.dialect-binding-types",
       "legacy": false,
       "path": "scripts/regressions/database/database-dialect-binding-types.regression.mjs",
@@ -2859,7 +2837,10 @@
     {
       "area": "database",
       "assertionCount": 13,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves Settings, Users, and Workspaces expose checked method inputs, projected rows, and nullable single-row results without changing runtime queries.",
+      "entryPointAssertionCount": 13,
       "id": "database.repository-signature-types",
       "legacy": false,
       "path": "scripts/regressions/database/database-repository-signature-types.regression.mjs",
@@ -2876,7 +2857,10 @@
     {
       "area": "database",
       "assertionCount": 20,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the full database adapter and transaction-only client remain distinct checked contracts across the SQLite driver and injected repositories.",
+      "entryPointAssertionCount": 20,
       "id": "database.transaction-client-types",
       "legacy": false,
       "path": "scripts/regressions/database/database-transaction-client-types.regression.mjs",
@@ -2894,7 +2878,10 @@
     {
       "area": "database",
       "assertionCount": 106,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
+      "entryPointAssertionCount": 106,
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -2914,7 +2901,10 @@
     {
       "area": "database",
       "assertionCount": 154,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves deterministic rich development/demo data, safe reset ownership, disabled persona logins, and production/live target refusal.",
+      "entryPointAssertionCount": 154,
       "id": "database.development-data-seed",
       "legacy": false,
       "path": "scripts/regressions/database/development-data-seed.regression.mjs",
@@ -2933,7 +2923,10 @@
     {
       "area": "database",
       "assertionCount": 47,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves deterministic migration creation and generated final-schema drift detection without changing the SQLite runtime contract.",
+      "entryPointAssertionCount": 47,
       "id": "database.migration-schema-workflow",
       "legacy": false,
       "path": "scripts/regressions/database/migration-schema-workflow.regression.mjs",
@@ -2950,7 +2943,10 @@
     {
       "area": "database",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves module-context reads perform zero writes, workspace module rows are ensured by the startup and workspace-creation lifecycle, enable/disable stays immediately visible through the context cache, and repeated request-scoped settings reads hit the memo.",
+      "entryPointAssertionCount": 22,
       "id": "database.module-context-read-lifecycle",
       "legacy": false,
       "path": "scripts/regressions/database/module-context-read-lifecycle.regression.mjs",
@@ -2968,7 +2964,10 @@
     {
       "area": "database",
       "assertionCount": 3,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves legacy private calendar rows migrate with URL continuity only when still eligible, while invalid and disabled rows become revoked history under scoped workspace constraints.",
+      "entryPointAssertionCount": 3,
       "id": "database.private-calendar-subscriptions-migration",
       "legacy": false,
       "path": "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
@@ -2986,7 +2985,10 @@
     {
       "area": "database",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
+      "entryPointAssertionCount": 56,
       "id": "database.public-demo-baseline-candidate",
       "legacy": false,
       "path": "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
@@ -3006,7 +3008,10 @@
     {
       "area": "database",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves fresh, pre-074 upgrade, and current databases converge on the seven-role scope and permission contract without changing valid assignments.",
+      "entryPointAssertionCount": 21,
       "id": "database.role-seed-scope-convergence",
       "legacy": false,
       "path": "scripts/regressions/database/role-seed-scope-convergence.regression.mjs",
@@ -3023,7 +3028,10 @@
     {
       "area": "database",
       "assertionCount": 38,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the adapter prepared-statement cache, single-pass SQL analysis, db.get single-row path, and config-gated performance PRAGMAs preserve query results, error contracts, and transaction semantics.",
+      "entryPointAssertionCount": 38,
       "id": "database.sqlite-statement-cache-adapter",
       "legacy": false,
       "path": "scripts/regressions/database/sqlite-statement-cache-adapter.regression.mjs",
@@ -3041,7 +3049,10 @@
     {
       "area": "database",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
+      "entryPointAssertionCount": 45,
       "id": "database.startup-maintenance-lifecycle",
       "legacy": false,
       "path": "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
@@ -3061,7 +3072,10 @@
     {
       "area": "database",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves only a runner-attested copied baseline can bypass the full migration chain and that absent, direct, existing-target, forged, stale, and tampered cases fall back or fail closed.",
+      "entryPointAssertionCount": 19,
       "id": "database.verified-regression-baseline-fast-path",
       "legacy": false,
       "path": "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs",
@@ -3082,7 +3096,10 @@
     {
       "area": "database",
       "assertionCount": 13,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves one-workspace backup isolation, credential/key exclusion, provider-normalized Files, checksums, and disposable restore.",
+      "entryPointAssertionCount": 13,
       "id": "database.workspace-backup-package",
       "legacy": false,
       "path": "scripts/regressions/database/workspace-backup-package.regression.mjs",
@@ -3101,7 +3118,10 @@
     {
       "area": "database",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects dry-run-first workspace cleanup, retained-data preservation, and direct/full-suite regression database isolation.",
+      "entryPointAssertionCount": 43,
       "id": "database.workspace-cleanup-isolation",
       "legacy": false,
       "path": "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs",
@@ -3118,7 +3138,10 @@
     {
       "area": "database",
       "assertionCount": 18,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves authorized workspace-deletion requests are backup-aware, restart-durable, operational during the 30-day grace period, cancelable before the boundary, and non-destructive.",
+      "entryPointAssertionCount": 18,
       "id": "database.workspace-deletion-lifecycle",
       "legacy": false,
       "path": "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs",
@@ -3138,7 +3161,10 @@
     {
       "area": "database",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the operator-queued final workspace purge is deadline-exact, fenced, restart-resumable, artifact-complete, idempotent, and isolated from every retained workspace.",
+      "entryPointAssertionCount": 42,
       "id": "database.workspace-final-purge",
       "legacy": false,
       "path": "scripts/regressions/database/workspace-final-purge.regression.mjs",
@@ -3158,7 +3184,10 @@
     {
       "area": "docs",
       "assertionCount": 2,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Keeps current marketing status, proof, and preview-invitation boundaries aligned through a table-driven source owner.",
+      "entryPointAssertionCount": 2,
       "id": "docs.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/docs/current-contracts.regression.mjs",
@@ -3175,7 +3204,10 @@
     {
       "area": "docs",
       "assertionCount": 83,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves changed source areas suggest owning documentation while the closeout gate remains explicit and warning-only.",
+      "entryPointAssertionCount": 83,
       "id": "docs.ownership-routing",
       "legacy": false,
       "path": "scripts/regressions/docs/docs-ownership-routing.regression.mjs",
@@ -3190,8 +3222,64 @@
     },
     {
       "area": "files",
-      "assertionCount": 1,
+      "assertionCount": 620,
+      "contractAssertionCount": 619,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
+          "assertionCount": 17
+        },
+        {
+          "path": "scripts/regression-contracts/files/file-ui-integration.contract.mjs",
+          "assertionCount": 57
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
+          "assertionCount": 66
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
+          "assertionCount": 37
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs",
+          "assertionCount": 61
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
+          "assertionCount": 47
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
+          "assertionCount": 38
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
+          "assertionCount": 38
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
+          "assertionCount": 60
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
+          "assertionCount": 60
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
+          "assertionCount": 47
+        },
+        {
+          "path": "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
+          "assertionCount": 52
+        }
+      ],
       "description": "Runs source-only Files anatomy, modal, attachment, and scanner-documentation contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "files.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/files/current-static-contracts.regression.mjs",
@@ -3208,7 +3296,10 @@
     {
       "area": "framework",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves former sole-workspace administrators receive only a portable account export and logout, while other zero-workspace identities remain non-enumerating and former workspace data stays inaccessible.",
+      "entryPointAssertionCount": 34,
       "id": "framework.account-export-recovery",
       "legacy": false,
       "path": "scripts/regressions/framework/account-export-recovery.regression.mjs",
@@ -3228,7 +3319,10 @@
     {
       "area": "framework",
       "assertionCount": 17,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the checked app-shell producer and unknown-input browser adapter preserve safe defaults, nested fallbacks, and pre-navigation load order.",
+      "entryPointAssertionCount": 17,
       "id": "framework.app-shell-bootstrap-boundary",
       "legacy": false,
       "path": "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
@@ -3247,7 +3341,10 @@
     {
       "area": "framework",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves one application-derived asset version decorates served pages, runtime loaders, and module assets while raw keys stay guarded.",
+      "entryPointAssertionCount": 22,
       "id": "framework.asset-cache-version",
       "legacy": false,
       "path": "scripts/regressions/framework/asset-cache-version.regression.mjs",
@@ -3263,7 +3360,10 @@
     {
       "area": "framework",
       "assertionCount": 67,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves login verification admission and password-sensitive throttling are pre-verification, concurrency-bounded, durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, and event emitting.",
+      "entryPointAssertionCount": 67,
       "id": "framework.authentication-throttle",
       "legacy": false,
       "path": "scripts/regressions/framework/authentication-throttle.regression.mjs",
@@ -3280,7 +3380,10 @@
     {
       "area": "framework",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves self-contained branded browser failures, client crash recovery, and mutation-only permission-denied presentation.",
+      "entryPointAssertionCount": 41,
       "id": "framework.browser-recovery-boundary",
       "legacy": false,
       "path": "scripts/regressions/framework/browser-recovery-boundary.regression.mjs",
@@ -3299,7 +3402,10 @@
     {
       "area": "framework",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the centralized browser header policy, compatible CSP inventory, trusted-HTTPS HSTS retention, and private-response cache boundary.",
+      "entryPointAssertionCount": 28,
       "id": "framework.browser-security-headers",
       "legacy": false,
       "path": "scripts/regressions/framework/browser-security-headers.regression.mjs",
@@ -3317,7 +3423,10 @@
     {
       "area": "framework",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves deterministic bundled-module discovery, declaration-only imports, dependency-ordered activation, and exact inventory preservation.",
+      "entryPointAssertionCount": 39,
       "id": "framework.bundled-module-registry",
       "legacy": false,
       "path": "scripts/regressions/framework/bundled-module-registry.regression.mjs",
@@ -3334,7 +3443,10 @@
     {
       "area": "framework",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the slim client-project options projection renders dropdowns identical to the full management payload at a fraction of its size, the management shape keeps gated batched reminder policies, and reminder-policy queries stay constant-count.",
+      "entryPointAssertionCount": 22,
       "id": "framework.client-project-options-projection",
       "legacy": false,
       "path": "scripts/regressions/framework/client-project-options-projection.regression.mjs",
@@ -3352,7 +3464,10 @@
     {
       "area": "framework",
       "assertionCount": 6,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves browser mutations share one origin, token, and content-type boundary while bearer API calls remain independent.",
+      "entryPointAssertionCount": 6,
       "id": "framework.csrf-protection",
       "legacy": false,
       "path": "scripts/regressions/framework/csrf-protection.regression.mjs",
@@ -3368,8 +3483,32 @@
     },
     {
       "area": "framework",
-      "assertionCount": 7,
+      "assertionCount": 256,
+      "contractAssertionCount": 249,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
+          "assertionCount": 69
+        },
+        {
+          "path": "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
+          "assertionCount": 28
+        },
+        {
+          "path": "scripts/regression-contracts/framework/reporting-host.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/framework/settings-branch-closeout.contract.mjs",
+          "assertionCount": 34
+        },
+        {
+          "path": "scripts/regression-contracts/framework/settings-page-actions.contract.mjs",
+          "assertionCount": 79
+        }
+      ],
       "description": "Runs source-only Settings and Reporting anatomy contracts through one table-driven framework owner.",
+      "entryPointAssertionCount": 7,
       "id": "framework.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/framework/current-static-contracts.regression.mjs",
@@ -3388,7 +3527,10 @@
     {
       "area": "framework",
       "assertionCount": 26,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins the Express 5 runtime boundary, named wildcard routes, prior query semantics, and exactly-once async error propagation.",
+      "entryPointAssertionCount": 26,
       "id": "framework.express-5-http-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/express-5-http-contract.regression.mjs",
@@ -3406,7 +3548,10 @@
     {
       "area": "framework",
       "assertionCount": 46,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
+      "entryPointAssertionCount": 46,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3423,7 +3568,10 @@
     {
       "area": "framework",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves generic workspace/module settings persistence, scoped accessors, opt-in persistence handlers, and post-save effects.",
+      "entryPointAssertionCount": 27,
       "id": "framework.generic-settings-engine",
       "legacy": false,
       "path": "scripts/regressions/framework/generic-settings-engine.regression.mjs",
@@ -3439,7 +3587,10 @@
     {
       "area": "framework",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves internal and v1 API envelopes, request correlation, safe diagnostics, browser HTML classification, and final route ordering.",
+      "entryPointAssertionCount": 56,
       "id": "framework.http-error-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/http-error-contract.regression.mjs",
@@ -3458,7 +3609,10 @@
     {
       "area": "framework",
       "assertionCount": 3,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
+      "entryPointAssertionCount": 3,
       "id": "framework.module-import-boundaries",
       "legacy": false,
       "path": "scripts/regressions/framework/module-import-boundaries.regression.mjs",
@@ -3474,7 +3628,10 @@
     {
       "area": "framework",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves secret-free JSON production logs, server-generated request correlation, minimal health/readiness responses, and fail-closed readiness checks.",
+      "entryPointAssertionCount": 56,
       "id": "framework.operational-security-basics",
       "legacy": false,
       "path": "scripts/regressions/framework/operational-security-basics.regression.mjs",
@@ -3492,7 +3649,10 @@
     {
       "area": "framework",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves new Argon2id hashes, bounded constant-time verification, legacy PBKDF2 login upgrades, safe rehash events, and centralized async credential writes.",
+      "entryPointAssertionCount": 24,
       "id": "framework.password-hashing-modernization",
       "legacy": false,
       "path": "scripts/regressions/framework/password-hashing-modernization.regression.mjs",
@@ -3509,7 +3669,10 @@
     {
       "area": "framework",
       "assertionCount": 50,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves admin reset forces a restricted next-login password change, remains scoped and throttled, emits safe events, and never logs generated credentials.",
+      "entryPointAssertionCount": 50,
       "id": "framework.password-reset-hardening",
       "legacy": false,
       "path": "scripts/regressions/framework/password-reset-hardening.regression.mjs",
@@ -3527,7 +3690,10 @@
     {
       "area": "framework",
       "assertionCount": 105,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
+      "entryPointAssertionCount": 105,
       "id": "framework.private-calendar-feed-authentication",
       "legacy": false,
       "path": "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs",
@@ -3547,7 +3713,10 @@
     {
       "area": "framework",
       "assertionCount": 51,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves production startup rejects unsafe credential, transport, scanner, data-path, logging, and diagnostic combinations unless a narrow override is explicit.",
+      "entryPointAssertionCount": 51,
       "id": "framework.production-configuration-hardening",
       "legacy": false,
       "path": "scripts/regressions/framework/production-configuration-hardening.regression.mjs",
@@ -3565,7 +3734,10 @@
     {
       "area": "framework",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the six-account public-demo login catalog is safely shaped, demo-only, source-aligned, and excludes Super Admin and internal identity data.",
+      "entryPointAssertionCount": 22,
       "id": "framework.public-demo-account-catalog",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
@@ -3584,7 +3756,10 @@
     {
       "area": "framework",
       "assertionCount": 47,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves persistent atomic public-demo growth, input, and query budgets plus protected browser-document access and fail-closed API catalog coverage without changing normal mode.",
+      "entryPointAssertionCount": 47,
       "id": "framework.public-demo-budgets",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-budgets.regression.mjs",
@@ -3603,7 +3778,10 @@
     {
       "area": "framework",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves fail-closed public-demo denials at service, route, action, public API scope, job, and future-capability boundaries without changing standard mode.",
+      "entryPointAssertionCount": 25,
       "id": "framework.public-demo-capability-enforcement",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs",
@@ -3622,7 +3800,10 @@
     {
       "area": "framework",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
+      "entryPointAssertionCount": 35,
       "id": "framework.public-demo-cross-role-content-safety",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
@@ -3641,7 +3822,10 @@
     {
       "area": "framework",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves public-demo Files ingestion is denied before payload parsing or persistence while seeded reads and standard-mode ingress remain available.",
+      "entryPointAssertionCount": 24,
       "id": "framework.public-demo-files-ingress",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-files-ingress.regression.mjs",
@@ -3660,7 +3844,10 @@
     {
       "area": "framework",
       "assertionCount": 26,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves exact marked public identities can authenticate and log out but cannot be changed, recovered, retired, session-managed, or used for API keys by self or administrators.",
+      "entryPointAssertionCount": 26,
       "id": "framework.public-demo-identity-immutability",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs",
@@ -3681,7 +3868,10 @@
     {
       "area": "framework",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves demo-only global/client/mutation/search limits, NAT fairness, recovery, bounded bodies, trusted edge correlation, generic responses, and redacted evidence.",
+      "entryPointAssertionCount": 37,
       "id": "framework.public-demo-perimeter",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
@@ -3700,7 +3890,10 @@
     {
       "area": "framework",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves session-less Terms and Privacy routes, neutral defaults, shared security headers, footer links, and runtime-bound Corresponding Source.",
+      "entryPointAssertionCount": 19,
       "id": "framework.public-legal-surfaces",
       "legacy": false,
       "path": "scripts/regressions/framework/public-legal-surfaces.regression.mjs",
@@ -3717,7 +3910,10 @@
     {
       "area": "framework",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the supported direct-Caddy and bounded Nginx/WireGuard/Caddy topologies, operator controls, and executable proxy smokes stay aligned.",
+      "entryPointAssertionCount": 44,
       "id": "framework.reference-internet-deployment",
       "legacy": false,
       "path": "scripts/regressions/framework/reference-internet-deployment.regression.mjs",
@@ -3735,7 +3931,10 @@
     {
       "area": "framework",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves strict remembered-login validation, matched absolute database and cookie lifetimes, restart persistence, expiry, and logout revocation.",
+      "entryPointAssertionCount": 22,
       "id": "framework.remembered-sessions",
       "legacy": false,
       "path": "scripts/regressions/framework/remembered-sessions.regression.mjs",
@@ -3753,7 +3952,10 @@
     {
       "area": "framework",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves permission-safe Reporting catalog delivery, stable runner dispatch, basic filter validation, and safe execution errors.",
+      "entryPointAssertionCount": 45,
       "id": "framework.reporting-catalog-execution",
       "legacy": false,
       "path": "scripts/regressions/framework/reporting-catalog-execution.regression.mjs",
@@ -3771,7 +3973,10 @@
     {
       "area": "framework",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the data-only report manifest contract, Reporting asset ownership, and enabled/permission-filtered report listing seam.",
+      "entryPointAssertionCount": 42,
       "id": "framework.reporting-contribution-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/reporting-contribution-contract.regression.mjs",
@@ -3788,7 +3993,10 @@
     {
       "area": "framework",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves consolidated security-event persistence, safe failed-login records, admin-only workspace views, retention, and non-blocking auth logging.",
+      "entryPointAssertionCount": 33,
       "id": "framework.security-event-logging",
       "legacy": false,
       "path": "scripts/regressions/framework/security-event-logging.regression.mjs",
@@ -3806,8 +4014,28 @@
     },
     {
       "area": "framework",
-      "assertionCount": 1,
+      "assertionCount": 67,
+      "contractAssertionCount": 66,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/framework/http-error-development-guardrails.contract.mjs",
+          "assertionCount": 7
+        },
+        {
+          "path": "scripts/regression-contracts/framework/identifier-authority.contract.mjs",
+          "assertionCount": 26
+        },
+        {
+          "path": "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs",
+          "assertionCount": 14
+        },
+        {
+          "path": "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",
+          "assertionCount": 19
+        }
+      ],
       "description": "Runs source-only authentication, identifier, Markdown-safety, and HTTP-error guardrails through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "framework.security-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/framework/security-static-contracts.regression.mjs",
@@ -3824,7 +4052,10 @@
     {
       "area": "framework",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves expired protected-app sessions surface one framework-owned foreground warning above open editors.",
+      "entryPointAssertionCount": 19,
       "id": "framework.session-auth-warning",
       "legacy": false,
       "path": "scripts/regressions/framework/session-auth-warning.regression.mjs",
@@ -3840,7 +4071,10 @@
     {
       "area": "framework",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves immediate single/bulk revocation, password and deactivation forced logout, safe admin references, workspace boundaries, and security events.",
+      "entryPointAssertionCount": 45,
       "id": "framework.session-revocation",
       "legacy": false,
       "path": "scripts/regressions/framework/session-revocation.regression.mjs",
@@ -3858,7 +4092,10 @@
     {
       "area": "framework",
       "assertionCount": 61,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the data-only settings manifest contract, protected framework boundary, and shared eligibility-filtered listing seam.",
+      "entryPointAssertionCount": 61,
       "id": "framework.settings-contribution-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/settings-contribution-contract.regression.mjs",
@@ -3874,7 +4111,10 @@
     {
       "area": "framework",
       "assertionCount": 83,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
+      "entryPointAssertionCount": 83,
       "id": "framework.support-view-request-enforcement",
       "legacy": false,
       "path": "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
@@ -3898,7 +4138,10 @@
     {
       "area": "framework",
       "assertionCount": 64,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the gated durable Support View session contract, actor/effective identity separation, rotation, expiry, reauthentication throttling, revocation, and safe event persistence.",
+      "entryPointAssertionCount": 64,
       "id": "framework.support-view-session-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/support-view-session-contract.regression.mjs",
@@ -3919,7 +4162,10 @@
     {
       "area": "framework",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves production public URL policy, cookie attributes, trusted effective HTTPS, and HSTS gating fail closed at direct and proxy edges.",
+      "entryPointAssertionCount": 39,
       "id": "framework.tls-cookie-posture",
       "legacy": false,
       "path": "scripts/regressions/framework/tls-cookie-posture.regression.mjs",
@@ -3936,7 +4182,10 @@
     {
       "area": "framework",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves request context rejects forged forwarding headers, trusts only configured peers, and requires multi-proxy chains to collapse before Node.",
+      "entryPointAssertionCount": 23,
       "id": "framework.trusted-proxy-request-context",
       "legacy": false,
       "path": "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs",
@@ -3954,7 +4203,10 @@
     {
       "area": "framework",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves per-user app preferences persist calendar defaults and resolve login and workspace-switch landings only to enabled, authorized protected pages with Dashboard fallback.",
+      "entryPointAssertionCount": 44,
       "id": "framework.user-landing-preferences",
       "legacy": false,
       "path": "scripts/regressions/framework/user-landing-preferences.regression.mjs",
@@ -3974,7 +4226,10 @@
     {
       "area": "framework",
       "assertionCount": 26,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the protected Workbench focus-policy catalog, persistence, validation, defaults, and server-owned ordering contract.",
+      "entryPointAssertionCount": 26,
       "id": "framework.workbench-focus-policy",
       "legacy": false,
       "path": "scripts/regressions/framework/workbench-focus-policy.regression.mjs",
@@ -3990,7 +4245,10 @@
     {
       "area": "jobs",
       "assertionCount": 13,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves arbitrary active-run rejections cannot break worker shutdown or leak unbounded payloads through warning logs.",
+      "entryPointAssertionCount": 13,
       "id": "jobs.job-worker-shutdown-rejection",
       "legacy": false,
       "path": "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs",
@@ -4007,7 +4265,10 @@
     {
       "area": "licensing",
       "assertionCount": 39,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves current licensing references and warning-only future publication and contribution gates remain explicit.",
+      "entryPointAssertionCount": 39,
       "id": "licensing.public-release-gates",
       "legacy": false,
       "path": "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs",
@@ -4021,8 +4282,28 @@
     },
     {
       "area": "lists",
-      "assertionCount": 1,
+      "assertionCount": 150,
+      "contractAssertionCount": 149,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
+          "assertionCount": 40
+        },
+        {
+          "path": "scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs",
+          "assertionCount": 29
+        },
+        {
+          "path": "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
+          "assertionCount": 41
+        }
+      ],
       "description": "Runs source-only Lists anatomy and workflow contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "lists.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/lists/current-static-contracts.regression.mjs",
@@ -4038,8 +4319,44 @@
     },
     {
       "area": "notes",
-      "assertionCount": 1,
+      "assertionCount": 227,
+      "contractAssertionCount": 226,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
+          "assertionCount": 24
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs",
+          "assertionCount": 17
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs",
+          "assertionCount": 85
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-developer-docs.contract.mjs",
+          "assertionCount": 8
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
+          "assertionCount": 25
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
+          "assertionCount": 24
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-tags-stacked-modal.contract.mjs",
+          "assertionCount": 20
+        },
+        {
+          "path": "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
+          "assertionCount": 23
+        }
+      ],
       "description": "Runs source-only Notes anatomy, context, files, and modal contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "notes.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/notes/current-static-contracts.regression.mjs",
@@ -4056,7 +4373,10 @@
     {
       "area": "notes",
       "assertionCount": 40,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, explicit/inherited security controls, and bounded bulk archive/restore behavior.",
+      "entryPointAssertionCount": 40,
       "id": "notes.notes-settings-catalog-management",
       "legacy": false,
       "path": "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs",
@@ -4076,7 +4396,10 @@
     {
       "area": "notes",
       "assertionCount": 49,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the declared fail-closed effective-security policy across Notes consumers and the future Support View boundary.",
+      "entryPointAssertionCount": 49,
       "id": "notes.secure-catalog-consumer-enforcement",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-consumer-enforcement.regression.mjs",
@@ -4098,7 +4421,10 @@
     {
       "area": "notes",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves secure-catalog inheritance, fail-closed hierarchy projection, and encrypted note/revision persistence for secure creation and moves.",
+      "entryPointAssertionCount": 28,
       "id": "notes.secure-catalog-effective-security",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs",
@@ -4117,7 +4443,10 @@
     {
       "area": "notes",
       "assertionCount": 77,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves fail-closed secure-catalog enable/retry/downgrade transitions, preservation moves, job routing, and current-password confirmation.",
+      "entryPointAssertionCount": 77,
       "id": "notes.secure-catalog-transitions",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-transitions.regression.mjs",
@@ -4136,7 +4465,10 @@
     {
       "area": "permissions",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves Client project context is contributed and accepted only in Business workspaces.",
+      "entryPointAssertionCount": 23,
       "id": "permissions.client-project-business-boundary",
       "legacy": false,
       "path": "scripts/regressions/permissions/client-project-business-boundary.regression.mjs",
@@ -4153,8 +4485,20 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 1,
+      "assertionCount": 36,
+      "contractAssertionCount": 35,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/permissions/client-child-create-scope.contract.mjs",
+          "assertionCount": 14
+        },
+        {
+          "path": "scripts/regression-contracts/permissions/icon-accessibility-contract.contract.mjs",
+          "assertionCount": 21
+        }
+      ],
       "description": "Runs source-only permission-scoping and accessible-icon contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "permissions.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/permissions/current-static-contracts.regression.mjs",
@@ -4171,7 +4515,10 @@
     {
       "area": "permissions",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
+      "entryPointAssertionCount": 24,
       "id": "permissions.permission-resource-catalog",
       "legacy": false,
       "path": "scripts/regressions/permissions/permission-resource-catalog.regression.mjs",
@@ -4187,7 +4534,10 @@
     {
       "area": "permissions",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves permission and active API-key contracts reject missing or misspelled fields while Audit/Search routes construct the shared checked resource.",
+      "entryPointAssertionCount": 27,
       "id": "permissions.permission-resource-types",
       "legacy": false,
       "path": "scripts/regressions/permissions/permission-resource-types.regression.mjs",
@@ -4205,7 +4555,10 @@
     {
       "area": "permissions",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Authenticates the exact six public demo visitors and proves allowed work, denials, isolation, immutable credentials, logout, and absence of a public Super Administrator path.",
+      "entryPointAssertionCount": 21,
       "id": "permissions.public-demo-role-journey",
       "legacy": false,
       "path": "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
@@ -4223,7 +4576,10 @@
     {
       "area": "permissions",
       "assertionCount": 16,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Authenticates every local sanitized-demo role fixture and proves the complete scoped permission journey without exposing credentials.",
+      "entryPointAssertionCount": 16,
       "id": "permissions.sanitized-demo-role-journey",
       "legacy": false,
       "path": "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
@@ -4241,7 +4597,10 @@
     {
       "area": "permissions",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves inactive workspace members stay out of people surfaces and Personal/Family work cannot use the Billable flag.",
+      "entryPointAssertionCount": 31,
       "id": "permissions.workspace-membership-billable",
       "legacy": false,
       "path": "scripts/regressions/permissions/workspace-membership-billable.regression.mjs",
@@ -4258,7 +4617,10 @@
     {
       "area": "release",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves changed-file routing can execute focused areas in one step and escalates shared changes without replacing the release gate.",
+      "entryPointAssertionCount": 34,
       "id": "release.changed-regression-auto-run",
       "legacy": false,
       "path": "scripts/regressions/release/changed-regression-auto-run.regression.mjs",
@@ -4274,7 +4636,10 @@
     {
       "area": "release",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the closeout conductor aggregates every maintenance gate without replacing the full regression gate.",
+      "entryPointAssertionCount": 36,
       "id": "release.closeout-conductor",
       "legacy": false,
       "path": "scripts/regressions/release/closeout-conductor.regression.mjs",
@@ -4290,7 +4655,10 @@
     {
       "area": "release",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves current release command, Compose deployment, maintenance-curtain, and retired-path contracts through one table-driven source owner.",
+      "entryPointAssertionCount": 37,
       "id": "release.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/release/current-static-contracts.regression.mjs",
@@ -4309,7 +4677,10 @@
     {
       "area": "release",
       "assertionCount": 38,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+      "entryPointAssertionCount": 38,
       "id": "release.dependency-baseline",
       "legacy": false,
       "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
@@ -4326,7 +4697,10 @@
     {
       "area": "release",
       "assertionCount": 58,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
+      "entryPointAssertionCount": 58,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
@@ -4344,7 +4718,10 @@
     {
       "area": "release",
       "assertionCount": 97,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves every legacy Files regression has an explicit isolation audit and only repeat-stressed scripts run concurrently without retries.",
+      "entryPointAssertionCount": 97,
       "id": "release.files-regression-isolation-audit",
       "legacy": false,
       "path": "scripts/regressions/release/files-regression-isolation-audit.regression.mjs",
@@ -4361,7 +4738,10 @@
     {
       "area": "release",
       "assertionCount": 53,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves GitHub-only documentation uses fail-closed PR and nightly fast paths while runtime Help retains artifact and deployment routing.",
+      "entryPointAssertionCount": 53,
       "id": "release.github-only-docs-workflow-routing",
       "legacy": false,
       "path": "scripts/regressions/release/github-only-docs-workflow-routing.regression.mjs",
@@ -4378,7 +4758,10 @@
     {
       "area": "release",
       "assertionCount": 60,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
+      "entryPointAssertionCount": 60,
       "id": "release.github-release-operations",
       "legacy": false,
       "path": "scripts/regressions/release/github-release-operations.regression.mjs",
@@ -4395,7 +4778,10 @@
     {
       "area": "release",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves historical closeout retirements have credited dispositions while live cursor, manifest, version, and command owners remain active.",
+      "entryPointAssertionCount": 19,
       "id": "release.historical-evidence-retirement",
       "legacy": false,
       "path": "scripts/regressions/release/historical-evidence-retirement.regression.mjs",
@@ -4411,7 +4797,10 @@
     {
       "area": "release",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves release publication binds the reviewed main source and runtime artifact to one GHCR digest, linux/amd64 platform manifest, native dependency proof, attestations, and backup-first constrained host handoff.",
+      "entryPointAssertionCount": 31,
       "id": "release.immutable-image-publication",
       "legacy": false,
       "path": "scripts/regressions/release/immutable-image-publication.regression.mjs",
@@ -4429,7 +4818,10 @@
     {
       "area": "release",
       "assertionCount": 58,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves maintenance assets and independent operator/deployment markers install with a least-privilege, host-neutral boundary.",
+      "entryPointAssertionCount": 58,
       "id": "release.maintenance-host-assets",
       "legacy": false,
       "path": "scripts/regressions/release/maintenance-host-assets.regression.mjs",
@@ -4446,7 +4838,10 @@
     {
       "area": "release",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins the complete native-Linux maintenance release rehearsal, operator response matrix, and current documentation ownership.",
+      "entryPointAssertionCount": 25,
       "id": "release.maintenance-release-rehearsal",
       "legacy": false,
       "path": "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs",
@@ -4464,7 +4859,10 @@
     {
       "area": "release",
       "assertionCount": 10,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves exact-SHA nightly proof reuse is checksum-bound, policy-versioned, expiring, and fail-closed while hotfixes retain the full path.",
+      "entryPointAssertionCount": 10,
       "id": "release.nightly-proof-reuse",
       "legacy": false,
       "path": "scripts/regressions/release/nightly-proof-reuse.regression.mjs",
@@ -4482,7 +4880,10 @@
     {
       "area": "release",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
+      "entryPointAssertionCount": 37,
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
@@ -4499,7 +4900,10 @@
     {
       "area": "release",
       "assertionCount": 78,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
+      "entryPointAssertionCount": 78,
       "id": "release.preview-deployment-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
@@ -4516,7 +4920,10 @@
     {
       "area": "release",
       "assertionCount": 58,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the guarded Compose public-demo reset promotes one verified database-and-Files unit under a shared lock and automatically reconstructs prior state after failures or interruption.",
+      "entryPointAssertionCount": 58,
       "id": "release.public-demo-compose-reset",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-compose-reset.regression.mjs",
@@ -4534,7 +4941,10 @@
     {
       "area": "release",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves exact-demo outbound denial, environment and storage allowlists, loopback publishing, host firewall enforcement, and lifecycle-owned isolation smoke.",
+      "entryPointAssertionCount": 23,
       "id": "release.public-demo-isolation",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-isolation.regression.mjs",
@@ -4552,7 +4962,10 @@
     {
       "area": "release",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the redacted exact-demo deployment profile, complete operator runbook, aggregate candidate smoke, and non-demo/interest-capture boundaries.",
+      "entryPointAssertionCount": 21,
       "id": "release.public-demo-release-candidate",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-release-candidate.regression.mjs",
@@ -4570,7 +4983,10 @@
     {
       "area": "release",
       "assertionCount": 56,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the external UTC hourly public-demo reset trigger, shared-lock behavior, bounded redacted evidence, alert invocation, and safe disable/recovery contract.",
+      "entryPointAssertionCount": 56,
       "id": "release.public-demo-reset-scheduler",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-reset-scheduler.regression.mjs",
@@ -4588,7 +5004,10 @@
     {
       "area": "release",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves canonical and branch-qualified runtime identity across API, shell, diagnostics, public UI, artifacts, and deployment paths.",
+      "entryPointAssertionCount": 22,
       "id": "release.qualified-runtime-version",
       "legacy": false,
       "path": "scripts/regressions/release/qualified-runtime-version.regression.mjs",
@@ -4605,7 +5024,10 @@
     {
       "area": "release",
       "assertionCount": 5,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Keeps every full-chain baseline bypass and nested runner-baseline opt-out explicit while rejecting accidental new environment deletion sites.",
+      "entryPointAssertionCount": 5,
       "id": "release.regression-baseline-bypass-audit",
       "legacy": false,
       "path": "scripts/regressions/release/regression-baseline-bypass-audit.regression.mjs",
@@ -4623,7 +5045,10 @@
     {
       "area": "release",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves metadata-driven regression discovery preserves the legacy suite and safe execution modes.",
+      "entryPointAssertionCount": 23,
       "id": "release.regression-discovery-runner",
       "legacy": false,
       "path": "scripts/regressions/release/regression-discovery-runner.regression.mjs",
@@ -4638,8 +5063,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 49,
+      "assertionCount": 65,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves shrink-only script ceilings and generated assertion ownership prevent silent coverage loss while allowing reviewed consolidation.",
+      "entryPointAssertionCount": 65,
       "id": "release.regression-manifest-generation",
       "legacy": false,
       "path": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
@@ -4655,7 +5083,10 @@
     {
       "area": "release",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves narrow package commands and conservative changed-file routing retain the full release gate.",
+      "entryPointAssertionCount": 23,
       "id": "release.regression-routing-commands",
       "legacy": false,
       "path": "scripts/regressions/release/regression-routing-commands.regression.mjs",
@@ -4671,7 +5102,10 @@
     {
       "area": "release",
       "assertionCount": 15,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the shared roadmap-cursor floor helper parses and compares correctly, accepts only documented out-of-order completion evidence below a floor, keeps closeout regressions on floors instead of exact pins, and lets future cursor advances pass without prior-regression edits.",
+      "entryPointAssertionCount": 15,
       "id": "release.roadmap-cursor-floor",
       "legacy": false,
       "path": "scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
@@ -4687,7 +5121,10 @@
     {
       "area": "release",
       "assertionCount": 30,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the versioned runtime artifact includes only the bootable runtime boundary and a checksum.",
+      "entryPointAssertionCount": 30,
       "id": "release.runtime-artifact-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/runtime-artifact-boundary.regression.mjs",
@@ -4704,7 +5141,10 @@
     {
       "area": "release",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves repeated validation assertions and package-script pins stay behind one named owner with machine-readable movement evidence.",
+      "entryPointAssertionCount": 42,
       "id": "release.validation-single-ownership",
       "legacy": false,
       "path": "scripts/regressions/release/validation-single-ownership.regression.mjs",
@@ -4720,8 +5160,16 @@
     },
     {
       "area": "search",
-      "assertionCount": 1,
+      "assertionCount": 42,
+      "contractAssertionCount": 41,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/search/search-results-page.contract.mjs",
+          "assertionCount": 41
+        }
+      ],
       "description": "Runs the source-only Search results-page contract through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "search.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/search/current-static-contracts.regression.mjs",
@@ -4736,8 +5184,28 @@
     },
     {
       "area": "tags",
-      "assertionCount": 1,
+      "assertionCount": 107,
+      "contractAssertionCount": 106,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/tags/tag-inline-picker.contract.mjs",
+          "assertionCount": 30
+        },
+        {
+          "path": "scripts/regression-contracts/tags/tag-management-page.contract.mjs",
+          "assertionCount": 19
+        },
+        {
+          "path": "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",
+          "assertionCount": 25
+        },
+        {
+          "path": "scripts/regression-contracts/tags/tag-usability-ui.contract.mjs",
+          "assertionCount": 32
+        }
+      ],
       "description": "Runs source-only Tags picker, management, record, and usability contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "tags.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/tags/current-static-contracts.regression.mjs",
@@ -4753,8 +5221,112 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 1,
+      "assertionCount": 784,
+      "contractAssertionCount": 783,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
+          "assertionCount": 12
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+          "assertionCount": 52
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
+          "assertionCount": 17
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs",
+          "assertionCount": 22
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-list-density.contract.mjs",
+          "assertionCount": 19
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-modal-compact-layout.contract.mjs",
+          "assertionCount": 30
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-modal-followup.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/task-modal-reflow.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
+          "assertionCount": 23
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs",
+          "assertionCount": 25
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
+          "assertionCount": 20
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
+          "assertionCount": 39
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
+          "assertionCount": 23
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
+          "assertionCount": 29
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
+          "assertionCount": 32
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
+          "assertionCount": 29
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs",
+          "assertionCount": 29
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-modal-shell.contract.mjs",
+          "assertionCount": 32
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
+          "assertionCount": 36
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs",
+          "assertionCount": 20
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
+          "assertionCount": 41
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
+          "assertionCount": 40
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
+          "assertionCount": 31
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs",
+          "assertionCount": 64
+        },
+        {
+          "path": "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
+          "assertionCount": 40
+        }
+      ],
       "description": "Runs source-only Tasks list, editor, modal, relationship, and Workbench-handoff contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "tasks.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/tasks/current-static-contracts.regression.mjs",
@@ -4771,7 +5343,10 @@
     {
       "area": "tasks",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins Tasks dashboard-summary to permission-shaped SQL count groups, bounded ranked row candidates, one precompiled permission evaluator, exact output, and constant statement/enrichment cost as terminal Task volume grows.",
+      "entryPointAssertionCount": 23,
       "id": "tasks.dashboard-summary-budgets",
       "legacy": false,
       "path": "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs",
@@ -4790,7 +5365,10 @@
     {
       "area": "tasks",
       "assertionCount": 24,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves Workspace, Client, and Project calendar subscriptions apply a Tasks-owned SQL ceiling plus current permission and hierarchy intersection.",
+      "entryPointAssertionCount": 24,
       "id": "tasks.private-calendar-feed-scope",
       "legacy": false,
       "path": "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs",
@@ -4809,7 +5387,10 @@
     {
       "area": "tasks",
       "assertionCount": 53,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves bounded, subscription-scoped, permission-shaped Tasks iCalendar serialization for one-off, recurring, moved, hidden, and cancelled occurrences.",
+      "entryPointAssertionCount": 53,
       "id": "tasks.task-calendar-feed-serialization",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs",
@@ -4828,7 +5409,10 @@
     {
       "area": "tasks",
       "assertionCount": 71,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the task calendar-window contract: lean real rows plus bounded read-time recurrence projection, real-instance deduplication, exact renderer payload shape, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
+      "entryPointAssertionCount": 71,
       "id": "tasks.task-calendar-window",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-window.regression.mjs",
@@ -4846,7 +5430,10 @@
     {
       "area": "tasks",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves nullable quarter-hour Task estimates across storage constraints, service and public API payloads, the canonical editor duplicate flow, read models, and recurrence materialization.",
+      "entryPointAssertionCount": 42,
       "id": "tasks.task-estimate-minutes",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",
@@ -4865,7 +5452,10 @@
     {
       "area": "tasks",
       "assertionCount": 36,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
+      "entryPointAssertionCount": 36,
       "id": "tasks.task-list-pipeline-projection",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
@@ -4883,7 +5473,10 @@
     {
       "area": "tasks",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves permission-checked, exactly-once recurrence materialization, independent occurrence edits, calendar replacement, and completion/sweep continuity.",
+      "entryPointAssertionCount": 43,
       "id": "tasks.task-recurrence-materialize-on-touch-permissions",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs",
@@ -4901,7 +5494,10 @@
     {
       "area": "tasks",
       "assertionCount": 46,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
+      "entryPointAssertionCount": 46,
       "id": "tasks.task-recurrence-skip-to-current",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs",
@@ -4920,7 +5516,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 11,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves active-timer finalization persists one authoritative seconds value with a matching hours projection, including the missing-timer fallback.",
+      "entryPointAssertionCount": 11,
       "id": "time-tracking.active-timer-duration-consistency",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs",
@@ -4936,7 +5535,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 9,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves billing periods and Dashboard effort windows use session-local calendar boundaries converted to UTC across month and DST edges.",
+      "entryPointAssertionCount": 9,
       "id": "time-tracking.billing-dashboard-timezone-boundaries",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs",
@@ -4953,8 +5555,20 @@
     },
     {
       "area": "time-tracking",
-      "assertionCount": 1,
+      "assertionCount": 115,
+      "contractAssertionCount": 114,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs",
+          "assertionCount": 75
+        },
+        {
+          "path": "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs",
+          "assertionCount": 39
+        }
+      ],
       "description": "Runs source-only Time Tracking entry-screen and timer-modal contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "time-tracking.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/current-static-contracts.regression.mjs",
@@ -4971,7 +5585,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 20,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins the Time Tracking Dashboard effort summary to indexed seven-day SQL aggregates, three authorized rows, request-memoized settings, and constant statement/payload budgets as historical entries grow.",
+      "entryPointAssertionCount": 20,
       "id": "time-tracking.dashboard-effort-summary-budgets",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs",
@@ -4989,7 +5606,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the module-owned Project Time & Billing runner, recursive mixed-setting rollups, compatibility reads, tag/task behavior, and framework decoupling.",
+      "entryPointAssertionCount": 32,
       "id": "time-tracking.project-time-billing-runner",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs",
@@ -5007,7 +5627,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves public API durations persist one billing-authoritative seconds value with a numerically matching hours projection.",
+      "entryPointAssertionCount": 19,
       "id": "time-tracking.public-api-duration-persistence",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs",
@@ -5023,7 +5646,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 17,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves manual and sourced timer edges preserve non-billable intent across workspace types while Task Timer finalization retains authoritative duration.",
+      "entryPointAssertionCount": 17,
       "id": "time-tracking.sourced-task-timer-bridge",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs",
@@ -5039,7 +5665,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 47,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves a running manual timer can become a permission-safe Task Timer without losing elapsed-time identity or final time-entry attribution.",
+      "entryPointAssertionCount": 47,
       "id": "time-tracking.timer-task-linking",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/timer-task-linking.regression.mjs",
@@ -5055,8 +5684,128 @@
     },
     {
       "area": "views",
-      "assertionCount": 14,
+      "assertionCount": 1022,
+      "contractAssertionCount": 1008,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
+          "assertionCount": 9
+        },
+        {
+          "path": "scripts/regression-contracts/views/calendar-host.contract.mjs",
+          "assertionCount": 60
+        },
+        {
+          "path": "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs",
+          "assertionCount": 34
+        },
+        {
+          "path": "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
+          "assertionCount": 30
+        },
+        {
+          "path": "scripts/regression-contracts/views/dashboard-client-bootstrap.contract.mjs",
+          "assertionCount": 19
+        },
+        {
+          "path": "scripts/regression-contracts/views/dashboard-es-module-entry.contract.mjs",
+          "assertionCount": 43
+        },
+        {
+          "path": "scripts/regression-contracts/views/drawer-main-surface.contract.mjs",
+          "assertionCount": 16
+        },
+        {
+          "path": "scripts/regression-contracts/views/field-factory.contract.mjs",
+          "assertionCount": 94
+        },
+        {
+          "path": "scripts/regression-contracts/views/icon-control-conversion.contract.mjs",
+          "assertionCount": 17
+        },
+        {
+          "path": "scripts/regression-contracts/views/markdown-platform.contract.mjs",
+          "assertionCount": 30
+        },
+        {
+          "path": "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
+          "assertionCount": 56
+        },
+        {
+          "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
+          "assertionCount": 13
+        },
+        {
+          "path": "scripts/regression-contracts/views/mobile-foundation.contract.mjs",
+          "assertionCount": 10
+        },
+        {
+          "path": "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
+          "assertionCount": 46
+        },
+        {
+          "path": "scripts/regression-contracts/views/modal-footer.contract.mjs",
+          "assertionCount": 21
+        },
+        {
+          "path": "scripts/regression-contracts/views/modal-section.contract.mjs",
+          "assertionCount": 34
+        },
+        {
+          "path": "scripts/regression-contracts/views/overlay-host.contract.mjs",
+          "assertionCount": 23
+        },
+        {
+          "path": "scripts/regression-contracts/views/remaining-icon-actions.contract.mjs",
+          "assertionCount": 18
+        },
+        {
+          "path": "scripts/regression-contracts/views/shared-icons.contract.mjs",
+          "assertionCount": 24
+        },
+        {
+          "path": "scripts/regression-contracts/views/surface-adoption-pass.contract.mjs",
+          "assertionCount": 18
+        },
+        {
+          "path": "scripts/regression-contracts/views/surface-token.contract.mjs",
+          "assertionCount": 13
+        },
+        {
+          "path": "scripts/regression-contracts/views/ui.contract.mjs",
+          "assertionCount": 51
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
+          "assertionCount": 38
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-builder.contract.mjs",
+          "assertionCount": 13
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
+          "assertionCount": 114
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs",
+          "assertionCount": 15
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-index-primitive.contract.mjs",
+          "assertionCount": 28
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
+          "assertionCount": 27
+        },
+        {
+          "path": "scripts/regression-contracts/views/view-renderer-shell.contract.mjs",
+          "assertionCount": 94
+        }
+      ],
       "description": "Runs source-only view anatomy, accessibility, icon, renderer, and dashboard contracts through one table-driven owner.",
+      "entryPointAssertionCount": 14,
       "id": "views.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/views/current-static-contracts.regression.mjs",
@@ -5074,8 +5823,80 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 1,
+      "assertionCount": 408,
+      "contractAssertionCount": 407,
+      "contractModules": [
+        {
+          "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
+          "assertionCount": 18
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
+          "assertionCount": 23
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs",
+          "assertionCount": 28
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs",
+          "assertionCount": 12
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
+          "assertionCount": 24
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
+          "assertionCount": 31
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
+          "assertionCount": 32
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
+          "assertionCount": 21
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
+          "assertionCount": 14
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs",
+          "assertionCount": 13
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+          "assertionCount": 27
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+          "assertionCount": 18
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+          "assertionCount": 23
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+          "assertionCount": 37
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+          "assertionCount": 51
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs",
+          "assertionCount": 6
+        },
+        {
+          "path": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+          "assertionCount": 29
+        }
+      ],
       "description": "Runs source-only Workbench focus, recovery, layout, and task-context contracts through one table-driven owner.",
+      "entryPointAssertionCount": 1,
       "id": "workbench.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/workbench/current-static-contracts.regression.mjs",
@@ -5092,7 +5913,10 @@
     {
       "area": "workbench",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves Task completion closes directly, preserves recurrence continuity, and never promotes a completed Next Action into Workbench.",
+      "entryPointAssertionCount": 25,
       "id": "workbench.direct-task-completion",
       "legacy": false,
       "path": "scripts/regressions/workbench/direct-task-completion.regression.mjs",
@@ -5109,7 +5933,10 @@
     {
       "area": "workbench",
       "assertionCount": 15,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
+      "entryPointAssertionCount": 15,
       "id": "workbench.focus-candidate-pipeline",
       "legacy": false,
       "path": "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
@@ -5126,7 +5953,10 @@
     {
       "area": "workbench",
       "assertionCount": 14,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Pins statement-count and payload budgets for the hot workbench-path endpoints over HTTP so N+1 reintroductions and payload bloat fail loudly.",
+      "entryPointAssertionCount": 14,
       "id": "workbench.hot-endpoint-budgets",
       "legacy": false,
       "path": "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
@@ -5143,7 +5973,10 @@
     {
       "area": "workbench",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
+      "entryPointAssertionCount": 31,
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
       "path": "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",
@@ -5161,7 +5994,10 @@
     {
       "area": "workbench",
       "assertionCount": 31,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves the workbench client loads in one parallel fan-out with stale-while-revalidate caches and warm-first render, the cached-fetch helper never duplicates fetches, dialog scripts lazy-load, and the app serves compressed responses.",
+      "entryPointAssertionCount": 31,
       "id": "workbench.workbench-client-fanout",
       "legacy": false,
       "path": "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
@@ -5179,7 +6015,10 @@
     {
       "area": "framework",
       "assertionCount": 73,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy runtime configuration contract contract.",
+      "entryPointAssertionCount": 73,
       "id": "legacy.runtime.configuration.contract",
       "legacy": true,
       "path": "scripts/runtime-configuration-contract-regression.mjs",
@@ -5193,7 +6032,10 @@
     {
       "area": "framework",
       "assertionCount": 59,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy runtime diagnostics route contract.",
+      "entryPointAssertionCount": 59,
       "id": "legacy.runtime.diagnostics.route",
       "legacy": true,
       "path": "scripts/runtime-diagnostics-route-regression.mjs",
@@ -5205,7 +6047,10 @@
     {
       "area": "framework",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy runtime env loading contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.runtime.env.loading",
       "legacy": true,
       "path": "scripts/runtime-env-loading-regression.mjs",
@@ -5217,7 +6062,10 @@
     {
       "area": "framework",
       "assertionCount": 18,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy runtime local env materialization contract.",
+      "entryPointAssertionCount": 18,
       "id": "legacy.runtime.local.env.materialization",
       "legacy": true,
       "path": "scripts/runtime-local-env-materialization-regression.mjs",
@@ -5229,7 +6077,10 @@
     {
       "area": "framework",
       "assertionCount": 42,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy scale seed framework contract.",
+      "entryPointAssertionCount": 42,
       "id": "legacy.scale.seed.framework",
       "legacy": true,
       "path": "scripts/scale-seed-framework-regression.mjs",
@@ -5243,7 +6094,10 @@
     {
       "area": "search",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search adapter rebuild service conversion contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.search.adapter.rebuild.service.conversion",
       "legacy": true,
       "path": "scripts/search-adapter-rebuild-service-conversion-regression.mjs",
@@ -5257,7 +6111,10 @@
     {
       "area": "search",
       "assertionCount": 70,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search api contract.",
+      "entryPointAssertionCount": 70,
       "id": "legacy.search.api",
       "legacy": true,
       "path": "scripts/search-api-regression.mjs",
@@ -5271,7 +6128,10 @@
     {
       "area": "search",
       "assertionCount": 185,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search contract contract.",
+      "entryPointAssertionCount": 185,
       "id": "legacy.search.contract",
       "legacy": true,
       "path": "scripts/search-contract-regression.mjs",
@@ -5286,7 +6146,10 @@
     {
       "area": "search",
       "assertionCount": 18,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search fts repair contract.",
+      "entryPointAssertionCount": 18,
       "id": "legacy.search.fts.repair",
       "legacy": true,
       "path": "scripts/search-fts-repair-regression.mjs",
@@ -5300,7 +6163,10 @@
     {
       "area": "search",
       "assertionCount": 61,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search fts seam contract.",
+      "entryPointAssertionCount": 61,
       "id": "legacy.search.fts.seam",
       "legacy": true,
       "path": "scripts/search-fts-seam-regression.mjs",
@@ -5314,7 +6180,10 @@
     {
       "area": "search",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search index jobs contract.",
+      "entryPointAssertionCount": 43,
       "id": "legacy.search.index.jobs",
       "legacy": true,
       "path": "scripts/search-index-jobs-regression.mjs",
@@ -5329,7 +6198,10 @@
     {
       "area": "search",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search index sync contract.",
+      "entryPointAssertionCount": 43,
       "id": "legacy.search.index.sync",
       "legacy": true,
       "path": "scripts/search-index-sync-regression.mjs",
@@ -5343,7 +6215,10 @@
     {
       "area": "search",
       "assertionCount": 26,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search lifecycle contract.",
+      "entryPointAssertionCount": 26,
       "id": "legacy.search.lifecycle",
       "legacy": true,
       "path": "scripts/search-lifecycle-regression.mjs",
@@ -5357,7 +6232,10 @@
     {
       "area": "search",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search rebuild contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.search.rebuild",
       "legacy": true,
       "path": "scripts/search-rebuild-regression.mjs",
@@ -5371,7 +6249,10 @@
     {
       "area": "search",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search shell contract.",
+      "entryPointAssertionCount": 41,
       "id": "legacy.search.shell",
       "legacy": true,
       "path": "scripts/search-shell-regression.mjs",
@@ -5385,7 +6266,10 @@
     {
       "area": "search",
       "assertionCount": 28,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy search workflow contract.",
+      "entryPointAssertionCount": 28,
       "id": "legacy.search.workflow",
       "legacy": true,
       "path": "scripts/search-workflow-regression.mjs",
@@ -5399,7 +6283,10 @@
     {
       "area": "jobs",
       "assertionCount": 45,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy separate worker end to end contract.",
+      "entryPointAssertionCount": 45,
       "id": "legacy.separate.worker.end.to.end",
       "legacy": true,
       "path": "scripts/separate-worker-end-to-end-regression.mjs",
@@ -5415,7 +6302,10 @@
     {
       "area": "database",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy sqlite connection hardening contract.",
+      "entryPointAssertionCount": 41,
       "id": "legacy.sqlite.connection.hardening",
       "legacy": true,
       "path": "scripts/sqlite-connection-hardening-regression.mjs",
@@ -5429,7 +6319,10 @@
     {
       "area": "database",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy sqlite small office performance contract.",
+      "entryPointAssertionCount": 21,
       "id": "legacy.sqlite.small.office.performance",
       "legacy": true,
       "path": "scripts/sqlite-small-office-performance-regression.mjs",
@@ -5443,7 +6336,10 @@
     {
       "area": "database",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy startup maintenance compatibility contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.startup.maintenance.compatibility",
       "legacy": true,
       "path": "scripts/startup-maintenance-compatibility-regression.mjs",
@@ -5458,7 +6354,10 @@
     {
       "area": "tags",
       "assertionCount": 55,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag bulk assignment contract.",
+      "entryPointAssertionCount": 55,
       "id": "legacy.tag.bulk.assignment",
       "legacy": true,
       "path": "scripts/tag-bulk-assignment-regression.mjs",
@@ -5472,7 +6371,10 @@
     {
       "area": "tags",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag core records contract.",
+      "entryPointAssertionCount": 19,
       "id": "legacy.tag.core.records",
       "legacy": true,
       "path": "scripts/tag-core-records-regression.mjs",
@@ -5486,7 +6388,10 @@
     {
       "area": "tags",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag propagation contract contract.",
+      "entryPointAssertionCount": 19,
       "id": "legacy.tag.propagation.contract",
       "legacy": true,
       "path": "scripts/tag-propagation-contract-regression.mjs",
@@ -5501,7 +6406,10 @@
     {
       "area": "tags",
       "assertionCount": 30,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag propagation foundation contract.",
+      "entryPointAssertionCount": 30,
       "id": "legacy.tag.propagation.foundation",
       "legacy": true,
       "path": "scripts/tag-propagation-foundation-regression.mjs",
@@ -5515,7 +6423,10 @@
     {
       "area": "tags",
       "assertionCount": 18,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag propagation paths contract.",
+      "entryPointAssertionCount": 18,
       "id": "legacy.tag.propagation.paths",
       "legacy": true,
       "path": "scripts/tag-propagation-paths-regression.mjs",
@@ -5529,7 +6440,10 @@
     {
       "area": "tags",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag propagation service conversion contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.tag.propagation.service.conversion",
       "legacy": true,
       "path": "scripts/tag-propagation-service-conversion-regression.mjs",
@@ -5543,7 +6457,10 @@
     {
       "area": "tags",
       "assertionCount": 22,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tag service contract.",
+      "entryPointAssertionCount": 22,
       "id": "legacy.tag.service",
       "legacy": true,
       "path": "scripts/tag-service-regression.mjs",
@@ -5557,7 +6474,10 @@
     {
       "area": "tags",
       "assertionCount": 37,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tags repository conversion contract.",
+      "entryPointAssertionCount": 37,
       "id": "legacy.tags.repository.conversion",
       "legacy": true,
       "path": "scripts/tags-repository-conversion-regression.mjs",
@@ -5571,7 +6491,10 @@
     {
       "area": "tasks",
       "assertionCount": 19,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task activity metrics contract.",
+      "entryPointAssertionCount": 19,
       "id": "legacy.task.activity.metrics",
       "legacy": true,
       "path": "scripts/task-activity-metrics-regression.mjs",
@@ -5585,7 +6508,10 @@
     {
       "area": "tasks",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task bulk due tags contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.task.bulk.due.tags",
       "legacy": true,
       "path": "scripts/task-bulk-due-tags-regression.mjs",
@@ -5599,7 +6525,10 @@
     {
       "area": "tasks",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task canonical query contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.task.canonical.query",
       "legacy": true,
       "path": "scripts/task-canonical-query-regression.mjs",
@@ -5613,7 +6542,10 @@
     {
       "area": "tasks",
       "assertionCount": 59,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task checklist contract.",
+      "entryPointAssertionCount": 59,
       "id": "legacy.task.checklist",
       "legacy": true,
       "path": "scripts/task-checklist-regression.mjs",
@@ -5627,7 +6559,10 @@
     {
       "area": "tasks",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task checklists repository conversion contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.task.checklists.repository.conversion",
       "legacy": true,
       "path": "scripts/task-checklists-repository-conversion-regression.mjs",
@@ -5641,7 +6576,10 @@
     {
       "area": "tasks",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task modal complete action contract.",
+      "entryPointAssertionCount": 32,
       "id": "legacy.task.modal.complete.action",
       "legacy": true,
       "path": "scripts/task-modal-complete-action-regression.mjs",
@@ -5653,7 +6591,10 @@
     {
       "area": "tasks",
       "assertionCount": 21,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task options payload contract.",
+      "entryPointAssertionCount": 21,
       "id": "legacy.task.options.payload",
       "legacy": true,
       "path": "scripts/task-options-payload-regression.mjs",
@@ -5667,7 +6608,10 @@
     {
       "area": "tasks",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task qol closeout contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.task.qol.closeout",
       "legacy": true,
       "path": "scripts/task-qol-closeout-regression.mjs",
@@ -5682,7 +6626,10 @@
     {
       "area": "tasks",
       "assertionCount": 12,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task recurrence checklist propagation contract.",
+      "entryPointAssertionCount": 12,
       "id": "legacy.task.recurrence.checklist.propagation",
       "legacy": true,
       "path": "scripts/task-recurrence-checklist-propagation-regression.mjs",
@@ -5697,7 +6644,10 @@
     {
       "area": "tasks",
       "assertionCount": 51,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Proves recurrence completion continuity, checklist-template seeding, safe feedback, and durable sweep recovery across every completion surface.",
+      "entryPointAssertionCount": 51,
       "id": "tasks.recurrence-completion-continuity",
       "legacy": false,
       "path": "scripts/task-recurrence-completion-continuity-regression.mjs",
@@ -5714,7 +6664,10 @@
     {
       "area": "tasks",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task recurrence frequency contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.task.recurrence.frequency",
       "legacy": true,
       "path": "scripts/task-recurrence-frequency-regression.mjs",
@@ -5729,7 +6682,10 @@
     {
       "area": "tasks",
       "assertionCount": 15,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task recurrence linked note propagation contract.",
+      "entryPointAssertionCount": 15,
       "id": "legacy.task.recurrence.linked.note.propagation",
       "legacy": true,
       "path": "scripts/task-recurrence-linked-note-propagation-regression.mjs",
@@ -5744,7 +6700,10 @@
     {
       "area": "tasks",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task recurrence reminders repository conversion contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.task.recurrence.reminders.repository.conversion",
       "legacy": true,
       "path": "scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
@@ -5759,7 +6718,10 @@
     {
       "area": "tasks",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task relationships contract.",
+      "entryPointAssertionCount": 41,
       "id": "legacy.task.relationships",
       "legacy": true,
       "path": "scripts/task-relationships-regression.mjs",
@@ -5773,7 +6735,10 @@
     {
       "area": "tasks",
       "assertionCount": 41,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task relationships repository conversion contract.",
+      "entryPointAssertionCount": 41,
       "id": "legacy.task.relationships.repository.conversion",
       "legacy": true,
       "path": "scripts/task-relationships-repository-conversion-regression.mjs",
@@ -5787,7 +6752,10 @@
     {
       "area": "tasks",
       "assertionCount": 30,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task reminder notification delivery contract.",
+      "entryPointAssertionCount": 30,
       "id": "legacy.task.reminder.notification.delivery",
       "legacy": true,
       "path": "scripts/task-reminder-notification-delivery-regression.mjs",
@@ -5802,7 +6770,10 @@
     {
       "area": "tasks",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task reminder scheduling horizon contract.",
+      "entryPointAssertionCount": 32,
       "id": "legacy.task.reminder.scheduling.horizon",
       "legacy": true,
       "path": "scripts/task-reminder-scheduling-horizon-regression.mjs",
@@ -5817,7 +6788,10 @@
     {
       "area": "tasks",
       "assertionCount": 82,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task resume context contract.",
+      "entryPointAssertionCount": 82,
       "id": "legacy.task.resume.context",
       "legacy": true,
       "path": "scripts/task-resume-context-regression.mjs",
@@ -5831,7 +6805,10 @@
     {
       "area": "tasks",
       "assertionCount": 43,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy task timer status contract.",
+      "entryPointAssertionCount": 43,
       "id": "legacy.task.timer.status",
       "legacy": true,
       "path": "scripts/task-timer-status-regression.mjs",
@@ -5845,7 +6822,10 @@
     {
       "area": "tasks",
       "assertionCount": 44,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tasks bulk lifecycle toolbar contract.",
+      "entryPointAssertionCount": 44,
       "id": "legacy.tasks.bulk.lifecycle.toolbar",
       "legacy": true,
       "path": "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
@@ -5857,7 +6837,10 @@
     {
       "area": "tasks",
       "assertionCount": 71,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tasks bulk nondestructive toolbar contract.",
+      "entryPointAssertionCount": 71,
       "id": "legacy.tasks.bulk.nondestructive.toolbar",
       "legacy": true,
       "path": "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
@@ -5869,7 +6852,10 @@
     {
       "area": "tasks",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tasks primary repository conversion contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.tasks.primary.repository.conversion",
       "legacy": true,
       "path": "scripts/tasks-primary-repository-conversion-regression.mjs",
@@ -5883,7 +6869,10 @@
     {
       "area": "tasks",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tasks server side list paging contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.tasks.server.side.list.paging",
       "legacy": true,
       "path": "scripts/tasks-server-side-list-paging-regression.mjs",
@@ -5897,7 +6886,10 @@
     {
       "area": "tasks",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy tasks view selector query contract contract.",
+      "entryPointAssertionCount": 25,
       "id": "legacy.tasks.view.selector.query.contract",
       "legacy": true,
       "path": "scripts/tasks-view-selector-query-contract-regression.mjs",
@@ -5912,7 +6904,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 32,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy time entries repository conversion contract.",
+      "entryPointAssertionCount": 32,
       "id": "legacy.time.entries.repository.conversion",
       "legacy": true,
       "path": "scripts/time-entries-repository-conversion-regression.mjs",
@@ -5926,7 +6921,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy timer resume metadata contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.timer.resume.metadata",
       "legacy": true,
       "path": "scripts/timer-resume-metadata-regression.mjs",
@@ -5940,7 +6938,10 @@
     {
       "area": "time-tracking",
       "assertionCount": 10,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy timer timestamp integrity contract.",
+      "entryPointAssertionCount": 10,
       "id": "legacy.timer.timestamp.integrity",
       "legacy": true,
       "path": "scripts/timer-timestamp-integrity-regression.mjs",
@@ -5954,7 +6955,10 @@
     {
       "area": "framework",
       "assertionCount": 84,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy user theme auto mode contract.",
+      "entryPointAssertionCount": 84,
       "id": "legacy.user.theme.auto.mode",
       "legacy": true,
       "path": "scripts/user-theme-auto-mode-regression.mjs",
@@ -5966,7 +6970,10 @@
     {
       "area": "views",
       "assertionCount": 102,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view builder helper contract.",
+      "entryPointAssertionCount": 102,
       "id": "legacy.view.builder.helper",
       "legacy": true,
       "path": "scripts/view-builder-helper-regression.mjs",
@@ -5980,7 +6987,10 @@
     {
       "area": "views",
       "assertionCount": 16,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view descriptor bootstrap contract.",
+      "entryPointAssertionCount": 16,
       "id": "legacy.view.descriptor.bootstrap",
       "legacy": true,
       "path": "scripts/view-descriptor-bootstrap-regression.mjs",
@@ -5992,7 +7002,10 @@
     {
       "area": "views",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view descriptor manifest contract.",
+      "entryPointAssertionCount": 25,
       "id": "legacy.view.descriptor.manifest",
       "legacy": true,
       "path": "scripts/view-descriptor-manifest-regression.mjs",
@@ -6004,7 +7017,10 @@
     {
       "area": "views",
       "assertionCount": 8,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view descriptor reference contract.",
+      "entryPointAssertionCount": 8,
       "id": "legacy.view.descriptor.reference",
       "legacy": true,
       "path": "scripts/view-descriptor-reference-regression.mjs",
@@ -6016,7 +7032,10 @@
     {
       "area": "views",
       "assertionCount": 23,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view renderer actions contract.",
+      "entryPointAssertionCount": 23,
       "id": "legacy.view.renderer.actions",
       "legacy": true,
       "path": "scripts/view-renderer-actions-regression.mjs",
@@ -6028,7 +7047,10 @@
     {
       "area": "views",
       "assertionCount": 35,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy view shared capabilities contract.",
+      "entryPointAssertionCount": 35,
       "id": "legacy.view.shared.capabilities",
       "legacy": true,
       "path": "scripts/view-shared-capabilities-regression.mjs",
@@ -6040,7 +7062,10 @@
     {
       "area": "workbench",
       "assertionCount": 34,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work candidate service contract.",
+      "entryPointAssertionCount": 34,
       "id": "legacy.work.candidate.service",
       "legacy": true,
       "path": "scripts/work-candidate-service-regression.mjs",
@@ -6054,7 +7079,10 @@
     {
       "area": "workbench",
       "assertionCount": 177,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work focus modes contract.",
+      "entryPointAssertionCount": 177,
       "id": "legacy.work.focus.modes",
       "legacy": true,
       "path": "scripts/work-focus-modes-regression.mjs",
@@ -6068,7 +7096,10 @@
     {
       "area": "workbench",
       "assertionCount": 33,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state api contract.",
+      "entryPointAssertionCount": 33,
       "id": "legacy.work.resume.state.api",
       "legacy": true,
       "path": "scripts/work-resume-state-api-regression.mjs",
@@ -6082,7 +7113,10 @@
     {
       "area": "workbench",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state closeout contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.work.resume.state.closeout",
       "legacy": true,
       "path": "scripts/work-resume-state-closeout-regression.mjs",
@@ -6097,7 +7131,10 @@
     {
       "area": "workbench",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state conversion contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.work.resume.state.conversion",
       "legacy": true,
       "path": "scripts/work-resume-state-conversion-regression.mjs",
@@ -6111,7 +7148,10 @@
     {
       "area": "workbench",
       "assertionCount": 29,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state initial producers contract.",
+      "entryPointAssertionCount": 29,
       "id": "legacy.work.resume.state.initial.producers",
       "legacy": true,
       "path": "scripts/work-resume-state-initial-producers-regression.mjs",
@@ -6125,7 +7165,10 @@
     {
       "area": "workbench",
       "assertionCount": 12,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state producer contract.",
+      "entryPointAssertionCount": 12,
       "id": "legacy.work.resume.state.producer",
       "legacy": true,
       "path": "scripts/work-resume-state-producer-regression.mjs",
@@ -6139,7 +7182,10 @@
     {
       "area": "workbench",
       "assertionCount": 25,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy work resume state service contract.",
+      "entryPointAssertionCount": 25,
       "id": "legacy.work.resume.state.service",
       "legacy": true,
       "path": "scripts/work-resume-state-service-regression.mjs",
@@ -6153,7 +7199,10 @@
     {
       "area": "workbench",
       "assertionCount": 27,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy workbench service dehardcode contract.",
+      "entryPointAssertionCount": 27,
       "id": "legacy.workbench.service.dehardcode",
       "legacy": true,
       "path": "scripts/workbench-service-dehardcode-regression.mjs",
@@ -6165,7 +7214,10 @@
     {
       "area": "workbench",
       "assertionCount": 48,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy workbench task focus related context contract.",
+      "entryPointAssertionCount": 48,
       "id": "legacy.workbench.task.focus.related.context",
       "legacy": true,
       "path": "scripts/workbench-task-focus-related-context-regression.mjs",
@@ -6177,7 +7229,10 @@
     {
       "area": "jobs",
       "assertionCount": 72,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy worker runner contract.",
+      "entryPointAssertionCount": 72,
       "id": "legacy.worker.runner",
       "legacy": true,
       "path": "scripts/worker-runner-regression.mjs",
@@ -6192,7 +7247,10 @@
     {
       "area": "files",
       "assertionCount": 7,
+      "contractAssertionCount": 0,
+      "contractModules": [],
       "description": "Protects the legacy workspace storage contract.",
+      "entryPointAssertionCount": 7,
       "id": "legacy.workspace.storage",
       "legacy": true,
       "path": "scripts/workspace-storage-regression.mjs",

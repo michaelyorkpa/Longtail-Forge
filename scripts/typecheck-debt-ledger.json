@@ -6117,7 +6117,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 10458,
+      "errorCount": 10441,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -7483,12 +7483,6 @@
             "count": 5
           }
         ],
-        "scripts/generate-regression-manifest.mjs": [
-          {
-            "code": 2353,
-            "count": 1
-          }
-        ],
         "scripts/help-center-surface-regression.mjs": [
           {
             "code": 18046,
@@ -8028,15 +8022,15 @@
           },
           {
             "code": 2339,
-            "count": 4
+            "count": 2
           },
           {
             "code": 2353,
-            "count": 4
+            "count": 3
           },
           {
             "code": 7005,
-            "count": 22
+            "count": 20
           },
           {
             "code": 7006,
@@ -11369,16 +11363,8 @@
         ],
         "scripts/regressions/release/regression-manifest-generation.regression.mjs": [
           {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2353,
-            "count": 4
-          },
-          {
             "code": 7006,
-            "count": 16
+            "count": 10
           }
         ],
         "scripts/regressions/release/regression-routing-commands.regression.mjs": [
@@ -13506,7 +13492,7 @@
   },
   "totals": {
     "files": 1002,
-    "errors": 31305,
+    "errors": 31288,
     "explicitAny": 47
   },
   "explicitAnyByFile": {
