@@ -26,12 +26,12 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
     regressionWallSeconds: 110.6, regressionWallSource: "Nightly integration run 31664934753 at a577f4a1d91e",
   });
   assert.deepEqual(consolidation.selected, { sourceOwners: 26, assertions: 944, sourceLines: 2994 });
-  assert.equal(REGRESSION_ENTRIES.length, consolidation.expectedAfter.discoveredScripts);
-  assert.equal(REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static").length, consolidation.expectedAfter.staticOwners);
-  assert.equal(policy.minimumAssertionCount, consolidation.expectedAfter.effectiveAssertions);
-  assert.equal(activeStaticHistoryReaders, consolidation.expectedAfter.activeStaticHistoryReaders);
-  assert.equal(REGRESSION_ENTRIES.length - staticAudit.execution.entries.length, consolidation.expectedAfter.estimatedNodeProcesses);
-  assert.equal(activeOwnerLines, consolidation.expectedAfter.activeOwnerLines);
+  assert.ok(REGRESSION_ENTRIES.length <= consolidation.expectedAfter.discoveredScripts, "later checkpoints may only reduce the 0.33.33.11 discovered estate");
+  assert.ok(REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static").length <= consolidation.expectedAfter.staticOwners, "later checkpoints may only reduce static owners");
+  assert.ok(policy.minimumAssertionCount >= consolidation.expectedAfter.effectiveAssertions, "the effective assertion floor may not fall below 0.33.33.11");
+  assert.ok(activeStaticHistoryReaders <= consolidation.expectedAfter.activeStaticHistoryReaders, "later checkpoints may only reduce active history readers");
+  assert.ok(REGRESSION_ENTRIES.length - staticAudit.execution.entries.length <= consolidation.expectedAfter.estimatedNodeProcesses, "later checkpoints may only reduce process estimates");
+  assert.ok(activeOwnerLines <= consolidation.expectedAfter.activeOwnerLines, "later checkpoints may only reduce active-owner lines");
   assert.equal(consolidation.movements.length, consolidation.selected.sourceOwners);
   assert.equal(consolidation.movements.reduce((total, entry) => total + entry.assertionCount, 0), consolidation.selected.assertions);
   assert.equal(new Set(consolidation.movements.map((entry) => entry.id)).size, consolidation.movements.length);
@@ -50,7 +50,12 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
     const retirement = retirements.get(contract.sourcePath);
     assert.equal(retirement?.retiredInVersion, consolidation.version);
     assert.equal(retirement?.assertionInventory?.sourceAssertionCount, contract.assertionCount);
-    assert.deepEqual(retirement?.retainedCoverageOwners, [ownerMeta.id]);
+    if (contract.id === "database.repository-checked-passes") {
+      assert.deepEqual(retirement?.retainedCoverageOwners, ["framework.full-strict-governance"]);
+      assert.equal(retirement?.assertionInventory?.creditedAssertionReduction, 13);
+    } else {
+      assert.deepEqual(retirement?.retainedCoverageOwners, [ownerMeta.id]);
+    }
     await import(new URL(`../../${contract.modulePath}`, import.meta.url));
   }
   return Object.freeze({

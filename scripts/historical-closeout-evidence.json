@@ -33,8 +33,8 @@
       "id": "release.typescript-seam-branch-closeout",
       "path": "scripts/regressions/release/typescript-seam-branch-closeout.regression.mjs",
       "reason": "The program pinned every archived 0.33.32 heading, historical correction token, changelog entry, and durable-doc version label after the live type owners had shipped.",
-      "retainedOwners": ["framework.typecheck-honesty-inventory", "framework.typecheck-seams", "release.regression-manifest-generation"],
-      "liveFragments": ["Checked-file membership and strict probe measurements remain with framework.typecheck-honesty-inventory.", "Compiler seam configuration remains with framework.typecheck-seams.", "Required behavioral regression registration remains with release.regression-manifest-generation.", "Restricted descriptor rendering remains in tests/e2e/client-projects-restricted-descriptor.spec.mjs."]
+      "retainedOwners": ["framework.full-strict-governance", "release.regression-manifest-generation"],
+      "liveFragments": ["Exact file ownership, strict diagnostic debt, source-policy measurements, and compiler configuration remain with framework.full-strict-governance.", "Required behavioral regression registration remains with release.regression-manifest-generation.", "Restricted descriptor rendering remains in tests/e2e/client-projects-restricted-descriptor.spec.mjs."]
     }
   ],
   "retainedCloseoutOwners": [

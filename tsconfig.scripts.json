@@ -14,21 +14,15 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "server.js",
-    "worker.js",
-    "src/**/*.js",
-    "src/**/*.d.ts",
-    "tests/**/*.mjs"
+    "scripts/**/*.mjs",
+    "eslint.config.js",
+    "playwright.config.js",
+    "vitest.config.mjs"
   ],
   "exclude": [
     "node_modules",
     "archive",
     "data",
-    "logs",
-    "images",
-    "public",
-    "styles",
-    "views",
-    "tests/typecheck/browser-database-boundary.fixture.mjs"
+    "logs"
   ]
 }

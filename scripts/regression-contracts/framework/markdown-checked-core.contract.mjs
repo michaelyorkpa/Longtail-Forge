@@ -11,15 +11,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
 const markdownPath = "src/core/markdown/markdown.service.js";
-const [markdownSource, seamInventorySource] = await Promise.all([
+const [markdownSource, typecheckLedgerSource] = await Promise.all([
   fs.readFile(markdownPath, "utf8"),
-  fs.readFile("scripts/typecheck-seam-inventory.json", "utf8"),
+  fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"),
 ]);
-const seamInventory = JSON.parse(seamInventorySource);
+const typecheckLedger = JSON.parse(typecheckLedgerSource);
 
 assert.match(markdownSource, /^\/\/ @ts-check/, "the Markdown service must stay checked");
-assert.ok(seamInventory.checkedFiles.includes(markdownPath), "the Markdown service must stay in the checked seam inventory");
-assert.ok(seamInventory.minimumOptedInFiles >= 148, "the checked seam floor must retain the Markdown service");
+assert.ok(typecheckLedger.programs["server-tests"].files.includes(markdownPath), "the Markdown service must stay in the strict server/tests program");
+assert.equal(typecheckLedger.programs["server-tests"].diagnostics[markdownPath], undefined, "the Markdown service must stay strict-clean");
 assert.doesNotMatch(markdownSource, /@ts-(?:ignore|expect-error)|@(?:type|param|returns?)\s*\{any\}|as unknown as/, "the Markdown service must not suppress or guess across its checked boundary");
 
 for (const contract of [

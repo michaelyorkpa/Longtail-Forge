@@ -281,24 +281,24 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 348 |
+| Active discovered regressions | 347 |
 | Legacy-snapshot regressions | 209 |
-| Convention-path metadata regressions | 139 |
-| Credited retirements | 136 |
-| Active release-gate regressions | 68 |
+| Convention-path metadata regressions | 138 |
+| Credited retirements | 138 |
+| Active release-gate regressions | 67 |
 | Required active release-gate IDs | 46 |
-| Active regression ceiling | 348 |
+| Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 14270 |
+| Active regression assertions | 14025 |
 | Vitest owner assertions | 101 |
-| Direct owner assertions | 4094 |
-| Credited reviewed assertion reductions | 193 |
-| Effective assertion floor | 18658 |
-| Release-gate ratchet floor | 85 |
+| Direct owner assertions | 4081 |
+| Credited reviewed assertion reductions | 496 |
+| Effective assertion floor | 18703 |
+| Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 74 | 13 | 87 |
+| `framework` | 73 | 15 | 88 |
 | `views` | 8 | 26 | 34 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 16 | 17 | 33 |
@@ -323,12 +323,12 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | `unit-like` | 0 |
 | `focused` | 108 |
 | `integration` | 165 |
-| `release-gate` | 68 |
+| `release-gate` | 67 |
 | `slow` | 7 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 121 |
+| `static` | 120 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

@@ -11,11 +11,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
 const migrationSource = await fs.readFile("src/db/migrations.js", "utf8");
-const seamInventory = JSON.parse(await fs.readFile("scripts/typecheck-seam-inventory.json", "utf8"));
+const typecheckLedger = JSON.parse(await fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"));
 
 assert.match(migrationSource, /^\/\/ @ts-check/);
-assert.ok(seamInventory.checkedFiles.includes("src/db/migrations.js"));
-assert.ok(seamInventory.minimumOptedInFiles >= 149);
+assert.ok(typecheckLedger.programs["server-tests"].files.includes("src/db/migrations.js"));
+assert.equal(typecheckLedger.programs["server-tests"].diagnostics["src/db/migrations.js"], undefined);
 assert.doesNotMatch(migrationSource, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/);
 
 for (const contractName of [

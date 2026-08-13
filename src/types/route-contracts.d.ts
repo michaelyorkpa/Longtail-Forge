@@ -16,18 +16,18 @@ export interface RouteRequest extends HttpIdentityRequest, JsonBodyRequest {
 export interface RouteResponse extends NodeJS.WritableStream {
   headersSent: boolean;
   statusCode: number;
-  append(name: string, value: string | readonly string[]): RouteResponse;
-  destroy(error?: Error): RouteResponse;
-  end(contents?: unknown): RouteResponse;
-  json(payload: unknown): RouteResponse;
-  once(event: "finish", listener: () => void): RouteResponse;
-  send(payload?: unknown): RouteResponse;
-  set(name: string, value: string): RouteResponse;
-  set(headers: Record<string, string>): RouteResponse;
-  setHeader(name: string, value: string | readonly string[]): RouteResponse;
-  status(statusCode: number): RouteResponse;
-  type(contentType: string): RouteResponse;
-  writeHead(statusCode: number, headers?: Record<string, string>): RouteResponse;
+  append(name: string, value: string | readonly string[]): this;
+  destroy(error?: Error): this;
+  end(contents?: unknown): this;
+  json(payload: unknown): this;
+  once(event: "finish", listener: () => void): this;
+  send(payload?: unknown): this;
+  set(name: string, value: string): this;
+  set(headers: Record<string, string>): this;
+  setHeader(name: string, value: string | readonly string[]): this;
+  status(statusCode: number): this;
+  type(contentType: string): this;
+  writeHead(statusCode: number, headers?: Record<string, string>): this;
 }
 
 export type RouteNext = (error?: unknown) => void;

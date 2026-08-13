@@ -10,22 +10,22 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
-const [passwordSource, appSource, seamInventorySource] = await Promise.all([
+const [passwordSource, appSource, typecheckLedgerSource] = await Promise.all([
   fs.readFile("src/security/passwords.js", "utf8"),
   fs.readFile("src/core/app.js", "utf8"),
-  fs.readFile("scripts/typecheck-seam-inventory.json", "utf8"),
+  fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"),
 ]);
-const seamInventory = JSON.parse(seamInventorySource);
+const typecheckLedger = JSON.parse(typecheckLedgerSource);
 
 for (const [filePath, source] of [
   ["src/security/passwords.js", passwordSource],
   ["src/core/app.js", appSource],
 ]) {
   assert.match(source, /^\/\/ @ts-check/, `${filePath} must stay checked`);
-  assert.ok(seamInventory.checkedFiles.includes(filePath), `${filePath} must stay in the checked seam inventory`);
+  assert.ok(typecheckLedger.programs["server-tests"].files.includes(filePath), `${filePath} must stay in the strict server/tests program`);
+  assert.equal(typecheckLedger.programs["server-tests"].diagnostics[filePath], undefined, `${filePath} must stay strict-clean`);
   assert.doesNotMatch(source, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/, `${filePath} must not suppress or guess across its checked boundary`);
 }
-assert.ok(seamInventory.minimumOptedInFiles >= 147);
 
 assert.match(passwordSource, /@typedef \{"argon2id" \| "pbkdf2_sha256" \| "unknown"\} PasswordHashAlgorithm/);
 assert.match(passwordSource, /@typedef \{ParsedArgon2Hash \| ParsedPbkdf2Hash\} ParsedPasswordHash/);

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "maximumActiveScripts": 348,
-  "minimumAssertionCount": 18658,
+  "maximumActiveScripts": 347,
+  "minimumAssertionCount": 18703,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
     "docs": 11,
     "files": 45,
-    "framework": 87,
+    "framework": 88,
     "jobs": 8,
     "licensing": 1,
     "lists": 13,
@@ -23,7 +23,7 @@
     "views": 34,
     "workbench": 33
   },
-  "minimumReleaseGateScripts": 85,
+  "minimumReleaseGateScripts": 86,
   "requiredReleaseGateIds": [
     "legacy.bump.version",
     "legacy.legacy.cleanup",
@@ -61,7 +61,7 @@
     "release.current-static-contracts",
     "release.maintenance-release-rehearsal",
     "framework.module-import-boundaries",
-    "framework.typecheck-seams",
+    "framework.full-strict-governance",
     "release.roadmap-cursor-floor",
     "release.playwright-dev-only-boundary",
     "release.runtime-artifact-boundary",
@@ -896,8 +896,7 @@
       "rationale": "The branch gate pinned archived headings, changelog text, correction tokens, and durable-doc version labels after dedicated type and behavior owners had shipped.",
       "assertionDisposition": "Checked-file membership, strict probes, compiler seams, manifest registration, and descriptor rendering remain with named live owners; historical evidence is indexed once without remaining executable paperwork.",
       "retainedCoverageOwners": [
-        "framework.typecheck-honesty-inventory",
-        "framework.typecheck-seams",
+        "framework.full-strict-governance",
         "release.regression-manifest-generation"
       ],
       "verificationPerformed": [
@@ -910,8 +909,7 @@
         "sourceAssertionCount": 22,
         "creditedAssertionReduction": 22,
         "ownerPaths": [
-          "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
-          "scripts/regressions/framework/typecheck-seams.regression.mjs",
+          "scripts/regressions/framework/full-strict-governance.regression.mjs",
           "scripts/regressions/release/regression-manifest-generation.regression.mjs"
         ]
       },
@@ -4093,22 +4091,23 @@
       "script": "scripts/regressions/database/repository-checked-passes.regression.mjs",
       "retiredInVersion": "0.33.33.11",
       "retirementType": "assertions-moved",
-      "rationale": "The reviewed source-only assertion body moved unchanged into a non-discovered contract module under one table-driven data, Files, security, or permission owner.",
-      "assertionDisposition": "All 13 source assertions remain in scripts/regression-contracts/database/repository-checked-passes.contract.mjs and execute through database.current-static-contracts; attestation, migration execution, backup/restore/purge, workspace isolation, Files storage/scanner/streaming, job runtime, compiler, HTTP, session, and security behavior owners remain separate.",
+      "rationale": "The 0.33.33.11 table-driven contract was superseded at 0.33.33.12 when every repository entered the full-strict server program and exact per-file/per-code debt became ledger-owned.",
+      "assertionDisposition": "The 13 pass-list, pragma, projection, nullability, transaction-client, suppression, and migration-shape assertions are credited as superseded inventory checks. framework.full-strict-governance now owns complete program membership, exact diagnostics, suppressions, and explicit-any growth; database runtime, transaction, migration, permission, and integrity owners remain independently runnable.",
       "retainedCoverageOwners": [
-        "database.current-static-contracts"
+        "framework.full-strict-governance"
       ],
       "verificationPerformed": [
-        "node scripts/regressions/database/current-static-contracts.regression.mjs",
-        "npm run test:regressions:database",
+        "npm run typecheck",
+        "node scripts/regressions/framework/full-strict-governance.regression.mjs",
         "npm run verify:slice"
       ],
       "floorCredit": true,
       "assertionInventory": {
         "sourceAssertionCount": 13,
-        "creditedAssertionReduction": 0,
+        "creditedAssertionReduction": 13,
         "ownerPaths": [
-          "scripts/regression-contracts/database/repository-checked-passes.contract.mjs"
+          "scripts/typecheck-debt-ledger.json",
+          "scripts/regressions/framework/full-strict-governance.regression.mjs"
         ]
       },
       "id": "database.repository-checked-passes",
@@ -4764,6 +4763,76 @@
         "permissions",
         "public-api",
         "views"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/typecheck-seams.regression.mjs",
+      "retiredInVersion": "0.33.33.12",
+      "retirementType": "assertions-moved",
+      "rationale": "Per-file pragma membership, bounded rollout lists, and hundreds of source-shape pins were superseded by complete three-program strict compilation and exact generated debt authority.",
+      "assertionDisposition": "All 266 legacy assertions are credited as superseded inventory or source-shape checks. framework.full-strict-governance proves unique ownership for every first-party JavaScript file, unqualified strict/checkJs/noImplicitAny settings, exact per-file/per-code diagnostics, shrink-only updates, new-file cleanliness, suppression policy, root-config ownership, and declaration cleanliness; existing runtime and module regressions retain behavioral coverage.",
+      "retainedCoverageOwners": [
+        "framework.full-strict-governance"
+      ],
+      "verificationPerformed": [
+        "npm run typecheck",
+        "node scripts/regressions/framework/full-strict-governance.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 266,
+        "creditedAssertionReduction": 266,
+        "ownerPaths": [
+          "scripts/typecheck-governance.mjs",
+          "scripts/typecheck-debt-ledger.json",
+          "scripts/regressions/framework/full-strict-governance.regression.mjs"
+        ]
+      },
+      "id": "framework.typecheck-seams",
+      "area": "framework",
+      "tier": "release-gate",
+      "tags": [
+        "contracts",
+        "framework",
+        "typecheck"
+      ],
+      "legacy": false,
+      "runMode": "static"
+    },
+    {
+      "script": "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
+      "retiredInVersion": "0.33.33.12",
+      "retirementType": "assertions-moved",
+      "rationale": "Dated sample counts and the 150-file opt-in claim were replaced by the complete generated full-strict universe and monotonic diagnostic ledger.",
+      "assertionDisposition": "All 24 legacy honesty assertions are credited as superseded sampled evidence. framework.full-strict-governance and the ordinary typecheck conductor now measure every owned file, exact diagnostics, explicit-any nodes, allowed negative fixtures, and first-party declarations on every run.",
+      "retainedCoverageOwners": [
+        "framework.full-strict-governance"
+      ],
+      "verificationPerformed": [
+        "npm run typecheck",
+        "node scripts/regressions/framework/full-strict-governance.regression.mjs",
+        "npm run verify:slice"
+      ],
+      "floorCredit": true,
+      "assertionInventory": {
+        "sourceAssertionCount": 24,
+        "creditedAssertionReduction": 24,
+        "ownerPaths": [
+          "scripts/typecheck-debt-ledger.json",
+          "scripts/regressions/framework/full-strict-governance.regression.mjs"
+        ]
+      },
+      "id": "framework.typecheck-honesty-inventory",
+      "area": "framework",
+      "tier": "release-gate",
+      "tags": [
+        "contracts",
+        "framework",
+        "release",
+        "typecheck"
       ],
       "legacy": false,
       "runMode": "static"
