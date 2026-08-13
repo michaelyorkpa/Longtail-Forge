@@ -2,6 +2,7 @@
 /** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedProviderDefinition} PrivateFeedProviderDefinition */
 /** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedSubscriptionDescriptor} PrivateFeedSubscriptionDescriptor */
 /** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedSubscriptionDescriptorInput} PrivateFeedSubscriptionDescriptorInput */
+/** @typedef {import("../../types/private-feed-contracts.js").PrivateFeedScopeType} PrivateFeedScopeType */
 
 /** @type {Map<string, PrivateFeedProvider>} */
 const providers = new Map();
@@ -61,10 +62,11 @@ function createPrivateFeedSubscriptionDescriptor(value) {
   if (!scopeValue || typeof scopeValue !== "object") {
     throw new TypeError("Private feed subscription scope is required.");
   }
-  const type = String(scopeValue.type || "").trim().toLowerCase();
-  if (!SUBSCRIPTION_SCOPE_TYPES.has(type)) {
+  const normalizedType = String(scopeValue.type || "").trim().toLowerCase();
+  if (!SUBSCRIPTION_SCOPE_TYPES.has(normalizedType)) {
     throw new TypeError("Private feed subscription scope must be workspace, client, or project.");
   }
+  const type = /** @type {PrivateFeedScopeType} */ (normalizedType);
   const clientId = type === "client" || type === "project"
     ? normalizeOptionalDescriptorIdentity(scopeValue.clientId, "client")
     : null;

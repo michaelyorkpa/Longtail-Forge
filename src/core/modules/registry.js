@@ -11,13 +11,16 @@ const orderedModuleEntries = validateAndOrderBundledModuleCatalog(bundledModuleC
 /** @type {import("../../types/framework-contracts.js").ModuleManifest[]} */
 const moduleDefinitions = orderedModuleEntries.map((entry) => entry.moduleEntry.manifest);
 
+/**
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} definition
+ */
 function cloneModuleDefinition(definition) {
   const hooks = { ...(definition.hooks || {}) };
   if (Array.isArray(hooks.events)) {
     hooks.events = hooks.events.map((hook) => ({ ...hook }));
   }
 
-  return {
+  return /** @type {import("../../types/framework-contracts.js").NormalizedModuleManifest} */ (/** @type {unknown} */ ({
     ...definition,
     browserApiRoutes: [...(definition.browserApiRoutes || [])],
     publicApiRoutes: [...(definition.publicApiRoutes || [])],
@@ -40,26 +43,27 @@ function cloneModuleDefinition(definition) {
     workItemSources: [...(definition.workItemSources || [])],
     linkedContextProviders: [...(definition.linkedContextProviders || [])],
     taggableTypes: [...(definition.taggableTypes || [])],
-    tagPropagation: [...(definition.tagPropagation || [])],
+    tagPropagation: [...(Array.isArray(definition.tagPropagation) ? definition.tagPropagation : [])],
     searchableTypes: [...(definition.searchableTypes || [])],
     attachableTypes: [...(definition.attachableTypes || [])],
     protectedContentConsumers: [...(definition.protectedContentConsumers || [])],
-    help: cloneHelpContribution(definition.help),
+    help: cloneHelpContribution(/** @type {import("../../types/help-static-contracts.js").HelpContribution | undefined} */ (/** @type {unknown} */ (definition.help))),
     notificationEvents: [...(definition.notificationEvents || [])],
     notificationFollowTargets: [...(definition.notificationFollowTargets || [])],
     notificationTemplates: [...(definition.notificationTemplates || [])],
     auditRecordTypes: [...(definition.auditRecordTypes || [])],
     eventTypes: [...(definition.eventTypes || [])],
-    eventSummaries: [...(definition.eventSummaries || [])],
+    eventSummaries: [...(Array.isArray(definition.eventSummaries) ? definition.eventSummaries : [])],
     hooks,
     frameworkDependencies: [...(definition.frameworkDependencies || [])],
     moduleDependencies: [...(definition.moduleDependencies || [])],
     seedHooks: [...(definition.seedHooks || [])],
     repairHooks: [...(definition.repairHooks || [])],
     workspaceCapabilityRequirements: [...(definition.workspaceCapabilityRequirements || [])],
-  };
+  }));
 }
 
+/** @returns {import("../../types/framework-contracts.js").NormalizedModuleManifest[]} */
 function listModules() {
   return moduleDefinitions.map(cloneModuleDefinition);
 }
@@ -68,12 +72,16 @@ function listModuleEntries() {
   return [...orderedModuleEntries];
 }
 
+/** @param {string} moduleId @returns {import("../../types/framework-contracts.js").NormalizedModuleManifest | null} */
 function getModule(moduleId) {
   const moduleDefinition = moduleDefinitions.find((definition) => definition.id === moduleId);
 
   return moduleDefinition ? cloneModuleDefinition(moduleDefinition) : null;
 }
 
+/**
+ * @param {string} type
+ */
 function listModuleRoutes(type) {
   if (type === "browser") {
     return moduleDefinitions.flatMap((definition) => definition.browserApiRoutes || []);
@@ -86,6 +94,9 @@ function listModuleRoutes(type) {
   return [];
 }
 
+/**
+ * @param {string} type
+ */
 function listModuleRouteEntries(type) {
   const routeField = type === "public"
     ? "publicApiRoutes"
@@ -123,16 +134,25 @@ function listModuleMigrationSources() {
     }));
 }
 
+/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */
 function listModuleProtectedViews() {
-  return listContribution("protectedViews");
+  return moduleDefinitions.flatMap((definition) => (
+    /** @type {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */ (definition.protectedViews || [])
+  ).map((view) => ({ ...view, moduleId: view.moduleId || definition.id })));
 }
 
+/** @returns {import("../../types/framework-contracts.js").ViewSurfaceDescriptor[]} */
 function listModuleViewSurfaces() {
-  return listContribution("viewSurfaces");
+  return moduleDefinitions.flatMap((definition) => (
+    definition.viewSurfaces || []
+  ).map((surface) => ({ ...surface, moduleId: surface.moduleId || definition.id })));
 }
 
+/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */
 function listModulePublicViews() {
-  return listContribution("publicViews");
+  return moduleDefinitions.flatMap((definition) => (
+    /** @type {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */ (definition.publicViews || [])
+  ).map((view) => ({ ...view, moduleId: view.moduleId || definition.id })));
 }
 
 function listModuleBrowserAssets() {
@@ -151,7 +171,8 @@ function listModulePermissionEntries() {
     const declaredPermissions = definition.permissions || [];
 
     if (declaredPermissions.length > 0) {
-      return declaredPermissions.map((permission) => normalizePermission(definition, permission));
+      return /** @type {import("../../types/framework-contracts.js").PermissionContribution[]} */ (declaredPermissions)
+        .map((permission) => normalizePermission(definition, permission));
     }
 
     return (definition.requiredPermissions || []).map((permissionId) => ({
@@ -190,35 +211,35 @@ function listModuleApiScopeEntries() {
 }
 
 function listTaggableTypes() {
-  return listContribution("taggableTypes");
+  return /** @type {import("../../types/framework-contracts.js").TaggableTypeContribution[]} */ (listContribution("taggableTypes"));
 }
 
 function listTagPropagationRules() {
-  return listContribution("tagPropagation");
+  return /** @type {import("../../types/framework-contracts.js").TagPropagationContribution[]} */ (listContribution("tagPropagation"));
 }
 
 function listSearchableTypes() {
-  return listContribution("searchableTypes");
+  return /** @type {import("../../types/framework-contracts.js").SearchableTypeContribution[]} */ (listContribution("searchableTypes"));
 }
 
 function listAttachableTypes() {
-  return listContribution("attachableTypes");
+  return /** @type {import("../../types/framework-contracts.js").AttachableTypeContribution[]} */ (listContribution("attachableTypes"));
 }
 
 function listLinkedContextProviders() {
-  return listContribution("linkedContextProviders");
+  return /** @type {import("../../types/framework-contracts.js").LinkedContextProviderContribution[]} */ (listContribution("linkedContextProviders"));
 }
 
 function listHelpSections() {
   return moduleDefinitions.flatMap((definition) => (
     definition.help?.sections || []
-  ).map((section) => normalizeHelpItem(definition, section)));
+  ).map((section) => normalizeHelpItem(definition, /** @type {import("../../types/help-static-contracts.js").HelpSection} */ (/** @type {unknown} */ (section)))));
 }
 
 function listHelpArticles() {
   return moduleDefinitions.flatMap((definition) => (
     definition.help?.articles || []
-  ).map((article) => normalizeHelpItem(definition, article)));
+  ).map((article) => normalizeHelpItem(definition, /** @type {import("../../types/help-static-contracts.js").HelpArticle} */ (/** @type {unknown} */ (article)))));
 }
 
 function listHelpContributions() {
@@ -228,24 +249,28 @@ function listHelpContributions() {
   };
 }
 
+/** @returns {import("../../types/framework-contracts.js").NotificationEventContribution[]} */
 function listNotificationEvents() {
-  return listContribution("notificationEvents");
+  return /** @type {import("../../types/framework-contracts.js").NotificationEventContribution[]} */ (listContribution("notificationEvents"));
 }
 
+/** @returns {import("../../types/framework-contracts.js").NotificationFollowTargetContribution[]} */
 function listNotificationFollowTargets() {
-  return listContribution("notificationFollowTargets");
+  return /** @type {import("../../types/framework-contracts.js").NotificationFollowTargetContribution[]} */ (listContribution("notificationFollowTargets"));
 }
 
+/** @returns {import("../../types/framework-contracts.js").NotificationTemplateContribution[]} */
 function listNotificationTemplates() {
-  return listContribution("notificationTemplates");
+  return /** @type {import("../../types/framework-contracts.js").NotificationTemplateContribution[]} */ (listContribution("notificationTemplates"));
 }
 
 function listModuleAuditRecordTypes() {
   return listContribution("auditRecordTypes");
 }
 
+/** @returns {import("../../types/framework-contracts.js").EventTypeContribution[]} */
 function listModuleEventTypes() {
-  return listContribution("eventTypes");
+  return /** @type {import("../../types/framework-contracts.js").EventTypeContribution[]} */ (listContribution("eventTypes"));
 }
 
 function listModuleEventSummaries() {
@@ -262,12 +287,31 @@ function listModuleEventHooks() {
   })));
 }
 
+/**
+ * @param {keyof import("../../types/framework-contracts.js").ModuleManifest} fieldName
+ */
 function listContribution(fieldName) {
-  return moduleDefinitions.flatMap((definition) => (
-    definition[fieldName] || []
-  ).map((item) => ({ ...item, moduleId: item.moduleId || definition.id })));
+  return moduleDefinitions.flatMap((definition) => {
+    const value = definition[fieldName];
+    const items = Array.isArray(value) ? value : [];
+    return items.map((item) => {
+      const contribution = /** @type {Record<string, unknown>} */ (item);
+      return {
+        ...contribution,
+        moduleId: typeof contribution.moduleId === "string" && contribution.moduleId
+          ? contribution.moduleId
+          : definition.id,
+      };
+    });
+  });
 }
 
+/**
+ * @template {import("../../types/help-static-contracts.js").HelpSection|import("../../types/help-static-contracts.js").HelpArticle} Item
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} definition
+ * @param {Item} item
+ * @returns {Item & {ownerType: import("../../types/help-static-contracts.js").HelpOwnerType, moduleId: string}}
+ */
 function normalizeHelpItem(definition, item) {
   return {
     ...item,
@@ -276,6 +320,10 @@ function normalizeHelpItem(definition, item) {
   };
 }
 
+/**
+ * @param {import("../../types/help-static-contracts.js").HelpContribution | undefined} help
+ * @returns {import("../../types/help-static-contracts.js").HelpContribution}
+ */
 function cloneHelpContribution(help) {
   return {
     sections: [...(help?.sections || [])],
@@ -283,6 +331,10 @@ function cloneHelpContribution(help) {
   };
 }
 
+/**
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} definition
+ * @param {import("../../types/framework-contracts.js").PermissionContribution} permission
+ */
 function normalizePermission(definition, permission) {
   return {
     ...permission,
@@ -295,6 +347,10 @@ function normalizePermission(definition, permission) {
   };
 }
 
+/**
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} definition
+ * @param {string | import("../../types/framework-contracts.js").ApiScopeContribution} scope
+ */
 function normalizeApiScope(definition, scope) {
   if (typeof scope === "string") {
     return {
@@ -315,6 +371,7 @@ function normalizeApiScope(definition, scope) {
   };
 }
 
+/** @param {string[]} values */
 function uniqueStrings(values) {
   return [...new Set(values.filter((value) => typeof value === "string" && value.trim()))].sort();
 }

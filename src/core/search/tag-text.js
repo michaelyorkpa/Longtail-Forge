@@ -1,5 +1,6 @@
 import { db } from "../database.js";
 
+/** @param {{ workspaceId: unknown, targetType: unknown, targetId: unknown }} input */
 async function readSearchTagsText({ workspaceId, targetType, targetId }) {
   const normalizedWorkspaceId = String(workspaceId || "").trim();
   const normalizedTargetType = String(targetType || "").trim();

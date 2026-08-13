@@ -13,6 +13,8 @@ import { isPublicDemoVisitorIdentity } from "../core/public-demo-runtime.js";
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /** @typedef {ActiveApiKey & { name: string, created_at: string, last_used_at: string | null, revoked_at: string | null }} ApiKeyRecord */
+/** @typedef {{ name?: unknown, scopes?: unknown }} ApiKeyCreatePayload */
+/** @typedef {{ id?: unknown, scope?: unknown }} AvailableApiScope */
 
 const API_KEY_PREFIX = "ltf_live";
 
@@ -30,10 +32,11 @@ async function list(session) {
   };
 }
 
-/** @param {WorkspaceRequestSession} session */
-async function create(payload, session) {
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function create(rawPayload, session) {
   assertPublicDemoCapabilityAllowed("api_keys");
   assertPublicDemoVisitorIdentityMutable(session.user_id);
+  const payload = /** @type {ApiKeyCreatePayload} */ (rawPayload && typeof rawPayload === "object" ? rawPayload : {});
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -153,11 +156,12 @@ async function markUsed(apiKey) {
   await apiKeysRepository.updateLastUsed(apiKey.api_key_id);
 }
 
+/** @param {unknown} scopes @param {AvailableApiScope[]} availableScopes @returns {string[]} */
 function normalizeScopes(scopes, availableScopes) {
   const publicApiScopeSet = new Set(availableScopes.map((scope) => scope.id || scope.scope));
 
   return Array.from(new Set(
-    scopes
+    (Array.isArray(scopes) ? scopes : [])
       .map((scope) => String(scope || "").trim())
       .filter((scope) => publicApiScopeSet.has(scope)),
   ));
@@ -167,10 +171,12 @@ function createRawApiKey() {
   return `${API_KEY_PREFIX}_${randomBytes(24).toString("base64url")}`;
 }
 
+/** @param {string} rawKey */
 function createKeyPrefix(rawKey) {
   return rawKey.slice(0, 17);
 }
 
+/** @param {unknown} rawKey */
 function hashApiKey(rawKey) {
   return createHash("sha256").update(String(rawKey || "")).digest("hex");
 }

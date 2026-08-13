@@ -218,6 +218,7 @@ async function assertPublicApiUsesCanonicalLists(session) {
 
   assert.equal(clients.pagination.limit, 2);
   assert.ok(clients.pagination.total >= 4);
+  if (!clients.data[0] || !clients.data[1]) throw new Error("Canonical client list should include both requested rows.");
   assert.equal(clients.data[0].display_label, "Alpha Client");
   assert.equal(clients.data[1].display_label, "  - Alpha Child");
 

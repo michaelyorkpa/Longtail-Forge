@@ -1,8 +1,15 @@
 // @ts-check
 import { db } from "../core/database.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {{sourceTargetId?: unknown, targetId?: unknown, workspaceId?: unknown, rule?: import("../types/framework-contracts.js").TagPropagationContribution}} TagPropagationContext */
+/** @typedef {{sourceTargetId: string, sourceTargetType: string, targetId: string, targetType: string}} TagPropagationTarget */
+/** @typedef {(context?: TagPropagationContext) => Promise<TagPropagationTarget[]>} TagPropagationResolver */
+
+/** @type {Map<string, TagPropagationResolver>} */
 const resolvers = new Map();
 
+/** @param {unknown} resolverId @param {unknown} resolver */
 function registerTagPropagationResolver(resolverId, resolver) {
   const normalizedResolverId = normalizeResolverId(resolverId);
 
@@ -10,10 +17,11 @@ function registerTagPropagationResolver(resolverId, resolver) {
     throw new TypeError(`Tag propagation resolver '${normalizedResolverId}' must be a function.`);
   }
 
-  resolvers.set(normalizedResolverId, resolver);
+  resolvers.set(normalizedResolverId, /** @type {TagPropagationResolver} */ (resolver));
   return normalizedResolverId;
 }
 
+/** @param {unknown} resolverId */
 function readTagPropagationResolver(resolverId) {
   return resolvers.get(normalizeResolverId(resolverId)) || null;
 }
@@ -27,6 +35,7 @@ function resetTagPropagationResolvers() {
   registerBuiltInResolvers();
 }
 
+/** @param {unknown} resolverId */
 function normalizeResolverId(resolverId) {
   const normalizedResolverId = String(resolverId || "").trim();
 
@@ -47,6 +56,7 @@ function registerBuiltInResolvers() {
   registerTagPropagationResolver("notes.project-notes", resolveProjectNotes);
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveClientChildren(context = {}) {
   if (context.sourceTargetId) {
     return mapRows(await db.query(`
@@ -85,6 +95,7 @@ WHERE workspace_id = :workspaceId
   }), "client", "client");
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveClientProjects(context = {}) {
   if (context.sourceTargetId) {
     return mapRows(await db.query(`
@@ -123,6 +134,7 @@ WHERE workspace_id = :workspaceId
   }), "client", "project");
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveProjectChildren(context = {}) {
   if (context.sourceTargetId) {
     return mapRows(await db.query(`
@@ -161,6 +173,7 @@ WHERE workspace_id = :workspaceId
   }), "project", "project");
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveProjectTasks(context = {}) {
   if (context.sourceTargetId) {
     return mapRows(await db.query(`
@@ -199,14 +212,21 @@ WHERE workspace_id = :workspaceId
   }), "project", "task");
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveClientNotes(context = {}) {
   return resolveNoteContext(context, "client", "client_id");
 }
 
+/** @param {TagPropagationContext} [context] */
 async function resolveProjectNotes(context = {}) {
   return resolveNoteContext(context, "project", "project_id");
 }
 
+/**
+ * @param {string} sourceTargetType
+ * @param {string} noteColumn
+ * @param {TagPropagationContext} context
+ */
 async function resolveNoteContext(context = {}, sourceTargetType, noteColumn) {
   if (context.sourceTargetId) {
     return mapRows(await db.query(`
@@ -281,6 +301,7 @@ WHERE workspace_id = :workspaceId
   }), sourceTargetType, "note");
 }
 
+/** @param {DatabaseRow[]} rows @param {string} sourceTargetType @param {string} targetType @returns {TagPropagationTarget[]} */
 function mapRows(rows, sourceTargetType, targetType) {
   return rows
     .map((row) => ({
@@ -292,6 +313,7 @@ function mapRows(rows, sourceTargetType, targetType) {
     .filter((row) => row.sourceTargetId && row.targetId);
 }
 
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }

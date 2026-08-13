@@ -6,6 +6,7 @@ import { modulesService } from "../modules/modules.service.js";
 /** @typedef {import("../../types/framework-contracts.js").EventSummarySection} EventSummarySection */
 /** @typedef {import("../../types/framework-contracts.js").EventSummaryText} EventSummaryText */
 /** @typedef {import("../../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {Omit<InternalEvent, "session"> & {session?: unknown}} EventSummaryInput */
 
 const TASK_UPDATE_FIELD_LABELS = new Map([
   ["description", "Description Updated"],
@@ -53,7 +54,7 @@ const TASK_UPDATE_FIELD_ORDER = [
   "client_id",
 ];
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function summarizeActivityEvent(event) {
   const summary = findEventSummary(event, "activity");
   const context = summarizeEventContext(event);
@@ -74,7 +75,7 @@ function summarizeActivityEvent(event) {
   };
 }
 
-/** @param {InternalEvent} event @param {{ moduleId?: string }} [options] */
+/** @param {EventSummaryInput} event @param {{ moduleId?: string }} [options] */
 function summarizeNotificationEvent(event, options = {}) {
   const summary = findEventSummary(event, "notification", options.moduleId);
   const context = summarizeEventContext(event);
@@ -96,7 +97,7 @@ function summarizeNotificationEvent(event, options = {}) {
   };
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function summarizeEventContext(event) {
   const changedFields = readChangedFields(event?.previous_value, event?.new_value);
   const changedContext = buildEventChangedContext(event, changedFields);
@@ -116,7 +117,7 @@ function summarizeEventContext(event) {
 }
 
 /**
- * @param {InternalEvent} event
+ * @param {EventSummaryInput} event
  * @param {"activity" | "notification"} kind
  * @param {string} [moduleIdOverride]
  * @returns {EventSummarySection | null}
@@ -134,18 +135,20 @@ function findEventSummary(event, kind, moduleIdOverride) {
     .find((summary) => summary.event === eventName && (!summary.moduleId || summary.moduleId === moduleId))?.[kind] || null;
 }
 
-/** @param {EventSummaryText | undefined} value @param {InternalEvent} event */
+/** @param {EventSummaryText | undefined} value @param {EventSummaryInput} event */
 function readSummaryValue(value, event) {
   if (typeof value === "function") {
-    return String(value({ event }) || "").trim();
+    return String(value({ event: /** @type {import("../../types/framework-contracts.js").InternalEvent} */ (event) }) || "").trim();
   }
 
   return String(value || "").trim();
 }
 
-/** @param {EventSummaryRecipientHints | undefined} value @param {InternalEvent} event */
+/** @param {EventSummaryRecipientHints | undefined} value @param {EventSummaryInput} event */
 function readRecipientHints(value, event) {
-  const resolved = typeof value === "function" ? value({ event }) : value;
+  const resolved = typeof value === "function"
+    ? value({ event: /** @type {import("../../types/framework-contracts.js").InternalEvent} */ (event) })
+    : value;
 
   if (!Array.isArray(resolved)) {
     return [];
@@ -156,7 +159,7 @@ function readRecipientHints(value, event) {
     .filter(Boolean);
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function fallbackLabel(event) {
   return String(event?.name || "Event")
     .split(".")
@@ -165,7 +168,7 @@ function fallbackLabel(event) {
     .join(" ");
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function fallbackSummary(event) {
   const recordLabel = safeRecordLabel(event);
 
@@ -174,7 +177,7 @@ function fallbackSummary(event) {
   return recordLabel ? `${fallbackLabel(event)} for ${recordLabel}.` : `${fallbackLabel(event)}.`;
 }
 
-/** @param {InternalEvent} event @param {string[]} [changedFields] */
+/** @param {EventSummaryInput} event @param {string[]} [changedFields] */
 function buildEventChangedContext(event, changedFields = readChangedFields(event?.previous_value, event?.new_value)) {
   if (!String(event?.name || event?.event || "").endsWith(".updated") || changedFields.length === 0) {
     return null;
@@ -196,7 +199,7 @@ function buildEventChangedContext(event, changedFields = readChangedFields(event
   };
 }
 
-/** @param {InternalEvent} event @param {string[]} changedFields */
+/** @param {EventSummaryInput} event @param {string[]} changedFields */
 function buildTaskChangedContext(event, changedFields) {
   const changedFieldSet = new Set(changedFields);
   const field = TASK_UPDATE_FIELD_ORDER.find((candidate) => changedFieldSet.has(candidate)) || changedFields[0] || "";
@@ -212,7 +215,7 @@ function buildTaskChangedContext(event, changedFields) {
   };
 }
 
-/** @param {string} field @param {Record<string, any> | null | undefined} previousValue @param {Record<string, any> | null | undefined} newValue */
+/** @param {string} field @param {unknown} previousValue @param {unknown} newValue */
 function taskChangedContextLabel(field, previousValue, newValue) {
   if (field === "description") {
     return descriptionChangeLabel(previousValue, newValue)
@@ -224,16 +227,16 @@ function taskChangedContextLabel(field, previousValue, newValue) {
   return TASK_UPDATE_CONTEXT_LABELS.get(field) || "Task updated";
 }
 
-/** @param {string} field @param {Record<string, any> | null | undefined} newValue */
+/** @param {string} field @param {unknown} newValue */
 function readableTaskChangedValue(field, newValue) {
   if (["description", "title", "status", "priority", "due_date", "due_time", "due_at_utc"].includes(field)) {
-    return truncateSnippet(newValue?.[field]);
+    return truncateSnippet(objectValue(newValue)[field]);
   }
 
   return "";
 }
 
-/** @param {Record<string, any>} metadata @param {{ previousValue?: Record<string, any> | null, newValue?: Record<string, any> | null }} [options] */
+/** @param {Record<string, unknown>} metadata @param {{ previousValue?: unknown, newValue?: unknown }} [options] */
 function taskUpdatedLabel(metadata, options = {}) {
   if (metadata.transition === "reopened") {
     return "Task Reopened";
@@ -254,10 +257,10 @@ function taskUpdatedLabel(metadata, options = {}) {
   return "Task Updated";
 }
 
-/** @param {Record<string, any> | null | undefined} previousValue @param {Record<string, any> | null | undefined} newValue */
+/** @param {unknown} previousValue @param {unknown} newValue */
 function descriptionChangeLabel(previousValue, newValue) {
-  const previousDescription = String(previousValue?.description || "").trim();
-  const nextDescription = String(newValue?.description || "").trim();
+  const previousDescription = String(objectValue(previousValue).description || "").trim();
+  const nextDescription = String(objectValue(newValue).description || "").trim();
 
   if (!previousDescription && nextDescription) {
     return "Description Added";
@@ -270,9 +273,11 @@ function descriptionChangeLabel(previousValue, newValue) {
   return "Description Updated";
 }
 
-/** @param {Record<string, any> | null | undefined} previousValue @param {Record<string, any> | null | undefined} newValue */
+/** @param {unknown} previousValue @param {unknown} newValue */
 function readChangedFields(previousValue, newValue) {
-  return TASK_UPDATE_FIELD_ORDER.filter((field) => !sameSummaryFieldValue(previousValue?.[field], newValue?.[field]));
+  const previous = objectValue(previousValue);
+  const next = objectValue(newValue);
+  return TASK_UPDATE_FIELD_ORDER.filter((field) => !sameSummaryFieldValue(previous[field], next[field]));
 }
 
 /** @param {unknown} left @param {unknown} right */
@@ -296,7 +301,7 @@ function normalizeChangedFields(value) {
   return new Set(fields.map((field) => String(field || "").trim()).filter(Boolean));
 }
 
-/** @param {InternalEvent} event @param {string} field */
+/** @param {EventSummaryInput} event @param {string} field */
 function changedFieldLabel(event, field) {
   if ((event?.name || event?.event) === "task.updated") {
     return TASK_UPDATE_FIELD_LABELS.get(field) || titleizeFieldName(field, "Task Updated");
@@ -331,8 +336,10 @@ function truncateSnippet(value, maxLength = 120) {
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1).trimEnd()}...` : normalized;
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function safeRecordLabel(event) {
+  const next = objectValue(event?.new_value);
+  const previous = objectValue(event?.previous_value);
   // Raw record ids are identifiers, not labels: they must never reach
   // user-facing summary copy, so there is deliberately no record_id fallback.
   return String(
@@ -340,15 +347,15 @@ function safeRecordLabel(event) {
     event?.recordLabel ||
     event?.metadata?.record_label ||
     event?.metadata?.recordLabel ||
-    event?.new_value?.title ||
-    event?.new_value?.name ||
-    event?.previous_value?.title ||
-    event?.previous_value?.name ||
+    next.title ||
+    next.name ||
+    previous.title ||
+    previous.name ||
     "",
   ).replace(/\s+/g, " ").trim();
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function eventActionType(event) {
   return String(event?.name || event?.event || "")
     .split(".")
@@ -356,7 +363,7 @@ function eventActionType(event) {
     .at(-1) || "";
 }
 
-/** @param {InternalEvent} event */
+/** @param {EventSummaryInput} event */
 function safeActor(event) {
   const userId = String(event?.actor_user_id || event?.actorUserId || "").trim();
   const username = String(event?.actor_user_name || event?.actorUserName || "").trim();
@@ -380,6 +387,13 @@ function safeUrl(value) {
   }
 
   return url;
+}
+
+/** @param {unknown} value @returns {Record<string, unknown>} */
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
 }
 
 export {

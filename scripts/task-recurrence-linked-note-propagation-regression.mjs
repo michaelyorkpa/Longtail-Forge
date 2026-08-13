@@ -154,7 +154,7 @@ async function linkedNoteTitlesForTask(session, taskId) {
     targetId: taskId,
     targetType: "task",
   });
-  return (result.linkedNotes || []).map((note) => note.label || note.title);
+  return (result.linkedNotes || []).map((note) => note.label || /** @type {Record<string, unknown>} */ (note).title);
 }
 
 function taskTarget(taskId) {

@@ -7,6 +7,14 @@ const REPORT_KEY_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*:[a-z][a-z0-9]*(?:
 const MAX_REPORT_FILTER_LIST_ITEMS = 100;
 const MAX_REPORT_FILTER_VALUE_LENGTH = 200;
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../types/framework-contracts.js").ReportingContribution} ReportingContribution */
+/** @typedef {import("../types/framework-contracts.js").ReportingFilterContribution} ReportingFilterContribution */
+/** @typedef {import("../types/framework-contracts.js").BrowserAssetContribution} BrowserAssetContribution */
+/** @typedef {Record<string, unknown>} ReportQuery */
+/** @typedef {Record<string, string | boolean | string[]>} NormalizedReportFilters */
+
+/** @param {WorkspaceRequestSession} session */
 async function readReportCatalog(session) {
   const entries = await readAllowedReportEntries(session);
 
@@ -15,6 +23,7 @@ async function readReportCatalog(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {unknown} reportKey @param {ReportQuery} [query] */
 async function runReport(session, reportKey, query = {}) {
   const normalizedReportKey = normalizeReportKey(reportKey);
 
@@ -47,7 +56,7 @@ async function runReport(session, reportKey, query = {}) {
         filters,
         report: entry.report,
         reportKey: normalizedReportKey,
-        session,
+        session: /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (session)),
         workspaceId: session.workspace_id,
       });
     } catch (error) {
@@ -82,17 +91,19 @@ async function runReport(session, reportKey, query = {}) {
   }
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function readAllowedReportEntries(session) {
   const [reports, activeAssets] = await Promise.all([
     modulesService.listReportingReports(session.workspace_id, session),
     modulesService.listActiveModuleBrowserAssets(session.workspace_id, session, REPORTING_ASSET_TARGET),
   ]);
-  const assetsByKey = new Map(activeAssets.map((asset) => [reportAssetKey(asset.moduleId, asset.id), asset]));
+  const typedAssets = /** @type {BrowserAssetContribution[]} */ (activeAssets);
+  const assetsByKey = new Map(typedAssets.map((asset) => [reportAssetKey(asset.moduleId, asset.id), asset]));
 
   return reports.flatMap((report) => {
     const rendererAssets = report.browserAssetIds
       .map((assetId) => assetsByKey.get(reportAssetKey(report.moduleId, assetId)))
-      .filter(Boolean);
+      .filter((asset) => asset !== undefined);
 
     if (rendererAssets.length !== report.browserAssetIds.length) {
       return [];
@@ -105,6 +116,7 @@ async function readAllowedReportEntries(session) {
   });
 }
 
+/** @param {ReportingContribution} report @param {BrowserAssetContribution[]} rendererAssets */
 function normalizeCatalogReport(report, rendererAssets) {
   const filters = report.filters.map(cloneReportFilter);
 
@@ -122,7 +134,7 @@ function normalizeCatalogReport(report, rendererAssets) {
     requiresEnabledModules: [...report.requiresEnabledModules],
     filters,
     defaultFilters: Object.fromEntries(filters
-      .filter((filter) => Object.hasOwn(filter, "defaultValue"))
+      .filter((/** @type {object} */ filter) => Object.hasOwn(filter, "defaultValue"))
       .map((filter) => [filter.id, cloneJsonValue(filter.defaultValue)])),
     rendererAssets: rendererAssets.map((asset) => ({
       id: asset.id,
@@ -133,6 +145,7 @@ function normalizeCatalogReport(report, rendererAssets) {
   };
 }
 
+/** @param {ReportingFilterContribution} filter @returns {ReportingFilterContribution} */
 function cloneReportFilter(filter) {
   return {
     ...filter,
@@ -142,10 +155,12 @@ function cloneReportFilter(filter) {
   };
 }
 
+/** @param {unknown} value */
 function cloneJsonValue(value) {
   return Array.isArray(value) ? [...value] : value;
 }
 
+/** @param {ReportingContribution} report @param {ReportQuery} query @returns {NormalizedReportFilters} */
 function normalizeReportFilters(report, query) {
   if (!query || typeof query !== "object" || Array.isArray(query)) {
     throw invalidReportFilters("Report filters are invalid.");
@@ -158,11 +173,12 @@ function normalizeReportFilters(report, query) {
     }
   }
 
+  /** @type {NormalizedReportFilters} */
   const normalizedFilters = {};
 
   for (const filter of report.filters) {
     const visible = reportFilterIsVisible(filter, report.filters, query);
-    const provided = filter.queryKeys.some((queryKey) => query[queryKey] !== undefined);
+    const provided = filter.queryKeys.some((/** @type {string | number} */ queryKey) => query[queryKey] !== undefined);
 
     if (!visible) {
       if (provided) {
@@ -195,7 +211,7 @@ function normalizeReportFilters(report, query) {
       normalizedFilters[filter.queryKeys[0]] = readListFilterValue(
         query,
         filter.queryKeys[0],
-        filter.defaultValue,
+        Array.isArray(filter.defaultValue) ? filter.defaultValue : [],
       );
       continue;
     }
@@ -204,7 +220,7 @@ function normalizeReportFilters(report, query) {
       normalizedFilters[filter.queryKeys[0]] = readBooleanFilterValue(
         query,
         filter.queryKeys[0],
-        filter.defaultValue,
+        typeof filter.defaultValue === "boolean" ? filter.defaultValue : false,
       );
       continue;
     }
@@ -221,12 +237,14 @@ function normalizeReportFilters(report, query) {
   return normalizedFilters;
 }
 
+/** @param {ReportingFilterContribution} filter @param {ReportingFilterContribution[]} filters @param {ReportQuery} query */
 function reportFilterIsVisible(filter, filters, query) {
   if (!filter.visibleWhen) {
     return true;
   }
+  const visibleWhen = filter.visibleWhen;
 
-  const dependency = filters.find((candidate) => candidate.id === filter.visibleWhen.filterId);
+  const dependency = filters.find((candidate) => candidate.id === visibleWhen.filterId);
   if (!dependency) {
     return false;
   }
@@ -236,9 +254,10 @@ function reportFilterIsVisible(filter, filters, query) {
     dependency.queryKeys[0],
     dependency.defaultValue,
   );
-  return dependencyValue === filter.visibleWhen.equals;
+  return dependencyValue === visibleWhen.equals;
 }
 
+/** @param {ReportQuery} query @param {string} queryKey @param {unknown} [defaultValue] */
 function readScalarFilterValue(query, queryKey, defaultValue = "") {
   const rawValue = query[queryKey];
   const value = rawValue === undefined ? defaultValue : rawValue;
@@ -255,6 +274,7 @@ function readScalarFilterValue(query, queryKey, defaultValue = "") {
   return normalizedValue;
 }
 
+/** @param {ReportQuery} query @param {string} queryKey @param {unknown[]} [defaultValue] */
 function readListFilterValue(query, queryKey, defaultValue = []) {
   const rawValue = query[queryKey] === undefined ? defaultValue : query[queryKey];
   const rawItems = Array.isArray(rawValue) ? rawValue : [rawValue];
@@ -276,6 +296,7 @@ function readListFilterValue(query, queryKey, defaultValue = []) {
   return normalizedItems;
 }
 
+/** @param {ReportQuery} query @param {string} queryKey @param {boolean} [defaultValue] */
 function readBooleanFilterValue(query, queryKey, defaultValue = false) {
   const rawValue = query[queryKey] === undefined ? defaultValue : query[queryKey];
 
@@ -297,6 +318,9 @@ function readBooleanFilterValue(query, queryKey, defaultValue = false) {
   throw invalidReportFilters(`The ${queryKey} filter must be true or false.`);
 }
 
+/**
+ * @param {string} value
+ */
 function isIsoDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -306,19 +330,27 @@ function isIsoDate(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+/** @param {unknown} reportKey */
 function normalizeReportKey(reportKey) {
   const normalizedReportKey = String(reportKey || "").trim();
   return REPORT_KEY_PATTERN.test(normalizedReportKey) ? normalizedReportKey : "";
 }
 
+/** @param {string} moduleId @param {string} assetId */
 function reportAssetKey(moduleId, assetId) {
   return `${moduleId}:${assetId}`;
 }
 
+/**
+ * @param {string} message
+ */
 function invalidReportFilters(message) {
   return new ReportExecutionFailure("invalid_filters", message, 400);
 }
 
+/**
+ * @param {unknown} error
+ */
 function normalizeRunnerFailure(error) {
   if (error instanceof ReportExecutionFailure) {
     return error;
@@ -349,6 +381,11 @@ function normalizeRunnerFailure(error) {
 }
 
 class ReportExecutionFailure extends Error {
+  /**
+ * @param {string} code
+ * @param {string | undefined} message
+ * @param {number} statusCode
+ */
   constructor(code, message, statusCode) {
     super(message);
     this.name = "ReportExecutionFailure";
@@ -357,7 +394,9 @@ class ReportExecutionFailure extends Error {
   }
 }
 
-export const reportingService = {
+const reportingServiceInternal = {
   readReportCatalog,
   runReport,
 };
+
+export const reportingService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof reportingServiceInternal>} */ (reportingServiceInternal);

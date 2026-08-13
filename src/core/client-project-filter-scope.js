@@ -9,6 +9,13 @@ const FILTER_SCOPE_MODES = Object.freeze({
   ids: "ids",
 });
 
+/** @typedef {"all" | "blank" | "ids"} FilterScopeMode */
+/** @typedef {{ hasClientFilter?: boolean, hasProjectFilter?: boolean, clientId?: unknown, projectId?: unknown }} ClientProjectFilterOptions */
+/** @typedef {{ id: string, parent_client_id?: unknown } & Record<string, unknown>} ScopedClientRecord */
+/** @typedef {{ id: string, client_id?: unknown, parent_project_id?: unknown } & Record<string, unknown>} ScopedProjectRecord */
+/** @typedef {{ clientFilterMode: FilterScopeMode, clientId: string, clientIds: string[], clientProjectIds: string[], hasClientFilter: boolean, hasProjectFilter: boolean, omitClientFilterBecauseProjectSelected: boolean, projectFilterMode: FilterScopeMode, projectId: string, projectIds: string[], usesClientScope: boolean, workspaceType: string }} ClientProjectFilterScope */
+
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {ClientProjectFilterOptions} [options] @returns {Promise<ClientProjectFilterScope>} */
 async function resolveClientProjectFilterScope(session, options = {}) {
   const workspaceId = String(session?.workspace_id || "").trim();
   const settings = workspaceId
@@ -22,6 +29,7 @@ async function resolveClientProjectFilterScope(session, options = {}) {
   const projectId = normalizeFilterValue(options.projectId);
   const clientFilterMode = resolveFilterMode(clientId, hasClientFilter);
   const projectFilterMode = resolveFilterMode(projectId, hasProjectFilter);
+  /** @type {ClientProjectFilterScope} */
   const scope = {
     clientFilterMode,
     clientId,
@@ -54,8 +62,8 @@ async function resolveClientProjectFilterScope(session, options = {}) {
     needsClients ? permissionsService.filterReadableClients(session, clients) : [],
     needsProjects ? permissionsService.filterReadableProjects(session, projects) : [],
   ]);
-  const readableClientIds = new Set((readableClients || []).map((client) => client.id));
-  const readableProjectIds = new Set((readableProjects || []).map((project) => project.id));
+  const readableClientIds = new Set(/** @type {ScopedClientRecord[]} */ (readableClients || []).map((client) => client.id));
+  const readableProjectIds = new Set(/** @type {ScopedProjectRecord[]} */ (readableProjects || []).map((project) => project.id));
 
   if (scope.hasClientFilter && clientFilterMode === FILTER_SCOPE_MODES.ids) {
     const scopedClientIds = collectScopedIds(clients, clientId, "id", "parent_client_id");
@@ -74,6 +82,10 @@ async function resolveClientProjectFilterScope(session, options = {}) {
   return scope;
 }
 
+/**
+ * @param {string} value
+ * @param {boolean} hasFilter
+ */
 function resolveFilterMode(value, hasFilter) {
   if (!hasFilter || value === "all") {
     return FILTER_SCOPE_MODES.all;
@@ -84,6 +96,7 @@ function resolveFilterMode(value, hasFilter) {
   return FILTER_SCOPE_MODES.ids;
 }
 
+/** @param {Record<string, unknown>[]} [records] @param {unknown} [selectedId] @param {string} [idField] @param {string} [parentField] */
 function collectScopedIds(records = [], selectedId = "", idField = "id", parentField = "parent_id") {
   const normalizedSelectedId = String(selectedId || "").trim();
 
@@ -95,6 +108,7 @@ function collectScopedIds(records = [], selectedId = "", idField = "id", parentF
   return [normalizedSelectedId, ...descendants];
 }
 
+/** @param {Record<string, unknown>[]} [records] @param {unknown} [recordId] @param {string} [idField] @param {string} [parentField] */
 function collectDescendantIds(records = [], recordId = "", idField = "id", parentField = "parent_id") {
   const normalizedRecordId = String(recordId || "").trim();
 
@@ -102,7 +116,9 @@ function collectDescendantIds(records = [], recordId = "", idField = "id", paren
     return [];
   }
 
+  /** @type {string[]} */
   const descendants = [];
+  /** @type {Set<string>} */
   const visited = new Set();
   const pending = [normalizedRecordId];
 
@@ -126,10 +142,14 @@ function collectDescendantIds(records = [], recordId = "", idField = "id", paren
   return descendants;
 }
 
+/** @param {unknown} value */
 function normalizeFilterValue(value) {
   return String(value || "").trim();
 }
 
+/**
+ * @param {string} workspaceType
+ */
 function normalizeWorkspaceType(workspaceType) {
   return String(workspaceType || "").trim().toLowerCase() || "business";
 }

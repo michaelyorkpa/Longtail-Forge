@@ -215,6 +215,7 @@ LIMIT 1;
   };
 }
 
+/** @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>} */
 async function createClientScopedSession(workspaceId, clientId) {
   const userId = randomUUID();
   const now = "2026-01-01T00:00:00.000Z";
@@ -231,8 +232,11 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(userId)}, '
 `);
 
   return {
+    active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: "America/New_York",
     user_id: userId,
     username: `pipeline-limited-${userId}@example.test`,

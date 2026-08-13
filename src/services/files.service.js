@@ -43,6 +43,29 @@ import { registerFrameworkSettingDefinition } from "../core/settings/framework-s
 import { registerPersistenceHandler } from "../core/settings/settings-behavior-registry.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} FileSession */
+/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/framework-contracts.js").AttachableTypeContribution & {moduleId: string, targetType: string, label: string, description: string, tableName: string, idField: string, labelField: string, workspaceField: string, requiredReadPermission: string, requiredAttachPermission: string}} AttachableType */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
+/** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {{allowedExtensions: string[], blockedExtensions: string[], createdAt: string, fileTypePolicyMode: string, internalStorageLimitBytes: number|null, perUserStorageLimitBytes: number|null, updatedAt: string, workspaceId: string}} WorkspaceFileSettings */
+/** @typedef {{id: string, save: Function, saveStream: Function, read: Function, metadata: Function, delete: Function, health: () => Promise<LooseRecord>, [key: string]: unknown}} FileStorageAdapter */
+/** @typedef {{id: string, health: () => Promise<{available?: boolean, ok?: boolean, status?: string}>, scan: Function}} FileScannerAdapter */
+/** @typedef {"allowedExtensions"|"blockedExtensions"|"fileTypePolicyMode"|"internalStorageLimitBytes"|"perUserStorageLimitBytes"} FileSettingField */
+/** @typedef {DatabaseRow & {file_id: string, workspace_id: string, original_filename: string, display_name: string, stored_filename: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, sha256_hash: string, storage_provider: string, storage_key: string, storage_kind: string, status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, created_at: string, updated_at: string, deleted_at?: string|null, previous_status?: string, metadata_json?: unknown}} FileRow */
+/** @typedef {DatabaseRow & {file_attachment_id: string, file_id: string, workspace_id: string, module_id: string, target_type: string, target_id: string, client_id: string|null, project_id: string|null, visibility: string, attachment_role: string, caption: string, sort_order: number, created_by_user_id: string, created_at: string, removed_at?: string|null, metadata_json?: unknown, original_filename: string, display_name: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, status: string, file_status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, storage_provider: string, storage_key: string, sha256_hash: string}} AttachmentRow */
+/** @typedef {DatabaseRow & {target_id: string, label?: string, client_id?: string|null, project_id?: string|null}} AttachableTargetRow */
+/** @typedef {LooseRecord & {label: string, moduleId: string, moduleLabel: string, targetId: string, targetType: string, targetTypeLabel: string, clientId?: string, clientLabel?: string, projectId?: string, projectLabel?: string, contextLabel?: string, value: LooseRecord & {moduleId: string, targetId: string, targetType: string, clientId?: string, projectId?: string}}} AttachableTargetOption */
+/** @typedef {{displayName: string, extension: string, fileSizeBytes: number, mimeTypeClaimed: string, mimeTypeDetected: string, metadata: LooseRecord, originalFilename: string, sha256Hash: string, storageKey?: string, storageProvider?: string, storedFilename?: string, buffer?: Buffer}} PreparedUpload */
+/** @typedef {ReturnType<typeof normalizeAttachmentListOptions>} AttachmentListOptions */
+/** @typedef {FileSession & {role: string}} FileJobSession */
+/** @typedef {{availabilityStatus: string, calculatedAt: unknown, externalReportedBytes: number, externalSourceProvider: string, fileCount: number, internalBytes: number, storageAccountingId: unknown, storageKind: unknown, storageProvider: string, userId: string, workspaceId: unknown}} StorageAccountingEntry */
+/** @typedef {{externalFileCount: number, externalReportedBytes: number, fileCount: number, internalBytes: number, internalFileCount: number}} StorageAccountingSummary */
+/** @typedef {Record<string, string>} FileResponseHeaders */
+/** @typedef {{headers: FileResponseHeaders, kind: string, preview: LooseRecord, stream: NodeJS.ReadableStream, content?: undefined}} FilePreviewStreamResponse */
+/** @typedef {{content: LooseRecord, preview: LooseRecord, headers?: undefined, stream?: undefined}} FilePreviewTextResponse */
+
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
 const DEFAULT_ATTACHMENT_LIMIT = 50;
@@ -123,11 +146,13 @@ const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
 
 registerFilesSettingsContributions();
 
+/** @type {Map<string, FileStorageAdapter>} */
 const storageAdapters = new Map([
-  ["local", createLocalFileStorageAdapter()],
-  ["s3", createS3FileStorageAdapter(config.storage?.s3)],
+  ["local", /** @type {FileStorageAdapter} */ (createLocalFileStorageAdapter())],
+  ["s3", /** @type {FileStorageAdapter} */ (createS3FileStorageAdapter(/** @type {Parameters<typeof createS3FileStorageAdapter>[0]} */ (config.storage?.s3)))],
 ]);
 const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
+/** @type {Map<string, FileScannerAdapter>} */
 const scannerAdapters = new Map([
   ["clamd", createClamdFileScannerAdapter({ host: config.scanner?.clamdHost, port: config.scanner?.clamdPort })],
   ["clamscan", createClamscanFileScannerAdapter({ executablePath: config.scanner?.clamscanPath })],
@@ -203,18 +228,19 @@ function registerFilesSettingsContributions() {
       requiredPermissions: ["files.manage_workspace_settings"],
     });
     registerPersistenceHandler(`framework.${definition.id}`, {
-      async read({ workspaceId }) {
+      async read(/** @type {{workspaceId: string}} */ { workspaceId }) {
         const settings = shapeWorkspaceFileSettings(await readWorkspaceFileSettingsForWorkspace(workspaceId));
-        return filesSettingValue(settings, definition.fieldId);
+        return filesSettingValue(settings, /** @type {FileSettingField} */ (definition.fieldId));
       },
       async write({ context, value }) {
-        await saveWorkspaceFileSettings(context, filesSettingPayload(definition.fieldId, value));
+        await saveWorkspaceFileSettings(/** @type {FileSession} */ (context), filesSettingPayload(/** @type {FileSettingField} */ (definition.fieldId), value));
       },
       recordUrl: "files-settings.html",
     });
   }
 }
 
+/** @param {WorkspaceFileSettings} settings @param {FileSettingField} fieldId */
 function filesSettingValue(settings, fieldId) {
   if (fieldId === "allowedExtensions" || fieldId === "blockedExtensions") {
     return (settings[fieldId] || []).join(", ");
@@ -225,6 +251,10 @@ function filesSettingValue(settings, fieldId) {
   return settings[fieldId];
 }
 
+/**
+ * @param {FileSettingField} fieldId
+ * @param {unknown} value
+ */
 function filesSettingPayload(fieldId, value) {
   if (fieldId === "allowedExtensions" || fieldId === "blockedExtensions") {
     return { [fieldId]: String(value || "").split(/[\s,]+/).filter(Boolean) };
@@ -243,6 +273,7 @@ function listFileLifecycleEvents() {
   return [...FILE_LIFECYCLE_EVENTS];
 }
 
+/** @param {unknown} providerId @param {FileStorageAdapter} adapter */
 function registerFileStorageAdapter(providerId, adapter) {
   const normalizedProviderId = String(providerId || "").trim();
 
@@ -260,16 +291,23 @@ function registerFileStorageAdapter(providerId, adapter) {
   return normalizedProviderId;
 }
 
+/**
+ * @param {string | FileScannerAdapter} modeOrAdapter
+ * @param {FileScannerAdapter | null} [maybeAdapter]
+ */
 function registerFileScannerAdapter(modeOrAdapter, maybeAdapter = null) {
-  const adapter = maybeAdapter || modeOrAdapter;
+  const adapter = maybeAdapter || (typeof modeOrAdapter === "string" ? null : modeOrAdapter);
+  if (!adapter) {
+    throw new TypeError("File scanner adapter is required.");
+  }
   const scannerMode = maybeAdapter
-    ? normalizeFileScannerMode(modeOrAdapter)
-    : normalizeFileScannerMode(adapter?.id || "");
+    ? normalizeFileScannerMode(String(modeOrAdapter))
+    : normalizeFileScannerMode(adapter.id || "");
 
   if (scannerMode === "none") {
     throw new TypeError("The 'none' file scanner mode is built in and cannot be replaced.");
   }
-  if (typeof adapter?.scan !== "function") {
+  if (typeof adapter.scan !== "function") {
     throw new TypeError(`File scanner adapter '${scannerMode}' must implement scan().`);
   }
 
@@ -322,6 +360,7 @@ async function assertConfiguredFileStorageProviderReady() {
   };
 }
 
+/** @param {{required?: boolean, scannerMode?: string}} [options] */
 async function assertConfiguredFileScannerReady(options = {}) {
   const required = options.required ?? (
     config.environment === "production" && config.security?.allowUnscannedUploads !== true
@@ -342,7 +381,7 @@ async function assertConfiguredFileScannerReady(options = {}) {
     throw new Error(fileScannerStartupError(scannerMode));
   }
 
-  if (health?.ok !== true && health?.available !== true) {
+  if (!("ok" in health && health.ok === true) && health?.available !== true) {
     throw new Error(fileScannerStartupError(scannerMode));
   }
 
@@ -352,11 +391,18 @@ async function assertConfiguredFileScannerReady(options = {}) {
   };
 }
 
+/**
+ * @param {string} scannerMode
+ */
 function fileScannerStartupError(scannerMode) {
   const safeMode = FILE_SCANNER_MODES.has(scannerMode) ? scannerMode : "unavailable";
   return `File scanner '${safeMode}' is not available at startup. Production uploads require a healthy clamd or clamscan scanner.`;
 }
 
+/**
+ * @param {string} providerId
+ * @param {unknown} status
+ */
 function storageProviderStartupError(providerId, status) {
   const safeProviderId = String(providerId || "local").trim() || "local";
   const safeStatus = sanitizeStorageProviderStatus(status || "unavailable");
@@ -368,6 +414,9 @@ function storageProviderStartupError(providerId, status) {
   return `File storage provider '${safeProviderId}' is not available at startup (${safeStatus}). Set LONGTAIL_STORAGE_PROVIDER to a configured provider.`;
 }
 
+/**
+ * @param {unknown} status
+ */
 function sanitizeStorageProviderStatus(status) {
   return String(status || "unavailable")
     .trim()
@@ -400,6 +449,9 @@ function resolveConfiguredFileScannerAdapter() {
   };
 }
 
+/**
+ * @param {string} value
+ */
 function normalizeFileScannerMode(value) {
   const scannerMode = String(value || "").trim();
 
@@ -411,13 +463,21 @@ function normalizeFileScannerMode(value) {
 }
 
 function listAttachableTypes() {
-  return modulesService.listAttachableTypes();
+  return /** @type {AttachableType[]} */ (modulesService.listAttachableTypes());
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listActiveAttachableTypes(workspaceId) {
-  return modulesService.listActiveAttachableTypes(workspaceId);
+  return /** @type {Promise<AttachableType[]>} */ (modulesService.listActiveAttachableTypes(workspaceId));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} moduleId
+ * @param {unknown} targetType
+ */
 async function resolveAttachableType(workspaceId, moduleId, targetType) {
   const normalizedModuleId = String(moduleId || "").trim();
   const normalizedTargetType = String(targetType || "").trim();
@@ -433,10 +493,10 @@ async function resolveAttachableType(workspaceId, moduleId, targetType) {
     throw new AppError("That record type is not registered for file attachments.", 400);
   }
 
-  return attachableType;
+  return /** @type {AttachableType} */ (attachableType);
 }
 
-/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} payload */
+/** @param {FileSession} session @param {LooseRecord} [payload] */
 async function uploadAndAttach(session, payload = {}) {
   assertFileIngressAllowed();
   await emitFileLifecycleEvent("file.upload.requested", {
@@ -469,6 +529,10 @@ async function uploadAndAttach(session, payload = {}) {
   }
 }
 
+/**
+ * @param {FileSession} session
+ * @param {LooseRecord & {fileStream?: import("node:stream").Readable}} [payload]
+ */
 async function uploadStreamAndAttach(session, payload = {}) {
   assertFileIngressAllowed();
   await emitFileLifecycleEvent("file.upload.requested", {
@@ -493,6 +557,10 @@ async function uploadStreamAndAttach(session, payload = {}) {
   }
 }
 
+/**
+ * @param {FileSession} session
+ * @param {LooseRecord} payload
+ */
 async function resolveUploadTarget(session, payload = {}) {
   const attachableType = await resolveAttachableType(session.workspace_id, payload.moduleId, payload.targetType);
   const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
@@ -505,6 +573,7 @@ async function resolveUploadTarget(session, payload = {}) {
   };
 }
 
+/** @param {FileSession} session @param {LooseRecord} payload @param {AttachableType} attachableType @param {AttachableTargetRow} target @param {PreparedUpload} prepared */
 async function finishUploadedFileAttachment(session, payload, attachableType, target, prepared) {
   const file = await createFileRecord(session, prepared);
   await queueFileScanJob(session, file, {
@@ -540,7 +609,13 @@ async function finishUploadedFileAttachment(session, payload, attachableType, ta
   };
 }
 
-async function recordUploadRejected(session, payload = {}, error) {
+/**
+ * @param {FileSession} session
+ * @param {LooseRecord} payload
+ * @param {unknown} error
+ */
+async function recordUploadRejected(session, payload, error) {
+  const failure = /** @type {{message?: string}} */ (error);
   await emitFileLifecycleEvent("file.upload.rejected", {
     session,
     moduleId: payload.moduleId,
@@ -548,7 +623,7 @@ async function recordUploadRejected(session, payload = {}, error) {
     targetId: payload.targetId,
     status: "deleted",
     scanStatus: "error",
-    reason: error?.message || String(error),
+    reason: failure?.message || String(error),
   });
   await recordFileAudit(session, {
     action: "file.upload_rejected",
@@ -556,14 +631,14 @@ async function recordUploadRejected(session, payload = {}, error) {
     recordId: "",
     recordLabel: payload.originalFilename || payload.displayName || "File upload",
     metadata: {
-      reason: error?.message || String(error),
+      reason: failure?.message || String(error),
       target_id: payload.targetId || "",
       target_type: payload.targetType || "",
     },
   });
 }
 
-/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} rawPayload */
+/** @param {FileSession} session @param {unknown} rawPayload */
 async function uploadBatchAndAttach(session, rawPayload = {}) {
   assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(CreateFileBatchSchema, rawPayload);
@@ -600,12 +675,13 @@ async function uploadBatchAndAttach(session, rawPayload = {}) {
         originalFilename: uploadPayload.originalFilename || uploadPayload.filename || "",
       });
     } catch (error) {
+      const failure = /** @type {{message?: string, status?: number, statusCode?: number}} */ (error);
       results.push({
-        error: error?.message || "Upload failed.",
+        error: failure?.message || "Upload failed.",
         index,
         ok: false,
         originalFilename: uploadPayload.originalFilename || uploadPayload.filename || "",
-        status: error?.status || error?.statusCode || 400,
+        status: failure?.status || failure?.statusCode || 400,
       });
     }
   }
@@ -622,7 +698,7 @@ async function uploadBatchAndAttach(session, rawPayload = {}) {
   };
 }
 
-/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {unknown} rawPayload */
+/** @param {FileSession} session @param {unknown} rawPayload */
 async function attachExistingFile(session, rawPayload = {}) {
   assertFileIngressAllowed();
   const payload = parseFilesEdgePayload(FileAttachmentSchema, rawPayload);
@@ -650,6 +726,10 @@ async function attachExistingFile(session, rawPayload = {}) {
   };
 }
 
+/**
+ * @param {FileSession} session
+ * @param {LooseRecord} [filters]
+ */
 async function listAttachments(session, filters = {}) {
   const canManageQuarantine = await permissionsService.can(session, "files.manage_quarantine", {
     workspace_id: session.workspace_id,
@@ -665,6 +745,7 @@ async function listAttachments(session, filters = {}) {
   });
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
   const targetScopedRead = Boolean(filters.targetId || filters.target_id);
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     attachmentWorkspaceId: session.workspace_id,
   };
@@ -695,19 +776,19 @@ async function listAttachments(session, filters = {}) {
   }
   if (filters.fileId || filters.file_id) {
     conditions.push("file_attachments.file_id = :attachmentFileId");
-    params.attachmentFileId = filters.fileId || filters.file_id;
+    params.attachmentFileId = String(filters.fileId || filters.file_id);
   }
   if (filters.moduleId || filters.module_id) {
     conditions.push("file_attachments.module_id = :attachmentModuleId");
-    params.attachmentModuleId = filters.moduleId || filters.module_id;
+    params.attachmentModuleId = String(filters.moduleId || filters.module_id);
   }
   if (filters.targetType || filters.target_type) {
     conditions.push("file_attachments.target_type = :attachmentTargetType");
-    params.attachmentTargetType = filters.targetType || filters.target_type;
+    params.attachmentTargetType = String(filters.targetType || filters.target_type);
   }
   if (filters.targetId || filters.target_id) {
     conditions.push("file_attachments.target_id = :attachmentTargetId");
-    params.attachmentTargetId = filters.targetId || filters.target_id;
+    params.attachmentTargetId = String(filters.targetId || filters.target_id);
   }
   applyAttachmentContextScopeFilters(conditions, contextScope, params);
   if (filters.filename || filters.fileName || filters.q) {
@@ -737,7 +818,7 @@ async function listAttachments(session, filters = {}) {
     };
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {AttachmentRow[]} */ (await db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -745,7 +826,8 @@ INNER JOIN files
   AND files.file_id = file_attachments.file_id
 WHERE ${conditions.join("\n  AND ")}
 ORDER BY ${attachmentOrderByClause(listOptions.sort)};
-`, params);
+`, params));
+  /** @type {Array<Awaited<ReturnType<typeof shapeAttachmentForRead>>>} */
   const visible = [];
 
   for (const row of rows) {
@@ -771,6 +853,7 @@ ORDER BY ${attachmentOrderByClause(listOptions.sort)};
   };
 }
 
+/** @param {FileSession} session @param {string[]} conditions @param {AttachmentListOptions} listOptions @param {Record<string, DatabaseNamedParameterInput>} params */
 async function readVisibleAttachmentPage(session, conditions, listOptions, params) {
   const targetVisibleCount = listOptions.offset + listOptions.limit + 1;
   const batchLimit = Math.min(
@@ -781,6 +864,7 @@ async function readVisibleAttachmentPage(session, conditions, listOptions, param
     Math.max(500, listOptions.offset + (listOptions.limit + 1) * 10),
     Math.max(500, listOptions.offset + MAX_ATTACHMENT_LIMIT * ATTACHMENT_SCAN_BATCH_MULTIPLIER),
   );
+  /** @type {Array<Awaited<ReturnType<typeof shapeAttachmentForRead>>>} */
   const visible = [];
   let visibleSeen = 0;
   let rawOffset = 0;
@@ -833,8 +917,9 @@ async function readVisibleAttachmentPage(session, conditions, listOptions, param
   };
 }
 
+/** @param {string[]} conditions @param {AttachmentListOptions} listOptions @param {{limit: number, offset: number}} page @param {Record<string, DatabaseNamedParameterInput>} params */
 async function readAttachmentCandidateRows(conditions, listOptions, page, params) {
-  return db.query(`
+  return /** @type {AttachmentRow[]} */ (await db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -848,9 +933,13 @@ OFFSET :attachmentPageOffset;
     ...params,
     attachmentPageLimit: page.limit,
     attachmentPageOffset: page.offset,
-  });
+  }));
 }
 
+/**
+ * @param {FileSession} session
+ * @param {LooseRecord} [filters]
+ */
 async function countAttachmentsForTargets(session, filters = {}) {
   const moduleId = String(filters.moduleId || filters.module_id || "").trim();
   const targetType = String(filters.targetType || filters.target_type || "").trim();
@@ -869,13 +958,14 @@ async function countAttachmentsForTargets(session, filters = {}) {
     status: "available",
   });
   const allowedTargetIds = new Set(targetIds);
+  /** @type {Record<string, number>} */
   const counts = {};
 
   targetIds.forEach((targetId) => {
     counts[targetId] = 0;
   });
   result.attachments.forEach((attachment) => {
-    const targetId = attachment.targetId || attachment.target_id || "";
+    const targetId = String(attachment.targetId || "");
     if (allowedTargetIds.has(targetId) && accessibleTargetIds.has(targetId)) {
       counts[targetId] = (counts[targetId] || 0) + 1;
     }
@@ -892,6 +982,10 @@ async function countAttachmentsForTargets(session, filters = {}) {
   };
 }
 
+/**
+ * @param {FileSession} session
+ * @param {unknown} fileId
+ */
 async function readFileForSession(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -914,6 +1008,7 @@ async function readFileForSession(session, fileId) {
   return shapeFile(file);
 }
 
+/** @param {FileSession} session @param {unknown} fileId @returns {Promise<{file: ReturnType<typeof shapeFile>, headers: FileResponseHeaders, stream: NodeJS.ReadableStream}>} */
 async function downloadFile(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -967,6 +1062,7 @@ async function downloadFile(session, fileId) {
   };
 }
 
+/** @param {FileSession} session @param {unknown} attachmentId */
 async function readAttachmentPreviewDescriptor(session, attachmentId) {
   const previewRequest = parseFilesEdgePayload(
     FilePreviewRequestSchema,
@@ -980,6 +1076,7 @@ async function readAttachmentPreviewDescriptor(session, attachmentId) {
   };
 }
 
+/** @param {FileSession} session @param {unknown} attachmentId @returns {Promise<FilePreviewStreamResponse | FilePreviewTextResponse>} */
 async function readAttachmentPreviewContent(session, attachmentId) {
   const previewRequest = parseFilesEdgePayload(
     FilePreviewRequestSchema,
@@ -1036,6 +1133,11 @@ async function readAttachmentPreviewContent(session, attachmentId) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ * @param {string} attachmentId
+ */
+/** @param {FileSession} session @param {unknown} attachmentId */
 async function readAttachmentPreviewAccess(session, attachmentId) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 
@@ -1052,8 +1154,8 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
   await assertCanUseAttachableTarget(session, attachableType, "read", target);
 
   const canDownload = await permissionsService.can(session, "files.download", {
-    client_id: attachment.client_id,
-    project_id: attachment.project_id,
+    client_id: String(attachment.client_id || ""),
+    project_id: String(attachment.project_id || ""),
     workspace_id: session.workspace_id,
     operation: "preview",
   });
@@ -1070,8 +1172,8 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
   }
 
   const canPreviewInReview = await permissionsService.can(session, "files.manage_quarantine", {
-    client_id: attachment.client_id,
-    project_id: attachment.project_id,
+    client_id: String(attachment.client_id || ""),
+    project_id: String(attachment.project_id || ""),
     workspace_id: session.workspace_id,
     operation: "preview_review",
   });
@@ -1082,6 +1184,11 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {unknown} attachmentId
+ */
+/** @param {FileSession} session @param {unknown} attachmentId */
 async function removeAttachment(session, attachmentId) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 
@@ -1135,6 +1242,7 @@ WHERE workspace_id = :workspaceId
 }
 
 /** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {string} attachmentId @param {unknown} rawPayload */
+/** @param {FileSession} session @param {unknown} attachmentId @param {unknown} rawPayload */
 async function updateAttachmentContext(session, attachmentId, rawPayload = {}) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 
@@ -1195,6 +1303,9 @@ WHERE workspace_id = :attachmentWorkspaceId
   });
 
   const updatedAttachment = await readAttachmentById(session.workspace_id, attachment.file_attachment_id);
+  if (!updatedAttachment) {
+    throw new AppError("Updated attachment could not be read.", 500);
+  }
   await emitAttachmentContextUpdateEvents(session, updatedAttachment, previousContext, nextContext);
   await recordFileAudit(session, {
     action: "file.attachment_context_updated",
@@ -1211,6 +1322,10 @@ WHERE workspace_id = :attachmentWorkspaceId
   return { attachment: await shapeAttachmentForRead(session, updatedAttachment) };
 }
 
+/**
+ * @param {import("./search.service.js").WorkspaceRequestSession} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [filters] */
 async function listAttachableTargetOptions(session, filters = {}) {
   const normalizedFilters = normalizeAttachableTargetOptionFilters(filters);
   const workspaceType = await readWorkspaceType(session.workspace_id);
@@ -1230,6 +1345,7 @@ async function listAttachableTargetOptions(session, filters = {}) {
       }
       return true;
     });
+  /** @type {AttachableTargetOption[]} */
   const options = [];
 
   for (const attachableType of filteredTypes) {
@@ -1273,6 +1389,11 @@ async function listAttachableTargetOptions(session, filters = {}) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession | null | undefined} session
+ * @param {unknown} fileId
+ */
+/** @param {FileSession} session @param {unknown} fileId */
 async function deleteFile(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -1353,6 +1474,11 @@ WHERE workspace_id = :workspaceId
   return { file: await readFileForAdmin(session, file.file_id) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession | null | undefined} session
+ * @param {unknown} fileId
+ */
+/** @param {FileSession} session @param {unknown} fileId */
 async function restoreFile(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -1368,12 +1494,13 @@ async function restoreFile(session, fileId) {
   await assertCanDeleteFile(session, file, attachments, { operation: "restore" });
 
   const metadata = parseJsonObject(file.metadata_json);
-  const previousStatus = normalizeRestorableStatus(metadata.deletion?.previous_status, file.scan_status);
+  const deletionMetadata = parseJsonObject(metadata.deletion);
+  const previousStatus = normalizeRestorableStatus(deletionMetadata.previous_status, file.scan_status);
   const now = new Date().toISOString();
   const nextMetadata = {
     ...metadata,
     deletion: {
-      ...(metadata.deletion || {}),
+      ...deletionMetadata,
       restored_at: now,
       restored_by_user_id: session.user_id,
     },
@@ -1414,6 +1541,11 @@ WHERE workspace_id = :workspaceId
   return { file: await readFileForAdmin(session, file.file_id) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ * @param {import("../types/database-contracts.js").DatabaseRow} file
+ */
+/** @param {FileSession} session @param {FileRow} file */
 async function markQuarantinedFileReviewed(session, file) {
   await permissionsService.assertCan(session, "files.manage_quarantine", {
     workspace_id: session.workspace_id,
@@ -1459,6 +1591,10 @@ WHERE workspace_id = :workspaceId
   return { file: await readFileForAdmin(session, file.file_id) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [filters] */
 async function readStorageAccounting(session, filters = {}) {
   await permissionsService.assertCan(session, "files.manage_workspace_settings", {
     workspace_id: session.workspace_id,
@@ -1468,6 +1604,7 @@ async function readStorageAccounting(session, filters = {}) {
 
   const storageKind = normalizeStorageKind(filters.storageKind || filters.storage_kind);
   const conditions = ["workspace_id = :workspaceId"];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = { workspaceId: session.workspace_id };
 
   if (storageKind) {
@@ -1500,6 +1637,10 @@ ORDER BY storage_kind, user_id, storage_provider, external_source_provider, avai
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [payload] */
 async function recordExternalStorageAccounting(session, payload = {}) {
   await permissionsService.assertCan(session, "files.manage_workspace_settings", {
     workspace_id: session.workspace_id,
@@ -1589,6 +1730,10 @@ async function recordExternalStorageAccounting(session, payload = {}) {
   return readStorageAccounting(session, { storageKind: "external" });
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {FileSession} session */
 async function readWorkspaceFileSettings(session) {
   await permissionsService.assertCan(session, "files.manage_workspace_settings", {
     workspace_id: session.workspace_id,
@@ -1604,6 +1749,10 @@ async function readWorkspaceFileSettings(session) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [payload] */
 async function saveWorkspaceFileSettings(session, payload = {}) {
   await permissionsService.assertCan(session, "files.manage_workspace_settings", {
     workspace_id: session.workspace_id,
@@ -1675,6 +1824,11 @@ async function saveWorkspaceFileSettings(session, payload = {}) {
   return readWorkspaceFileSettings(session);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {unknown} fileId
+ */
+/** @param {FileSession} session @param {unknown} fileId @param {LooseRecord} [payload] */
 async function reportFile(session, fileId, payload = {}) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -1788,6 +1942,11 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession | null | undefined} session
+ * @param {unknown} fileId
+ */
+/** @param {FileSession} session @param {unknown} fileId @param {LooseRecord} [payload] */
 async function quarantineFile(session, fileId, payload = {}) {
   await permissionsService.assertCan(session, "files.manage_quarantine", {
     workspace_id: session.workspace_id,
@@ -1834,11 +1993,25 @@ WHERE workspace_id = :workspaceId
   return { file: await readFileForAdmin(session, file.file_id) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ * @param {unknown} fileId
+ */
+/** @param {FileSession} session @param {unknown} fileId */
 async function readFileForAdmin(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
+  if (!file) {
+    throw new AppError("File not found.", 404);
+  }
   return shapeFile(file);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession | null | undefined} session
+ * @param {{ moduleId: string; }} attachableType
+ * @param {string} operation
+ */
+/** @param {FileSession} session @param {AttachableType} attachableType @param {string} operation @param {AttachableTargetRow | null} [target] */
 async function assertCanUseAttachableTarget(session, attachableType, operation, target = null) {
   const permissionId = permissionForOperation(attachableType, operation);
 
@@ -1856,6 +2029,10 @@ async function assertCanUseAttachableTarget(session, attachableType, operation, 
   await assertModuleTargetAccess(session, attachableType, operation, target);
 }
 
+/**
+ * @param {string} eventName
+ */
+/** @param {string} eventName @param {LooseRecord & {session?: FileSession|null, source?: string}} [payload] */
 async function emitFileLifecycleEvent(eventName, payload = {}) {
   if (!isFileLifecycleEvent(eventName)) {
     throw new AppError(`Unknown file lifecycle event '${eventName}'.`, 400);
@@ -1891,6 +2068,7 @@ async function emitFileLifecycleEvent(eventName, payload = {}) {
   });
 }
 
+/** @param {FileSession} session @param {PreparedUpload} prepared @returns {Promise<FileRow>} */
 async function createFileRecord(session, prepared) {
   const now = new Date().toISOString();
   const fileId = createRecordId();
@@ -1976,9 +2154,17 @@ VALUES (
   });
 
   await refreshStorageAccounting(session.workspace_id);
-  return readFileRow(session.workspace_id, fileId);
+  const file = await readFileRow(session.workspace_id, fileId);
+  if (!file) {
+    throw new AppError("File creation did not return the created file.", 500);
+  }
+  return file;
 }
 
+/**
+ * @param {string | null} workspaceId
+ */
+/** @param {string} workspaceId */
 async function refreshStorageAccounting(workspaceId) {
   const now = new Date().toISOString();
 
@@ -2034,6 +2220,7 @@ GROUP BY workspace_id, COALESCE(uploaded_by_user_id, ''), COALESCE(storage_provi
   });
 }
 
+/** @param {{replace?: boolean}} [options] */
 function registerFileScanJobHandlers(options = {}) {
   if (fileScanJobHandlersRegistered && !options.replace && getJobHandler(FILE_SCAN_JOB_TYPE)) {
     return;
@@ -2046,15 +2233,16 @@ function registerFileScanJobHandlers(options = {}) {
   fileScanJobHandlersRegistered = true;
 }
 
+/** @param {FileSession} session @param {FileRow} file @param {LooseRecord} [options] */
 async function queueFileScanJob(session, file, options = {}) {
   const workspaceId = normalizeRequiredText(file?.workspace_id || session?.workspace_id || options.workspaceId || options.workspace_id, "File scan job requires a workspace.");
   const fileId = normalizeRequiredText(file?.file_id || options.fileId || options.file_id, "File scan job requires a file.");
   const enqueued = await enqueueJob({
-    availableAt: options.availableAt || options.available_at || new Date().toISOString(),
+    availableAt: String(options.availableAt || options.available_at || new Date().toISOString()),
     dedupeKey: `file:scan:${workspaceId}:${fileId}`,
     jobType: FILE_SCAN_JOB_TYPE,
-    maxAttempts: options.maxAttempts || options.max_attempts || 3,
-    priority: options.priority ?? FILE_SCAN_JOB_PRIORITY,
+    maxAttempts: Number(options.maxAttempts || options.max_attempts || 3),
+    priority: Number(options.priority ?? FILE_SCAN_JOB_PRIORITY),
     workspaceId,
     payload: {
       fileId,
@@ -2078,6 +2266,7 @@ async function queueFileScanJob(session, file, options = {}) {
   };
 }
 
+/** @param {{payload?: LooseRecord}} context */
 async function handleFileScanJob({ payload = {} }) {
   const operation = normalizeOptionalText(payload.operation || "scan_file");
 
@@ -2124,6 +2313,11 @@ async function handleFileScanJob({ payload = {} }) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {import("../types/database-contracts.js").DatabaseRow} file
+ */
+/** @param {FileSession} session @param {FileRow} file */
 async function scanFile(session, file) {
   await emitFileLifecycleEvent("file.scan.pending", {
     session,
@@ -2215,6 +2409,7 @@ WHERE workspace_id = :workspaceId
   return { scanStatus, status };
 }
 
+/** @param {FileRow} file @param {string} scannerMode */
 function createFileScanContext(file, scannerMode) {
   return {
     displayName: file.display_name || "",
@@ -2234,13 +2429,19 @@ function createFileScanContext(file, scannerMode) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [payload] @param {{attachableType?: AttachableType}} [context] */
 async function attachFile(session, payload = {}, context = {}) {
   const attachableType = context.attachableType || await resolveAttachableType(
     session.workspace_id,
     payload.moduleId,
     payload.targetType,
   );
-  const target = payload.targetRecord || await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
+  const target = payload.targetRecord && typeof payload.targetRecord === "object"
+    ? /** @type {AttachableTargetRow} */ (payload.targetRecord)
+    : await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
   const visibility = normalizeVisibility(payload.visibility, attachableType);
   const now = new Date().toISOString();
   const attachmentId = createRecordId();
@@ -2289,7 +2490,7 @@ VALUES (
     caption: normalizeOptionalText(payload.caption, { maxLength: 500 }) || null,
     clientId: target.client_id || null,
     createdAt: now,
-    fileId: payload.fileId,
+    fileId: String(payload.fileId || ""),
     metadataJson: JSON.stringify(payload.metadata || {}),
     moduleId: attachableType.moduleId,
     projectId: target.project_id || null,
@@ -2302,6 +2503,9 @@ VALUES (
   });
 
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
+  if (!attachment) {
+    throw new AppError("Attachment creation did not return the created attachment.", 500);
+  }
   await emitFileLifecycleEvent("file.attachment.created", {
     session,
     attachmentId,
@@ -2327,6 +2531,7 @@ VALUES (
   return shapeAttachment(attachment);
 }
 
+/** @param {string} workspaceId @param {AttachableType} attachableType @param {unknown} targetId @returns {Promise<AttachableTargetRow>} */
 async function readAttachableTarget(workspaceId, attachableType, targetId) {
   const normalizedTargetId = normalizeRequiredText(targetId, "Target ID is required.");
   const tableName = safeSqlIdentifier(attachableType.tableName);
@@ -2335,7 +2540,7 @@ async function readAttachableTarget(workspaceId, attachableType, targetId) {
   const workspaceField = safeSqlIdentifier(attachableType.workspaceField);
   const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
   const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
-  const row = await db.get(`
+  const row = /** @type {AttachableTargetRow | null} */ (await db.get(`
 SELECT
   ${idField} AS target_id,
   ${labelField} AS target_label,
@@ -2349,7 +2554,7 @@ LIMIT 1;
 `, {
     attachableTargetId: normalizedTargetId,
     attachableTargetWorkspaceId: workspaceId,
-  });
+  }));
 
   if (!row) {
     throw new AppError("Attachment target not found in this workspace.", 404);
@@ -2358,7 +2563,8 @@ LIMIT 1;
   return row;
 }
 
-function prepareUpload(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
+/** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings @returns {PreparedUpload} */
+function prepareUpload(payload, attachableType, fileSettings) {
   const policy = prepareUploadPolicy(payload, attachableType, fileSettings);
   const buffer = decodeBase64(payload.contentBase64 || payload.content || "");
 
@@ -2387,7 +2593,8 @@ function prepareUpload(payload = {}, attachableType = {}, fileSettings = default
   };
 }
 
-async function prepareStreamedUpload(session, payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
+/** @param {FileSession} session @param {LooseRecord & {fileStream?: import("node:stream").Readable}} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings @returns {Promise<PreparedUpload>} */
+async function prepareStreamedUpload(session, payload, attachableType, fileSettings) {
   const policy = prepareUploadPolicy(payload, attachableType, fileSettings);
   const fileStream = payload.fileStream;
 
@@ -2402,7 +2609,7 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
     extensionRule: policy.extensionRule,
   });
   tracker.stream.on("error", () => {});
-  fileStream.on("error", (error) => {
+  fileStream.on("error", (/** @type {Error | undefined} */ error) => {
     tracker.stream.destroy(error);
   });
   const guardedStream = fileStream.pipe(tracker.stream);
@@ -2449,6 +2656,7 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
   };
 }
 
+/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings @param {number} maxFileSizeBytes */
 async function resolveStreamedUploadLimit(session, fileSettings, maxFileSizeBytes) {
   const quotaLimit = await readStorageQuotaUploadLimit(session, fileSettings);
   const fileSizeLimit = {
@@ -2468,6 +2676,7 @@ async function resolveStreamedUploadLimit(session, fileSettings, maxFileSizeByte
   };
 }
 
+/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings @param {number} uploadBytes */
 async function assertStorageQuotaAllowsUpload(session, fileSettings, uploadBytes) {
   const quota = await readStorageQuotaState(session, fileSettings);
 
@@ -2484,6 +2693,7 @@ async function assertStorageQuotaAllowsUpload(session, fileSettings, uploadBytes
   }
 }
 
+/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings */
 async function readStorageQuotaUploadLimit(session, fileSettings) {
   const quota = await readStorageQuotaState(session, fileSettings);
 
@@ -2508,6 +2718,7 @@ async function readStorageQuotaUploadLimit(session, fileSettings) {
   return candidates.sort((left, right) => left.remainingBytes - right.remainingBytes)[0] || null;
 }
 
+/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings */
 async function readStorageQuotaState(session, fileSettings) {
   const workspaceLimitBytes = nullableInteger(fileSettings?.internalStorageLimitBytes);
   const perUserLimitBytes = nullableInteger(fileSettings?.perUserStorageLimitBytes);
@@ -2533,6 +2744,7 @@ async function readStorageQuotaState(session, fileSettings) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId */
 async function readInternalStorageQuotaUsage(workspaceId, userId) {
   const row = await db.get(`
 SELECT
@@ -2555,17 +2767,26 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/**
+ * @param {string} scope
+ */
+/** @param {string} scope */
 function storageQuotaExceededError(scope) {
   return new AppError(storageQuotaExceededMessage(scope), 413);
 }
 
+/**
+ * @param {string} scope
+ */
+/** @param {string} scope */
 function storageQuotaExceededMessage(scope) {
   return scope === "workspace"
     ? "Upload would exceed the workspace storage quota."
     : "Upload would exceed your per-user storage quota.";
 }
 
-function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
+/** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings */
+function prepareUploadPolicy(payload, attachableType, fileSettings) {
   const originalFilename = sanitizeFilename(payload.originalFilename || payload.filename || "");
   const extension = path.extname(originalFilename).toLowerCase();
   const extensionRule = ALLOWED_EXTENSIONS.get(extension);
@@ -2583,7 +2804,7 @@ function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = d
     extension,
     extensionRule,
     maxSize: Math.min(
-      Number.parseInt(attachableType.maxFileSizeBytes, 10) || DEFAULT_MAX_FILE_SIZE_BYTES,
+      Number.parseInt(String(attachableType.maxFileSizeBytes || ""), 10) || DEFAULT_MAX_FILE_SIZE_BYTES,
       DEFAULT_MAX_FILE_SIZE_BYTES,
     ),
     metadata: {
@@ -2595,6 +2816,10 @@ function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = d
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} file
+ */
+/** @param {FileRow} file @param {string} [operation] */
 async function assertStoredFileObjectExists(file, operation = "read") {
   const adapter = getFileStorageAdapter(file.storage_provider);
 
@@ -2607,6 +2832,11 @@ async function assertStoredFileObjectExists(file, operation = "read") {
   return adapter;
 }
 
+/**
+ * @param {unknown} error
+ * @param {string} operation
+ */
+/** @param {unknown} error @param {string} operation */
 function storageObjectUnavailableError(error, operation) {
   if (isStorageObjectNotFoundError(error)) {
     return new AppError("File content is no longer available.", 404);
@@ -2622,15 +2852,21 @@ function storageObjectUnavailableError(error, operation) {
   return new AppError(message, 502);
 }
 
+/**
+ * @param {unknown} error
+ */
+/** @param {unknown} error */
 function isStorageObjectNotFoundError(error) {
-  const statusCode = Number(error?.statusCode || error?.status || error?.code);
+  const failure = /** @type {{statusCode?: unknown, status?: unknown, code?: unknown, name?: unknown}} */ (error);
+  const statusCode = Number(failure?.statusCode || failure?.status || failure?.code);
   if (statusCode === 404) {
     return true;
   }
 
-  return ["ENOENT", "NoSuchKey", "NotFound", "NotFoundError"].includes(String(error?.code || error?.name || ""));
+  return ["ENOENT", "NoSuchKey", "NotFound", "NotFoundError"].includes(String(failure?.code || failure?.name || ""));
 }
 
+/** @param {{adapter: FileStorageAdapter, providerId: string}} storageProvider @param {{storageKey?: string}} storage @param {string} reason */
 async function deleteRejectedUploadStorage(storageProvider, storage, reason) {
   if (!storage?.storageKey) {
     return;
@@ -2647,14 +2883,16 @@ async function deleteRejectedUploadStorage(storageProvider, storage, reason) {
   }
 }
 
+/** @param {string} workspaceId @param {import("../types/database-contracts.js").TransactionClient} [database] */
+/** @param {string} workspaceId @param {typeof db | import("../types/database-contracts.js").TransactionClient} [database] */
 async function purgeWorkspaceStorageObjects(workspaceId, database = db) {
-  const files = await database.query(`
+  const files = /** @type {{ storage_provider: string, storage_key: string, file_size_bytes: unknown }[]} */ (await database.query(`
 SELECT storage_provider, storage_key, file_size_bytes
 FROM files
 WHERE workspace_id = :workspaceId
   AND storage_kind = 'internal'
 ORDER BY file_id;
-`, { workspaceId });
+`, { workspaceId }));
   let deletedBytes = 0;
   let deletedCount = 0;
 
@@ -2672,16 +2910,23 @@ ORDER BY file_id;
   return { deletedBytes, deletedCount };
 }
 
+/**
+ * @param {unknown} error
+ */
+/** @param {unknown} error */
 function safeLogErrorMessage(error) {
-  return String(error?.message || error || "storage cleanup failed")
+  const failure = /** @type {{message?: unknown}} */ (error);
+  return String(failure?.message || error || "storage cleanup failed")
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, 200) || "storage cleanup failed";
 }
 
+/** @param {{maxBytes: number, exceededMessage: string, statusCode: number}} limit @param {LooseRecord} [options] */
 function createStreamUploadTracker(limit, options = {}) {
   const normalizedLimit = normalizeUploadLimit(limit);
   const hash = createHash("sha256");
+  /** @type {Buffer[]} */
   const sampleChunks = [];
   const sampleLimit = STREAM_SAMPLE_LIMIT_BYTES;
   let fileSizeBytes = 0;
@@ -2733,9 +2978,12 @@ function createStreamUploadTracker(limit, options = {}) {
   };
 }
 
+/** @param {Buffer} sampleBuffer @param {LooseRecord} [options] @param {number} [sampleLimit] */
 function validateStreamedUploadSample(sampleBuffer, options = {}, sampleLimit = STREAM_SAMPLE_LIMIT_BYTES) {
   const extension = String(options.extension || "").toLowerCase();
-  const extensionRule = options.extensionRule || ALLOWED_EXTENSIONS.get(extension);
+  const extensionRule = options.extensionRule && typeof options.extensionRule === "object"
+    ? /** @type {{category: string, mime: string, risky: boolean}} */ (options.extensionRule)
+    : ALLOWED_EXTENSIONS.get(extension);
 
   if (!extensionRule) {
     return { complete: true, ok: true };
@@ -2764,6 +3012,10 @@ function validateStreamedUploadSample(sampleBuffer, options = {}, sampleLimit = 
   };
 }
 
+/**
+ * @param {string} limit
+ */
+/** @param {LooseRecord} limit */
 function normalizeUploadLimit(limit) {
   if (limit && typeof limit === "object") {
     return {
@@ -2780,6 +3032,7 @@ function normalizeUploadLimit(limit) {
   };
 }
 
+/** @param {unknown} value */
 function decodeBase64(value) {
   const text = String(value || "").trim();
 
@@ -2790,6 +3043,7 @@ function decodeBase64(value) {
   return Buffer.from(text, "base64");
 }
 
+/** @param {Buffer} buffer @param {string} extension @param {{category: string, mime: string, risky: boolean}} extensionRule */
 function detectFileType(buffer, extension, extensionRule) {
   if (extension === ".pdf") {
     return { ok: buffer.subarray(0, 4).toString("ascii") === "%PDF", mimeType: "application/pdf" };
@@ -2814,11 +3068,19 @@ function detectFileType(buffer, extension, extensionRule) {
   return { ok: true, mimeType: extensionRule.mime };
 }
 
+/**
+ * @param {Buffer} buffer
+ */
+/** @param {Buffer} buffer */
 function isMostlyText(buffer) {
   const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
   return [...sample].every((byte) => byte === 9 || byte === 10 || byte === 13 || (byte >= 32 && byte <= 126));
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} file
+ */
+/** @param {FileRow} file @returns {FileResponseHeaders} */
 function buildDownloadHeaders(file) {
   const extensionRule = ALLOWED_EXTENSIONS.get(String(file.extension || "").toLowerCase());
   const dispositionType = extensionRule?.risky ? "attachment" : "inline";
@@ -2834,6 +3096,10 @@ function buildDownloadHeaders(file) {
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} attachment
+ */
+/** @param {AttachmentRow} attachment @returns {FileResponseHeaders} */
 function buildPreviewImageHeaders(attachment) {
   const filename = sanitizeFilename(attachment.original_filename || attachment.display_name || "preview");
   const extensionRule = ALLOWED_EXTENSIONS.get(String(attachment.extension || "").toLowerCase());
@@ -2848,6 +3114,10 @@ function buildPreviewImageHeaders(attachment) {
   };
 }
 
+/**
+ * @param {string} state
+ */
+/** @param {unknown} state */
 function previewContentUnavailableMessage(state) {
   if (state === "unauthorized") {
     return "You do not have permission to preview that file.";
@@ -2856,6 +3126,10 @@ function previewContentUnavailableMessage(state) {
   return "Preview content is not available for that file.";
 }
 
+/**
+ * @param {import("node:fs").ReadStream} stream
+ */
+/** @param {import("node:stream").Readable} stream */
 async function readPreviewTextContent(stream) {
   const chunks = [];
   let totalBytes = 0;
@@ -2875,6 +3149,10 @@ async function readPreviewTextContent(stream) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} attachment
+ */
+/** @param {AttachmentRow} attachment @param {LooseRecord} [options] */
 function previewAvailabilityForAttachment(attachment, options = {}) {
   const kind = previewKindForAttachment(attachment);
   const fileStatus = String(attachment.file_status || "").trim();
@@ -2914,6 +3192,10 @@ function previewAvailabilityForAttachment(attachment, options = {}) {
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} attachment
+ */
+/** @param {AttachmentRow} attachment */
 function previewKindForAttachment(attachment) {
   const extension = String(attachment.extension || "").toLowerCase();
 
@@ -2929,19 +3211,26 @@ function previewKindForAttachment(attachment) {
   return "unsupported";
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} fileId
+ */
 async function readFileRow(workspaceId, fileId) {
-  return db.get(`
+  return /** @type {FileRow | null} */ (await db.get(`
 SELECT *
 FROM files
 WHERE workspace_id = :workspaceId
   AND file_id = :fileId
 LIMIT 1;
 `, {
-    fileId,
+    fileId: String(fileId || ""),
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readWorkspaceFileSettingsForWorkspace(workspaceId) {
   const row = await db.get(`
 SELECT *
@@ -2995,8 +3284,12 @@ LIMIT 1;
   return defaults;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} attachmentId
+ */
 async function readAttachmentById(workspaceId, attachmentId) {
-  return db.get(`
+  return /** @type {AttachmentRow | null} */ (await db.get(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -3006,13 +3299,17 @@ WHERE file_attachments.workspace_id = :workspaceId
   AND file_attachments.file_attachment_id = :attachmentId
 LIMIT 1;
 `, {
-    attachmentId,
+    attachmentId: String(attachmentId || ""),
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} fileId
+ */
 async function readActiveAttachmentsForFile(workspaceId, fileId) {
-  return db.query(`
+  return /** @type {AttachmentRow[]} */ (await db.query(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
 INNER JOIN files
@@ -3022,11 +3319,15 @@ WHERE file_attachments.workspace_id = :workspaceId
   AND file_attachments.file_id = :fileId
   AND file_attachments.removed_at IS NULL;
 `, {
-    fileId,
+    fileId: String(fileId || ""),
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {FileSession} session
+ * @param {AttachmentRow[]} attachments
+ */
 async function findReadableAttachment(session, attachments) {
   for (const attachment of attachments) {
     if (await canReadAttachment(session, attachment)) {
@@ -3037,10 +3338,15 @@ async function findReadableAttachment(session, attachments) {
   return null;
 }
 
+/** @param {FileSession} session @param {AttachmentRow[]} attachments */
 async function canReadAnyAttachment(session, attachments) {
   return Boolean(await findReadableAttachment(session, attachments));
 }
 
+/**
+ * @param {FileSession} session
+ * @param {AttachmentRow} attachment
+ */
 async function canReadAttachment(session, attachment) {
   let attachableType;
 
@@ -3068,8 +3374,13 @@ async function canReadAttachment(session, attachment) {
   return canReadModuleTargetAttachment(session, attachableType, attachment);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ * @param {import("../types/database-contracts.js").DatabaseRow} file
+ */
+/** @param {FileSession} session @param {FileRow} file @param {AttachmentRow[]} [attachments] @param {LooseRecord} [options] */
 async function assertCanDeleteFile(session, file, attachments = [], options = {}) {
-  const operation = options.operation || "delete";
+  const operation = String(options.operation || "delete");
   const hasDeletePermission = await permissionsService.can(session, "files.delete", {
     workspace_id: session.workspace_id,
     operation,
@@ -3105,6 +3416,10 @@ async function assertCanDeleteFile(session, file, attachments = [], options = {}
   throw new AppError("You do not have permission to delete that file.", 403);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession | null | undefined} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [filters] */
 async function assertTargetScopedAttachmentRead(session, filters = {}) {
   const moduleId = normalizeOptionalText(filters.moduleId || filters.module_id);
   const targetType = normalizeOptionalText(filters.targetType || filters.target_type);
@@ -3122,6 +3437,12 @@ async function assertTargetScopedAttachmentRead(session, filters = {}) {
   await assertCanUseAttachableTarget(session, attachableType, "read", target);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} moduleId
+ * @param {unknown} targetType
+ */
+/** @param {string} workspaceId @param {unknown} moduleId @param {unknown} targetType */
 async function resolveAttachableTypeForTargetRead(workspaceId, moduleId, targetType) {
   if (moduleId) {
     return resolveAttachableType(workspaceId, moduleId, targetType);
@@ -3137,6 +3458,12 @@ async function resolveAttachableTypeForTargetRead(workspaceId, moduleId, targetT
   return matches[0];
 }
 
+/**
+ * @param {{ workspace_id: string; }} session
+ * @param {unknown} moduleId
+ * @param {unknown} targetType
+ */
+/** @param {FileSession} session @param {string} moduleId @param {string} targetType @param {string[]} [targetIds] */
 async function readableAttachmentTargetIds(session, moduleId, targetType, targetIds = []) {
   const attachableType = await resolveAttachableType(session.workspace_id, moduleId, targetType);
   const readable = new Set();
@@ -3154,6 +3481,7 @@ async function readableAttachmentTargetIds(session, moduleId, targetType, target
   return readable;
 }
 
+/** @param {FileSession} session @param {AttachableType} attachableType @param {string} operation @param {AttachableTargetRow | null} [target] */
 async function assertModuleTargetAccess(session, attachableType, operation, target = null) {
   if (attachableType.moduleId !== "notes" || attachableType.targetType !== "note") {
     return;
@@ -3163,6 +3491,7 @@ async function assertModuleTargetAccess(session, attachableType, operation, targ
   await notesService.readForAttachmentAccess(session, target?.target_id || "", accessOperation);
 }
 
+/** @param {FileSession} session @param {AttachableType} attachableType @param {AttachmentRow} attachment */
 async function canReadModuleTargetAttachment(session, attachableType, attachment) {
   if (attachableType.moduleId !== "notes" || attachableType.targetType !== "note") {
     return true;
@@ -3209,6 +3538,10 @@ function attachmentSelectColumns() {
 `;
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow | null} file
+ */
+/** @param {FileRow} file */
 function shapeFile(file) {
   if (!file) {
     return null;
@@ -3234,6 +3567,10 @@ function shapeFile(file) {
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow | null} attachment
+ */
+/** @param {AttachmentRow} attachment */
 function shapeAttachment(attachment) {
   return {
     fileAttachmentId: attachment.file_attachment_id,
@@ -3269,6 +3606,10 @@ function shapeAttachment(attachment) {
   };
 }
 
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow} attachment
+ */
+/** @param {AttachmentRow} attachment @param {LooseRecord} [availability] */
 function shapeAttachmentPreviewDescriptor(attachment, availability = {}) {
   const extension = String(attachment.extension || "").trim();
   const filename = attachment.display_name || attachment.original_filename || "File";
@@ -3277,6 +3618,7 @@ function shapeAttachmentPreviewDescriptor(attachment, availability = {}) {
   const contentAvailable = state === "previewable";
   const contentUrl = previewContentUrlForAttachment(attachment);
 
+  /** @type {LooseRecord} */
   const descriptor = {
     fileAttachmentId: attachment.file_attachment_id,
     file_attachment_id: attachment.file_attachment_id,
@@ -3320,16 +3662,29 @@ function shapeAttachmentPreviewDescriptor(attachment, availability = {}) {
   return descriptor;
 }
 
+/**
+ * @param {{ file_attachment_id: string | number | boolean; }} attachment
+ */
+/** @param {AttachmentRow} attachment */
 function previewContentUrlForAttachment(attachment) {
   return `/api/files/attachments/${encodeURIComponent(attachment.file_attachment_id)}/preview/content`;
 }
 
+/**
+ * @param {string} extension
+ */
+/** @param {unknown} extension @param {unknown} [mimeType] */
 function fileTypeLabel(extension, mimeType = "") {
   const normalizedExtension = String(extension || "").replace(/^\./, "").trim();
 
   return normalizedExtension ? normalizedExtension.toUpperCase() : String(mimeType || "file").trim();
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {import("../types/database-contracts.js").DatabaseRow | null} attachment
+ */
+/** @param {FileSession} session @param {AttachmentRow} attachment */
 async function shapeAttachmentForRead(session, attachment) {
   const shaped = shapeAttachment(attachment);
   const uploadedByLabel = uploadedByLabelForSession(session, attachment.file_uploaded_by_user_id);
@@ -3361,14 +3716,25 @@ async function shapeAttachmentForRead(session, attachment) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {unknown} uploadedByUserId
+ */
+/** @param {FileSession} session @param {unknown} uploadedByUserId */
 function uploadedByLabelForSession(session, uploadedByUserId) {
   if (!uploadedByUserId || uploadedByUserId !== session.user_id) {
     return "";
   }
 
-  return session.display_name || session.displayName || session.username || "Current user";
+  const profile = /** @type {LooseRecord} */ (/** @type {unknown} */ (session));
+  return String(profile.display_name || profile.displayName || session.username || "Current user");
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../types/database-contracts.js").DatabaseRow | null} attachment
+ */
+/** @param {string} workspaceId @param {AttachmentRow} attachment */
 async function readAttachmentTargetLabel(workspaceId, attachment) {
   try {
     const attachableType = await resolveAttachableType(
@@ -3386,6 +3752,11 @@ async function readAttachmentTargetLabel(workspaceId, attachment) {
   }
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../types/database-contracts.js").DatabaseRow | null} attachment
+ */
+/** @param {string} workspaceId @param {AttachmentRow} attachment */
 async function readAttachmentContextLabels(workspaceId, attachment) {
   const clientId = attachment.client_id || "";
   const projectId = attachment.project_id || "";
@@ -3422,6 +3793,10 @@ LIMIT 1;
   };
 }
 
+/**
+ * @param {string} workspaceId
+ */
+/** @param {string} workspaceId */
 async function readWorkspaceType(workspaceId) {
   const row = await db.get(`
 SELECT workspace_type
@@ -3433,6 +3808,7 @@ LIMIT 1;
   return normalizeWorkspaceType(row?.workspace_type);
 }
 
+/** @param {LooseRecord} [filters] */
 function normalizeAttachableTargetOptionFilters(filters = {}) {
   return {
     clientId: normalizeOptionalText(filters.clientId ?? filters.client_id),
@@ -3444,6 +3820,7 @@ function normalizeAttachableTargetOptionFilters(filters = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {AttachableType} attachableType @param {LooseRecord} filters @param {LooseRecord} contextScope @param {string} workspaceType @param {number} limit */
 async function readAttachableTargetOptionRows(workspaceId, attachableType, filters, contextScope, workspaceType, limit) {
   const tableName = safeSqlIdentifier(attachableType.tableName);
   const idField = safeSqlIdentifier(attachableType.idField);
@@ -3453,6 +3830,7 @@ async function readAttachableTargetOptionRows(workspaceId, attachableType, filte
   const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
   const columns = await readTableColumnSet(tableName);
   const labelExpression = `COALESCE(${labelField}, '')`;
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     attachableTargetLimit: limit,
     attachableTargetWorkspaceId: workspaceId,
@@ -3468,7 +3846,7 @@ async function readAttachableTargetOptionRows(workspaceId, attachableType, filte
     conditions.push(db.dialect.comparison.containsNoCase(labelExpression, ":attachableTargetSearchPattern"));
   }
 
-  return db.query(`
+  return /** @type {AttachableTargetRow[]} */ (await db.query(`
 SELECT
   ${idField} AS target_id,
   ${labelField} AS target_label,
@@ -3479,9 +3857,10 @@ FROM ${tableName}
 WHERE ${conditions.join("\n  AND ")}
 ORDER BY ${db.dialect.comparison.orderByNoCase(labelExpression, "ASC")}, ${idField} ASC
 LIMIT :attachableTargetLimit;
-`, params);
+`, params));
 }
 
+/** @param {FileSession} session @param {AttachableType} attachableType @param {AttachableTargetRow} row @param {string} workspaceType */
 async function shapePermittedAttachableTargetOption(session, attachableType, row, workspaceType) {
   try {
     await assertCanUseAttachableTarget(session, attachableType, "read", row);
@@ -3499,6 +3878,7 @@ async function shapePermittedAttachableTargetOption(session, attachableType, row
     row.project_id,
   ]);
   const contextIds = attachmentTargetContextIds(attachableType, row);
+  /** @type {AttachableTargetOption} */
   const option = {
     label: targetLabel,
     moduleId: attachableType.moduleId,
@@ -3525,6 +3905,7 @@ async function shapePermittedAttachableTargetOption(session, attachableType, row
   return option;
 }
 
+/** @param {string} workspaceId @param {AttachableTargetOption[]} options @param {string} workspaceType @returns {Promise<AttachableTargetOption[]>} */
 async function decorateAttachableTargetOptions(workspaceId, options, workspaceType) {
   const clientIds = workspaceType === "business"
     ? uniqueNonEmpty(options.map((option) => option.clientId))
@@ -3536,7 +3917,11 @@ async function decorateAttachableTargetOptions(workspaceId, options, workspaceTy
   ]);
 
   return options.map((option) => {
-    const decorated = { ...option, value: { ...option.value } };
+    /** @type {AttachableTargetOption} */
+    const decorated = {
+      ...option,
+      value: { ...option.value },
+    };
     const projectLabel = safeDisplayLabel(projectLabels.get(option.projectId), "", [option.projectId]);
     const contextParts = [];
 
@@ -3562,6 +3947,7 @@ async function decorateAttachableTargetOptions(workspaceId, options, workspaceTy
   });
 }
 
+/** @param {LooseRecord[]} options @param {string} workspaceType */
 function buildAttachableTargetOptionFilters(options, workspaceType) {
   const filters = {
     client: workspaceType === "business"
@@ -3587,6 +3973,7 @@ function buildAttachableTargetOptionFilters(options, workspaceType) {
   return filters;
 }
 
+/** @param {LooseRecord[]} options @param {string} idField @param {string} labelField */
 function buildContextFilterOptions(options, idField, labelField) {
   return uniqueBy(
     options
@@ -3599,6 +3986,7 @@ function buildContextFilterOptions(options, idField, labelField) {
   ).sort(compareLabels);
 }
 
+/** @param {LooseRecord[]} options */
 function buildAttachableTargetTypeOptions(options) {
   return uniqueBy(options.map((option) => ({
     label: `${option.moduleLabel}: ${option.targetTypeLabel}`,
@@ -3610,24 +3998,32 @@ function buildAttachableTargetTypeOptions(options) {
   })), "value").sort(compareLabels);
 }
 
+/** @param {LooseRecord} left @param {LooseRecord} right */
 function compareAttachableTargetOptions(left, right) {
   return String(left.moduleLabel || "").localeCompare(String(right.moduleLabel || ""), undefined, { sensitivity: "base" }) ||
     String(left.targetTypeLabel || "").localeCompare(String(right.targetTypeLabel || ""), undefined, { sensitivity: "base" }) ||
     String(left.label || "").localeCompare(String(right.label || ""), undefined, { sensitivity: "base" });
 }
 
+/** @param {LooseRecord} left @param {LooseRecord} right */
 function compareLabels(left, right) {
   return String(left.label || "").localeCompare(String(right.label || ""), undefined, { sensitivity: "base" });
 }
 
+/**
+ * @param {object} filters
+ * @param {PropertyKey[]} keys
+ */
+/** @param {LooseRecord} filters @param {string[]} keys */
 function hasFilterParameter(filters, keys) {
   if (!filters || typeof filters !== "object") {
     return false;
   }
 
-  return keys.some((key) => Object.hasOwn(filters, key));
+  return keys.some((/** @type {PropertyKey} */ key) => Object.hasOwn(filters, key));
 }
 
+/** @param {string} workspaceId @param {string[]} clientIds */
 async function readClientLabelMap(workspaceId, clientIds) {
   if (clientIds.length === 0) {
     return new Map();
@@ -3646,6 +4042,7 @@ WHERE workspace_id = :workspaceId
   return new Map(rows.map((row) => [row.id, row.name || ""]));
 }
 
+/** @param {string} workspaceId @param {string[]} projectIds */
 async function readProjectLabelMap(workspaceId, projectIds) {
   if (projectIds.length === 0) {
     return new Map();
@@ -3664,11 +4061,19 @@ WHERE workspace_id = :workspaceId
   return new Map(rows.map((row) => [row.id, row.name || ""]));
 }
 
+/**
+ * @param {string} tableName
+ */
+/** @param {string} tableName */
 async function readTableColumnSet(tableName) {
   const rows = await db.query(db.dialect.introspection.tableInfo(tableName));
-  return new Set(rows.map((row) => row.name));
+  return new Set(rows.map((row) => String(row.name || "")));
 }
 
+/**
+ * @param {Set<unknown>} columns
+ */
+/** @param {Set<string>} columns */
 function attachableTargetActiveConditions(columns) {
   const conditions = [];
 
@@ -3688,7 +4093,11 @@ function attachableTargetActiveConditions(columns) {
   return conditions;
 }
 
+/** @param {AttachableType} attachableType @param {LooseRecord} contextScope @param {string} workspaceType @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
 function attachableTargetFilterConditions(attachableType, contextScope, workspaceType, fields, params) {
+  /**
+ * @type {never[]}
+ */
   const conditions = [];
   applyAttachableProjectScopeFilter(conditions, attachableType, contextScope, fields, params);
   applyAttachableClientScopeFilter(conditions, attachableType, contextScope, workspaceType, fields, params);
@@ -3696,12 +4105,13 @@ function attachableTargetFilterConditions(attachableType, contextScope, workspac
   return conditions;
 }
 
+/** @param {string[]} conditions @param {LooseRecord} scope @param {Record<string, DatabaseNamedParameterInput>} params */
 function applyAttachmentContextScopeFilters(conditions, scope, params) {
   if (scope.hasProjectFilter) {
     if (scope.projectFilterMode === "blank") {
       conditions.push("(file_attachments.project_id IS NULL OR file_attachments.project_id = '')");
     } else if (scope.projectFilterMode === "ids") {
-      const projectIds = uniqueNonEmpty(scope.projectIds);
+      const projectIds = uniqueNonEmpty(Array.isArray(scope.projectIds) ? scope.projectIds : []);
 
       if (projectIds.length === 0) {
         conditions.push("1 = 0");
@@ -3725,8 +4135,8 @@ function applyAttachmentContextScopeFilters(conditions, scope, params) {
     return;
   }
 
-  const clientIds = uniqueNonEmpty(scope.clientIds);
-  const clientProjectIds = uniqueNonEmpty(scope.clientProjectIds);
+  const clientIds = uniqueNonEmpty(Array.isArray(scope.clientIds) ? scope.clientIds : []);
+  const clientProjectIds = uniqueNonEmpty(Array.isArray(scope.clientProjectIds) ? scope.clientProjectIds : []);
 
   if (clientIds.length === 0 && clientProjectIds.length === 0) {
     conditions.push("1 = 0");
@@ -3748,6 +4158,7 @@ function applyAttachmentContextScopeFilters(conditions, scope, params) {
   conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
+/** @param {string[]} conditions @param {AttachableType} attachableType @param {LooseRecord} scope @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
 function applyAttachableProjectScopeFilter(conditions, attachableType, scope, fields, params) {
   if (!scope.hasProjectFilter) {
     return;
@@ -3766,7 +4177,7 @@ function applyAttachableProjectScopeFilter(conditions, attachableType, scope, fi
     return;
   }
 
-  const projectIds = uniqueNonEmpty(scope.projectIds);
+  const projectIds = uniqueNonEmpty(Array.isArray(scope.projectIds) ? scope.projectIds : []);
 
   if (projectIds.length === 0) {
     conditions.push("1 = 0");
@@ -3784,6 +4195,7 @@ function applyAttachableProjectScopeFilter(conditions, attachableType, scope, fi
   }
 }
 
+/** @param {string[]} conditions @param {AttachableType} attachableType @param {LooseRecord} scope @param {string} workspaceType @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
 function applyAttachableClientScopeFilter(conditions, attachableType, scope, workspaceType, fields, params) {
   if (workspaceType !== "business" || !scope.hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
     return;
@@ -3802,8 +4214,8 @@ function applyAttachableClientScopeFilter(conditions, attachableType, scope, wor
     return;
   }
 
-  const clientIds = uniqueNonEmpty(scope.clientIds);
-  const clientProjectIds = uniqueNonEmpty(scope.clientProjectIds);
+  const clientIds = uniqueNonEmpty(Array.isArray(scope.clientIds) ? scope.clientIds : []);
+  const clientProjectIds = uniqueNonEmpty(Array.isArray(scope.clientProjectIds) ? scope.clientProjectIds : []);
 
   if (clientIds.length === 0 && clientProjectIds.length === 0) {
     conditions.push("1 = 0");
@@ -3844,16 +4256,28 @@ function applyAttachableClientScopeFilter(conditions, attachableType, scope, wor
   conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
+/**
+ * @param {{ moduleId: string; }} attachableType
+ */
+/** @param {AttachableType} attachableType */
 function moduleLabelForAttachableType(attachableType) {
   const moduleDefinition = modulesService.getModule(attachableType.moduleId);
   return safeDisplayLabel(moduleDefinition?.displayName || moduleDefinition?.name, attachableType.moduleId || "Module");
 }
 
+/**
+ * @param {unknown} value
+ */
+/** @param {unknown} value */
 function normalizeWorkspaceType(value) {
   const workspaceType = String(value || "").trim().toLowerCase();
   return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
 }
 
+/**
+ * @param {string | undefined} value
+ */
+/** @param {unknown} value @param {unknown} [fallback] @param {unknown[]} [hiddenIds] */
 function safeDisplayLabel(value, fallback = "", hiddenIds = []) {
   const label = normalizeOptionalText(value, { maxLength: 180 });
 
@@ -3864,12 +4288,17 @@ function safeDisplayLabel(value, fallback = "", hiddenIds = []) {
   return label;
 }
 
+/**
+ * @param {string} value
+ */
+/** @param {unknown} value */
 function looksLikeRawIdentifier(value) {
   const text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(text) ||
     /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}/i.test(text);
 }
 
+/** @param {unknown} value */
 function safeSqlIdentifier(value) {
   const identifier = String(value || "").trim();
 
@@ -3880,10 +4309,12 @@ function safeSqlIdentifier(value) {
   return identifier;
 }
 
+/** @param {unknown[]} values */
 function uniqueNonEmpty(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
+/** @param {LooseRecord[]} items @param {string} keyField */
 function uniqueBy(items, keyField) {
   const seen = new Set();
   const unique = [];
@@ -3902,6 +4333,7 @@ function uniqueBy(items, keyField) {
   return unique;
 }
 
+/** @param {AttachableType} attachableType @param {AttachableTargetRow | null} target */
 function resolvePermissionClientId(attachableType, target) {
   if (attachableType.targetType === "client") {
     return target?.target_id || "";
@@ -3910,6 +4342,7 @@ function resolvePermissionClientId(attachableType, target) {
   return target?.client_id || "";
 }
 
+/** @param {AttachableType} attachableType @param {AttachableTargetRow | null} target */
 function resolvePermissionProjectId(attachableType, target) {
   if (attachableType.targetType === "project") {
     return target?.target_id || "";
@@ -3918,13 +4351,18 @@ function resolvePermissionProjectId(attachableType, target) {
   return target?.project_id || "";
 }
 
-function attachmentTargetContextIds(attachableType, target = {}) {
+/**
+ * @param {{ targetType: string; }} attachableType
+ */
+/** @param {AttachableType} attachableType @param {AttachableTargetRow} [target] */
+function attachmentTargetContextIds(attachableType, target = /** @type {AttachableTargetRow} */ ({})) {
   return {
     clientId: attachableType.targetType === "client" ? target.target_id || "" : target.client_id || "",
     projectId: attachableType.targetType === "project" ? target.target_id || "" : target.project_id || "",
   };
 }
 
+/** @param {Partial<AttachmentRow>} [row] */
 function attachmentContextFromRow(row = {}) {
   return {
     clientId: row.client_id || "",
@@ -3935,6 +4373,11 @@ function attachmentContextFromRow(row = {}) {
   };
 }
 
+/**
+ * @param {{ moduleId?: string; targetType?: string; }} attachableType
+ * @param {{} | undefined} target
+ */
+/** @param {AttachableType} attachableType @param {AttachableTargetRow} target @param {LooseRecord} [payload] */
 function assertAttachmentContextPayloadMatchesTarget(attachableType, target, payload = {}) {
   const providedClientId = normalizeOptionalText(payload.clientId ?? payload.client_id);
   const providedProjectId = normalizeOptionalText(payload.projectId ?? payload.project_id);
@@ -3948,6 +4391,7 @@ function assertAttachmentContextPayloadMatchesTarget(attachableType, target, pay
   }
 }
 
+/** @param {string} workspaceId @param {AttachmentRow} attachment @param {AttachableType} attachableType @param {AttachableTargetRow} target */
 async function assertNoDuplicateActiveAttachmentContext(workspaceId, attachment, attachableType, target) {
   const row = await db.get(`
 SELECT file_attachment_id
@@ -3974,11 +4418,13 @@ LIMIT 1;
   }
 }
 
+/** @param {LooseRecord} left @param {LooseRecord} right */
 function attachmentContextsEqual(left, right) {
   return ["moduleId", "targetType", "targetId", "clientId", "projectId"]
     .every((key) => String(left?.[key] || "") === String(right?.[key] || ""));
 }
 
+/** @param {FileSession} session @param {AttachmentRow} updatedAttachment @param {LooseRecord} previousContext @param {LooseRecord} nextContext */
 async function emitAttachmentContextUpdateEvents(session, updatedAttachment, previousContext, nextContext) {
   const sharedMetadata = {
     context_update: true,
@@ -4017,6 +4463,7 @@ async function emitAttachmentContextUpdateEvents(session, updatedAttachment, pre
   }
 }
 
+/** @param {LooseRecord} [context] */
 function auditAttachmentContext(context = {}) {
   return {
     client_id: context.clientId || "",
@@ -4027,6 +4474,7 @@ function auditAttachmentContext(context = {}) {
   };
 }
 
+/** @param {unknown} value @param {AttachableType} attachableType */
 function normalizeVisibility(value, attachableType) {
   const visibility = String(value || "private").trim();
   const allowed = new Set(attachableType.allowedVisibilityValues || DEFAULT_ALLOWED_VISIBILITY);
@@ -4038,18 +4486,21 @@ function normalizeVisibility(value, attachableType) {
   return visibility;
 }
 
+/** @param {unknown} value */
 function normalizeFileStatusFilter(value) {
   const status = String(value || "available").trim().toLowerCase();
 
   return ["all", "available", "deleted", "pending", "quarantined"].includes(status) ? status : "available";
 }
 
+/** @param {unknown} value */
 function normalizeStorageKind(value) {
   const storageKind = String(value || "").trim().toLowerCase();
 
   return ["internal", "external"].includes(storageKind) ? storageKind : "";
 }
 
+/** @param {string} extension @param {WorkspaceFileSettings} settings */
 function assertExtensionAllowedByWorkspacePolicy(extension, settings) {
   const normalizedExtension = normalizeExtension(extension);
   const mode = settings.fileTypePolicyMode || "safe_default";
@@ -4064,6 +4515,7 @@ function assertExtensionAllowedByWorkspacePolicy(extension, settings) {
   }
 }
 
+/** @param {LooseRecord} [filters] */
 function normalizeAttachmentListOptions(filters = {}) {
   const paginate = filters.allPages !== true && filters.all_pages !== "true";
   const pagination = normalizeBoundedPagination(filters, {
@@ -4079,6 +4531,7 @@ function normalizeAttachmentListOptions(filters = {}) {
   };
 }
 
+/** @param {string} [sortMode] */
 function attachmentOrderByClause(sortMode = "newest") {
   if (sortMode === "oldest") {
     return "file_attachments.created_at ASC, file_attachments.file_attachment_id ASC";
@@ -4096,51 +4549,68 @@ function attachmentOrderByClause(sortMode = "newest") {
   return "file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
 }
 
+/** @template T @param {T[]} [attachments] @param {string} [sortMode] @returns {T[]} */
 function sortAttachmentsForReadModel(attachments = [], sortMode = "newest") {
   return [...attachments].sort((left, right) => {
+    const leftRecord = /** @type {LooseRecord} */ (left);
+    const rightRecord = /** @type {LooseRecord} */ (right);
     if (sortMode === "oldest") {
-      return compareCreatedAsc(left, right) || compareFilenameAsc(left, right);
+      return compareCreatedAsc(leftRecord, rightRecord) || compareFilenameAsc(leftRecord, rightRecord);
     }
     if (sortMode === "filename") {
-      return compareFilenameAsc(left, right) || compareCreatedDesc(left, right);
+      return compareFilenameAsc(leftRecord, rightRecord) || compareCreatedDesc(leftRecord, rightRecord);
     }
     if (sortMode === "size") {
-      return compareFileSizeDesc(left, right) || compareCreatedDesc(left, right);
+      return compareFileSizeDesc(leftRecord, rightRecord) || compareCreatedDesc(leftRecord, rightRecord);
     }
     if (sortMode === "status") {
-      return compareFileStatusAsc(left, right) || compareCreatedDesc(left, right);
+      return compareFileStatusAsc(leftRecord, rightRecord) || compareCreatedDesc(leftRecord, rightRecord);
     }
 
-    return compareCreatedDesc(left, right) || compareFilenameAsc(left, right);
+    return compareCreatedDesc(leftRecord, rightRecord) || compareFilenameAsc(leftRecord, rightRecord);
   });
 }
 
+/** @param {LooseRecord} [left] @param {LooseRecord} [right] */
 function compareCreatedDesc(left = {}, right = {}) {
   return String(right.createdAt || right.created_at || "").localeCompare(String(left.createdAt || left.created_at || ""));
 }
 
+/** @param {LooseRecord} [left] @param {LooseRecord} [right] */
 function compareCreatedAsc(left = {}, right = {}) {
   return String(left.createdAt || left.created_at || "").localeCompare(String(right.createdAt || right.created_at || ""));
 }
 
+/** @param {LooseRecord} [left] @param {LooseRecord} [right] */
 function compareFilenameAsc(left = {}, right = {}) {
-  return String(left.file?.displayName || left.file?.originalFilename || "").localeCompare(
-    String(right.file?.displayName || right.file?.originalFilename || ""),
+  const leftFile = parseJsonObject(left.file);
+  const rightFile = parseJsonObject(right.file);
+  return String(leftFile.displayName || leftFile.originalFilename || "").localeCompare(
+    String(rightFile.displayName || rightFile.originalFilename || ""),
     undefined,
     { sensitivity: "base" },
   );
 }
 
+/** @param {LooseRecord} [left] @param {LooseRecord} [right] */
 function compareFileSizeDesc(left = {}, right = {}) {
-  return Number(right.file?.fileSizeBytes || 0) - Number(left.file?.fileSizeBytes || 0);
+  return Number(parseJsonObject(right.file).fileSizeBytes || 0) - Number(parseJsonObject(left.file).fileSizeBytes || 0);
 }
 
+/** @param {LooseRecord} [left] @param {LooseRecord} [right] */
 function compareFileStatusAsc(left = {}, right = {}) {
-  return String(left.file?.status || "").localeCompare(String(right.file?.status || ""), undefined, { sensitivity: "base" });
+  return String(parseJsonObject(left.file).status || "").localeCompare(String(parseJsonObject(right.file).status || ""), undefined, { sensitivity: "base" });
 }
 
+/**
+ * @param {string} value
+ * @param {number} fallback
+ * @param {number} minimum
+ * @param {number} maximum
+ */
+/** @param {unknown} value @param {number} fallback @param {number} minimum @param {number} maximum */
 function clampInteger(value, fallback, minimum, maximum) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value || ""), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -4149,6 +4619,7 @@ function clampInteger(value, fallback, minimum, maximum) {
   return Math.min(Math.max(parsed, minimum), maximum);
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeTargetIds(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -4160,10 +4631,15 @@ function normalizeTargetIds(value) {
     .filter(Boolean);
 }
 
+/**
+ * @param {string} category
+ */
+/** @param {unknown} category @param {string[]} [allowedCategories] */
 function isCategoryAllowed(category, allowedCategories = []) {
-  return allowedCategories.length === 0 || allowedCategories.includes(category) || allowedCategories.includes("other");
+  return allowedCategories.length === 0 || allowedCategories.includes(String(category || "")) || allowedCategories.includes("other");
 }
 
+/** @param {AttachableType} attachableType @param {string} operation */
 function permissionForOperation(attachableType, operation) {
   if (operation === "read" || operation === "download") {
     return attachableType.requiredReadPermission || "files.view";
@@ -4180,6 +4656,10 @@ function permissionForOperation(attachableType, operation) {
   return "";
 }
 
+/**
+ * @param {{}} value
+ */
+/** @param {unknown} value */
 function sanitizeFilename(value) {
   const filename = path.basename(String(value || "").replaceAll("\\", "/")).trim();
 
@@ -4190,6 +4670,11 @@ function sanitizeFilename(value) {
   return filename.replace(/[^\w .()[\]-]+/g, "_").slice(0, 180);
 }
 
+/**
+ * @param {string | undefined} value
+ * @param {string} message
+ */
+/** @param {unknown} value @param {string} message */
 function normalizeRequiredText(value, message) {
   const text = String(value || "").trim();
 
@@ -4200,6 +4685,10 @@ function normalizeRequiredText(value, message) {
   return text;
 }
 
+/**
+ * @param {string | null | undefined} value
+ */
+/** @param {unknown} value @param {{maxLength?: number}} [options] */
 function normalizeOptionalText(value, options = {}) {
   if (value === null || value === undefined) {
     return "";
@@ -4209,15 +4698,27 @@ function normalizeOptionalText(value, options = {}) {
   return options.maxLength ? text.slice(0, options.maxLength) : text;
 }
 
+/** @param {{userId?: unknown, workspaceId?: unknown}} [context] @returns {FileJobSession} */
 function fileJobSession({ userId = "", workspaceId = "" } = {}) {
+  const normalizedWorkspaceId = normalizeOptionalText(workspaceId);
   return {
+    active_workspace_id: normalizedWorkspaceId,
+    home_workspace_id: normalizedWorkspaceId,
+    ip_address: "",
+    password_change_required: false,
     role: "system",
+    session_mode: "normal",
+    timezone: "UTC",
     user_id: normalizeOptionalText(userId),
     username: "Job Worker",
-    workspace_id: normalizeOptionalText(workspaceId),
+    workspace_id: normalizedWorkspaceId,
   };
 }
 
+/**
+ * @param {string | null | undefined} value
+ */
+/** @param {unknown} value */
 function normalizeReportReason(value) {
   const reason = normalizeOptionalText(value, { maxLength: 80 });
   const allowedReasons = new Set(["illegal", "abusive", "inappropriate", "security", "other"]);
@@ -4229,32 +4730,44 @@ function normalizeReportReason(value) {
   return reason;
 }
 
+/**
+ * @param {unknown} value
+ */
+/** @param {unknown} value @returns {LooseRecord} */
 function parseJsonObject(value) {
   if (!value) {
     return {};
   }
 
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(String(value));
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
 }
 
+/**
+ * @param {string} value
+ */
+/** @param {unknown} value @returns {unknown[]} */
 function parseJsonArray(value) {
   if (!value) {
     return [];
   }
 
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(String(value));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
+/**
+ * @param {string} workspaceId
+ */
+/** @param {string} workspaceId @returns {WorkspaceFileSettings} */
 function defaultWorkspaceFileSettings(workspaceId) {
   return {
     allowedExtensions: [...DEFAULT_SAFE_ALLOWED_EXTENSIONS],
@@ -4268,19 +4781,21 @@ function defaultWorkspaceFileSettings(workspaceId) {
   };
 }
 
+/** @param {LooseRecord} [row] @returns {WorkspaceFileSettings} */
 function normalizeWorkspaceFileSettingsRow(row = {}) {
   return {
-    allowedExtensions: normalizeExtensionList(parseJsonArray(row.allowed_extensions_json), DEFAULT_SAFE_ALLOWED_EXTENSIONS),
-    blockedExtensions: normalizeExtensionList(parseJsonArray(row.blocked_extensions_json), DEFAULT_BLOCKED_EXTENSIONS),
-    createdAt: row.created_at || "",
-    fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(row.file_type_policy_mode) ? row.file_type_policy_mode : "safe_default",
+    allowedExtensions: normalizeExtensionList(parseJsonArray(row.allowed_extensions_json), [...DEFAULT_SAFE_ALLOWED_EXTENSIONS]),
+    blockedExtensions: normalizeExtensionList(parseJsonArray(row.blocked_extensions_json), [...DEFAULT_BLOCKED_EXTENSIONS]),
+    createdAt: String(row.created_at || ""),
+    fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(String(row.file_type_policy_mode || "")) ? String(row.file_type_policy_mode) : "safe_default",
     internalStorageLimitBytes: nullableInteger(row.internal_storage_limit_bytes),
     perUserStorageLimitBytes: nullableInteger(row.per_user_storage_limit_bytes),
-    updatedAt: row.updated_at || "",
-    workspaceId: row.workspace_id || "",
+    updatedAt: String(row.updated_at || ""),
+    workspaceId: String(row.workspace_id || ""),
   };
 }
 
+/** @param {LooseRecord} [payload] @param {WorkspaceFileSettings} [previous] @returns {WorkspaceFileSettings} */
 function normalizeWorkspaceFileSettingsPayload(payload = {}, previous = defaultWorkspaceFileSettings("")) {
   const mode = String(payload.fileTypePolicyMode || payload.file_type_policy_mode || previous.fileTypePolicyMode || "safe_default").trim();
   const internalStorageLimitBytes = Object.prototype.hasOwnProperty.call(payload, "internalStorageLimitBytes")
@@ -4297,12 +4812,16 @@ function normalizeWorkspaceFileSettingsPayload(payload = {}, previous = defaultW
   return {
     allowedExtensions: normalizeExtensionList(payload.allowedExtensions || payload.allowed_extensions, previous.allowedExtensions),
     blockedExtensions: normalizeExtensionList(payload.blockedExtensions || payload.blocked_extensions, previous.blockedExtensions),
+    createdAt: previous.createdAt,
     fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(mode) ? mode : "safe_default",
     internalStorageLimitBytes: nullableInteger(internalStorageLimitBytes),
     perUserStorageLimitBytes: nullableInteger(perUserStorageLimitBytes),
+    updatedAt: previous.updatedAt,
+    workspaceId: previous.workspaceId,
   };
 }
 
+/** @param {unknown} value @param {string[]} [fallback] @returns {string[]} */
 function normalizeExtensionList(value, fallback = []) {
   const source = Array.isArray(value) ? value : String(value || "").split(/[\s,]+/);
   const normalized = source
@@ -4313,6 +4832,7 @@ function normalizeExtensionList(value, fallback = []) {
   return normalized.length > 0 ? normalized : [...fallback];
 }
 
+/** @param {unknown} value */
 function normalizeExtension(value) {
   const text = String(value || "").trim().toLowerCase();
 
@@ -4324,15 +4844,20 @@ function normalizeExtension(value) {
   return /^\.[a-z0-9]+$/.test(extension) ? extension : "";
 }
 
+/**
+ * @param {string | number | null | undefined} value
+ */
+/** @param {unknown} value */
 function nullableInteger(value) {
   if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+/** @param {WorkspaceFileSettings} settings */
 function shapeWorkspaceFileSettings(settings) {
   return {
     allowedExtensions: settings.allowedExtensions || [],
@@ -4347,6 +4872,10 @@ function shapeWorkspaceFileSettings(settings) {
   };
 }
 
+/**
+ * @param {unknown} value
+ */
+/** @param {unknown} value @param {LooseRecord} [patch] */
 function mergeFileMetadata(value, patch = {}) {
   return {
     ...parseJsonObject(value),
@@ -4354,6 +4883,11 @@ function mergeFileMetadata(value, patch = {}) {
   };
 }
 
+/**
+ * @param {string} previousStatus
+ * @param {unknown} scanStatus
+ */
+/** @param {unknown} previousStatus @param {unknown} scanStatus */
 function normalizeRestorableStatus(previousStatus, scanStatus) {
   if (previousStatus === "quarantined") {
     return "quarantined";
@@ -4361,29 +4895,31 @@ function normalizeRestorableStatus(previousStatus, scanStatus) {
   if (previousStatus === "pending") {
     return "pending";
   }
-  if (["not_required", "passed"].includes(scanStatus)) {
+  if (["not_required", "passed"].includes(String(scanStatus || ""))) {
     return "available";
   }
 
   return "pending";
 }
 
+/** @param {LooseRecord} row @returns {StorageAccountingEntry} */
 function shapeStorageAccountingRow(row) {
   return {
-    availabilityStatus: row.availability_status || "",
+    availabilityStatus: String(row.availability_status || ""),
     calculatedAt: row.calculated_at,
     externalReportedBytes: Number(row.external_reported_bytes || 0),
-    externalSourceProvider: row.external_source_provider || "",
+    externalSourceProvider: String(row.external_source_provider || ""),
     fileCount: Number(row.file_count || 0),
     internalBytes: Number(row.internal_bytes || 0),
     storageAccountingId: row.storage_accounting_id,
     storageKind: row.storage_kind,
-    storageProvider: row.storage_provider || "",
-    userId: row.user_id || "",
+    storageProvider: String(row.storage_provider || ""),
+    userId: String(row.user_id || ""),
     workspaceId: row.workspace_id,
   };
 }
 
+/** @param {StorageAccountingEntry[]} [entries] @returns {StorageAccountingSummary} */
 function summarizeStorageAccounting(entries = []) {
   return entries.reduce((totals, entry) => {
     totals.fileCount += entry.fileCount;
@@ -4396,15 +4932,16 @@ function summarizeStorageAccounting(entries = []) {
       totals.externalFileCount += entry.fileCount;
     }
     return totals;
-  }, {
+  }, /** @type {StorageAccountingSummary} */ ({
     externalFileCount: 0,
     externalReportedBytes: 0,
     fileCount: 0,
     internalBytes: 0,
     internalFileCount: 0,
-  });
+  }));
 }
 
+/** @param {LooseRecord} [scope] */
 function storageAccountingId(scope = {}) {
   return [
     scope.workspaceId || "",
@@ -4413,9 +4950,13 @@ function storageAccountingId(scope = {}) {
     scope.storageProvider || "",
     scope.externalSourceProvider || "",
     scope.availabilityStatus || "",
-  ].join(":");
+  ].map((value) => String(value || "")).join(":");
 }
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ */
+/** @param {FileSession} session @param {LooseRecord} [event] */
 async function recordFileAudit(session, event = {}) {
   return auditService.record({
     session,
@@ -4435,7 +4976,7 @@ function assertFileIngressAllowed() {
   return assertPublicDemoCapabilityAllowed("files.ingress");
 }
 
-export const filesService = {
+const filesServiceInternal = {
   assertConfiguredFileScannerReady,
   assertFileIngressAllowed,
   assertConfiguredFileStorageProviderReady,
@@ -4479,6 +5020,8 @@ export const filesService = {
   uploadBatchAndAttach,
   uploadStreamAndAttach,
 };
+
+export const filesService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof filesServiceInternal>} */ (filesServiceInternal);
 
 export {
   FILE_SCAN_JOB_TYPE,

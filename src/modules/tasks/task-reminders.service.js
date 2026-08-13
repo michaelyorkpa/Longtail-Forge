@@ -31,7 +31,7 @@ function registerSettingsHandlers() {
       },
       async write({ value, workspaceId }) {
         const policy = (await readWorkspaceDefaults(workspaceId)).offsets;
-        policy[spec.kind][spec.index] = Math.max(1, Number.parseInt(value, 10)) * spec.multiplier;
+        policy[spec.kind][spec.index] = Math.max(1, Number.parseInt(String(value), 10)) * spec.multiplier;
         await saveWorkspaceDefaults(workspaceId, policy);
       },
       recordUrl: "tasks-settings.html",

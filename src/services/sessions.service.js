@@ -11,7 +11,7 @@ import { permissionsService } from "./permissions.service.js";
 
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
-/** @typedef {import("../repositories/sessions.repo.js").StoredSession} StoredSession */
+/** @typedef {import("../repositories/sessions.repo.js").StoredSessionListRow} StoredSessionListRow */
 /**
  * @typedef {Object} SessionRevocationTargetUser
  * @property {string} user_id
@@ -167,7 +167,7 @@ async function assertCanManageUserSessions(session, userId, operation) {
   return targetUser;
 }
 
-/** @param {StoredSession[]} revokedSessions @param {SessionRevocationContext} context */
+/** @param {StoredSessionListRow[]} revokedSessions @param {SessionRevocationContext} context */
 async function recordRevocations(revokedSessions, context) {
   if (!revokedSessions.length) {
     return;
@@ -209,15 +209,15 @@ async function recordRevocations(revokedSessions, context) {
     recordType: "user",
     recordUrl: "user-admin.html",
     session: context.actorSession,
-    workspaceId,
+    workspaceId: workspaceId || undefined,
   });
 }
 
-/** @param {StoredSession} row @param {string} currentSessionId */
+/** @param {StoredSessionListRow} row @param {string} currentSessionId */
 function toManagedSession(row, currentSessionId) {
   return {
     sessionReference: createSessionReference(row.session_id),
-    createdAt: row.created_at,
+    createdAt: row.created_at || "",
     expiresAt: row.expires_at,
     ipAddress: String(row.ip_address || "").slice(0, 128),
     isCurrent: row.session_id === currentSessionId,

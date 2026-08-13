@@ -10,10 +10,13 @@ const LANDING_TARGETS = Object.freeze({
   lists: Object.freeze({ moduleId: "lists", path: "/lists.html" }),
 });
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+
+/** @param {WorkspaceRequestSession} session @param {unknown} preference */
 async function resolvePreferredLanding(session, preference) {
   const target = LANDING_TARGETS[normalizeUserLandingPage(preference)];
 
-  if (!target.moduleId) {
+  if (!("moduleId" in target)) {
     return target.path;
   }
 

@@ -129,7 +129,7 @@ async function assertStaticContracts() {
         assert.doesNotMatch(genericWorkbenchSource, /tasksService|notesService|listsService|filesService|tagsService/, "generic Workbench bootstrap service should remain de-hardcoded");
   assert.doesNotMatch(serviceSource, /workCandidateService|listFocusCandidates|focusCandidates|workCandidates/, "related-context service must not use focus-mode candidate overflow");
   assert.match(serviceSource, /tagsService\.listAssignments[\s\S]*targetType: "task"/, "selected task direct tags should come from the Tags service");
-  assert.match(serviceSource, /record\.directTags \|\| record\.direct_tags/, "shared-tag matching should inspect direct tags only");
+  assert.match(serviceSource, /Array\.isArray\(record\.directTags\)[\s\S]*Array\.isArray\(record\.direct_tags\)/, "shared-tag matching should inspect direct tags only");
   assert.match(serviceSource, /reason: "linked_note"[\s\S]*reason: "task_file"[\s\S]*reason: "linked_list"[\s\S]*reason: "same_project_task"[\s\S]*reason: "shared_direct_tag"/, "service should encode the roadmap ordering");
   assert.match(serviceSource, /compareSameProjectTaskItems[\s\S]*sameProjectDueBucket[\s\S]*compareSameProjectDueAt/, "same-project task ordering should bucket by due-date usefulness before comparing due-date proximity");
   assert.match(serviceSource, /compareSameProjectDueAt[\s\S]*bucket === 0[\s\S]*right\.dueAtUtc[\s\S]*left\.dueAtUtc/, "overdue and due-today same-project tasks should be sorted by closest-to-now overdue/due timestamp first");

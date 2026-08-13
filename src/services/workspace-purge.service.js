@@ -14,12 +14,22 @@ const WORKSPACE_PURGE_JOB_PRIORITY = 1000;
 const WORKSPACE_PURGE_MAX_ATTEMPTS = 10;
 let workspacePurgeHandlerRegistered = false;
 
+/** @typedef {import("../types/framework-contracts.js").JobHandlerContext} JobHandlerContext */
+/** @typedef {{ job: Pick<import("../types/framework-contracts.js").JobExecutionRecord, "jobId" | "workspaceId"> & Partial<import("../types/framework-contracts.js").JobExecutionRecord>, payload?: Record<string, unknown> }} WorkspacePurgeJobContext */
+/** @typedef {import("../repositories/workspace-purge.repo.js").WorkspacePurgeTombstone} WorkspacePurgeTombstone */
+/** @typedef {{ replace?: boolean }} WorkspacePurgeRegistrationOptions */
+/** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, now?: unknown, source?: unknown }} QueueWorkspacePurgeOptions */
+/** @typedef {{ afterFence?: (context: { workspaceId: string }) => unknown | Promise<unknown>, afterStorage?: (context: { files: { deletedBytes: number, deletedCount: number }, workspaceId: string }) => unknown | Promise<unknown> }} WorkspacePurgeHooks */
+/** @typedef {{ workspaceId?: unknown, now?: unknown, purgeJobId?: unknown, hooks?: WorkspacePurgeHooks }} WorkspacePurgeOptions */
+
+/** @param {WorkspacePurgeRegistrationOptions} [options] */
 function registerWorkspacePurgeJobHandlers(options = {}) {
   if (workspacePurgeHandlerRegistered && !options.replace && getJobHandler(WORKSPACE_PURGE_JOB_TYPE)) return;
   registerJobHandler(WORKSPACE_PURGE_JOB_TYPE, handleWorkspacePurgeJob, { publicDemoCapability: "administration.workspace_lifecycle", replace: true });
   workspacePurgeHandlerRegistered = true;
 }
 
+/** @param {QueueWorkspacePurgeOptions} [options] */
 async function queueWorkspacePurge(options = {}) {
   const workspaceId = normalizeWorkspaceId(options.workspaceId || options.workspace_id);
   const now = normalizeDate(options.now).toISOString();
@@ -57,6 +67,7 @@ async function queueWorkspacePurge(options = {}) {
   };
 }
 
+/** @param {WorkspacePurgeJobContext} context @param {{ hooks?: WorkspacePurgeHooks, now?: unknown }} [options] */
 async function handleWorkspacePurgeJob({ job, payload = {} }, options = {}) {
   const workspaceId = normalizeWorkspaceId(payload.workspaceId || job?.workspaceId);
   if (workspaceId !== job?.workspaceId) throw new Error("Workspace purge job scope does not match its payload.");
@@ -68,6 +79,7 @@ async function handleWorkspacePurgeJob({ job, payload = {} }, options = {}) {
   });
 }
 
+/** @param {WorkspacePurgeOptions} [options] */
 async function purgeWorkspace(options = {}) {
   const workspaceId = normalizeWorkspaceId(options.workspaceId);
   const workspaceFingerprint = fingerprintWorkspaceId(workspaceId);
@@ -90,10 +102,13 @@ async function purgeWorkspace(options = {}) {
   if (fence.missingLifecycle) throw new AppError("Workspace purge lifecycle is unavailable.", 409);
 
   try {
-    if (fence.runningWorkspaceJobs > 0) {
+    if (Number(fence.runningWorkspaceJobs) > 0) {
       throw new Error("Workspace workers are still draining behind the purge fence.");
     }
     await options.hooks?.afterFence?.({ workspaceId });
+    if (!fence.purgeToken) {
+      throw new AppError("Workspace purge lifecycle is unavailable.", 409);
+    }
     const finalized = await workspacePurgeRepository.finalize({
       now: new Date().toISOString(),
       prepareArtifacts: async (transaction) => {
@@ -125,6 +140,10 @@ async function purgeWorkspace(options = {}) {
   }
 }
 
+/**
+ * @param {WorkspacePurgeTombstone | null} tombstone
+ * @param {boolean} alreadyComplete
+ */
 function shapeCompletedTombstone(tombstone, alreadyComplete) {
   return {
     alreadyComplete: Boolean(alreadyComplete),
@@ -137,24 +156,38 @@ function shapeCompletedTombstone(tombstone, alreadyComplete) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ */
 function fingerprintWorkspaceId(workspaceId) {
   return createHash("sha256").update(workspaceId, "utf8").digest("hex");
 }
 
+/** @param {unknown} value */
 function normalizeWorkspaceId(value) {
   const workspaceId = String(value || "").trim();
   if (!workspaceId) throw new AppError("Workspace purge requires a workspace ID.", 400);
   return workspaceId;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeDate(value) {
-  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
+  const date = value instanceof Date
+    ? value
+    : typeof value === "string" || typeof value === "number"
+      ? new Date(value)
+      : new Date();
   if (Number.isNaN(date.getTime())) throw new AppError("Workspace purge requires a valid time.", 400);
   return date;
 }
 
+/**
+ * @param {unknown} error
+ */
 function classifyPurgeFailure(error) {
-  const message = String(error?.message || "");
+  const message = error instanceof Error ? error.message : String(error || "");
   if (/workers are still draining/i.test(message)) return "worker_drain_pending";
   if (/grace period|lifecycle|fence/i.test(message)) return "lifecycle_refusal";
   if (/storage|file|object|backup/i.test(message)) return "artifact_cleanup_failed";

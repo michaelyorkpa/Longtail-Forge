@@ -290,7 +290,7 @@ function assertListingSeparation() {
   const catalogSource = readFileSync("src/services/settings-catalog.service.js", "utf8");
   assert.match(
     source,
-    /async function listSettingsContributions\(workspaceId, session = null\)[\s\S]*listWorkspaceContributions\(workspaceId, session, "settings"\)/,
+    /async function listSettingsContributions\(workspaceId, session =[\s\S]{0,100}const settings = await listWorkspaceContributions\(workspaceId, session, "settings"\)/,
   );
   const listingBody = source.match(/async function listSettingsContributions[\s\S]*?\n}\n/)?.[0] || "";
   assert.doesNotMatch(listingBody, /settingsService|getValue|readModuleSetting/);

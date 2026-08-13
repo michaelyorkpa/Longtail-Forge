@@ -5,6 +5,18 @@ import { createRecordId } from "../core/identifiers.js";
 import { AppError } from "../utils/app-error.js";
 import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/framework-contracts.js").ResumeStatePayload} ResumeStatePayload */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {ResumeStatePayload & {resume_state_id?: string, resumeStateId?: string, title?: string, updated_at?: string, updatedAt?: string, user_id?: string, userId?: string, workspace_id?: string, workspaceId?: string}} ResumeStateUpsertPayload */
+/** @typedef {DatabaseRow & {blocked_reason: string|null, client_id: string|null, context_label_snapshot: string, created_at: string, dismissed_at: string|null, dismissed_source_updated_at: string|null, due_at_snapshot: string|null, handoff_note: string|null, last_action_label: string, last_action_type: string, last_worked_at: string|null, metadata_json: string, module_id: string, next_action: string|null, priority_snapshot: string|null, project_id: string|null, record_id: string, record_type: string, resume_rank_hint: string|number, resume_state_id: string, source_url: string|null, status_snapshot: string|null, title_snapshot: string, updated_at: string, user_id: string, workspace_id: string}} ResumeStateRow */
+/** @typedef {DatabaseRow & {metadata: Record<string, unknown>, module_id: string, record_id: string, record_type: string}} ResumeStateItem */
+/** @typedef {{client_id: string|null, limit: number, mode: string, module_id: string|null, project_id: string|null, record_type: string|null}} ResumeStateListQuery */
+/** @typedef {{client_id?: unknown, clientId?: unknown, limit?: unknown, mode?: unknown, module_id?: unknown, moduleId?: unknown, project_id?: unknown, projectId?: unknown, record_type?: unknown, recordType?: unknown}} ResumeStateListQueryInput */
+/** @typedef {{moduleStatus?: unknown, readCheck?: ResumeStateReadCheck}} ResumeStatePrecomputed */
+
 /**
  * @typedef {Object} ResumeStateDismissResult
  * @property {string} resume_state_id
@@ -112,6 +124,7 @@ LIMIT 1;
   }),
 });
 
+/** @param {RequestSession} session @param {ResumeStateUpsertPayload} [payload] */
 async function upsertResumeState(session, payload = {}) {
   assertSession(session);
   const normalized = await normalizeUpsertPayload(session, payload);
@@ -193,9 +206,11 @@ WHERE workspace_id = :workspaceId
   return dismissedRow;
 }
 
+/** @param {WorkspaceRequestSession} session @param {ResumeStateListQueryInput} [query] */
 async function listResumeState(session, query = {}) {
   assertSession(session);
   const normalizedQuery = normalizeListQuery(query);
+  /** @type {Record<string, string | number | null>} */
   const params = {
     limit: integerParam(normalizedQuery.limit * 3),
     userId: textParam(session.user_id),
@@ -235,11 +250,12 @@ ORDER BY
   COALESCE(last_worked_at, updated_at) DESC
 LIMIT :limit;
 `;
-  const rows = await db.query(listSql, params);
+  const rows = /** @type {ResumeStateRow[]} */ (await db.query(listSql, params));
   const [batchedReadChecks, moduleStatusById] = await Promise.all([
     runBatchedReadChecks(rows, session),
     readModuleStatusesForRows(rows),
   ]);
+  /** @type {ResumeStateItem[]} */
   const results = [];
 
   for (const row of rows) {
@@ -265,14 +281,18 @@ LIMIT :limit;
 
 // Resolves module status once per distinct module in the scan instead of once
 // per row, keeping the list scan's query count independent of row count.
+/**
+ * @param {import("../types/database-contracts.js").DatabaseRow[]} rows
+ */
 async function readModuleStatusesForRows(rows) {
+  /** @type {Map<string, unknown>} */
   const moduleStatusById = new Map();
 
   for (const row of rows) {
     const key = `${row.workspace_id}:${row.module_id}`;
 
     if (!moduleStatusById.has(key)) {
-      moduleStatusById.set(key, await modulesService.readModuleStatus(row.workspace_id, row.module_id));
+      moduleStatusById.set(key, await modulesService.readModuleStatus(String(row.workspace_id), String(row.module_id)));
     }
   }
 
@@ -282,8 +302,11 @@ async function readModuleStatusesForRows(rows) {
 // Runs each registered batch read resolver once over the scanned rows of its
 // record type, so the list scan issues a constant number of queries instead of
 // one read per row. Rows without a batch resolver keep the per-row fallback.
+/** @param {ResumeStateRow[]} rows @param {WorkspaceRequestSession} session */
 async function runBatchedReadChecks(rows, session) {
+  /** @type {Map<ResumeStateRow, ResumeStateReadCheck>} */
   const checksByRow = new Map();
+  /** @type {Map<string, {batchResolver: import("../types/framework-contracts.js").ResumeStateBatchReadResolver, rows: ResumeStateRow[]}>} */
   const groups = new Map();
 
   for (const row of rows) {
@@ -299,7 +322,10 @@ async function runBatchedReadChecks(rows, session) {
       groups.set(groupKey, { batchResolver, rows: [] });
     }
 
-    groups.get(groupKey).rows.push(row);
+    const group = groups.get(groupKey);
+    if (group) {
+      group.rows.push(row);
+    }
   }
 
   for (const group of groups.values()) {
@@ -320,6 +346,7 @@ async function runBatchedReadChecks(rows, session) {
   return checksByRow;
 }
 
+/** @param {unknown} workspaceId @param {unknown} moduleId @param {unknown} recordType @param {unknown} recordId */
 async function removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId) {
   const normalizedWorkspaceId = normalizeText(workspaceId, 160);
   const normalizedModuleId = normalizeText(moduleId, TEXT_LIMITS.module_id);
@@ -352,6 +379,7 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/** @param {RequestSession} session @param {ResumeStateUpsertPayload} payload */
 async function normalizeUpsertPayload(session, payload) {
   const workspaceId = normalizeText(payload.workspace_id || payload.workspaceId || session.workspace_id, 160);
   const userId = normalizeText(payload.user_id || payload.userId || session.user_id, 160);
@@ -397,6 +425,7 @@ async function normalizeUpsertPayload(session, payload) {
   };
 }
 
+/** @param {ResumeStateRow} row @param {ResumeStateListQuery} query @param {WorkspaceRequestSession} session @param {ResumeStatePrecomputed} [precomputed] @returns {Promise<ResumeStateItem | null>} */
 async function shapeReadableRow(row, query, session, precomputed = {}) {
   const moduleDefinition = modulesService.getModule(row.module_id);
 
@@ -456,7 +485,7 @@ async function shapeReadableRow(row, query, session, precomputed = {}) {
     project_id: row.project_id || "",
     record_id: row.record_id,
     record_type: row.record_type,
-    resume_rank_hint: Number.parseInt(row.resume_rank_hint, 10) || 0,
+    resume_rank_hint: Number.parseInt(String(row.resume_rank_hint), 10) || 0,
     resume_state_id: row.resume_state_id,
     source_url: readCheck.source_url === false ? "" : row.source_url || "",
     status_snapshot: lifecycleStatus || "",
@@ -465,6 +494,7 @@ async function shapeReadableRow(row, query, session, precomputed = {}) {
   };
 }
 
+/** @param {ResumeStateRow} row @param {WorkspaceRequestSession} session @returns {Promise<ResumeStateReadCheck>} */
 async function runReadCheck(row, session) {
   const resolver = readResumeStateReadResolver(row.module_id, row.record_type);
 
@@ -487,6 +517,7 @@ async function runReadCheck(row, session) {
     : { readable: result === true };
 }
 
+/** @param {string} workspaceId @param {"clients"|"projects"} tableName @param {"id"} idColumn @param {unknown} value @param {string} label */
 async function assertOptionalContextInWorkspace(workspaceId, tableName, idColumn, value, label) {
   const normalizedValue = normalizeNullableText(value, 160);
 
@@ -505,8 +536,15 @@ async function assertOptionalContextInWorkspace(workspaceId, tableName, idColumn
   }
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} moduleId
+ * @param {string} recordType
+ * @param {string} recordId
+ */
 async function readBySource(workspaceId, userId, moduleId, recordType, recordId) {
-  return db.get(`
+  return /** @type {Promise<ResumeStateRow | null>} */ (db.get(`
 SELECT *
 FROM work_resume_state
 WHERE workspace_id = :workspaceId
@@ -521,9 +559,14 @@ LIMIT 1;
     recordType: textParam(recordType),
     userId: textParam(userId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} resumeStateId
+ */
 async function readById(workspaceId, userId, resumeStateId) {
   return /** @type {Promise<ResumeStateDismissResult | null>} */ (db.get(`
 SELECT resume_state_id,
@@ -543,6 +586,7 @@ LIMIT 1;
   }));
 }
 
+/** @param {"clients"|"projects"} tableName @param {"id"} idColumn */
 function resolveContextLookup(tableName, idColumn) {
   const lookup = CONTEXT_LOOKUPS[tableName];
 
@@ -553,6 +597,7 @@ function resolveContextLookup(tableName, idColumn) {
   return lookup;
 }
 
+/** @param {{dismissedAt: string|null|undefined, dismissedSourceUpdatedAt: string|null|undefined, normalized: Awaited<ReturnType<typeof normalizeUpsertPayload>>, now: string, resumeStateId: string, rowCreatedAt: string}} input */
 function resumeStateWriteParams({
   dismissedAt,
   dismissedSourceUpdatedAt,
@@ -591,13 +636,14 @@ function resumeStateWriteParams({
   };
 }
 
+/** @param {ResumeStateListQueryInput} [query] @returns {ResumeStateListQuery} */
 function normalizeListQuery(query = {}) {
   const mode = normalizeText(query.mode || "left_off", 24);
   const normalizedMode = SUPPORTED_MODES.has(mode) ? mode : "left_off";
 
   return {
     client_id: normalizeNullableText(query.client_id || query.clientId, 160),
-    limit: Math.min(Math.max(Number.parseInt(query.limit, 10) || DEFAULT_LIMIT, 1), MAX_LIMIT),
+    limit: Math.min(Math.max(Number.parseInt(String(query.limit ?? ""), 10) || DEFAULT_LIMIT, 1), MAX_LIMIT),
     mode: normalizedMode,
     module_id: normalizeNullableText(query.module_id || query.moduleId, TEXT_LIMITS.module_id),
     project_id: normalizeNullableText(query.project_id || query.projectId, 160),
@@ -605,12 +651,17 @@ function normalizeListQuery(query = {}) {
   };
 }
 
+/**
+ * @param {RequestSession} session
+ * @returns {asserts session is WorkspaceRequestSession}
+ */
 function assertSession(session) {
   if (!session?.workspace_id || !session?.user_id) {
     throw new AppError("A signed-in workspace session is required.", 401);
   }
 }
 
+/** @param {unknown} value @param {string} label @param {number} limit */
 function normalizeRequiredText(value, label, limit) {
   const normalizedValue = normalizeText(value, limit);
 
@@ -621,38 +672,57 @@ function normalizeRequiredText(value, label, limit) {
   return normalizedValue;
 }
 
+/** @param {unknown} value @param {number} limit */
 function normalizeNullableText(value, limit) {
   const normalizedValue = normalizeText(value, limit);
   return normalizedValue || null;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number | undefined} limit
+ */
 function normalizeText(value, limit) {
   return String(value ?? "").trim().slice(0, limit);
 }
 
+/** @param {unknown} value */
 function normalizeNullableDateText(value) {
   const normalizedValue = normalizeNullableText(value, 40);
   return normalizedValue || null;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeRankHint(value) {
-  return Math.max(Math.min(Number.parseInt(value, 10) || 0, 1000), -1000);
+  return Math.max(Math.min(Number.parseInt(String(value ?? ""), 10) || 0, 1000), -1000);
 }
 
+/**
+ * @param {string} value
+ */
 function textParam(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   const text = String(value ?? "").trim();
   return text ? text : null;
 }
 
+/**
+ * @param {string | number} value
+ */
 function integerParam(value) {
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value), 10);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeMetadataJson(value) {
   if (value === null || value === undefined || value === "") {
     return "{}";
@@ -670,15 +740,19 @@ function normalizeMetadataJson(value) {
   return JSON.stringify(typeof value === "object" ? value : {});
 }
 
+/** @param {unknown} value @returns {Record<string, unknown>} */
 function parseMetadata(value) {
   try {
-    const parsed = JSON.parse(value || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? /** @type {Record<string, unknown>} */ (parsed)
+      : {};
   } catch {
     return {};
   }
 }
 
+/** @param {ResumeStateRow} row */
 function isDismissed(row) {
   if (!row.dismissed_at) {
     return false;
@@ -690,6 +764,7 @@ function isDismissed(row) {
   return compareIso(sourceUpdatedAt, dismissedSourceUpdatedAt) <= 0;
 }
 
+/** @param {ResumeStateRow} row @param {unknown} lifecycleStatus */
 function isActiveResumeRow(row, lifecycleStatus) {
   const normalizedStatus = normalizeText(lifecycleStatus || row.status_snapshot, TEXT_LIMITS.status_snapshot);
   const actionType = normalizeText(row.last_action_type, TEXT_LIMITS.last_action_type);
@@ -698,6 +773,10 @@ function isActiveResumeRow(row, lifecycleStatus) {
     ["timer.started", "timer.running", "timer.resumed"].includes(actionType);
 }
 
+/**
+ * @param {unknown} left
+ * @param {unknown} right
+ */
 function compareIso(left, right) {
   const leftValue = String(left || "");
   const rightValue = String(right || "");
@@ -717,9 +796,11 @@ function compareIso(left, right) {
   return leftValue.localeCompare(rightValue);
 }
 
-export const workResumeStateService = {
+const workResumeStateServiceInternal = {
   dismissResumeState,
   listResumeState,
   removeResumeStateForRecord,
   upsertResumeState,
 };
+
+export const workResumeStateService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workResumeStateServiceInternal>} */ (workResumeStateServiceInternal);

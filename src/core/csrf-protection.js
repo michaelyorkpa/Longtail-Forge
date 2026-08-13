@@ -8,8 +8,10 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const MULTIPART_PATHS = new Set(["/api/files/upload", "/api/files/upload/batch"]);
 const TOKEN_SECRET = randomBytes(32);
 
+/** @typedef {import("./request-context.js").RequestContextRequest & { method?: string, path?: string, cookies?: Record<string, unknown>, get(name: string): string | undefined }} CsrfRequest */
+
 function createCsrfProtectionMiddleware() {
-  return (request, _response, next) => {
+  return (/** @type {CsrfRequest} */ request, /** @type {unknown} */ _response, /** @type {(error?: unknown) => void} */ next) => {
     try {
       enforceCsrfProtection(request);
       next();
@@ -24,6 +26,9 @@ function createCsrfToken() {
   return `${nonce}.${signNonce(nonce)}`;
 }
 
+/**
+ * @param {CsrfRequest} request
+ */
 function enforceCsrfProtection(request) {
   const method = String(request.method || "GET").toUpperCase();
   const requestPath = request.path || "";
@@ -66,6 +71,10 @@ function enforceCsrfProtection(request) {
   }
 }
 
+/**
+ * @param {CsrfRequest} request
+ * @param {string} requestPath
+ */
 function enforceContentType(request, requestPath) {
   const contentType = normalizeText(request.get("content-type")).toLowerCase().split(";", 1)[0];
   const hasBody = requestHasBody(request);
@@ -84,11 +93,17 @@ function enforceContentType(request, requestPath) {
   throw new AppError("Unsupported content type for this request.", 415);
 }
 
+/**
+ * @param {CsrfRequest} request
+ */
 function requestHasBody(request) {
   const contentLength = Number.parseInt(request.get("content-length") || "0", 10);
   return contentLength > 0 || Boolean(request.get("transfer-encoding"));
 }
 
+/**
+ * @param {import("./request-context.js").RequestContextRequest} request
+ */
 function resolveAllowedOrigins(request) {
   const origins = new Set();
   const requestOrigin = getRequestContext(request).origin;
@@ -101,6 +116,9 @@ function resolveAllowedOrigins(request) {
   return origins;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeOriginHeader(value) {
   const text = normalizeText(value);
   if (!text) {
@@ -114,6 +132,9 @@ function normalizeOriginHeader(value) {
   }
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeRefererOrigin(value) {
   const text = normalizeText(value);
   if (!text) {
@@ -126,6 +147,9 @@ function normalizeRefererOrigin(value) {
   }
 }
 
+/**
+ * @param {CsrfRequest} request
+ */
 function isBrowserRequest(request) {
   const fetchSite = normalizeText(request.get("sec-fetch-site")).toLowerCase();
   if (fetchSite) {
@@ -134,12 +158,19 @@ function isBrowserRequest(request) {
   return /\b(?:mozilla|chrome|safari|firefox|edg)\b/i.test(normalizeText(request.get("user-agent")));
 }
 
+/**
+ * @param {string} headerToken
+ * @param {string} cookieToken
+ */
 function tokensMatchAndVerify(headerToken, cookieToken) {
   return Boolean(headerToken)
     && headerToken === cookieToken
     && verifyCsrfToken(headerToken);
 }
 
+/**
+ * @param {unknown} token
+ */
 function verifyCsrfToken(token) {
   const [nonce, signature, ...extra] = normalizeText(token).split(".");
   if (!nonce || !signature || extra.length || nonce.length > 64 || signature.length > 128) {
@@ -151,10 +182,16 @@ function verifyCsrfToken(token) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
+/**
+ * @param {string | NodeJS.ArrayBufferView} nonce
+ */
 function signNonce(nonce) {
   return createHmac("sha256", TOKEN_SECRET).update(nonce).digest("base64url");
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeText(value) {
   return String(value || "").trim();
 }

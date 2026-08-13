@@ -90,7 +90,8 @@ async function assertEventSubscriptionWritesCurrentUserResumeState(session) {
   assert.equal(item.source_url, `tasks.html?task=${encodeURIComponent(taskId)}`);
   assert.equal(item.metadata.safe_context, "visible");
   assert.equal(item.metadata.body_markdown, undefined);
-  assert.equal(item.metadata.changed_context.label, "Status updated");
+  const changedContext = /** @type {Record<string, unknown>} */ (item.metadata.changed_context);
+  assert.equal(changedContext.label, "Status updated");
 }
 
 async function assertDisabledModuleProducerNoops(session) {

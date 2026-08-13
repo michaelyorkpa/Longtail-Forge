@@ -41,7 +41,7 @@ const SENSITIVE_FILE_INPUT_FIELDS = Object.freeze([
   "stored_filename",
 ]);
 
-const optionalText = (maxLength, label) =>
+const optionalText = (/** @type {number} */ maxLength, /** @type {string} */ label) =>
   z.string({ error: `${label} must be text.` })
     .trim()
     .max(maxLength, `${label} is too long.`)
@@ -194,8 +194,9 @@ function parseFilesEdgePayload(schema, payload, options = {}) {
   const status = options.status || 400;
 
   if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
+    const objectPayload = /** @type {Record<string, unknown>} */ (payload);
     for (const field of SENSITIVE_FILE_INPUT_FIELDS) {
-      if (payload[field] !== undefined) {
+      if (objectPayload[field] !== undefined) {
         throw new AppError(`Field '${field}' is server-managed and cannot be set by file input.`, 400);
       }
     }

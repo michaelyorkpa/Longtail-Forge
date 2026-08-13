@@ -236,12 +236,14 @@ ORDER BY created_at;
       targetId: linkedTask.task.task_id,
       targetType: "task",
     }, session);
+    if (!taskLink.link.target) throw new Error("Created task link should include its target summary.");
     assert.equal(taskLink.link.target.label, "Linked List Task");
     assert.equal(taskLink.link.target.target_type, "task");
     const noteLink = await listsService.createLink(created.list.list_id, {
       targetId: linkedNote.note.note_id,
       targetType: "note",
     }, session);
+    if (!noteLink.link.target) throw new Error("Created note link should include its target summary.");
     assert.equal(noteLink.link.target.label, "Linked List Note");
     await assert.rejects(
       () => listsService.createLink(created.list.list_id, {
@@ -254,7 +256,7 @@ ORDER BY created_at;
     );
     const linkedRead = await listsService.read(created.list.list_id, session);
     assert.equal(linkedRead.links.length, 2);
-    assert.ok(linkedRead.links.every((link) => link.target?.label));
+    assert.ok(linkedRead.links.every((link) => /** @type {{label?: string}|null} */ (link.target)?.label));
     assert.equal(linkedRead.list.progress.totalItemCount, 3);
     assert.equal(linkedRead.list.progress.checkedItemCount, 0);
     assert.equal(linkedRead.list.progress.completedItemCount, 0);

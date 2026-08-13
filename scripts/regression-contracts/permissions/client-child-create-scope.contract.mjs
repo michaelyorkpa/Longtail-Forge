@@ -49,7 +49,7 @@ assert.match(
 );
 assert.match(
   publicApiSource,
-  /async function createClient\(context, payload\)[\s\S]*clientsService\.createClient\(\{[\s\S]*\}, context\)/,
+  /async function createClient\(context, rawPayload\)[\s\S]*const payload = \/\*\* @type \{PublicApiMutationPayload\} \*\/[\s\S]*clientsService\.createClient\(\{[\s\S]*\}, context\)/,
   "The public API service should delegate Client creation to the same scoped Clients service.",
 );
 

@@ -13,6 +13,11 @@ import {
 
 const RECOVERY_MODE = "account_export_recovery";
 
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+
+/**
+ * @param {string} userId
+ */
 async function assertEligible(userId) {
   assertPublicDemoVisitorIdentityMutable(userId);
   const [qualification, hasActiveWorkspace, user] = await Promise.all([
@@ -26,6 +31,7 @@ async function assertEligible(userId) {
   return user;
 }
 
+/** @param {RequestSession} session */
 async function exportPortableAccount(session) {
   assertPublicDemoCapabilityAllowed("exports.account");
   if (session?.session_mode !== RECOVERY_MODE || !session.user_id) {

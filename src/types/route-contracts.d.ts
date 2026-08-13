@@ -22,6 +22,7 @@ export interface RouteResponse extends NodeJS.WritableStream {
   end(contents?: unknown): this;
   json(payload: unknown): this;
   once(event: "finish", listener: () => void): this;
+  once(event: "close", listener: () => void): this;
   send(payload?: unknown): this;
   set(name: string, value: string): this;
   set(headers: Record<string, string>): this;

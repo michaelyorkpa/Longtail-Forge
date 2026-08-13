@@ -285,6 +285,7 @@ check("workspace terminology resolver follows fallback order", () => {
 
 check("workspace terminology changes display labels without changing IDs", () => {
   const clientProjects = modules.find((moduleDefinition) => moduleDefinition.id === "client-projects");
+  if (!clientProjects) throw new Error("Client Projects module should be registered.");
   const businessModule = resolveModuleDefinitionTerminology(clientProjects, "business");
   const personalModule = resolveModuleDefinitionTerminology(clientProjects, "personal");
   const familyModule = resolveModuleDefinitionTerminology(clientProjects, "family");

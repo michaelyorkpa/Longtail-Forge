@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.15 - Type framework core and shared services
+
+**Model: High Effort** - Framework services feed many modules and contain permission, Files, Search, job, and resume-state contracts.
+
+- [x] Closed full-strict debt in remaining `src/core/`, shared `src/services/`, and framework repositories after the HTTP/database foundations.
+- [x] Replaced empty-container inference and implicit payload shapes with named contracts and narrowed `unknown` at real boundaries.
+- [x] Preserved module independence and avoided module-specific types in framework helpers.
+- [x] Reduced these owner sections to zero without increasing explicit-`any` inventory.
+
 ## Version 0.33.33.14 - Type database adapters and repository row projections
 
 **Model: High Effort** - Database result shapes, transactions, and provider boundaries carry data-integrity risk.

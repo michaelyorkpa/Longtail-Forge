@@ -12,6 +12,9 @@ import {
 const PUBLIC_DEMO_DENIAL_CODE = "public_demo_capability_disabled";
 const PUBLIC_DEMO_DENIAL_MESSAGE = "This capability is unavailable in the public demo.";
 
+/** @typedef {{ demoEnabled?: boolean, access?: unknown }} PublicDemoCapabilityOptions */
+
+/** @param {string} capabilityId @param {PublicDemoCapabilityOptions} [options] */
 function assertPublicDemoCapabilityAllowed(capabilityId, options = {}) {
   const result = evaluatePublicDemoCapability(capabilityId, options);
   if (!result.allowed) {
@@ -22,6 +25,7 @@ function assertPublicDemoCapabilityAllowed(capabilityId, options = {}) {
   return result;
 }
 
+/** @param {unknown} capabilityId @param {PublicDemoCapabilityOptions} [options] */
 function evaluatePublicDemoCapability(capabilityId, options = {}) {
   const demoEnabled = options.demoEnabled ?? config.demo.enabled;
   const access = normalizeAccess(options.access);
@@ -35,7 +39,7 @@ function evaluatePublicDemoCapability(capabilityId, options = {}) {
 
   let definition;
   try {
-    definition = getPublicDemoCapability(capabilityId);
+    definition = getPublicDemoCapability(normalizeCapabilityId(capabilityId));
   } catch {
     return Object.freeze({
       allowed: false,
@@ -55,18 +59,20 @@ function evaluatePublicDemoCapability(capabilityId, options = {}) {
   });
 }
 
+/** @template T @param {T} contribution @param {PublicDemoCapabilityOptions} [options] @returns {T} */
 function filterPublicDemoContributionActions(contribution, options = {}) {
   const demoEnabled = options.demoEnabled ?? config.demo.enabled;
   if (!demoEnabled) {
     return contribution;
   }
-  return filterContributionValue(contribution, options, "");
+  return /** @type {T} */ (filterContributionValue(contribution, options, ""));
 }
 
+/** @param {unknown} value @param {PublicDemoCapabilityOptions} options @param {string} fieldName @returns {unknown} */
 function filterContributionValue(value, options, fieldName) {
   if (Array.isArray(value)) {
     const filtered = fieldName === "actions"
-      ? value.filter((item) => evaluatePublicDemoCapability(item?.publicDemoCapability, options).allowed)
+      ? value.filter((item) => evaluatePublicDemoCapability(readPublicDemoCapability(item), options).allowed)
       : value;
     return filtered.map((item) => filterContributionValue(item, options, ""));
   }
@@ -79,7 +85,16 @@ function filterContributionValue(value, options, fieldName) {
   ]));
 }
 
+/** @param {unknown} value @returns {unknown} */
+function readPublicDemoCapability(value) {
+  return value && typeof value === "object" && "publicDemoCapability" in value
+    ? value.publicDemoCapability
+    : undefined;
+}
+
+/** @param {string} capabilityId @param {PublicDemoCapabilityOptions} [options] */
 function requirePublicDemoCapability(capabilityId, options = {}) {
+  /** @param {import("express").Request} request @param {unknown} _response @param {(error?: unknown) => void} next */
   return function publicDemoCapabilityGate(request, _response, next) {
     try {
       assertPublicDemoCapabilityAllowed(capabilityId, options);
@@ -101,6 +116,7 @@ function requirePublicDemoCapability(capabilityId, options = {}) {
   };
 }
 
+/** @param {import("express").Request} request */
 function classifyRoute(request) {
   const path = String(request.originalUrl || request.path || "");
   if (path.startsWith("/api/v1/")) return "api-v1";
@@ -108,10 +124,16 @@ function classifyRoute(request) {
   return "public-resource";
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeAccess(value) {
   return value === "read" ? "read" : "execute";
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeCapabilityId(value) {
   return String(value || "").trim();
 }

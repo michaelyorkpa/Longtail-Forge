@@ -72,6 +72,7 @@ for (const moduleDefinition of listModules()) {
     assert.equal(endpoint.publicDemoCapability, "api_keys", moduleDefinition.id + " endpoint " + endpoint.path + " must be demo-disabled");
   }
   for (const scope of moduleDefinition.apiScopes || []) {
+    if (typeof scope === "string") continue;
     assert.equal(scope.publicDemoCapability, "api_keys", moduleDefinition.id + " scope " + scope.id + " must be demo-disabled");
   }
 }

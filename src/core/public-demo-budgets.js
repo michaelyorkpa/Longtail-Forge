@@ -10,17 +10,29 @@ import {
   resolvePublicDemoQuery,
 } from "./public-demo-budget-catalog.js";
 
-const budgetContext = new AsyncLocalStorage();
 const REQUEST_BUDGET_STATE = Symbol("public-demo-budget-state");
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 const RICH_TEXT_FIELDS = new Set(["body", "body_markdown", "bodymarkdown", "content", "description", "html", "markdown", "text"]);
 
+/** @typedef {typeof PUBLIC_DEMO_BUDGET_LIMITS} PublicDemoBudgetLimits */
+/** @typedef {NonNullable<ReturnType<typeof resolvePublicDemoMutation>>} PublicDemoBudgetOperation */
+/** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/route-contracts.js").RouteRequest & { session?: RequestSession, publicDemoBudgetPayloadValidator?: (payload: unknown) => Promise<void> } & Record<PropertyKey, unknown>} PublicDemoBudgetRequest */
+/** @typedef {{ database: DatabaseAdapter, limits: PublicDemoBudgetLimits, operation: PublicDemoBudgetOperation, released: boolean, reservedUnits: number, userId: string, workspaceId: string }} PublicDemoBudgetState */
+/** @typedef {{ enabled?: boolean, database?: DatabaseAdapter, isVisitor?: (userId: string) => boolean, limits?: Partial<PublicDemoBudgetLimits> }} PublicDemoBudgetOptions */
+
+/** @type {AsyncLocalStorage<PublicDemoBudgetState>} */
+const budgetContext = new AsyncLocalStorage();
+
+/** @param {PublicDemoBudgetOptions} [options] */
 function createPublicDemoBudgetMiddleware(options = {}) {
   const enabled = options.enabled ?? config.demo.enabled;
   const database = options.database || db;
   const isVisitor = options.isVisitor || isPublicDemoVisitorIdentity;
-  const limits = Object.freeze({ ...PUBLIC_DEMO_BUDGET_LIMITS, ...(options.limits || {}) });
+  const limits = /** @type {PublicDemoBudgetLimits} */ (Object.freeze({ ...PUBLIC_DEMO_BUDGET_LIMITS, ...(options.limits || {}) }));
 
+  /** @param {PublicDemoBudgetRequest} request @param {import("../types/route-contracts.js").RouteResponse} response @param {(error?: unknown) => void} next */
   return async function publicDemoBudgetMiddleware(request, response, next) {
     const session = request.session;
     if (!enabled || !session?.user_id || !session?.workspace_id || !isVisitor(session.user_id)) {
@@ -75,8 +87,9 @@ function createPublicDemoBudgetMiddleware(options = {}) {
   };
 }
 
+/** @param {PublicDemoBudgetRequest} request @param {unknown} payload */
 async function validatePublicDemoBudgetPayload(request, payload) {
-  const state = request?.[REQUEST_BUDGET_STATE] || budgetContext.getStore();
+  const state = /** @type {PublicDemoBudgetState | undefined} */ (request?.[REQUEST_BUDGET_STATE] || budgetContext.getStore());
   if (!state) return;
 
   validatePayloadShape(payload, state.limits);
@@ -88,13 +101,17 @@ async function validatePublicDemoBudgetPayload(request, payload) {
   }
 }
 
+/**
+ * @param {string | number} units
+ */
 async function reserveAdditionalPublicDemoBudgetUnits(units) {
   const state = budgetContext.getStore();
-  const normalizedUnits = Number.parseInt(units, 10);
+  const normalizedUnits = Number.parseInt(String(units), 10);
   if (!state || !state.operation.reserve || !Number.isFinite(normalizedUnits) || normalizedUnits <= 0) return;
   await reserveUnits(state, normalizedUnits);
 }
 
+/** @param {PublicDemoBudgetState} state @param {number} units */
 async function reserveUnits(state, units) {
   await state.database.transaction(async (transaction) => {
     const bindings = { userId: state.userId, workspaceId: state.workspaceId };
@@ -134,9 +151,10 @@ async function reserveUnits(state, units) {
   state.reservedUnits += units;
 }
 
+/** @param {import("../types/route-contracts.js").RouteResponse} response @param {PublicDemoBudgetState} state */
 function attachReservationOutcome(response, state) {
   let settled = false;
-  const settle = (failed) => {
+  const settle = (/** @type {boolean} */ failed) => {
     if (settled) return;
     settled = true;
     if (failed) void releaseUnits(state).catch(() => {});
@@ -145,6 +163,7 @@ function attachReservationOutcome(response, state) {
   response.once("close", () => settle(false));
 }
 
+/** @param {PublicDemoBudgetState} state */
 async function releaseUnits(state) {
   if (state.released || state.reservedUnits <= 0) return;
   state.released = true;
@@ -173,8 +192,10 @@ async function releaseUnits(state) {
   });
 }
 
+/** @param {unknown} payload @param {PublicDemoBudgetLimits} limits */
 function validatePayloadShape(payload, limits) {
   let nodes = 0;
+  /** @param {unknown} value @param {number} depth @param {string} [fieldName] */
   const visit = (value, depth, fieldName = "") => {
     nodes += 1;
     if (nodes > limits.maxPayloadNodes || depth > limits.maxObjectDepth) {
@@ -201,6 +222,7 @@ function validatePayloadShape(payload, limits) {
   visit(payload, 0);
 }
 
+/** @param {PublicDemoBudgetRequest} request @param {PublicDemoBudgetLimits} limits */
 function validateQuery(request, limits) {
   const rawQuery = String(request.originalUrl || request.url || "").split("?").slice(1).join("?");
   if (Buffer.byteLength(rawQuery, "utf8") > limits.maxQueryBytes) throw createBudgetError("query", "query");
@@ -209,6 +231,7 @@ function validateQuery(request, limits) {
   entries.forEach(([key, value]) => validateQueryValue(key, value, limits));
 }
 
+/** @param {string} key @param {unknown} value @param {PublicDemoBudgetLimits} limits */
 function validateQueryValue(key, value, limits) {
   if (Array.isArray(value)) {
     if (value.length > limits.maxQueryListItems) throw createBudgetError("query", key);
@@ -238,15 +261,21 @@ function validateQueryValue(key, value, limits) {
   if (loweredKey === "page" && numeric > limits.maxPage) throw createBudgetError("query", key);
 }
 
+/** @param {unknown} payload @param {readonly string[]} collectionKeys */
 function largestDeclaredCollection(payload, collectionKeys) {
   if (Array.isArray(payload)) return payload.length;
   if (!payload || typeof payload !== "object") return 0;
+  const record = /** @type {Record<string, unknown>} */ (payload);
   return collectionKeys.reduce((largest, key) => {
-    const value = payload[key];
+    const value = record[key];
     return Array.isArray(value) ? Math.max(largest, value.length) : largest;
   }, 0);
 }
 
+/**
+ * @param {"budget" | "input" | "query" | "undeclared"} kind
+ * @param {string} field
+ */
 function createBudgetError(kind, field) {
   const contract = PUBLIC_DEMO_BUDGET_ERRORS[kind];
   const safeField = ["mutation", "operation", "query", "request"].includes(field)
@@ -258,6 +287,7 @@ function createBudgetError(kind, field) {
   });
 }
 
+/** @param {PublicDemoBudgetRequest} request */
 function requestPath(request) {
   try {
     return new URL(String(request.originalUrl || request.url || request.path || "/"), "http://localhost").pathname;

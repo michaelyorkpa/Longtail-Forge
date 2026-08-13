@@ -8,12 +8,16 @@ import { config } from "../../config.js";
 
 const LOCAL_FILE_STORAGE_ROOT = config.storage.localRoot;
 
+/** @param {{ rootDir?: string }} [options] */
 function createLocalFileStorageAdapter(options = {}) {
   const rootDir = path.resolve(options.rootDir || LOCAL_FILE_STORAGE_ROOT);
 
   return {
     id: "local",
     rootDir,
+    /**
+ * @param {string} storageKey
+ */
     async delete(storageKey) {
       const filePath = resolveStoragePath(rootDir, storageKey);
       await fs.rm(filePath, { force: true });
@@ -22,31 +26,42 @@ function createLocalFileStorageAdapter(options = {}) {
       await fs.mkdir(rootDir, { recursive: true });
       return { ok: true, provider: "local", rootDir };
     },
+    /**
+ * @param {string} storageKey
+ */
     async metadata(storageKey) {
       const filePath = resolveStoragePath(rootDir, storageKey);
       const stats = await fs.stat(filePath);
       return { size: stats.size, updatedAt: stats.mtime.toISOString() };
     },
+    /**
+ * @param {string} storageKey
+ */
     async read(storageKey) {
       const filePath = resolveStoragePath(rootDir, storageKey);
       return createReadStream(filePath);
     },
+    /**
+ * @param {string | Buffer | NodeJS.ArrayBufferView | Iterable<string | NodeJS.ArrayBufferView> | AsyncIterable<string | NodeJS.ArrayBufferView>} buffer
+ */
     async save(buffer, options = {}) {
       const target = createWriteTarget(rootDir, options);
       await fs.mkdir(path.dirname(target.filePath), { recursive: true });
       await fs.writeFile(target.filePath, buffer);
       return { storageKey: target.storageKey, storedFilename: target.storedFilename };
     },
+    /** @param {unknown} readable */
     async saveStream(readable, options = {}) {
-      if (!readable || typeof readable.pipe !== "function") {
+      if (!readable || typeof /** @type {{pipe?: unknown}} */ (readable).pipe !== "function") {
         throw new TypeError("A readable stream is required.");
       }
+      const readableStream = /** @type {import("node:stream").Readable} */ (readable);
 
       const target = createWriteTarget(rootDir, options);
 
       await fs.mkdir(path.dirname(target.filePath), { recursive: true });
       try {
-        await pipeline(readable, createWriteStream(target.filePath));
+        await pipeline(readableStream, createWriteStream(target.filePath));
       } catch (error) {
         await fs.rm(target.filePath, { force: true }).catch(() => {});
         throw error;
@@ -54,12 +69,19 @@ function createLocalFileStorageAdapter(options = {}) {
 
       return { storageKey: target.storageKey, storedFilename: target.storedFilename };
     },
+    /**
+ * @param {string} storageKey
+ */
     resolveStoragePath(storageKey) {
       return resolveStoragePath(rootDir, storageKey);
     },
   };
 }
 
+/**
+ * @param {string} rootDir
+ */
+/** @param {string} rootDir @param {{ workspaceId?: unknown }} [options] */
 function createWriteTarget(rootDir, options = {}) {
   const workspaceId = normalizePathSegment(options.workspaceId || "workspace");
   const storageKey = createStorageKey(workspaceId);
@@ -72,11 +94,18 @@ function createWriteTarget(rootDir, options = {}) {
   };
 }
 
+/**
+ * @param {string} prefix
+ */
 function createStorageKey(prefix) {
   const safePrefix = normalizePathSegment(prefix || "workspace");
   return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${createOpaqueId()}`;
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} storageKey
+ */
 function resolveStoragePath(rootDir, storageKey) {
   const normalizedKey = String(storageKey || "").replaceAll("\\", "/").trim();
 
@@ -94,6 +123,9 @@ function resolveStoragePath(rootDir, storageKey) {
   return resolvedPath;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizePathSegment(value) {
   return String(value || "")
     .trim()

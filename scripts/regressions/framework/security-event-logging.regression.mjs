@@ -64,9 +64,9 @@ try {
     ["security.session.revoked", { reason: "managed_workspace_sessions", revoked_session_count: 2 }],
     ["security.password.reset", { change_required: true, revoked_session_count: 2 }],
   ]) {
-    await internalEventBus.emit(name, {
+    await internalEventBus.emit(String(name), {
       actorUserId: adminUserId,
-      metadata,
+      metadata: typeof metadata === "object" && metadata !== null ? metadata : {},
       recordId: adminUserId,
       session: adminSession,
       source: "security",

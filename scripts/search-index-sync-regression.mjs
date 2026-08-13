@@ -141,7 +141,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(reindexResult.ok, true);
   assert.equal(reindexResult.operation, "queue_reindex");
   assert.equal(queuedRows.length, 1);
-  assert.match(queuedRows[0].dedupe_key, /search:reindex/);
+  assert.match(String(queuedRows[0].dedupe_key), /search:reindex/);
 
   const reindexSummary = await runJobWorkerOnce({
     claimLimit: 1,
@@ -234,8 +234,8 @@ LIMIT 1;
   assert.equal(failedSummary.failed, 1);
   assert.equal(failedJob.status, "failed");
   assert.equal(failedJob.attempt_count, 1);
-  assert.match(failedJob.last_error, /synthetic indexing failure/);
-  assert.ok(Date.parse(failedJob.available_at) > beforeFailureRun, "failed search jobs should be scheduled for retry");
+  assert.match(String(failedJob.last_error), /synthetic indexing failure/);
+  assert.ok(Date.parse(String(failedJob.available_at)) > beforeFailureRun, "failed search jobs should be scheduled for retry");
   failingUnregister();
   clearSearchIndexersForTests();
 });

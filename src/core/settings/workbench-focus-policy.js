@@ -19,6 +19,10 @@ const WORKBENCH_FOCUS_ORDER_PRESETS = Object.freeze({
   recoveryFirst: "recovery_first",
 });
 
+/** @typedef {(typeof WORKBENCH_FOCUS_GROUPS)[keyof typeof WORKBENCH_FOCUS_GROUPS]} WorkbenchFocusGroup */
+/** @typedef {(typeof WORKBENCH_FOCUS_ORDER_PRESETS)[keyof typeof WORKBENCH_FOCUS_ORDER_PRESETS]} WorkbenchFocusOrderPreset */
+/** @typedef {{ candidateGroups: readonly WorkbenchFocusGroup[], priorityOrder: WorkbenchFocusOrderPreset }} WorkbenchFocusPolicy */
+
 const WORKBENCH_FOCUS_GROUP_OPTIONS = Object.freeze([
   Object.freeze({ value: WORKBENCH_FOCUS_GROUPS.overdueAssignedWork, label: "Overdue assigned work" }),
   Object.freeze({ value: WORKBENCH_FOCUS_GROUPS.dueToday, label: "Due today" }),
@@ -86,14 +90,15 @@ registerFrameworkSettingDefinition({
   requiredPermissions: ["workspace_settings.manage"],
 });
 
+/** @param {{ candidateGroups?: unknown, priorityOrder?: unknown }} [value] @returns {WorkbenchFocusPolicy} */
 function normalizeWorkbenchFocusPolicy(value = {}) {
   const allowedGroups = new Set(WORKBENCH_FOCUS_GROUP_OPTIONS.map((option) => option.value));
   const candidateGroups = Array.isArray(value.candidateGroups) &&
-      value.candidateGroups.every((group) => allowedGroups.has(group))
-    ? [...new Set(value.candidateGroups)]
+      value.candidateGroups.every((group) => typeof group === "string" && allowedGroups.has(/** @type {WorkbenchFocusGroup} */ (group)))
+    ? [...new Set(/** @type {WorkbenchFocusGroup[]} */ (value.candidateGroups))]
     : [...DEFAULT_WORKBENCH_FOCUS_POLICY.candidateGroups];
-  const priorityOrder = Object.hasOwn(GROUP_ORDER_BY_PRESET, value.priorityOrder)
-    ? value.priorityOrder
+  const priorityOrder = typeof value.priorityOrder === "string" && Object.hasOwn(GROUP_ORDER_BY_PRESET, value.priorityOrder)
+    ? /** @type {WorkbenchFocusOrderPreset} */ (value.priorityOrder)
     : DEFAULT_WORKBENCH_FOCUS_POLICY.priorityOrder;
 
   return {
@@ -102,6 +107,7 @@ function normalizeWorkbenchFocusPolicy(value = {}) {
   };
 }
 
+/** @param {WorkbenchFocusPolicy} [policy] @returns {WorkbenchFocusGroup[]} */
 function orderedWorkbenchFocusGroups(policy = DEFAULT_WORKBENCH_FOCUS_POLICY) {
   const normalized = normalizeWorkbenchFocusPolicy(policy);
   const selectedGroups = new Set(normalized.candidateGroups);

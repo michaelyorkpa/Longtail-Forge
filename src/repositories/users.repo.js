@@ -75,7 +75,11 @@ import {
  * @property {string} timezone
  * @property {string} themeMode
  * @property {string} themeAutoSource
+ * @property {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} preferredLoginLanding
+ * @property {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} preferredWorkspaceSwitchLanding
+ * @property {string | null} preferredCalendarView
  * @property {boolean} openExternalLinksNewTab
+ * @property {boolean} passwordChangeRequired
  * @property {string} userStatus
  * @property {boolean} protectedUser
  */
@@ -288,7 +292,11 @@ VALUES (
     timezone,
     themeMode: "light",
     themeAutoSource: "system",
+    preferredLoginLanding: "dashboard",
+    preferredWorkspaceSwitchLanding: "dashboard",
+    preferredCalendarView: null,
     openExternalLinksNewTab: false,
+    passwordChangeRequired: false,
     userStatus: "active",
     protectedUser: false,
   };

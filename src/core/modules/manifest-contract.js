@@ -6,6 +6,24 @@ import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provi
 import { listFrameworkPermissionIds } from "../permissions/framework-permission-catalog.js";
 import { getPublicDemoCapability } from "../public-demo-capabilities.js";
 
+/** @typedef {Record<string, unknown>} ManifestObject */
+/** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
+/** @typedef {import("../../types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+/** @typedef {Partial<ModuleSettingDefinition> & ManifestObject} ModuleSettingCandidate */
+/** @typedef {import("../../types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor */
+/** @typedef {Partial<ModuleManifest> & ManifestObject} ManifestCandidate */
+/** @typedef {{ prefix?: string, pattern?: RegExp, nullable?: boolean }} ValidationOptions */
+/** @typedef {(item: ManifestObject, index: number) => void} ManifestObjectValidator */
+/**
+ * @typedef {object} ManifestReferenceContext
+ * @property {Set<string>} allModuleIds
+ * @property {Set<string>} allPermissionIds
+ * @property {Set<string>} allProtectedViewKeys
+ * @property {Set<string>} allResolverIds
+ * @property {Set<string>} allTaggableTypes
+ * @property {Set<string>} frameworkSettingIds
+ */
+
 const ACTIVE_MANIFEST_FIELDS = new Set([
   "id",
   "name",
@@ -332,75 +350,83 @@ const TERMINOLOGY_FIELDS = new Set([
   "description",
 ]);
 
+/**
+ * @param {unknown} moduleDefinition
+ * @param {Set<string>} [allModuleIds]
+ */
 function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
-  const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
-
   if (!isPlainObject(moduleDefinition)) {
     return ["Module manifest must be a plain object."];
   }
 
-  validateKnownFields(moduleDefinition, errors);
-  requireString(moduleDefinition, "id", errors, { pattern: MODULE_ID_PATTERN });
-  requireString(moduleDefinition, "name", errors);
-  requireString(moduleDefinition, "displayName", errors);
-  requireString(moduleDefinition, "description", errors);
-  validateTerminology(moduleDefinition.terminology, "terminology", errors);
-  requireString(moduleDefinition, "category", errors);
-  requireString(moduleDefinition, "version", errors);
-  requireBoolean(moduleDefinition, "enabledByDefault", errors);
-  optionalBoolean(moduleDefinition, "canDisable", errors);
-  optionalBoolean(moduleDefinition, "historicalReadAccess", errors);
-  optionalUrlOrString(moduleDefinition, "migrationsDir", errors, { nullable: true });
-  optionalUrlOrString(moduleDefinition, "protectedViewsDir", errors);
-  optionalUrlOrString(moduleDefinition, "publicViewsDir", errors);
-  optionalUrlOrString(moduleDefinition, "browserAssetsDir", errors);
-  optionalArray(moduleDefinition, "browserApiRoutes", errors);
-  optionalArray(moduleDefinition, "publicApiRoutes", errors);
-  optionalStringArray(moduleDefinition, "requiredPermissions", errors);
-  optionalStringArray(moduleDefinition, "frameworkDependencies", errors);
-  optionalStringArray(moduleDefinition, "moduleDependencies", errors);
-  optionalStringArray(moduleDefinition, "workspaceCapabilityRequirements", errors);
-  optionalArray(moduleDefinition, "seedHooks", errors);
-  optionalArray(moduleDefinition, "repairHooks", errors);
-  validateNavigation(moduleDefinition.navigation, errors);
-  validateViews(moduleDefinition.protectedViews, moduleDefinition.id, "protectedViews", errors);
-  validateViews(moduleDefinition.publicViews, moduleDefinition.id, "publicViews", errors);
-  validateViewSurfaces(moduleDefinition.viewSurfaces, errors);
-  validateBrowserAssets(moduleDefinition.browserAssets, moduleDefinition.id, errors);
-  validateDashboard(moduleDefinition.dashboard, errors);
-  validateReporting(moduleDefinition.reporting, moduleDefinition.id, errors);
-  validateWorkbench(moduleDefinition.workbench, errors);
-  validateSettingsContributions(moduleDefinition.settings, errors);
-  validatePermissions(moduleDefinition.permissions, moduleDefinition.id, errors);
-  validateDefaultRolePermissions(moduleDefinition.defaultRolePermissions, errors);
-  validateResourceDefinitions(moduleDefinition.resourceDefinitions, moduleDefinition.id, errors);
-  validateApiScopes(moduleDefinition.apiScopes, moduleDefinition.id, errors);
-  validateAuditRecordTypes(moduleDefinition.auditRecordTypes, moduleDefinition.id, errors);
-  validateEventTypes(moduleDefinition.eventTypes, moduleDefinition.id, errors);
-  validateEventSummaries(moduleDefinition.eventSummaries, moduleDefinition.id, errors);
-  validatePublicApiEndpoints(moduleDefinition.publicApiEndpoints, errors);
-  validateHooks(moduleDefinition.hooks, errors);
-  validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
-  validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
-  validateLinkedContextProviders(moduleDefinition.linkedContextProviders, moduleDefinition.id, errors);
-  validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
-  validateTagPropagationDescriptors(moduleDefinition.tagPropagation, moduleDefinition.id, errors);
-  validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
-  validateAttachableTypes(moduleDefinition.attachableTypes, moduleDefinition.id, errors);
-  validateProtectedContentConsumers(moduleDefinition.protectedContentConsumers, moduleDefinition.id, errors);
-  validateHelpContribution(moduleDefinition.help, {
-    ownerId: moduleDefinition.id,
+  const manifest = /** @type {ManifestCandidate} */ (moduleDefinition);
+  const moduleLabel = manifest.id || manifest.name || "<unknown>";
+
+  validateKnownFields(manifest, errors);
+  requireString(manifest, "id", errors, { pattern: MODULE_ID_PATTERN });
+  requireString(manifest, "name", errors);
+  requireString(manifest, "displayName", errors);
+  requireString(manifest, "description", errors);
+  validateTerminology(manifest.terminology, "terminology", errors);
+  requireString(manifest, "category", errors);
+  requireString(manifest, "version", errors);
+  requireBoolean(manifest, "enabledByDefault", errors);
+  optionalBoolean(manifest, "canDisable", errors);
+  optionalBoolean(manifest, "historicalReadAccess", errors);
+  optionalUrlOrString(manifest, "migrationsDir", errors, { nullable: true });
+  optionalUrlOrString(manifest, "protectedViewsDir", errors);
+  optionalUrlOrString(manifest, "publicViewsDir", errors);
+  optionalUrlOrString(manifest, "browserAssetsDir", errors);
+  optionalArray(manifest, "browserApiRoutes", errors);
+  optionalArray(manifest, "publicApiRoutes", errors);
+  optionalStringArray(manifest, "requiredPermissions", errors);
+  optionalStringArray(manifest, "frameworkDependencies", errors);
+  optionalStringArray(manifest, "moduleDependencies", errors);
+  optionalStringArray(manifest, "workspaceCapabilityRequirements", errors);
+  optionalArray(manifest, "seedHooks", errors);
+  optionalArray(manifest, "repairHooks", errors);
+  validateNavigation(manifest.navigation, errors);
+  validateViews(manifest.protectedViews, manifest.id, "protectedViews", errors);
+  validateViews(manifest.publicViews, manifest.id, "publicViews", errors);
+  validateViewSurfaces(manifest.viewSurfaces, errors);
+  validateBrowserAssets(manifest.browserAssets, manifest.id, errors);
+  validateDashboard(manifest.dashboard, errors);
+  validateReporting(manifest.reporting, manifest.id, errors);
+  validateWorkbench(manifest.workbench, errors);
+  validateSettingsContributions(manifest.settings, errors);
+  validatePermissions(manifest.permissions, manifest.id, errors);
+  validateDefaultRolePermissions(manifest.defaultRolePermissions, errors);
+  validateResourceDefinitions(manifest.resourceDefinitions, manifest.id, errors);
+  validateApiScopes(manifest.apiScopes, manifest.id, errors);
+  validateAuditRecordTypes(manifest.auditRecordTypes, manifest.id, errors);
+  validateEventTypes(manifest.eventTypes, manifest.id, errors);
+  validateEventSummaries(manifest.eventSummaries, manifest.id, errors);
+  validatePublicApiEndpoints(manifest.publicApiEndpoints, errors);
+  validateHooks(manifest.hooks, errors);
+  validateTimerSources(manifest.timerSources, manifest.id, errors);
+  validateWorkItemSources(manifest.workItemSources, manifest.id, errors);
+  validateLinkedContextProviders(manifest.linkedContextProviders, manifest.id, errors);
+  validateTaggableTypes(manifest.taggableTypes, manifest.id, errors);
+  validateTagPropagationDescriptors(manifest.tagPropagation, manifest.id, errors);
+  validateSearchableTypes(manifest.searchableTypes, manifest.id, errors);
+  validateAttachableTypes(manifest.attachableTypes, manifest.id, errors);
+  validateProtectedContentConsumers(manifest.protectedContentConsumers, manifest.id, errors);
+  validateHelpContribution(/** @type {import("../../types/help-static-contracts.js").HelpContribution|undefined} */ (manifest.help), {
+    ownerId: manifest.id,
     ownerType: "module",
     fieldName: "help",
     errors,
   });
-  validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
-  validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
-  validateNotificationFollowTargets(moduleDefinition.notificationFollowTargets, moduleDefinition.id, errors);
-  validateReservedFields(moduleDefinition, errors);
+  validateNotificationEvents(manifest.notificationEvents, manifest.id, errors);
+  validateNotificationTemplates(manifest.notificationTemplates, manifest.id, errors);
+  validateNotificationFollowTargets(manifest.notificationFollowTargets, manifest.id, errors);
+  validateReservedFields(manifest, errors);
 
-  for (const dependencyId of moduleDefinition.moduleDependencies || []) {
+  for (const dependencyId of manifest.moduleDependencies || []) {
     if (!allModuleIds.has(dependencyId)) {
       errors.push(`moduleDependencies references unknown module '${dependencyId}'.`);
     }
@@ -409,7 +435,9 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   return errors.map((error) => `${moduleLabel}: ${error}`);
 }
 
-function validateModuleManifests(moduleDefinitions) {
+/** @param {unknown[]} rawModuleDefinitions */
+function validateModuleManifests(rawModuleDefinitions) {
+  const moduleDefinitions = /** @type {ModuleManifest[]} */ (/** @type {unknown} */ (rawModuleDefinitions));
   const errors = [];
   const seenIds = new Set();
   const allModuleIds = new Set();
@@ -430,7 +458,7 @@ function validateModuleManifests(moduleDefinitions) {
       allModuleIds.add(moduleDefinition.id);
     }
     for (const protectedView of moduleDefinition?.protectedViews || []) {
-      if (moduleDefinition?.id && protectedView?.id) {
+      if (moduleDefinition?.id && isPlainObject(protectedView) && typeof protectedView.id === "string") {
         allProtectedViewKeys.add(`${moduleDefinition.id}:${protectedView.id}`);
       }
     }
@@ -459,7 +487,7 @@ function validateModuleManifests(moduleDefinitions) {
     for (const permission of moduleDefinition?.requiredPermissions || []) {
       allPermissionIds.add(permission);
     }
-    for (const permission of moduleDefinition?.permissions || []) {
+    for (const permission of /** @type {import("../../types/framework-contracts.js").PermissionContribution[]} */ (moduleDefinition?.permissions || [])) {
       if (permission?.id) {
         allPermissionIds.add(permission.id);
       }
@@ -499,7 +527,7 @@ function validateModuleManifests(moduleDefinitions) {
   }
 
   const propagationIds = moduleDefinitions.flatMap((moduleDefinition) => (
-    moduleDefinition?.tagPropagation || []
+    /** @type {Array<{id?: string}>} */ (Array.isArray(moduleDefinition?.tagPropagation) ? moduleDefinition.tagPropagation : [])
   ).map((descriptor) => descriptor?.id).filter(Boolean));
   assertUniqueHelpValues("tagPropagation id", propagationIds, errors);
 
@@ -508,6 +536,14 @@ function validateModuleManifests(moduleDefinitions) {
   }
 }
 
+/**
+ * @param {{}} moduleDefinition
+ * @param {string[]} errors
+ */
+/**
+ * @param {ManifestObject} moduleDefinition
+ * @param {string[]} errors
+ */
 function validateKnownFields(moduleDefinition, errors) {
   for (const fieldName of Object.keys(moduleDefinition)) {
     if (!ACTIVE_MANIFEST_FIELDS.has(fieldName) && !RESERVED_MANIFEST_FIELDS.has(fieldName)) {
@@ -516,6 +552,10 @@ function validateKnownFields(moduleDefinition, errors) {
   }
 }
 
+/**
+ * @param {ManifestObject} moduleDefinition
+ * @param {string[]} errors
+ */
 function validateReservedFields(moduleDefinition, errors) {
   for (const fieldName of RESERVED_MANIFEST_FIELDS) {
     if (!["notificationEvents", "notificationTemplates"].includes(fieldName)) {
@@ -524,6 +564,11 @@ function validateReservedFields(moduleDefinition, errors) {
   }
 }
 
+/**
+ * @param {unknown} notificationEvents
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateNotificationEvents(notificationEvents, moduleId, errors) {
   optionalArrayOfObjects(notificationEvents, "notificationEvents", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `notificationEvents[${index}]` });
@@ -548,6 +593,11 @@ function validateNotificationEvents(notificationEvents, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} notificationTemplates
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateNotificationTemplates(notificationTemplates, moduleId, errors) {
   optionalArrayOfObjects(notificationTemplates, "notificationTemplates", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `notificationTemplates[${index}]` });
@@ -557,16 +607,21 @@ function validateNotificationTemplates(notificationTemplates, moduleId, errors) 
     requireString(item, "body", errors, { prefix: `notificationTemplates[${index}]` });
     optionalString(item, "url", errors, { prefix: `notificationTemplates[${index}]` });
     optionalString(item, "recordLinkPattern", errors, { prefix: `notificationTemplates[${index}]` });
-    if (item.url !== undefined) {
+    if (typeof item.url === "string") {
       validateRelativeUrl(item.url, `notificationTemplates[${index}].url`, errors);
     }
-    if (item.recordLinkPattern !== undefined) {
+    if (typeof item.recordLinkPattern === "string") {
       validateRelativeUrl(item.recordLinkPattern, `notificationTemplates[${index}].recordLinkPattern`, errors);
     }
     validateTerminology(item.terminology, `notificationTemplates[${index}].terminology`, errors);
   });
 }
 
+/**
+ * @param {unknown} notificationFollowTargets
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateNotificationFollowTargets(notificationFollowTargets, moduleId, errors) {
   optionalArrayOfObjects(notificationFollowTargets, "notificationFollowTargets", errors, (item, index) => {
     requireString(item, "targetType", errors, { prefix: `notificationFollowTargets[${index}]` });
@@ -578,6 +633,10 @@ function validateNotificationFollowTargets(notificationFollowTargets, moduleId, 
   });
 }
 
+/**
+ * @param {unknown} navigation
+ * @param {string[]} errors
+ */
 function validateNavigation(navigation, errors) {
   optionalArrayOfObjects(navigation, "navigation", errors, (item, index) => {
     requireString(item, "label", errors, { prefix: `navigation[${index}]` });
@@ -587,6 +646,12 @@ function validateNavigation(navigation, errors) {
   });
 }
 
+/**
+ * @param {unknown} views
+ * @param {unknown} moduleId
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function validateViews(views, moduleId, fieldName, errors) {
   optionalArrayOfObjects(views, fieldName, errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `${fieldName}[${index}]` });
@@ -599,6 +664,10 @@ function validateViews(views, moduleId, fieldName, errors) {
   });
 }
 
+/**
+ * @param {unknown} viewSurfaces
+ * @param {string[]} errors
+ */
 function validateViewSurfaces(viewSurfaces, errors) {
   optionalArrayOfObjects(viewSurfaces, "viewSurfaces", errors, (surface, index) => {
     const prefix = `viewSurfaces[${index}]`;
@@ -629,7 +698,14 @@ function validateViewSurfaces(viewSurfaces, errors) {
   });
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allPermissionIds: Set<string>; allProtectedViewKeys: Set<string>; }} context
+ */
 function validateViewSurfaceReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
   const descriptors = Array.isArray(moduleDefinition?.viewSurfaces) ? moduleDefinition.viewSurfaces : [];
@@ -655,6 +731,11 @@ function validateViewSurfaceReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {ViewSurfaceDescriptor} surface
+ * @param {string} prefix
+ * @returns {{ action: unknown, prefix: string }[]}
+ */
 function listViewSurfaceActions(surface, prefix) {
   const actions = [];
   if (surface?.pageHeader?.primaryAction) {
@@ -674,6 +755,11 @@ function listViewSurfaceActions(surface, prefix) {
   return actions;
 }
 
+/**
+ * @param {unknown} actionArray
+ * @param {string} prefix
+ * @param {{ action: unknown; prefix: string; }[]} actions
+ */
 function collectActionArray(actionArray, prefix, actions) {
   if (!Array.isArray(actionArray)) {
     return;
@@ -683,22 +769,38 @@ function collectActionArray(actionArray, prefix, actions) {
   });
 }
 
+/**
+ * @param {unknown} action
+ * @param {string} prefix
+ * @param {string} moduleLabel
+ * @param {{ allPermissionIds: Set<string> }} context
+ * @param {string[]} errors
+ */
 function validateViewActionReference(action, prefix, moduleLabel, context, errors) {
   if (!isPlainObject(action)) {
     return;
   }
-  if (action.role && !VIEW_ACTION_ROLES.has(action.role)) {
+    if (typeof action.role === "string" && !VIEW_ACTION_ROLES.has(action.role)) {
     errors.push(`${moduleLabel}: ${prefix}.role must be primary, secondary, destructive, or utility.`);
   }
   validateViewRouteReference(action.route, `${prefix}.route`, moduleLabel, errors);
   validateViewMethodReference(action.method, `${prefix}.method`, moduleLabel, errors);
-  for (const permissionId of action.requiredPermissions || []) {
+  for (const permissionId of (Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [])) {
+    if (typeof permissionId !== "string") {
+      continue;
+    }
     if (!context.allPermissionIds.has(permissionId)) {
       errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
     }
   }
 }
 
+/**
+ * @param {unknown} route
+ * @param {string} prefix
+ * @param {string} moduleLabel
+ * @param {string[]} errors
+ */
 function validateViewRouteReference(route, prefix, moduleLabel, errors) {
   if (route === undefined) {
     return;
@@ -706,6 +808,9 @@ function validateViewRouteReference(route, prefix, moduleLabel, errors) {
   if (typeof route !== "string" || route.trim() === "") {
     return;
   }
+  /**
+ * @type {string[]}
+ */
   const routeErrors = [];
   validateRelativeUrl(route, prefix, routeErrors);
   if (!route.startsWith("/")) {
@@ -716,6 +821,12 @@ function validateViewRouteReference(route, prefix, moduleLabel, errors) {
   }
 }
 
+/**
+ * @param {unknown} method
+ * @param {string} prefix
+ * @param {string} moduleLabel
+ * @param {string[]} errors
+ */
 function validateViewMethodReference(method, prefix, moduleLabel, errors) {
   if (method === undefined) {
     return;
@@ -725,6 +836,11 @@ function validateViewMethodReference(method, prefix, moduleLabel, errors) {
   }
 }
 
+/**
+ * @param {unknown} sidebarPanels
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateSidebarPanelsDescriptor(sidebarPanels, prefix, errors) {
   optionalArrayOfObjects(sidebarPanels, prefix, errors, (panel, index) => {
     const panelPrefix = `${prefix}[${index}]`;
@@ -748,6 +864,11 @@ function validateSidebarPanelsDescriptor(sidebarPanels, prefix, errors) {
   });
 }
 
+/**
+ * @param {unknown} footer
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateSidebarPanelFooterDescriptor(footer, prefix, errors) {
   if (footer === undefined) {
     return;
@@ -764,6 +885,11 @@ function validateSidebarPanelFooterDescriptor(footer, prefix, errors) {
   optionalString(footer, "ariaLabel", errors, { prefix });
 }
 
+/**
+ * @param {unknown} pageHeader
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validatePageHeaderDescriptor(pageHeader, prefix, errors) {
   if (pageHeader === undefined) {
     return;
@@ -779,6 +905,11 @@ function validatePageHeaderDescriptor(pageHeader, prefix, errors) {
   }
 }
 
+/**
+ * @param {unknown} filters
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateFiltersDescriptor(filters, prefix, errors) {
   optionalArrayOfObjects(filters, prefix, errors, (filter, index) => {
     const filterPrefix = `${prefix}[${index}]`;
@@ -792,6 +923,11 @@ function validateFiltersDescriptor(filters, prefix, errors) {
   });
 }
 
+/**
+ * @param {unknown} regions
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateRegionsDescriptor(regions, prefix, errors) {
   optionalArrayOfObjects(regions, prefix, errors, (region, index) => {
     const regionPrefix = `${prefix}[${index}]`;
@@ -805,6 +941,11 @@ function validateRegionsDescriptor(regions, prefix, errors) {
   });
 }
 
+/**
+ * @param {unknown} indexPanel
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateIndexPanelDescriptor(indexPanel, prefix, errors) {
   if (indexPanel === undefined) {
     return;
@@ -830,6 +971,11 @@ function validateIndexPanelDescriptor(indexPanel, prefix, errors) {
   optionalBoolean(indexPanel, "collapseOnSelect", errors, { prefix });
 }
 
+/**
+ * @param {unknown} table
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateTableDescriptor(table, prefix, errors) {
   if (table === undefined) {
     return;
@@ -864,6 +1010,11 @@ function validateTableDescriptor(table, prefix, errors) {
   optionalBoolean(table, "overflow", errors, { prefix });
 }
 
+/**
+ * @param {unknown} secondaryRows
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateTableSecondaryRowsDescriptor(secondaryRows, prefix, errors) {
   optionalArrayOfObjects(secondaryRows, prefix, errors, (row, index) => {
     const rowPrefix = `${prefix}[${index}]`;
@@ -884,6 +1035,11 @@ function validateTableSecondaryRowsDescriptor(secondaryRows, prefix, errors) {
   });
 }
 
+/**
+ * @param {unknown} selection
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateTableSelectionDescriptor(selection, prefix, errors) {
   if (selection === undefined) {
     return;
@@ -900,6 +1056,11 @@ function validateTableSelectionDescriptor(selection, prefix, errors) {
   optionalString(selection, "labelField", errors, { prefix });
 }
 
+/**
+ * @param {unknown} hierarchy
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateTableHierarchyDescriptor(hierarchy, prefix, errors) {
   if (hierarchy === undefined) {
     return;
@@ -914,6 +1075,11 @@ function validateTableHierarchyDescriptor(hierarchy, prefix, errors) {
   optionalString(hierarchy, "pathField", errors, { prefix });
 }
 
+/**
+ * @param {unknown} detail
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateDetailDescriptor(detail, prefix, errors) {
   if (detail === undefined) {
     return;
@@ -926,7 +1092,8 @@ function validateDetailDescriptor(detail, prefix, errors) {
   for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "emptyState"]) {
     optionalPlainObject(detail, fieldName, errors, { prefix });
   }
-  validateActionsDescriptor(detail.actionStrip?.actions, `${prefix}.actionStrip.actions`, errors);
+  const actionStrip = isPlainObject(detail.actionStrip) ? detail.actionStrip : undefined;
+  validateActionsDescriptor(actionStrip?.actions, `${prefix}.actionStrip.actions`, errors);
   validateLinkedRecordsDescriptor(detail.linkedRecords, `${prefix}.linkedRecords`, errors);
   validateItemFormDescriptor(detail.itemForm, `${prefix}.itemForm`, errors);
   validateItemRowsDescriptor(detail.itemRows, `${prefix}.itemRows`, errors);
@@ -945,6 +1112,11 @@ function validateDetailDescriptor(detail, prefix, errors) {
   });
 }
 
+/**
+ * @param {unknown} linkedRecords
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateLinkedRecordsDescriptor(linkedRecords, prefix, errors) {
   if (linkedRecords === undefined) {
     return;
@@ -976,6 +1148,11 @@ function validateLinkedRecordsDescriptor(linkedRecords, prefix, errors) {
   validateActionsDescriptor(linkedRecords.actions, `${prefix}.actions`, errors);
 }
 
+/**
+ * @param {unknown} itemForm
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateItemFormDescriptor(itemForm, prefix, errors) {
   if (itemForm === undefined) {
     return;
@@ -1004,6 +1181,11 @@ function validateItemFormDescriptor(itemForm, prefix, errors) {
   validateActionsDescriptor(itemForm.actions, `${prefix}.actions`, errors);
 }
 
+/**
+ * @param {unknown} itemRows
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateItemRowsDescriptor(itemRows, prefix, errors) {
   if (itemRows === undefined) {
     return;
@@ -1038,6 +1220,11 @@ function validateItemRowsDescriptor(itemRows, prefix, errors) {
   optionalPlainObject(itemRows, "emptyState", errors, { prefix });
 }
 
+/**
+ * @param {unknown} modals
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateModalsDescriptor(modals, prefix, errors) {
   optionalArrayOfObjects(modals, prefix, errors, (modal, index) => {
     const modalPrefix = `${prefix}[${index}]`;
@@ -1064,12 +1251,23 @@ function validateModalsDescriptor(modals, prefix, errors) {
   });
 }
 
+/**
+ * @param {ManifestObject} field
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateViewFieldType(field, prefix, errors) {
   if (typeof field.type === "string" && !VIEW_FIELD_TYPES.has(field.type)) {
     errors.push(`${prefix}.type must be one of ${Array.from(VIEW_FIELD_TYPES).join(", ")}.`);
   }
 }
 
+/**
+ * @param {unknown} dataSource
+ * @param {string} prefix
+ * @param {string[]} errors
+ * @param {{ required?: boolean }} [options]
+ */
 function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) {
   if (dataSource === undefined) {
     if (options.required) {
@@ -1096,12 +1294,22 @@ function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) 
   }
 }
 
+/**
+ * @param {unknown} actions
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateActionsDescriptor(actions, prefix, errors) {
   optionalArrayOfObjects(actions, prefix, errors, (action, index) => {
     validateActionDescriptor(action, `${prefix}[${index}]`, errors);
   });
 }
 
+/**
+ * @param {unknown} action
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateActionDescriptor(action, prefix, errors) {
   if (!isPlainObject(action)) {
     errors.push(`${prefix} must be an object.`);
@@ -1135,12 +1343,22 @@ function validateActionDescriptor(action, prefix, errors) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateLabelDescriptor(object, prefix, errors) {
   for (const fieldName of VIEW_LABEL_FIELDS) {
     optionalString(object, fieldName, errors, { prefix });
   }
 }
 
+/**
+ * @param {unknown} browserAssets
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateBrowserAssets(browserAssets, moduleId, errors) {
   const seenIds = new Set();
 
@@ -1162,6 +1380,10 @@ function validateBrowserAssets(browserAssets, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} dashboard
+ * @param {string[]} errors
+ */
 function validateDashboard(dashboard, errors) {
   optionalArrayOfObjects(dashboard, "dashboard", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `dashboard[${index}]` });
@@ -1182,6 +1404,11 @@ function validateDashboard(dashboard, errors) {
   });
 }
 
+/**
+ * @param {unknown} reporting
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateReporting(reporting, moduleId, errors) {
   const seenIds = new Set();
 
@@ -1209,6 +1436,11 @@ function validateReporting(reporting, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} filters
+ * @param {string} reportPrefix
+ * @param {string[]} errors
+ */
 function validateReportingFilters(filters, reportPrefix, errors) {
   const seenIds = new Set();
   const seenQueryKeys = new Set();
@@ -1227,7 +1459,10 @@ function validateReportingFilters(filters, reportPrefix, errors) {
     if (Array.isArray(filter.queryKeys) && filter.queryKeys.length !== expectedQueryKeyCount) {
       errors.push(`${prefix}.queryKeys must contain exactly ${expectedQueryKeyCount} ${expectedQueryKeyCount === 1 ? "key" : "keys"} for '${filter.type || "unknown"}'.`);
     }
-    for (const queryKey of filter.queryKeys || []) {
+    for (const queryKey of (Array.isArray(filter.queryKeys) ? filter.queryKeys : [])) {
+      if (typeof queryKey !== "string") {
+        continue;
+      }
       if (!/^[A-Za-z][A-Za-z0-9]*$/.test(queryKey)) {
         errors.push(`${prefix}.queryKeys entry '${queryKey}' must be a safe query parameter name.`);
       } else if (seenQueryKeys.has(queryKey)) {
@@ -1255,6 +1490,11 @@ function validateReportingFilters(filters, reportPrefix, errors) {
   });
 }
 
+/**
+ * @param {ManifestObject} filter
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateReportingFilterDefault(filter, prefix, errors) {
   const value = filter.defaultValue;
   const fieldName = `${prefix}.defaultValue`;
@@ -1263,7 +1503,7 @@ function validateReportingFilterDefault(filter, prefix, errors) {
     return;
   }
 
-  if (["project-multi-select", "tag"].includes(filter.type)) {
+  if (typeof filter.type === "string" && ["project-multi-select", "tag"].includes(filter.type)) {
     if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
       errors.push(`${fieldName} must be a list of strings for '${filter.type}'.`);
     }
@@ -1287,7 +1527,14 @@ function validateReportingFilterDefault(filter, prefix, errors) {
   }
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allPermissionIds: Set<string>; }} context
+ */
 function validateReportingReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
   const assetsById = new Map((moduleDefinition?.browserAssets || []).map((asset) => [asset?.id, asset]));
@@ -1341,6 +1588,10 @@ function validateReportingReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {unknown} workbench
+ * @param {string[]} errors
+ */
 function validateWorkbench(workbench, errors) {
   optionalArrayOfObjects(workbench, "workbench", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `workbench[${index}]` });
@@ -1364,6 +1615,10 @@ function validateWorkbench(workbench, errors) {
   });
 }
 
+/**
+ * @param {unknown} settings
+ * @param {string[]} errors
+ */
 function validateSettingsContributions(settings, errors) {
   const seenIds = new Set();
 
@@ -1415,7 +1670,7 @@ function validateSettingsContributions(settings, errors) {
       }
       optionValues.add(option.value);
     });
-    if (["select", "multi-select", "radio"].includes(item.type) && (!Array.isArray(item.options) || item.options.length === 0)) {
+    if (typeof item.type === "string" && ["select", "multi-select", "radio"].includes(item.type) && (!Array.isArray(item.options) || item.options.length === 0)) {
       errors.push(`${prefix}.options must contain at least one option for '${item.type}'.`);
     }
     optionalNumber(item, "min", errors, { prefix });
@@ -1448,6 +1703,11 @@ function validateSettingsContributions(settings, errors) {
   });
 }
 
+/**
+ * @param {unknown} visibleWhen
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateSettingVisibleWhen(visibleWhen, prefix, errors) {
   if (visibleWhen === undefined) {
     return;
@@ -1469,17 +1729,23 @@ function validateSettingVisibleWhen(visibleWhen, prefix, errors) {
   }
 }
 
+/**
+ * @param {ModuleSettingCandidate} setting
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateSettingDefault(setting, prefix, errors) {
   if (!Object.hasOwn(setting, "default")) {
     return;
   }
 
   const value = setting.default;
-  if (["boolean", "toggle"].includes(setting.type) && typeof value !== "boolean") {
+  const settingType = setting.type;
+  if (typeof settingType === "string" && ["boolean", "toggle"].includes(settingType) && typeof value !== "boolean") {
     errors.push(`${prefix}.default must be a boolean for '${setting.type}'.`);
     return;
   }
-  if (["text", "textarea", "info"].includes(setting.type) && typeof value !== "string") {
+  if (typeof settingType === "string" && ["text", "textarea", "info"].includes(settingType) && typeof value !== "string") {
     errors.push(`${prefix}.default must be text for '${setting.type}'.`);
     return;
   }
@@ -1498,7 +1764,7 @@ function validateSettingDefault(setting, prefix, errors) {
   }
 
   const optionValues = new Set((setting.options || []).map((option) => option.value));
-  if (["select", "radio"].includes(setting.type) && (typeof value !== "string" || !optionValues.has(value))) {
+  if (typeof settingType === "string" && ["select", "radio"].includes(settingType) && (typeof value !== "string" || !optionValues.has(value))) {
     errors.push(`${prefix}.default must match a registered option for '${setting.type}'.`);
   }
   if (setting.type === "multi-select" && (
@@ -1508,7 +1774,14 @@ function validateSettingDefault(setting, prefix, errors) {
   }
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allPermissionIds: Set<string>; frameworkSettingIds: Set<string>; }} context
+ */
 function validateSettingsReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
   const settings = Array.isArray(moduleDefinition?.settings) ? moduleDefinition.settings : [];
@@ -1522,7 +1795,9 @@ function validateSettingsReferences(moduleDefinition, context) {
       }
     }
     for (const fieldName of ["requiresEnabledModules", "requiredModules"]) {
-      for (const requiredModuleId of setting?.[fieldName] || []) {
+      const requiredModuleIds = setting?.[fieldName];
+      for (const requiredModuleId of (Array.isArray(requiredModuleIds) ? requiredModuleIds : [])) {
+        if (typeof requiredModuleId !== "string") continue;
         if (!context.allModuleIds.has(requiredModuleId)) {
           errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown module '${requiredModuleId}'.`);
         }
@@ -1539,7 +1814,7 @@ function validateSettingsReferences(moduleDefinition, context) {
       } else if (dependencyId === setting.id) {
         errors.push(`${moduleLabel}: ${prefix}.visibleWhen.settingId cannot reference itself.`);
       } else {
-        validateSettingVisibleWhenValue(setting.visibleWhen.equals, dependency, `${moduleLabel}: ${prefix}`, errors);
+        validateSettingVisibleWhenValue(setting.visibleWhen?.equals, dependency, `${moduleLabel}: ${prefix}`, errors);
       }
     }
   });
@@ -1549,11 +1824,17 @@ function validateSettingsReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {Map<string, ModuleSettingDefinition>} settingsById
+ * @param {string} moduleLabel
+ * @param {string[]} errors
+ */
 function validateSettingVisibilityCycles(settingsById, moduleLabel, errors) {
   const reportedCycles = new Set();
   for (const setting of settingsById.values()) {
     const path = [];
     const pathIndexes = new Map();
+    /** @type {ModuleSettingDefinition|undefined} */
     let current = setting;
     while (current?.visibleWhen?.settingId && settingsById.has(current.visibleWhen.settingId)) {
       if (pathIndexes.has(current.id)) {
@@ -1572,6 +1853,12 @@ function validateSettingVisibilityCycles(settingsById, moduleLabel, errors) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {ModuleSettingDefinition} dependency
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateSettingVisibleWhenValue(value, dependency, prefix, errors) {
   const expectedType = dependency.type;
   const valid = ["boolean", "toggle"].includes(expectedType)
@@ -1586,6 +1873,11 @@ function validateSettingVisibleWhenValue(value, dependency, prefix, errors) {
   }
 }
 
+/**
+ * @param {unknown} permissions
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validatePermissions(permissions, moduleId, errors) {
   optionalArrayOfObjects(permissions, "permissions", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `permissions[${index}]` });
@@ -1598,6 +1890,10 @@ function validatePermissions(permissions, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} defaultRolePermissions
+ * @param {string[]} errors
+ */
 function validateDefaultRolePermissions(defaultRolePermissions, errors) {
   optionalArrayOfObjects(defaultRolePermissions, "defaultRolePermissions", errors, (item, index) => {
     requireString(item, "roleId", errors, { prefix: `defaultRolePermissions[${index}]` });
@@ -1605,6 +1901,11 @@ function validateDefaultRolePermissions(defaultRolePermissions, errors) {
   });
 }
 
+/**
+ * @param {unknown} resourceDefinitions
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateResourceDefinitions(resourceDefinitions, moduleId, errors) {
   optionalArrayOfObjects(resourceDefinitions, "resourceDefinitions", errors, (item, index) => {
     requireString(item, "key", errors, { prefix: `resourceDefinitions[${index}]` });
@@ -1616,7 +1917,14 @@ function validateResourceDefinitions(resourceDefinitions, moduleId, errors) {
   });
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allPermissionIds: Set<string>; }} context
+ */
 function validateResourceDefinitionReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
 
@@ -1631,6 +1939,11 @@ function validateResourceDefinitionReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {unknown} apiScopes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateApiScopes(apiScopes, moduleId, errors) {
   if (apiScopes === undefined) {
     return;
@@ -1665,6 +1978,10 @@ function validateApiScopes(apiScopes, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} publicApiEndpoints
+ * @param {string[]} errors
+ */
 function validatePublicApiEndpoints(publicApiEndpoints, errors) {
   optionalArrayOfObjects(publicApiEndpoints, "publicApiEndpoints", errors, (item, index) => {
     requireString(item, "method", errors, { prefix: `publicApiEndpoints[${index}]` });
@@ -1677,6 +1994,11 @@ function validatePublicApiEndpoints(publicApiEndpoints, errors) {
   });
 }
 
+/**
+ * @param {ManifestObject} item
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function requirePublicDemoCapabilityDeclaration(item, prefix, errors) {
   if (typeof item.publicDemoCapability !== "string" || !item.publicDemoCapability.trim()) {
     if (config.demo.enabled) {
@@ -1691,6 +2013,11 @@ function requirePublicDemoCapabilityDeclaration(item, prefix, errors) {
   }
 }
 
+/**
+ * @param {unknown} eventTypes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateEventTypes(eventTypes, moduleId, errors) {
   optionalArrayOfObjects(eventTypes, "eventTypes", errors, (item, index) => {
     requireString(item, "event", errors, { prefix: `eventTypes[${index}]` });
@@ -1702,6 +2029,11 @@ function validateEventTypes(eventTypes, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} auditRecordTypes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateAuditRecordTypes(auditRecordTypes, moduleId, errors) {
   optionalArrayOfObjects(auditRecordTypes, "auditRecordTypes", errors, (item, index) => {
     requireString(item, "recordType", errors, { prefix: `auditRecordTypes[${index}]` });
@@ -1712,6 +2044,11 @@ function validateAuditRecordTypes(auditRecordTypes, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} eventSummaries
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateEventSummaries(eventSummaries, moduleId, errors) {
   optionalArrayOfObjects(eventSummaries, "eventSummaries", errors, (item, index) => {
     requireString(item, "event", errors, { prefix: `eventSummaries[${index}]` });
@@ -1721,13 +2058,24 @@ function validateEventSummaries(eventSummaries, moduleId, errors) {
     validateSummaryObject(item.activity, `eventSummaries[${index}].activity`, errors, ["label", "summary", "url"]);
     validateSummaryObject(item.notification, `eventSummaries[${index}].notification`, errors, ["title", "body", "url", "recipientHints"]);
     validateTerminology(item.terminology, `eventSummaries[${index}].terminology`, errors);
-    validateTerminology(item.activity?.terminology, `eventSummaries[${index}].activity.terminology`, errors);
-    validateTerminology(item.notification?.terminology, `eventSummaries[${index}].notification.terminology`, errors);
+    validateTerminology(isPlainObject(item.activity) ? item.activity.terminology : undefined, `eventSummaries[${index}].activity.terminology`, errors);
+    validateTerminology(isPlainObject(item.notification) ? item.notification.terminology : undefined, `eventSummaries[${index}].notification.terminology`, errors);
   });
 }
 
+/**
+ * @param {unknown} summary
+ * @param {string} prefix
+ * @param {string[]} errors
+ * @param {string[]} fieldNames
+ */
 function validateSummaryObject(summary, prefix, errors, fieldNames) {
   if (summary === undefined) {
+    return;
+  }
+
+  if (!isPlainObject(summary)) {
+    errors.push(`${prefix} must be an object.`);
     return;
   }
 
@@ -1739,6 +2087,10 @@ function validateSummaryObject(summary, prefix, errors, fieldNames) {
   }
 }
 
+/**
+ * @param {unknown} hooks
+ * @param {string[]} errors
+ */
 function validateHooks(hooks, errors) {
   if (hooks === undefined) {
     return;
@@ -1771,6 +2123,11 @@ function validateHooks(hooks, errors) {
   });
 }
 
+/**
+ * @param {unknown} timerSources
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateTimerSources(timerSources, moduleId, errors) {
   optionalArrayOfObjects(timerSources, "timerSources", errors, (item, index) => {
     requireString(item, "sourceType", errors, { prefix: `timerSources[${index}]` });
@@ -1787,6 +2144,11 @@ function validateTimerSources(timerSources, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} workItemSources
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateWorkItemSources(workItemSources, moduleId, errors) {
   optionalArrayOfObjects(workItemSources, "workItemSources", errors, (item, index) => {
     requireString(item, "sourceType", errors, { prefix: `workItemSources[${index}]` });
@@ -1801,6 +2163,11 @@ function validateWorkItemSources(workItemSources, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} taggableTypes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateTaggableTypes(taggableTypes, moduleId, errors) {
   optionalArrayOfObjects(taggableTypes, "taggableTypes", errors, (item, index) => {
     requireString(item, "targetType", errors, { prefix: `taggableTypes[${index}]` });
@@ -1820,6 +2187,11 @@ function validateTaggableTypes(taggableTypes, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} linkedContextProviders
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateLinkedContextProviders(linkedContextProviders, moduleId, errors) {
   optionalArrayOfObjects(linkedContextProviders, "linkedContextProviders", errors, (item, index) => {
     const prefix = `linkedContextProviders[${index}]`;
@@ -1852,7 +2224,14 @@ function validateLinkedContextProviders(linkedContextProviders, moduleId, errors
   });
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allPermissionIds: Set<string>; }} context
+ */
 function validateLinkedContextProviderReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const descriptors = Array.isArray(moduleDefinition?.linkedContextProviders) ? moduleDefinition.linkedContextProviders : [];
 
@@ -1860,22 +2239,27 @@ function validateLinkedContextProviderReferences(moduleDefinition, context) {
     const prefix = `linkedContextProviders[${index}]`;
     const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
 
-    if (descriptor?.moduleId && !context.allModuleIds.has(descriptor.moduleId)) {
+    if (!isPlainObject(descriptor)) {
+      return;
+    }
+
+    if (typeof descriptor.moduleId === "string" && !context.allModuleIds.has(descriptor.moduleId)) {
       errors.push(`${moduleLabel}: ${prefix}.moduleId references unknown module '${descriptor.moduleId}'.`);
     }
-    for (const moduleId of descriptor?.requiredModules || []) {
+    for (const moduleId of (Array.isArray(descriptor.requiredModules) ? descriptor.requiredModules : [])) {
+      if (typeof moduleId !== "string") continue;
       if (!context.allModuleIds.has(moduleId)) {
         errors.push(`${moduleLabel}: ${prefix}.requiredModules references unknown module '${moduleId}'.`);
       }
     }
     for (const fieldName of ["requiredReadPermission"]) {
       const permissionId = descriptor?.[fieldName];
-      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+      if (typeof permissionId === "string" && !context.allPermissionIds.has(permissionId)) {
         errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown permission '${permissionId}'.`);
       }
     }
-    for (const permissionId of descriptor?.requiredPermissions || []) {
-      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+    for (const permissionId of (Array.isArray(descriptor.requiredPermissions) ? descriptor.requiredPermissions : [])) {
+      if (typeof permissionId === "string" && !context.allPermissionIds.has(permissionId)) {
         errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
       }
     }
@@ -1884,6 +2268,11 @@ function validateLinkedContextProviderReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {unknown} tagPropagation
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateTagPropagationDescriptors(tagPropagation, moduleId, errors) {
   optionalArrayOfObjects(tagPropagation, "tagPropagation", errors, (item, index) => {
     const prefix = `tagPropagation[${index}]`;
@@ -1910,7 +2299,14 @@ function validateTagPropagationDescriptors(tagPropagation, moduleId, errors) {
   });
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allResolverIds: Set<string>; allTaggableTypes: Set<string>; }} context
+ */
 function validateTagPropagationReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const descriptors = Array.isArray(moduleDefinition?.tagPropagation) ? moduleDefinition.tagPropagation : [];
 
@@ -1944,6 +2340,11 @@ function validateTagPropagationReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {unknown} searchableTypes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateSearchableTypes(searchableTypes, moduleId, errors) {
   optionalArrayOfObjects(searchableTypes, "searchableTypes", errors, (item, index) => {
     requireString(item, "recordType", errors, { prefix: `searchableTypes[${index}]` });
@@ -1975,6 +2376,11 @@ function validateSearchableTypes(searchableTypes, moduleId, errors) {
   });
 }
 
+/**
+ * @param {unknown} attachableTypes
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateAttachableTypes(attachableTypes, moduleId, errors) {
   optionalArrayOfObjects(attachableTypes, "attachableTypes", errors, (item, index) => {
     const prefix = `attachableTypes[${index}]`;
@@ -2001,30 +2407,38 @@ function validateAttachableTypes(attachableTypes, moduleId, errors) {
     optionalStringArray(item, "workspaceTypes", errors, { prefix });
     validateTerminology(item.terminology, `${prefix}.terminology`, errors);
 
-    for (const category of item.allowedFileCategories || []) {
+    for (const category of (Array.isArray(item.allowedFileCategories) ? item.allowedFileCategories : [])) {
+      if (typeof category !== "string") continue;
       if (!FILE_CATEGORY_VALUES.has(category)) {
         errors.push(`${prefix}.allowedFileCategories contains unsupported category '${category}'.`);
       }
     }
-    for (const visibility of item.allowedVisibilityValues || []) {
+    for (const visibility of (Array.isArray(item.allowedVisibilityValues) ? item.allowedVisibilityValues : [])) {
+      if (typeof visibility !== "string") continue;
       if (!ATTACHMENT_VISIBILITY_VALUES.has(visibility)) {
         errors.push(`${prefix}.allowedVisibilityValues contains unsupported visibility '${visibility}'.`);
       }
     }
-    for (const eventName of item.lifecycleEvents || []) {
+    for (const eventName of (Array.isArray(item.lifecycleEvents) ? item.lifecycleEvents : [])) {
+      if (typeof eventName !== "string") continue;
       if (!FILE_LIFECYCLE_EVENT_VALUES.has(eventName)) {
         errors.push(`${prefix}.lifecycleEvents contains invalid hook name '${eventName}'.`);
       }
     }
-    if (item.maxFilesPerRecord !== undefined && item.maxFilesPerRecord < 1) {
+    if (typeof item.maxFilesPerRecord === "number" && item.maxFilesPerRecord < 1) {
       errors.push(`${prefix}.maxFilesPerRecord must be at least 1.`);
     }
-    if (item.maxFileSizeBytes !== undefined && item.maxFileSizeBytes < 1) {
+    if (typeof item.maxFileSizeBytes === "number" && item.maxFileSizeBytes < 1) {
       errors.push(`${prefix}.maxFileSizeBytes must be at least 1.`);
     }
   });
 }
 
+/**
+ * @param {unknown} consumers
+ * @param {unknown} moduleId
+ * @param {string[]} errors
+ */
 function validateProtectedContentConsumers(consumers, moduleId, errors) {
   optionalArrayOfObjects(consumers, "protectedContentConsumers", errors, (item, index) => {
     const prefix = `protectedContentConsumers[${index}]`;
@@ -2034,7 +2448,7 @@ function validateProtectedContentConsumers(consumers, moduleId, errors) {
     requireString(item, "surface", errors, { prefix });
     requireString(item, "assertion", errors, { prefix });
     requireString(item, "behavior", errors, { prefix });
-    if (item.behavior && !["authorize", "exclude"].includes(item.behavior)) {
+    if (typeof item.behavior === "string" && !["authorize", "exclude"].includes(item.behavior)) {
       errors.push(`${prefix}.behavior must be 'authorize' or 'exclude'.`);
     }
   });
@@ -2049,7 +2463,14 @@ function validateProtectedContentConsumers(consumers, moduleId, errors) {
   }
 }
 
+/**
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{ allModuleIds: Set<string>; allPermissionIds: Set<string>; }} context
+ */
 function validateAttachableTypeReferences(moduleDefinition, context) {
+  /**
+ * @type {string[]}
+ */
   const errors = [];
   const descriptors = Array.isArray(moduleDefinition?.attachableTypes) ? moduleDefinition.attachableTypes : [];
 
@@ -2062,7 +2483,7 @@ function validateAttachableTypeReferences(moduleDefinition, context) {
     }
     for (const fieldName of ["requiredReadPermission", "requiredAttachPermission", "requiredRemovePermission"]) {
       const permissionId = descriptor?.[fieldName];
-      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+      if (typeof permissionId === "string" && !context.allPermissionIds.has(permissionId)) {
         errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown permission '${permissionId}'.`);
       }
     }
@@ -2071,6 +2492,10 @@ function validateAttachableTypeReferences(moduleDefinition, context) {
   return errors;
 }
 
+/**
+ * @param {unknown} help
+ * @param {{ ownerId?: string, ownerType?: string, fieldName?: string, errors?: string[] }} [options]
+ */
 function validateHelpContribution(help, options = {}) {
   const {
     ownerId = "",
@@ -2142,12 +2567,19 @@ function validateHelpContribution(help, options = {}) {
     }
   });
 
-  validateHelpUniqueness(help, fieldName, errors);
-  validateHelpArticleSections(help, fieldName, errors);
+  validateHelpUniqueness(/** @type {import("../../types/help-static-contracts.js").HelpContribution} */ (/** @type {unknown} */ (help)), fieldName, errors);
+  validateHelpArticleSections(/** @type {import("../../types/help-static-contracts.js").HelpContribution} */ (/** @type {unknown} */ (help)), fieldName, errors);
 
   return errors;
 }
 
+/**
+ * @param {ManifestObject} item
+ * @param {string} ownerId
+ * @param {string} ownerType
+ * @param {string[]} errors
+ * @param {string} prefix
+ */
 function validateHelpOwner(item, ownerId, ownerType, errors, prefix) {
   optionalString(item, "ownerType", errors, { prefix });
 
@@ -2166,6 +2598,11 @@ function validateHelpOwner(item, ownerId, ownerType, errors, prefix) {
   }
 }
 
+/**
+ * @param {import("../../types/help-static-contracts.js").HelpContribution} help
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function validateHelpUniqueness(help, fieldName, errors) {
   const sections = Array.isArray(help.sections) ? help.sections : [];
   const articles = Array.isArray(help.articles) ? help.articles : [];
@@ -2192,6 +2629,11 @@ function validateHelpUniqueness(help, fieldName, errors) {
   );
 }
 
+/**
+ * @param {import("../../types/help-static-contracts.js").HelpContribution} help
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function validateHelpArticleSections(help, fieldName, errors) {
   const sections = Array.isArray(help.sections) ? help.sections : [];
   const articles = Array.isArray(help.articles) ? help.articles : [];
@@ -2204,6 +2646,11 @@ function validateHelpArticleSections(help, fieldName, errors) {
   });
 }
 
+/**
+ * @param {string} label
+ * @param {unknown[]} values
+ * @param {string[]} errors
+ */
 function assertUniqueHelpValues(label, values, errors) {
   const seen = new Set();
 
@@ -2215,6 +2662,11 @@ function assertUniqueHelpValues(label, values, errors) {
   }
 }
 
+/**
+ * @param {unknown} terminology
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateTerminology(terminology, prefix, errors) {
   if (terminology === undefined) {
     return;
@@ -2246,6 +2698,12 @@ function validateTerminology(terminology, prefix, errors) {
   }
 }
 
+/**
+ * @param {{}} object
+ * @param {Set<string>} allowedFields
+ * @param {string} prefix
+ * @param {string[]} errors
+ */
 function validateKnownObjectFields(object, allowedFields, prefix, errors) {
   for (const fieldName of Object.keys(object)) {
     if (!allowedFields.has(fieldName)) {
@@ -2254,6 +2712,13 @@ function validateKnownObjectFields(object, allowedFields, prefix, errors) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {unknown} expectedValue
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function validateModuleIdValue(object, fieldName, expectedValue, errors, options = {}) {
   requireString(object, fieldName, errors, options);
   if (object[fieldName] && object[fieldName] !== expectedValue) {
@@ -2261,6 +2726,12 @@ function validateModuleIdValue(object, fieldName, expectedValue, errors, options
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ManifestObjectValidator} validator
+ */
 function optionalArrayOfObjects(value, fieldName, errors, validator) {
   if (value === undefined) {
     return;
@@ -2278,6 +2749,12 @@ function optionalArrayOfObjects(value, fieldName, errors, validator) {
   });
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ManifestObjectValidator} validator
+ */
 function requiredArrayOfObjects(value, fieldName, errors, validator) {
   if (!Array.isArray(value)) {
     errors.push(`${fieldName} is required and must be an array.`);
@@ -2292,6 +2769,12 @@ function requiredArrayOfObjects(value, fieldName, errors, validator) {
   });
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function requireString(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   const name = formatFieldName(fieldName, options.prefix);
@@ -2304,6 +2787,12 @@ function requireString(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalString(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && typeof value !== "string") {
@@ -2315,12 +2804,24 @@ function optionalString(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function requireBoolean(object, fieldName, errors, options = {}) {
   if (typeof object[fieldName] !== "boolean") {
     errors.push(`${formatFieldName(fieldName, options.prefix)} is required and must be a boolean.`);
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalBoolean(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && typeof value !== "boolean") {
@@ -2328,6 +2829,12 @@ function optionalBoolean(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalNumber(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && typeof value !== "number") {
@@ -2335,6 +2842,11 @@ function optionalNumber(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function optionalArray(object, fieldName, errors) {
   const value = object[fieldName];
   if (value !== undefined && value !== null && !Array.isArray(value)) {
@@ -2342,6 +2854,12 @@ function optionalArray(object, fieldName, errors) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalStringArray(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value === undefined) {
@@ -2352,6 +2870,12 @@ function optionalStringArray(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function requireStringArray(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== "string" || item.trim() === "")) {
@@ -2359,6 +2883,12 @@ function requireStringArray(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function requireStringArrayField(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || item.trim() === "")) {
@@ -2366,6 +2896,12 @@ function requireStringArrayField(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalPlainObject(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && !isPlainObject(value)) {
@@ -2373,6 +2909,12 @@ function optionalPlainObject(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {ManifestObject} object
+ * @param {string} fieldName
+ * @param {string[]} errors
+ * @param {ValidationOptions} [options]
+ */
 function optionalUrlOrString(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value === undefined || (options.nullable && value === null)) {
@@ -2383,12 +2925,22 @@ function optionalUrlOrString(object, fieldName, errors, options = {}) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function validateRelativeUrl(value, fieldName, errors) {
   if (typeof value === "string" && /^[a-z][a-z0-9+.-]*:/i.test(value)) {
     errors.push(`${fieldName} must be relative.`);
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} errors
+ */
 function validateSafeRelativePath(value, fieldName, errors) {
   validateRelativeUrl(value, fieldName, errors);
 
@@ -2402,6 +2954,7 @@ function validateSafeRelativePath(value, fieldName, errors) {
   }
 }
 
+/** @param {unknown} value */
 function isSafeLocalBrowserAssetPath(value) {
   const pathName = String(value || "").trim();
 
@@ -2410,10 +2963,18 @@ function isSafeLocalBrowserAssetPath(value) {
     !pathName.split("/").includes("..");
 }
 
+/**
+ * @param {string} fieldName
+ * @param {string|undefined} prefix
+ */
 function formatFieldName(fieldName, prefix) {
   return prefix ? `${prefix}.${fieldName}` : fieldName;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is ManifestObject}
+ */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }

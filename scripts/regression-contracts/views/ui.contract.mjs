@@ -77,7 +77,7 @@ assert.doesNotMatch(
 );
 assert.match(
   readFunctionBody(files.appShell, "addModuleNavItem"),
-  /targetItems\.some\(\(existingItem\) => existingItem\.href === item\.href\)/,
+  /const href = String\(item\?\.href \|\| ""\)[\s\S]*targetItems\.some\(\(existingItem\) => existingItem\.href === href\)/,
   "app shell menu composition must de-duplicate module navigation by href",
 );
 

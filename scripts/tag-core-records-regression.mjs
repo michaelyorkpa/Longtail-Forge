@@ -46,6 +46,7 @@ try {
   assert.deepEqual(client.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(project.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(task.tags.map((item) => item.tag_id), [tag.tag_id]);
+  if (!entry.tags) throw new Error("Time entry should include its effective tag snapshot.");
   assert.deepEqual(entry.tags.map((item) => item.tag_id), [tag.tag_id]);
 
   assert.equal((await clientsService.listClients(session, { tagIds: [tag.tag_id] })).clients.length, 1);

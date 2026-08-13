@@ -38,6 +38,7 @@ try {
 
 async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
+  if (!listsModule) throw new Error("Lists module should be registered.");
 
   assert.equal(listsModule.id, "lists");
   assert.equal(listsModule.version, appVersion, true);

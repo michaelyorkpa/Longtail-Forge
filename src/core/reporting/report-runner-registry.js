@@ -32,6 +32,7 @@ function registerReportRunner(runnerId, runner, options = {}) {
   };
 }
 
+/** @param {string} runnerId */
 function getReportRunner(runnerId) {
   return runnersById.get(normalizeReportRunnerId(runnerId)) || null;
 }
@@ -44,6 +45,9 @@ function clearReportRunnersForTests() {
   runnersById.clear();
 }
 
+/**
+ * @param {string} runnerId
+ */
 function normalizeReportRunnerId(runnerId) {
   const normalizedRunnerId = String(runnerId || "").trim();
 

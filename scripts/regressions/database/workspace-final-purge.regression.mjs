@@ -207,6 +207,7 @@ VALUES ('purge-target-only-membership', :userId, :workspaceId, 'active', :now, :
 
 async function seedFileObject(workspaceId, uploadedByUserId, content) {
   const adapter = filesService.getFileStorageAdapter("local");
+  if (typeof adapter.resolveStoragePath !== "function") throw new Error("Local storage adapter should resolve protected paths.");
   const stored = await adapter.save(Buffer.from(content), { workspaceId });
   const fileId = `purge-file-${createHash("sha256").update(workspaceId).digest("hex").slice(0, 12)}`;
   await db.run(`

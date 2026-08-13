@@ -16,17 +16,43 @@ import { AppError } from "../utils/app-error.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
+/** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {import("../types/framework-contracts.js").JobExecutionRecord} JobExecutionRecord */
+/** @typedef {import("../types/framework-contracts.js").JobHandlerContext} JobHandlerContext */
+/** @typedef {import("../types/framework-contracts.js").NotificationEventContribution} NotificationEventContribution */
+/** @typedef {import("../types/framework-contracts.js").NotificationEventPayload} NotificationEventPayload */
+/** @typedef {import("../types/framework-contracts.js").NotificationTemplateContribution} NotificationTemplateContribution */
+/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../repositories/notifications.repo.js").NotificationCreateInput} NotificationCreateInput */
+/** @typedef {import("../repositories/notifications.repo.js").NotificationDisplayPreferenceRow} NotificationDisplayPreferenceRow */
+/** @typedef {import("../repositories/notifications.repo.js").NotificationRow} NotificationRow */
+/** @typedef {import("../repositories/notifications.repo.js").NotificationUserPreferenceRow} NotificationUserPreferenceRow */
+/** @typedef {import("../repositories/notifications.repo.js").NotificationWorkspaceDefaultRow} NotificationWorkspaceDefaultRow */
+/** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof notificationsRepository.create>>>} NotificationValue */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof notificationsRepository.readUserDisplayPreferences>>>} NotificationDisplayPreferenceValue */
+/** @typedef {{role?: string, user_id?: string, username?: string, workspace_id?: string|null}} NotificationSessionContext */
+/** @typedef {{actor_user_id?: string, emitted_at?: string, metadata?: LooseRecord, module_id?: string, name: string, new_value?: unknown, previous_value?: unknown, record_id?: string, record_type?: string, session?: NotificationSessionContext|import("../types/http-contracts.js").RequestSession|null, source?: string, workspace_id?: string}} NotificationEventRecord */
+/** @typedef {NotificationEventRecord & {actor_user_id: string, emitted_at: string, metadata: LooseRecord, module_id: string, new_value: LooseRecord, previous_value: LooseRecord, record_id: string, record_type: string, session: NotificationSessionContext|null, source: string, workspace_id: string}} NormalizedNotificationEvent */
+/** @typedef {{job?: JobExecutionRecord|LooseRecord, maxAttempts?: number, max_attempts?: number, priority?: number}} NotificationEventOptions */
+/** @typedef {NotificationCreateInput & {metadata: LooseRecord}} NormalizedNotificationCreateInput */
+/** @typedef {LooseRecord & {canOpen: boolean, context?: LooseRecord, label?: string, moduleId: string, recordId: string, recordType: string, targetExists: boolean, url: string}} NotificationTargetMetadata */
+
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
 const NOTIFICATION_DEFAULT_PAGE_SIZE = 25;
 const NOTIFICATION_MAX_PAGE_SIZE = 100;
 const NOTIFICATION_EVENT_JOB_TYPE = "notification.event";
 const NOTIFICATION_EVENT_JOB_PRIORITY = 20;
 const NOTIFICATION_EVENT_JOB_OPERATION = "process_event";
+/**
+ * @type {(() => void)[]}
+ */
 let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
 let notificationJobHandlersRegistered = false;
 
-/** @param {Record<string, any> | null} [session] */
+/** @param {LooseRecord} payload @param {NotificationSessionContext|null} [session] */
 async function create(payload, session = null) {
   const normalized = await normalizeCreatePayload(payload, session);
   await assertNotificationCreateAllowed(normalized);
@@ -48,6 +74,7 @@ async function create(payload, session = null) {
   };
 }
 
+/** @param {LooseRecord[]} payloads @param {NotificationSessionContext|null} [session] */
 async function createMany(payloads, session = null) {
   const notifications = [];
 
@@ -59,8 +86,12 @@ async function createMany(payloads, session = null) {
   return { notifications };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ * @param {LooseRecord} [query]
+ */
 async function list(session, query = {}) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
   const pagination = normalizeBoundedPagination(query, {
     defaultLimit: NOTIFICATION_DEFAULT_PAGE_SIZE,
@@ -73,14 +104,14 @@ async function list(session, query = {}) {
     offset: pagination.offset,
   };
   const [notifications, total, filterOptions] = await Promise.all([
-    notificationsRepository.listForRecipient(session.workspace_id, session.user_id, repositoryQuery),
-    notificationsRepository.countForRecipient(session.workspace_id, session.user_id, repositoryQuery),
-    notificationsRepository.readFilterOptionsForRecipient(session.workspace_id, session.user_id, filters),
+    notificationsRepository.listForRecipient(activeSession.workspace_id, activeSession.user_id, repositoryQuery),
+    notificationsRepository.countForRecipient(activeSession.workspace_id, activeSession.user_id, repositoryQuery),
+    notificationsRepository.readFilterOptionsForRecipient(activeSession.workspace_id, activeSession.user_id, filters),
   ]);
 
   return {
     filterOptions,
-    notifications: await Promise.all(notifications.map((notification) => decorateForSession(notification, session))),
+    notifications: await Promise.all(notifications.map((notification) => decorateForSession(notification, activeSession))),
     pagination: boundedPaginationEnvelope({
       ...pagination,
       hasMore: pagination.offset + notifications.length < total,
@@ -90,21 +121,27 @@ async function list(session, query = {}) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
 async function unreadCount(session) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  return notificationsRepository.readBellSummaryForRecipient(session.workspace_id, session.user_id);
+  return notificationsRepository.readBellSummaryForRecipient(activeSession.workspace_id, activeSession.user_id);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
 async function preferences(session) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
 
   const [userRows, displayPreferences, defaultRows, canManageWorkspaceDefaults, configurableEvents] = await Promise.all([
-    notificationsRepository.readUserPreferences(session.workspace_id, session.user_id),
-    notificationsRepository.readUserDisplayPreferences(session.workspace_id, session.user_id),
-    notificationsRepository.readWorkspaceDefaults(session.workspace_id),
-    permissionsService.canInAnyScope(session, "notifications.manage_workspace_defaults"),
-    listConfigurableNotificationEvents(session.workspace_id),
+    notificationsRepository.readUserPreferences(activeSession.workspace_id, activeSession.user_id),
+    notificationsRepository.readUserDisplayPreferences(activeSession.workspace_id, activeSession.user_id),
+    notificationsRepository.readWorkspaceDefaults(activeSession.workspace_id),
+    permissionsService.canInAnyScope(activeSession, "notifications.manage_workspace_defaults"),
+    listConfigurableNotificationEvents(activeSession.workspace_id),
   ]);
   const userPreferenceByEvent = new Map(userRows.map((row) => [row.event_type, row]));
   const workspaceDefaultByEvent = new Map(defaultRows.map((row) => [row.event_type, row]));
@@ -133,16 +170,20 @@ async function preferences(session) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {PermissionSession|null|undefined} session @param {LooseRecord} [payload] */
 async function savePreferences(session, payload = {}) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
 
-  const allowedEventIds = new Set((await listConfigurableNotificationEvents(session.workspace_id)).map((event) => event.id));
+  const allowedEventIds = new Set((await listConfigurableNotificationEvents(activeSession.workspace_id)).map((event) => event.id));
   const preferenceRows = normalizePreferenceList(payload.preferences || payload.events, allowedEventIds);
-  const previousRows = await notificationsRepository.readUserPreferences(session.workspace_id, session.user_id);
+  const previousRows = await notificationsRepository.readUserPreferences(activeSession.workspace_id, activeSession.user_id);
   const displayPreferences = normalizeDisplayPreferences(payload.groupingPreferences || payload.displayPreferences);
-  await notificationsRepository.saveUserPreferences(session.workspace_id, session.user_id, preferenceRows);
+  await notificationsRepository.saveUserPreferences(activeSession.workspace_id, activeSession.user_id, preferenceRows);
   if (displayPreferences) {
-    await notificationsRepository.saveUserDisplayPreferences(session.workspace_id, session.user_id, displayPreferences);
+    await notificationsRepository.saveUserDisplayPreferences(activeSession.workspace_id, activeSession.user_id, displayPreferences);
   }
   await auditService.record({
     action: "notification_preferences_updated",
@@ -153,21 +194,25 @@ async function savePreferences(session, payload = {}) {
     },
     newValue: preferenceRows,
     previousValue: previousRows.map(notificationPreferenceAuditValue),
-    recordId: session.user_id,
+    recordId: activeSession.user_id,
     recordLabel: "Notification preferences",
     recordType: "user",
-    session,
+    session: activeSession,
   });
-  return preferences(session);
+  return preferences(activeSession);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {PermissionSession|null|undefined} session @param {LooseRecord} [payload] */
 async function saveWorkspaceDefaults(session, payload = {}) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.manage_workspace_defaults");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.manage_workspace_defaults");
 
-  const allowedEventIds = new Set((await listConfigurableNotificationEvents(session.workspace_id)).map((event) => event.id));
+  const allowedEventIds = new Set((await listConfigurableNotificationEvents(activeSession.workspace_id)).map((event) => event.id));
   const defaults = normalizeWorkspaceDefaultList(payload.defaults || payload.events, allowedEventIds);
-  const previousRows = await notificationsRepository.readWorkspaceDefaults(session.workspace_id);
-  await notificationsRepository.saveWorkspaceDefaults(session.workspace_id, defaults);
+  const previousRows = await notificationsRepository.readWorkspaceDefaults(activeSession.workspace_id);
+  await notificationsRepository.saveWorkspaceDefaults(activeSession.workspace_id, defaults);
   await auditService.record({
     action: "notification_workspace_defaults_updated",
     changeType: "settings_change",
@@ -179,11 +224,15 @@ async function saveWorkspaceDefaults(session, payload = {}) {
     recordId: "notification_workspace_defaults",
     recordLabel: "Notification workspace defaults",
     recordType: "workspace_setting",
-    session,
+    session: activeSession,
   });
-  return preferences(session);
+  return preferences(activeSession);
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {LooseRecord} [query]
+ */
 async function subscriptionStatus(session, query = {}) {
   const target = normalizeSubscriptionTarget(query);
   await assertCanFollowTarget(session, target);
@@ -196,6 +245,10 @@ async function subscriptionStatus(session, query = {}) {
   };
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function followTarget(session, payload = {}) {
   const target = normalizeSubscriptionTarget(payload);
   await assertCanFollowTarget(session, target);
@@ -221,6 +274,10 @@ async function followTarget(session, payload = {}) {
   };
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function unfollowTarget(session, payload = {}) {
   const target = normalizeSubscriptionTarget(payload);
   await assertCanFollowTarget(session, target);
@@ -246,6 +303,10 @@ async function unfollowTarget(session, payload = {}) {
   };
 }
 
+/**
+ * @param {string} notificationId
+ * @param {WorkspaceRequestSession} session
+ */
 async function markRead(notificationId, session) {
   await assertCanMutateOwnNotification(notificationId, session);
   const notification = await notificationsRepository.markRead(session.workspace_id, session.user_id, notificationId);
@@ -253,13 +314,20 @@ async function markRead(notificationId, session) {
   return { notification: await decorateForSession(notification, session) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
 async function markAllRead(session) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  await notificationsRepository.markAllRead(session.workspace_id, session.user_id);
-  return unreadCount(session);
+  await notificationsRepository.markAllRead(activeSession.workspace_id, activeSession.user_id);
+  return unreadCount(activeSession);
 }
 
+/**
+ * @param {string} notificationId
+ * @param {WorkspaceRequestSession} session
+ */
 async function dismiss(notificationId, session) {
   await assertCanMutateOwnNotification(notificationId, session);
   const notification = await notificationsRepository.dismiss(session.workspace_id, session.user_id, notificationId);
@@ -267,26 +335,40 @@ async function dismiss(notificationId, session) {
   return { notification: await decorateForSession(notification, session) };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
 async function dismissAll(session) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  await notificationsRepository.dismissAll(session.workspace_id, session.user_id);
-  return unreadCount(session);
+  await notificationsRepository.dismissAll(activeSession.workspace_id, activeSession.user_id);
+  return unreadCount(activeSession);
 }
 
+/**
+ * @param {string} cutoffIso
+ */
 async function archiveOldNotifications(cutoffIso) {
   await notificationsRepository.archiveOlderThan(cutoffIso);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @param {string} recordType
+ * @param {unknown[] | undefined} recordIds
+ */
 async function removeTargetArtifacts(workspaceId, moduleId, recordType, recordIds) {
   return notificationsRepository.removeForTargets(workspaceId, moduleId, recordType, recordIds);
 }
 
+/** @param {NotificationValue|LooseRecord} notification @param {NotificationSessionContext} session @returns {Promise<NotificationTargetMetadata>} */
 async function readTargetMetadata(notification, session) {
-  const moduleId = notification.module_id || "";
-  const recordType = notification.record_type || "";
-  const recordId = notification.record_id || "";
+  const moduleId = normalizeJobText(notification.module_id);
+  const recordType = normalizeJobText(notification.record_type);
+  const recordId = normalizeJobText(notification.record_id);
   const moduleDefinition = moduleId && moduleId !== FRAMEWORK_NOTIFICATION_MODULE_ID ? modulesService.getModule(moduleId) : null;
+  /** @type {NotificationTargetMetadata} */
   const metadata = {
     canOpen: false,
     moduleId,
@@ -305,7 +387,7 @@ async function readTargetMetadata(notification, session) {
       ...metadata,
       canOpen: Boolean(notification.url),
       targetExists: true,
-      url: notification.url || "",
+      url: normalizeJobText(notification.url),
     };
   }
 
@@ -325,7 +407,7 @@ async function readTargetMetadata(notification, session) {
     ...metadata,
     canOpen: Boolean(notification.url),
     targetExists: true,
-    url: notification.url || "",
+    url: normalizeJobText(notification.url),
   };
 }
 
@@ -338,7 +420,7 @@ function registerEventHandlers() {
 
   notificationEventHandlersRegistered = true;
   notificationEventUnsubscribers = modulesService.listNotificationEvents().map((declaration) => (
-    modulesService.onInternalEvent(declaration.id, async (event) => {
+    modulesService.onInternalEvent(declaration.id, async (/** @type {import("../types/framework-contracts.js").InternalEvent} */ event) => {
       await queueNotificationEvent(event, declaration);
     }, {
       id: `notifications:${declaration.id}`,
@@ -347,6 +429,7 @@ function registerEventHandlers() {
   ));
 }
 
+/** @param {{replace?: boolean}} [options] */
 function registerNotificationJobHandlers(options = {}) {
   if (notificationJobHandlersRegistered && !options.replace && getJobHandler(NOTIFICATION_EVENT_JOB_TYPE)) {
     return;
@@ -359,6 +442,11 @@ function registerNotificationJobHandlers(options = {}) {
   notificationJobHandlersRegistered = true;
 }
 
+/**
+ * @param {unknown} event
+ * @param {NotificationEventContribution|null} [declaration]
+ * @param {NotificationEventOptions} [options]
+ */
 async function queueNotificationEvent(event, declaration = null, options = {}) {
   const normalizedEvent = normalizeNotificationEventForJob(event);
   const notificationDeclaration = declaration || modulesService.listNotificationEvents()
@@ -402,8 +490,8 @@ async function queueNotificationEvent(event, declaration = null, options = {}) {
   };
 }
 
-/** @param {{ payload?: Record<string, any>, job?: Record<string, any> }} jobContext */
-async function handleNotificationEventJob({ payload = {}, job = {} }) {
+/** @param {JobHandlerContext} jobContext */
+async function handleNotificationEventJob({ payload, job }) {
   const operation = String(payload.operation || NOTIFICATION_EVENT_JOB_OPERATION).trim();
 
   if (operation !== NOTIFICATION_EVENT_JOB_OPERATION) {
@@ -435,6 +523,11 @@ function resetEventHandlersForTests() {
   notificationEventHandlersRegistered = false;
 }
 
+/**
+ * @param {NotificationEventRecord} event
+ * @param {NotificationEventContribution|null} [declaration]
+ * @param {NotificationEventOptions} [options]
+ */
 async function createFromEvent(event, declaration = null, options = {}) {
   const notificationDeclaration = declaration || modulesService.listNotificationEvents()
     .find((candidate) => candidate.id === event.name);
@@ -454,7 +547,7 @@ async function createFromEvent(event, declaration = null, options = {}) {
     return { notifications: [] };
   }
 
-  const summary = summarizeNotificationEvent(event, { moduleId: notificationDeclaration.moduleId });
+  const summary = summarizeNotificationEvent(/** @type {import("../types/framework-contracts.js").EventSummaryInput} */ (event), { moduleId: notificationDeclaration.moduleId });
   const template = modulesService.listNotificationTemplates().find((candidate) => candidate.event === event.name);
   const workspaceDefault = await readWorkspaceDefault(workspaceId, notificationDeclaration.id);
   if (!workspaceDefault.enabled) {
@@ -495,8 +588,9 @@ async function createFromEvent(event, declaration = null, options = {}) {
   return createMany(payloads, event.session || null);
 }
 
+/** @param {string} workspaceId @param {string[]} recipientIds @param {string} eventType */
 async function filterEnabledRecipients(workspaceId, recipientIds, eventType) {
-  const userPreferences = await Promise.all(recipientIds.map(async (userId) => {
+  const userPreferences = await Promise.all(recipientIds.map(async (/** @type {string} */ userId) => {
     const rows = await notificationsRepository.readUserPreferences(workspaceId, userId);
     const preference = rows.find((row) => row.event_type === eventType);
     return {
@@ -508,6 +602,10 @@ async function filterEnabledRecipients(workspaceId, recipientIds, eventType) {
   return userPreferences.filter((preference) => preference.enabled).map((preference) => preference.userId);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} eventType
+ */
 async function readWorkspaceDefault(workspaceId, eventType) {
   const event = modulesService.listNotificationEvents().find((candidate) => candidate.id === eventType);
   const rows = await notificationsRepository.readWorkspaceDefaults(workspaceId);
@@ -519,6 +617,7 @@ async function readWorkspaceDefault(workspaceId, eventType) {
   };
 }
 
+/** @param {NotificationEventRecord} event @param {NotificationEventContribution} declaration */
 async function readSubscribedRecipientIds(event, declaration) {
   const workspaceId = event.workspace_id || "";
   const moduleId = declaration.moduleId || event.module_id || "";
@@ -540,7 +639,7 @@ async function readSubscribedRecipientIds(event, declaration) {
       module_id: moduleId,
       target_id: targetId,
       target_type: targetType,
-      url: summarizeNotificationEvent(event, { moduleId: declaration.moduleId }).url,
+      url: summarizeNotificationEvent(/** @type {import("../types/framework-contracts.js").EventSummaryInput} */ (event), { moduleId: declaration.moduleId }).url,
       user_id: subscription.user_id,
       workspace_id: workspaceId,
     }) ? subscription : null;
@@ -549,11 +648,13 @@ async function readSubscribedRecipientIds(event, declaration) {
   return allowedSubscriptions.flatMap((subscription) => (subscription ? [subscription.user_id] : []));
 }
 
+/** @param {NotificationEventRecord} event @param {NotificationEventContribution} declaration */
 async function resolveRecipients(event, declaration) {
+  /** @type {Set<string>} */
   const recipientIds = new Set();
   const hints = new Set([
     declaration.recipientMode || "",
-    ...summarizeNotificationEvent(event, { moduleId: declaration.moduleId }).recipientHints,
+    ...summarizeNotificationEvent(/** @type {import("../types/framework-contracts.js").EventSummaryInput} */ (event), { moduleId: declaration.moduleId }).recipientHints,
   ].filter(Boolean));
 
   for (const userId of readExplicitRecipientIds(event)) {
@@ -571,7 +672,7 @@ async function resolveRecipients(event, declaration) {
   }
 
   if (hints.has("workspace_admins")) {
-    for (const userId of await notificationsRepository.readWorkspaceAdminUserIds(event.workspace_id)) {
+    for (const userId of await notificationsRepository.readWorkspaceAdminUserIds(event.workspace_id || "")) {
       recipientIds.add(userId);
     }
   }
@@ -579,6 +680,7 @@ async function resolveRecipients(event, declaration) {
   return [...recipientIds].filter(Boolean);
 }
 
+/** @param {string[]} recipientIds @param {NotificationEventRecord} event */
 function suppressActorRecipients(recipientIds, event) {
   const actorUserId = String(event.actor_user_id || "").trim();
 
@@ -589,6 +691,9 @@ function suppressActorRecipients(recipientIds, event) {
   return recipientIds.filter((userId) => String(userId || "").trim() !== actorUserId);
 }
 
+/**
+ * @param {NotificationEventRecord} event
+ */
 function isNotificationSuppressed(event) {
   const metadata = normalizeMetadata(event?.metadata);
   return metadata.suppress_notifications === true ||
@@ -596,46 +701,50 @@ function isNotificationSuppressed(event) {
     Boolean(String(metadata.notification_suppression_reason || "").trim());
 }
 
+/** @param {unknown} [event] @returns {NormalizedNotificationEvent} */
 function normalizeNotificationEventForJob(event = {}) {
-  const metadata = normalizeMetadata(event.metadata);
+  const sourceEvent = objectValue(event);
+  const metadata = normalizeMetadata(sourceEvent.metadata);
   return {
-    actor_user_id: normalizeJobText(event.actor_user_id || event.actorUserId),
-    emitted_at: normalizeJobText(event.emitted_at || event.emittedAt) || new Date().toISOString(),
+    actor_user_id: normalizeJobText(sourceEvent.actor_user_id || sourceEvent.actorUserId),
+    emitted_at: normalizeJobText(sourceEvent.emitted_at || sourceEvent.emittedAt) || new Date().toISOString(),
     metadata,
-    module_id: normalizeJobText(event.module_id || event.moduleId),
-    name: normalizeJobText(event.name || event.event_type || event.eventType),
-    new_value: normalizeJobPlainValue(event.new_value || event.newValue),
-    previous_value: normalizeJobPlainValue(event.previous_value || event.previousValue),
-    record_id: normalizeJobText(event.record_id || event.recordId),
-    record_type: normalizeJobText(event.record_type || event.recordType),
-    session: normalizeJobSession(event.session),
-    source: normalizeJobText(event.source || metadata.source) || "internal-event",
-    workspace_id: normalizeJobText(event.workspace_id || event.workspaceId),
+    module_id: normalizeJobText(sourceEvent.module_id || sourceEvent.moduleId),
+    name: normalizeJobText(sourceEvent.name || sourceEvent.event_type || sourceEvent.eventType),
+    new_value: normalizeJobPlainValue(sourceEvent.new_value || sourceEvent.newValue),
+    previous_value: normalizeJobPlainValue(sourceEvent.previous_value || sourceEvent.previousValue),
+    record_id: normalizeJobText(sourceEvent.record_id || sourceEvent.recordId),
+    record_type: normalizeJobText(sourceEvent.record_type || sourceEvent.recordType),
+    session: normalizeJobSession(sourceEvent.session),
+    source: normalizeJobText(sourceEvent.source || metadata.source) || "internal-event",
+    workspace_id: normalizeJobText(sourceEvent.workspace_id || sourceEvent.workspaceId),
   };
 }
 
+/** @param {unknown} value @returns {LooseRecord} */
 function normalizeJobPlainValue(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
 
-  return value;
+  return /** @type {LooseRecord} */ (value);
 }
 
-/** @param {Record<string, any> | null} [session] */
+/** @param {unknown} [session] @returns {NotificationSessionContext|null} */
 function normalizeJobSession(session = null) {
   if (!session || typeof session !== "object" || Array.isArray(session)) {
     return null;
   }
 
   return {
-    role: normalizeJobText(session.role),
-    user_id: normalizeJobText(session.user_id || session.userId),
-    username: normalizeJobText(session.username),
-    workspace_id: normalizeJobText(session.workspace_id || session.workspaceId),
+    role: normalizeJobText(/** @type {LooseRecord} */ (session).role),
+    user_id: normalizeJobText(/** @type {LooseRecord} */ (session).user_id || /** @type {LooseRecord} */ (session).userId),
+    username: normalizeJobText(/** @type {LooseRecord} */ (session).username),
+    workspace_id: normalizeJobText(/** @type {LooseRecord} */ (session).workspace_id || /** @type {LooseRecord} */ (session).workspaceId),
   };
 }
 
+/** @param {NormalizedNotificationEvent} event @param {string} reason */
 function shapeNotificationQueueSkip(event, reason) {
   return {
     ok: true,
@@ -651,10 +760,12 @@ function shapeNotificationQueueSkip(event, reason) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeJobText(value) {
   return String(value || "").trim();
 }
 
+/** @param {NotificationEventRecord} event @param {NotificationEventContribution} declaration */
 function shouldPreserveActorRecipient(event, declaration) {
   const eventType = declaration?.id || event.name || "";
   const actorUserId = String(event.actor_user_id || "").trim();
@@ -666,33 +777,38 @@ function shouldPreserveActorRecipient(event, declaration) {
   return readAssigneeIds(event).includes(actorUserId) && taskEventHasDueContext(event);
 }
 
+/**
+ * @param {NotificationEventRecord} event
+ */
 function taskEventHasDueContext(event) {
   return hasTaskDueContext(event.new_value) ||
     hasTaskDueContext(event.previous_value) ||
     hasTaskDueContext(event.metadata);
 }
 
+/** @param {unknown} [source] */
 function hasTaskDueContext(source = {}) {
+  const value = objectValue(source);
   return Boolean(
-    source?.due_date ||
-    source?.dueDate ||
-    source?.due_time ||
-    source?.dueTime ||
-    source?.due_at_utc ||
-    source?.dueAtUtc ||
-    source?.due_kind ||
-    source?.dueKind,
+    value.due_date ||
+    value.dueDate ||
+    value.due_time ||
+    value.dueTime ||
+    value.due_at_utc ||
+    value.dueAtUtc ||
+    value.due_kind ||
+    value.dueKind,
   );
 }
 
-/** @param {Record<string, any> | null} [session] */
+/** @param {LooseRecord} [payload] @param {NotificationSessionContext|null} [session] @returns {Promise<NormalizedNotificationCreateInput>} */
 async function normalizeCreatePayload(payload = {}, session = null) {
-  const workspaceId = payload.workspace_id || payload.workspaceId || session?.workspace_id || "";
-  const moduleId = payload.module_id || payload.moduleId || "";
-  const eventType = payload.event_type || payload.eventType || "";
-  const recipientUserId = payload.recipient_user_id || payload.recipientUserId || "";
-  const recordType = payload.record_type || payload.recordType || "";
-  const recordId = payload.record_id || payload.recordId || "";
+  const workspaceId = normalizeJobText(payload.workspace_id || payload.workspaceId || session?.workspace_id);
+  const moduleId = normalizeJobText(payload.module_id || payload.moduleId);
+  const eventType = normalizeJobText(payload.event_type || payload.eventType);
+  const recipientUserId = normalizeJobText(payload.recipient_user_id || payload.recipientUserId);
+  const recordType = normalizeJobText(payload.record_type || payload.recordType);
+  const recordId = normalizeJobText(payload.record_id || payload.recordId);
 
   if (!workspaceId || !eventType || !recipientUserId || !payload.title) {
     throw new AppError("Notification workspace, event type, recipient, and title are required.", 400);
@@ -704,7 +820,7 @@ async function normalizeCreatePayload(payload = {}, session = null) {
     module_id: moduleId,
     event_type: eventType,
     recipient_user_id: recipientUserId,
-    actor_user_id: payload.actor_user_id || payload.actorUserId || session?.user_id || "",
+    actor_user_id: normalizeJobText(payload.actor_user_id || payload.actorUserId || session?.user_id),
     record_type: recordType,
     record_id: recordId,
     title: String(payload.title || "").trim(),
@@ -716,6 +832,7 @@ async function normalizeCreatePayload(payload = {}, session = null) {
   };
 }
 
+/** @param {NormalizedNotificationCreateInput} notification */
 async function assertNotificationCreateAllowed(notification) {
   if (notification.module_id) {
     const moduleDefinition = modulesService.getModule(notification.module_id);
@@ -728,20 +845,26 @@ async function assertNotificationCreateAllowed(notification) {
     }
   }
 
-  if (notification.record_type && !moduleDeclaresRecordType(notification.module_id, notification.record_type)) {
+  if (notification.record_type && !moduleDeclaresRecordType(notification.module_id || "", notification.record_type)) {
     throw new AppError("Notification target record type is not registered.", 400);
   }
 }
 
+/**
+ * @param {string} notificationId
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
 async function assertCanMutateOwnNotification(notificationId, session) {
-  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+  const activeSession = await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  const notification = await notificationsRepository.readByIdForRecipient(session.workspace_id, session.user_id, notificationId);
+  const notification = await notificationsRepository.readByIdForRecipient(activeSession.workspace_id, activeSession.user_id, notificationId);
   if (!notification) {
     throw new AppError("Notification not found.", 404);
   }
+  return activeSession;
 }
 
+/** @param {NotificationValue|null} notification @param {NotificationSessionContext} session */
 async function decorateForSession(notification, session) {
   if (!notification) {
     throw new AppError("Notification not found.", 404);
@@ -763,11 +886,12 @@ async function decorateForSession(notification, session) {
   };
 }
 
+/** @param {NotificationValue|LooseRecord} notification @param {NotificationSessionContext} session @param {NotificationTargetMetadata} baseMetadata @returns {Promise<NotificationTargetMetadata>} */
 async function readTaskTargetMetadata(notification, session, baseMetadata) {
   const { tasksService } = await import("../modules/tasks/tasks.service.js");
 
   try {
-    const result = await tasksService.read(notification.record_id, session);
+    const result = await tasksService.read(normalizeJobText(notification.record_id), session);
     const task = result.task || {};
     return {
       ...baseMetadata,
@@ -776,21 +900,22 @@ async function readTaskTargetMetadata(notification, session, baseMetadata) {
         clientName: task.client_name || "",
         projectName: task.project_name || "",
       },
-      label: task.title || "",
+      label: normalizeJobText(task.title),
       targetExists: true,
-      url: notification.url || "",
+      url: normalizeJobText(notification.url),
     };
   } catch {
     return baseMetadata;
   }
 }
 
+/** @param {NotificationValue|LooseRecord} notification @param {NotificationSessionContext} session @param {NotificationTargetMetadata} baseMetadata @returns {Promise<NotificationTargetMetadata>} */
 async function readNoteTargetMetadata(notification, session, baseMetadata) {
   const { notesService } = await import("../modules/notes/notes.service.js");
 
   try {
-    const note = /** @type {Record<string, any>} */ (await notesService.readConsumerSummary(
-      notification.record_id,
+    const note = /** @type {LooseRecord} */ (await notesService.readConsumerSummary(
+      normalizeJobText(notification.record_id),
       session,
       "notes.notifications",
     ));
@@ -798,18 +923,19 @@ async function readNoteTargetMetadata(notification, session, baseMetadata) {
       ...baseMetadata,
       canOpen: Boolean(notification.url),
       context: {
-        clientName: note.linked_context?.client?.label || "",
-        projectName: note.linked_context?.project?.label || "",
+        clientName: normalizeJobText(objectValue(objectValue(note.linked_context).client).label),
+        projectName: normalizeJobText(objectValue(objectValue(note.linked_context).project).label),
       },
-      label: note.title || "",
+      label: normalizeJobText(note.title),
       targetExists: true,
-      url: notification.url || "",
+      url: normalizeJobText(notification.url),
     };
   } catch {
     return baseMetadata;
   }
 }
 
+/** @param {string} moduleId @param {string} recordType */
 function moduleDeclaresRecordType(moduleId, recordType) {
   if (!recordType) {
     return true;
@@ -820,6 +946,7 @@ function moduleDeclaresRecordType(moduleId, recordType) {
   ));
 }
 
+/** @param {string} moduleId @param {string} targetType @param {string} [eventType] */
 function moduleDeclaresFollowTarget(moduleId, targetType, eventType = "") {
   return modulesService.listNotificationFollowTargets().some((target) => (
     target.moduleId === moduleId &&
@@ -828,6 +955,7 @@ function moduleDeclaresFollowTarget(moduleId, targetType, eventType = "") {
   ));
 }
 
+/** @param {WorkspaceRequestSession} session @param {LooseRecord & {module_id: string, target_type: string, target_id: string, event_type: string}} target */
 async function assertCanFollowTarget(session, target) {
   await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
 
@@ -849,6 +977,7 @@ async function assertCanFollowTarget(session, target) {
   }
 }
 
+/** @param {LooseRecord} target */
 async function canUserAccessTarget(target) {
   const metadata = await readTargetMetadata({
     module_id: target.module_id,
@@ -856,13 +985,14 @@ async function canUserAccessTarget(target) {
     record_type: target.target_type,
     url: target.url || "",
   }, {
-    user_id: target.user_id,
-    workspace_id: target.workspace_id,
+    user_id: normalizeJobText(target.user_id),
+    workspace_id: normalizeJobText(target.workspace_id),
   });
 
   return metadata.targetExists === true;
 }
 
+/** @param {LooseRecord} [source] */
 function normalizeSubscriptionTarget(source = {}) {
   const target = {
     event_type: String(source.event_type || source.eventType || "").trim(),
@@ -878,13 +1008,15 @@ function normalizeSubscriptionTarget(source = {}) {
   return target;
 }
 
+/** @param {NotificationEventRecord} event */
 function readExplicitRecipientIds(event) {
   const ids = event.metadata?.recipient_user_ids || event.metadata?.recipientUserIds || [];
   return Array.isArray(ids) ? ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
 }
 
+/** @param {NotificationEventRecord} event */
 function readAssigneeIds(event) {
-  const ids = event.new_value?.assignee_ids || event.previous_value?.assignee_ids || [];
+  const ids = objectValue(event.new_value).assignee_ids || objectValue(event.previous_value).assignee_ids || [];
   return Array.isArray(ids) ? ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
 }
 
@@ -906,6 +1038,10 @@ function normalizePriority(priority) {
   return ["low", "normal", "high", "urgent"].includes(normalized) ? normalized : "normal";
 }
 
+/**
+ * @param {unknown} metadata
+ * @returns {LooseRecord}
+ */
 function normalizeMetadata(metadata) {
   if (!metadata) {
     return {};
@@ -920,12 +1056,15 @@ function normalizeMetadata(metadata) {
     }
   }
 
-  return typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+  return typeof metadata === "object" && !Array.isArray(metadata)
+    ? /** @type {LooseRecord} */ (metadata)
+    : {};
 }
 
+/** @param {NotificationEventRecord} event @param {NotificationEventContribution|null} declaration */
 function buildNotificationEventMetadata(event, declaration) {
   const changedFields = readChangedFields(event.previous_value, event.new_value);
-  const changedContext = buildEventChangedContext(event, changedFields);
+  const changedContext = buildEventChangedContext(/** @type {import("../types/framework-contracts.js").EventSummaryInput} */ (event), changedFields);
   const metadata = {
     ...(event.metadata || {}),
     ...(changedContext ? { changed_context: changedContext } : {}),
@@ -948,7 +1087,8 @@ function buildNotificationEventMetadata(event, declaration) {
   };
 }
 
-function notificationEventJobDedupeKey(event = {}) {
+/** @param {NotificationEventRecord} event */
+function notificationEventJobDedupeKey(event) {
   const key = explicitNotificationDeliveryKey(event);
 
   if (!key || !event.workspace_id || !event.name) {
@@ -964,13 +1104,16 @@ function notificationEventJobDedupeKey(event = {}) {
   ].join(":");
 }
 
-function notificationDeliveryKey(event = {}, options = {}) {
+/** @param {NotificationEventRecord} event @param {NotificationEventOptions} [options] */
+function notificationDeliveryKey(event, options = {}) {
+  const job = objectValue(options.job);
   return explicitNotificationDeliveryKey(event) ||
-    normalizeJobText(options.job?.dedupeKey || options.job?.dedupe_key) ||
-    normalizeJobText(options.job?.jobId || options.job?.id);
+    normalizeJobText(job.dedupeKey || job.dedupe_key) ||
+    normalizeJobText(job.jobId || job.id);
 }
 
-function explicitNotificationDeliveryKey(event = {}) {
+/** @param {NotificationEventRecord} event */
+function explicitNotificationDeliveryKey(event) {
   const metadata = normalizeMetadata(event.metadata);
 
   return normalizeJobText(
@@ -983,6 +1126,7 @@ function explicitNotificationDeliveryKey(event = {}) {
   );
 }
 
+/** @param {string} workspaceId @param {string} eventType @param {string} recipientUserId @param {string} deliveryKey */
 function notificationIdForDeliveryKey(workspaceId, eventType, recipientUserId, deliveryKey) {
   return `notification:${stableHash([
     workspaceId,
@@ -992,13 +1136,17 @@ function notificationIdForDeliveryKey(workspaceId, eventType, recipientUserId, d
   ].map(normalizeJobText).join("|"))}`;
 }
 
+/**
+ * @param {string} value
+ */
 function stableHash(value) {
   return createHash("sha256").update(String(value || "")).digest("hex").slice(0, 48);
 }
 
+/** @param {unknown} body @param {unknown} [metadata] */
 function notificationBodyWithChangedContext(body, metadata = {}) {
   const normalizedBody = String(body || "").trim();
-  const changedContext = normalizeMetadata(metadata).changed_context || {};
+  const changedContext = objectValue(normalizeMetadata(metadata).changed_context);
   const summary = String(changedContext.summary || "").trim();
 
   if (!summary) {
@@ -1012,6 +1160,7 @@ function notificationBodyWithChangedContext(body, metadata = {}) {
   return `${normalizedBody} ${summary}`;
 }
 
+/** @param {LooseRecord} notification @param {LooseRecord} [options] */
 function notificationUpdateTypeLabel(notification, options = {}) {
   const eventType = notification.event_type || notification.eventType || "";
   const metadata = normalizeMetadata(notification.metadata || notification.metadata_json);
@@ -1027,6 +1176,7 @@ function notificationUpdateTypeLabel(notification, options = {}) {
   return eventDeclarationLabel(notification) || fallbackEventLabel(eventType);
 }
 
+/** @param {LooseRecord} [query] */
 function normalizeNotificationListFilters(query = {}) {
   return {
     eventType: normalizeOptionalFilter(query.eventType || query.event_type),
@@ -1036,20 +1186,24 @@ function normalizeNotificationListFilters(query = {}) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeNotificationStatus(value) {
   const status = String(value || "").trim();
   return ["active", "unread", "read", "dismissed", "archived"].includes(status) ? status : "";
 }
 
+/** @param {unknown} value */
 function normalizeOptionalFilter(value) {
   return String(value || "").trim().slice(0, 120);
 }
 
+/** @param {unknown} value */
 function normalizeNotificationPriorityFilter(value) {
   const priority = String(value || "").trim();
   return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "";
 }
 
+/** @param {LooseRecord} notification */
 function eventDeclarationLabel(notification) {
   const eventType = notification.event_type || notification.eventType || "";
   const moduleId = notification.module_id || notification.moduleId || "";
@@ -1060,6 +1214,7 @@ function eventDeclarationLabel(notification) {
   return String(declaration?.label || "").trim();
 }
 
+/** @param {unknown} eventType */
 function fallbackEventLabel(eventType) {
   return String(eventType || "Notification")
     .split(".")
@@ -1068,6 +1223,9 @@ function fallbackEventLabel(eventType) {
     .join(" ") || "Notification";
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listConfigurableNotificationEvents(workspaceId) {
   const events = modulesService.listNotificationEvents()
     .filter((event) => modulesService.getModule(event.moduleId));
@@ -1083,47 +1241,54 @@ async function listConfigurableNotificationEvents(workspaceId) {
   ));
 }
 
+/** @param {unknown} items @param {Set<string>} allowedEventIds */
 function normalizePreferenceList(items, allowedEventIds) {
-  return (Array.isArray(items) ? items : [])
+  return /** @type {LooseRecord[]} */ (Array.isArray(items) ? items : [])
     .map((item) => ({
       enabled: item.enabled !== false && item.userEnabled !== false,
       event_type: item.event_type || item.eventType || item.id,
     }))
-    .filter((item) => allowedEventIds.has(item.event_type));
+    .filter((item) => allowedEventIds.has(normalizeJobText(item.event_type)));
 }
 
+/** @param {unknown} items @param {Set<string>} allowedEventIds */
 function normalizeWorkspaceDefaultList(items, allowedEventIds) {
-  return (Array.isArray(items) ? items : [])
+  return /** @type {LooseRecord[]} */ (Array.isArray(items) ? items : [])
     .map((item) => ({
       enabled: item.enabled !== false && item.workspaceEnabled !== false,
       event_type: item.event_type || item.eventType || item.id,
       priority: normalizePriority(item.priority || item.workspacePriority),
     }))
-    .filter((item) => allowedEventIds.has(item.event_type));
+    .filter((item) => allowedEventIds.has(normalizeJobText(item.event_type)));
 }
 
-/** @param {Record<string, any> | null} [source] */
+/** @param {unknown} [source] */
 function normalizeDisplayPreferences(source = null) {
   if (!source || typeof source !== "object") {
     return null;
   }
 
   return {
-    grouping_mode: normalizeGroupingMode(source.grouping_mode || source.groupingMode),
+    grouping_mode: normalizeGroupingMode(/** @type {LooseRecord} */ (source).grouping_mode || /** @type {LooseRecord} */ (source).groupingMode),
   };
 }
 
-/** @param {Record<string, any> | null} [preferences] */
+/** @param {NotificationDisplayPreferenceValue|null} [preferences] */
 function shapeUserDisplayPreferences(preferences = null) {
   return {
     groupingMode: normalizeGroupingMode(preferences?.groupingMode),
   };
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeGroupingMode(value) {
-  return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
+  const mode = normalizeJobText(value);
+  return ["client_project", "notification_type", "record_type"].includes(mode) ? mode : "client_project";
 }
 
+/** @param {NotificationUserPreferenceRow} row */
 function notificationPreferenceAuditValue(row) {
   return {
     enabled: Number(row.enabled) === 1,
@@ -1131,6 +1296,7 @@ function notificationPreferenceAuditValue(row) {
   };
 }
 
+/** @param {NotificationWorkspaceDefaultRow} row */
 function notificationWorkspaceDefaultAuditValue(row) {
   return {
     enabled: Number(row.enabled) === 1,
@@ -1139,7 +1305,14 @@ function notificationWorkspaceDefaultAuditValue(row) {
   };
 }
 
-export const notificationsService = {
+/** @param {unknown} value @returns {LooseRecord} */
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {LooseRecord} */ (value)
+    : {};
+}
+
+const notificationsServiceInternal = {
   archiveOldNotifications,
   create,
   createFromEvent,
@@ -1163,6 +1336,8 @@ export const notificationsService = {
   queueNotificationEvent,
   unreadCount,
 };
+
+export const notificationsService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof notificationsServiceInternal>} */ (notificationsServiceInternal);
 
 export {
   NOTIFICATION_EVENT_JOB_TYPE,

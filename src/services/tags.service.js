@@ -10,7 +10,24 @@ import { searchIndexSyncService } from "./search-index-sync.service.js";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TAGS_MODULE_ID = "tags";
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} TagSession */
+/** @typedef {import("../types/framework-contracts.js").TaggableTypeContribution & {moduleId: string, targetType: string, label: string, description: string, tableName: string, idField: string, labelField: string, workspaceField: string, requiredReadPermission: string, requiredTagPermission: string}} TaggableType */
+/** @typedef {import("../types/framework-contracts.js").TagPropagationContribution & {id: string, sourceModuleId: string, sourceTargetType: string, targetModuleId: string, targetType: string, relationshipResolver: string}} TagPropagationRule */
+/** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {{tag_id: string, workspace_id: string, name: string, slug: string, description: string, color: string, status: string, usage_count?: number, direct_usage_count?: number, propagated_usage_count?: number, system_usage_count?: number, created_by_user_id?: string, created_at?: string, updated_at?: string}} TagRecord */
+/** @typedef {{tag_assignment_id: string, workspace_id: string, tag_id: string, target_type: string, target_id: string, created_by_user_id: string, source: string, source_assignment_id: string, source_target_type: string, source_target_id: string, propagation_rule_id: string, created_at: string, tag: TagRecord, origin_label?: string}} TagAssignment */
+/** @typedef {{sourceTargetId: string, sourceTargetType: string, targetId: string, targetType: string}} PropagationPair */
+/** @typedef {{sourceTargetId?: unknown, source_target_id?: unknown, sourceTargetType?: unknown, source_target_type?: unknown, targetId?: unknown, target_id?: unknown, targetType?: unknown, target_type?: unknown}} PropagationPairInput */
+/** @typedef {{rule: TagPropagationRule, pair: PropagationPair}} PropagationEntry */
+/** @typedef {{publicTarget: {id?: string, label: string, moduleId?: string, targetType?: string, url: string}, targetId: string, targetType: string}} TagTargetIdentity */
+/** @typedef {TagTargetIdentity & {descriptor: TaggableType, resource: import("../types/http-contracts.js").PermissionResource}} ResolvedTagTarget */
+/** @typedef {{descriptor: TaggableType, resource: import("../types/http-contracts.js").PermissionResource, targetId: string, targetType: string}} TagMutationTarget */
+/** @typedef {LooseRecord & {id: string, client_id?: string|null, directTags?: TagRecord[], tags?: TagRecord[]}} DecoratedTagRecord */
+/** @typedef {{event?: {name?: string, workspace_id?: string}, results?: Array<{status?: string, error?: string, event?: string, hookId?: string, moduleId?: string}>}} TagEventResult */
+/** @typedef {LooseRecord & {error?: string, event?: string, hook_id?: string, module_id?: string, operation?: string, target_id?: string, target_type?: string, tag_id?: string, workspace_id: string, created_at: string}} TagPropagationFailure */
+/** @type {TagPropagationFailure[]} */
 const propagationFailures = [];
+
 
 /**
  * @typedef {Object} TagTargetRow
@@ -18,8 +35,9 @@ const propagationFailures = [];
  * @property {string | null} client_id
  * @property {string | null} project_id
  * @property {string | null} [url]
+ * @param {TagSession} session
+ * @param {LooseRecord} [query]
  */
-
 async function list(session, query = {}) {
   await assertTaggingReadEnabled(session);
   await permissionsService.assertCan(session, "tags.view", {
@@ -35,6 +53,10 @@ async function list(session, query = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function create(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
@@ -47,11 +69,19 @@ async function create(session, payload = {}) {
     ...normalized,
     created_by_user_id: session.user_id,
   });
+  if (!tag) {
+    throw new AppError("Tag creation did not return the created tag.", 500);
+  }
 
   await recordTagAudit(session, "tag.created", "create", tag, null, tag);
   return { tag };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} tagId
+ * @param {LooseRecord} [payload]
+ */
 async function update(session, tagId, payload = {}) {
   await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
@@ -62,11 +92,18 @@ async function update(session, tagId, payload = {}) {
   const previousTag = await readExistingTag(session.workspace_id, tagId);
   const normalized = await normalizeTagPayload(session.workspace_id, payload, previousTag);
   const tag = await tagsRepository.updateTag(session.workspace_id, tagId, normalized);
+  if (!tag) {
+    throw new AppError("Tag update did not return the updated tag.", 500);
+  }
 
   await recordTagAudit(session, "tag.updated", "update", tag, previousTag, tag);
   return { tag };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} tagId
+ */
 async function archive(session, tagId) {
   await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
@@ -76,11 +113,18 @@ async function archive(session, tagId) {
 
   const previousTag = await readExistingTag(session.workspace_id, tagId);
   const tag = await tagsRepository.setTagStatus(session.workspace_id, tagId, "archived");
+  if (!tag) {
+    throw new AppError("Tag archive did not return the archived tag.", 500);
+  }
 
   await recordTagAudit(session, "tag.archived", "archive", tag, previousTag, tag);
   return { tag };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} tagId
+ */
 async function restore(session, tagId) {
   await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
@@ -90,11 +134,18 @@ async function restore(session, tagId) {
 
   const previousTag = await readExistingTag(session.workspace_id, tagId);
   const tag = await tagsRepository.setTagStatus(session.workspace_id, tagId, "active");
+  if (!tag) {
+    throw new AppError("Tag restore did not return the restored tag.", 500);
+  }
 
   await recordTagAudit(session, "tag.restored", "restore", tag, previousTag, tag);
   return { tag };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [query]
+ */
 async function listAssignments(session, query = {}) {
   await assertTaggingReadEnabled(session);
   await permissionsService.assertCan(session, "tags.view", {
@@ -118,6 +169,10 @@ async function listAssignments(session, query = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function assign(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "assign");
@@ -153,6 +208,10 @@ async function assign(session, payload = {}) {
   return { assignments, target: target.publicTarget };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function remove(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "remove");
@@ -181,10 +240,12 @@ async function remove(session, payload = {}) {
   return { assignments, target: target.publicTarget };
 }
 
+/** @param {TagSession} session @param {LooseRecord} [payload] */
 async function replaceAssignments(session, payload = {}) {
   return replaceManualAssignments(session, payload);
 }
 
+/** @param {TagSession} session @param {LooseRecord} [payload] */
 async function bulkAssign(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const targetType = String(payload.targetType || payload.target_type || "").trim();
@@ -259,11 +320,16 @@ async function bulkAssign(session, payload = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {{targetType?: unknown, targetId?: unknown, tagIds?: string[], action?: unknown}} [payload]
+ */
 async function applyBulkTagAction(session, payload = {}) {
   const target = await readTargetForSession(session, payload.targetType, payload.targetId, "replace");
   const currentDirectAssignments = await listDirectTagsForTarget(session, target.targetType, target.targetId);
   const currentDirectIds = new Set(currentDirectAssignments.map((assignment) => assignment.tag_id));
   const tagIds = payload.tagIds || [];
+  /** @type {string[]} */
   let nextTagIds = [];
 
   if (payload.action === "replace") {
@@ -292,6 +358,10 @@ async function applyBulkTagAction(session, payload = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function replaceManualAssignments(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "replace");
@@ -364,6 +434,10 @@ async function replaceManualAssignments(session, payload = {}) {
   return { assignments, target: target.publicTarget };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function addPropagatedAssignment(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "assign");
@@ -391,7 +465,7 @@ async function addPropagatedAssignment(session, payload = {}) {
       created_by_user_id: session.user_id,
       propagation_rule_id: propagationRuleId,
       source: "propagated",
-      source_assignment_id: payload.sourceAssignmentId || payload.source_assignment_id || "",
+      source_assignment_id: String(payload.sourceAssignmentId || payload.source_assignment_id || ""),
       source_target_id: sourceTargetId,
       source_target_type: sourceTargetType,
       tag_id: tag.tag_id,
@@ -412,6 +486,11 @@ async function addPropagatedAssignment(session, payload = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} targetType
+ * @param {string} targetId
+ */
 async function listDirectTagsForTarget(session, targetType, targetId) {
   if (!(await tagsModuleReadable(session))) {
     return [];
@@ -420,6 +499,11 @@ async function listDirectTagsForTarget(session, targetType, targetId) {
   return tagsRepository.listAssignmentsForTarget(session.workspace_id, targetType, targetId, { source: "manual" });
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} targetType
+ * @param {string} targetId
+ */
 async function listPropagatedTagsForTarget(session, targetType, targetId) {
   if (!(await tagsModuleReadable(session))) {
     return [];
@@ -428,6 +512,11 @@ async function listPropagatedTagsForTarget(session, targetType, targetId) {
   return tagsRepository.listAssignmentsForTarget(session.workspace_id, targetType, targetId, { source: "propagated" });
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} targetType
+ * @param {string} targetId
+ */
 async function listEffectiveTagsForTarget(session, targetType, targetId) {
   if (!(await tagsModuleReadable(session))) {
     return [];
@@ -436,10 +525,15 @@ async function listEffectiveTagsForTarget(session, targetType, targetId) {
   return tagsRepository.listAssignmentsForTarget(session.workspace_id, targetType, targetId);
 }
 
+/** @param {TagSession} session @param {string} targetType @param {LooseRecord[]} records @param {{idField?: string}} [options] @returns {Promise<DecoratedTagRecord[]>} */
 async function decorateRecordsWithEffectiveTags(session, targetType, records, options = {}) {
   return decorateRecordsForTarget(session, targetType, records, options);
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function suppressPropagatedAssignment(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const assignmentId = String(payload.assignmentId || payload.assignment_id || "").trim();
@@ -504,6 +598,10 @@ async function suppressPropagatedAssignment(session, payload = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function refreshPropagatedAssignmentsForTarget(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "read");
@@ -518,7 +616,7 @@ async function refreshPropagatedAssignmentsForTarget(session, payload = {}) {
       const result = await refreshPropagationPair(session, rule, pair, {
         depth: Number(payload.propagationDepth || payload.propagation_depth || 0),
         dryRun: false,
-        reason: payload.reason || payload.refreshReason || "refresh_requested",
+        reason: String(payload.reason || payload.refreshReason || "refresh_requested"),
       });
       repairedRecords += result.changed ? 1 : 0;
       skippedRecords += result.skipped ? 1 : 0;
@@ -572,6 +670,7 @@ async function refreshPropagatedAssignmentsForTarget(session, payload = {}) {
   };
 }
 
+/** @param {TagSession} session */
 async function refreshPropagatedAssignmentsForWorkspace(session) {
   await assertTaggingWriteEnabled(session);
   const repair = await repairTagPropagation(session, {
@@ -585,6 +684,10 @@ async function refreshPropagatedAssignmentsForWorkspace(session) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {{dryRun?: boolean, dry_run?: boolean}} [options]
+ */
 async function repairTagPropagation(session, options = {}) {
   await assertTaggingWriteEnabled(session);
   const dryRun = options.dryRun !== false && options.dry_run !== false;
@@ -637,6 +740,10 @@ async function repairTagPropagation(session, options = {}) {
   };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {LooseRecord} [payload]
+ */
 async function snapshotEffectiveTagsForTarget(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const sourceTargetType = String(payload.sourceTargetType || payload.source_target_type || "").trim();
@@ -671,7 +778,7 @@ async function snapshotEffectiveTagsForTarget(session, payload = {}) {
 
     await tagsRepository.addAssignment(session.workspace_id, {
       created_by_user_id: session.user_id,
-      propagation_rule_id: payload.propagationRuleId || payload.propagation_rule_id || "time-entry-effective-tag-snapshot",
+      propagation_rule_id: String(payload.propagationRuleId || payload.propagation_rule_id || "time-entry-effective-tag-snapshot"),
       source: "system",
       source_assignment_id: assignment.tag_assignment_id,
       source_target_id: sourceTargetId,
@@ -695,48 +802,56 @@ async function snapshotEffectiveTagsForTarget(session, payload = {}) {
   };
 }
 
+/** @param {TagSession} session @param {LooseRecord} [payload] */
 async function suppressAssignment(session, payload = {}) {
   return suppressPropagatedAssignment(session, payload);
 }
 
+/** @param {string} [workspaceId] */
 function listTagPropagationFailures(workspaceId = "") {
   return propagationFailures
     .filter((failure) => !workspaceId || failure.workspace_id === workspaceId)
     .map((failure) => ({ ...failure }));
 }
 
+/** @template T @param {TagSession} session @param {string} targetType @param {T[]} records @param {{idField?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
 async function decorateRecordsForTarget(session, targetType, records, options = {}) {
   if (!Array.isArray(records) || records.length === 0 || !(await tagsModuleReadable(session))) {
-    return Array.isArray(records) ? records : [];
+    return /** @type {Array<T & DecoratedTagRecord>} */ (Array.isArray(records) ? records : []);
   }
 
   const idField = options.idField || defaultTargetIdField(targetType);
-  const recordIds = records.map((record) => String(record?.[idField] || record?.id || "").trim()).filter(Boolean);
+  const recordIds = records.map((record) => {
+    const looseRecord = /** @type {LooseRecord} */ (record);
+    return String(looseRecord?.[idField] || looseRecord?.id || "").trim();
+  }).filter(Boolean);
   const assignments = await tagsRepository.listAssignmentsForTargets(session.workspace_id, targetType, recordIds);
   const assignmentsByTarget = groupAssignmentsByTarget(assignments);
 
   return records.map((record) => {
-    const targetId = String(record?.[idField] || record?.id || "").trim();
+    const looseRecord = /** @type {LooseRecord} */ (record);
+    const targetId = String(looseRecord?.[idField] || looseRecord?.id || "").trim();
     const shaped = shapeAssignmentReadModel(assignmentsByTarget.get(targetId) || []);
 
-    return {
+    return /** @type {T & DecoratedTagRecord} */ (/** @type {unknown} */ ({
       ...record,
       tagAssignments: shaped.effectiveAssignments,
       directTags: shaped.directTags,
       propagatedTags: shaped.propagatedTags,
       effectiveTags: shaped.effectiveTags,
       tags: shaped.effectiveTags,
-    };
+    }));
   });
 }
 
+/** @template T @param {TagSession} session @param {string} targetType @param {T[]} records @param {unknown} tagIds @param {{idField?: string, match?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
 async function filterRecordsByTags(session, targetType, records, tagIds, options = {}) {
   const normalizedFilters = normalizeTagFilterIntent(tagIds);
   const normalizedTagIds = normalizedFilters.tagIds;
   const noTagsMode = normalizedFilters.noTagsMode;
 
   if (normalizedTagIds.length === 0 && !noTagsMode) {
-    return records;
+    return /** @type {Array<T & DecoratedTagRecord>} */ (records);
   }
 
   if (!(await tagsModuleReadable(session))) {
@@ -747,7 +862,8 @@ async function filterRecordsByTags(session, targetType, records, tagIds, options
   const requiredIds = new Set(normalizedTagIds);
 
   return decorated.filter((record) => {
-    const tagsForMode = noTagsMode === "direct" ? record.directTags || [] : record.tags || [];
+    const decoratedRecord = /** @type {DecoratedTagRecord} */ (record);
+    const tagsForMode = noTagsMode === "direct" ? decoratedRecord.directTags || [] : decoratedRecord.tags || [];
     const recordTagIds = new Set(tagsForMode.map((tag) => tag.tag_id));
     if (noTagsMode) {
       return recordTagIds.size === 0;
@@ -755,12 +871,16 @@ async function filterRecordsByTags(session, targetType, records, tagIds, options
     return options.match === "all"
       ? normalizedTagIds.every((tagId) => recordTagIds.has(tagId))
       : normalizedTagIds.some((tagId) => recordTagIds.has(tagId));
-  }).map((record) => ({
-    ...record,
-    tagFilterMatchedIds: [...requiredIds].filter((tagId) => (record.tags || []).some((tag) => tag.tag_id === tagId)),
-  }));
+  }).map((record) => {
+    const decoratedRecord = /** @type {DecoratedTagRecord} */ (record);
+    return /** @type {T & DecoratedTagRecord} */ ({
+      ...record,
+      tagFilterMatchedIds: [...requiredIds].filter((tagId) => (decoratedRecord.tags || []).some((tag) => tag.tag_id === tagId)),
+    });
+  });
 }
 
+/** @param {TagSession} session @param {unknown} value @param {{status?: string}} [options] */
 async function resolveTagFilterValues(session, value, options = {}) {
   const filters = normalizeOptionalTagIds(value);
   if (filters.length === 0) {
@@ -799,6 +919,7 @@ async function resolveTagFilterValues(session, value, options = {}) {
   return [...new Set(resolved)];
 }
 
+/** @param {TagAssignment[]} [assignments] */
 function shapeAssignmentReadModel(assignments = []) {
   const activeAssignments = (Array.isArray(assignments) ? assignments : [])
     .filter((assignment) => assignment?.tag?.status === "active")
@@ -822,6 +943,9 @@ function shapeAssignmentReadModel(assignments = []) {
   };
 }
 
+/**
+ * @param {TagAssignment} assignment
+ */
 function tagForAssignment(assignment) {
   return {
     ...assignment.tag,
@@ -837,6 +961,7 @@ function tagForAssignment(assignment) {
   };
 }
 
+/** @param {Partial<TagAssignment>} [assignment] */
 function assignmentOriginLabel(assignment = {}) {
   if (assignment.source === "propagated") {
     const sourceType = String(assignment.source_target_type || "").replace(/_/g, " ");
@@ -848,6 +973,9 @@ function assignmentOriginLabel(assignment = {}) {
   return "Direct";
 }
 
+/**
+ * @param {string | undefined} workspaceId
+ */
 async function readTagPropagationCounts(workspaceId) {
   const rows = await db.query(`
 SELECT
@@ -873,7 +1001,9 @@ WHERE workspace_id = :workspaceId;
   };
 }
 
+/** @param {TagSession} session @param {ResolvedTagTarget} target @param {TagPropagationRule[]} rules @returns {Promise<PropagationEntry[]>} */
 async function readRelatedPropagationPairs(session, target, rules) {
+  /** @type {PropagationEntry[]} */
   const pairs = [];
 
   for (const rule of rules) {
@@ -904,6 +1034,7 @@ async function readRelatedPropagationPairs(session, target, rules) {
   return uniquePropagationPairs(pairs);
 }
 
+/** @param {TagSession} session @param {TagPropagationRule} rule @param {LooseRecord | PropagationPair} rawPair @param {{depth?: number, dryRun?: boolean, reason?: string}} [options] */
 async function refreshPropagationPair(session, rule, rawPair, options = {}) {
   const pair = normalizePropagationPair(rule, rawPair);
 
@@ -995,6 +1126,7 @@ async function refreshPropagationPair(session, rule, rawPair, options = {}) {
   return { changed, skipped: false };
 }
 
+/** @param {TagPropagationRule} rule @param {PropagationPairInput} [pair] @returns {PropagationPair} */
 function normalizePropagationPair(rule, pair = {}) {
   return {
     sourceTargetId: String(pair.sourceTargetId || pair.source_target_id || "").trim(),
@@ -1004,6 +1136,7 @@ function normalizePropagationPair(rule, pair = {}) {
   };
 }
 
+/** @param {PropagationEntry[]} pairs @returns {PropagationEntry[]} */
 function uniquePropagationPairs(pairs) {
   const byKey = new Map();
 
@@ -1018,6 +1151,7 @@ function uniquePropagationPairs(pairs) {
   return [...byKey.values()];
 }
 
+/** @param {TagSession} session @param {string} eventName @param {TagPropagationRule} rule @param {PropagationPair} pair @param {TagRecord} tag */
 async function emitPropagationEventForTarget(session, eventName, rule, pair, tag) {
   await emitTagAssignmentEvent(session, eventName, {
     publicTarget: {
@@ -1034,6 +1168,7 @@ async function emitPropagationEventForTarget(session, eventName, rule, pair, tag
   });
 }
 
+/** @param {string} workspaceId @param {string} targetType @param {string} targetId @param {string} reason */
 async function syncSearchForTarget(workspaceId, targetType, targetId, reason) {
   const declaration = modulesService.listSearchableTypes().find((type) => type.recordType === targetType);
 
@@ -1042,7 +1177,7 @@ async function syncSearchForTarget(workspaceId, targetType, targetId, reason) {
   }
 
   return searchIndexSyncService.reindexRecord({
-    moduleId: declaration.moduleId,
+    moduleId: String(declaration.moduleId || ""),
     reason,
     recordId: targetId,
     recordType: targetType,
@@ -1050,6 +1185,12 @@ async function syncSearchForTarget(workspaceId, targetType, targetId, reason) {
   });
 }
 
+/**
+ * @param {TagSession} session
+ * @param {unknown} rawTargetType
+ * @param {unknown} rawTargetId
+ * @param {string} operation
+ */
 async function readTargetForSession(session, rawTargetType, rawTargetId, operation) {
   const targetType = String(rawTargetType || "").trim();
   const targetId = String(rawTargetId || "").trim();
@@ -1058,11 +1199,12 @@ async function readTargetForSession(session, rawTargetType, rawTargetId, operati
     throw new AppError("Tag target type and target ID are required.", 400);
   }
 
-  const descriptor = modulesService.listTaggableTypes().find((type) => type.targetType === targetType);
+  const registeredDescriptor = modulesService.listTaggableTypes().find((type) => type.targetType === targetType);
 
-  if (!descriptor) {
+  if (!registeredDescriptor) {
     throw new AppError("That target type is not registered for tagging.", 400);
   }
+  const descriptor = /** @type {TaggableType} */ (registeredDescriptor);
 
   if (operation !== "read" && !(await modulesService.canWriteModule(session.workspace_id, descriptor.moduleId))) {
     throw new AppError("That module is disabled for new tag assignments.", 403);
@@ -1077,6 +1219,7 @@ async function readTargetForSession(session, rawTargetType, rawTargetId, operati
     throw new AppError("Tag target was not found.", 404);
   }
 
+  /** @type {import("../types/http-contracts.js").PermissionResource} */
   const resource = {
     workspace_id: session.workspace_id,
     client_id: target.client_id || "",
@@ -1117,10 +1260,14 @@ async function readTargetForSession(session, rawTargetType, rawTargetId, operati
   };
 }
 
+/** @param {TagSession} session */
 async function tagsModuleReadable(session) {
   return modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID);
 }
 
+/**
+ * @param {TagSession} session
+ */
 async function assertTaggingReadEnabled(session) {
   if (await modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID)) {
     return;
@@ -1129,6 +1276,9 @@ async function assertTaggingReadEnabled(session) {
   throw new AppError("Tagging is disabled for this workspace.", 403);
 }
 
+/**
+ * @param {TagSession} session
+ */
 async function assertTaggingWriteEnabled(session) {
   if (await modulesService.canWriteModule(session?.workspace_id, TAGS_MODULE_ID)) {
     return;
@@ -1137,6 +1287,7 @@ async function assertTaggingWriteEnabled(session) {
   throw new AppError("Tagging is disabled for this workspace.", 403);
 }
 
+/** @param {TagSession} session @param {TagMutationTarget} target @param {string} operation */
 async function assertCanMutateTargetTags(session, target, operation) {
   const permissions = operation === "remove"
     ? ["tags.remove", target.descriptor.requiredTagPermission]
@@ -1151,6 +1302,7 @@ async function assertCanMutateTargetTags(session, target, operation) {
   }
 }
 
+/** @param {string} workspaceId @param {TaggableType} descriptor @param {string} targetId */
 async function readTargetRecord(workspaceId, descriptor, targetId) {
   const tableName = assertIdentifier(descriptor.tableName, "taggable tableName");
   const idField = assertIdentifier(descriptor.idField, "taggable idField");
@@ -1178,7 +1330,7 @@ LIMIT 1;
   return row || null;
 }
 
-/** @param {Record<string, any> | null} [existingTag] */
+/** @param {string} workspaceId @param {LooseRecord} payload @param {TagRecord | null} [existingTag] */
 async function normalizeTagPayload(workspaceId, payload, existingTag = null) {
   const name = String(payload.name ?? existingTag?.name ?? "").trim().replace(/\s+/g, " ");
   const description = String(payload.description ?? existingTag?.description ?? "").trim();
@@ -1206,6 +1358,10 @@ async function normalizeTagPayload(workspaceId, payload, existingTag = null) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown} tagId
+ */
 async function readExistingTag(workspaceId, tagId) {
   const normalizedTagId = String(tagId || "").trim();
 
@@ -1221,6 +1377,7 @@ async function readExistingTag(workspaceId, tagId) {
   return tag;
 }
 
+/** @param {string} workspaceId @param {unknown} tagId */
 async function readAssignableTag(workspaceId, tagId) {
   const tag = await readExistingTag(workspaceId, tagId);
 
@@ -1231,10 +1388,11 @@ async function readAssignableTag(workspaceId, tagId) {
   return tag;
 }
 
+/** @param {string} workspaceId @param {string[]} tagIds */
 async function readAssignableTags(workspaceId, tagIds) {
   const tags = await tagsRepository.readTagsByIds(workspaceId, tagIds);
   const foundIds = new Set(tags.map((tag) => tag.tag_id));
-  const missingIds = tagIds.filter((tagId) => !foundIds.has(tagId));
+  const missingIds = tagIds.filter((/** @type {string} */ tagId) => !foundIds.has(tagId));
 
   if (missingIds.length > 0) {
     throw new AppError("One or more tags were not found.", 404);
@@ -1248,6 +1406,7 @@ async function readAssignableTags(workspaceId, tagIds) {
   return tags;
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeTagIds(value) {
   if (!Array.isArray(value)) {
     throw new AppError("Tag IDs must be an array.", 400);
@@ -1256,6 +1415,7 @@ function normalizeTagIds(value) {
   return [...new Set(value.map((tagId) => String(tagId || "").trim()).filter(Boolean))];
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeOptionalTagIds(value) {
   if (value === undefined || value === null || value === "") {
     return [];
@@ -1271,9 +1431,11 @@ function normalizeOptionalTagIds(value) {
     .filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeTagFilterIntent(value) {
   const filters = normalizeOptionalTagIds(value);
   let noTagsMode = "";
+  /** @type {string[]} */
   const tagIds = [];
 
   filters.forEach((filter) => {
@@ -1294,20 +1456,30 @@ function normalizeTagFilterIntent(value) {
   };
 }
 
+/**
+ * @param {string} value
+ */
 function isTagFilterSentinel(value) {
   return isEffectiveNoTagsFilter(value) || isDirectNoTagsFilter(value);
 }
 
+/**
+ * @param {string} value
+ */
 function isEffectiveNoTagsFilter(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
   return ["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized);
 }
 
+/**
+ * @param {string} value
+ */
 function isDirectNoTagsFilter(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
   return ["__no_direct_tags__", "no_direct_tags"].includes(normalized);
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeBulkTargetIds(value) {
   if (!Array.isArray(value)) {
     throw new AppError("Bulk tag target IDs must be an array.", 400);
@@ -1316,6 +1488,7 @@ function normalizeBulkTargetIds(value) {
   return [...new Set(value.map((targetId) => String(targetId || "").trim()).filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeBulkTagAction(value) {
   const action = String(value || "").trim().toLowerCase();
 
@@ -1326,6 +1499,7 @@ function normalizeBulkTagAction(value) {
   throw new AppError("Bulk tag action must be add, remove, or replace.", 400);
 }
 
+/** @param {TagAssignment[]} assignments @returns {Map<string, TagAssignment[]>} */
 function groupAssignmentsByTarget(assignments) {
   return assignments.reduce((groups, assignment) => {
     if (!groups.has(assignment.target_id)) {
@@ -1337,10 +1511,12 @@ function groupAssignmentsByTarget(assignments) {
   }, new Map());
 }
 
+/** @param {string} targetType */
 function defaultTargetIdField(targetType) {
   return modulesService.listTaggableTypes().find((type) => type.targetType === targetType)?.idField || "id";
 }
 
+/** @param {unknown} value */
 function normalizeSlug(value) {
   return String(value || "")
     .trim()
@@ -1350,6 +1526,7 @@ function normalizeSlug(value) {
     .slice(0, 80);
 }
 
+/** @param {unknown} value */
 function normalizeColor(value) {
   const color = String(value || "").trim();
 
@@ -1364,6 +1541,7 @@ function normalizeColor(value) {
   return color.toLowerCase();
 }
 
+/** @param {unknown} value @param {string} label */
 function assertIdentifier(value, label) {
   const normalized = String(value || "").trim();
 
@@ -1374,14 +1552,24 @@ function assertIdentifier(value, label) {
   return normalized;
 }
 
+/** @param {unknown} value @param {string} label */
 function optionalIdentifier(value, label) {
   return value ? assertIdentifier(value, label) : "";
 }
 
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} action
+ * @param {string} changeType
+ * @param {TagRecord} tag
+ * @param {TagRecord | null} previousValue
+ * @param {TagRecord | null} newValue
+ */
 async function recordTagAudit(session, action, changeType, tag, previousValue, newValue) {
   await auditService.record({
     session,
@@ -1401,6 +1589,7 @@ async function recordTagAudit(session, action, changeType, tag, previousValue, n
   });
 }
 
+/** @param {TagSession} session @param {string} action @param {string} changeType @param {TagTargetIdentity} target @param {TagRecord} tag @param {unknown} previousValue @param {unknown} newValue */
 async function recordAssignmentAudit(session, action, changeType, target, tag, previousValue, newValue) {
   await auditService.record({
     session,
@@ -1420,6 +1609,7 @@ async function recordAssignmentAudit(session, action, changeType, target, tag, p
   });
 }
 
+/** @param {TagSession} session @param {string} eventName @param {TagTargetIdentity} target @param {TagRecord} tag @param {LooseRecord & {assignment_source?: string}} [metadata] */
 async function emitTagAssignmentEvent(session, eventName, target, tag, metadata = {}) {
   const eventResult = await modulesService.emitInternalEvent(eventName, {
     session,
@@ -1443,6 +1633,7 @@ async function emitTagAssignmentEvent(session, eventName, target, tag, metadata 
   return eventResult;
 }
 
+/** @param {TagSession} session @param {ResolvedTagTarget} target @param {TagPropagationRule[]} rules @param {PropagationEntry[]} relatedPairs */
 async function removeStalePropagatedAssignmentsForTarget(session, target, rules, relatedPairs) {
   const inboundRuleIds = new Set(rules
     .filter((rule) => rule.targetType === target.targetType)
@@ -1475,6 +1666,11 @@ async function removeStalePropagatedAssignmentsForTarget(session, target, rules,
   return removedCount;
 }
 
+/**
+ * @param {string} ruleId
+ * @param {string} sourceTargetType
+ * @param {string} sourceTargetId
+ */
 function propagationContextKey(ruleId, sourceTargetType, sourceTargetId) {
   return [
     String(ruleId || ""),
@@ -1483,21 +1679,23 @@ function propagationContextKey(ruleId, sourceTargetType, sourceTargetId) {
   ].join(":");
 }
 
+/** @param {TagEventResult | null | undefined} eventResult @param {LooseRecord} [context] */
 function recordFailedTagEventHooks(eventResult, context = {}) {
+  const event = eventResult?.event;
   for (const failure of (eventResult?.results || []).filter((result) => result.status === "failed")) {
     propagationFailures.push({
       ...context,
       error: failure.error || "",
-      event: failure.event || eventResult.event?.name || "",
+      event: failure.event || event?.name || "",
       hook_id: failure.hookId || "",
       module_id: failure.moduleId || "",
-      workspace_id: eventResult.event?.workspace_id || "",
+      workspace_id: event?.workspace_id || "",
       created_at: new Date().toISOString(),
     });
   }
 }
 
-export const tagsService = {
+const tagsServiceInternal = {
   addPropagatedAssignment,
   archive,
   assign,
@@ -1526,3 +1724,7 @@ export const tagsService = {
   suppressPropagatedAssignment,
   update,
 };
+
+/** @typedef {"decorateRecordsForTarget" | "decorateRecordsWithEffectiveTags" | "filterRecordsByTags"} StrongTagMethod */
+/** @typedef {import("../types/framework-contracts.js").ValidatedService<Omit<typeof tagsServiceInternal, StrongTagMethod>> & Pick<typeof tagsServiceInternal, StrongTagMethod>} PublicTagsService */
+export const tagsService = /** @type {PublicTagsService} */ (tagsServiceInternal);

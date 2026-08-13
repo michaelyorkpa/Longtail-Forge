@@ -40,6 +40,11 @@ const PUBLIC_DEMO_BUDGET_ERRORS = Object.freeze({
   }),
 });
 
+/** @typedef {{ baseUnits?: number, collectionKeys?: string[], reserve?: boolean }} PublicDemoBudgetOperationOptions */
+/** @typedef {[string, string[], string[], PublicDemoBudgetOperationOptions?]} PublicDemoBudgetOperationEntry */
+/** @typedef {{ baseUnits: number, collectionKeys: readonly string[], id: string, method: string, path: string, regex: RegExp, reserve: boolean }} PublicDemoBudgetOperation */
+
+/** @type {readonly string[]} */
 const COMMON_MUTATION_COLLECTION_KEYS = Object.freeze([
   "assignee_user_ids", "assignments", "checklist", "checklist_items", "children",
   "clients", "itemIds", "items", "noteIds", "notes", "projects", "recordIds",
@@ -117,6 +122,7 @@ const QUERY_OPERATIONS = defineOperations([
   ["time.read", ["GET", "HEAD"], ["/api/time-entries", "/api/active-timers", "/api/active-timers/all"]],
 ]);
 
+/** @param {PublicDemoBudgetOperationEntry[]} entries @returns {readonly PublicDemoBudgetOperation[]} */
 function defineOperations(entries) {
   return Object.freeze(entries.flatMap(([id, methods, paths, options = {}]) => paths.flatMap((path) => methods.map((method) => Object.freeze({
     baseUnits: options.baseUnits ?? 1,
@@ -129,23 +135,35 @@ function defineOperations(entries) {
   })))));
 }
 
+/**
+ * @param {string} template
+ */
 function compilePathTemplate(template) {
-  const source = template.split("/").map((segment) => {
+  const source = template.split("/").map((/** @type {string} */ segment) => {
     if (segment.startsWith(":")) return "[^/]+";
     return segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }).join("/");
   return new RegExp(`^${source}/?$`);
 }
 
+/** @param {readonly PublicDemoBudgetOperation[]} catalog @param {unknown} method @param {string} pathname */
 function resolveOperation(catalog, method, pathname) {
   const normalizedMethod = String(method || "").toUpperCase();
   return catalog.find((operation) => operation.method === normalizedMethod && operation.regex.test(pathname)) || null;
 }
 
+/**
+ * @param {string} method
+ * @param {string} pathname
+ */
 function resolvePublicDemoMutation(method, pathname) {
   return resolveOperation(MUTATION_OPERATIONS, method, pathname);
 }
 
+/**
+ * @param {string} method
+ * @param {string} pathname
+ */
 function resolvePublicDemoQuery(method, pathname) {
   return resolveOperation(QUERY_OPERATIONS, method, pathname);
 }

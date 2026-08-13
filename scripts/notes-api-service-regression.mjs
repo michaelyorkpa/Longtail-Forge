@@ -93,6 +93,7 @@ async function assertLinkedRecordPickerReadModel(session) {
 
   const taskTargets = await notesService.listLinkTargets(session, { targetType: "task", q: "Picker Task" });
   const taskTarget = taskTargets.targets.find((target) => target.targetId === task.task_id);
+  if (!taskTarget) throw new Error("Task link target should be returned.");
   assert.equal(taskTarget.label, "Picker Task");
   assert.equal(taskTarget.clientId, clientId);
   assert.equal(taskTarget.projectId, projectId);
@@ -115,6 +116,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
   const projectTargets = await notesService.listLinkTargets(session, { targetType: "project", q: "Picker Project" });
   const projectTarget = projectTargets.targets.find((target) => target.targetId === projectId);
+  if (!projectTarget) throw new Error("Project link target should be returned.");
   assert.equal(projectTarget.label, "Picker Project");
   assert.equal(projectTarget.suggestedLibraryBucket, NOTE_LIBRARY_BUCKETS.ONGOING_AREA);
 
@@ -125,12 +127,14 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
   const noteTargets = await notesService.listLinkTargets(session, { targetType: "note", q: "Picker reference note" });
   const noteTarget = noteTargets.targets.find((target) => target.targetId === referenceNote.note.note_id);
+  if (!noteTarget) throw new Error("Note link target should be returned.");
   assert.equal(noteTarget.label, "Picker reference note");
   assert.equal(noteTarget.noteId, referenceNote.note.note_id);
   assert.equal(noteTarget.sourceUrl, `notes.html?note=${encodeURIComponent(referenceNote.note.note_id)}`);
 
   const listTargets = await notesService.listLinkTargets(session, { targetType: "list", q: "Picker List" });
   const listTarget = listTargets.targets.find((target) => target.targetId === list.list_id);
+  if (!listTarget) throw new Error("List link target should be returned.");
   assert.equal(listTarget.label, "Picker List");
   assert.equal(listTarget.listId, list.list_id);
   assert.equal(listTarget.sourceUrl, `lists.html?list=${encodeURIComponent(list.list_id)}`);

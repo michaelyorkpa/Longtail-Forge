@@ -5,6 +5,11 @@ const FUTURE_IMPORT_JOB_TYPE = "import.future";
 const FUTURE_IMPORT_JOB_PRIORITY = 1;
 let futureImportJobHandlersRegistered = false;
 
+/** @typedef {{ replace?: boolean }} FutureImportRegistrationOptions */
+/** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, source?: unknown, requestedByUserId?: unknown, requested_by_user_id?: unknown }} FutureImportContext */
+/** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, source?: unknown, dedupeKey?: unknown, dedupe_key?: unknown, maxAttempts?: unknown, max_attempts?: unknown, priority?: number }} FutureImportOptions */
+
+/** @param {FutureImportRegistrationOptions} [options] */
 function registerFutureImportJobHandlers(options = {}) {
   if (futureImportJobHandlersRegistered && !options.replace && getJobHandler(FUTURE_IMPORT_JOB_TYPE)) {
     return;
@@ -17,13 +22,14 @@ function registerFutureImportJobHandlers(options = {}) {
   futureImportJobHandlersRegistered = true;
 }
 
+/** @param {FutureImportContext} [context] @param {FutureImportOptions} [options] */
 async function queueFutureImportJob(context = {}, options = {}) {
   const workspaceId = normalizeRequiredText(context.workspaceId || context.workspace_id || options.workspaceId || options.workspace_id, "Future import job requires a workspace.");
   const source = normalizeText(context.source || options.source) || "reserved";
   const enqueued = await enqueueJob({
-    dedupeKey: options.dedupeKey || options.dedupe_key || `import:future:${workspaceId}:${source}`,
+    dedupeKey: normalizeText(options.dedupeKey || options.dedupe_key) || `import:future:${workspaceId}:${source}`,
     jobType: FUTURE_IMPORT_JOB_TYPE,
-    maxAttempts: options.maxAttempts || options.max_attempts || 1,
+    maxAttempts: normalizePositiveInteger(options.maxAttempts || options.max_attempts, 1),
     priority: options.priority ?? FUTURE_IMPORT_JOB_PRIORITY,
     workspaceId,
     payload: {
@@ -46,6 +52,7 @@ async function queueFutureImportJob(context = {}, options = {}) {
   };
 }
 
+/** @param {import("../types/framework-contracts.js").JobHandlerContext} context */
 async function handleFutureImportJob({ payload = {} }) {
   const operation = normalizeText(payload.operation || "reserved_import");
 
@@ -62,6 +69,7 @@ async function handleFutureImportJob({ payload = {} }) {
   };
 }
 
+/** @param {unknown} value @param {string} message */
 function normalizeRequiredText(value, message) {
   const text = normalizeText(value);
 
@@ -72,8 +80,15 @@ function normalizeRequiredText(value, message) {
   return text;
 }
 
+/** @param {unknown} value */
 function normalizeText(value) {
   return String(value || "").trim();
+}
+
+/** @param {unknown} value @param {number} fallback */
+function normalizePositiveInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 export {

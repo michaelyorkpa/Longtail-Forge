@@ -40,6 +40,9 @@ import { tagsService } from "../../services/tags.service.js";
 import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
 import { assertLinkedContextTargetContract } from "../../core/linked-context/provider-contract.js";
 
+/** @typedef {ReturnType<typeof assertLinkedContextTargetContract> & { ariaLabel: string, fullLabel: string, title: string }} LinkedTargetSummary */
+/** @typedef {{ label: string, module_id: string, target_id: string, target_type: string, url: string }} LinkedTargetRecord */
+
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
 const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
@@ -807,7 +810,7 @@ async function readPermissionSafeLinksForLists(session, listRecords = []) {
       linksByListId.set(listId, []);
     }
 
-    linksByListId.get(listId).push(shaped);
+    linksByListId.get(listId)?.push(shaped);
   }
 
   return linksByListId;
@@ -857,6 +860,7 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   const ids = [...new Set((Array.isArray(targetIds) ? targetIds : [])
     .map((targetId) => String(targetId || "").trim())
     .filter(Boolean))];
+  /** @type {Map<string, LinkedTargetRecord>} */
   const summaries = new Map();
 
   if (ids.length === 0) {
@@ -1089,6 +1093,7 @@ function shapeContextualListLinkTarget(options = {}) {
   }, options.provider);
 }
 
+/** @returns {LinkedTargetSummary} */
 function shapeListLinkTarget(target = {}, provider = {}) {
   const normalized = assertLinkedContextTargetContract({
     ...target,
@@ -1994,6 +1999,7 @@ function shapeCatalogItemForBrowser(item = {}) {
   };
 }
 
+/** @param {Record<string, unknown>} link @param {LinkedTargetRecord | null} target */
 function shapeLinkForBrowser(link = {}, target = null) {
   return {
     ...link,

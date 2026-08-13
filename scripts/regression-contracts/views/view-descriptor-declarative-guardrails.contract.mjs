@@ -112,7 +112,10 @@ for (const surface of surfaces) {
 assert.deepEqual(
   surfaces
     .filter((surface) => surface.dataSource?.route)
-    .map((surface) => [surface.id, surface.dataSource.recordsKey])
+    .map((surface) => {
+      if (!surface.dataSource) throw new Error(`${surface.id} should retain its filtered data source.`);
+      return /** @type {[string, string]} */ ([surface.id, surface.dataSource.recordsKey || ""]);
+    })
     .sort(([left], [right]) => left.localeCompare(right)),
   [
     ["client-projects.clients", "clients"],
@@ -352,14 +355,16 @@ assert.doesNotMatch(filesJs, /storageKey|storagePath|signedUrl|fileHash|scannerI
 
 const clientsSurface = surfaces.find((surface) => surface.id === "client-projects.clients");
 const projectsSurface = surfaces.find((surface) => surface.id === "client-projects.projects");
+if (!clientsSurface || !projectsSurface) throw new Error("Clients and Projects surfaces should be registered.");
 assertClientProjectsStrictDescriptor(clientsSurface, "Clients", ["Add Child Client", "Edit Client"]);
 assertClientProjectsStrictDescriptor(projectsSurface, "Projects", ["Edit Project"]);
 const unavailableActionDelivery = loadUnavailableTopLevelActionDelivery(false);
 const availableActionDelivery = loadUnavailableTopLevelActionDelivery(true);
-for (const [surface, label] of [
+for (const [surface, label] of /** @type {Array<[import("../../../src/types/framework-contracts.js").ViewSurfaceDescriptor, string]>} */ ([
   [clientsSurface, "Clients"],
   [projectsSurface, "Projects"],
-]) {
+])) {
+  if (!surface.dataSource) throw new Error(`${label} surface should retain its data source.`);
   const delivered = unavailableActionDelivery(surface);
   assert.notStrictEqual(delivered, surface, `${label} should project a new delivered descriptor when its primary action is unavailable`);
   assert.equal(Object.hasOwn(delivered.pageHeader, "primaryAction"), false, `${label} should omit its unavailable delivered primary action`);

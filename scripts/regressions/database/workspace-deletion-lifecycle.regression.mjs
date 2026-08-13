@@ -119,8 +119,10 @@ WHERE type = 'table'
   AND name NOT LIKE 'sqlite_%'
 ORDER BY name;
 `);
+  /** @type {Record<string, unknown>} */
   const snapshot = {};
   for (const { name } of tables) {
+    if (typeof name !== "string") continue;
     if (["audit_logs", "search_index_fts", "workspace_deletion_lifecycle"].includes(name)) continue;
     const columns = await db.query(`PRAGMA table_info("${name.replaceAll('"', '""')}");`);
     if (!columns.some((column) => column.name === "workspace_id")) continue;

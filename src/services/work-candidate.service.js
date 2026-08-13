@@ -9,9 +9,21 @@ import {
 } from "./work-resume-state-producers.js";
 import { workResumeStateService } from "./work-resume-state.service.js";
 
+/** @typedef {import("../types/framework-contracts.js").WorkCandidate} WorkCandidate */
+/** @typedef {Partial<WorkCandidate> & Record<string, unknown>} CandidateShape */
+/** @typedef {Record<PropertyKey, unknown>} CandidateQueryInput */
+/** @typedef {{clientId: string, clientIds: string[], clientProjectIds: string[], distantCreationOnlyFallback: boolean, dueBefore: string, dueFrom: string, dueOn: string, dueTo: string, excludeDistantCreationOnly: boolean, excludePassiveRecurringCreated: boolean, excludePassiveRecurringCreatedAlways: boolean, excludeStatusFilters: string[], includeTaskCandidates: boolean, limit: number, mode: string, moduleId: string, projectId: string, projectIds: string[], rankBuckets: string[], recordType: string, sort: string, statusFilters: string[], timezone: string, today: string, [NORMALIZED_QUERY_MARKER]: true}} CandidateQuery */
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {{manualTimerSourceAvailable: boolean, timerSourceKeys: Set<string>, workItemSourceKeys: Set<string>}} CandidateSourceContext */
+/** @typedef {Record<string, unknown> & {disabled?: boolean, href?: string, id?: string, label?: string, method?: string, params?: unknown, payload?: unknown, route?: string, type?: string}} ActionDescriptor */
+/** @typedef {{dueThisWeekEndDateKey: string, recentSinceDateKey: string, sort: string, staleBeforeDateKey: string, timezone: string, today: string}} RankContext */
+/** @typedef {{bucket: number, bucketId: string, dueDateKey: string, dueTime: number|null, lastActivityDateKey: string, lastActivityTime: number, priorityRank: number, rankHint: number, sort: string}} RankFacts */
+/** @typedef {{candidate: WorkCandidate, facts: RankFacts, index: number}} RankedCandidate */
+
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 const SECOND_UPDATED_TASK_SCAN_LIMIT = 5;
+/** @type {Readonly<Record<string, number>>} */
 const TEXT_LIMITS = Object.freeze({
   blockedReason: 1000,
   candidateId: 240,
@@ -119,6 +131,10 @@ const TASK_WORK_ITEM_SOURCE_KIND = "task_work_item";
 const TASK_WORK_ITEM_SOURCE_KEY = "tasks:task";
 const NORMALIZED_QUERY_MARKER = Symbol("normalizedWorkCandidateQuery");
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ */
+/** @param {WorkspaceRequestSession} session @param {CandidateQueryInput} [query] */
 async function listResumeCandidates(session, query = {}) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   // Over-fetch stays at limit x 4 (capped) with the resume scan's own x 3:
@@ -146,6 +162,7 @@ async function listResumeCandidates(session, query = {}) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {CandidateQueryInput} [query] */
 async function listWorkCandidates(session, query = {}) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const sourceContext = await readCandidateSourceContext(session);
@@ -157,6 +174,7 @@ async function listWorkCandidates(session, query = {}) {
   const bySource = new Map();
 
   for (const candidate of [...liveTimers, ...(resumeResult.items || []), ...taskWorkItems]) {
+    if (!candidate) continue;
     if (!matchesCandidateQuery(candidate, normalizedQuery) || !isCandidateSourceAvailable(candidate, sourceContext)) {
       continue;
     }
@@ -178,11 +196,7 @@ async function listWorkCandidates(session, query = {}) {
   };
 }
 
-/**
- * @typedef {{ manualTimerSourceAvailable: boolean, timerSourceKeys: Set<string>, workItemSourceKeys: Set<string> }} CandidateSourceContext
- */
-
-/** @param {CandidateSourceContext | null} [sourceContext] */
+/** @param {WorkspaceRequestSession} session @param {CandidateQueryInput} [query] @param {CandidateSourceContext|null} [sourceContext] */
 async function listTaskWorkItemCandidates(session, query = {}, sourceContext = null) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
@@ -209,7 +223,7 @@ async function listTaskWorkItemCandidates(session, query = {}, sourceContext = n
   return (result.items || []).map((item) => candidateFromTaskWorkItem(item));
 }
 
-/** @param {CandidateSourceContext | null} [sourceContext] */
+/** @param {WorkspaceRequestSession} session @param {CandidateQueryInput} [query] @param {CandidateSourceContext|null} [sourceContext] */
 async function listLiveTimerCandidates(session, query = {}, sourceContext = null) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
@@ -240,11 +254,12 @@ async function listLiveTimerCandidates(session, query = {}, sourceContext = null
 
       return candidateFromTimer(timer, { taskLifecycle });
     })
-    .filter(Boolean)
+    .filter((candidate) => candidate !== null)
     .filter((candidate) => isCandidateSourceAvailable(candidate, resolvedSourceContext))
     .filter((candidate) => matchesCandidateQuery(candidate, normalizedQuery));
 }
 
+/** @param {WorkspaceRequestSession} session @param {CandidateQueryInput} [query] @param {CandidateSourceContext|null} [sourceContext] */
 async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sourceContext = null) {
   const normalizedQuery = normalizeListQuery(query, { timezone: session?.timezone });
   const resolvedSourceContext = sourceContext || await readCandidateSourceContext(session);
@@ -282,10 +297,12 @@ async function readSecondMostRecentUpdatedTaskCandidate(session, query = {}, sou
     : null;
 }
 
+/** @param {Array<CandidateShape|null>} [candidates] @param {CandidateQueryInput} [options] */
 function rankWorkCandidates(candidates = [], options = {}) {
   const context = rankContext(options);
 
   return [...candidates]
+    .filter((candidate) => candidate !== null)
     .map((candidate, index) => ({
       candidate: normalizeWorkCandidate(candidate),
       index,
@@ -298,6 +315,7 @@ function rankWorkCandidates(candidates = [], options = {}) {
     .map((entry) => entry.candidate);
 }
 
+/** @param {Record<string, unknown>} [item] @param {CandidateQueryInput} [options] */
 function candidateFromTaskWorkItem(item = {}, options = {}) {
   const taskId = textValue(firstValue(item.task_id, item.source_id), TEXT_LIMITS.recordId);
   const recordType = textValue(item.source_type, TEXT_LIMITS.recordType) || "task";
@@ -337,6 +355,7 @@ function candidateFromTaskWorkItem(item = {}, options = {}) {
   });
 }
 
+/** @param {Record<string, unknown>} [row] */
 function candidateFromResumeRow(row = {}) {
   const sourceUrl = safeUrl(row.source_url);
   const nextAction = textValue(row.next_action, TEXT_LIMITS.nextAction);
@@ -375,6 +394,7 @@ function candidateFromResumeRow(row = {}) {
   };
 }
 
+/** @param {Record<string, unknown>} [item] */
 function taskWorkItemContextLabel(item = {}) {
   return [item.client_name, item.project_name]
     .map((value) => textValue(value, 120))
@@ -382,9 +402,10 @@ function taskWorkItemContextLabel(item = {}) {
     .join(" / ");
 }
 
+/** @param {Record<string, unknown>} [item] */
 function taskWorkItemReason(item = {}) {
   if (item.next_action) {
-    return item.next_action;
+    return textValue(item.next_action, TEXT_LIMITS.reason);
   }
   if (item.blocked_reason) {
     return `Blocked: ${item.blocked_reason}`.slice(0, TEXT_LIMITS.reason);
@@ -396,13 +417,14 @@ function taskWorkItemReason(item = {}) {
   return "Task work is ready to focus.";
 }
 
+/** @param {Record<string, unknown>} [timer] @param {CandidateQueryInput} [options] */
 function candidateFromTimer(timer = {}, options = {}) {
-  const resumeContext = timer.resumeContext || timer.resume_context || {};
+  const resumeContext = objectValue(timer.resumeContext || timer.resume_context);
   const timerStatus = timer.timer_status === "running" || resumeContext.timerStatus === "running"
     ? "running"
     : "paused";
   const taskId = taskTimerSourceId(timer);
-  const taskLifecycle = options.taskLifecycle || {};
+  const taskLifecycle = objectValue(options.taskLifecycle);
   const isTaskTimer = Boolean(taskId && taskLifecycle.readable);
   const timerSlot = textValue(timer.timer_slot, 80);
   const sourceUrl = safeUrl(timer.source_url) || (isTaskTimer
@@ -456,8 +478,9 @@ function candidateFromTimer(timer = {}, options = {}) {
   });
 }
 
+/** @param {Record<string, unknown>} [timer] */
 function taskTimerSourceId(timer = {}) {
-  const resumeContext = timer.resumeContext || timer.resume_context || {};
+  const resumeContext = objectValue(timer.resumeContext || timer.resume_context);
   const sourceModuleId = textValue(timer.source_module_id || resumeContext.sourceModuleId, TEXT_LIMITS.moduleId);
   const sourceType = textValue(timer.source_type || resumeContext.sourceType, TEXT_LIMITS.recordType);
 
@@ -468,10 +491,7 @@ function taskTimerSourceId(timer = {}) {
   return textValue(timer.source_id || resumeContext.sourceId, TEXT_LIMITS.recordId);
 }
 
-/**
- * @param {Record<string, any>} [input]
- * @returns {import("../types/framework-contracts.js").WorkCandidate}
- */
+/** @param {Record<string, unknown>} [input] @returns {WorkCandidate} */
 function normalizeWorkCandidate(input = {}) {
   const picked = pickAllowedCandidateFields(input);
   const sourceUrl = safeUrl(firstValue(picked.sourceUrl, picked.source_url));
@@ -497,7 +517,7 @@ function normalizeWorkCandidate(input = {}) {
       moduleId,
       recordId,
       recordType,
-      sourceKind: picked.sourceKind,
+      sourceKind: textValue(picked.sourceKind, TEXT_LIMITS.sourceKind),
     }),
     clientId: textValue(firstValue(picked.clientId, picked.client_id), TEXT_LIMITS.recordId),
     contextLabel,
@@ -527,7 +547,9 @@ function normalizeWorkCandidate(input = {}) {
   };
 }
 
+/** @param {Record<string, unknown>} [input] @returns {Record<string, unknown>} */
 function pickAllowedCandidateFields(input = {}) {
+  /** @type {Record<string, unknown>} */
   const picked = {};
 
   for (const [key, value] of Object.entries(input || {})) {
@@ -541,9 +563,14 @@ function pickAllowedCandidateFields(input = {}) {
   return picked;
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} sourceUrl
+ * @returns {ActionDescriptor}
+ */
 function normalizePrimaryAction(value, sourceUrl) {
   const action = value && typeof value === "object" && !Array.isArray(value)
-    ? sanitizeActionDescriptor(value)
+    ? sanitizeActionDescriptor(/** @type {Record<string, unknown>} */ (value))
     : {};
 
   if (!action.id) {
@@ -568,7 +595,9 @@ function normalizePrimaryAction(value, sourceUrl) {
   return action;
 }
 
+/** @param {Record<string, unknown>} [action] @returns {ActionDescriptor} */
 function sanitizeActionDescriptor(action = {}) {
+  /** @type {ActionDescriptor} */
   const sanitized = {};
 
   for (const [key, value] of Object.entries(action)) {
@@ -603,6 +632,9 @@ function sanitizeActionDescriptor(action = {}) {
   return sanitized;
 }
 
+/**
+ * @param {string} sourceUrl
+ */
 function openPrimaryAction(sourceUrl) {
   return {
     disabled: !sourceUrl,
@@ -613,6 +645,10 @@ function openPrimaryAction(sourceUrl) {
   };
 }
 
+/**
+ * @param {{ blockedReason?: string | undefined; lastActionLabel?: string | undefined; nextAction?: string | undefined; } | undefined} candidate
+ */
+/** @param {CandidateShape} candidate */
 function resumeReason(candidate) {
   if (candidate.nextAction) {
     return candidate.nextAction;
@@ -635,11 +671,16 @@ function defaultReason({ blockedReason = "", lastActionLabel = "", nextAction = 
   return "Recent work is ready to resume.";
 }
 
+/** @param {CandidateShape} [input] @returns {Record<string, unknown>} */
 function readSafeMetadata(input = {}) {
   const metadata = firstValue(input.metadata, parseMetadataJson(firstValue(input.metadataJson, input.metadata_json)));
-  return sanitizeMetadata(metadata) || {};
+  const sanitized = sanitizeMetadata(metadata);
+  return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+    ? /** @type {Record<string, unknown>} */ (sanitized)
+    : {};
 }
 
+/** @param {WorkspaceRequestSession} session @returns {Promise<CandidateSourceContext>} */
 async function readCandidateSourceContext(session) {
   if (!session?.workspace_id) {
     return {
@@ -663,6 +704,7 @@ async function readCandidateSourceContext(session) {
   };
 }
 
+/** @param {CandidateShape} candidate @param {CandidateSourceContext} sourceContext */
 function isCandidateSourceAvailable(candidate, sourceContext) {
   if (candidate.sourceKind === LIVE_TIMER_SOURCE_KIND) {
     const sourceKey = timerCandidateSourceKey(candidate);
@@ -678,6 +720,10 @@ function isCandidateSourceAvailable(candidate, sourceContext) {
   return sourceContext.workItemSourceKeys.has(candidateContributionKey(candidate));
 }
 
+/**
+ * @param {import("../types/framework-contracts.js").WorkCandidate | { reason: string; candidateId: string; sourceKind: string; recordType: string; recordId: string; moduleId: string; title: string; status?: string | undefined; priority?: string | undefined; clientId?: string | undefined; projectId?: string | undefined; contextLabel?: string | undefined; blockedReason?: string | undefined; nextAction?: string | undefined; handoffNote?: string | undefined; lastActionLabel?: string | undefined; lastActionType?: string | undefined; lastWorkedAt?: string | undefined; dueAt?: string | undefined; createdAt?: string | undefined; updatedAt?: string | undefined; dismissedAt?: string | undefined; resumeStateId?: string | undefined; rankHint?: string | number | undefined; sourceUrl?: string | undefined; primaryAction?: { [key: string]: unknown; id?: string | undefined; label?: string | undefined; type?: string | undefined; href?: string | undefined; route?: string | undefined; } | null | undefined; metadata?: Record<string, unknown> | undefined; } | null} candidate
+ */
+/** @param {CandidateShape} candidate @param {CandidateQueryInput} [query] */
 function matchesCandidateQuery(candidate, query = {}) {
   const normalizedQuery = normalizeListQuery(query);
 
@@ -694,9 +740,10 @@ function matchesCandidateQuery(candidate, query = {}) {
     matchesRankBucketFilters(candidate, normalizedQuery);
 }
 
+/** @param {CandidateQueryInput} [query] @param {{timezone?: unknown}} [options] @returns {CandidateQuery} */
 function normalizeListQuery(query = {}, options = {}) {
   if (query?.[NORMALIZED_QUERY_MARKER]) {
-    return query;
+    return /** @type {CandidateQuery} */ (query);
   }
 
   const flattenedQuery = flattenFocusQuery(query);
@@ -761,10 +808,12 @@ function normalizeListQuery(query = {}, options = {}) {
   };
 }
 
+/** @param {unknown} value @param {unknown} filter */
 function matchesTextFilter(value, filter) {
   return !filter || String(value || "") === filter;
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesClientScopeFilter(candidate, query) {
   const scopedClientIds = Array.isArray(query.clientIds) ? query.clientIds : [];
   const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
@@ -777,6 +826,7 @@ function matchesClientScopeFilter(candidate, query) {
   return matchesTextFilter(candidate.clientId, query.clientId);
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesProjectScopeFilter(candidate, query) {
   const scopedProjectIds = Array.isArray(query.projectIds) ? query.projectIds : [];
 
@@ -787,24 +837,27 @@ function matchesProjectScopeFilter(candidate, query) {
   return matchesTextFilter(candidate.projectId, query.projectId);
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesStatusFilters(candidate, query) {
   if (!query.statusFilters.length) {
     return true;
   }
 
   const statusValues = candidateStatusValues(candidate, query);
-  return query.statusFilters.some((status) => statusValues.has(status));
+  return query.statusFilters.some((/** @type {string} */ status) => statusValues.has(status));
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesExcludedStatusFilters(candidate, query) {
   if (!query.excludeStatusFilters.length) {
     return true;
   }
 
   const statusValues = candidateStatusValues(candidate, query);
-  return !query.excludeStatusFilters.some((status) => statusValues.has(status));
+  return !query.excludeStatusFilters.some((/** @type {string} */ status) => statusValues.has(status));
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesDueDateFilters(candidate, query) {
   if (!query.dueBefore && !query.dueFrom && !query.dueOn && !query.dueTo) {
     return true;
@@ -831,6 +884,7 @@ function matchesDueDateFilters(candidate, query) {
   return true;
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesRankBucketFilters(candidate, query) {
   if (!query.rankBuckets.length) {
     return true;
@@ -844,10 +898,12 @@ function matchesRankBucketFilters(candidate, query) {
     isNearDueRecurringCreatedCandidate(candidate, rankContext(query));
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQueryInput} [options] */
 function resolveWorkCandidateRankBucket(candidate, options = {}) {
   return candidateRankFacts(normalizeWorkCandidate(candidate), rankContext(options)).bucketId;
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function candidateStatusValues(candidate, query) {
   const statusValues = new Set([
     candidate.status,
@@ -872,6 +928,7 @@ function candidateStatusValues(candidate, query) {
   return statusValues;
 }
 
+/** @param {CandidateQueryInput} [query] @returns {CandidateQueryInput} */
 function flattenFocusQuery(query = {}) {
   const focusContext = objectValue(firstValue(query.focusContext, query.focus_context));
   const candidateQuery = objectValue(firstValue(focusContext.candidateQuery, focusContext.candidate_query));
@@ -888,6 +945,10 @@ function flattenFocusQuery(query = {}) {
   };
 }
 
+/**
+ * @param {import("../types/framework-contracts.js").WorkCandidate | { reason: string; candidateId: string; sourceKind: string; recordType: string; recordId: string; moduleId: string; title: string; status?: string | undefined; priority?: string | undefined; clientId?: string | undefined; projectId?: string | undefined; contextLabel?: string | undefined; blockedReason?: string | undefined; nextAction?: string | undefined; handoffNote?: string | undefined; lastActionLabel?: string | undefined; lastActionType?: string | undefined; lastWorkedAt?: string | undefined; dueAt?: string | undefined; createdAt?: string | undefined; updatedAt?: string | undefined; dismissedAt?: string | undefined; resumeStateId?: string | undefined; rankHint?: string | number | undefined; sourceUrl?: string | undefined; primaryAction?: { [key: string]: unknown; id?: string | undefined; label?: string | undefined; type?: string | undefined; href?: string | undefined; route?: string | undefined; } | null | undefined; metadata?: Record<string, unknown> | undefined; } | null} candidate
+ */
+/** @param {CandidateShape} candidate */
 function candidateSourceKey(candidate) {
   return [
     candidate.moduleId,
@@ -896,6 +957,7 @@ function candidateSourceKey(candidate) {
   ].join(":");
 }
 
+/** @param {CandidateShape} candidate @param {RankContext} context @returns {RankFacts} */
 function candidateRankFacts(candidate, context) {
   const dueDateKey = dateKeyFrom(candidate.dueAt, context.timezone);
   const dueTime = optionalDateTimeValue(candidate.dueAt);
@@ -917,12 +979,17 @@ function candidateRankFacts(candidate, context) {
     dueTime,
     lastActivityDateKey,
     lastActivityTime,
-    priorityRank: PRIORITY_RANKS[String(candidate.priority || "").toLowerCase()] || 0,
-    rankHint: Number.parseInt(candidate.rankHint, 10) || 0,
+    priorityRank: /** @type {Record<string, number>} */ (PRIORITY_RANKS)[String(candidate.priority || "").toLowerCase()] || 0,
+    rankHint: Number.parseInt(String(candidate.rankHint ?? ""), 10) || 0,
     sort: context.sort,
   };
 }
 
+/**
+ * @param {{ metadata: {}; }} candidate
+ * @param {{ dueDateKey: number; today: number; lastActivityDateKey: string | number; recentSinceDateKey: number; dueThisWeekEndDateKey: number; }} context
+ */
+/** @param {CandidateShape} candidate @param {RankContext & {dueDateKey: string, lastActivityDateKey: string}} context */
 function rankBucket(candidate, context) {
   if (isRunningTimer(candidate)) {
     return RANK_BUCKETS.runningTimer;
@@ -955,6 +1022,7 @@ function rankBucket(candidate, context) {
   return RANK_BUCKETS.later;
 }
 
+/** @param {RankedCandidate} left @param {RankedCandidate} right */
 function compareRankedCandidates(left, right) {
   if (left.facts.sort === WORK_CANDIDATE_SORTS.dueDatetime) {
     return compareDueDatetimeCandidates(left, right);
@@ -973,6 +1041,7 @@ function compareRankedCandidates(left, right) {
     left.index - right.index;
 }
 
+/** @param {RankedCandidate} left @param {RankedCandidate} right */
 function compareResumeCandidates(left, right) {
   return resumePrecedence(left.candidate) - resumePrecedence(right.candidate) ||
     right.facts.priorityRank - left.facts.priorityRank ||
@@ -984,6 +1053,7 @@ function compareResumeCandidates(left, right) {
     left.index - right.index;
 }
 
+/** @param {RankedCandidate} left @param {RankedCandidate} right */
 function compareDueDatetimeCandidates(left, right) {
   return compareOptionalText(left.facts.dueDateKey, right.facts.dueDateKey) ||
     compareOptionalNumber(left.facts.dueTime, right.facts.dueTime) ||
@@ -996,6 +1066,7 @@ function compareDueDatetimeCandidates(left, right) {
     left.index - right.index;
 }
 
+/** @param {CandidateShape} candidate */
 function isRunningTimer(candidate) {
   return isTimerCandidate(candidate) && [
     candidate.status,
@@ -1004,6 +1075,7 @@ function isRunningTimer(candidate) {
   ].some((value) => ["active", "running"].includes(String(value || "").toLowerCase()));
 }
 
+/** @param {CandidateShape} candidate */
 function isPausedTimer(candidate) {
   return isTimerCandidate(candidate) && [
     candidate.status,
@@ -1012,11 +1084,16 @@ function isPausedTimer(candidate) {
   ].some((value) => String(value || "").toLowerCase() === "paused");
 }
 
+/** @param {CandidateShape} candidate */
 function isTimerCandidate(candidate) {
   return candidate.recordType === "active_work_timer" ||
     String(candidate.metadata?.timer_status || candidate.metadata?.timerStatus || "").trim() !== "";
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; }} candidate
+ */
+/** @param {CandidateShape} candidate */
 function resumePrecedence(candidate) {
   if (isRunningTimer(candidate)) {
     return 10;
@@ -1034,10 +1111,15 @@ function resumePrecedence(candidate) {
   return 50;
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; }} candidate
+ */
+/** @param {CandidateShape} candidate */
 function isTaskCandidate(candidate) {
   return candidate.moduleId === "tasks" && candidate.recordType === "task";
 }
 
+/** @param {CandidateShape} candidate */
 function hasResumeNote(candidate) {
   return Boolean(textValue(
     candidate.handoffNote || candidate.metadata?.resume_note || candidate.metadata?.resumeNote,
@@ -1045,10 +1127,12 @@ function hasResumeNote(candidate) {
   ));
 }
 
+/** @param {CandidateShape} candidate */
 function isInProgressTask(candidate) {
   return normalizeFilterToken(candidate.status) === "in_progress";
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesPassiveRecurringCreated(candidate, query) {
   if (!query.excludePassiveRecurringCreated || !isPassiveRecurringCreatedCandidate(candidate)) {
     return true;
@@ -1058,6 +1142,7 @@ function matchesPassiveRecurringCreated(candidate, query) {
     isOverdueOrWithinRecurringCreatedDueWindow(candidate, rankContext(query));
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesDistantCreationOnly(candidate, query) {
   if (!query.excludeDistantCreationOnly || !isCreationOnlyTaskCandidate(candidate)) {
     return true;
@@ -1072,6 +1157,7 @@ function matchesDistantCreationOnly(candidate, query) {
   return !dueDateKey || daysBetweenDateKeys(context.today, dueDateKey) <= DUE_THIS_WEEK_DAYS;
 }
 
+/** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesDistantCreationOnlyFallback(candidate, query) {
   if (!query.distantCreationOnlyFallback || !isTaskCandidate(candidate)) {
     return true;
@@ -1086,6 +1172,7 @@ function matchesDistantCreationOnlyFallback(candidate, query) {
   return Boolean(dueDateKey && daysBetweenDateKeys(context.today, dueDateKey) > DUE_THIS_WEEK_DAYS);
 }
 
+/** @param {CandidateShape} candidate @param {RankContext} context */
 function isNearDueRecurringCreatedCandidate(candidate, context) {
   return isPassiveRecurringCreatedCandidate(candidate) &&
     isOverdueOrWithinRecurringCreatedDueWindow(candidate, context) &&
@@ -1096,10 +1183,15 @@ function isNearDueRecurringCreatedCandidate(candidate, context) {
     );
 }
 
+/**
+ * @param {{ metadata: {}; }} candidate
+ */
+/** @param {CandidateShape} candidate */
 function isPassiveRecurringCreatedCandidate(candidate) {
   return isCreationOnlyTaskCandidate(candidate) && isRecurringTaskCandidate(candidate);
 }
 
+/** @param {CandidateShape} candidate */
 function isCreationOnlyTaskCandidate(candidate) {
   return isTaskCandidate(candidate) &&
     isTaskCreatedSignal(candidate) &&
@@ -1109,6 +1201,10 @@ function isCreationOnlyTaskCandidate(candidate) {
     !isInProgressTask(candidate);
 }
 
+/**
+ * @param {{ metadata: {}; }} candidate
+ */
+/** @param {CandidateShape} candidate */
 function isRecurringTaskCandidate(candidate) {
   const metadata = candidate.metadata || {};
 
@@ -1120,6 +1216,7 @@ function isRecurringTaskCandidate(candidate) {
   );
 }
 
+/** @param {CandidateShape} candidate */
 function isTaskCreatedSignal(candidate) {
   const actionType = normalizeFilterToken(candidate.lastActionType);
   const actionLabel = normalizeFilterToken(candidate.lastActionLabel);
@@ -1130,6 +1227,7 @@ function isTaskCreatedSignal(candidate) {
     isPassiveTaskWorkItemCandidate(candidate);
 }
 
+/** @param {CandidateShape} candidate */
 function isPassiveTaskWorkItemCandidate(candidate) {
   return candidate.sourceKind === TASK_WORK_ITEM_SOURCE_KIND &&
     normalizeFilterToken(candidate.status) === "open" &&
@@ -1138,6 +1236,7 @@ function isPassiveTaskWorkItemCandidate(candidate) {
     !textValue(candidate.metadata?.timer_status || candidate.metadata?.timerStatus, TEXT_LIMITS.status);
 }
 
+/** @param {CandidateShape} candidate @param {RankContext} context */
 function isOverdueOrWithinRecurringCreatedDueWindow(candidate, context) {
   const dueDateKey = dateKeyFrom(
     candidate.dueAt || candidate.metadata?.recurrence_instance_date || candidate.metadata?.recurrenceInstanceDate,
@@ -1147,6 +1246,7 @@ function isOverdueOrWithinRecurringCreatedDueWindow(candidate, context) {
   return isOverdueWork(dueDateKey, context.today) || isWithinRecurringCreatedDueWindow(candidate, context);
 }
 
+/** @param {CandidateShape} candidate @param {RankContext} context */
 function isWithinRecurringCreatedDueWindow(candidate, context) {
   const dueDateKey = dateKeyFrom(
     candidate.dueAt || candidate.metadata?.recurrence_instance_date || candidate.metadata?.recurrenceInstanceDate,
@@ -1157,6 +1257,10 @@ function isWithinRecurringCreatedDueWindow(candidate, context) {
   return Number.isFinite(dayDistance) && Math.abs(dayDistance) <= 1;
 }
 
+/**
+ * @param {{ metadata: {}; }} candidate
+ */
+/** @param {CandidateShape} candidate */
 function isAssignedOrAssignmentUnknown(candidate) {
   const metadata = candidate.metadata || {};
 
@@ -1170,6 +1274,7 @@ function isAssignedOrAssignmentUnknown(candidate) {
   return true;
 }
 
+/** @param {CandidateShape} candidate @param {RankContext & {lastActivityDateKey: string}} context */
 function isBlockedOrStaleWork(candidate, context) {
   const status = String(candidate.status || "").toLowerCase();
 
@@ -1179,27 +1284,48 @@ function isBlockedOrStaleWork(candidate, context) {
     isStaleWork(context.lastActivityDateKey, context.staleBeforeDateKey);
 }
 
+/**
+ * @param {string} lastActivityDateKey
+ * @param {string} staleBeforeDateKey
+ */
 function isStaleWork(lastActivityDateKey, staleBeforeDateKey) {
   return Boolean(lastActivityDateKey && lastActivityDateKey < staleBeforeDateKey);
 }
 
+/**
+ * @param {string} dueDateKey
+ * @param {string} today
+ */
 function isOverdueWork(dueDateKey, today) {
   return Boolean(dueDateKey && dueDateKey < today);
 }
 
+/**
+ * @param {string} lastActivityDateKey
+ * @param {string} recentSinceDateKey
+ * @param {string} today
+ */
 function isRecentlyTouched(lastActivityDateKey, recentSinceDateKey, today) {
   return Boolean(lastActivityDateKey && lastActivityDateKey >= recentSinceDateKey && lastActivityDateKey <= today);
 }
 
+/**
+ * @param {string} dueDateKey
+ * @param {string} today
+ * @param {string} dueThisWeekEndDateKey
+ */
 function isDueThisWeek(dueDateKey, today, dueThisWeekEndDateKey) {
   return Boolean(dueDateKey && dueDateKey > today && dueDateKey <= dueThisWeekEndDateKey);
 }
 
+/** @param {CandidateQueryInput} [options] @returns {RankContext} */
 function rankContext(options = {}) {
   const timezone = textValue(options.timezone, 80) || DEFAULT_TIMEZONE;
   const now = options.now instanceof Date
     ? options.now
-    : new Date(options.now || Date.now());
+    : new Date(typeof options.now === "string" || typeof options.now === "number"
+      ? options.now
+      : Date.now());
   const safeNow = Number.isFinite(now.getTime()) ? now : new Date();
   const today = dateKeyFrom(options.today, timezone) || localDateKey(safeNow, timezone);
 
@@ -1213,14 +1339,17 @@ function rankContext(options = {}) {
   };
 }
 
+/** @param {CandidateShape} candidate */
 function candidateContributionKey(candidate) {
   return `${candidate.moduleId}:${candidate.recordType}`;
 }
 
+/** @param {Record<string, unknown>} [source] */
 function contributionSourceKey(source = {}) {
   return `${textValue(source.moduleId, TEXT_LIMITS.moduleId)}:${textValue(source.sourceType, TEXT_LIMITS.recordType)}`;
 }
 
+/** @param {CandidateShape} candidate */
 function timerCandidateSourceKey(candidate) {
   const sourceType = textValue(
     candidate.metadata?.source_type || candidate.metadata?.sourceType,
@@ -1236,6 +1365,9 @@ function candidateIdFor({ moduleId, recordId, recordType, sourceKind } = {}) {
   return `${prefix}:${moduleId}:${recordType}:${recordId}`.slice(0, TEXT_LIMITS.candidateId);
 }
 
+/**
+ * @param {unknown} value
+ */
 function parseMetadataJson(value) {
   if (!value || typeof value !== "string") {
     return {};
@@ -1249,10 +1381,14 @@ function parseMetadataJson(value) {
   }
 }
 
+/** @param {unknown} value @returns {Record<string, unknown>} */
 function objectValue(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
 }
 
+/** @param {unknown} value */
 function normalizeTextList(value) {
   const rawValues = Array.isArray(value)
     ? value
@@ -1263,6 +1399,7 @@ function normalizeTextList(value) {
     .filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeIdList(value) {
   const rawValues = Array.isArray(value)
     ? value
@@ -1273,16 +1410,23 @@ function normalizeIdList(value) {
     .filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeSortMode(value) {
   const sort = normalizeFilterToken(value);
   const supportedSorts = /** @type {string[]} */ (Object.values(WORK_CANDIDATE_SORTS));
   return supportedSorts.includes(sort) ? sort : "";
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeFilterToken(value) {
   return textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+/**
+ * @param {unknown} value
+ */
 function dateKeyFrom(value, timezone = DEFAULT_TIMEZONE) {
   const text = textValue(value, 80);
 
@@ -1302,16 +1446,31 @@ function dateKeyFrom(value, timezone = DEFAULT_TIMEZONE) {
   return localDateKey(parsed, timezone);
 }
 
+/**
+ * @param {unknown} value
+ */
 function dateTimeValue(value) {
+  if (!(value instanceof Date) && typeof value !== "string" && typeof value !== "number") {
+    return 0;
+  }
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
 }
 
+/**
+ * @param {unknown} value
+ */
 function optionalDateTimeValue(value) {
+  if (!(value instanceof Date) && typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : null;
 }
 
+/**
+ * @param {number | Date | undefined} date
+ */
 function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -1323,12 +1482,17 @@ function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/**
+ * @param {string} dateKey
+ * @param {number} days
+ */
 function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+/** @param {string} left @param {string} right */
 function compareOptionalText(left, right) {
   if (!left && !right) {
     return 0;
@@ -1343,6 +1507,10 @@ function compareOptionalText(left, right) {
   return left.localeCompare(right);
 }
 
+/**
+ * @param {number | null} left
+ * @param {number | null} right
+ */
 function compareOptionalNumber(left, right) {
   if (left === null && right === null) {
     return 0;
@@ -1357,6 +1525,10 @@ function compareOptionalNumber(left, right) {
   return left - right;
 }
 
+/**
+ * @param {string} left
+ * @param {string} right
+ */
 function daysBetweenDateKeys(left, right) {
   if (!left || !right) {
     return Number.NaN;
@@ -1372,6 +1544,9 @@ function daysBetweenDateKeys(left, right) {
   return Math.round((rightTime - leftTime) / 86400000);
 }
 
+/**
+ * @param {unknown} value
+ */
 function safeUrl(value) {
   const url = textValue(value, TEXT_LIMITS.sourceUrl);
 
@@ -1382,19 +1557,26 @@ function safeUrl(value) {
   return url;
 }
 
+/** @param {...unknown} values @returns {unknown} */
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
 
+/** @param {...unknown} values @returns {unknown} */
 function firstNonEmptyValue(...values) {
   return values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 }
 
+/**
+ * @param {string} key
+ * @param {unknown} value
+ */
 function optionalContextFilter(key, value) {
   const text = textValue(value, TEXT_LIMITS.recordId);
   return text ? { [key]: text } : {};
 }
 
+/** @param {CandidateQueryInput} [query] @returns {CandidateQueryInput} */
 function stripScopeFilters(query = {}) {
   if (!query || typeof query !== "object" || Array.isArray(query)) {
     return {};
@@ -1420,12 +1602,20 @@ function stripScopeFilters(query = {}) {
   return rest;
 }
 
+/**
+ * @param {unknown} value
+ */
 function textValue(value, limit = 1000) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ */
 function boundedInteger(value, min, max, fallback = min) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -1434,6 +1624,7 @@ function boundedInteger(value, min, max, fallback = min) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+/** @param {unknown} value */
 function booleanFlag(value) {
   if (typeof value === "boolean") {
     return value;
@@ -1442,7 +1633,7 @@ function booleanFlag(value) {
   return ["1", "true", "yes"].includes(String(value ?? "").trim().toLowerCase());
 }
 
-const workCandidateService = {
+const workCandidateServiceInternal = {
   listLiveTimerCandidates,
   listResumeCandidates,
   listWorkCandidates,
@@ -1451,6 +1642,8 @@ const workCandidateService = {
   readSecondMostRecentUpdatedTaskCandidate,
   resolveWorkCandidateRankBucket,
 };
+
+const workCandidateService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workCandidateServiceInternal>} */ (workCandidateServiceInternal);
 
 export {
   candidateFromResumeRow,

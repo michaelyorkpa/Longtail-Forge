@@ -157,7 +157,7 @@ WHERE workspace_id = '${session.workspace_id.replaceAll("'", "''")}'
     },
     async write({ value }) {
       frameworkWrites += 1;
-      frameworkStoredValue = value;
+      frameworkStoredValue = String(value);
     },
   }));
   unregister.push(settingsService.registerOnChangeEffect("framework.exampleMode", async ({ value }) => {

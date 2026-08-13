@@ -52,7 +52,7 @@ LIMIT 1;
     }
 
     if (dedupeKey) {
-      const updatedRows = await transaction.query(`
+      const updatedRows = /** @type {import("../../types/framework-contracts.js").JobRecord[]} */ (await transaction.query(`
 UPDATE jobs
 SET
   status = 'pending',
@@ -78,7 +78,7 @@ ${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
         payloadJson,
         priority,
         workspaceId,
-      });
+      }));
 
       if (updatedRows.length > 0) {
         return {
@@ -87,7 +87,7 @@ ${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
         };
       }
 
-      const runningJob = await transaction.get(`
+      const runningJob = /** @type {import("../../types/framework-contracts.js").JobRecord | null} */ (await transaction.get(`
 SELECT
   job_id,
   workspace_id,
@@ -115,7 +115,7 @@ LIMIT 1;
         dedupeKey,
         jobType,
         workspaceId,
-      });
+      }));
 
       if (runningJob) {
         return {
@@ -125,7 +125,7 @@ LIMIT 1;
       }
     }
 
-    const insertedRows = await transaction.query(`
+    const insertedRows = /** @type {import("../../types/framework-contracts.js").JobRecord[]} */ (await transaction.query(`
 INSERT INTO jobs (
   job_id,
   workspace_id,
@@ -175,7 +175,7 @@ ${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
       payloadJson,
       priority,
       workspaceId,
-    });
+    }));
 
     return {
       action: "inserted",
@@ -184,7 +184,11 @@ ${transaction.dialect.returning.columns(JOB_RETURN_COLUMNS)};
   });
 }
 
-function shapeJob(row = {}) {
+/** @param {import("../../types/framework-contracts.js").JobRecord | null | undefined} row */
+function shapeJob(row) {
+  if (!row) {
+    throw new Error("Queued job row is unavailable.");
+  }
   return {
     availableAt: row.available_at || null,
     completedAt: row.completed_at || null,
@@ -205,6 +209,10 @@ function shapeJob(row = {}) {
   };
 }
 
+/**
+ * @param {string | undefined} value
+ * @param {string | undefined} message
+ */
 function normalizeRequiredText(value, message) {
   const text = normalizeNullableText(value);
 
@@ -215,11 +223,18 @@ function normalizeRequiredText(value, message) {
   return text;
 }
 
+/**
+ * @param {string | null | undefined} value
+ */
 function normalizeNullableText(value) {
   const text = String(value || "").trim();
   return text || null;
 }
 
+/**
+ * @param {number | undefined} value
+ * @param {number} fallback
+ */
 function normalizeInteger(value, fallback) {
   const number = Number(value);
 

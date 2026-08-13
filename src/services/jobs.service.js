@@ -9,6 +9,15 @@ const RECENT_FAILURE_MAX_PAGE_SIZE = 50;
 const DEFAULT_PRUNE_BATCH_SIZE = 500;
 const MAX_PRUNE_BATCH_SIZE = 5000;
 
+/** @typedef {"pending" | "running" | "failed" | "dead"} JobReadoutStatus */
+/** @typedef {{ limit: number, offset: number, maxPageSize: number }} BoundedPagination */
+/** @typedef {{ status: unknown, count: unknown }} JobStatusCountRow */
+/** @typedef {{ total: unknown }} JobFailureCountRow */
+/** @typedef {{ job_id: string, job_type: string, status: string, priority: unknown, available_at: string | null, attempt_count: unknown, max_attempts: unknown, locked_at: string | null, locked_by: string | null, last_error: unknown, created_at: string | null, updated_at: string | null, completed_at: string | null, dead_at: string | null }} JobFailureRow */
+/** @typedef {{ now?: unknown, completedRetentionDays?: unknown, deadRetentionDays?: unknown, batchSize?: unknown }} JobPruneOptions */
+/** @typedef {{ batchSize: number, cutoff: string, status: "completed" | "dead", timestampColumn: "completed_at" | "dead_at" }} PruneStatusOptions */
+
+/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {Record<string, unknown>} [query] */
 async function readAdminReadout(session, query = {}) {
   await permissionsService.assertCan(session, REQUIRED_PERMISSION, {
     operation: "read",
@@ -40,6 +49,7 @@ async function readAdminReadout(session, query = {}) {
   };
 }
 
+/** @param {JobPruneOptions} [options] */
 async function pruneOldJobs(options = {}) {
   const now = normalizeDate(options.now ?? new Date());
   const completedRetentionDays = normalizeRetentionDays(
@@ -83,6 +93,7 @@ async function pruneOldJobs(options = {}) {
   };
 }
 
+/** @param {PruneStatusOptions} options */
 async function pruneStatus(options) {
   let deleted = 0;
 
@@ -112,18 +123,22 @@ ${transaction.dialect.returning.columns(["job_id"])};
   }
 }
 
+/**
+ * @param {string | null} workspaceId
+ */
 function readStatusCounts(workspaceId) {
-  return db.query(`
+  return /** @type {Promise<JobStatusCountRow[]>} */ (db.query(`
 SELECT status, COUNT(*) AS count
 FROM jobs
 WHERE workspace_id = :workspaceId
   AND status IN ('pending', 'running', 'failed', 'dead')
 GROUP BY status;
-`, { workspaceId });
+`, { workspaceId }));
 }
 
+/** @param {string} workspaceId @param {BoundedPagination} pagination @returns {Promise<JobFailureRow[]>} */
 function readRecentFailures(workspaceId, pagination) {
-  return db.query(`
+  return /** @type {Promise<JobFailureRow[]>} */ (db.query(`
 SELECT
   job_id,
   job_type,
@@ -149,20 +164,27 @@ LIMIT :limit OFFSET :offset;
     limit: pagination.limit,
     offset: pagination.offset,
     workspaceId,
-  });
+  }));
 }
 
+/**
+ * @param {string | null} workspaceId
+ */
 function countRecentFailures(workspaceId) {
-  return db.get(`
+  return /** @type {Promise<JobFailureCountRow | null>} */ (db.get(`
 SELECT COUNT(*) AS total
 FROM jobs
 WHERE workspace_id = :workspaceId
   AND status IN ('failed', 'dead')
   AND last_error IS NOT NULL;
-`, { workspaceId });
+`, { workspaceId }));
 }
 
+/**
+ * @param {JobStatusCountRow[]} rows
+ */
 function shapeStatusCounts(rows) {
+  /** @type {Record<JobReadoutStatus, number>} */
   const counts = {
     dead: 0,
     failed: 0,
@@ -171,7 +193,7 @@ function shapeStatusCounts(rows) {
   };
 
   for (const row of rows) {
-    if (Object.hasOwn(counts, row.status)) {
+    if (isJobReadoutStatus(row.status)) {
       counts[row.status] = Number(row.count || 0);
     }
   }
@@ -179,6 +201,7 @@ function shapeStatusCounts(rows) {
   return counts;
 }
 
+/** @param {JobFailureRow} row */
 function shapeFailureSummary(row) {
   return {
     availableAt: row.available_at || null,
@@ -198,10 +221,12 @@ function shapeFailureSummary(row) {
   };
 }
 
+/** @param {unknown} value */
 function safeText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+/** @param {unknown} value */
 function normalizeDate(value) {
   const date = value instanceof Date ? value : new Date(String(value || ""));
 
@@ -212,6 +237,7 @@ function normalizeDate(value) {
   return date;
 }
 
+/** @param {unknown} value @param {string} label */
 function normalizeRetentionDays(value, label) {
   const days = Number(value);
 
@@ -222,6 +248,7 @@ function normalizeRetentionDays(value, label) {
   return days;
 }
 
+/** @param {unknown} value */
 function normalizeBatchSize(value) {
   const size = Number(value);
 
@@ -232,8 +259,17 @@ function normalizeBatchSize(value) {
   return Math.min(size, MAX_PRUNE_BATCH_SIZE);
 }
 
+/**
+ * @param {Date} date
+ * @param {number} days
+ */
 function subtractDays(date, days) {
   return new Date(date.getTime() - (days * 24 * 60 * 60 * 1000)).toISOString();
+}
+
+/** @param {unknown} value @returns {value is JobReadoutStatus} */
+function isJobReadoutStatus(value) {
+  return value === "pending" || value === "running" || value === "failed" || value === "dead";
 }
 
 export const jobsService = {
