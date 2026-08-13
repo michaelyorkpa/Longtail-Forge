@@ -7,7 +7,6 @@ const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
-const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const roadmap = readText("ROADMAP.md");
 const databaseDocs = readText("docs/database.md");
 const moduleContractDocs = readText("docs/module-contract.md");
