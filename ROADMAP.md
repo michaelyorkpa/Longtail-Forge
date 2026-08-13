@@ -36,6 +36,8 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged.
+
 Release-wide measurable acceptance:
 
 - [ ] Every first-party server, test, script, and browser JavaScript file belongs to its owning checked program with no file omitted from the combined program universe, file pragmas, `@ts-ignore`, `@ts-nocheck`, or unexplained `any`; `npm run typecheck` is green under full strict.
@@ -46,32 +48,85 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.16 - Add Notes edge schemas and extract the link-target directory
+### 0.33.33.16.1 - Add Notes edge schemas
 
-**Model: High Effort** - Notes input validation, Secure Notes fields, and cross-module target visibility are permission-sensitive.
+**Model: High Effort** - Notes input validation and Secure Notes fields are permission- and confidentiality-sensitive.
 
-- [ ] Add module-owned Zod edge schemas following liberal-strip workflow calibration and strict rejection for security-sensitive Secure Notes fields.
-- [ ] Preserve current accepted/rejected payload behavior with a captured contract corpus before wiring schemas at service entry.
+- [ ] Capture the current accepted/rejected Notes payload corpus before changing validation ownership.
+- [ ] Add module-owned Zod edge schemas with liberal-strip workflow calibration and strict rejection for security-sensitive Secure Notes fields.
+- [ ] Wire each schema once at its owning service entry without re-parsing trusted internal objects or changing existing error envelopes.
+- [ ] Close full-strict debt at the validation edge with focused Notes and permission coverage.
+
+### 0.33.33.16.2 - Extract the Notes link-target directory
+
+**Model: High Effort** - Cross-module target summaries must preserve permission pruning, safe labels, and public-entry ownership.
+
 - [ ] Extract the link-target directory/read-summary seam so Notes no longer owns five cross-module row shapes directly.
-- [ ] Close full-strict debt for the edge and extracted service with Notes and permission coverage.
+- [ ] Consume supported module public entries and keep target-specific visibility and shaping inside the owning provider boundary.
+- [ ] Preserve client/project scope, unavailable-target behavior, safe labels, and the established Notes link payload.
+- [ ] Close full-strict debt for the extracted seam with Notes, module-boundary, and permission proof.
 
-### 0.33.33.17 - Extract Notes collections and finish Notes strict typing
+### 0.33.33.17.1 - Extract Notes collections
 
 **Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.
 
-- [ ] Extract collection tree/path/count/catalog behavior into a cohesive service while keeping Notes routes and permission behavior stable.
-- [ ] Type remaining Notes service, repository, route, Markdown, revision, link, and secure-note contracts under full strict.
-- [ ] Preserve transaction, encryption, visibility, search, attachment, and revision behavior.
-- [ ] Reduce the Notes server ledger to zero.
+- [ ] Extract collection tree, path, count, and catalog behavior into one cohesive Notes-owned service.
+- [ ] Keep existing Notes routes, library-bucket semantics, ordering, selection, and permission behavior stable.
+- [ ] Give the extracted service explicit row/result contracts and focused collection and access coverage.
 
-### 0.33.33.18 - Add Lists edge schemas, split aggregates, and finish Lists typing
+### 0.33.33.17.2 - Type Notes persistence, policy, and security dependencies
 
-**Model: High Effort** - Lists payload validation and list/catalog item aggregates share workflow data but have distinct ownership.
+**Model: High Effort** - Notes persistence, visibility, revisions, and encryption carry data-integrity and confidentiality risk.
 
-- [ ] Add module-owned Zod edge schemas with the current workflow acceptance corpus.
-- [ ] Separate list-item and catalog-item subaggregates where the verified service seam reduces dependency edges.
-- [ ] Type remaining Lists service, repository, routes, providers, and integrations under full strict.
-- [ ] Preserve Lists as an operational execution aid and reduce its server ledger to zero without new workflow behavior.
+- [ ] Type Notes repository rows, results, transactions, revision and link persistence, and not-found states under full strict.
+- [ ] Type access policy, catalog security, effective security, Secure Notes crypto, Markdown, and library support contracts without broad casts.
+- [ ] Preserve transaction, encryption, visibility, revision, search, attachment, and safe-error behavior with their existing owners.
+- [ ] Leave the typed dependency surface ready for one final Notes service burn rather than revisiting these owners later.
+
+### 0.33.33.17.3 - Finish Notes strict typing
+
+**Model: High Effort** - The main Notes service joins workflow, permission, revision, link, and integration contracts.
+
+- [ ] Type the remaining Notes service, routes, public API, events, integrations, and search-indexer contracts under full strict.
+- [ ] Consume the typed schema, directory, collection, repository, policy, security, and Markdown seams from the preceding checkpoints.
+- [ ] Preserve Notes workflow behavior and avoid new framework abstractions or cross-module deep imports.
+- [ ] Reduce the Notes server ledger to zero with lifecycle, integration, and permission proof.
+
+### 0.33.33.18.1 - Add Lists edge schemas
+
+**Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.
+
+- [ ] Capture the current accepted/rejected Lists workflow payload corpus before changing validation ownership.
+- [ ] Add module-owned Zod edge schemas and wire them once at their owning service entries.
+- [ ] Preserve liberal workflow inputs, server-managed field handling, and existing route/service error envelopes.
+- [ ] Close full-strict debt at the Lists validation edge with contract and permission coverage.
+
+### 0.33.33.18.2 - Extract the Lists list-item aggregate
+
+**Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
+
+- [ ] Extract list-item create, update, delete, reorder, completion, and progress behavior behind a cohesive typed service seam.
+- [ ] Preserve item ordering, list progress, assignment, needed-by, tag, and transaction behavior.
+- [ ] Keep Lists as an operational execution aid and add no new item workflow or generic framework abstraction.
+- [ ] Prove the extracted aggregate through retained Lists service, repository, and permission owners.
+
+### 0.33.33.18.3 - Extract the Lists catalog-item aggregate
+
+**Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
+
+- [ ] Extract catalog-item suggestion, ranking, usage-count, snapshot, and context behavior behind a cohesive typed service seam.
+- [ ] Preserve archived filtering, stable ordering, context matching, nullable values, and catalog-link lifecycle.
+- [ ] Keep list-item and catalog-item contracts independent except for explicit Lists-owned orchestration.
+- [ ] Prove the extracted aggregate through retained catalog, repository, and permission owners.
+
+### 0.33.33.18.4 - Finish Lists strict typing
+
+**Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
+
+- [ ] Type the remaining Lists service, repository, routes, public API, providers, search indexers, and integrations under full strict.
+- [ ] Consume the typed edge, list-item, and catalog-item seams without broad casts or cross-module deep imports.
+- [ ] Preserve linked-record, reusable-list, filtering, sorting, paging, and operational workflow behavior.
+- [ ] Reduce the Lists server ledger to zero without adding new product behavior.
 
 ### 0.33.33.19 - Make the Tasks recurrence service boundary real
 
@@ -91,23 +146,50 @@ Release-wide measurable acceptance:
 - [ ] Preserve query-count and hot-endpoint budgets.
 - [ ] Close full-strict debt in the extracted engine and its callers.
 
-### 0.33.33.21 - Extract the Tasks block/recover state machine and finish Tasks typing
+### 0.33.33.21.1 - Extract the Tasks block/recover state machine
 
-**Model: High Effort** - Blocking, recovery, checklist, timer, and recurrence interactions can silently corrupt workflow state.
+**Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.
 
 - [ ] Extract the auto-block/recover transition engine with explicit inputs, outputs, and side-effect boundaries.
-- [ ] Type remaining Tasks service, repository, routes, contracts, jobs, and providers under full strict.
-- [ ] Preserve timer pause, blocking-child rollup, completion, recurrence, reminder, and resume-context behavior.
-- [ ] Reduce the Tasks server ledger to zero with existing lifecycle and permission owners.
+- [ ] Preserve timer pause, blocking-child rollup, manual-block distinctions, completion, and recovery behavior.
+- [ ] Keep persistence, audit, events, search, reminders, and resume-context effects in explicit Tasks-owned orchestrators.
+- [ ] Prove the transition table directly while retaining lifecycle and permission integration owners.
 
-### 0.33.33.22 - Extract the Files repository and storage accounting
+### 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
 
-**Model: High Effort** - Files SQL and quota/accounting behavior are framework-owned data and security boundaries.
+**Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
 
-- [ ] Move inline SQL, dynamic WHERE composition, and named row projections from `files.service.js` into a Files repository.
-- [ ] Isolate storage-accounting/quota calculations behind a typed service seam while preserving transaction ownership.
-- [ ] Keep storage keys, paths, scanner internals, and hidden labels out of browser contracts.
-- [ ] Prove quotas, paging, lifecycle, permission, and provider behavior before reducing these ledger sections to zero.
+- [ ] Type remaining Tasks repositories and ancillary checklist, relationship, reminder, timer, job, calendar, feed, settings, and work-evidence services under full strict.
+- [ ] Reuse the recurrence, filter/sort, and block/recover seams established by the preceding checkpoints.
+- [ ] Preserve transactions, ordering, timezones, queue behavior, private-feed safety, and permission scope.
+- [ ] Expose named contracts to the main Tasks service instead of broad inferred containers or deep imports.
+
+### 0.33.33.21.3 - Finish Tasks strict typing
+
+**Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
+
+- [ ] Type the remaining Tasks service, primary repository surface, routes, contracts, events, public API, providers, and search indexers under full strict.
+- [ ] Preserve completion, recurrence, reminder, timer, checklist, relationship, blocking, and resume-context behavior.
+- [ ] Keep canonical server-side visibility, filtering, sorting, paging, and permission decisions authoritative.
+- [ ] Reduce the Tasks server ledger to zero with existing lifecycle, hot-endpoint, and permission owners.
+
+### 0.33.33.22.1 - Extract the Files repository
+
+**Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
+
+- [ ] Move inline SQL, dynamic `WHERE` composition, and named row projections from `files.service.js` into a Files repository.
+- [ ] Keep service-owned transaction and policy orchestration explicit, passing transaction capability to repository operations only where required.
+- [ ] Preserve paging, lifecycle, attachment, permission, storage-provider, and not-found behavior.
+- [ ] Close full-strict debt for the repository seam with database, Files, and permission proof.
+
+### 0.33.33.22.2 - Extract Files storage accounting and quota policy
+
+**Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.
+
+- [ ] Isolate storage-accounting and quota calculations behind a typed Files-owned service seam.
+- [ ] Preserve transaction ownership, upload admission, workspace and scoped quotas, reconciliation, and provider behavior.
+- [ ] Keep storage keys, paths, scanner internals, and hidden labels out of browser contracts and diagnostics.
+- [ ] Close full-strict debt for the accounting seam with quota, lifecycle, database, Files, and permission proof.
 
 ### 0.33.33.23 - Extract the Files scanner job service
 
@@ -127,21 +209,65 @@ Release-wide measurable acceptance:
 - [ ] Preserve supported image/text/Markdown behavior, download-only unsupported files, safe labels, and protected metadata exclusions.
 - [ ] Reduce the Files server ledger to zero.
 
-### 0.33.33.25 - Finish strict typing for remaining server modules and root runtime
+### 0.33.33.25.1 - Finish Clients and Projects strict typing
 
-**Model: High Effort** - A cross-module mechanical pass must respect each module's public entry and permission boundary.
+**Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
 
-- [ ] Close full-strict debt for Clients/Projects, Time Tracking, Users, Tags, developer example, Search, Notifications, Jobs, and remaining root runtime owners.
-- [ ] Close the two framework Jobs payload `any` terminals with a typed per-job-type payload registry, without changing queue dedupe, retry, worker, or handler behavior.
+- [ ] Close full-strict debt across Clients/Projects services, repositories, routes, planners, settings, and search indexers.
+- [ ] Preserve hierarchy, descendant scope, project moves, billing context, permissions, and transaction behavior.
+- [ ] Add named row, result, and update-plan contracts rather than broad casts or speculative framework abstractions.
+- [ ] Keep cross-module consumers on the Clients/Projects public entry.
+
+### 0.33.33.25.2 - Finish Time Tracking strict typing
+
+**Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
+
+- [ ] Close full-strict debt across Time Tracking entries, active timers, billing, dashboards, reporting, routes, public API, settings, and search indexers.
+- [ ] Preserve authoritative duration, timezone, billable-state, source metadata, Task linking, permissions, and transaction behavior.
+- [ ] Add named projections and service contracts without re-parsing trusted internal records or adding deep imports.
+- [ ] Keep cross-module consumers on the Time Tracking public entry.
+
+### 0.33.33.25.3 - Close the Jobs payload registry and strict owners
+
+**Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.
+
+- [ ] Replace the two framework Jobs payload `any` terminals with a typed per-job-type payload registry.
+- [ ] Close remaining full-strict debt across Jobs queue, runner, handlers, worker, lock, and route owners.
+- [ ] Preserve queue dedupe, availability, retry, lease, worker, shutdown, and handler behavior.
+- [ ] Reject speculative generic payloads and keep unknown input narrowed at the registered job boundary.
+
+### 0.33.33.25.4 - Finish small module and framework service owners
+
+**Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.
+
+- [ ] Close full-strict debt for Search, Notifications, Users, Tags, and the developer example as one reviewed small-owner cohort.
 - [ ] Use module public entries instead of adding deep imports and keep framework/module ownership unchanged.
-- [ ] Add named projections and contracts rather than broad casts or speculative shared abstractions.
+- [ ] Preserve permission pruning, notification delivery, Search indexing and result shaping, Tags semantics, and example-module isolation.
+- [ ] Add named projections and contracts rather than broad casts or new shared abstractions.
+
+### 0.33.33.25.5 - Close remaining root runtime strict debt
+
+**Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
+
+- [ ] Close full-strict debt in remaining root runtime, configuration, environment, security, and utility owners.
+- [ ] Preserve startup, authentication throttling, password events, cookies, workspace normalization, and safe operational failures.
+- [ ] Remove remaining source-owned server debt without changing `npm start`, runtime delivery, or framework/module ownership.
 - [ ] Leave only test-owned server-program debt in the ledger.
 
-### 0.33.33.26 - Type tests and close the server/test program
+### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
-**Model: High Effort** - Test fixtures and e2e helpers must become strict without weakening the cases they express.
+**Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.
 
-- [ ] Type unit, contract, e2e, and shared test helpers with explicit fixture/session/response shapes.
+- [ ] Type unit, contract, and non-e2e shared test helpers with explicit fixture, session, request, response, and assertion shapes.
+- [ ] Preserve every behavioral case, expected failure, table row, and test-owner boundary.
+- [ ] Replace repeated implicit containers with named test-local contracts rather than production casts or weakened assertions.
+- [ ] Reduce the non-e2e test cohort to zero before the final program closeout.
+
+### 0.33.33.26.2 - Type e2e tests and close the server/test program
+
+**Model: High Effort** - Playwright helpers, negative compile fixtures, and the final compiler-policy switch are repository-wide proof boundaries.
+
+- [ ] Type e2e specifications and support helpers with explicit browser, fixture, session, and response shapes without weakening rendered proof.
 - [ ] Preserve deliberate negative compile fixtures as isolated documented cases.
 - [ ] Remove server/test `@ts-check` pragmas, enable direct program-level `checkJs` and `noImplicitAny`, and delete the server ledger section at zero.
 - [ ] Prove `npm run typecheck` and all affected test owners without changing runtime startup.
