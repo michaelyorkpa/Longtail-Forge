@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
-import { buildParameterBindingBaseline, evaluateParameterBindingBaseline, formatParameterBindingAudit, scanParameterBindings, serializeParameterBindingBaseline } from "./lib/parameter-binding-audit.mjs";
-import { lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
+import { buildParameterBindingBaseline, evaluateParameterBindingBaseline, formatParameterBindingAudit, scanParameterBindings, serializeParameterBindingBaseline } from "../../lib/parameter-binding-audit.mjs";
+import { lineNumber, readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -119,3 +119,4 @@ function listSourceMatches(pattern) {
   }
   return matches;
 }
+// Consolidated under database.current-static-contracts by 0.33.33.11.

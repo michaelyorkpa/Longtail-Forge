@@ -48,3 +48,4 @@ assert.match(markdownSource, /state\.md\.inline\.tokenize\(state\)/, "safe under
 assert.match(markdownSource, /return applyTaskListMarkup\(html\)/, "safe rendered output must retain generated task-list markup");
 
 console.log("Markdown checked-core regression passed.");
+// Consolidated under framework.current-static-contracts by 0.33.33.11.

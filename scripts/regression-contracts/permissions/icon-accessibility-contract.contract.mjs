@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const iconHelper = readText("public/js/shared/icons.js");
@@ -17,7 +17,7 @@ const sourceFiles = [
   "public/js/task-dialog.js",
   "public/js/stop-watch.js",
 ];
-const protectedViews = readdirSync(new URL("../views/protected/", import.meta.url))
+const protectedViews = readdirSync(new URL("../../../views/protected/", import.meta.url))
   .filter((fileName) => fileName.endsWith(".html"))
   .map((fileName) => readText(`views/protected/${fileName}`));
 
@@ -85,3 +85,4 @@ function findFunctionCallBlocks(source, functionName) {
 
   return blocks;
 }
+// Consolidated under permissions.current-static-contracts by 0.33.33.11.

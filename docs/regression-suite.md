@@ -281,37 +281,37 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 
 | Inventory | Count |
 | --- | ---: |
-| Active discovered regressions | 370 |
-| Legacy-snapshot regressions | 228 |
-| Convention-path metadata regressions | 142 |
-| Credited retirements | 110 |
-| Active release-gate regressions | 71 |
+| Active discovered regressions | 348 |
+| Legacy-snapshot regressions | 209 |
+| Convention-path metadata regressions | 139 |
+| Credited retirements | 136 |
+| Active release-gate regressions | 68 |
 | Required active release-gate IDs | 46 |
-| Active regression ceiling | 370 |
-| Legacy regression ceiling | 228 |
-| Active regression assertions | 15209 |
+| Active regression ceiling | 348 |
+| Legacy regression ceiling | 209 |
+| Active regression assertions | 14270 |
 | Vitest owner assertions | 101 |
-| Direct owner assertions | 3155 |
+| Direct owner assertions | 4094 |
 | Credited reviewed assertion reductions | 193 |
 | Effective assertion floor | 18658 |
-| Release-gate ratchet floor | 83 |
+| Release-gate ratchet floor | 85 |
 
 | Canonical area | Active | Credits | Ratchet floor |
 | --- | ---: | ---: | ---: |
-| `framework` | 78 | 8 | 86 |
+| `framework` | 74 | 13 | 87 |
 | `views` | 8 | 26 | 34 |
 | `dashboard` | 2 | 0 | 2 |
 | `workbench` | 16 | 17 | 33 |
 | `tasks` | 34 | 25 | 59 |
 | `notes` | 33 | 8 | 41 |
 | `lists` | 9 | 4 | 13 |
-| `files` | 44 | 0 | 44 |
+| `files` | 32 | 13 | 45 |
 | `search` | 12 | 1 | 13 |
 | `notifications` | 3 | 0 | 3 |
 | `tags` | 9 | 4 | 13 |
 | `time-tracking` | 12 | 2 | 14 |
-| `database` | 47 | 0 | 47 |
-| `permissions` | 10 | 4 | 14 |
+| `database` | 42 | 6 | 48 |
+| `permissions` | 9 | 6 | 15 |
 | `jobs` | 8 | 0 | 8 |
 | `public-api` | 3 | 0 | 3 |
 | `release` | 32 | 9 | 41 |
@@ -321,14 +321,14 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Canonical tier | Active |
 | --- | ---: |
 | `unit-like` | 0 |
-| `focused` | 125 |
-| `integration` | 166 |
-| `release-gate` | 71 |
-| `slow` | 8 |
+| `focused` | 108 |
+| `integration` | 165 |
+| `release-gate` | 68 |
+| `slow` | 7 |
 
 | Run mode | Active |
 | --- | ---: |
-| `static` | 143 |
+| `static` | 121 |
 | `serial-database` | 6 |
 | `serial-files` | 0 |
 | `isolated-files` | 28 |

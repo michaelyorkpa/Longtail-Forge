@@ -27,9 +27,9 @@ const bucketOrchestratorSupport = await readProjectFile("scripts/test-support/re
 const runnerSchedulerSupport = await readProjectFile("scripts/test-support/regression-runner-scheduler.mjs");
 const databaseFixtureSupport = await readProjectFile("scripts/test-support/database-fixture.mjs");
 const sourceScanSupport = await readProjectFile("scripts/test-support/source-scan.mjs");
-const parameterBindingAudit = await readProjectFile("scripts/parameter-binding-audit-regression.mjs");
-const interpolationGuardrail = await readProjectFile("scripts/interpolation-enforcement-guardrail-regression.mjs");
-const dialectGuardrail = await readProjectFile("scripts/dialect-enforcement-guardrail-regression.mjs");
+const parameterBindingAudit = await readProjectFile("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
+const interpolationGuardrail = await readProjectFile("scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs");
+const dialectGuardrail = await readProjectFile("scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs");
 const discoverySupport = await readProjectFile("scripts/lib/regression-discovery.mjs");
 const metadataSupport = await readProjectFile("scripts/lib/regression-metadata.mjs");
 const runnerOptionsSupport = await readProjectFile("scripts/lib/regression-runner-options.mjs");
@@ -136,9 +136,9 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 assert.match(sourceScanSupport, /function readRuntimeSourceEntries/, "source-scan support should own runtime source entry reads");
 assert.match(sourceScanSupport, /function extractCallExpression/, "source-scan support should own shared call-expression parsing");
-assert.match(parameterBindingAudit, /from "\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");
-assert.match(interpolationGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
-assert.match(dialectGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
+assert.match(parameterBindingAudit, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");
+assert.match(interpolationGuardrail, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
+assert.match(dialectGuardrail, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
 assert.match(runnerSchedulerSupport, /AUTO_ISOLATED_PARALLELISM_CAP = 6/, "isolated auto-tuning should keep a conservative cap");
 assert.match(runnerSchedulerSupport, /AUTO_STATIC_PARALLELISM_CAP = 8/, "static auto-tuning should keep a conservative host-aware cap");
 

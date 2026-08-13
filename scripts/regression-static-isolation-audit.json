@@ -90,7 +90,7 @@
     },
     "entries": [
       {
-        "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
+        "path": "scripts/regressions/database/current-static-contracts.regression.mjs",
         "decision": "worker-parallel",
         "fallback": "child-process",
         "resources": {
@@ -102,7 +102,7 @@
           "process": "read-only cwd and platform",
           "fileSystem": "read-only repository files"
         },
-        "rationale": "Imports only assertions and the read-only project source reader, performs bounded text checks, and creates no mutable environment, process, timer, listener, cache, or filesystem resource."
+        "rationale": "Imports only assertions, the movement table, and reviewed read-only database/data source contracts; all contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
         "path": "scripts/help-markdown-source-layout-regression.mjs",
@@ -165,7 +165,7 @@
         "rationale": "Imports only assertions, the movement table, and read-only source contracts; all Workbench contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       },
       {
-        "path": "scripts/file-scanner-setup-docs-regression.mjs",
+        "path": "scripts/regressions/files/current-static-contracts.regression.mjs",
         "decision": "worker-sequential",
         "fallback": "child-process",
         "resources": {
@@ -177,26 +177,11 @@
           "process": "read-only cwd and platform",
           "fileSystem": "read-only repository files"
         },
-        "rationale": "Reads scanner documentation and source membership without starting a scanner or writing storage; sequential worker admission retains an intentionally conservative boundary for this former serial Files owner."
+        "rationale": "Imports only assertions, the movement table, and reviewed read-only Files source/documentation contracts; all contract modules remain worker-local and create no mutable environment, process, timer, listener, cache, or filesystem resource."
       }
     ]
   },
   "entries": [
-    {
-      "path": "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
-      "sourceRunMode": "isolated-database",
-      "decision": "static",
-      "resources": {
-        "database": "none",
-        "fileSystem": "read-only repository files",
-        "networkPort": "none",
-        "process": "none",
-        "scanner": "none",
-        "environment": "none",
-        "singletonRuntime": "none"
-      },
-      "rationale": "Reads package, documentation, view, source, roadmap, changelog, and legacy-registry text only; its version import has no runtime or database side effect."
-    },
     {
       "path": "scripts/help-markdown-source-layout-regression.mjs",
       "sourceRunMode": "isolated-database",
@@ -226,21 +211,6 @@
         "singletonRuntime": "none"
       },
       "rationale": "Executes one reviewed migration against a process-local in-memory SQLite database, closes it in a finally block, and touches no external database or mutable file."
-    },
-    {
-      "path": "scripts/file-scanner-setup-docs-regression.mjs",
-      "sourceRunMode": "serial-files",
-      "decision": "static",
-      "resources": {
-        "database": "none",
-        "fileSystem": "read-only docs, environment example, metadata, and source",
-        "networkPort": "none",
-        "process": "none",
-        "scanner": "documentation assertions only",
-        "environment": "none",
-        "singletonRuntime": "none"
-      },
-      "rationale": "Checks scanner documentation and static source membership only; it never starts a scanner, opens a port, spawns a process, or writes storage state."
     }
   ]
 }

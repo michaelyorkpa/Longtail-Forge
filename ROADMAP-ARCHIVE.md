@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.11 - Consolidate data, Files, and security static owners
+
+**Model: High Effort** - Static cleanup near high-risk data/security contracts must not disturb their executable guarantees.
+
+- [x] Consolidated 26 source-only database, Files, framework-security, and permission owners behind four table-driven owners while preserving the complete reviewed contract inventory; no Jobs owner qualified because its apparent static candidate imports live job/runtime behavior.
+- [x] Left attestation, migration execution, backup/restore/purge, workspace isolation, Files storage/scanner/streaming, Jobs runtime, authentication/session, permission-matrix, and security behavior programs in their existing isolated owners, with retained-owner IDs checked by the consolidation harness.
+- [x] Reduced active discovery from 370 to 348 entry points, static owners from 143 to 121, estimated Node processes from 364 to 342, active-owner lines from 104,568 to 101,621, and active static history readers from 23 to 18 while preserving the 18,658 effective-assertion floor.
+- [x] Recorded the 110.60-second Nightly Linux baseline and a successful 145.43-second local Windows full run as separate environment evidence; stopped at 348 entry points rather than force the release-wide 250-300 review target without proven continuing ownership.
+
 ## Version 0.33.33.10 - Consolidate workflow-module static owners
 
 **Model: High Effort** - Cross-module mechanical consolidation still risked losing module-specific workflow assertions.

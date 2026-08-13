@@ -16,12 +16,15 @@ import {
   sourceContainsInOrder,
 } from "../../test-support/source-scan.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
+import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-security-static-consolidation.mjs";
 
 const reader = createProjectTextReader();
 const packageJson = reader.readJson("package.json");
 const packageScriptContract = reader.readJson("scripts/package-script-contracts.json");
 const ownershipEvidence = reader.readJson("scripts/validation-ownership-consolidation.json");
 const scanEvidence = reader.readJson("scripts/source-scan-consolidation-evidence.json");
+const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry.modulePath]));
+const resolveCurrentSourcePath = (sourcePath) => consolidatedSourcePaths.get(sourcePath) || sourcePath;
 
 assert.equal(packageScriptContract.schemaVersion, 1);
 assert.equal(packageScriptContract.owner, "scripts/regressions/release/validation-single-ownership.regression.mjs");
@@ -66,7 +69,7 @@ for (const [family, expectedOwner] of Object.entries({
   assert.equal(evidence.retainedOwner, expectedOwner);
   assert.ok(evidence.sourcePaths.length > 0, `${family} should retain its source inventory`);
   for (const sourcePath of evidence.sourcePaths) {
-    assert.equal(typeof reader.readText(sourcePath), "string", `${family} source should remain reviewable: ${sourcePath}`);
+    assert.equal(typeof reader.readText(resolveCurrentSourcePath(sourcePath)), "string", `${family} source should remain reviewable: ${sourcePath}`);
   }
 }
 
@@ -135,7 +138,7 @@ for (const command of [
   assert.match(closeoutSource, new RegExp(escapeRegExp(command)), `${command} should retain one ordinary closeout owner`);
 }
 
-const parameterRegression = reader.readText("scripts/parameter-binding-audit-regression.mjs");
+const parameterRegression = reader.readText("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
 const licensingRegression = reader.readText("scripts/regressions/licensing/licensing-public-release-gates.regression.mjs");
 assert.doesNotMatch(parameterRegression, /spawnSync|audit-parameter-bindings\.mjs.*--check/);
 assert.doesNotMatch(licensingRegression, /spawnSync|check-licensing-gates\.mjs/);
@@ -166,7 +169,7 @@ assert.match(typecheckRegression, /tsconfig\.compilerOptions\.noEmit/);
 assert.match(typecheckRegression, /tsconfig\.compilerOptions\.strict/);
 
 for (const target of scanEvidence.targetedFiles) {
-  const source = reader.readText(target.path);
+  const source = reader.readText(resolveCurrentSourcePath(target.path));
   const measured = countGreedyPatterns(source);
   assert.equal(measured, target.after, `${target.path} measured greedy-pattern count should remain current`);
   assert.ok(target.after < target.before, `${target.path} should retain a measured reduction`);

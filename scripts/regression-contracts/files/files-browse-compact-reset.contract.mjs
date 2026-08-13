@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
@@ -120,3 +120,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+// Consolidated under files.current-static-contracts by 0.33.33.11.

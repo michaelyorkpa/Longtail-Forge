@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createStaticRegressionExecutionPlan } from "../../lib/static-regression-execution.mjs";
+import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-security-static-consolidation.mjs";
 
 const audit = JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8"));
 const staticAudit = JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8"));
@@ -28,33 +29,40 @@ const dimensions = [
   "workerOrChildProcess",
   "singletonRuntime",
 ];
-const originalFiles = legacySnapshot.scripts
-  .filter((entry) => entry.runMode === "serial-files")
-  .map((entry) => entry.path)
-  .sort();
+const legacyPaths = new Set(legacySnapshot.scripts.map((entry) => entry.path));
 const staticAuditPaths = new Set(staticAudit.entries.map((entry) => entry.path));
+const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry]));
+const activeEntryFor = (sourcePath) => {
+  const movement = consolidatedSourcePaths.get(sourcePath);
+  const activePath = movement
+    ? REGRESSION_ENTRIES.find((entry) => entry.id === movement.retainedOwner)?.path
+    : sourcePath;
+  return REGRESSION_ENTRIES.find((entry) => entry.path === activePath);
+};
 
 assert.equal(audit.schemaVersion, 1);
 assert.equal(audit.sourceRunMode, "serial-files");
 assert.equal(audit.parallelRunMode, "isolated-files");
 assert.deepEqual(audit.resourceDimensions, dimensions);
-assert.deepEqual(audit.entries.map((entry) => entry.path).sort(), originalFiles, "the audit must classify every original serial Files script exactly once");
 assert.equal(new Set(audit.entries.map((entry) => entry.path)).size, 29);
+assert.equal(audit.entries.filter((entry) => !legacyPaths.has(entry.path)).length, 1, "only the consolidated scanner documentation owner may leave the historical Files audit snapshot");
+assert.equal(consolidatedSourcePaths.has("scripts/file-scanner-setup-docs-regression.mjs"), true);
 
 for (const entry of audit.entries) {
   assert.ok(["serial-files", "isolated-files"].includes(entry.decision), `${entry.path} must have an allowed scheduling decision`);
   assert.deepEqual(Object.keys(entry.resources), dimensions, `${entry.path} must classify every mutable resource dimension`);
   assert.ok(entry.rationale.length >= 40, `${entry.path} must retain a script-specific scheduling rationale`);
+  const consolidated = consolidatedSourcePaths.has(entry.path);
   assert.equal(
-    REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode,
-    staticAuditPaths.has(entry.path) ? "static" : entry.decision,
+    activeEntryFor(entry.path)?.runMode,
+    consolidated || staticAuditPaths.has(entry.path) ? "static" : entry.decision,
     `${entry.path} discovery mode must match the latest audited decision`,
   );
 }
 
 const moved = audit.entries.filter((entry) => entry.decision === "isolated-files");
 const retained = audit.entries.filter((entry) => entry.decision === "serial-files");
-const currentlySerial = retained.filter((entry) => !staticAuditPaths.has(entry.path));
+const currentlySerial = retained.filter((entry) => activeEntryFor(entry.path)?.runMode === "serial-files");
 assert.equal(moved.length, 28, "every stateful Files entry has complete per-process resource isolation and may run with isolated scheduling");
 assert.equal(retained.length, 1, "the original serial inventory should retain the separately reclassified scanner documentation owner");
 assert.equal(currentlySerial.length, 0, "no stateful Files entry should remain serial after source audit and bounded stress");
@@ -96,8 +104,6 @@ assert.ok(audit.measurements.quickWins20260731.stressWallSeconds > 0);
 assert.ok(audit.measurements.quickWins20260731.familyWallSeconds < audit.measurements.postChange.wallSeconds);
 
 const expectedStaticMoves = [
-  "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
-  "scripts/file-scanner-setup-docs-regression.mjs",
   "scripts/help-markdown-source-layout-regression.mjs",
   "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
 ];

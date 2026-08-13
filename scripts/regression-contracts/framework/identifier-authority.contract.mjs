@@ -245,3 +245,4 @@ async function listCodeFiles(rootPath) {
   }
   return files;
 }
+// Consolidated under framework.current-static-contracts by 0.33.33.11.

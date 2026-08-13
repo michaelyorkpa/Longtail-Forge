@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createProjectTextReader, sourceContainsInOrder } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, sourceContainsInOrder } from "../../test-support/source-scan.mjs";
 
 const { readText } = createProjectTextReader();
 const clientsHtml = readText("views/protected/clients.html");
@@ -19,7 +19,6 @@ const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 
 assert.match(inventoryDoc, /Current as of 0\.33\.32\.24/, "Clients/Projects inventory should report the current strict boundary");
@@ -114,6 +113,6 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.1 is archived/, "live 
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.2 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.3 is archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*slide-out filter surface[\s\S]*secondary tag rows[\s\S]*icon-only repeated edit controls[\s\S]*clients-projects-strict-closeout-regression\.mjs/, "Changelog should record the completed 0.33.5.18.14.5 slice");
 
 console.log("Clients/Projects descriptor readiness and guardrail inventory regression passed.");
+// Consolidated under database.current-static-contracts by 0.33.33.11.

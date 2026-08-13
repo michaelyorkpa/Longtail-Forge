@@ -1,15 +1,13 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
-import { lineNumber, readRuntimeSourceEntries } from "./test-support/source-scan.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { lineNumber, readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
-const dialectGuardrailSliceVersion = "0.33.5.27.32";
 const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const moduleContractDocs = readText("docs/module-contract.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
@@ -212,7 +210,6 @@ function assertDocumentationContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.32 - Dialect enforcement guardrail \| Whole runtime dialect sweep and converted-owner re-audit/, "audit docs should assign the dialect enforcement guardrail wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.32[\s\S]*whole-tree dialect enforcement guardrail[\s\S]*raw seam-backed SQLite dialect[\s\S]*[Pp]rovider-owned or sanctioned compatibility paths/, "database docs should describe the dialect guardrail");
   assert.match(moduleContractDocs, /As of 0\.33\.5\.27\.32[\s\S]*must not hardcode raw seam-backed SQLite dialect[\s\S]*`db\.dialect` seams/, "module contract should tell future modules to use the agnostic dialect contract");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(dialectGuardrailSliceVersion)} - [\\s\\S]*Dialect enforcement guardrail[\\s\\S]*Remaining raw seam-backed dialect sites at application call sites: 0`), "changelog should record the dialect guardrail slice");
   }
 
 function findDialectViolations(entries) {
@@ -243,3 +240,4 @@ function findDialectViolations(entries) {
     left.label.localeCompare(right.label)
   ));
 }
+// Consolidated under database.current-static-contracts by 0.33.33.11.

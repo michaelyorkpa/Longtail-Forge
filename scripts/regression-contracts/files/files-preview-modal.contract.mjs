@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -109,3 +109,4 @@ assert.match(filesStyles, /\.files-preview-text\s*\{[\s\S]*max-height:\s*min\(62
 assert.match(filesStyles, /\.files-preview-markdown\s*\{[\s\S]*max-height:\s*min\(62vh, 680px\)/, "Markdown preview should stay constrained inside the modal");
 
 console.log("Files preview modal regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

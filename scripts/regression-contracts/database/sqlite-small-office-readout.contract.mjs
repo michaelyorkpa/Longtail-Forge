@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -62,3 +62,4 @@ assert.match(styles, /\.runtime-diagnostics-warning/, "styles should cover runti
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("SQLite small-office readout regression passed.");
+// Consolidated under database.current-static-contracts by 0.33.33.11.
