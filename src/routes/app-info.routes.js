@@ -4,9 +4,12 @@ import { Router } from "express";
 import { config } from "../config.js";
 import { correspondingSourceUrl } from "../core/corresponding-source.js";
 
+/** @typedef {import("../types/route-contracts.js").RouteRequest} RouteRequest */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
+
 const appInfoRoutes = Router();
 
-appInfoRoutes.get("/app-info", (_request, response) => {
+appInfoRoutes.get("/app-info", /** @param {RouteRequest} _request @param {RouteResponse} response */ (_request, response) => {
   response.setHeader("Cache-Control", "no-store");
   response.status(200).json({
     name: config.appName,

@@ -41,6 +41,7 @@ import { REMEMBERED_SESSION_TTL_SECONDS, prepareSessionRecord } from "./session-
  * @property {StoredSupportViewRow} [support_view]
  */
 
+/** @param {Parameters<typeof prepareSessionRecord>[0]} user @param {Parameters<typeof prepareSessionRecord>[1]} [options] */
 async function createSession(user, options = {}) {
   const prepared = prepareSessionRecord(user, options);
 
@@ -56,6 +57,7 @@ async function deleteRequestSession(request) {
   await deleteSession(sessionId);
 }
 
+/** @param {string} sessionId @returns {Promise<void>} */
 async function deleteSession(sessionId) {
   if (!sessionId) {
     return;
@@ -87,14 +89,14 @@ async function getRequestSession(request) {
       requestId: getRequestContext(request).requestId,
     });
     session = /** @type {StoredSessionRow | null} */ (resolution.storedSession);
-    if (resolution.session) {
+    if ("session" in resolution && resolution.session) {
       request.sessionRotation = resolution.session;
     }
     if (!session) {
       request.sessionInvalidated = true;
       return null;
     }
-    if (resolution.supportSession) {
+    if ("supportSession" in resolution && resolution.supportSession) {
       session.support_view = resolution.supportSession;
     }
   }

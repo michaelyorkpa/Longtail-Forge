@@ -1157,17 +1157,23 @@ async function readCurrentUser(session) {
 async function readAssignmentsForSession(session) {
   const cache = readRequestCache(session);
   const cacheKey = `${session.workspace_id}:${session.user_id}`;
-
-  if (!cache.assignments.has(cacheKey)) {
-    cache.assignments.set(cacheKey, await permissionsRepository.readAssignmentsForUser(
-      session.workspace_id,
-      session.user_id,
-    ));
+  const cachedAssignments = cache.assignments.get(cacheKey);
+  if (cachedAssignments) {
+    return cachedAssignments;
   }
 
-  return cache.assignments.get(cacheKey);
+  const assignments = await permissionsRepository.readAssignmentsForUser(
+    session.workspace_id,
+    session.user_id,
+  );
+  cache.assignments.set(cacheKey, assignments);
+  return assignments;
 }
 
+/**
+ * @param {RequestSession} session
+ * @returns {{ assignments: Map<string, PermissionAssignment[]>, superAdmins: Map<string, boolean>, users: Map<string, Awaited<ReturnType<typeof usersRepository.readById>>> }}
+ */
 function readRequestCache(session) {
   return {
     assignments: readRequestScopedCache(session, "permissions.assignments"),

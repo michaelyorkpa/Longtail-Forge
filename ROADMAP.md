@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.13 - Type Node entry points, HTTP core, and shared route seams
-
-**Model: High Effort** - Request/session/error types are shared security boundaries across all server routes.
-
-- [ ] Type `server.js`, `worker.js`, HTTP/error helpers, request sessions, body/query parsing, and route composition under full strict.
-- [ ] Narrow untrusted request bodies and Express query shapes before service calls; do not replace runtime validation with TypeScript assertions.
-- [ ] Preserve API/browser/operational response classes, non-enumeration, and safe error projection.
-- [ ] Reduce the server ledger for these owners to zero with focused HTTP/session regressions.
-
 ### 0.33.33.14 - Type database adapters and repository row projections
 
 **Model: High Effort** - Database result shapes, transactions, and provider boundaries carry data-integrity risk.

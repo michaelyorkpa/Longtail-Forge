@@ -9,6 +9,7 @@ import type {
 
 export interface RouteRequest extends HttpIdentityRequest, JsonBodyRequest {
   params: Record<string, string>;
+  rateLimit?: { limit?: number; remaining?: number; resetTime?: Date; used?: number };
   query: Record<string, unknown>;
   get?(name: string): string | undefined;
 }
@@ -32,6 +33,15 @@ export interface RouteResponse extends NodeJS.WritableStream {
 
 export type RouteNext = (error?: unknown) => void;
 
+export interface RouterContract {
+  delete(path: string | string[], ...handlers: unknown[]): this;
+  get(path: string | string[], ...handlers: unknown[]): this;
+  patch(path: string | string[], ...handlers: unknown[]): this;
+  post(path: string | string[], ...handlers: unknown[]): this;
+  put(path: string | string[], ...handlers: unknown[]): this;
+  use(...entries: unknown[]): this;
+}
+
 export interface AuthenticatedRouteRequest extends RouteRequest {
   session: RequestSession;
 }
@@ -44,6 +54,13 @@ export interface ApiKeyRouteRequest extends RouteRequest {
   apiKey: ActiveApiKey;
   apiSession: ApiSession;
 }
+
+export type ErrorRouteHandler = (
+  error: unknown,
+  request: RouteRequest,
+  response: RouteResponse,
+  next: RouteNext,
+) => unknown;
 
 export type AsyncRouteResult = unknown | Promise<unknown>;
 

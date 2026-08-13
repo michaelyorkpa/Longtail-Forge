@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.12",
+  "checkpoint": "0.33.33.13",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -350,7 +350,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 9713,
+      "errorCount": 9507,
       "diagnostics": {
         "src/config.js": [
           {
@@ -360,12 +360,6 @@
           {
             "code": 7006,
             "count": 40
-          }
-        ],
-        "src/core/app.js": [
-          {
-            "code": 7016,
-            "count": 3
           }
         ],
         "src/core/asset-version.js": [
@@ -488,20 +482,6 @@
           {
             "code": 7034,
             "count": 9
-          }
-        ],
-        "src/core/http-error-contract.js": [
-          {
-            "code": 2339,
-            "count": 15
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7053,
-            "count": 2
           }
         ],
         "src/core/identifiers.js": [
@@ -822,18 +802,6 @@
             "count": 2
           }
         ],
-        "src/core/request-cache.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/core/request-context.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
         "src/core/runtime-readiness.js": [
           {
             "code": 2339,
@@ -1078,24 +1046,6 @@
             "count": 4
           }
         ],
-        "src/middleware/error-handler.js": [
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/middleware/require-role.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/middleware/support-view-request-gate.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
         "src/modules/client-projects/client-project-settings.service.js": [
           {
             "code": 7006,
@@ -1128,10 +1078,6 @@
           {
             "code": 7006,
             "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/client-projects/clients.service.js": [
@@ -1161,7 +1107,7 @@
           },
           {
             "code": 7006,
-            "count": 166
+            "count": 160
           },
           {
             "code": 7031,
@@ -1222,19 +1168,11 @@
           {
             "code": 18048,
             "count": 1
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/developer-example/routes.js": [
           {
             "code": 18049,
-            "count": 1
-          },
-          {
-            "code": 7016,
             "count": 1
           }
         ],
@@ -1278,16 +1216,12 @@
           {
             "code": 2345,
             "count": 1
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/lists/lists.service.js": [
           {
             "code": 18047,
-            "count": 10
+            "count": 5
           },
           {
             "code": 2322,
@@ -1326,10 +1260,6 @@
           {
             "code": 7006,
             "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/lists/public-api.service.js": [
@@ -1494,10 +1424,6 @@
           {
             "code": 2345,
             "count": 6
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/notes/notes.service.js": [
@@ -1550,10 +1476,6 @@
           {
             "code": 7006,
             "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/notes/public-api.service.js": [
@@ -1616,10 +1538,6 @@
           {
             "code": 7006,
             "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/tasks/public-api.service.js": [
@@ -1846,10 +1764,6 @@
           {
             "code": 2345,
             "count": 5
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/tasks/tasks.service.js": [
@@ -1922,10 +1836,6 @@
           {
             "code": 7006,
             "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/time-tracking/public-api.service.js": [
@@ -1944,10 +1854,6 @@
           {
             "code": 2345,
             "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/time-tracking/search-indexers.js": [
@@ -1974,10 +1880,6 @@
           {
             "code": 2698,
             "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
           }
         ],
         "src/modules/time-tracking/time-entries.service.js": [
@@ -2027,10 +1929,6 @@
         "src/modules/time-tracking/time-tracking-dashboard.routes.js": [
           {
             "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7016,
             "count": 1
           }
         ],
@@ -2104,224 +2002,6 @@
             "count": 55
           }
         ],
-        "src/routes/account-export-recovery.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/api-keys.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/app-info.routes.js": [
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/app-shell.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/audit.routes.js": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/auth.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/dashboard.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/files.routes.js": [
-          {
-            "code": 7016,
-            "count": 2
-          }
-        ],
-        "src/routes/help.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/jobs.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/notifications.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/operational-health.routes.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/permissions.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/private-feeds.routes.js": [
-          {
-            "code": 7016,
-            "count": 3
-          }
-        ],
-        "src/routes/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/public-demo-account.routes.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/reporting.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/runtime-diagnostics.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/search-index.routes.js": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 18049,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/search.routes.js": [
-          {
-            "code": 2551,
-            "count": 2
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/settings.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/static.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/support-view.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/tags.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/users.routes.js": [
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 16
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/work-resume.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/routes/workbench.routes.js": [
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
         "src/runtime-env.js": [
           {
             "code": 2339,
@@ -2387,26 +2067,6 @@
           },
           {
             "code": 7024,
-            "count": 2
-          }
-        ],
-        "src/security/session-records.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/security/sessions.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
             "count": 2
           }
         ],
@@ -2553,7 +2213,7 @@
           },
           {
             "code": 7006,
-            "count": 93
+            "count": 90
           },
           {
             "code": 7034,
@@ -2581,11 +2241,11 @@
           },
           {
             "code": 7006,
-            "count": 97
+            "count": 85
           },
           {
             "code": 7031,
-            "count": 35
+            "count": 33
           },
           {
             "code": 7053,
@@ -2951,16 +2611,6 @@
           },
           {
             "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/utils/app-error.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
             "count": 1
           }
         ],
@@ -13488,7 +13138,7 @@
   },
   "totals": {
     "files": 1002,
-    "errors": 31253,
+    "errors": 31047,
     "explicitAny": 47
   },
   "explicitAnyByFile": {
@@ -13514,7 +13164,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 10,
+    "firstPartyFiles": 11,
     "errors": 0
   }
 }

@@ -66,13 +66,17 @@ async function readWorkspaceSettings(workspaceId, session = null) {
     return readWorkspaceSettingsFresh(workspaceId);
   }
 
+  /** @type {Map<string, Promise<WorkspaceSettings>>} */
   const cache = readRequestScopedCache(session, "workspace-settings");
 
-  if (!cache.has(workspaceId)) {
-    cache.set(workspaceId, readWorkspaceSettingsFresh(workspaceId));
+  const cachedSettings = cache.get(workspaceId);
+  if (cachedSettings) {
+    return cachedSettings;
   }
 
-  return cache.get(workspaceId);
+  const pendingSettings = readWorkspaceSettingsFresh(workspaceId);
+  cache.set(workspaceId, pendingSettings);
+  return pendingSettings;
 }
 
 /**

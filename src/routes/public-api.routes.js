@@ -5,6 +5,9 @@ import { requireApiKey } from "../middleware/require-api-key.js";
 import { publicApiService } from "../services/public-api.service.js";
 import { apiKeyAsyncRoute as asyncRoute, readJsonBody } from "../utils/http.js";
 
+/** @typedef {import("../types/http-contracts.js").ApiSession} ApiSession */
+/** @typedef {{ data: unknown, pagination: unknown }} PublicApiListResult */
+
 const publicApiRoutes = Router();
 
 publicApiRoutes.get("/api/v1/clients", requireApiKey("clients:read"), asyncRoute(async (request, response) => {
@@ -56,6 +59,7 @@ publicApiRoutes.delete("/api/v1/projects/:projectId", requireApiKey("projects:wr
   response.status(200).json(publicApiData(await publicApiService.archiveProject(request.apiSession, request.params.projectId), request.apiSession));
 }));
 
+/** @param {unknown} data @param {ApiSession} context */
 function publicApiData(data, context) {
   return {
     apiVersion: "v1",
@@ -64,6 +68,7 @@ function publicApiData(data, context) {
   };
 }
 
+/** @param {PublicApiListResult} result @param {ApiSession} context */
 function publicApiList(result, context) {
   return {
     apiVersion: "v1",

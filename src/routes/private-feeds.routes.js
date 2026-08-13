@@ -15,6 +15,7 @@ import { asyncRoute, readJsonBody } from "../utils/http.js";
 /** @typedef {import("express").Request} ExpressRequest */
 /** @typedef {import("express").Response} ExpressResponse */
 /** @typedef {import("../types/private-feed-contracts.js").PrivateFeedManagementSession} PrivateFeedManagementSession */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 
 const privateFeedPublicRoutes = Router();
 const privateFeedLifecycleRoutes = Router();
@@ -133,12 +134,16 @@ async function removeCalendarSubscription(request, response) {
  */
 function requirePrivateFeedManagementSession(request) {
   const session = request.session;
-  if (!session?.workspace_id) {
+  if (!isPrivateFeedManagementSession(session)) {
     throw new AppError("An active workspace is required.", 400);
   }
   return session;
 }
 
+/** @param {RequestSession | null | undefined} session @returns {session is PrivateFeedManagementSession} */
+function isPrivateFeedManagementSession(session) {
+  return Boolean(session?.workspace_id);
+}
 /** @param {ExpressResponse} response */
 function sendMissingResponse(response) {
   response.set({

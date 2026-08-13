@@ -289,7 +289,9 @@ async function readEligibility(row) {
     return { allowed: false, reason: "client_inactive" };
   }
   const allowed = await permissionsService.can(sessionFromToken(row), "tasks.view", permissionResource(row));
-  return { allowed, reason: allowed ? null : "tasks_permission_removed" };
+  return allowed
+    ? { allowed: true, reason: null }
+    : { allowed: false, reason: "tasks_permission_removed" };
 }
 
 /**

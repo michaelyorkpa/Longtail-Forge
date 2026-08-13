@@ -5,13 +5,17 @@ import { config } from "../config.js";
 import { listPublicDemoVisitorAccounts } from "../core/public-demo-visitor-accounts.js";
 import { AppError } from "../utils/app-error.js";
 
+/** @typedef {import("../types/route-contracts.js").RouteRequest} RouteRequest */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
+
 const PUBLIC_DEMO_TEMPORARY_CHANGES_NOTICE = "This public demo resets every hour, so your changes are temporary.";
 
+/** @param {{ demoEnabled?: boolean }} [options] */
 function createPublicDemoAccountRoutes(options = {}) {
   const demoEnabled = options.demoEnabled ?? config.demo.enabled;
   const router = Router();
 
-  router.get("/public-demo/accounts", (_request, response) => {
+  router.get("/public-demo/accounts", /** @param {RouteRequest} _request @param {RouteResponse} response */ (_request, response) => {
     response.setHeader("Cache-Control", "no-store");
     if (!demoEnabled) {
       throw new AppError("The requested resource was not found.", 404);

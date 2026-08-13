@@ -478,11 +478,14 @@ function decorateProjectShape(project, { depth, includeDepth, path }) {
   };
 }
 
+/** @param {unknown} label @param {unknown} depth @returns {string} */
 function formatIndentedLabel(label, depth) {
   const text = String(label || "").trim();
-  return depth > 0 ? `${"  ".repeat(depth)}- ${text}` : text;
+  const indentationDepth = Math.max(0, Number(depth) || 0);
+  return indentationDepth > 0 ? `${"  ".repeat(indentationDepth)}- ${text}` : text;
 }
 
+/** @param {unknown} sortOrder @returns {string} */
 function formatHierarchySortKey(sortOrder) {
   return String(Number(sortOrder) || 0).padStart(6, "0");
 }
@@ -521,6 +524,7 @@ function normalizeProjectShapeOptions(query = {}) {
   };
 }
 
+/** @param {unknown} status @returns {string} */
 function normalizeClientStatusFilter(status) {
   const normalizedStatus = String(status || "Active").trim().toLowerCase();
 
@@ -535,6 +539,7 @@ function normalizeClientStatusFilter(status) {
   return "Active";
 }
 
+/** @param {unknown} status @returns {string} */
 function normalizeProjectStatusFilter(status) {
   const normalizedStatus = String(status || "Active").trim().toLowerCase();
 
@@ -579,6 +584,7 @@ function filterProjectsByClient(projects, clientFilter) {
   return projects;
 }
 
+/** @param {unknown} value @returns {boolean} */
 function readBoolean(value) {
   return value === true || value === "true" || value === "1" || value === 1;
 }

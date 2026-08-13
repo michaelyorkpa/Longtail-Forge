@@ -1,16 +1,26 @@
 // @ts-check
 import { createOpaqueId } from "./identifiers.js";
 
+/** @typedef {import("express").Application} Application */
+/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
+/** @typedef {import("../types/http-contracts.js").RequestContext} RequestContext */
+/** @typedef {import("../types/route-contracts.js").RouteNext} RouteNext */
+/** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
+/** @typedef {HttpIdentityRequest & { app?: { get?: (name: string) => unknown }, connection?: { remoteAddress?: string }, get?: (name: string) => string | undefined, hostname?: unknown, ip?: unknown, protocol?: unknown, requestContext?: RequestContext, socket?: { remoteAddress?: string } }} RequestContextRequest */
+
+/** @param {Application} app @param {readonly string[]} [trustedProxies] @returns {void} */
 function configureTrustedProxy(app, trustedProxies = []) {
   app.set("trust proxy", trustedProxies.length ? [...trustedProxies] : false);
 }
 
+/** @param {RequestContextRequest} request @param {RouteResponse} response @param {RouteNext} next @returns {void} */
 function attachRequestContext(request, response, next) {
   const context = getRequestContext(request);
   response.setHeader("X-Request-ID", context.requestId);
   next();
 }
 
+/** @param {RequestContextRequest} request @returns {RequestContext} */
 function getRequestContext(request) {
   if (request.requestContext) {
     return request.requestContext;
@@ -36,6 +46,7 @@ function getRequestContext(request) {
   return context;
 }
 
+/** @param {RequestContextRequest} request @param {string} socketPeerAddress @returns {string} */
 function trustedUpstreamRequestId(request, socketPeerAddress) {
   const trustProxy = request.app?.get?.("trust proxy fn");
   if (typeof trustProxy !== "function" || !trustProxy(socketPeerAddress, 0)) {
@@ -48,6 +59,7 @@ function trustedUpstreamRequestId(request, socketPeerAddress) {
     : "";
 }
 
+/** @param {RequestContextRequest} request @param {string} protocol @param {string} hostname @returns {string} */
 function resolveRequestOrigin(request, protocol, hostname) {
   if (!hostname) {
     return "";
@@ -69,6 +81,7 @@ function resolveRequestOrigin(request, protocol, hostname) {
   return new URL(`${protocol}://${formattedHostname}`).origin;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeText(value) {
   return String(value || "").trim();
 }

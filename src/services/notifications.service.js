@@ -888,17 +888,22 @@ function readAssigneeIds(event) {
   return Array.isArray(ids) ? ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
 }
 
+/** @param {unknown} value @returns {string} */
 function safeRelativeUrl(value) {
   const url = String(value || "").trim();
   return url && !/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : "";
 }
 
+/** @param {unknown} status @returns {string} */
 function normalizeStatus(status) {
-  return ["unread", "read", "dismissed", "archived"].includes(status) ? status : "unread";
+  const normalized = String(status || "");
+  return ["unread", "read", "dismissed", "archived"].includes(normalized) ? normalized : "unread";
 }
 
+/** @param {unknown} priority @returns {string} */
 function normalizePriority(priority) {
-  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
+  const normalized = String(priority || "");
+  return ["low", "normal", "high", "urgent"].includes(normalized) ? normalized : "normal";
 }
 
 function normalizeMetadata(metadata) {

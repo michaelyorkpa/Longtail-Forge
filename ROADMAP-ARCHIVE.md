@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.13 - Type Node entry points, HTTP core, and shared route seams
+
+**Model: High Effort** - Request/session/error types are shared security boundaries across all server routes.
+
+- [x] Type `server.js`, `worker.js`, HTTP/error helpers, request sessions, body/query parsing, and route composition under full strict.
+- [x] Narrow untrusted request bodies and Express query shapes before service calls; do not replace runtime validation with TypeScript assertions.
+- [x] Preserve API/browser/operational response classes, non-enumeration, and safe error projection.
+- [x] Reduce the server ledger for these owners to zero with focused HTTP/session regressions.
+
 ## Version 0.33.33.12.1 - Count contract-table rows in the assertion inventory
 
 **Model: High Effort** - The assertion inventory is the replacement-coverage authority behind every consolidation credit; an entry-point-only count leaves contract-table rows invisible and makes silent coverage loss undetectable.

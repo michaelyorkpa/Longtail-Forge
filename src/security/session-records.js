@@ -1,16 +1,22 @@
+// @ts-check
 import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { normalizeTimezone } from "../utils/normalizers.js";
 
+/** @typedef {Record<string, unknown>} SessionSeed */
+/** @typedef {{ expiresAt?: string, maxAgeSeconds?: number, rememberMe?: boolean }} PrepareSessionOptions */
+
 const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+/** @param {SessionSeed} user @param {PrepareSessionOptions} [options] */
 function prepareSessionRecord(user, options = {}) {
   const sessionId = randomBytes(32).toString("base64url");
   const maxAgeSeconds = resolveMaxAgeSeconds(options);
   const expiresAt = options.expiresAt
     ? new Date(options.expiresAt)
     : new Date(Date.now() + maxAgeSeconds * 1000);
-  const activeWorkspaceId = user.active_workspace_id ?? user.home_workspace_id ?? null;
+  const activeWorkspaceId = nullableSessionText(user.active_workspace_id)
+    ?? nullableSessionText(user.home_workspace_id);
 
   return {
     cookie: {
@@ -22,23 +28,36 @@ function prepareSessionRecord(user, options = {}) {
     },
     record: {
       session_id: sessionId,
-      home_workspace_id: user.home_workspace_id ?? activeWorkspaceId,
+      home_workspace_id: nullableSessionText(user.home_workspace_id) ?? activeWorkspaceId,
       workspace_id: activeWorkspaceId,
-      user_id: user.user_id,
-      username: user.username,
+      user_id: sessionText(user.user_id),
+      username: sessionText(user.username),
       timezone: normalizeTimezone(user.timezone),
-      ip_address: user.ip_address || "",
+      ip_address: sessionText(user.ip_address),
       active_workspace_id: activeWorkspaceId,
-      session_mode: user.session_mode || "normal",
-      support_session_id: user.support_session_id || null,
+      session_mode: sessionText(user.session_mode) || "normal",
+      support_session_id: nullableSessionText(user.support_session_id),
       expires_at: expiresAt.toISOString(),
     },
   };
 }
 
+/** @param {unknown} value @returns {string} */
+function sessionText(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+/** @param {unknown} value @returns {string | null} */
+function nullableSessionText(value) {
+  const normalized = sessionText(value);
+  return normalized === "" ? null : normalized;
+}
+
+/** @param {PrepareSessionOptions} options @returns {number} */
 function resolveMaxAgeSeconds(options) {
-  if (Number.isInteger(options.maxAgeSeconds) && options.maxAgeSeconds > 0) {
-    return options.maxAgeSeconds;
+  const configuredMaxAge = options.maxAgeSeconds;
+  if (typeof configuredMaxAge === "number" && Number.isInteger(configuredMaxAge) && configuredMaxAge > 0) {
+    return configuredMaxAge;
   }
   return options.rememberMe
     ? REMEMBERED_SESSION_TTL_SECONDS
