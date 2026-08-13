@@ -88,7 +88,7 @@ assert.match(brief.stdout, /Documentation owners/);
 assert.match(brief.stdout, /Likely test commands/);
 
 const roadmapSource = readFileSync("ROADMAP.md", "utf8");
-const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6"]
+const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6", "0.33.33.12.1"]
   .map((version) => `## Version ${version} - Synthetic completed checkpoint fixture`)
   .join("\n");
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
@@ -143,6 +143,31 @@ const archivedCheckpoint = validateCheckpointCommit({
 assert.equal(archivedCheckpoint.kind, "checkpoint");
 assert.deepEqual(archivedCheckpoint.errors, []);
 assert.deepEqual(archivedCheckpoint.ceremonyPaths, ["ROADMAP-ARCHIVE.md", "ROADMAP.md"]);
+
+const nestedArchivedCheckpoint = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.12.1",
+    docs: "No docs change needed: completed nested checkpoint moved to roadmap archive.",
+    summary: "Archive a declared nested checkpoint without weakening numeric validation",
+  }),
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.equal(nestedArchivedCheckpoint.kind, "checkpoint");
+assert.deepEqual(nestedArchivedCheckpoint.errors, []);
+
+for (const invalidCheckpoint of ["0.33.33.0", "0.33.33.12.0", "0.33.33.12.alpha", "0.33.33.12."]) {
+  const invalidNestedCheckpoint = validateCheckpointCommit({
+    message: checkpointMessage({
+      checkpoint: invalidCheckpoint,
+      docs: "No docs change needed: synthetic invalid nested checkpoint.",
+      summary: "Reject a malformed nested checkpoint identifier",
+    }),
+    roadmapArchiveSource,
+    roadmapSource,
+  });
+  assert.ok(invalidNestedCheckpoint.errors.includes("LTF-Checkpoint must be a numeric 0.33.33.#[.#...] slice"));
+}
 
 const parsedTrailers = parseCheckpointTrailers(firstCheckpointMessage);
 assert.equal(parsedTrailers.values.get(TRAILER_NAMES.checkpoint), "0.33.33.1");

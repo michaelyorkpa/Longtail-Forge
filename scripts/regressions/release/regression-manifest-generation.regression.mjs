@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import {
   buildRegressionManifest,
   buildRatchetedCoveragePolicy,
+  collectContractOwnershipErrors,
   collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
   countAssertions,
@@ -27,21 +28,59 @@ import {
 import { extractRegressionMeta } from "../../lib/regression-metadata.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
+/** @typedef {{ assertionCount: number, path: string }} ContractAssertionModule */
+/** @typedef {{ assertionCount: number, contractAssertionCount: number, contractModules: ContractAssertionModule[], entryPointAssertionCount: number, id: string, path: string }} ManifestRegression */
+/** @typedef {{ assertionInventory: { creditedAssertionReduction: number, ownerPaths: string[], sourceAssertionCount: number }, floorCredit: boolean, script: string }} ReviewableRetirement */
+/** @typedef {(filePath: string, encoding: "utf8") => string} SourceReader */
+
 const manifest = readJson("scripts/regression-coverage-manifest.json");
 const policy = readJson("scripts/regression-coverage-exceptions.json");
+const historicalEvidence = readJson("scripts/historical-closeout-evidence.json");
 const generatorSource = readFileSync("scripts/generate-regression-manifest.mjs", "utf8");
 const docs = readFileSync("docs/regression-suite.md", "utf8");
+/** @type {ManifestRegression[]} */
+const manifestRegressions = manifest.regressions;
+/** @type {{ assertionCount: number, path: string }[]} */
+const directOwnerInventory = manifest.assertionInventory.directOwners;
+/** @type {ReviewableRetirement[]} */
+const policyRetirements = policy.retiredScripts;
 
 assert.match(generatorSource, /Regression coverage manifest is stale/);
 assert.match(generatorSource, /--ratchet-floors/);
 assert.equal(policy.schemaVersion, 2);
-assert.equal(manifest.schemaVersion, 4);
+assert.equal(manifest.schemaVersion, 5);
 assert.equal(policy.maximumActiveScripts, REGRESSION_ENTRIES.length, "active-script ceiling should be armed to current discovery");
 assert.equal(policy.minimumAssertionCount, manifest.assertionInventory.effectiveAssertionCount);
-assert.ok(manifest.regressions.every((entry) => Number.isInteger(entry.assertionCount)));
+assert.ok(manifestRegressions.every((entry) => Number.isInteger(entry.assertionCount)));
+assert.ok(manifestRegressions.every((entry) => (
+  entry.assertionCount === entry.entryPointAssertionCount + entry.contractAssertionCount
+)));
+assert.ok(manifestRegressions.some((entry) => entry.contractAssertionCount > 0));
+assert.ok(directOwnerInventory.every((entry) => !entry.path.endsWith(".contract.mjs")));
 assert.equal(
   manifest.assertionInventory.activeAssertionCount,
-  manifest.regressions.reduce((total, entry) => total + entry.assertionCount, 0),
+  manifestRegressions.reduce((total, entry) => total + entry.assertionCount, 0),
+);
+const reconciliation = historicalEvidence.assertionReconciliation;
+assert.deepEqual(Object.fromEntries(Object.entries(reconciliation.categories).map(([key, value]) => [key, value.assertions])), {
+  archivedHistoricalPins: 355,
+  reviewedTrueDuplicates: 126,
+  vitestMovements: 38,
+  tableCompressionCountingArtifact: 4009,
+});
+assert.equal(17839 - 355 - 126 - 38 - 4009 + reconciliation.currentOwnerGrowthAndRevisionOffset.assertions, 14026);
+assert.ok(manifestRegressions.every((entry) => (
+  entry.contractAssertionCount === entry.contractModules.reduce((total, module) => total + module.assertionCount, 0)
+)));
+assert.equal(
+  manifestRegressions.reduce((total, entry) => total + entry.entryPointAssertionCount, 0)
+    + manifestRegressions.reduce((total, entry) => total + entry.contractAssertionCount, 0),
+  manifest.assertionInventory.activeAssertionCount,
+);
+assert.equal(
+  new Set(manifestRegressions.flatMap((entry) => entry.contractModules.map((module) => module.path))).size,
+  manifestRegressions.reduce((total, entry) => total + entry.contractModules.length, 0),
+  "each contract module should contribute to exactly one discovered owner",
 );
 
 const deterministicManifest = buildRegressionManifest({ entries: REGRESSION_ENTRIES, policy });
@@ -80,8 +119,9 @@ assert.throws(
   /Refusing to weaken regression coverage guardrails[\s\S]*maximumActiveScripts would increase/,
 );
 
-const assertionOwner = manifest.regressions.find((entry) => entry.assertionCount > 0);
+const assertionOwner = manifestRegressions.find((entry) => entry.assertionCount > 0);
 assert.ok(assertionOwner, "fixture needs a discovered assertion owner");
+/** @type {SourceReader} */
 const assertionLossReader = (filePath, encoding) => {
   const source = readFileSync(filePath, encoding);
   if (filePath !== assertionOwner.path) return source;
@@ -95,6 +135,70 @@ const assertionLossErrors = collectRegressionCoverageErrors({
 }).join("\n");
 assert.match(assertionLossErrors, /effective assertion count .* below policy floor/);
 assert.match(assertionLossErrors, /generated manifest is stale/);
+
+const reviewableContractRetirement = policyRetirements.find((entry) => (
+  entry.floorCredit === true
+  && entry.assertionInventory.creditedAssertionReduction < entry.assertionInventory.sourceAssertionCount
+  && entry.assertionInventory.ownerPaths.some((ownerPath) => ownerPath.endsWith(".contract.mjs"))
+));
+const reviewableContractPath = reviewableContractRetirement?.assertionInventory.ownerPaths.find((ownerPath) => (
+  ownerPath.endsWith(".contract.mjs")
+));
+const contractOwner = manifestRegressions.find((entry) => (
+  entry.contractModules.some((module) => module.path === reviewableContractPath && module.assertionCount > 0)
+));
+const contractModule = contractOwner?.contractModules.find((entry) => entry.path === reviewableContractPath);
+assert.ok(reviewableContractRetirement && contractOwner && contractModule, "fixture needs a discovered owner with a reviewable non-empty contract module");
+/** @type {SourceReader} */
+const contractLossReader = (filePath, encoding) => {
+  const source = readFileSync(filePath, encoding);
+  if (filePath !== contractModule.path) return source;
+  return source.replace(/\b(?:assert(?:\.[A-Za-z][A-Za-z0-9]*)?|expect)\s*\(/, "removedAssertion(");
+};
+const contractLossManifest = buildRegressionManifest({
+  entries: REGRESSION_ENTRIES,
+  policy,
+  readSource: contractLossReader,
+});
+assert.equal(
+  contractLossManifest.regressions.find((entry) => entry.id === contractOwner.id)?.assertionCount,
+  contractOwner.assertionCount - 1,
+  "removing a contract-table assertion must shrink its discovered owner's inventory",
+);
+const contractLossErrors = collectRegressionCoverageErrors({
+  entries: REGRESSION_ENTRIES,
+  manifest,
+  policy,
+  readSource: contractLossReader,
+}).join("\n");
+assert.match(contractLossErrors, /effective assertion count .* below policy floor/);
+assert.match(contractLossErrors, /generated manifest is stale/);
+
+const reviewedContractMovementPolicy = clone(policy);
+const reviewCreditIndex = policyRetirements.findIndex((entry) => entry.script === reviewableContractRetirement.script);
+const reviewCredit = reviewedContractMovementPolicy.retiredScripts[reviewCreditIndex];
+assert.ok(reviewCredit, "fixture needs retirement headroom for reviewed contract movement proof");
+reviewCredit.assertionInventory.creditedAssertionReduction += 1;
+const reviewedContractMovementManifest = buildRegressionManifest({
+  entries: REGRESSION_ENTRIES,
+  policy: reviewedContractMovementPolicy,
+  readSource: contractLossReader,
+});
+assert.deepEqual(collectRegressionCoverageErrors({
+  entries: REGRESSION_ENTRIES,
+  manifest: reviewedContractMovementManifest,
+  policy: reviewedContractMovementPolicy,
+  readSource: contractLossReader,
+}), []);
+
+assert.match(
+  collectContractOwnershipErrors({
+    entries: REGRESSION_ENTRIES,
+    contractMovements: [],
+    contractModulePaths: ["scripts/regression-contracts/synthetic-orphan.contract.mjs"],
+  }).join("\n"),
+  /synthetic-orphan\.contract\.mjs contract module is imported by no discovered owner/,
+);
 
 const malformedRetirementPolicy = clone(policy);
 malformedRetirementPolicy.retiredScripts.push({

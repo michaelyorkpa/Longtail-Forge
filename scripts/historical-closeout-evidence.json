@@ -1,6 +1,40 @@
 {
   "version": "0.33.33.2",
   "scope": "Every discovered regression whose ID, path, or metadata identifies it as a closeout owner at the 0.33.33.2 baseline.",
+  "assertionReconciliation": {
+    "version": "0.33.33.12.1",
+    "legacyEntryPointBaseline": 17839,
+    "legacyEntryPointCurrent": 14026,
+    "postGuardEntryPointCurrent": 14045,
+    "correctedOwnedAssertionCurrent": 18054,
+    "categories": {
+      "archivedHistoricalPins": {
+        "assertions": 355,
+        "evidence": "The 65 assertions retired at 0.33.33.2 and the 290 source-shape and dated-inventory assertions retired at 0.33.33.12 no longer execute as current product evidence."
+      },
+      "reviewedTrueDuplicates": {
+        "assertions": 126,
+        "evidence": "The 68 permission-source duplicates retired at 0.33.33.4, 45 explicitly reviewed duplicates in scripts/current-static-contract-consolidation.json, and 13 superseded repository-pass assertions at 0.33.33.11 are retained by executable owners or floor credit."
+      },
+      "vitestMovements": {
+        "assertions": 38,
+        "evidence": "The three 0.33.33.6 assertion movements account for 25 assertions and the retired client-picker hierarchy entry point accounts for 13 more; their deterministic contracts remain in named Vitest owners."
+      },
+      "tableCompressionCountingArtifact": {
+        "assertions": 4009,
+        "evidence": "The legacy inventory counted only discovered entry-point source. It omitted the current assertion call sites in 121 imported scripts/regression-contracts modules; 120 are non-empty and the superseded repository-pass module is intentionally empty."
+      }
+    },
+    "currentOwnerGrowthAndRevisionOffset": {
+      "assertions": 715,
+      "evidence": "New and revised current-owner assertions added across the checkpoint branch offset part of the reviewed removals; this balancing term is required to reconcile the historical baseline with the current generated inventory without relabeling new coverage as a retirement category."
+    },
+    "equations": [
+      "17839 - 355 - 126 - 38 - 4009 + 715 = 14026",
+      "14026 + 4009 + 19 inventory-guard assertions = 18054",
+      "18054 owned + 101 Vitest + 72 direct-owner + 496 reviewed reduction credit = 18723 effective"
+    ]
+  },
   "singleOwnership": {
     "packageScripts": "scripts/package-script-contracts.json via release.validation-single-ownership",
     "roadmapCursor": "release.roadmap-cursor-floor",
