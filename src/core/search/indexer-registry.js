@@ -23,10 +23,16 @@ function registerSearchIndexer(indexerId, indexer) {
   };
 }
 
+/**
+ * @param {string} indexerId
+ */
 function getSearchIndexer(indexerId) {
   return registeredIndexers.get(indexerId) || null;
 }
 
+/**
+ * @param {string} indexerId
+ */
 function hasSearchIndexer(indexerId) {
   return registeredIndexers.has(indexerId);
 }

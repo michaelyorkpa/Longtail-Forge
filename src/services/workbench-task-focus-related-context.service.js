@@ -6,6 +6,12 @@ import { tasksService } from "../modules/tasks/tasks.service.js";
 import { filesService } from "./files.service.js";
 import { tagsService } from "./tags.service.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {{type: string, moduleActionId: string, params: LooseRecord, fallbackUrl: string}} RelatedAction */
+/** @typedef {LooseRecord & {reason: string, moduleId: string, recordType: string, recordId: unknown, title: string, action?: RelatedAction, rank?: number, sourceOrder?: number}} RelatedItem */
+/** @typedef {Map<string, RelatedItem>} RelatedCollection */
+
 const GROUP_LIMIT = 6;
 const SHARED_TAG_SCAN_LIMIT = 200;
 
@@ -19,6 +25,7 @@ const GROUP_DEFINITIONS = Object.freeze([
 
 const GROUP_BY_REASON = new Map(GROUP_DEFINITIONS.map((group) => [group.reason, group]));
 
+/** @param {WorkspaceRequestSession} session @param {unknown} taskId */
 async function readTaskFocusRelatedContext(session, taskId) {
   const selectedTaskId = normalizeId(taskId);
   if (!selectedTaskId) {
@@ -27,7 +34,8 @@ async function readTaskFocusRelatedContext(session, taskId) {
 
   const selectedTask = await readSelectedTask(session, selectedTaskId);
   const selectedTaskTags = await readSelectedTaskDirectTags(session, selectedTask);
-  const selectedTagIds = selectedTaskTags.map((tag) => tag.tag_id).filter(Boolean);
+  const selectedTagIds = selectedTaskTags.map((tag) => safeText(tag.tag_id)).filter(Boolean);
+  /** @type {RelatedCollection} */
   const collection = new Map();
 
   await addLinkedNotes(collection, session, selectedTask);
@@ -69,14 +77,16 @@ async function readTaskFocusRelatedContext(session, taskId) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} taskId @returns {Promise<LooseRecord>} */
 async function readSelectedTask(session, taskId) {
   const result = await tasksService.read(taskId, session);
   if (!result?.task) {
     throw new AppError("Task not found", 404);
   }
-  return result.task;
+  return /** @type {LooseRecord} */ (result.task);
 }
 
+/** @param {WorkspaceRequestSession} session @param {LooseRecord} task */
 async function readSelectedTaskDirectTags(session, task) {
   const result = await optionalRead(() => tagsService.listAssignments(session, {
     targetId: task.task_id,
@@ -86,13 +96,14 @@ async function readSelectedTaskDirectTags(session, task) {
   return safeTagBadges(result?.directTags || task.directTags || task.direct_tags || []);
 }
 
+/** @param {RelatedCollection} collection @param {WorkspaceRequestSession} session @param {LooseRecord} task */
 async function addLinkedNotes(collection, session, task) {
   const result = await optionalRead(() => notesService.listForTarget(session, {
     moduleId: "tasks",
     targetId: task.task_id,
     targetType: "task",
   }));
-  const candidates = result?.linkedNotes || [];
+  const candidates = /** @type {LooseRecord[]} */ (result?.linkedNotes || []);
   const allowedNoteIds = await readAllowedWorkbenchNoteIds(session, candidates);
   const notes = candidates.filter((note) => allowedNoteIds.has(note.note_id || note.id));
 
@@ -104,13 +115,14 @@ async function addLinkedNotes(collection, session, task) {
     title: safeTitle(note.label || note.title, "Untitled note"),
     contextLabel: note.security_mode === "secure" ? "Secure note" : "Linked note",
     reason: "linked_note",
-    action: moduleAction("notes.view", { noteId: note.note_id || note.id }, note.sourceUrl || note.source_url || noteUrl(note.note_id || note.id)),
+    action: moduleAction("notes.view", { noteId: note.note_id || note.id }, safeText(note.sourceUrl || note.source_url) || noteUrl(note.note_id || note.id)),
     badges: safeTagBadges(note.directTags || note.direct_tags || []),
     sortValue: note.updated_at || note.updatedAt || note.created_at || note.createdAt || "",
     sourceOrder: index,
   }));
 }
 
+/** @param {RelatedCollection} collection @param {WorkspaceRequestSession} session @param {LooseRecord} task */
 async function addTaskFiles(collection, session, task) {
   const result = await optionalRead(() => filesService.listAttachments(session, {
     limit: GROUP_LIMIT,
@@ -119,7 +131,7 @@ async function addTaskFiles(collection, session, task) {
     targetId: task.task_id,
     targetType: "task",
   }));
-  const attachments = result?.attachments || [];
+  const attachments = /** @type {LooseRecord[]} */ (result?.attachments || []);
 
   attachments.forEach((attachment, index) => addRelatedItem(collection, {
     moduleId: "framework",
@@ -127,7 +139,7 @@ async function addTaskFiles(collection, session, task) {
     recordType: "file_attachment",
     recordId: attachment.fileAttachmentId || attachment.file_attachment_id,
     title: safeTitle(
-      attachment.file?.displayName || attachment.file?.originalFilename || attachment.file_name || attachment.filename,
+      objectValue(attachment.file).displayName || objectValue(attachment.file).originalFilename || attachment.file_name || attachment.filename,
       "File attachment",
     ),
     contextLabel: fileContextLabel(attachment),
@@ -139,6 +151,7 @@ async function addTaskFiles(collection, session, task) {
   }));
 }
 
+/** @param {RelatedCollection} collection @param {WorkspaceRequestSession} session @param {LooseRecord} task */
 async function addLinkedLists(collection, session, task) {
   const result = await optionalRead(() => listsService.list(session, {
     moduleId: "tasks",
@@ -146,7 +159,7 @@ async function addLinkedLists(collection, session, task) {
     targetId: task.task_id,
     targetType: "task",
   }));
-  const lists = result?.lists || [];
+  const lists = /** @type {LooseRecord[]} */ (result?.lists || []);
 
   lists.forEach((list, index) => addRelatedItem(collection, {
     moduleId: "lists",
@@ -163,6 +176,7 @@ async function addLinkedLists(collection, session, task) {
   }));
 }
 
+/** @param {RelatedCollection} collection @param {WorkspaceRequestSession} session @param {LooseRecord} task */
 async function addSameProjectTasks(collection, session, task) {
   if (!task.project_id) {
     return;
@@ -173,7 +187,7 @@ async function addSameProjectTasks(collection, session, task) {
     projectId: task.project_id,
     status: "active",
   }));
-  const tasks = (result?.tasks || [])
+  const tasks = /** @type {LooseRecord[]} */ (result?.tasks || [])
     .filter((candidate) => candidate.task_id !== task.task_id);
 
   tasks.forEach((candidate, index) => addRelatedItem(collection, taskRelatedItem(candidate, {
@@ -183,6 +197,7 @@ async function addSameProjectTasks(collection, session, task) {
   })));
 }
 
+/** @param {RelatedCollection} collection @param {WorkspaceRequestSession} session @param {LooseRecord} task @param {string[]} selectedTagIds */
 async function addSharedDirectTagItems(collection, session, task, selectedTagIds) {
   if (selectedTagIds.length === 0) {
     return;
@@ -195,7 +210,7 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
     optionalRead(() => listsService.list(session, { status: "active" }), { fallback: { lists: [] } }),
   ]);
 
-  (tasks?.tasks || [])
+  /** @type {LooseRecord[]} */ (tasks?.tasks || [])
     .filter((candidate) => candidate.task_id !== task.task_id)
     .filter((candidate) => sharesDirectTag(candidate, selectedTagSet))
     .forEach((candidate, index) => addRelatedItem(collection, taskRelatedItem(candidate, {
@@ -205,7 +220,7 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
       sourceOrder: index,
     })));
 
-  const noteCandidates = notes?.notes || [];
+  const noteCandidates = /** @type {LooseRecord[]} */ (notes?.notes || []);
   const allowedNoteIds = await readAllowedWorkbenchNoteIds(session, noteCandidates);
   noteCandidates
     .filter((note) => allowedNoteIds.has(note.note_id || note.id))
@@ -225,7 +240,7 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
       sourceOrder: index,
     }));
 
-  (lists?.lists || [])
+  /** @type {LooseRecord[]} */ (lists?.lists || [])
     .filter((list) => sharesDirectTag(list, selectedTagSet))
     .forEach((list, index) => addRelatedItem(collection, {
       moduleId: "lists",
@@ -243,8 +258,9 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
     }));
 }
 
+/** @param {WorkspaceRequestSession} session @param {LooseRecord[]} [notes] */
 async function readAllowedWorkbenchNoteIds(session, notes = []) {
-  const noteIds = notes.map((note) => note.note_id || note.id).filter(Boolean);
+  const noteIds = notes.map((note) => safeText(note.note_id || note.id)).filter(Boolean);
   if (noteIds.length === 0) {
     return new Set();
   }
@@ -255,7 +271,11 @@ async function readAllowedWorkbenchNoteIds(session, notes = []) {
   return new Set(allowed.map((note) => note.note_id));
 }
 
+/** @param {LooseRecord} task @param {LooseRecord} [options] @returns {RelatedItem} */
 function taskRelatedItem(task, options = {}) {
+  const matchedTagIds = Array.isArray(options.matchedTagIds)
+    ? options.matchedTagIds.map(safeText).filter(Boolean)
+    : [];
   return {
     moduleId: "tasks",
     sourceLabel: "Tasks",
@@ -263,10 +283,10 @@ function taskRelatedItem(task, options = {}) {
     recordId: task.task_id,
     title: safeTitle(task.title, "Untitled task"),
     contextLabel: options.contextLabel || "Task",
-    reason: options.reason,
+    reason: safeText(options.reason),
     action: moduleAction("tasks.edit", { taskId: task.task_id }, taskUrl(task.task_id)),
-    badges: taskBadges(task, options.matchedTagIds),
-    matchedTagIds: options.matchedTagIds || [],
+    badges: taskBadges(task, matchedTagIds),
+    matchedTagIds,
     dueAt: task.due_at || task.due_at_utc || task.due_date || "",
     dueAtUtc: task.due_at_utc || "",
     dueDate: task.due_date || "",
@@ -275,10 +295,11 @@ function taskRelatedItem(task, options = {}) {
     status: task.status || "",
     sortValue: task.due_at || task.due_at_utc || task.due_date || task.updated_at || task.created_at || "",
     updatedAt: task.updated_at || task.created_at || "",
-    sourceOrder: options.sourceOrder || 0,
+    sourceOrder: Number(options.sourceOrder) || 0,
   };
 }
 
+/** @param {RelatedCollection} collection @param {RelatedItem} item */
 function addRelatedItem(collection, item) {
   const group = GROUP_BY_REASON.get(item.reason);
   if (!group || !item.recordId || !item.title) {
@@ -294,11 +315,12 @@ function addRelatedItem(collection, item) {
   };
   const existing = collection.get(key);
 
-  if (!existing || next.rank < existing.rank) {
+  if (!existing || next.rank < Number(existing.rank || 0)) {
     collection.set(key, next);
   }
 }
 
+/** @param {RelatedItem} item */
 function stripInternalItemFields(item) {
   const {
     dueAt: _dueAt,
@@ -316,14 +338,16 @@ function stripInternalItemFields(item) {
   return publicItem;
 }
 
+/** @param {RelatedItem} left @param {RelatedItem} right */
 function compareRelatedItems(left, right) {
-  return left.rank - right.rank ||
+  return Number(left.rank || 0) - Number(right.rank || 0) ||
     String(right.sortValue || "").localeCompare(String(left.sortValue || "")) ||
     String(left.title || "").localeCompare(String(right.title || ""), undefined, { sensitivity: "base" }) ||
     String(left.recordId || "").localeCompare(String(right.recordId || ""));
 }
 
-function compareSameProjectTaskItems(left, right, session = {}) {
+/** @param {RelatedItem} left @param {RelatedItem} right @param {WorkspaceRequestSession} session */
+function compareSameProjectTaskItems(left, right, session) {
   if (left.reason !== "same_project_task" || right.reason !== "same_project_task") {
     return 0;
   }
@@ -341,6 +365,7 @@ function compareSameProjectTaskItems(left, right, session = {}) {
     String(left.recordId || "").localeCompare(String(right.recordId || ""));
 }
 
+/** @param {RelatedItem} item @param {string} today */
 function sameProjectDueBucket(item, today) {
   const dueDateValue = parseDateKey(item.dueDate);
   const todayValue = parseDateKey(today);
@@ -352,6 +377,7 @@ function sameProjectDueBucket(item, today) {
   return dueDateValue <= todayValue ? 0 : 1;
 }
 
+/** @param {RelatedItem} left @param {RelatedItem} right @param {number} bucket */
 function compareSameProjectDueAt(left, right, bucket) {
   if (bucket === 0) {
     return String(right.dueAtUtc || sameProjectDueSortValue(right))
@@ -366,6 +392,7 @@ function compareSameProjectDueAt(left, right, bucket) {
   return 0;
 }
 
+/** @param {RelatedItem} item */
 function sameProjectDueSortValue(item) {
   if (item.dueAtUtc) {
     return item.dueAtUtc;
@@ -374,17 +401,20 @@ function sameProjectDueSortValue(item) {
   return `${item.dueDate || "9999-12-31"}T${item.dueTime || "23:59"}:00`;
 }
 
+/** @template T,F @param {() => Promise<T>} read @param {{fallback?: F}} [options] @returns {Promise<T|F|null>} */
 async function optionalRead(read, options = {}) {
   try {
     return await read();
   } catch (error) {
-    if ([403, 404].includes(Number(error?.status || error?.statusCode))) {
+    const details = objectValue(error);
+    if ([403, 404].includes(Number(details.status || details.statusCode))) {
       return options.fallback || null;
     }
     throw error;
   }
 }
 
+/** @param {LooseRecord} task @param {unknown} directTags */
 function shapeSelectedTask(task, directTags) {
   return {
     taskId: task.task_id,
@@ -404,6 +434,10 @@ function shapeSelectedTask(task, directTags) {
   };
 }
 
+/**
+ * @param {string} moduleActionId
+ */
+/** @param {string} moduleActionId @param {LooseRecord} [params] @param {string} [fallbackUrl] @returns {RelatedAction} */
 function moduleAction(moduleActionId, params = {}, fallbackUrl = "") {
   return {
     type: "module-action",
@@ -413,6 +447,7 @@ function moduleAction(moduleActionId, params = {}, fallbackUrl = "") {
   };
 }
 
+/** @param {LooseRecord} task @param {string[]} [matchedTagIds] */
 function taskBadges(task, matchedTagIds = []) {
   const badges = [];
   if (task.status) {
@@ -429,6 +464,7 @@ function taskBadges(task, matchedTagIds = []) {
   return badges.slice(0, 4);
 }
 
+/** @param {LooseRecord} list */
 function listBadges(list) {
   const badges = [];
   if (list.status) {
@@ -441,55 +477,65 @@ function listBadges(list) {
   return badges.slice(0, 4);
 }
 
+/** @param {LooseRecord} attachment */
 function fileBadges(attachment) {
-  const file = attachment.file || {};
+  const file = objectValue(attachment.file);
   return [
     file.extension ? { type: "file-type", label: String(file.extension).replace(/^\./, "").toUpperCase() } : null,
     file.status ? { type: "file-status", label: formatToken(file.status) } : null,
   ].filter(Boolean);
 }
 
+/** @param {LooseRecord} attachment */
 function fileContextLabel(attachment) {
-  const file = attachment.file || {};
+  const file = objectValue(attachment.file);
   const type = file.extension ? String(file.extension).replace(/^\./, "").toUpperCase() : "";
   return type ? `${type} attachment` : "Task file";
 }
 
+/** @param {LooseRecord} attachment */
 function fileActionAttachment(attachment) {
+  const file = objectValue(attachment.file);
   return {
     fileAttachmentId: attachment.fileAttachmentId || attachment.file_attachment_id || "",
     file_attachment_id: attachment.fileAttachmentId || attachment.file_attachment_id || "",
     fileId: attachment.fileId || attachment.file_id || "",
     file_id: attachment.fileId || attachment.file_id || "",
     file: {
-      displayName: attachment.file?.displayName || "",
-      extension: attachment.file?.extension || "",
-      originalFilename: attachment.file?.originalFilename || "",
-      scanStatus: attachment.file?.scanStatus || "",
-      status: attachment.file?.status || "",
+      displayName: file.displayName || "",
+      extension: file.extension || "",
+      originalFilename: file.originalFilename || "",
+      scanStatus: file.scanStatus || "",
+      status: file.status || "",
     },
-    fileName: attachment.file?.displayName || attachment.file?.originalFilename || "File attachment",
+    fileName: file.displayName || file.originalFilename || "File attachment",
     moduleId: attachment.moduleId || attachment.module_id || "",
     targetId: attachment.targetId || attachment.target_id || "",
     targetType: attachment.targetType || attachment.target_type || "",
   };
 }
 
+/** @param {LooseRecord} record @param {Set<string>} tagSet */
 function sharesDirectTag(record, tagSet) {
   return matchedDirectTagIds(record, tagSet).length > 0;
 }
 
+/** @param {LooseRecord} record @param {Set<string>} tagSet @returns {LooseRecord[]} */
 function matchedDirectTags(record, tagSet) {
-  return (record.directTags || record.direct_tags || [])
-    .filter((tag) => tagSet.has(tag.tag_id));
+  const tags = /** @type {LooseRecord[]} */ (Array.isArray(record.directTags)
+    ? record.directTags
+    : Array.isArray(record.direct_tags) ? record.direct_tags : []);
+  return tags.filter((tag) => tagSet.has(safeText(tag.tag_id)));
 }
 
+/** @param {LooseRecord} record @param {Set<string>} tagSet */
 function matchedDirectTagIds(record, tagSet) {
-  return matchedDirectTags(record, tagSet).map((tag) => tag.tag_id).filter(Boolean);
+  return matchedDirectTags(record, tagSet).map((tag) => safeText(tag.tag_id)).filter(Boolean);
 }
 
+/** @param {unknown} [tags] */
 function safeTagBadges(tags = []) {
-  return (Array.isArray(tags) ? tags : [])
+  return /** @type {LooseRecord[]} */ (Array.isArray(tags) ? tags : [])
     .map((tag) => ({
       color: safeText(tag.color),
       label: safeTitle(tag.name || tag.slug, "Tag"),
@@ -502,22 +548,26 @@ function safeTagBadges(tags = []) {
 }
 
 function fileTaggableTargets() {
-  return modulesService.listTaggableTypes()
-    .filter((type) => ["file", "file_attachment"].includes(type.targetType));
+  return /** @type {import("../types/framework-contracts.js").TaggableTypeContribution[]} */ (modulesService.listTaggableTypes())
+    .filter((type) => ["file", "file_attachment"].includes(String(type.targetType || "")));
 }
 
+/** @param {unknown} value */
 function normalizeId(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} value */
 function safeText(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} value @param {string} fallback */
 function safeTitle(value, fallback) {
   return safeText(value) || fallback;
 }
 
+/** @param {unknown} value */
 function formatToken(value) {
   return safeText(value)
     .replace(/[_-]+/g, " ")
@@ -526,15 +576,21 @@ function formatToken(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/**
+ * @param {unknown} priority
+ */
 function priorityRank(priority) {
   return {
     urgent: 4,
     high: 3,
     normal: 2,
     low: 1,
-  }[priority] || 0;
+  }[safeText(priority)] || 0;
 }
 
+/**
+ * @param {unknown} status
+ */
 function statusRank(status) {
   return {
     blocked: 1,
@@ -542,9 +598,12 @@ function statusRank(status) {
     open: 3,
     complete: 4,
     archived: 5,
-  }[status] || 99;
+  }[safeText(status)] || 99;
 }
 
+/**
+ * @param {number | Date | undefined} date
+ */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",
@@ -556,6 +615,7 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {unknown} dateKey */
 function parseDateKey(dateKey) {
   const match = safeText(dateKey).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) {
@@ -569,16 +629,26 @@ function parseDateKey(dateKey) {
   );
 }
 
+/** @param {unknown} taskId */
 function taskUrl(taskId) {
-  return `tasks.html?task=${encodeURIComponent(taskId || "")}`;
+  return `tasks.html?task=${encodeURIComponent(safeText(taskId))}`;
 }
 
+/** @param {unknown} noteId */
 function noteUrl(noteId) {
-  return `notes.html?note=${encodeURIComponent(noteId || "")}`;
+  return `notes.html?note=${encodeURIComponent(safeText(noteId))}`;
 }
 
+/** @param {unknown} listId */
 function listUrl(listId) {
-  return `lists.html?list=${encodeURIComponent(listId || "")}`;
+  return `lists.html?list=${encodeURIComponent(safeText(listId))}`;
+}
+
+/** @param {unknown} value @returns {LooseRecord} */
+function objectValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {LooseRecord} */ (value)
+    : {};
 }
 
 export const workbenchTaskFocusRelatedContextService = {

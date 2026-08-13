@@ -1,6 +1,11 @@
 // @ts-check
 const DEFAULT_MAX_OFFSET = Number.MAX_SAFE_INTEGER;
 
+/** @typedef {{ limit?: unknown, pageSize?: unknown, page_size?: unknown, cursor?: unknown, nextCursor?: unknown, next_cursor?: unknown, offset?: unknown }} BoundedPaginationSource */
+/** @typedef {{ defaultLimit?: unknown, maxLimit?: unknown, maxOffset?: unknown }} BoundedPaginationOptions */
+/** @typedef {{ limit?: unknown, maxPageSize?: unknown, offset?: unknown, returned?: unknown, hasMore?: boolean, total?: unknown }} BoundedPaginationEnvelopeInput */
+
+/** @param {BoundedPaginationSource} [source] @param {BoundedPaginationOptions} [options] */
 function normalizeBoundedPagination(source = {}, options = {}) {
   const defaultLimit = positiveInteger(options.defaultLimit, 25);
   const maxLimit = positiveInteger(options.maxLimit, Math.max(defaultLimit, 100));
@@ -18,6 +23,7 @@ function normalizeBoundedPagination(source = {}, options = {}) {
   };
 }
 
+/** @param {BoundedPaginationEnvelopeInput} [pagination] @param {BoundedPaginationOptions} [options] */
 function boundedPaginationEnvelope(pagination = {}, options = {}) {
   const limit = positiveInteger(pagination.limit, positiveInteger(options.defaultLimit, 25));
   const maxPageSize = positiveInteger(pagination.maxPageSize, positiveInteger(options.maxLimit, limit));
@@ -40,6 +46,9 @@ function boundedPaginationEnvelope(pagination = {}, options = {}) {
   };
 }
 
+/**
+ * @param {number} offset
+ */
 function encodeOffsetCursor(offset) {
   const normalizedOffset = nonNegativeInteger(offset, 0);
 
@@ -53,6 +62,9 @@ function encodeOffsetCursor(offset) {
   })).toString("base64url");
 }
 
+/**
+ * @param {unknown} cursor
+ */
 function decodeOffsetCursor(cursor) {
   const text = typeof cursor === "string" ? cursor.trim() : "";
 
@@ -70,6 +82,7 @@ function decodeOffsetCursor(cursor) {
   }
 }
 
+/** @param {...unknown} values */
 function firstValue(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim() !== "") {
@@ -80,8 +93,9 @@ function firstValue(...values) {
   return undefined;
 }
 
+/** @param {unknown} value @param {number} fallback @param {number} minimum @param {number} maximum */
 function clampInteger(value, fallback, minimum, maximum) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -90,14 +104,22 @@ function clampInteger(value, fallback, minimum, maximum) {
   return Math.min(Math.max(parsed, minimum), maximum);
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ */
 function positiveInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ */
 function nonNegativeInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }

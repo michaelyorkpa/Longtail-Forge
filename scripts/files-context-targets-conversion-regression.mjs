@@ -81,7 +81,7 @@ function assertStaticContract() {
     /await readTableColumnSet\(tableName\)/,
     /db\.dialect\.comparison\.likePattern\(filters\.search/,
     /db\.dialect\.comparison\.containsNoCase\(labelExpression, ":attachableTargetSearchPattern"\)/,
-    /return db\.query\(`/,
+    /await db\.query\(`/,
     /LIMIT :attachableTargetLimit/,
   ]);
   assertFunctionUsesNamedParams("assertNoDuplicateActiveAttachmentContext", [
@@ -154,6 +154,7 @@ async function assertContextAndTargetOptionRuntime(session, fixtures) {
   assert.equal(noteOption.label, "Files Context Note");
   assert.equal(noteOption.clientLabel, "Files Context Client");
   assert.equal(noteOption.projectLabel, "Files Context Project");
+  if (!noteOption.contextLabel) throw new Error("Note target should include its readable context label.");
   assert.match(noteOption.contextLabel, /Files Context Client/);
   assert.match(noteOption.contextLabel, /Files Context Project/);
   assertNoStorageLeak(targetOptions);

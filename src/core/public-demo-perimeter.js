@@ -11,20 +11,30 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const OPERATIONAL_PATHS = new Set(["/healthz", "/readyz", "/api/app-info"]);
 const GENERIC_LIMIT_MESSAGE = "Too many requests. Try again later.";
 
+/** @typedef {import("express").Request & { rateLimit?: { limit?: number, resetTime?: Date } }} PerimeterRequest */
+/** @typedef {import("express").Response} PerimeterResponse */
+/** @typedef {(error?: unknown) => void} PerimeterNext */
+/** @typedef {{ windowSeconds: number, maxBodyBytes: number, globalRequestLimit: number, clientRequestLimit: number, mutationLimit: number, searchLimit: number }} PublicDemoPerimeterSettings */
+/** @typedef {(event: Record<string, unknown>) => unknown | Promise<unknown>} SecurityEventRecorder */
+/** @typedef {{ demoEnabled?: boolean, settings?: Partial<PublicDemoPerimeterSettings>, logger?: Pick<typeof operationalLogger, "warn">, recordSecurityEvent?: SecurityEventRecorder }} PublicDemoPerimeterOptions */
+/** @typedef {{ keyGenerator: (request: PerimeterRequest) => string, limit: number, skip: (request: PerimeterRequest) => boolean, legacyHeaders: boolean, passOnStoreError: boolean, standardHeaders: "draft-8", windowMs: number }} PublicDemoLimiterOptions */
+/** @typedef {{ logger: Pick<typeof operationalLogger, "warn">, recordSecurityEvent: SecurityEventRecorder, settings: PublicDemoPerimeterSettings }} PublicDemoEvidenceOptions */
+
+/** @param {PublicDemoPerimeterOptions} [options] */
 function createPublicDemoPerimeterMiddlewares(options = {}) {
   const demoEnabled = options.demoEnabled ?? config.demo.enabled;
-  const settings = Object.freeze({
+  const settings = /** @type {PublicDemoPerimeterSettings} */ (Object.freeze({
     ...(config.demo.perimeter || {}),
     ...(options.settings || {}),
-  });
+  }));
   const logger = options.logger || operationalLogger;
   const recordSecurityEvent = options.recordSecurityEvent
     || ((event) => securityEventsService.record(event));
   const common = {
     legacyHeaders: false,
     passOnStoreError: false,
-    skip: (request) => !demoEnabled || isOperationalRequest(request),
-    standardHeaders: "draft-8",
+    skip: (/** @type {PerimeterRequest} */ request) => !demoEnabled || isOperationalRequest(request),
+    standardHeaders: /** @type {const} */ ("draft-8"),
     windowMs: settings.windowSeconds * 1000,
   };
 
@@ -44,18 +54,20 @@ function createPublicDemoPerimeterMiddlewares(options = {}) {
       ...common,
       keyGenerator: sessionOrClientKey,
       limit: settings.mutationLimit,
-      skip: (request) => common.skip(request) || SAFE_METHODS.has(normalizeMethod(request.method)),
+      skip: (/** @type {PerimeterRequest} */ request) => common.skip(request) || SAFE_METHODS.has(normalizeMethod(request.method)),
     }, { logger, recordSecurityEvent, settings }),
     createLimiter("search", {
       ...common,
       keyGenerator: sessionOrClientKey,
       limit: settings.searchLimit,
-      skip: (request) => common.skip(request) || !isSearchRequest(request),
+      skip: (/** @type {PerimeterRequest} */ request) => common.skip(request) || !isSearchRequest(request),
     }, { logger, recordSecurityEvent, settings }),
   ];
 }
 
+/** @param {{ demoEnabled: boolean, maxBodyBytes: number }} options */
 function createDeclaredBodyLimit({ demoEnabled, maxBodyBytes }) {
+  /** @param {PerimeterRequest} request @param {unknown} _response @param {PerimeterNext} next */
   return function publicDemoDeclaredBodyLimit(request, _response, next) {
     if (!demoEnabled || isOperationalRequest(request)) {
       next();
@@ -71,10 +83,12 @@ function createDeclaredBodyLimit({ demoEnabled, maxBodyBytes }) {
   };
 }
 
+/** @param {string} scope @param {PublicDemoLimiterOptions} limiterOptions @param {PublicDemoEvidenceOptions} evidenceOptions */
 function createLimiter(scope, limiterOptions, evidenceOptions) {
+  /** @type {Map<string, number>} */
   const emittedWindows = new Map();
   const keyGenerator = limiterOptions.keyGenerator;
-  return rateLimit({
+  return rateLimit(/** @type {Parameters<typeof rateLimit>[0]} */ ({
     ...limiterOptions,
     handler: (request, response) => {
       const context = getRequestContext(request);
@@ -117,13 +131,17 @@ function createLimiter(scope, limiterOptions, evidenceOptions) {
       }
       response.status(429).type("text").send(GENERIC_LIMIT_MESSAGE);
     },
-  });
+  }));
 }
 
+/**
+ * @param {PerimeterRequest} request
+ */
 function clientIpKey(request) {
   return `ip:${ipKeyGenerator(getRequestContext(request).ipAddress)}`;
 }
 
+/** @param {PerimeterRequest} request */
 function sessionOrClientKey(request) {
   if (requestPath(request) !== "/api/login") {
     const sessionId = readCookie(request.headers?.cookie, config.cookies.sessionName);
@@ -134,6 +152,7 @@ function sessionOrClientKey(request) {
   return clientIpKey(request);
 }
 
+/** @param {unknown} header @param {string} name */
 function readCookie(header, name) {
   const prefix = `${name}=`;
   const encoded = String(header || "")
@@ -149,16 +168,19 @@ function readCookie(header, name) {
   }
 }
 
+/** @param {PerimeterRequest} request */
 function isOperationalRequest(request) {
   return OPERATIONAL_PATHS.has(requestPath(request));
 }
 
+/** @param {PerimeterRequest} request */
 function isSearchRequest(request) {
   const path = requestPath(request);
   return normalizeMethod(request.method) === "GET"
     && (path === "/api/search" || path.startsWith("/api/search/"));
 }
 
+/** @param {PerimeterRequest} request */
 function requestPath(request) {
   try {
     return new URL(String(request.originalUrl || request.url || "/"), "http://localhost").pathname;
@@ -167,6 +189,9 @@ function requestPath(request) {
   }
 }
 
+/**
+ * @param {import("../types/route-contracts.js").RouteRequest} request
+ */
 function classifyRoute(request) {
   const path = requestPath(request);
   if (path.startsWith("/api/v1/")) return "api-v1";
@@ -174,10 +199,14 @@ function classifyRoute(request) {
   return "public-resource";
 }
 
+/**
+ * @param {string} value
+ */
 function normalizeMethod(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+/** @param {Map<string, number>} windows */
 function pruneEvidenceWindows(windows) {
   const now = Date.now();
   for (const [key, expiresAt] of windows) {

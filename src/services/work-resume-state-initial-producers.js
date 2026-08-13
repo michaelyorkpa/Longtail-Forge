@@ -32,6 +32,11 @@ import {
  * @property {string} security_mode
  * @property {string} [effective_security_mode]
  */
+/** @typedef {{ emitted_at?: string, metadata?: Record<string, unknown>, new_value?: Record<string, unknown> | null, previous_value?: Record<string, unknown> | null, record_type?: string }} ResumeProducerEvent */
+/** @typedef {{ task_id?: string, id?: string, status?: string, blocked_reason?: string, client_id?: string, due_date?: string, resume_note?: string, handoff_note?: string, last_worked_at?: string, updated_at?: string, checklist_progress?: unknown, recurrence_instance_date?: string, recurrence_template_id?: string, next_action?: string, priority?: string, project_id?: string, title?: string, task_title?: string }} TaskEventRecord */
+/** @typedef {{ list_id?: string, client_id?: string, updated_at?: string, project_id?: string, status?: string, title?: string }} ListEventRecord */
+/** @typedef {Partial<SafeNoteLifecycleRow> & { client_id?: string, project_id?: string, title?: string, updated_at?: string }} NoteEventRecord */
+/** @typedef {{ active_timer_id?: string, source_module_id?: string, source_type?: string, source_id?: string, client_id?: string, project_id?: string, source_url?: string, source_label?: string, timer_status?: string, timer_slot?: string, time_entry_id?: string, accumulated_elapsed_seconds?: number }} TimerEventRecord */
 
 const TASK_EVENTS = [
   "task.created",
@@ -449,46 +454,51 @@ function buildTimerPayload({ event }) {
   };
 }
 
+/** @param {ResumeProducerEvent} event @returns {TaskEventRecord} */
 function taskFromEvent(event) {
-  return {
+  return /** @type {TaskEventRecord} */ ({
     ...(event.previous_value || {}),
     ...(event.new_value || {}),
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {TaskEventRecord} */
 function checklistTaskPayload(event) {
-  return {
+  return /** @type {TaskEventRecord} */ ({
     checklist_progress: event.metadata?.checklist_progress || null,
     task_id: event.metadata?.task_id || event.metadata?.target_id || "",
     title: event.metadata?.task_title || "",
     updated_at: event.emitted_at,
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {ListEventRecord} */
 function listFromEvent(event) {
-  return {
+  return /** @type {ListEventRecord} */ ({
     ...(event.previous_value || {}),
     ...(event.new_value || {}),
     ...(event.record_type === "list" ? {} : { list_id: event.metadata?.list_id || "" }),
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {NoteEventRecord} */
 function noteFromEvent(event) {
-  return {
+  return /** @type {NoteEventRecord} */ ({
     ...(event.previous_value || {}),
     ...(event.new_value || {}),
     ...event.metadata,
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {TimerEventRecord} */
 function timerFromEvent(event) {
-  return {
+  return /** @type {TimerEventRecord} */ ({
     ...(event.new_value || {}),
     ...event.metadata,
-  };
+  });
 }
 
-/** @param {SafeNoteLifecycleRow | null | undefined} note */
+/** @param {Partial<SafeNoteLifecycleRow> | null | undefined} note */
 function isResumeEligibleNote(note = null) {
   if (!note) {
     return false;
@@ -502,17 +512,23 @@ function isResumeEligibleNote(note = null) {
     note.effective_security_mode !== NOTE_SECURITY_MODES.SECURE;
 }
 
+/** @param {Record<string, unknown>} [metadata] */
 function safeNoteLinkedContext(metadata = {}) {
-  if (!metadata?.link || typeof metadata.link !== "object") {
+  const link = metadata.link;
+  if (!link || typeof link !== "object") {
     return null;
   }
 
   return {
-    target_id: metadata.link.target_id || "",
-    target_type: metadata.link.target_type || "",
+    target_id: "target_id" in link ? String(link.target_id || "") : "",
+    target_type: "target_type" in link ? String(link.target_type || "") : "",
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} noteId
+ */
 async function readSafeNoteLifecycle(workspaceId, noteId) {
   return /** @type {Promise<SafeNoteLifecycleRow | null>} */ (db.get(`
 SELECT note_id, library_bucket, status, visibility, security_mode
@@ -526,9 +542,13 @@ LIMIT 1;
   }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown[]} [noteIds]
+ */
 async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
   const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
-    .map((noteId) => textParam(noteId).trim())
+    .map((noteId) => textParam(String(noteId ?? "")).trim())
     .filter(Boolean))];
 
   if (ids.length === 0) {
@@ -546,6 +566,9 @@ WHERE workspace_id = :workspaceId
   }));
 }
 
+/**
+ * @param {string} value
+ */
 function textParam(value) {
   return String(value ?? "");
 }

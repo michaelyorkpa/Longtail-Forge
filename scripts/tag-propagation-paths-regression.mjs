@@ -184,6 +184,7 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
     tagIds: [],
   }, session)).entry;
 
+  if (!firstEntry.tags) throw new Error("Task-bound time entry should include its tag snapshot.");
   assert.ok(
     firstEntry.tags.some((tag) => tag.tag_id === fixtures.parentClientTag.tag_id),
     "task-bound time entry should snapshot effective task/project tags",
@@ -215,6 +216,7 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
     start_time: "2026-06-10T14:00:00.000Z",
     tagIds: [],
   }, session)).entry;
+  if (!secondEntry.tags) throw new Error("Project-bound time entry should include its tag snapshot.");
   assert.ok(
     secondEntry.tags.some((tag) => tag.tag_id === fixtures.lateParentProjectTag.tag_id),
     "manual/project time entry should snapshot effective project tags",

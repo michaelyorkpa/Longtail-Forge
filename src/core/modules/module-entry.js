@@ -6,6 +6,9 @@ import { validateModuleManifests } from "./manifest-contract.js";
 
 const ENTRY_FIELDS = new Set(["manifest", "activateApp", "activateWorker"]);
 const modulesDirectory = fileURLToPath(new URL("../../modules/", import.meta.url));
+/** @typedef {{ directoryName: string, moduleEntry: unknown }} BundledCatalogInput */
+/** @typedef {import("../../types/framework-contracts.js").BundledModuleCatalogEntry} BundledModuleCatalogEntry */
+/** @typedef {import("../../types/framework-contracts.js").ModuleEntry} ModuleEntry */
 
 /**
  * Define the one canonical export consumed by the generated bundled catalog.
@@ -39,6 +42,7 @@ function validateAndOrderBundledModuleCatalog(catalog, options = {}) {
   return Object.freeze(orderByDependencies(entries).map((entry) => Object.freeze(entry)));
 }
 
+/** @param {BundledCatalogInput} catalogEntry @returns {BundledModuleCatalogEntry} */
 function validateCatalogEntry(catalogEntry) {
   const directoryName = String(catalogEntry?.directoryName || "").trim();
   const moduleEntry = catalogEntry?.moduleEntry;
@@ -65,9 +69,10 @@ function validateCatalogEntry(catalogEntry) {
     throw new Error(`Bundled module directory '${directoryName}' must match manifest id '${moduleEntry.manifest.id || "<missing>"}'.`);
   }
 
-  return { directoryName, moduleEntry };
+  return { directoryName, moduleEntry: /** @type {ModuleEntry} */ (catalogEntry.moduleEntry) };
 }
 
+/** @param {readonly BundledCatalogInput[]} catalog */
 function assertCatalogMatchesSourceDirectories(catalog) {
   const catalogDirectories = catalog.map((entry) => String(entry?.directoryName || ""));
   const sourceDirectories = fs.readdirSync(modulesDirectory, { withFileTypes: true })
@@ -82,6 +87,7 @@ function assertCatalogMatchesSourceDirectories(catalog) {
   }
 }
 
+/** @param {BundledModuleCatalogEntry[]} entries @returns {BundledModuleCatalogEntry[]} */
 function orderByDependencies(entries) {
   const entryById = new Map(entries.map((entry) => [entry.moduleEntry.manifest.id, entry]));
   const remainingDependencies = new Map(entries.map((entry) => [
@@ -101,7 +107,11 @@ function orderByDependencies(entries) {
     }
 
     for (const moduleId of readyIds) {
-      ordered.push(entryById.get(moduleId));
+      const readyEntry = entryById.get(moduleId);
+      if (!readyEntry) {
+        throw new Error(`Bundled module '${moduleId}' is missing from the dependency catalog.`);
+      }
+      ordered.push(readyEntry);
       remainingDependencies.delete(moduleId);
       for (const dependencies of remainingDependencies.values()) {
         dependencies.delete(moduleId);
@@ -112,6 +122,7 @@ function orderByDependencies(entries) {
   return ordered;
 }
 
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }

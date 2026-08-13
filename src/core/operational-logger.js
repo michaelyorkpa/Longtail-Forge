@@ -36,10 +36,18 @@ const SAFE_FIELDS = new Set([
 const SAFE_METHODS = new Set(["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]);
 const SAFE_TOKEN_PATTERN = /^[a-zA-Z0-9._:-]{1,120}$/;
 
+/** @typedef {"trace" | "debug" | "info" | "warn" | "error"} LogLevel */
+/** @typedef {"debug" | "error" | "info" | "log" | "warn"} ConsoleMethod */
+/** @typedef {(line: string, level: LogLevel) => void} OperationalLogWriter */
+/** @typedef {{ minimumLevel?: unknown, writeLine?: OperationalLogWriter }} OperationalLoggerOptions */
+/** @typedef {{ write: (level: unknown, event: unknown, fields?: Record<string, unknown>) => void, debug: (event: unknown, fields?: Record<string, unknown>) => void, error: (event: unknown, fields?: Record<string, unknown>) => void, info: (event: unknown, fields?: Record<string, unknown>) => void, trace: (event: unknown, fields?: Record<string, unknown>) => void, warn: (event: unknown, fields?: Record<string, unknown>) => void }} OperationalLogger */
+
+/** @param {OperationalLoggerOptions} [options] @returns {Readonly<OperationalLogger>} */
 function createOperationalLogger(options = {}) {
   const minimumLevel = normalizeLevel(options.minimumLevel || config.logLevel);
   const writeLine = options.writeLine || defaultWriteLine;
 
+  /** @param {unknown} level @param {unknown} event @param {Record<string, unknown>} [fields] */
   function write(level, event, fields = {}) {
     const normalizedLevel = normalizeLevel(level);
     if (LEVEL_PRIORITY[normalizedLevel] < LEVEL_PRIORITY[minimumLevel]) {
@@ -67,10 +75,12 @@ function createOperationalLogger(options = {}) {
 
 const operationalLogger = createOperationalLogger();
 
+/** @param {{ environment?: string, logger?: OperationalLogger }} [options] */
 function createRequestLoggingMiddleware(options = {}) {
   const environment = options.environment || config.environment;
   const logger = options.logger || operationalLogger;
 
+  /** @param {import("../types/route-contracts.js").RouteRequest} request @param {import("../types/route-contracts.js").RouteResponse} response @param {import("../types/route-contracts.js").RouteNext} next */
   return function requestLoggingMiddleware(request, response, next) {
     if (environment !== "production") {
       next();
@@ -92,6 +102,7 @@ function createRequestLoggingMiddleware(options = {}) {
   };
 }
 
+/** @param {{ environment?: string, logger?: OperationalLogger }} [options] */
 function installProductionConsoleBridge(options = {}) {
   const environment = options.environment || config.environment;
   if (environment !== "production") {
@@ -107,14 +118,16 @@ function installProductionConsoleBridge(options = {}) {
     warn: console.warn,
   };
 
-  for (const [method, level] of Object.entries({
+  /** @type {Record<ConsoleMethod, Exclude<LogLevel, "trace">>} */
+  const consoleLevels = {
     debug: "debug",
     error: "error",
     info: "info",
     log: "info",
     warn: "warn",
-  })) {
-    console[method] = (...values) => {
+  };
+  for (const [method, level] of /** @type {[ConsoleMethod, Exclude<LogLevel, "trace">][]} */ (Object.entries(consoleLevels))) {
+    console[method] = (.../** @type {unknown[]} */ values) => {
       const source = readSafeConsoleSource(values[0]);
       logger.write(level, "console.output", source ? { source } : {});
     };
@@ -125,7 +138,12 @@ function installProductionConsoleBridge(options = {}) {
   };
 }
 
+/**
+ * @param {Record<string, unknown>} fields
+ * @returns {Record<string, unknown>}
+ */
 function normalizeSafeFields(fields) {
+  /** @type {Record<string, unknown>} */
   const normalized = {};
 
   for (const [key, value] of Object.entries(fields || {})) {
@@ -134,7 +152,7 @@ function normalizeSafeFields(fields) {
     }
 
     if (key === "durationMs" || key === "statusCode") {
-      if (Number.isSafeInteger(value) && value >= 0) {
+      if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
         normalized[key] = value;
       }
       continue;
@@ -162,6 +180,7 @@ function normalizeSafeFields(fields) {
   return normalized;
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeSafeStack(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -173,26 +192,36 @@ function normalizeSafeStack(value) {
     .filter((frame) => SAFE_TOKEN_PATTERN.test(frame));
 }
 
+/** @param {unknown} value */
 function normalizeEvent(value) {
   const event = String(value || "operational.unknown").trim().toLowerCase();
   return /^[a-z0-9][a-z0-9._-]{0,119}$/.test(event) ? event : "operational.unknown";
 }
 
+/** @param {unknown} value @returns {LogLevel} */
 function normalizeLevel(value) {
   const level = String(value || "info").trim().toLowerCase();
-  return Object.hasOwn(LEVEL_PRIORITY, level) ? level : "info";
+  return level === "trace" || level === "debug" || level === "warn" || level === "error"
+    ? level
+    : "info";
 }
 
+/** @param {unknown} value */
 function normalizeMethod(value) {
   const method = String(value || "").trim().toUpperCase();
   return SAFE_METHODS.has(method) ? method : "OTHER";
 }
 
+/** @param {unknown} value */
 function readSafeConsoleSource(value) {
   const match = /^\[([a-z0-9][a-z0-9-]{0,39})\]/i.exec(String(value || ""));
   return match?.[1]?.toLowerCase() || "";
 }
 
+/**
+ * @param {string | Uint8Array} line
+ * @param {LogLevel} level
+ */
 function defaultWriteLine(line, level) {
   const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
   stream.write(line);

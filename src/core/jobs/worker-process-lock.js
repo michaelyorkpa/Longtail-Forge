@@ -12,6 +12,7 @@ async function acquireWorkerProcessLock() {
   const lockPath = getWorkerProcessLockPath();
   await fs.mkdir(path.dirname(lockPath), { recursive: true });
 
+  /** @type {import("node:fs/promises").FileHandle | null} */
   let handle = null;
 
   try {
@@ -29,7 +30,7 @@ async function acquireWorkerProcessLock() {
       await fs.rm(lockPath, { force: true }).catch(() => {});
     }
 
-    if (error?.code === "EEXIST") {
+    if (error instanceof Error && /** @type {NodeJS.ErrnoException} */ (error).code === "EEXIST") {
       throw new Error(
         `A Longtail Forge worker lock already exists at ${lockPath}. SQLite separate mode supports at most one local worker process for this install. Stop the existing worker, or remove the stale lock only after confirming no worker is running.`,
       );
@@ -41,6 +42,7 @@ async function acquireWorkerProcessLock() {
   await handle.close();
   let released = false;
   const heartbeatIntervalMs = resolveWorkerHeartbeatIntervalMs();
+  /** @type {NodeJS.Timeout | null} */
   let heartbeatTimer = null;
 
   return {
@@ -78,9 +80,10 @@ async function acquireWorkerProcessLock() {
   };
 }
 
+/** @param {{ lockPath?: string, nowMs?: number, staleAfterMs?: number }} [options] */
 async function readSeparateWorkerReadiness(options = {}) {
   const lockPath = options.lockPath || getWorkerProcessLockPath();
-  const nowMs = Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
+  const nowMs = typeof options.nowMs === "number" && Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
   const staleAfterMs = options.staleAfterMs || resolveWorkerHeartbeatStaleAfterMs();
 
   try {

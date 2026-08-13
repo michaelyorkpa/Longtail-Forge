@@ -181,9 +181,10 @@ function normalizeThemeAutoSource(value) {
   return value === "system" ? "system" : "system";
 }
 
+/** @param {unknown} value @returns {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} */
 function normalizeUserLandingPage(value) {
-  return ["dashboard", "workbench", "tasks", "notes", "lists"].includes(value)
-    ? value
+  return typeof value === "string" && ["dashboard", "workbench", "tasks", "notes", "lists"].includes(value)
+    ? /** @type {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} */ (value)
     : "dashboard";
 }
 

@@ -395,7 +395,7 @@ function listSearchableTypes() {
   const ownerModuleIds = new Set([FRAMEWORK_HELP_MODULE_ID]);
 
   for (const article of modulesService.listHelpArticles()) {
-    if (article.moduleId) {
+    if (typeof article.moduleId === "string" && article.moduleId) {
       ownerModuleIds.add(article.moduleId);
     }
   }
@@ -434,10 +434,7 @@ async function listSearchIndexDocuments(workspaceId, options = {}) {
 
 /** @param {HelpRequestSession} session @returns {Promise<HydratedHelpContribution>} */
 async function listVisibleContributions(session) {
-  const listActiveHelpContributions = /** @type {(workspaceId: string, session: HelpRequestSession | null) => Promise<HelpContribution>} */ (
-    modulesService.listActiveHelpContributions
-  );
-  const moduleContributions = await listActiveHelpContributions(
+  const moduleContributions = await modulesService.listActiveHelpContributions(
     session.workspace_id,
     session,
   );
@@ -462,10 +459,7 @@ async function listVisibleContributions(session) {
 
 /** @param {string} workspaceId @returns {Promise<HydratedHelpContribution>} */
 async function listIndexableContributions(workspaceId) {
-  const listActiveHelpContributions = /** @type {(workspaceId: string, session: HelpRequestSession | null) => Promise<HelpContribution>} */ (
-    modulesService.listActiveHelpContributions
-  );
-  const moduleContributions = await listActiveHelpContributions(workspaceId, null);
+  const moduleContributions = await modulesService.listActiveHelpContributions(workspaceId, null);
   const sections = [
     ...FRAMEWORK_HELP_CONTRIBUTION.sections.map((section) => normalizeFrameworkItem(section)),
     ...moduleContributions.sections,
@@ -973,7 +967,7 @@ function sortHelpItems(left, right) {
     String(left.id || "").localeCompare(String(right.id || ""));
 }
 
-export const helpService = {
+const helpServiceInternal = {
   canReadIndexedArticle,
   list,
   listActiveSearchableTypes,
@@ -981,6 +975,8 @@ export const helpService = {
   listSearchIndexDocuments,
   readArticle,
 };
+
+export const helpService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof helpServiceInternal>} */ (helpServiceInternal);
 
 export {
   FRAMEWORK_HELP_MODULE_ID,

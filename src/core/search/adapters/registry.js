@@ -1,9 +1,12 @@
 import { createSqliteSearchAdapter, SQLITE_SEARCH_ADAPTER_ID } from "./sqlite-search-adapter.js";
 
+/** @typedef {ReturnType<typeof createSqliteSearchAdapter>} SearchBackendAdapter */
+/** @type {Map<string, SearchBackendAdapter>} */
 const adapters = new Map();
 
 registerSearchBackendAdapter(createSqliteSearchAdapter());
 
+/** @param {SearchBackendAdapter} adapter */
 function registerSearchBackendAdapter(adapter) {
   validateAdapter(adapter);
   adapters.set(adapter.id, adapter);
@@ -27,6 +30,7 @@ function listSearchBackendAdapters() {
   })).sort((left, right) => left.id.localeCompare(right.id));
 }
 
+/** @param {SearchBackendAdapter} adapter */
 function validateAdapter(adapter) {
   if (!adapter || typeof adapter !== "object") {
     throw new Error("Search backend adapter must be an object.");

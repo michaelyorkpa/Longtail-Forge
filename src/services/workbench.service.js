@@ -1,5 +1,9 @@
 import { modulesService } from "../core/modules/modules.service.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {{ id: string, displayName?: string, name?: string, status?: string }} WorkspaceModuleState */
+
+/** @param {WorkspaceRequestSession} session */
 async function bootstrap(session) {
   const [moduleContext, workbenchCards, timerSources, workItemSources] = await Promise.all([
     modulesService.readWorkspaceModuleContext(session.workspace_id),
@@ -27,6 +31,7 @@ async function bootstrap(session) {
   };
 }
 
+/** @param {WorkspaceModuleState[]} [modules] */
 function buildModuleStateMap(modules = []) {
   return Object.fromEntries((modules || []).map((moduleDefinition) => [
     moduleDefinition.id,
@@ -38,6 +43,8 @@ function buildModuleStateMap(modules = []) {
   ]));
 }
 
-export const workbenchService = {
+const workbenchServiceInternal = {
   bootstrap,
 };
+
+export const workbenchService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workbenchServiceInternal>} */ (workbenchServiceInternal);

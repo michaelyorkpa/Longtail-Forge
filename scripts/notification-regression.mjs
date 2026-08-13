@@ -886,6 +886,7 @@ WHERE event_type = 'task.assigned';
   const descriptionLabelNotification = labelList.notifications.find((notification) => (
     notification.record_id === "description-label-task" && notification.event_type === "task.updated"
   ));
+  if (!descriptionLabelNotification) throw new Error("Description-label notification should be returned.");
   check("task modifiers do not receive their own updated notifications", () => {
     assert.equal(afterActorUpdateRows, beforeActorUpdateRows);
   });

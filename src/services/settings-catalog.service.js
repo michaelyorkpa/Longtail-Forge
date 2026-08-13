@@ -11,6 +11,16 @@ const SETTINGS_ATTACHMENT_POINTS = Object.freeze([
   Object.freeze({ id: "new-workspace", label: "New Workspace" }),
 ]);
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {{ id: string, moduleId: string, label: string, type: string, placement: "workspace"|"user"|"module"|"new-workspace", moduleStatus?: boolean, readOnly?: boolean, readOnlyReason?: string, disabledReason?: string, value?: unknown, default?: unknown, options?: {label: string, value: string}[], [key: string]: unknown }} CatalogSetting */
+/** @typedef {import("../types/framework-contracts.js").ModuleSettingDefinition & {moduleId?: string, value?: unknown}} DecoratedSetting */
+/** @typedef {{ moduleId: string, name: string, displayName: string }} ModuleMetadata */
+/** @typedef {{ id: string, moduleId: string, name: string, displayName: string, placement: string, settings: CatalogSetting[], lifecycle?: boolean }} SettingSection */
+/** @typedef {{ workspace: SettingSection[], user: SettingSection[], module: Record<string, SettingSection[]>, "new-workspace": SettingSection[] }} SettingsAttachments */
+/** @typedef {{ moduleId: string, name?: string, displayName?: string, settings?: DecoratedSetting[] }} ModuleSettingsDefinition */
+/** @typedef {Map<string, ModuleMetadata>} ModuleMetadataMap */
+
+/** @param {WorkspaceRequestSession} session */
 async function read(session) {
   const workspaceId = session.workspace_id;
   const [settings, contributions, canManageWorkspaceSettings] = await Promise.all([
@@ -27,7 +37,7 @@ async function read(session) {
 
   for (const contribution of contributions) {
     const placement = contribution.placement;
-    if (!Object.hasOwn(attachments, placement) || contribution.moduleStatus === true) {
+    if (!isSettingsPlacement(placement) || !Object.hasOwn(attachments, placement) || contribution.moduleStatus === true) {
       continue;
     }
     if (["workspace", "module"].includes(placement) && !canManageWorkspaceSettings) {
@@ -51,6 +61,7 @@ async function read(session) {
   };
 }
 
+/** @param {SettingsAttachments} attachments @param {WorkspaceRequestSession} session @param {{ enabledModules?: string[], workspaceCapabilities?: { availableTools?: string[] } }} settings @param {ModuleMetadataMap} moduleMetadata */
 async function addFrameworkSettingSections(attachments, session, settings, moduleMetadata) {
   const enabledModules = new Set(settings.enabledModules || []);
   const availableTools = new Set(settings.workspaceCapabilities?.availableTools || []);
@@ -73,10 +84,14 @@ async function addFrameworkSettingSections(attachments, session, settings, modul
       target: "framework",
       value: await settingsService.getFrameworkValue(session, definition.id),
     };
-    addSettingToAttachment(attachments, definition.placement, setting, moduleMetadata);
+    const placement = definition.placement;
+    if (isSettingsPlacement(placement)) {
+      addSettingToAttachment(attachments, placement, { ...setting, placement }, moduleMetadata);
+    }
   }
 }
 
+/** @param {import("../core/settings/framework-settings-registry.js").FrameworkSettingDefinition} definition @param {WorkspaceRequestSession} session @param {Set<string>} enabledModules @param {Set<string>} availableTools */
 async function frameworkDefinitionEligible(definition, session, enabledModules, availableTools) {
   if (!(definition.requiredModules || []).every((moduleId) => enabledModules.has(moduleId)) ||
       !(definition.requiresEnabledModules || []).every((moduleId) => enabledModules.has(moduleId))) {
@@ -97,6 +112,7 @@ async function frameworkDefinitionEligible(definition, session, enabledModules, 
   return true;
 }
 
+/** @returns {SettingsAttachments} */
 function createEmptyAttachments() {
   return {
     workspace: [],
@@ -106,6 +122,7 @@ function createEmptyAttachments() {
   };
 }
 
+/** @param {ModuleSettingsDefinition[]} [moduleSettings] @returns {Map<string, DecoratedSetting>} */
 function buildDecoratedSettingMap(moduleSettings = []) {
   return new Map((moduleSettings || []).flatMap((moduleDefinition) => (
     (moduleDefinition.settings || []).map((setting) => [
@@ -115,6 +132,7 @@ function buildDecoratedSettingMap(moduleSettings = []) {
   )));
 }
 
+/** @param {ModuleSettingsDefinition[]} [moduleSettings] @returns {ModuleMetadataMap} */
 function buildModuleMetadata(moduleSettings = []) {
   return new Map((moduleSettings || []).map((moduleDefinition) => [moduleDefinition.moduleId, {
     moduleId: moduleDefinition.moduleId,
@@ -123,6 +141,7 @@ function buildModuleMetadata(moduleSettings = []) {
   }]));
 }
 
+/** @param {CatalogSetting} contribution @param {DecoratedSetting | undefined} decorated @returns {CatalogSetting} */
 function hydrateContribution(contribution, decorated) {
   return {
     ...contribution,
@@ -132,6 +151,7 @@ function hydrateContribution(contribution, decorated) {
   };
 }
 
+/** @param {SettingsAttachments} attachments @param {"workspace" | "user" | "module" | "new-workspace"} placement @param {CatalogSetting} setting @param {ModuleMetadataMap} moduleMetadata */
 function addSettingToAttachment(attachments, placement, setting, moduleMetadata) {
   const target = placement === "module"
     ? attachments.module[setting.moduleId] ||= []
@@ -140,6 +160,7 @@ function addSettingToAttachment(attachments, placement, setting, moduleMetadata)
   section.settings.push(setting);
 }
 
+/** @param {SettingSection[]} sections @param {string} moduleId @param {string} placement @param {ModuleMetadataMap} moduleMetadata */
 function findOrCreateSection(sections, moduleId, placement, moduleMetadata) {
   let section = sections.find((candidate) => candidate.moduleId === moduleId);
   if (section) {
@@ -161,11 +182,16 @@ function findOrCreateSection(sections, moduleId, placement, moduleMetadata) {
   return section;
 }
 
+/** @param {SettingSection[]} sections @param {ModuleSettingsDefinition[]} moduleSettings @param {ModuleMetadataMap} moduleMetadata */
 function addModuleLifecycleSections(sections, moduleSettings = [], moduleMetadata) {
   for (const moduleDefinition of moduleSettings || []) {
     const lifecycleSettings = (moduleDefinition.settings || [])
       .filter((setting) => setting.moduleStatus === true && setting.placement === "workspace")
-      .map((setting) => ({ ...setting }));
+      .map((setting) => ({
+        ...setting,
+        moduleId: setting.moduleId || moduleDefinition.moduleId,
+        placement: /** @type {const} */ ("workspace"),
+      }));
     if (lifecycleSettings.length === 0) {
       continue;
     }
@@ -175,7 +201,14 @@ function addModuleLifecycleSections(sections, moduleSettings = [], moduleMetadat
   }
 }
 
+/** @param {unknown} value @returns {value is "workspace" | "user" | "module" | "new-workspace"} */
+function isSettingsPlacement(value) {
+  return value === "workspace" || value === "user" || value === "module" || value === "new-workspace";
+}
+
+/** @param {SettingsAttachments} attachments */
 function sortAttachments(attachments) {
+  /** @param {SettingSection[]} sections */
   const sortSections = (sections) => sections.sort((left, right) => (
     left.displayName.localeCompare(right.displayName) || left.moduleId.localeCompare(right.moduleId)
   )).forEach((section) => section.settings.sort((left, right) => (
@@ -188,6 +221,9 @@ function sortAttachments(attachments) {
   Object.keys(attachments.module).sort().forEach((moduleId) => sortSections(attachments.module[moduleId]));
 }
 
+/**
+ * @param {{ type: string; }} setting
+ */
 function defaultSettingValue(setting) {
   if (["boolean", "toggle"].includes(setting.type)) {
     return false;
@@ -198,8 +234,10 @@ function defaultSettingValue(setting) {
   return "";
 }
 
-export const settingsCatalogService = {
+const settingsCatalogServiceInternal = {
   read,
 };
+
+export const settingsCatalogService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof settingsCatalogServiceInternal>} */ (settingsCatalogServiceInternal);
 
 export { SETTINGS_ATTACHMENT_POINTS };

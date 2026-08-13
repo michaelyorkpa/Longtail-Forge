@@ -60,13 +60,24 @@ const SEARCH_SQL_ALIASES = new Set([
   SQLITE_SEARCH_FTS_TABLE,
 ]);
 
+/** @typedef {Partial<import("../../../types/framework-contracts.js").SearchRecord> & Record<string, unknown>} SearchDocument */
+/** @typedef {Partial<import("../../../types/framework-contracts.js").PermissionSafeSearchRequest> & Record<string, unknown>} SearchRequest */
+/** @typedef {{moduleId?: unknown, module_id?: unknown, recordType?: unknown, record_type?: unknown, workspaceId?: unknown, workspace_id?: unknown}} RepairScopeInput */
+/** @typedef {{moduleId: string, recordType: string, workspaceId: string}} RepairScope */
+/** @typedef {Record<string, import("../../../types/database-contracts.js").DatabaseNamedParameterInput>} SearchParams */
+
+/**
+ * @type {{ adapterId: string; engine: string; activeBackend: string; fallbackMode: string; fts5Supported: boolean; fts5Detection: { method: string; compileOptionsChecked: boolean; } | { method: string; compileOptionsChecked: boolean; probeAttempted: boolean; } | { method: string; compileOptionsChecked: boolean; probeAttempted: boolean; reason: string; } | undefined; externalSearchRequired: boolean; supportsPostgresFullText: boolean; supportsExternalSearchEngines: boolean; supportsRecordIndexing: boolean; supportsRebuildTools: boolean; supportsFtsRepair: boolean; supportsPrototypeIndexWrites: boolean; supportsPrototypeSearch: boolean; supportsSingleRecordRemoval: boolean; ftsTable: string | null; } | null}
+ */
 let cachedCapabilities = null;
 
+/** @param {{refresh?: boolean}} [options] */
 function createSqliteSearchAdapter(options = {}) {
   return {
     id: SQLITE_SEARCH_ADAPTER_ID,
     label: "SQLite Search Adapter",
     engine: "sqlite",
+    /** @param {{refresh?: boolean}} [runtimeOptions] */
     async getCapabilities(runtimeOptions = {}) {
       if (!options.refresh && !runtimeOptions.refresh && cachedCapabilities) {
         return { ...cachedCapabilities };
@@ -95,6 +106,7 @@ function createSqliteSearchAdapter(options = {}) {
       cachedCapabilities = capabilities;
       return { ...capabilities };
     },
+    /** @param {{refresh?: boolean}} [runtimeOptions] */
     async ensureStorage(runtimeOptions = {}) {
       const capabilities = await this.getCapabilities(runtimeOptions);
 
@@ -105,7 +117,9 @@ function createSqliteSearchAdapter(options = {}) {
           fallbackMode: "indexed-like",
           fts5Supported: false,
           ftsTableReady: false,
-          reason: capabilities.fts5Detection?.reason || "FTS5 support was not detected.",
+          reason: capabilities.fts5Detection && "reason" in capabilities.fts5Detection
+            ? capabilities.fts5Detection.reason
+            : "FTS5 support was not detected.",
         };
       }
 
@@ -120,6 +134,7 @@ function createSqliteSearchAdapter(options = {}) {
         ftsTableReady: true,
       };
     },
+    /** @param {SearchDocument[]} [documents] @param {{refresh?: boolean}} [runtimeOptions] */
     async upsertDocuments(documents = [], runtimeOptions = {}) {
       const normalizedDocuments = Array.isArray(documents) ? documents : [documents];
       const validDocuments = normalizedDocuments.filter((document) => document?.search_index_id);
@@ -174,6 +189,7 @@ ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
         storage,
       };
     },
+    /** @param {Record<string, unknown>} [recordReference] @param {{refresh?: boolean}} [runtimeOptions] */
     async removeDocument(recordReference = {}, runtimeOptions = {}) {
       const storage = await this.ensureStorage(runtimeOptions);
       const searchIndexId = normalizeSearchText(recordReference.searchIndexId || recordReference.search_index_id);
@@ -196,7 +212,7 @@ WHERE workspace_id = :workspaceId
   AND record_id = :recordId
 LIMIT 1;
 `, params);
-      const resolvedSearchIndexId = searchIndexId || existingRow?.search_index_id ||
+      const resolvedSearchIndexId = searchIndexId || normalizeSearchText(existingRow?.search_index_id) ||
         `${workspaceId}:${moduleId}:${recordType}:${recordId}`;
 
       if (storage.ftsTableReady) {
@@ -217,6 +233,7 @@ LIMIT 1;
         storage,
       };
     },
+    /** @param {RepairScopeInput} [scope] @param {{dryRun?: boolean, refresh?: boolean}} [runtimeOptions] */
     async repairIndex(scope = {}, runtimeOptions = {}) {
       const storage = await this.ensureStorage(runtimeOptions);
       const normalizedScope = normalizeRepairScope(scope);
@@ -276,7 +293,10 @@ LIMIT 1;
         storage,
       };
     },
-    async search(request, runtimeOptions = {}) {
+    /**
+ * @param {import("../../../types/framework-contracts.js").PermissionSafeSearchRequest & { limit?: number | undefined; offset?: number | undefined; }} request
+ */
+    async search(request, /** @type {{forceFallback?: boolean, refresh?: boolean}} */ runtimeOptions = {}) {
       const storage = await this.ensureStorage(runtimeOptions);
       const useFts = Boolean(storage.ftsTableReady && request?.text && runtimeOptions.forceFallback !== true);
       const results = useFts
@@ -294,6 +314,10 @@ LIMIT 1;
   };
 }
 
+/**
+ * @param {import("../../../types/database-contracts.js").TransactionClient} transaction
+ * @param {SearchDocument} document
+ */
 async function syncFtsDocument(transaction, document) {
   await transaction.run(deleteFtsDocumentBySearchIndexIdSql(), {
     searchIndexId: normalizeSearchText(document.search_index_id),
@@ -360,6 +384,7 @@ VALUES (
 `;
 }
 
+/** @param {SearchDocument} [document] */
 function ftsDocumentParams(document = {}) {
   return {
     body: normalizeSearchText(document.body),
@@ -375,16 +400,25 @@ function ftsDocumentParams(document = {}) {
   };
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 async function readCanonicalRowsForRepair(scope) {
   const statement = buildCanonicalRowsForRepairStatement(scope);
   return db.query(statement.sql, statement.params);
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 async function readFtsRowsForRepair(scope) {
   const statement = buildFtsRowsForRepairStatement(scope);
   return db.query(statement.sql, statement.params);
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 function buildCanonicalRowsForRepairStatement(scope) {
   const params = {};
   const where = buildRepairWhereClause(scope, SEARCH_INDEX_TABLE, params);
@@ -410,6 +444,9 @@ ORDER BY search_index_id;
   };
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 function buildFtsRowsForRepairStatement(scope) {
   const params = {};
   const where = buildRepairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE, params);
@@ -430,6 +467,9 @@ ORDER BY search_index_id;
   };
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 function buildDeleteFtsRowsStatement(scope) {
   const params = {};
   const where = buildRepairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE, params);
@@ -443,6 +483,9 @@ ${where ? `WHERE ${where}` : ""};
   };
 }
 
+/**
+ * @param {{ moduleId: string; recordType: string; workspaceId: string; }} scope
+ */
 function buildInsertFtsRowsFromCanonicalStatement(scope) {
   const params = {};
   const where = buildRepairWhereClause(scope, SEARCH_INDEX_TABLE, params);
@@ -479,6 +522,7 @@ ${where ? `WHERE ${where}` : ""};
   };
 }
 
+/** @param {RepairScope} scope @param {string} alias @param {SearchParams} params */
 function buildRepairWhereClause(scope, alias, params) {
   const qualifiedAlias = normalizeSearchSqlAlias(alias);
   const whereParts = [];
@@ -496,6 +540,7 @@ function buildRepairWhereClause(scope, alias, params) {
   return whereParts.join("\n  AND ");
 }
 
+/** @param {RepairScopeInput} [scope] @returns {RepairScope} */
 function normalizeRepairScope(scope = {}) {
   return {
     moduleId: normalizeSearchText(scope.moduleId || scope.module_id),
@@ -546,7 +591,7 @@ async function detectFts5ViaCompileOptions() {
     return {
       checked: false,
       supported: false,
-      reason: `Could not read SQLite compile options: ${error.message}`,
+      reason: `Could not read SQLite compile options: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -569,7 +614,7 @@ async function detectFts5ViaVirtualTableProbe() {
     return {
       checked: true,
       supported: false,
-      reason: `FTS5 virtual table probe failed: ${error.message}`,
+      reason: `FTS5 virtual table probe failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -578,6 +623,9 @@ function clearSqliteSearchAdapterCapabilityCacheForTests() {
   cachedCapabilities = null;
 }
 
+/**
+ * @param {import("../../../types/framework-contracts.js").PermissionSafeSearchRequest & { limit?: number | undefined; offset?: number | undefined; }} request
+ */
 async function queryFtsResults(request) {
   const statement = buildFtsSearchStatement(request);
 
@@ -588,11 +636,15 @@ async function queryFtsResults(request) {
   return db.query(statement.sql, statement.params);
 }
 
+/**
+ * @param {import("../../../types/framework-contracts.js").PermissionSafeSearchRequest & { limit?: number | undefined; offset?: number | undefined; }} request
+ */
 async function queryLikeResults(request) {
   const statement = buildLikeSearchStatement(request);
   return db.query(statement.sql, statement.params);
 }
 
+/** @param {SearchRequest} request */
 function buildFtsSearchStatement(request) {
   const ftsQuery = buildFtsQuery(request?.text);
 
@@ -647,7 +699,9 @@ OFFSET :offset;
   };
 }
 
+/** @param {SearchRequest} request */
 function buildLikeSearchStatement(request) {
+  /** @type {SearchParams} */
   const params = {
     limit: normalizeSearchLimit(request?.limit),
     offset: normalizeSearchOffset(request?.offset),
@@ -705,6 +759,7 @@ OFFSET :offset;
   };
 }
 
+/** @param {SearchRequest} request @param {string} alias @param {SearchParams} params */
 function buildSearchWhereClause(request, alias, params) {
   const qualifiedAlias = normalizeSearchSqlAlias(alias);
   const whereParts = [];
@@ -734,7 +789,9 @@ function buildSearchWhereClause(request, alias, params) {
     whereParts.push(`(${targetConditions.join(" OR ")})`);
   }
 
-  const scope = request?.scopes || {};
+  const scope = request?.scopes && typeof request.scopes === "object"
+    ? /** @type {Record<string, unknown>} */ (request.scopes)
+    : {};
   const libraryBucket = normalizeSearchText(request?.libraryBucket || request?.library_bucket);
   const noteCollectionId = normalizeSearchText(request?.noteCollectionId || request?.note_collection_id);
   const recordStatus = normalizeSearchText(request?.recordStatus);
@@ -786,6 +843,10 @@ function buildSearchWhereClause(request, alias, params) {
   return whereParts.join("\n  AND ");
 }
 
+/**
+ * @param {string} value
+ */
+/** @param {unknown} value */
 function buildFtsQuery(value) {
   const tokens = normalizeSearchText(value)
     .split(/\s+/)
@@ -795,6 +856,12 @@ function buildFtsQuery(value) {
   return tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" AND ");
 }
 
+/**
+ * @param {object} params
+ * @param {PropertyKey} name
+ * @param {string | string[]} value
+ */
+/** @param {SearchParams} params @param {string} name @param {import("../../../types/database-contracts.js").DatabaseNamedParameterInput} value */
 function bindSearchParam(params, name, value) {
   if (Object.hasOwn(params, name)) {
     throw new Error(`Duplicate SQLite search parameter: ${name}.`);
@@ -804,6 +871,12 @@ function bindSearchParam(params, name, value) {
   return `:${name}`;
 }
 
+/**
+ * @param {string[]} whereParts
+ * @param {object} params
+ * @param {string} alias
+ */
+/** @param {string[]} whereParts @param {SearchParams} params @param {string} alias @param {Record<string, unknown>} [scope] */
 function applyProjectScopeFilter(whereParts, params, alias, scope = {}) {
   const hasProjectFilter = scope.hasProjectFilter === true ||
     (!Object.hasOwn(scope, "hasProjectFilter") && normalizeSearchText(scope.projectId));
@@ -839,6 +912,12 @@ function applyProjectScopeFilter(whereParts, params, alias, scope = {}) {
   whereParts.push("1 = 0");
 }
 
+/**
+ * @param {string[]} whereParts
+ * @param {object} params
+ * @param {string} alias
+ */
+/** @param {string[]} whereParts @param {SearchParams} params @param {string} alias @param {Record<string, unknown>} [scope] */
 function applyClientScopeFilter(whereParts, params, alias, scope = {}) {
   const hasClientFilter = scope.hasClientFilter === true ||
     (!Object.hasOwn(scope, "hasClientFilter") && normalizeSearchText(scope.clientId));
@@ -886,6 +965,12 @@ function applyClientScopeFilter(whereParts, params, alias, scope = {}) {
   whereParts.push("1 = 0");
 }
 
+/**
+ * @param {string} filterMode
+ * @param {string | boolean} hasFilter
+ * @param {string} filterId
+ */
+/** @param {unknown} filterMode @param {unknown} hasFilter @param {unknown} filterId */
 function resolveScopeFilterMode(filterMode, hasFilter, filterId) {
   const normalizedMode = normalizeSearchText(filterMode);
 
@@ -900,22 +985,32 @@ function resolveScopeFilterMode(filterMode, hasFilter, filterId) {
   return normalizeSearchText(filterId) ? "ids" : "blank";
 }
 
+/** @param {unknown} value */
 function normalizedScopeIds(value) {
   return [...new Set((Array.isArray(value) ? value : [])
     .map((entry) => normalizeSearchText(entry))
     .filter(Boolean))];
 }
 
+/**
+ * @param {string} value
+ */
+/** @param {unknown} value */
 function normalizeSearchLimit(value) {
-  const limit = Number.parseInt(value, 10);
+  const limit = Number.parseInt(String(value ?? ""), 10);
   return Number.isInteger(limit) && limit > 0 && limit <= 100 ? limit : 25;
 }
 
+/**
+ * @param {string} value
+ */
+/** @param {unknown} value */
 function normalizeSearchOffset(value) {
-  const offset = Number.parseInt(value, 10);
+  const offset = Number.parseInt(String(value ?? ""), 10);
   return Number.isInteger(offset) && offset >= 0 ? offset : 0;
 }
 
+/** @param {unknown} alias */
 function normalizeSearchSqlAlias(alias) {
   const text = String(alias || "").trim();
 
@@ -926,6 +1021,7 @@ function normalizeSearchSqlAlias(alias) {
   return text;
 }
 
+/** @param {SearchRequest} [request] */
 function buildSqliteSearchReadStatementsForTests(request = {}) {
   return {
     fallback: buildLikeSearchStatement(request),
@@ -933,6 +1029,7 @@ function buildSqliteSearchReadStatementsForTests(request = {}) {
   };
 }
 
+/** @param {SearchDocument} document @param {string} columnName */
 function searchIndexColumnValue(document, columnName) {
   const value = document[columnName];
 
@@ -940,9 +1037,12 @@ function searchIndexColumnValue(document, columnName) {
     return null;
   }
 
-  return value || "";
+  return value === null || value === undefined ? "" : String(value);
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeSearchText(value) {
   return typeof value === "string" ? value.trim() : "";
 }

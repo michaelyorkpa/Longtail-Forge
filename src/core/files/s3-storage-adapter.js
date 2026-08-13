@@ -5,13 +5,21 @@ import { AppError } from "../../utils/app-error.js";
 
 const S3_PROVIDER_ID = "s3";
 
+/** @typedef {{ accessKeyId: string, bucket: string, endpoint: string, region: string, secretAccessKey: string }} S3Settings */
+/** @typedef {{ contentLength?: unknown, size?: unknown, ContentLength?: unknown, lastModified?: unknown, updatedAt?: unknown, LastModified?: unknown, body?: unknown, Body?: unknown, ok?: boolean } & Record<string, unknown>} S3ClientResult */
+/** @typedef {{ deleteObject?: (payload: Record<string, unknown>) => Promise<S3ClientResult>, headObject?: (payload: Record<string, unknown>) => Promise<S3ClientResult>, getObject?: (payload: Record<string, unknown>) => Promise<S3ClientResult>, putObject?: (payload: Record<string, unknown>) => Promise<S3ClientResult>, health?: (payload: { bucket: string }) => Promise<{ ok?: boolean }> }} S3Client */
+/** @typedef {{ client?: S3Client | null, accessKeyId?: unknown, bucket?: unknown, endpoint?: unknown, region?: unknown, secretAccessKey?: unknown }} S3AdapterOptions */
+/** @typedef {{ workspaceId?: unknown }} S3WriteOptions */
+/** @typedef {"deleteObject" | "headObject" | "getObject" | "putObject"} S3ClientMethod */
+
+/** @param {S3AdapterOptions} [options] */
 function createS3FileStorageAdapter(options = {}) {
   const settings = normalizeS3Settings(options);
   const client = options.client || null;
 
   return {
     id: S3_PROVIDER_ID,
-    async delete(storageKey) {
+    async delete(/** @type {string} */ storageKey) {
       await callS3Client(client, settings, "deleteObject", {
         bucket: settings.bucket,
         key: normalizeStorageKey(storageKey),
@@ -35,7 +43,7 @@ function createS3FileStorageAdapter(options = {}) {
         return { ok: false, provider: S3_PROVIDER_ID, status: "unavailable" };
       }
     },
-    async metadata(storageKey) {
+    async metadata(/** @type {string} */ storageKey) {
       const result = await callS3Client(client, settings, "headObject", {
         bucket: settings.bucket,
         key: normalizeStorageKey(storageKey),
@@ -46,7 +54,7 @@ function createS3FileStorageAdapter(options = {}) {
         updatedAt: normalizeUpdatedAt(result?.lastModified ?? result?.updatedAt ?? result?.LastModified),
       };
     },
-    async read(storageKey) {
+    async read(/** @type {string} */ storageKey) {
       const result = await callS3Client(client, settings, "getObject", {
         bucket: settings.bucket,
         key: normalizeStorageKey(storageKey),
@@ -54,7 +62,7 @@ function createS3FileStorageAdapter(options = {}) {
 
       return toReadable(result?.body ?? result?.Body ?? result);
     },
-    async save(buffer, options = {}) {
+    async save(/** @type {Buffer} */ buffer, /** @type {S3WriteOptions} */ options = {}) {
       if (!Buffer.isBuffer(buffer)) {
         throw new TypeError("A buffer is required.");
       }
@@ -69,7 +77,7 @@ function createS3FileStorageAdapter(options = {}) {
 
       return target;
     },
-    async saveStream(readable, options = {}) {
+    async saveStream(/** @type {NodeJS.ReadableStream} */ readable, /** @type {S3WriteOptions} */ options = {}) {
       if (!readable || typeof readable.pipe !== "function") {
         throw new TypeError("A readable stream is required.");
       }
@@ -86,18 +94,20 @@ function createS3FileStorageAdapter(options = {}) {
   };
 }
 
+/** @param {S3Client | null} client @param {S3Settings} settings @param {S3ClientMethod} methodName @param {Record<string, unknown>} payload @returns {Promise<S3ClientResult>} */
 async function callS3Client(client, settings, methodName, payload) {
   const missing = missingS3Settings(settings);
   if (missing.length > 0) {
     throw new AppError(`S3 file storage provider is not configured. Missing: ${missing.join(", ")}.`, 500);
   }
 
-  if (!client || typeof client[methodName] !== "function") {
+  const method = client?.[methodName];
+  if (typeof method !== "function") {
     throw new AppError("S3 file storage client is not configured.", 500);
   }
 
   try {
-    return await client[methodName](payload);
+    return await method.call(client, payload);
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -110,20 +120,26 @@ async function callS3Client(client, settings, methodName, payload) {
   }
 }
 
+/**
+ * @param {unknown} error
+ */
 function isS3ObjectNotFoundError(error) {
-  const statusCode = Number(error?.statusCode || error?.status || error?.$metadata?.httpStatusCode);
+  const details = isRecord(error) ? error : {};
+  const metadata = isRecord(details.$metadata) ? details.$metadata : {};
+  const statusCode = Number(details.statusCode || details.status || metadata.httpStatusCode);
   if (statusCode === 404) {
     return true;
   }
 
-  const code = String(error?.code || error?.name || error?.Code || "").toLowerCase();
+  const code = String(details.code || details.name || details.Code || "").toLowerCase();
   if (["nosuchkey", "notfound", "notfounderror", "notfoundexception"].includes(code)) {
     return true;
   }
 
-  return /not found|no such key|object missing|missing object/i.test(String(error?.message || ""));
+  return /not found|no such key|object missing|missing object/i.test(String(details.message || ""));
 }
 
+/** @param {S3WriteOptions} [options] */
 function createWriteTarget(options = {}) {
   const storageKey = createStorageKey(options.workspaceId);
   return {
@@ -132,11 +148,13 @@ function createWriteTarget(options = {}) {
   };
 }
 
+/** @param {unknown} prefix */
 function createStorageKey(prefix) {
   const safePrefix = normalizePathSegment(prefix || "workspace");
   return `${safePrefix}/${new Date().toISOString().slice(0, 10)}/${createOpaqueId()}`;
 }
 
+/** @param {S3AdapterOptions} [options] @returns {S3Settings} */
 function normalizeS3Settings(options = {}) {
   return {
     accessKeyId: normalizeText(options.accessKeyId),
@@ -147,6 +165,7 @@ function normalizeS3Settings(options = {}) {
   };
 }
 
+/** @param {Partial<S3Settings>} [settings] */
 function missingS3Settings(settings = {}) {
   return [
     ["LONGTAIL_S3_BUCKET", settings.bucket],
@@ -158,6 +177,7 @@ function missingS3Settings(settings = {}) {
     .map(([key]) => key);
 }
 
+/** @param {unknown} value */
 function normalizeStorageKey(value) {
   const storageKey = String(value || "").replaceAll("\\", "/").trim();
   if (!storageKey || storageKey.startsWith("/") || storageKey.split("/").includes("..")) {
@@ -167,6 +187,7 @@ function normalizeStorageKey(value) {
   return storageKey;
 }
 
+/** @param {unknown} value */
 function normalizePathSegment(value) {
   return String(value || "")
     .trim()
@@ -174,30 +195,40 @@ function normalizePathSegment(value) {
     .replace(/^-+|-+$/g, "") || "workspace";
 }
 
+/** @param {unknown} value */
 function normalizeText(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} value */
 function normalizeSize(value) {
   const size = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(size) && size >= 0 ? size : 0;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeUpdatedAt(value) {
   if (!value) {
     return new Date(0).toISOString();
   }
 
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value instanceof Date
+    ? value
+    : typeof value === "string" || typeof value === "number"
+      ? new Date(value)
+      : new Date(Number.NaN);
   return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
 }
 
+/** @param {unknown} body @returns {NodeJS.ReadableStream} */
 function toReadable(body) {
-  if (body && typeof body.pipe === "function") {
+  if (isNodeReadable(body)) {
     return body;
   }
 
-  if (body && typeof body.getReader === "function" && typeof Readable.fromWeb === "function") {
+  if (isWebReadable(body) && typeof Readable.fromWeb === "function") {
     return Readable.fromWeb(body);
   }
 
@@ -206,6 +237,21 @@ function toReadable(body) {
   }
 
   throw new AppError("S3 file storage object body is unavailable.", 502);
+}
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object";
+}
+
+/** @param {unknown} value @returns {value is NodeJS.ReadableStream} */
+function isNodeReadable(value) {
+  return isRecord(value) && typeof value.pipe === "function";
+}
+
+/** @param {unknown} value @returns {value is import("node:stream/web").ReadableStream} */
+function isWebReadable(value) {
+  return isRecord(value) && typeof value.getReader === "function";
 }
 
 export {

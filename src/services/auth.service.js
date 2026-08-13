@@ -45,11 +45,16 @@ import {
 /** @typedef {NonNullable<Awaited<ReturnType<typeof usersRepository.readByUsername>>>} UserRecord */
 /** @typedef {Awaited<ReturnType<typeof verifyPassword>>} PasswordVerification */
 /** @typedef {{ newAlgorithm: string, previousAlgorithm: string, rehashReason: string | null }} PasswordRehash */
+/** @typedef {import("../repositories/user-workspaces.repo.js").UserWorkspaceMembershipRow} UserWorkspaceMembershipRow */
+/** @typedef {{ username?: unknown, password?: unknown, rememberMe?: unknown }} LoginPayload */
+/** @typedef {{ workspaceId?: unknown, workspace_id?: unknown }} SwitchWorkspacePayload */
+/** @typedef {{ currentPassword?: unknown, newPassword?: unknown }} ChangePasswordPayload */
 
 const INVALID_LOGIN_MESSAGE = "These credentials do not have access to this installation.";
 
-/** @param {{ ipAddress?: unknown, requestId?: unknown }} [context] */
-async function login(payload, context = {}) {
+/** @param {unknown} rawPayload @param {{ ipAddress?: unknown, requestId?: unknown }} [context] */
+async function login(rawPayload, context = {}) {
+  const payload = /** @type {LoginPayload} */ (rawPayload && typeof rawPayload === "object" ? rawPayload : {});
   const rememberMe = readRememberMe(payload);
   const username = normalizeUsername(payload.username);
   const password = String(payload.password || "");
@@ -105,6 +110,9 @@ async function login(payload, context = {}) {
       user,
       username,
     });
+    throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
+  }
+  if (!("value" in verificationAttempt)) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
 
@@ -199,13 +207,17 @@ async function login(payload, context = {}) {
     active_workspace_id: activeWorkspaceId,
     ip_address: normalizeIpAddress(context.ipAddress),
   }, { rememberMe });
+  /** @type {WorkspaceRequestSession} */
   const sessionContext = {
     workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
+    home_workspace_id: authenticatedUser.home_workspace_id || activeWorkspaceId,
     user_id: authenticatedUser.user_id,
     username: authenticatedUser.username,
     timezone: normalizeTimezone(authenticatedUser.timezone),
     ip_address: normalizeIpAddress(context.ipAddress),
+    password_change_required: normalizeBooleanPreference(authenticatedUser.password_change_required),
+    session_mode: "normal",
   };
   await recordAuditWithoutBlocking({
     workspaceId: activeWorkspaceId,
@@ -323,6 +335,7 @@ async function recordLoginSecurityEvent({ context, outcome, reasonClass, user, u
   });
 }
 
+/** @param {Record<string, unknown>} event */
 async function recordAuditWithoutBlocking(event) {
   try {
     return await auditService.record(event);
@@ -394,8 +407,9 @@ async function readSession(session) {
   };
 }
 
-/** @param {string} sessionId @param {RequestSession | null} session */
-async function switchWorkspace(sessionId, session, payload) {
+/** @param {string} sessionId @param {RequestSession | null} session @param {unknown} rawPayload */
+async function switchWorkspace(sessionId, session, rawPayload) {
+  const payload = /** @type {SwitchWorkspacePayload} */ (rawPayload && typeof rawPayload === "object" ? rawPayload : {});
   if (!session) {
     throw new AppError("Not logged in.", 401);
   }
@@ -433,7 +447,7 @@ async function switchWorkspace(sessionId, session, payload) {
     active_workspace_id: workspaceId,
   };
   await auditService.record({
-    session,
+    session: targetSession,
     action: "active_workspace_switched",
     changeType: "update",
     recordType: "workspace_membership",
@@ -457,8 +471,9 @@ async function switchWorkspace(sessionId, session, payload) {
   };
 }
 
-/** @param {WorkspaceRequestSession} session @param {{ currentSessionId?: string, ipAddress?: unknown }} [context] */
-async function changePassword(payload, session, context = {}) {
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session @param {{ currentSessionId?: string, ipAddress?: unknown }} [context] */
+async function changePassword(rawPayload, session, context = {}) {
+  const payload = /** @type {ChangePasswordPayload} */ (rawPayload && typeof rawPayload === "object" ? rawPayload : {});
   assertPublicDemoVisitorIdentityMutable(session.user_id);
   const currentSessionId = String(context.currentSessionId || "").trim();
   if (!currentSessionId) {
@@ -550,9 +565,10 @@ async function changePassword(payload, session, context = {}) {
   return { ok: true, passwordChangeRequired: false, revokedSessions: revocation.revokedCount };
 }
 
+/** @param {UserWorkspaceMembershipRow[]} memberships */
 function normalizeWorkspaceMemberships(memberships) {
   return memberships
-    .filter((membership) => membership.status === "active")
+    .filter((/** @type {{ status: string; }} */ membership) => membership.status === "active")
     .map((membership) => ({
       workspace_id: membership.workspace_id,
       workspaceName: membership.workspace_name,
@@ -560,10 +576,14 @@ function normalizeWorkspaceMemberships(memberships) {
     }));
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeIpAddress(value) {
   return String(value || "").replace(/^::ffff:/, "").trim().slice(0, 128);
 }
 
+/** @param {LoginPayload} payload */
 function readRememberMe(payload) {
   if (!Object.hasOwn(payload || {}, "rememberMe")) {
     return false;
@@ -576,11 +596,12 @@ function readRememberMe(payload) {
   return payload.rememberMe;
 }
 
+/** @param {UserRecord} user @param {UserWorkspaceMembershipRow[]} memberships */
 function resolveActiveWorkspaceId(user, memberships) {
   const activeMemberships = memberships.filter((membership) => membership.status === "active");
   const preferredWorkspaceId = String(user.active_workspace_id || "").trim();
 
-  if (activeMemberships.some((membership) => membership.workspace_id === preferredWorkspaceId)) {
+  if (activeMemberships.some((/** @type {{ workspace_id: string; }} */ membership) => membership.workspace_id === preferredWorkspaceId)) {
     return preferredWorkspaceId;
   }
 

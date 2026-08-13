@@ -3,10 +3,21 @@ import { summarizeActivityEvent } from "../core/events/event-summaries.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { workResumeStateService } from "./work-resume-state.service.js";
 
+/** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult & Record<string, unknown> & {updatedAt?: string, updated_at?: string}} ProducerPayload */
+/** @typedef {{event: InternalEvent, helpers: typeof producerHelpers, summary: ReturnType<typeof summarizeActivityEvent>}} ProducerBuilderContext */
+/** @typedef {(context: ProducerBuilderContext) => ProducerPayload | null | undefined | Promise<ProducerPayload | null | undefined>} ProducerBuilder */
+/** @typedef {{buildPayload: ProducerBuilder, events: string[], id: string, moduleId: string, recordType: string}} ResumeProducerDefinition */
+/** @typedef {Pick<ResumeProducerDefinition, "id" | "moduleId" | "recordType">} ResumeProducerIdentity */
+/** @typedef {{buildPayload?: unknown, events?: unknown, id?: unknown, moduleId?: unknown, module_id?: unknown, recordType?: unknown, record_type?: unknown}} ResumeProducerDefinitionInput */
+
+/** @type {Map<string, ResumeProducerDefinition>} */
 const producerDefinitions = new Map();
+/** @type {Array<() => void>} */
 let unsubscribeHandlers = [];
 let producersRegistered = false;
 
+/** @type {Readonly<Record<string, number>>} */
 const STRING_LIMITS = Object.freeze({
   blocked_reason: 1000,
   context_label_snapshot: 240,
@@ -84,6 +95,7 @@ const FORBIDDEN_FIELD_PATTERNS = [
 ];
 const REMOVE_ACTIONS = new Set(["remove", "delete", "deleted"]);
 
+/** @param {ResumeProducerDefinitionInput} [definition] */
 function registerResumeStateProducer(definition = {}) {
   const normalizedDefinition = normalizeProducerDefinition(definition);
 
@@ -111,7 +123,7 @@ function registerResumeStateProducerEventHandlers() {
 
   producersRegistered = true;
   unsubscribeHandlers = [...producerDefinitions.values()].flatMap((definition) => (
-    definition.events.map((eventName) => modulesService.onInternalEvent(eventName, async (event) => {
+    definition.events.map((eventName) => modulesService.onInternalEvent(eventName, async (/** @type {InternalEvent} */ event) => {
       await handleProducerEvent(definition, event);
     }, {
       id: `work-resume:${definition.id}:${eventName}`,
@@ -130,6 +142,7 @@ function resetResumeStateProducersForTests() {
   producersRegistered = false;
 }
 
+/** @param {ResumeProducerDefinition} definition @param {InternalEvent} event */
 async function handleProducerEvent(definition, event) {
   const session = event.session || null;
   const workspaceId = event.workspace_id || session?.workspace_id || "";
@@ -180,15 +193,19 @@ async function handleProducerEvent(definition, event) {
   return { status: "upserted" };
 }
 
+/** @param {ResumeProducerIdentity} definition @param {InternalEvent} event @param {ProducerPayload} [producerPayload] */
 function buildSafeProducerPayload(definition, event, producerPayload = {}) {
   const summary = summarizeActivityEvent(event);
   const safePayload = pickAllowedProducerFields(producerPayload);
-  const metadata = sanitizeMetadata({
+  const sanitizedMetadata = sanitizeMetadata({
     changed_context: summary.changedContext || null,
     event: event.name,
     producer_id: definition.id,
     ...readMetadata(producerPayload),
   });
+  const metadata = sanitizedMetadata && typeof sanitizedMetadata === "object" && !Array.isArray(sanitizedMetadata)
+    ? /** @type {Record<string, unknown>} */ (sanitizedMetadata)
+    : {};
 
   return {
     ...safePayload,
@@ -205,7 +222,9 @@ function buildSafeProducerPayload(definition, event, producerPayload = {}) {
   };
 }
 
+/** @param {ProducerPayload} [producerPayload] @returns {ProducerPayload} */
 function pickAllowedProducerFields(producerPayload = {}) {
+  /** @type {ProducerPayload} */
   const picked = {};
 
   for (const [key, value] of Object.entries(producerPayload || {})) {
@@ -221,6 +240,7 @@ function pickAllowedProducerFields(producerPayload = {}) {
   return picked;
 }
 
+/** @param {unknown} value @param {number} [depth] @returns {unknown} */
 function sanitizeMetadata(value, depth = 0) {
   if (depth > 4 || value === null || value === undefined) {
     return null;
@@ -243,10 +263,15 @@ function sanitizeMetadata(value, depth = 0) {
     .filter(([, item]) => item !== null && item !== undefined));
 }
 
+/** @param {ProducerPayload} [producerPayload] @returns {Record<string, unknown>} */
 function readMetadata(producerPayload = {}) {
-  return producerPayload.metadata || producerPayload.metadata_json || producerPayload.metadataJson || {};
+  const metadata = producerPayload.metadata || producerPayload.metadata_json || producerPayload.metadataJson;
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? /** @type {Record<string, unknown>} */ (metadata)
+    : {};
 }
 
+/** @param {ResumeProducerDefinitionInput} definition @returns {ResumeProducerDefinition} */
 function normalizeProducerDefinition(definition) {
   const id = normalizeRequiredText(definition.id, "Resume state producer ID", 120);
   const moduleId = normalizeRequiredText(definition.moduleId || definition.module_id, "Resume state producer module ID", 80);
@@ -264,7 +289,7 @@ function normalizeProducerDefinition(definition) {
   }
 
   return {
-    buildPayload: definition.buildPayload,
+    buildPayload: /** @type {ProducerBuilder} */ (definition.buildPayload),
     events,
     id,
     moduleId,
@@ -272,6 +297,7 @@ function normalizeProducerDefinition(definition) {
   };
 }
 
+/** @param {unknown} value @param {string} label @param {number} [limit] */
 function normalizeRequiredText(value, label, limit) {
   const normalized = normalizeText(value, limit);
 
@@ -282,16 +308,26 @@ function normalizeRequiredText(value, label, limit) {
   return normalized;
 }
 
+/**
+ * @param {unknown} value
+ * @param {number | undefined} limit
+ */
 function normalizeText(value, limit) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
 
+/**
+ * @param {string} fieldName
+ */
 function isForbiddenField(fieldName) {
   const normalizedFieldName = String(fieldName || "");
 
   return FORBIDDEN_FIELD_PATTERNS.some((pattern) => pattern.test(normalizedFieldName));
 }
 
+/**
+ * @param {string} value
+ */
 function snakeCase(value) {
   return String(value || "").replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`);
 }

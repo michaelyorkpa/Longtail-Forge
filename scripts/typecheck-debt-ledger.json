@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.14",
+  "checkpoint": "0.33.33.15",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -350,7 +350,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 9086,
+      "errorCount": 5055,
       "diagnostics": {
         "src/config.js": [
           {
@@ -360,568 +360,6 @@
           {
             "code": 7006,
             "count": 40
-          }
-        ],
-        "src/core/asset-version.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/core/bounded-pagination.js": [
-          {
-            "code": 2339,
-            "count": 21
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7019,
-            "count": 1
-          }
-        ],
-        "src/core/client-project-filter-scope.js": [
-          {
-            "code": 2322,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "src/core/corresponding-source.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/core/csrf-protection.js": [
-          {
-            "code": 7006,
-            "count": 16
-          }
-        ],
-        "src/core/events/event-bus.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "src/core/files/file-lifecycle.js": [
-          {
-            "code": 2339,
-            "count": 21
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/core/files/files.contracts.js": [
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/core/files/local-storage-adapter.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "src/core/files/s3-storage-adapter.js": [
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 7006,
-            "count": 17
-          }
-        ],
-        "src/core/files/scanner-adapter.js": [
-          {
-            "code": 2339,
-            "count": 31
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 9
-          },
-          {
-            "code": 7006,
-            "count": 32
-          },
-          {
-            "code": 7031,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 9
-          }
-        ],
-        "src/core/identifiers.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/core/jobs/job-queue.js": [
-          {
-            "code": 2339,
-            "count": 16
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/core/jobs/worker-cli.js": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "src/core/jobs/worker-process-lock.js": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "src/core/linked-context/provider-contract.js": [
-          {
-            "code": 2339,
-            "count": 32
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/core/list-enrichment.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/core/modules/manifest-contract.js": [
-          {
-            "code": 2339,
-            "count": 21
-          },
-          {
-            "code": 7005,
-            "count": 67
-          },
-          {
-            "code": 7006,
-            "count": 397
-          },
-          {
-            "code": 7034,
-            "count": 9
-          }
-        ],
-        "src/core/modules/module-access.js": [
-          {
-            "code": 7006,
-            "count": 24
-          }
-        ],
-        "src/core/modules/module-entry.js": [
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
-        "src/core/modules/module-runtime.js": [
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "src/core/modules/modules.service.js": [
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 139
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/core/modules/registry.js": [
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/core/modules/terminology.js": [
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7024,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 4
-          }
-        ],
-        "src/core/operational-logger.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7019,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 7
-          }
-        ],
-        "src/core/private-feeds/private-feed-providers.js": [
-          {
-            "code": 2322,
-            "count": 1
-          }
-        ],
-        "src/core/public-demo-budget-catalog.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/core/public-demo-budgets.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/core/public-demo-capabilities.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/core/public-demo-enforcement.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7024,
-            "count": 2
-          }
-        ],
-        "src/core/public-demo-identities.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/core/public-demo-perimeter.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "src/core/public-demo-runtime.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/core/public-demo-visitor-accounts.js": [
-          {
-            "code": 7031,
-            "count": 7
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/core/record-scope.js": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 17
-          },
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
-        "src/core/reporting/report-runner-registry.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/core/runtime-readiness.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/core/search/adapters/registry.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/core/search/adapters/sqlite-search-adapter.js": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 45
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 42
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "src/core/search/indexer-registry.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/core/search/tag-text.js": [
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/core/security.js": [
-          {
-            "code": 2305,
-            "count": 4
-          }
-        ],
-        "src/core/settings/framework-settings-registry.js": [
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "src/core/settings/settings-behavior-registry.js": [
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
-        "src/core/settings/workbench-focus-policy.js": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/core/tar-archive-command.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 8
-          }
-        ],
-        "src/core/transport-security.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/core/version.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/core/view-surfaces/framework-view-surfaces.js": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "src/modules/client-projects/client-project-settings.service.js": [
@@ -977,7 +415,7 @@
           },
           {
             "code": 2353,
-            "count": 11
+            "count": 2
           },
           {
             "code": 7005,
@@ -985,7 +423,7 @@
           },
           {
             "code": 7006,
-            "count": 160
+            "count": 147
           },
           {
             "code": 7031,
@@ -1107,7 +545,7 @@
           },
           {
             "code": 2339,
-            "count": 365
+            "count": 364
           },
           {
             "code": 2345,
@@ -1118,16 +556,12 @@
             "count": 2
           },
           {
-            "code": 2698,
-            "count": 1
-          },
-          {
             "code": 2769,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 233
+            "count": 225
           },
           {
             "code": 7053,
@@ -1335,7 +769,7 @@
           },
           {
             "code": 7006,
-            "count": 277
+            "count": 275
           },
           {
             "code": 7031,
@@ -1562,10 +996,6 @@
             "count": 45
           },
           {
-            "code": 7031,
-            "count": 3
-          },
-          {
             "code": 7053,
             "count": 2
           }
@@ -1663,10 +1093,6 @@
           },
           {
             "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2353,
             "count": 1
           },
           {
@@ -1813,7 +1239,7 @@
         "src/modules/time-tracking/time-tracking-dashboard.service.js": [
           {
             "code": 7006,
-            "count": 12
+            "count": 11
           }
         ],
         "src/modules/time-tracking/time-tracking-settings.service.js": [
@@ -1895,7 +1321,7 @@
           },
           {
             "code": 7006,
-            "count": 11
+            "count": 10
           },
           {
             "code": 7023,
@@ -1904,546 +1330,6 @@
           {
             "code": 7024,
             "count": 2
-          }
-        ],
-        "src/services/account-export-recovery.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/services/api-keys.service.js": [
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
-        "src/services/app-shell.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 47
-          }
-        ],
-        "src/services/audit.service.js": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 30
-          }
-        ],
-        "src/services/auth.service.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 14
-          }
-        ],
-        "src/services/dashboard.service.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/services/files.service.js": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 2322,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 241
-          },
-          {
-            "code": 2345,
-            "count": 23
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 4104,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 284
-          },
-          {
-            "code": 7031,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/services/import-jobs.service.js": [
-          {
-            "code": 2339,
-            "count": 18
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/services/jobs.service.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/services/legal-content.service.js": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/services/notifications.service.js": [
-          {
-            "code": 2339,
-            "count": 92
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 90
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "src/services/operational-readiness.service.js": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/services/permissions.service.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 82
-          },
-          {
-            "code": 7031,
-            "count": 33
-          },
-          {
-            "code": 7053,
-            "count": 9
-          }
-        ],
-        "src/services/public-api.service.js": [
-          {
-            "code": 7006,
-            "count": 32
-          }
-        ],
-        "src/services/reporting.service.js": [
-          {
-            "code": 7006,
-            "count": 36
-          },
-          {
-            "code": 7053,
-            "count": 6
-          }
-        ],
-        "src/services/runtime-diagnostics.service.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          }
-        ],
-        "src/services/search-index-jobs.service.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 51
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/services/search-index-sync.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "src/services/search.service.js": [
-          {
-            "code": 2339,
-            "count": 59
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 24
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 10
-          }
-        ],
-        "src/services/sessions.service.js": [
-          {
-            "code": 2345,
-            "count": 3
-          }
-        ],
-        "src/services/settings-catalog.service.js": [
-          {
-            "code": 7006,
-            "count": 39
-          }
-        ],
-        "src/services/settings.service.js": [
-          {
-            "code": 7006,
-            "count": 74
-          }
-        ],
-        "src/services/support-view.service.js": [
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2740,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 2
-          }
-        ],
-        "src/services/tag-propagation-registry.js": [
-          {
-            "code": 2339,
-            "count": 35
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/services/tags.service.js": [
-          {
-            "code": 2339,
-            "count": 101
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 136
-          },
-          {
-            "code": 7031,
-            "count": 4
-          },
-          {
-            "code": 7034,
-            "count": 3
-          }
-        ],
-        "src/services/user-landing.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/services/users.service.js": [
-          {
-            "code": 2322,
-            "count": 16
-          },
-          {
-            "code": 2345,
-            "count": 5
-          },
-          {
-            "code": 2352,
-            "count": 4
-          },
-          {
-            "code": 2538,
-            "count": 1
-          },
-          {
-            "code": 2739,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/services/work-candidate.service.js": [
-          {
-            "code": 2339,
-            "count": 193
-          },
-          {
-            "code": 7006,
-            "count": 109
-          },
-          {
-            "code": 7019,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 8
-          }
-        ],
-        "src/services/work-focus-modes.service.js": [
-          {
-            "code": 2339,
-            "count": 67
-          },
-          {
-            "code": 7006,
-            "count": 47
-          },
-          {
-            "code": 7019,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 7
-          }
-        ],
-        "src/services/work-resume-state-initial-producers.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "src/services/work-resume-state-producers.js": [
-          {
-            "code": 2339,
-            "count": 22
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7024,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/services/work-resume-state.service.js": [
-          {
-            "code": 2339,
-            "count": 16
-          },
-          {
-            "code": 7006,
-            "count": 52
-          },
-          {
-            "code": 7031,
-            "count": 6
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/services/workbench-task-focus-related-context.service.js": [
-          {
-            "code": 2339,
-            "count": 9
-          },
-          {
-            "code": 7006,
-            "count": 90
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/services/workbench.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/services/workspace-backup-package.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 77
-          },
-          {
-            "code": 7031,
-            "count": 8
-          }
-        ],
-        "src/services/workspace-backups.service.js": [
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "src/services/workspace-deletion.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/services/workspace-purge.service.js": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 2739,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7031,
-            "count": 1
           }
         ],
         "src/utils/normalizers.js": [
@@ -2453,7 +1339,7 @@
           },
           {
             "code": 7006,
-            "count": 34
+            "count": 33
           }
         ],
         "src/utils/workspaces.js": [
@@ -2862,12 +1748,6 @@
             "count": 2
           }
         ],
-        "tests/unit/focus-mode-resolution.test.mjs": [
-          {
-            "code": 2339,
-            "count": 5
-          }
-        ],
         "tests/unit/legal-content.test.mjs": [
           {
             "code": 18047,
@@ -2916,12 +1796,6 @@
           {
             "code": 18046,
             "count": 3
-          }
-        ],
-        "tests/unit/resume-producer-payload.test.mjs": [
-          {
-            "code": 2339,
-            "count": 2
           }
         ],
         "tests/unit/runtime-configuration.test.mjs": [
@@ -5599,7 +4473,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 10389,
+      "errorCount": 9910,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5677,12 +4551,6 @@
             "count": 2
           }
         ],
-        "scripts/api-key-scope-audit-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          }
-        ],
         "scripts/app-shell-navigation-regression.mjs": [
           {
             "code": 18046,
@@ -5750,10 +4618,6 @@
         "scripts/backup-restore-drill.mjs": [
           {
             "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2322,
             "count": 1
           },
           {
@@ -5922,7 +4786,7 @@
           },
           {
             "code": 7006,
-            "count": 59
+            "count": 53
           },
           {
             "code": 7031,
@@ -5931,10 +4795,6 @@
         ],
         "scripts/client-projects-bugfix-regression.mjs": [
           {
-            "code": 18047,
-            "count": 6
-          },
-          {
             "code": 7006,
             "count": 6
           }
@@ -5942,7 +4802,7 @@
         "scripts/client-projects-canonical-payload-regression.mjs": [
           {
             "code": 7006,
-            "count": 12
+            "count": 11
           }
         ],
         "scripts/client-projects-repositories-conversion-regression.mjs": [
@@ -6072,10 +4932,6 @@
           }
         ],
         "scripts/dashboard-workbench-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 11
-          },
           {
             "code": 7006,
             "count": 1
@@ -6308,7 +5164,7 @@
           },
           {
             "code": 7006,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7034,
@@ -6338,7 +5194,7 @@
           },
           {
             "code": 7006,
-            "count": 21
+            "count": 20
           },
           {
             "code": 7034,
@@ -6364,7 +5220,7 @@
           },
           {
             "code": 2345,
-            "count": 4
+            "count": 1
           },
           {
             "code": 2769,
@@ -6390,7 +5246,7 @@
           },
           {
             "code": 2345,
-            "count": 4
+            "count": 1
           },
           {
             "code": 2769,
@@ -6408,7 +5264,7 @@
           },
           {
             "code": 7006,
-            "count": 5
+            "count": 4
           },
           {
             "code": 7034,
@@ -6519,10 +5375,6 @@
             "count": 3
           },
           {
-            "code": 2345,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 10
           }
@@ -6552,7 +5404,7 @@
           },
           {
             "code": 2345,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7006,
@@ -6566,7 +5418,7 @@
           },
           {
             "code": 2339,
-            "count": 7
+            "count": 5
           },
           {
             "code": 7006,
@@ -6612,10 +5464,6 @@
           },
           {
             "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
             "count": 2
           },
           {
@@ -6683,10 +5531,6 @@
           {
             "code": 2339,
             "count": 8
-          },
-          {
-            "code": 2345,
-            "count": 1
           },
           {
             "code": 2810,
@@ -6788,7 +5632,7 @@
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7034,
@@ -6814,7 +5658,7 @@
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 12
           },
           {
             "code": 7034,
@@ -6858,7 +5702,7 @@
           },
           {
             "code": 7006,
-            "count": 14
+            "count": 12
           },
           {
             "code": 7023,
@@ -6869,10 +5713,6 @@
           {
             "code": 18046,
             "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 2
           },
           {
             "code": 7006,
@@ -6980,7 +5820,7 @@
           },
           {
             "code": 2345,
-            "count": 9
+            "count": 1
           },
           {
             "code": 7006,
@@ -7002,7 +5842,7 @@
           },
           {
             "code": 2345,
-            "count": 13
+            "count": 2
           },
           {
             "code": 7006,
@@ -7012,7 +5852,7 @@
         "scripts/help-contract-regression.mjs": [
           {
             "code": 7006,
-            "count": 15
+            "count": 2
           }
         ],
         "scripts/help-markdown-source-layout-regression.mjs": [
@@ -7026,10 +5866,6 @@
           }
         ],
         "scripts/help-navigation-boundary-regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          },
           {
             "code": 7006,
             "count": 6
@@ -7234,10 +6070,6 @@
           }
         ],
         "scripts/lib/backup-archive.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
           {
             "code": 2339,
             "count": 1
@@ -7669,12 +6501,6 @@
             "count": 6
           }
         ],
-        "scripts/linked-context-provider-contract-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          }
-        ],
         "scripts/linked-context-task-label-sort-regression.mjs": [
           {
             "code": 2339,
@@ -7724,7 +6550,7 @@
           },
           {
             "code": 7006,
-            "count": 8
+            "count": 7
           }
         ],
         "scripts/lists-closeout-regression.mjs": [
@@ -7751,24 +6577,8 @@
         ],
         "scripts/lists-foundation-regression.mjs": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 13
-          },
-          {
-            "code": 18048,
-            "count": 8
-          },
-          {
             "code": 2322,
             "count": 10
-          },
-          {
-            "code": 2345,
-            "count": 3
           },
           {
             "code": 2769,
@@ -7780,10 +6590,6 @@
           }
         ],
         "scripts/lists-query-suggestions-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
           {
             "code": 18048,
             "count": 2
@@ -7821,16 +6627,12 @@
         ],
         "scripts/lists-service-regression.mjs": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18047,
             "count": 16
           },
           {
             "code": 18048,
-            "count": 18
+            "count": 3
           },
           {
             "code": 2322,
@@ -7846,7 +6648,7 @@
           },
           {
             "code": 7006,
-            "count": 9
+            "count": 7
           },
           {
             "code": 7034,
@@ -7941,30 +6743,18 @@
         ],
         "scripts/module-sanity-check.mjs": [
           {
-            "code": 18046,
-            "count": 21
-          },
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
             "code": 7006,
-            "count": 12
+            "count": 10
           }
         ],
         "scripts/notes-access-contract-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
           {
             "code": 18047,
             "count": 13
           },
           {
             "code": 18048,
-            "count": 13
+            "count": 2
           },
           {
             "code": 2322,
@@ -7982,7 +6772,7 @@
           },
           {
             "code": 18047,
-            "count": 10
+            "count": 7
           },
           {
             "code": 18048,
@@ -8032,7 +6822,7 @@
           },
           {
             "code": 7006,
-            "count": 25
+            "count": 18
           },
           {
             "code": 7031,
@@ -8046,7 +6836,7 @@
           },
           {
             "code": 18048,
-            "count": 11
+            "count": 6
           },
           {
             "code": 2769,
@@ -8060,7 +6850,7 @@
         "scripts/notes-integration-closeout-regression.mjs": [
           {
             "code": 18046,
-            "count": 6
+            "count": 1
           },
           {
             "code": 18047,
@@ -8068,7 +6858,7 @@
           },
           {
             "code": 18048,
-            "count": 11
+            "count": 5
           },
           {
             "code": 2339,
@@ -8098,10 +6888,6 @@
           }
         ],
         "scripts/notes-lists-tags-api-scope-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
           {
             "code": 2339,
             "count": 12
@@ -8204,11 +6990,11 @@
           },
           {
             "code": 18047,
-            "count": 9
+            "count": 8
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2339,
@@ -8234,15 +7020,11 @@
         "scripts/notes-secure-regression.mjs": [
           {
             "code": 18046,
-            "count": 2
+            "count": 1
           },
           {
             "code": 18047,
             "count": 2
-          },
-          {
-            "code": 18048,
-            "count": 1
           },
           {
             "code": 2339,
@@ -8258,7 +7040,7 @@
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7034,
@@ -8449,10 +7231,6 @@
           {
             "code": 2339,
             "count": 17
-          },
-          {
-            "code": 2345,
-            "count": 1
           },
           {
             "code": 7006,
@@ -8938,7 +7716,7 @@
         "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs": [
           {
             "code": 7006,
-            "count": 24
+            "count": 22
           },
           {
             "code": 7023,
@@ -9139,12 +7917,6 @@
             "count": 15
           }
         ],
-        "scripts/regressions/database/backup-archive-portability.regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          }
-        ],
         "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs": [
           {
             "code": 7005,
@@ -9290,7 +8062,7 @@
           },
           {
             "code": 2345,
-            "count": 10
+            "count": 7
           }
         ],
         "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs": [
@@ -9433,20 +8205,8 @@
         ],
         "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 2339,
             "count": 6
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2538,
-            "count": 1
           },
           {
             "code": 2810,
@@ -9570,7 +8330,7 @@
           },
           {
             "code": 7006,
-            "count": 19
+            "count": 18
           },
           {
             "code": 7034,
@@ -9713,10 +8473,6 @@
             "count": 7
           },
           {
-            "code": 7031,
-            "count": 7
-          },
-          {
             "code": 7034,
             "count": 1
           }
@@ -9776,7 +8532,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           },
           {
             "code": 7016,
@@ -9814,7 +8570,7 @@
           },
           {
             "code": 7006,
-            "count": 15
+            "count": 14
           },
           {
             "code": 7031,
@@ -9852,7 +8608,7 @@
           },
           {
             "code": 7006,
-            "count": 20
+            "count": 19
           },
           {
             "code": 7019,
@@ -9915,10 +8671,6 @@
             "count": 4
           },
           {
-            "code": 2345,
-            "count": 2
-          },
-          {
             "code": 2353,
             "count": 1
           },
@@ -9959,10 +8711,6 @@
           {
             "code": 7034,
             "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "scripts/regressions/framework/public-demo-budgets.regression.mjs": [
@@ -9987,10 +8735,6 @@
             "count": 1
           },
           {
-            "code": 2554,
-            "count": 3
-          },
-          {
             "code": 2810,
             "count": 1
           },
@@ -10000,7 +8744,7 @@
           },
           {
             "code": 7006,
-            "count": 52
+            "count": 50
           },
           {
             "code": 7016,
@@ -10009,10 +8753,6 @@
           {
             "code": 7023,
             "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 2
           },
           {
             "code": 7034,
@@ -10030,7 +8770,7 @@
           },
           {
             "code": 7006,
-            "count": 4
+            "count": 2
           }
         ],
         "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs": [
@@ -10056,7 +8796,7 @@
           },
           {
             "code": 7006,
-            "count": 21
+            "count": 20
           },
           {
             "code": 7016,
@@ -10130,7 +8870,7 @@
           },
           {
             "code": 7006,
-            "count": 24
+            "count": 21
           },
           {
             "code": 7016,
@@ -10229,10 +8969,6 @@
             "count": 3
           },
           {
-            "code": 2345,
-            "count": 7
-          },
-          {
             "code": 2790,
             "count": 2
           },
@@ -10304,7 +9040,7 @@
           },
           {
             "code": 7006,
-            "count": 24
+            "count": 23
           },
           {
             "code": 7034,
@@ -10322,19 +9058,11 @@
           },
           {
             "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2345,
-            "count": 4
+            "count": 3
           },
           {
             "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7053,
-            "count": 1
+            "count": 3
           }
         ],
         "scripts/regressions/framework/support-view-request-enforcement.regression.mjs": [
@@ -10474,11 +9202,7 @@
         "scripts/regressions/framework/workbench-focus-policy.regression.mjs": [
           {
             "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 4
+            "count": 3
           }
         ],
         "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs": [
@@ -10542,7 +9266,7 @@
           },
           {
             "code": 7006,
-            "count": 8
+            "count": 7
           },
           {
             "code": 7023,
@@ -10606,7 +9330,7 @@
           },
           {
             "code": 2345,
-            "count": 5
+            "count": 4
           }
         ],
         "scripts/regressions/permissions/permission-resource-types.regression.mjs": [
@@ -10997,10 +9721,6 @@
         ],
         "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs": [
           {
-            "code": 2345,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 3
           }
@@ -11085,10 +9805,6 @@
         ],
         "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs": [
           {
-            "code": 18047,
-            "count": 2
-          },
-          {
             "code": 18048,
             "count": 1
           },
@@ -11106,10 +9822,6 @@
           },
           {
             "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2532,
             "count": 1
           },
           {
@@ -11611,10 +10323,6 @@
         ],
         "scripts/search-adapter-rebuild-service-conversion-regression.mjs": [
           {
-            "code": 2739,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 4
           },
@@ -11672,11 +10380,7 @@
         "scripts/search-fts-seam-regression.mjs": [
           {
             "code": 2339,
-            "count": 7
-          },
-          {
-            "code": 2345,
-            "count": 3
+            "count": 6
           },
           {
             "code": 7006,
@@ -11713,16 +10417,12 @@
         ],
         "scripts/search-index-sync-regression.mjs": [
           {
-            "code": 2345,
-            "count": 3
-          },
-          {
             "code": 7005,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 8
+            "count": 7
           },
           {
             "code": 7023,
@@ -11915,12 +10615,8 @@
         ],
         "scripts/tag-bulk-assignment-regression.mjs": [
           {
-            "code": 18047,
-            "count": 4
-          },
-          {
             "code": 7006,
-            "count": 16
+            "count": 14
           }
         ],
         "scripts/tag-core-records-regression.mjs": [
@@ -11929,33 +10625,21 @@
             "count": 1
           },
           {
-            "code": 18047,
-            "count": 12
-          },
-          {
             "code": 2345,
             "count": 2
           },
           {
             "code": 7006,
-            "count": 5
+            "count": 4
           }
         ],
         "scripts/tag-propagation-contract-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
           {
             "code": 7006,
             "count": 16
           }
         ],
         "scripts/tag-propagation-foundation-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 18
-          },
           {
             "code": 7006,
             "count": 13
@@ -11967,10 +10651,6 @@
         ],
         "scripts/tag-propagation-paths-regression.mjs": [
           {
-            "code": 18047,
-            "count": 3
-          },
-          {
             "code": 18048,
             "count": 2
           },
@@ -11980,14 +10660,10 @@
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 16
           }
         ],
         "scripts/tag-propagation-service-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
           {
             "code": 2339,
             "count": 6
@@ -12001,10 +10677,6 @@
           {
             "code": 18046,
             "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 22
           },
           {
             "code": 18048,
@@ -12045,10 +10717,6 @@
         ],
         "scripts/task-bulk-due-tags-regression.mjs": [
           {
-            "code": 18047,
-            "count": 2
-          },
-          {
             "code": 7006,
             "count": 11
           }
@@ -12086,7 +10754,7 @@
           },
           {
             "code": 7006,
-            "count": 17
+            "count": 16
           },
           {
             "code": 7034,
@@ -12126,7 +10794,7 @@
           },
           {
             "code": 18048,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2339,
@@ -12138,7 +10806,7 @@
           },
           {
             "code": 7006,
-            "count": 4
+            "count": 3
           },
           {
             "code": 7034,
@@ -12178,7 +10846,7 @@
         "scripts/task-recurrence-linked-note-propagation-regression.mjs": [
           {
             "code": 2339,
-            "count": 11
+            "count": 10
           },
           {
             "code": 7006,
@@ -12214,7 +10882,7 @@
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 12
           },
           {
             "code": 7034,
@@ -12319,10 +10987,6 @@
         ],
         "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs": [
           {
-            "code": 18047,
-            "count": 2
-          },
-          {
             "code": 2339,
             "count": 2
           },
@@ -12336,7 +11000,7 @@
           },
           {
             "code": 7006,
-            "count": 20
+            "count": 19
           },
           {
             "code": 7034,
@@ -12596,7 +11260,7 @@
           },
           {
             "code": 7006,
-            "count": 19
+            "count": 18
           },
           {
             "code": 7034,
@@ -12742,7 +11406,7 @@
         "scripts/work-focus-modes-regression.mjs": [
           {
             "code": 2339,
-            "count": 36
+            "count": 2
           },
           {
             "code": 2345,
@@ -12758,7 +11422,7 @@
           },
           {
             "code": 7006,
-            "count": 92
+            "count": 27
           },
           {
             "code": 7031,
@@ -12833,10 +11497,6 @@
         ],
         "scripts/work-resume-state-service-regression.mjs": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18047,
             "count": 12
           },
@@ -12856,10 +11516,6 @@
           }
         ],
         "scripts/workbench-task-focus-related-context-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 8
-          },
           {
             "code": 2339,
             "count": 3
@@ -12962,20 +11618,14 @@
   },
   "totals": {
     "files": 1002,
-    "errors": 30609,
-    "explicitAny": 41
+    "errors": 26099,
+    "explicitAny": 15
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
-    "src/core/events/event-summaries.js": 10,
     "src/core/jobs/job-runner.js": 1,
-    "src/core/modules/terminology.js": 2,
     "src/modules/lists/search-indexers.js": 4,
     "src/repositories/account-export-recovery.repo.js": 1,
-    "src/services/notifications.service.js": 8,
-    "src/services/tags.service.js": 1,
-    "src/services/work-candidate.service.js": 1,
-    "src/services/work-focus-modes.service.js": 4,
     "src/services/work-resume-state-initial-producers.js": 5,
     "src/types/framework-contracts.d.ts": 3
   },

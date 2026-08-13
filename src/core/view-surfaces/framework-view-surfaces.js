@@ -71,16 +71,21 @@ const frameworkViewSurfaces = Object.freeze([
   }),
 ]);
 
+/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string}>} */
 function listFrameworkProtectedViews() {
   return frameworkProtectedViews.map(cloneContribution);
 }
 
+/** @returns {import("../../types/framework-contracts.js").ViewSurfaceDescriptor[]} */
 function listFrameworkViewSurfaces() {
-  return frameworkViewSurfaces.map(cloneContribution);
+  return /** @type {import("../../types/framework-contracts.js").ViewSurfaceDescriptor[]} */ (
+    /** @type {unknown} */ (frameworkViewSurfaces.map(cloneContribution))
+  );
 }
 
+/** @template Value @param {Value} value @returns {Value} */
 function cloneContribution(value) {
-  return JSON.parse(JSON.stringify(value));
+  return /** @type {Value} */ (JSON.parse(JSON.stringify(value)));
 }
 
 export {

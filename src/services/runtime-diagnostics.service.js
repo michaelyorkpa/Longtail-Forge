@@ -9,6 +9,9 @@ import { PUBLIC_DEMO_BUDGET_LIMITS, listPublicDemoBudgetOperations } from "../co
 
 const REQUIRED_PERMISSION = "workspace_settings.manage";
 
+/**
+ * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
+ */
 async function read(session) {
   await permissionsService.assertCan(session, REQUIRED_PERMISSION, {
     operation: "read",
@@ -159,7 +162,7 @@ async function readSafeScannerHealth() {
     const status = safeScannerStatus(health?.status, health?.available);
 
     return {
-      available: booleanOrNull(health?.available ?? health?.ok),
+      available: booleanOrNull(health?.available),
       mode: safeText(scanner.scannerMode || mode) || mode,
       status,
       warning: scannerHealthWarning(scanner.scannerMode || mode, status),
@@ -206,6 +209,9 @@ async function readSafeDatabaseHealth() {
   }
 }
 
+/**
+ * @param {string} rootDir
+ */
 function safeStorageRootLocation(rootDir) {
   const resolved = path.resolve(rootDir || config.storage.localRoot);
 
@@ -228,8 +234,11 @@ function safeStorageRootLocation(rootDir) {
   return redactedPathLocation(resolved);
 }
 
+/**
+ * @param {unknown} databaseFile
+ */
 function safeDatabaseFileLocation(databaseFile) {
-  const resolved = path.resolve(databaseFile || config.databaseFile);
+  const resolved = path.resolve(String(databaseFile || config.databaseFile));
 
   if (isInside(resolved, config.dataDir)) {
     return {
@@ -250,6 +259,9 @@ function safeDatabaseFileLocation(databaseFile) {
   return redactedPathLocation(resolved);
 }
 
+/**
+ * @param {string} dataDir
+ */
 function safeDataDirectoryLocation(dataDir) {
   const resolved = path.resolve(dataDir || config.dataDir);
 
@@ -264,6 +276,9 @@ function safeDataDirectoryLocation(dataDir) {
   return redactedPathLocation(resolved);
 }
 
+/**
+ * @param {string} resolvedPath
+ */
 function redactedPathLocation(resolvedPath) {
   return {
     display: joinSafePath("<redacted>", path.basename(resolvedPath)),
@@ -272,33 +287,56 @@ function redactedPathLocation(resolvedPath) {
   };
 }
 
+/**
+ * @param {string} basePath
+ * @param {string} targetPath
+ */
 function relativeSafePath(basePath, targetPath) {
   const relativePath = path.relative(path.resolve(basePath), path.resolve(targetPath));
   return normalizePathSeparators(relativePath || ".");
 }
 
+/**
+ * @param {string} prefix
+ * @param {string} suffix
+ */
 function joinSafePath(prefix, suffix) {
   const cleanSuffix = String(suffix || "").replace(/^[/\\]+/, "");
   return cleanSuffix && cleanSuffix !== "." ? `${prefix}/${normalizePathSeparators(cleanSuffix)}` : prefix;
 }
 
+/**
+ * @param {string} targetPath
+ * @param {string} basePath
+ */
 function isInside(targetPath, basePath) {
   const relativePath = path.relative(path.resolve(basePath), path.resolve(targetPath));
   return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
+/**
+ * @param {string} value
+ */
 function normalizePathSeparators(value) {
   return String(value || "").replaceAll(path.sep, "/");
 }
 
+/**
+ * @param {unknown} value
+ */
 function numberOrNull(value) {
   return Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
+/** @param {unknown} value */
 function booleanOrNull(value) {
   return typeof value === "boolean" ? value : null;
 }
 
+/**
+ * @param {string | undefined} status
+ * @param {boolean | undefined} available
+ */
 function safeScannerStatus(status, available) {
   const normalized = safeText(status).toLowerCase();
   const allowedStatuses = new Set(["disabled", "ok", "pass_through", "unavailable", "unknown"]);
@@ -318,6 +356,10 @@ function safeScannerStatus(status, available) {
   return "unknown";
 }
 
+/**
+ * @param {string} mode
+ * @param {string} status
+ */
 function scannerHealthWarning(mode, status) {
   const scannerMode = safeText(mode);
 
@@ -340,10 +382,15 @@ function scannerHealthWarning(mode, status) {
   return "";
 }
 
+/**
+ * @param {unknown} value
+ */
 function safeText(value) {
   return String(value || "").trim();
 }
 
-export const runtimeDiagnosticsService = {
+const runtimeDiagnosticsServiceInternal = {
   read,
 };
+
+export const runtimeDiagnosticsService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof runtimeDiagnosticsServiceInternal>} */ (runtimeDiagnosticsServiceInternal);

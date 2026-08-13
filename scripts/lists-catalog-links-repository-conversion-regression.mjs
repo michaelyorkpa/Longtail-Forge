@@ -300,7 +300,7 @@ async function assertLinkLifecycle(session, fixtures) {
 async function assertServiceReadShaping(session, fixtures) {
   const read = await listsService.read(fixtures.list.list_id, session);
   assert.deepEqual(
-    read.links.map((link) => [link.list_link_id, link.target?.label, link.targetAccess]),
+    read.links.map((link) => [link.list_link_id, /** @type {{label?: string}|null} */ (link.target)?.label, link.targetAccess]),
     [[fixtures.links.noteLink.list_link_id, fixtures.note.title, "available"]],
     "service list reads should preserve permission-safe linked target shaping",
   );

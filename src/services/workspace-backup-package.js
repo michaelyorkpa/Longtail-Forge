@@ -23,6 +23,19 @@ const EXCLUDED_WORKSPACE_TABLES = new Set([
   "workspace_backup_exports",
 ]);
 
+/** @typedef {InstanceType<typeof Database>} SqliteDatabase */
+/** @typedef {Record<string, unknown>} SqliteRow */
+/** @typedef {{databaseFile?: unknown, outputPath?: unknown, workspaceId?: unknown, appVersion?: unknown, backupId?: unknown, readFileObject?: unknown}} CreateBackupOptions */
+/** @typedef {{archivePath?: unknown, expectedAppVersion?: unknown, secureNotesKeyBackupPath?: unknown}} InspectBackupOptions */
+/** @typedef {InspectBackupOptions & {targetDatabaseFile?: unknown, targetFilesRoot?: unknown}} RestoreBackupOptions */
+/** @typedef {{archivePath: string, archiveRoot: string, archiveSha256: string, databasePath: string, filesPath: string, manifest: BackupManifest, restorable: boolean, restorabilityWarnings: string[]}} BackupInspection */
+/** @typedef {{files: Record<string, string>, algorithm: "sha256", schemaVersion: 1}} BackupChecksums */
+/** @typedef {{tables: string[], columnsByTable: Map<string, Array<{name: string}>>}} DatabaseSchema */
+/** @typedef {{workspace: {workspace_id: string, name: string, workspace_type: string, status: string, created_at: string, updated_at: string}, migrations: SqliteRow[], rowCounts: Record<string, number>, identityCount: number, secureNotes: {encryptedNoteCount: number, encryptedRecordCount: number, encryptedRevisionCount: number, keyVersions: unknown[]}}} WorkspaceInventory */
+/** @typedef {{externalRecordCount: number, objectBytes: number, objectCount: number, sourceProviders: string[]}} StorageInventory */
+/** @typedef {ReturnType<typeof buildManifest>} BackupManifest */
+
+/** @param {CreateBackupOptions} options */
 async function createWorkspaceBackupPackage(options) {
   const sourceDatabaseFile = requiredPath(options.databaseFile, "source SQLite database");
   const outputPath = requiredPath(options.outputPath, "workspace backup output");
@@ -91,6 +104,7 @@ async function createWorkspaceBackupPackage(options) {
   }
 }
 
+/** @param {InspectBackupOptions} options */
 async function inspectWorkspaceBackupPackage(options) {
   return withInspectedWorkspaceBackup(options, async (inspection) => Object.freeze({
     archiveSha256: inspection.archiveSha256,
@@ -100,6 +114,7 @@ async function inspectWorkspaceBackupPackage(options) {
   }));
 }
 
+/** @param {RestoreBackupOptions} options */
 async function restoreWorkspaceBackupPackage(options) {
   const targetDatabaseFile = requiredPath(options.targetDatabaseFile, "target SQLite database");
   const targetFilesRoot = requiredPath(options.targetFilesRoot, "target Files root");
@@ -125,6 +140,7 @@ async function restoreWorkspaceBackupPackage(options) {
   });
 }
 
+/** @template T @param {InspectBackupOptions} options @param {(inspection: BackupInspection) => Promise<T>} callback @returns {Promise<T>} */
 async function withInspectedWorkspaceBackup(options, callback) {
   const archivePath = requiredPath(options.archivePath, "workspace backup archive");
   await assertRegularFile(archivePath, "workspace backup archive");
@@ -136,8 +152,8 @@ async function withInspectedWorkspaceBackup(options, callback) {
     runTar(archivePath, "-xzf", ["-C", staging, "--no-same-owner", "--no-same-permissions"]);
     const archiveRoot = path.join(staging, WORKSPACE_ARCHIVE_ROOT);
     await assertNoLinks(archiveRoot);
-    const manifest = await readJson(path.join(archiveRoot, "manifest.json"));
-    const checksums = await readJson(path.join(archiveRoot, "checksums.json"));
+    const manifest = /** @type {BackupManifest} */ (await readJson(path.join(archiveRoot, "manifest.json")));
+    const checksums = /** @type {BackupChecksums} */ (await readJson(path.join(archiveRoot, "checksums.json")));
     validateManifest(manifest, options.expectedAppVersion);
     await validateChecksums(archiveRoot, checksums);
     await validateFileInventory(archiveRoot, checksums);
@@ -168,6 +184,10 @@ async function withInspectedWorkspaceBackup(options, callback) {
   }
 }
 
+/**
+ * @param {string} sourcePath
+ * @param {string} targetPath
+ */
 async function snapshotDatabase(sourcePath, targetPath) {
   const source = new Database(sourcePath, { fileMustExist: true, readonly: true });
   try {
@@ -178,26 +198,30 @@ async function snapshotDatabase(sourcePath, targetPath) {
   }
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {string} workspaceId
+ */
 async function scopeWorkspaceDatabase(databaseFile, workspaceId) {
   const database = new Database(databaseFile, { fileMustExist: true });
   database.pragma("foreign_keys = ON");
   database.pragma("busy_timeout = 10000");
   try {
-    const workspace = database.prepare(`
+    const workspace = /** @type {WorkspaceInventory["workspace"] & {owner_user_id: string}} */ (database.prepare(`
 SELECT workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at
 FROM workspaces
 WHERE workspace_id = ?
 LIMIT 1;
-`).get(workspaceId);
+`).get(workspaceId));
     if (!workspace) {
       throw new Error("Workspace backup source does not contain the selected workspace.");
     }
     const schema = readSchema(database);
     const searchFtsSql = schema.tables.includes("search_index_fts")
-      ? database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'search_index_fts';").get()?.sql
+      ? String(database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'search_index_fts';").get()?.sql || "")
       : "";
-    const workspaceTables = schema.tables.filter((table) => (
-      table !== "workspaces" && schema.columnsByTable.get(table).some((column) => column.name === "workspace_id")
+    const workspaceTables = schema.tables.filter((/** @type {string} */ table) => (
+      table !== "workspaces" && schema.columnsByTable.get(table)?.some((/** @type {{ name: string; }} */ column) => column.name === "workspace_id")
     ));
 
     database.exec("BEGIN IMMEDIATE;");
@@ -268,6 +292,7 @@ ORDER BY applied_at, version;
 }
 
 /** @param {InstanceType<typeof Database>} database @param {string} sql */
+/** @param {SqliteDatabase} database @param {string} sql */
 function readRequiredCount(database, sql) {
   const row = database.prepare(sql).get();
   if (!row) {
@@ -276,26 +301,32 @@ function readRequiredCount(database, sql) {
   return Number(row.count || 0);
 }
 
+/**
+ * @param {SqliteDatabase} database
+ * @returns {DatabaseSchema}
+ */
 function readSchema(database) {
-  const tables = database.prepare(`
+  const tables = /** @type {Array<{name: string}>} */ (database.prepare(`
 SELECT name FROM sqlite_master
 WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
 ORDER BY name;
-`).all().map((row) => row.name);
+`).all()).map((row) => row.name);
+  /** @type {Map<string, Array<{name: string}>>} */
   const columnsByTable = new Map();
   for (const table of tables) {
-    columnsByTable.set(table, database.pragma(`table_info(${quoteIdentifier(table)})`));
+    columnsByTable.set(table, /** @type {Array<{name: string}>} */ (database.pragma(`table_info(${quoteIdentifier(table)})`)));
   }
   return { columnsByTable, tables };
 }
 
+/** @param {SqliteDatabase} database @param {DatabaseSchema} schema @param {string[]} workspaceTables @param {string} workspaceId @param {unknown} ownerUserId */
 function readReferencedUserIds(database, schema, workspaceTables, workspaceId, ownerUserId) {
   const userIds = new Set([String(ownerUserId || "").trim()].filter(Boolean));
   for (const table of workspaceTables) {
     if (EXCLUDED_WORKSPACE_TABLES.has(table)) continue;
-    const userColumns = schema.columnsByTable.get(table)
+    const userColumns = (schema.columnsByTable.get(table) || [])
       .map((column) => column.name)
-      .filter((name) => name === "user_id" || name === "assignee_id" || name.endsWith("_user_id"));
+      .filter((/** @type {string} */ name) => name === "user_id" || name === "assignee_id" || name.endsWith("_user_id"));
     for (const column of userColumns) {
       const rows = database.prepare(`
 SELECT DISTINCT ${quoteIdentifier(column)} AS user_id
@@ -310,6 +341,7 @@ WHERE workspace_id = ? AND ${quoteIdentifier(column)} IS NOT NULL AND ${quoteIde
   return [...new Set(existing)].sort();
 }
 
+/** @param {{databaseFile: string, filesRoot: string, readFileObject?: unknown}} input @returns {Promise<StorageInventory>} */
 async function stageFileObjects({ databaseFile, filesRoot, readFileObject }) {
   if (typeof readFileObject !== "function") {
     throw new TypeError("Workspace backup creation requires a provider-neutral Files object reader.");
@@ -363,6 +395,7 @@ ORDER BY file_id;
   }
 }
 
+/** @param {{appVersion: string, backupId: string, createdAt: string, inventory: WorkspaceInventory, storage: StorageInventory}} input */
 function buildManifest({ appVersion, backupId, createdAt, inventory, storage }) {
   const latestMigration = inventory.migrations.at(-1);
   return {
@@ -418,11 +451,14 @@ function buildManifest({ appVersion, backupId, createdAt, inventory, storage }) 
   };
 }
 
+/** @param {BackupManifest} manifest @param {unknown} expectedAppVersion */
 function validateManifest(manifest, expectedAppVersion) {
   if (manifest?.format !== WORKSPACE_BACKUP_FORMAT || manifest?.formatVersion !== WORKSPACE_BACKUP_FORMAT_VERSION) {
     throw new Error("Unsupported Longtail Forge workspace backup format or version.");
   }
-  for (const key of ["backupId", "createdAt", "appVersion"]) requiredText(manifest[key], `manifest ${key}`);
+  requiredText(manifest.backupId, "manifest backupId");
+  requiredText(manifest.createdAt, "manifest createdAt");
+  requiredText(manifest.appVersion, "manifest appVersion");
   requiredText(manifest.workspace?.workspaceId, "manifest workspace ID");
   requiredText(manifest.workspace?.name, "manifest workspace name");
   if (expectedAppVersion && manifest.appVersion !== expectedAppVersion) {
@@ -442,6 +478,7 @@ function validateManifest(manifest, expectedAppVersion) {
   }
 }
 
+/** @param {string} databaseFile @param {BackupManifest} manifest */
 function verifyScopedDatabase(databaseFile, manifest) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
@@ -452,7 +489,7 @@ function verifyScopedDatabase(databaseFile, manifest) {
       throw new Error("Workspace backup database is not scoped to exactly the manifest workspace.");
     }
     const schema = readSchema(database);
-    for (const table of schema.tables.filter((name) => schema.columnsByTable.get(name).some((column) => column.name === "workspace_id"))) {
+    for (const table of schema.tables.filter((name) => schema.columnsByTable.get(name)?.some((/** @type {{ name: string; }} */ column) => column.name === "workspace_id"))) {
       const leak = database.prepare(`SELECT workspace_id FROM ${quoteIdentifier(table)} WHERE workspace_id <> ? LIMIT 1;`)
         .get(manifest.workspace.workspaceId);
       if (leak) throw new Error(`Workspace backup contains cross-workspace rows in ${table}.`);
@@ -494,6 +531,7 @@ FROM schema_migrations ORDER BY applied_at, version;
   }
 }
 
+/** @param {string} databaseFile @param {string} filesRoot @param {BackupManifest} manifest */
 async function verifyPackagedFileObjects(databaseFile, filesRoot, manifest) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
@@ -523,9 +561,12 @@ ORDER BY storage_key;
   }
 }
 
+/**
+ * @param {SqliteDatabase} database
+ */
 function readSecureNotesInventory(database) {
-  const encryptedNoteCount = Number(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count);
-  const encryptedRevisionCount = Number(database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get().count);
+  const encryptedNoteCount = Number(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get()?.count || 0);
+  const encryptedRevisionCount = Number(database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get()?.count || 0);
   const keyVersions = database.prepare(`
 SELECT DISTINCT encryption_key_version AS version FROM notes WHERE security_mode = 'secure'
 UNION
@@ -540,6 +581,9 @@ ORDER BY version;
   };
 }
 
+/**
+ * @param {string} archivePath
+ */
 function listTarEntries(archivePath) {
   const names = runTar(archivePath, "-tzf").split(/\r?\n/).filter(Boolean);
   const verbose = runTar(archivePath, "-tvzf").split(/\r?\n/).filter(Boolean);
@@ -547,6 +591,9 @@ function listTarEntries(archivePath) {
   return names.map((name, index) => ({ name, type: verbose[index][0] }));
 }
 
+/**
+ * @param {{ name: string; type: string; }[]} entries
+ */
 function validateTarEntries(entries) {
   const seen = new Set();
   for (const entry of entries) {
@@ -567,6 +614,7 @@ function validateTarEntries(entries) {
   }
 }
 
+/** @param {string} root @param {BackupChecksums} checksums */
 async function validateChecksums(root, checksums) {
   if (checksums?.schemaVersion !== 1 || checksums?.algorithm !== "sha256" || !checksums.files || Array.isArray(checksums.files)) {
     throw new Error("Workspace backup checksum inventory is invalid.");
@@ -582,6 +630,10 @@ async function validateChecksums(root, checksums) {
   }
 }
 
+/**
+ * @param {string} root
+ * @param {BackupChecksums} checksums
+ */
 async function validateFileInventory(root, checksums) {
   const actual = (await listRegularFiles(root)).map((filePath) => toRelativePath(root, filePath));
   const expected = new Set(["checksums.json", ...Object.keys(checksums.files)]);
@@ -590,6 +642,9 @@ async function validateFileInventory(root, checksums) {
   }
 }
 
+/**
+ * @param {string} archivePath
+ */
 async function verifySidecar(archivePath) {
   const sidecar = `${archivePath}.sha256`;
   await assertRegularFile(sidecar, "workspace backup checksum sidecar");
@@ -601,6 +656,7 @@ async function verifySidecar(archivePath) {
   return actual;
 }
 
+/** @param {unknown} keyPath @param {{archivePath: string, databasePath: string, filesPath: string}} protectedPaths */
 async function assertExternalKeyBackup(keyPath, protectedPaths) {
   const resolved = requiredPath(keyPath, "separately protected Secure Notes key backup");
   await assertRegularFile(resolved, "separately protected Secure Notes key backup");
@@ -611,16 +667,29 @@ async function assertExternalKeyBackup(keyPath, protectedPaths) {
   }
 }
 
+/**
+ * @param {SqliteDatabase} database
+ * @param {string} label
+ */
 function assertIntegrity(database, label) {
-  const rows = database.pragma("integrity_check");
+  const rows = /** @type {Array<{integrity_check: string}>} */ (database.pragma("integrity_check"));
   if (rows.length !== 1 || rows[0].integrity_check !== "ok") throw new Error(`${label} failed SQLite integrity_check.`);
 }
 
+/**
+ * @param {SqliteDatabase} database
+ * @param {string} label
+ */
 function assertForeignKeys(database, label) {
-  const rows = database.pragma("foreign_key_check");
+  const rows = /** @type {SqliteRow[]} */ (database.pragma("foreign_key_check"));
   if (rows.length !== 0) throw new Error(`${label} failed SQLite foreign_key_check.`);
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} flags
+ */
+/** @param {string} archivePath @param {string} flags @param {string[]} [trailingArgs] */
 function runTar(archivePath, flags, trailingArgs = []) {
   return runLocalTarArchiveCommand({
     archivePath,
@@ -631,11 +700,17 @@ function runTar(archivePath, flags, trailingArgs = []) {
   });
 }
 
+/**
+ * @param {string} root
+ */
 async function listRegularFiles(root) {
+  /** @type {string[]} */
   const files = [];
+  /** @type {string[]} */
   const pending = [root];
   while (pending.length > 0) {
     const current = pending.pop();
+    if (!current) continue;
     const stats = await fs.lstat(current);
     if (stats.isSymbolicLink() || !stats.isDirectory() && !stats.isFile()) throw new Error("Workspace backup paths may contain only regular files and directories.");
     if (stats.isFile()) {
@@ -647,10 +722,16 @@ async function listRegularFiles(root) {
   return files.sort();
 }
 
+/**
+ * @param {string} root
+ */
 async function assertNoLinks(root) {
   await listRegularFiles(root);
 }
 
+/**
+ * @param {import("node:fs").PathLike} filePath
+ */
 async function hashFile(filePath) {
   const hash = createHash("sha256");
   const handle = await fs.open(filePath, "r");
@@ -662,6 +743,9 @@ async function hashFile(filePath) {
   return hash.digest("hex");
 }
 
+/**
+ * @param {import("node:fs").PathLike} filePath
+ */
 async function readJson(filePath) {
   const stats = await fs.stat(filePath);
   if (!stats.isFile() || stats.size > MAX_CONTROL_FILE_BYTES) throw new Error("Workspace backup control file is invalid or too large.");
@@ -672,19 +756,31 @@ async function readJson(filePath) {
   }
 }
 
+/** @param {string} filePath @param {unknown} value */
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/**
+ * @param {string} outputPath
+ */
 async function assertNewOutput(outputPath) {
   if (await exists(outputPath) || await exists(`${outputPath}.sha256`)) throw new Error("Workspace backup output already exists; refusing to overwrite it.");
 }
 
+/**
+ * @param {string} targetPath
+ * @param {string} label
+ */
 async function assertMissingTarget(targetPath, label) {
   if (await exists(targetPath)) throw new Error(`${label} already exists; disposable restore refuses destructive replacement.`);
 }
 
+/**
+ * @param {import("node:fs").PathLike} filePath
+ * @param {string} label
+ */
 async function assertRegularFile(filePath, label) {
   try {
     const stats = await fs.stat(filePath);
@@ -694,6 +790,9 @@ async function assertRegularFile(filePath, label) {
   }
 }
 
+/**
+ * @param {import("node:fs").PathLike} targetPath
+ */
 async function exists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -703,50 +802,76 @@ async function exists(targetPath) {
   }
 }
 
+/**
+ * @param {import("node:fs").PathLike} filePath
+ */
 async function restrictFile(filePath) {
   await fs.chmod(filePath, 0o600).catch((error) => {
     if (process.platform !== "win32") throw error;
   });
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeArchivePath(value) {
   const normalized = String(value || "").replaceAll("\\", "/").trim();
   if (!isSafeArchivePath(normalized)) throw new Error("Workspace backup encountered an unsafe Files storage key.");
   return normalized;
 }
 
+/**
+ * @param {string} value
+ */
 function isSafeArchivePath(value) {
   const text = String(value || "");
   const parts = text.split("/");
   return Boolean(text) && !text.includes("\\") && !text.includes("\0") && !text.startsWith("/") && !/^[A-Za-z]:/.test(text) && parts.every((part) => part && part !== "." && part !== "..");
 }
 
+/**
+ * @param {string} root
+ * @param {string} candidate
+ */
 function isInside(root, candidate) {
   const relative = path.relative(path.resolve(root), path.resolve(candidate));
   return relative === "" || !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ */
 function toRelativePath(root, filePath) {
   return path.relative(root, filePath).replaceAll("\\", "/");
 }
 
+/**
+ * @param {string[]} tables
+ */
 function orderWorkspaceTables(tables) {
   return [...tables].sort((left, right) => left === "search_index_fts" ? -1 : right === "search_index_fts" ? 1 : left.localeCompare(right));
 }
 
+/** @param {unknown[]} values */
 function placeholders(values) {
   if (!values.length) throw new Error("A non-empty SQL value list is required.");
   return values.map(() => "?").join(", ");
 }
 
+/**
+ * @param {string} value
+ */
 function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+/** @param {unknown} value @param {string} label */
 function requiredPath(value, label) {
   return path.resolve(requiredText(value, label));
 }
 
+/** @param {unknown} value @param {string} label */
 function requiredText(value, label) {
   const text = String(value || "").trim();
   if (!text) throw new Error(`A ${label} is required.`);

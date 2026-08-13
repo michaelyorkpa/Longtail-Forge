@@ -18,10 +18,24 @@ import { AppError } from "../utils/app-error.js";
 import { workspaceDeletionService } from "./workspace-deletion.service.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+/** @typedef {import("../core/settings/framework-settings-registry.js").FrameworkSettingDefinition} FrameworkSettingDefinition */
+/** @typedef {string | {workspace_id?: unknown, workspaceId?: unknown}} SettingsContext */
+/** @typedef {Record<string, unknown> & {frameworkSettings?: unknown, moduleSettings?: unknown, workspaceType?: unknown, workspace_type?: unknown}} SettingsPayload */
+/** @typedef {{moduleId: string, moduleName?: string, previousValue: unknown, recordUrl?: string, setting: ModuleSettingDefinition, value: unknown}} SettingChange */
+/** @typedef {Map<string, Map<string, unknown>>} SubmittedModuleSettings */
+
+/**
+ * @param {WorkspaceRequestSession} session
+ */
 async function read(session) {
   return readInternal(session);
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ */
 async function readInternal(session) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const settings = await modulesService.decorateWorkspaceSettings(workspaceSettings, session.workspace_id);
@@ -29,6 +43,9 @@ async function readInternal(session) {
   return settings;
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ */
 async function readWorkspaceBootstrap(session) {
   const [settings, workspaceDeletion, permissionIds] = await Promise.all([
     read(session),
@@ -47,6 +64,7 @@ async function readWorkspaceBootstrap(session) {
   };
 }
 
+/** @param {SettingsContext} context @param {string} moduleId @param {string} settingId */
 async function getValue(context, moduleId, settingId) {
   const workspaceId = readWorkspaceId(context);
   const definition = readModuleSettingDefinition(moduleId, settingId);
@@ -67,24 +85,28 @@ async function getValue(context, moduleId, settingId) {
   return readSettingValue(workspaceId, moduleId, definition);
 }
 
+/** @param {SettingsContext} context @param {string} settingId */
 async function getFrameworkValue(context, settingId) {
   const workspaceId = readWorkspaceId(context);
   const definition = readFrameworkSettingDefinition(settingId);
   return readSettingValue(workspaceId, FRAMEWORK_SETTING_NAMESPACE, definition);
 }
 
+/** @param {SettingsContext} context @param {string} moduleId @param {string} settingId @param {unknown} rawValue */
 async function setValue(context, moduleId, settingId, rawValue) {
   const workspaceId = readWorkspaceId(context);
   const definition = readModuleSettingDefinition(moduleId, settingId);
   return setResolvedValue(context, workspaceId, moduleId, definition, rawValue);
 }
 
+/** @param {SettingsContext} context @param {string} settingId @param {unknown} rawValue */
 async function setFrameworkValue(context, settingId, rawValue) {
   const workspaceId = readWorkspaceId(context);
   const definition = readFrameworkSettingDefinition(settingId);
   return setResolvedValue(context, workspaceId, FRAMEWORK_SETTING_NAMESPACE, definition, rawValue);
 }
 
+/** @param {SettingsContext} context @param {string} workspaceId @param {string} moduleId @param {ModuleSettingDefinition} definition @param {unknown} rawValue */
 async function setResolvedValue(context, workspaceId, moduleId, definition, rawValue) {
   if (definition.readOnly === true || definition.type === "info") {
     throw new AppError(`Setting '${moduleId}.${definition.id}' is read-only.`, 400);
@@ -110,7 +132,9 @@ async function setResolvedValue(context, workspaceId, moduleId, definition, rawV
   return { changed: true, value };
 }
 
-async function save(payload, session) {
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function save(rawPayload, session) {
+  const payload = /** @type {SettingsPayload} */ (isPlainObject(rawPayload) ? rawPayload : {});
   await permissionsService.assertCan(session, "workspace_settings.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -203,6 +227,7 @@ async function save(payload, session) {
   };
 }
 
+/** @param {SettingsPayload} payload @param {string} currentWorkspaceType */
 function assertWorkspaceTypeImmutable(payload, currentWorkspaceType) {
   for (const submittedKey of ["workspaceType", "workspace_type"]) {
     if (Object.hasOwn(payload || {}, submittedKey)) {
@@ -214,6 +239,7 @@ function assertWorkspaceTypeImmutable(payload, currentWorkspaceType) {
   }
 }
 
+/** @param {SettingsPayload} payload */
 function rejectTopLevelModuleSettingAliases(payload) {
   const submittedAlias = modulesService.listModules()
     .flatMap((moduleDefinition) => moduleDefinition.settings || [])
@@ -224,9 +250,11 @@ function rejectTopLevelModuleSettingAliases(payload) {
   }
 }
 
+/** @param {SettingsPayload} payload @param {Awaited<ReturnType<typeof readInternal>>} previousSettings @returns {SettingChange[]} */
 function resolveModuleSettingChanges(payload, previousSettings) {
   const submittedSettings = readSubmittedModuleSettings(payload);
   const definitions = buildModuleSettingDefinitionMap(previousSettings.moduleSettings || []);
+  /** @type {SettingChange[]} */
   const changes = [];
 
   for (const [moduleId, settings] of submittedSettings.entries()) {
@@ -261,8 +289,10 @@ function resolveModuleSettingChanges(payload, previousSettings) {
   return changes;
 }
 
+/** @param {SettingsPayload} payload @param {WorkspaceRequestSession} session @returns {Promise<SettingChange[]>} */
 async function resolveFrameworkSettingChanges(payload, session) {
   const submittedSettings = readSubmittedFrameworkSettings(payload);
+  /** @type {SettingChange[]} */
   const changes = [];
 
   for (const [settingId, rawValue] of submittedSettings.entries()) {
@@ -301,6 +331,7 @@ async function resolveFrameworkSettingChanges(payload, session) {
   return changes;
 }
 
+/** @param {SettingsPayload} payload @returns {Map<string, unknown>} */
 function readSubmittedFrameworkSettings(payload) {
   if (payload?.frameworkSettings === undefined) {
     return new Map();
@@ -318,7 +349,9 @@ function readSubmittedFrameworkSettings(payload) {
   }));
 }
 
+/** @param {SettingsPayload} payload @returns {SubmittedModuleSettings} */
 function readSubmittedModuleSettings(payload) {
+  /** @type {SubmittedModuleSettings} */
   const submittedSettings = new Map();
   const moduleSettings = payload?.moduleSettings;
 
@@ -343,6 +376,7 @@ function readSubmittedModuleSettings(payload) {
   return submittedSettings;
 }
 
+/** @param {SubmittedModuleSettings} submittedSettings @param {string} moduleId @param {string} settingId @param {unknown} value */
 function addSubmittedModuleSetting(submittedSettings, moduleId, settingId, value) {
   const normalizedModuleId = String(moduleId || "").trim();
   const normalizedSettingId = String(settingId || "").trim();
@@ -355,10 +389,12 @@ function addSubmittedModuleSetting(submittedSettings, moduleId, settingId, value
     submittedSettings.set(normalizedModuleId, new Map());
   }
 
-  submittedSettings.get(normalizedModuleId).set(normalizedSettingId, value);
+  submittedSettings.get(normalizedModuleId)?.set(normalizedSettingId, value);
 }
 
+/** @param {Awaited<ReturnType<typeof readInternal>>["moduleSettings"]} moduleSettings */
 function buildModuleSettingDefinitionMap(moduleSettings) {
+  /** @type {Map<string, {module: (typeof moduleSettings)[number], setting: ModuleSettingDefinition & {value?: unknown}}>} */
   const definitions = new Map();
 
   for (const moduleDefinition of moduleSettings) {
@@ -373,6 +409,10 @@ function buildModuleSettingDefinitionMap(moduleSettings) {
   return definitions;
 }
 
+/**
+ * @param {string} moduleId
+ * @param {string} settingId
+ */
 function readModuleSettingDefinition(moduleId, settingId) {
   const moduleDefinition = modulesService.listModules().find((item) => item.id === moduleId);
   const setting = moduleDefinition?.settings?.find((item) => item.id === settingId);
@@ -382,6 +422,9 @@ function readModuleSettingDefinition(moduleId, settingId) {
   return setting;
 }
 
+/**
+ * @param {unknown} settingId
+ */
 function readFrameworkSettingDefinition(settingId) {
   const definition = getFrameworkSettingDefinition(settingId);
   if (!definition) {
@@ -390,6 +433,7 @@ function readFrameworkSettingDefinition(settingId) {
   return definition;
 }
 
+/** @param {Awaited<ReturnType<typeof readInternal>>["moduleSettings"]} moduleSettings @param {string} workspaceId */
 async function hydrateModuleSettingValues(moduleSettings, workspaceId) {
   await Promise.all((moduleSettings || []).flatMap((moduleDefinition) =>
     (moduleDefinition.settings || [])
@@ -403,6 +447,11 @@ async function hydrateModuleSettingValues(moduleSettings, workspaceId) {
       })));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @param {import("../types/framework-contracts.js").ModuleSettingDefinition} definition
+ */
 async function readSettingValue(workspaceId, moduleId, definition) {
   const key = `${moduleId}.${definition.id}`;
   const handler = getPersistenceHandler(key);
@@ -437,9 +486,13 @@ async function readSettingValue(workspaceId, moduleId, definition) {
   }
 }
 
+/** @param {WorkspaceRequestSession} session @param {SettingChange[]} changes */
 async function persistModuleSettingChanges(session, changes) {
   for (const change of changes) {
     if (change.setting.moduleStatus === true) {
+      if (typeof change.value !== "boolean") {
+        throw new AppError(`Module status setting '${change.moduleId}.${change.setting.id}' must be a boolean.`, 400);
+      }
       await modulesService.setModuleStatus(session.workspace_id, change.moduleId, change.value, { session });
     } else {
       await persistSettingValue(session.workspace_id, change, session);
@@ -447,6 +500,7 @@ async function persistModuleSettingChanges(session, changes) {
   }
 }
 
+/** @param {string} workspaceId @param {SettingChange} change @param {SettingsContext} context */
 async function persistSettingValue(workspaceId, change, context) {
   const key = `${change.moduleId}.${change.setting.id}`;
   const handler = getPersistenceHandler(key);
@@ -471,12 +525,14 @@ async function persistSettingValue(workspaceId, change, context) {
   );
 }
 
+/** @param {WorkspaceRequestSession} session @param {SettingChange[]} changes */
 async function runModuleSettingEffects(session, changes) {
   for (const change of changes) {
     await runOnChangeEffect(session.workspace_id, change, session);
   }
 }
 
+/** @param {string} workspaceId @param {SettingChange} change @param {SettingsContext} context */
 async function runOnChangeEffect(workspaceId, change, context) {
   const effect = getOnChangeEffect(`${change.moduleId}.${change.setting.id}`);
   if (!effect) {
@@ -493,6 +549,7 @@ async function runOnChangeEffect(workspaceId, change, context) {
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {SettingChange[]} changes */
 async function recordModuleSettingChanges(session, changes) {
   for (const change of changes.filter((item) => item.setting.moduleStatus !== true)) {
     await auditService.record({
@@ -502,8 +559,8 @@ async function recordModuleSettingChanges(session, changes) {
       changeType: "settings_change",
       recordType: "module_setting",
       recordId: `${change.moduleId}.${change.setting.id}`,
-      recordLabel: `${change.moduleName} - ${change.setting.label}`,
-      recordUrl: change.recordUrl,
+      recordLabel: `${change.moduleName || change.moduleId} - ${change.setting.label}`,
+      recordUrl: change.recordUrl || "workspace-settings.html",
       previousValue: {
         module_id: change.moduleId,
         setting_id: change.setting.id,
@@ -523,6 +580,7 @@ async function recordModuleSettingChanges(session, changes) {
   }
 }
 
+/** @param {ModuleSettingDefinition} setting @param {unknown} value @param {string} moduleId */
 function validateSettingValue(setting, value, moduleId) {
   if (setting.type === "boolean" || setting.type === "toggle") {
     if (typeof value !== "boolean") {
@@ -576,6 +634,9 @@ function validateSettingValue(setting, value, moduleId) {
   throw new AppError(`Setting '${moduleId}.${setting.id}' is read-only.`, 400);
 }
 
+/**
+ * @param {ModuleSettingDefinition & {defaultValue?: unknown}} setting
+ */
 function defaultSettingValue(setting) {
   if (Object.hasOwn(setting, "defaultValue")) {
     return cloneSettingValue(setting.defaultValue);
@@ -595,6 +656,9 @@ function defaultSettingValue(setting) {
   return "";
 }
 
+/**
+ * @param {unknown} value
+ */
 function cloneSettingValue(value) {
   if (value === null || typeof value !== "object") {
     return value;
@@ -602,6 +666,7 @@ function cloneSettingValue(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/** @param {SettingsContext} context */
 function readWorkspaceId(context) {
   const workspaceId = typeof context === "string"
     ? context.trim()
@@ -612,19 +677,24 @@ function readWorkspaceId(context) {
   return workspaceId;
 }
 
+/**
+ * @param {import("../core/settings/framework-settings-registry.js").FrameworkSettingDefinition} definition
+ */
 function registerFrameworkSetting(definition) {
   return registerFrameworkSettingDefinition(definition);
 }
 
+/** @param {unknown} left @param {unknown} right */
 function settingValuesEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }
 
-export const settingsService = {
+const settingsServiceInternal = {
   getFrameworkValue,
   getValue,
   read,
@@ -636,3 +706,7 @@ export const settingsService = {
   setFrameworkValue,
   setValue,
 };
+
+/** @typedef {"registerFrameworkSetting" | "registerOnChangeEffect" | "registerPersistenceHandler"} StrongSettingsMethod */
+/** @typedef {import("../types/framework-contracts.js").ValidatedService<Omit<typeof settingsServiceInternal, StrongSettingsMethod>> & Pick<typeof settingsServiceInternal, StrongSettingsMethod>} PublicSettingsService */
+export const settingsService = /** @type {PublicSettingsService} */ (settingsServiceInternal);

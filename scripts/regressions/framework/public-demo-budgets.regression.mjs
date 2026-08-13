@@ -308,6 +308,7 @@ async function proveFailureRollbackAndBulkAtomicity(userId, workspaceId) {
   }
 }
 
+/** @param {{ enabled?: boolean, onCommit?: (count: number) => void, userIds: string[], workspaceId: string }} options */
 function createProbeApp({ enabled = true, onCommit = () => {}, userIds, workspaceId }) {
   const app = express();
   app.set("query parser", "extended");

@@ -76,7 +76,7 @@ async function readReportingBootstrap(session) {
     clientFiltersVisible,
     defaultScopeId: clientFiltersVisible ? "" : scopes[0]?.id || "",
     scopes,
-    reportPanels: readModulePanels(moduleContext.modules, "reporting"),
+    reportPanels: readModulePanels(moduleContext?.modules || [], "reporting"),
   };
 }
 

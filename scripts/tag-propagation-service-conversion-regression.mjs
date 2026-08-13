@@ -183,6 +183,7 @@ async function assertBuiltInResolvers(workspaceId, fixtures) {
 async function assertResolverPairs(resolverId, contexts, workspaceId, expectedPairs) {
   const resolver = readTagPropagationResolver(resolverId);
   assert.equal(typeof resolver, "function", `${resolverId} should be registered`);
+  if (!resolver) throw new Error(`${resolverId} should resolve to a callable provider.`);
 
   for (const context of contexts) {
     const rows = await resolver({ ...context, workspaceId });

@@ -167,7 +167,7 @@ async function canReadSearchResult(session, result, target) {
 
   return permissionsService.can(
     session,
-    target.requiredReadPermission,
+    String(target.requiredReadPermission || ""),
     createScopedPermissionResource(session.workspace_id, "read", {
       clientId: resolvePermissionClientId(result),
       projectId: resolvePermissionProjectId(result),

@@ -28,10 +28,11 @@ const PERMISSIONS_POLICY = [
   "usb=()",
 ].join(", ");
 
+/** @param {{ hsts?: typeof config.security.hsts }} [options] */
 function createTransportSecurityMiddleware(options = {}) {
   const hsts = options.hsts || config.security.hsts;
 
-  return function transportSecurity(request, response, next) {
+  return function transportSecurity(/** @type {import("./request-context.js").RequestContextRequest} */ request, /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ response, /** @type {() => void} */ next) {
     const requestContext = getRequestContext(request);
 
     response.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
@@ -52,6 +53,7 @@ function createTransportSecurityMiddleware(options = {}) {
   };
 }
 
+/** @param {import("./request-context.js").RequestContextRequest} request */
 function shouldDisableCaching(request) {
   const requestPath = String(request.path || "");
   return requestPath === "/"

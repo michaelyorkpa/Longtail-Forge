@@ -10,6 +10,9 @@ function correspondingSourceUrl(runtimeConfig = config) {
   return runtimeConfig.legal.correspondingSourceUrlTemplate.replaceAll("{ref}", encodedRef);
 }
 
+/**
+ * @param {string} relativePath
+ */
 function trackedSourceUrl(relativePath, runtimeConfig = config) {
   const sourceUrl = new URL(correspondingSourceUrl(runtimeConfig));
   const normalizedPath = String(relativePath || "")

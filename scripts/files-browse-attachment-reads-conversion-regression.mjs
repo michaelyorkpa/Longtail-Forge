@@ -51,19 +51,19 @@ function assertStaticContract() {
   assertFunctionUsesNamedParams("readAttachmentCandidateRows", [
     /LIMIT :attachmentPageLimit/,
     /OFFSET :attachmentPageOffset/,
-    /return db\.query\(`/,
+    /await db\.query\(`/,
   ]);
   assertFunctionUsesNamedParams("readFileRow", [
-    /return db\.get\(`/,
+    /await db\.get\(`/,
     /workspace_id = :workspaceId/,
     /file_id = :fileId/,
   ]);
   assertFunctionUsesNamedParams("readAttachmentById", [
-    /return db\.get\(`/,
+    /await db\.get\(`/,
     /file_attachment_id = :attachmentId/,
   ]);
   assertFunctionUsesNamedParams("readActiveAttachmentsForFile", [
-    /return db\.query\(`/,
+    /await db\.query\(`/,
     /file_attachments\.file_id = :fileId/,
   ]);
 

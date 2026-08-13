@@ -93,7 +93,78 @@ export interface CatalogContribution {
   workspaceTypes?: string[];
   publicDemoCapability?: string;
   path?: string;
+  category?: string;
+  placement?: string;
+  sortOrder?: number;
+  sourceType?: string;
+  ownerType?: string;
+  target?: string;
   terminology?: TerminologyMap;
+}
+
+export interface PublicApiEndpointContribution extends CatalogContribution {
+  method: string;
+  path: string;
+  scope: string;
+}
+
+export interface TimerSourceContribution extends CatalogContribution {
+  sourceType: string;
+  listRoute: string;
+  startRoute: string;
+  pauseRoute: string;
+  finalizeRoute: string;
+  removeRoute: string;
+  requiredPermissions: string[];
+}
+
+export interface WorkItemSourceContribution extends CatalogContribution {
+  sourceType: string;
+  listRoute: string;
+}
+
+export interface LinkedContextProviderContribution extends CatalogContribution {
+  id: string;
+  moduleId: string;
+  targetType: string;
+  label: string;
+  description: string;
+  provider: string;
+  responseContract: string;
+  requiredReadPermission: string;
+}
+
+export interface NormalizedModuleManifest extends ModuleManifest {
+  browserApiRoutes: unknown[];
+  publicApiRoutes: unknown[];
+  protectedViews: Array<CatalogContribution & { id: string; path: string; file?: string; allowDisabledRead?: boolean }>;
+  publicViews: Array<CatalogContribution & { id: string; path: string; file?: string }>;
+  browserAssets: BrowserAssetContribution[];
+  navigation: NavigationContribution[];
+  dashboard: DashboardContribution[];
+  reporting: ReportingContribution[];
+  workbench: WorkbenchContribution[];
+  settings: ModuleSettingDefinition[];
+  publicApiEndpoints: PublicApiEndpointContribution[];
+  permissions: PermissionContribution[];
+  defaultRolePermissions: { roleId: string; permissions: string[] }[];
+  resourceDefinitions: ResourceDefinitionContribution[];
+  auditRecordTypes: AuditRecordTypeContribution[];
+  eventTypes: EventTypeContribution[];
+  timerSources: TimerSourceContribution[];
+  workItemSources: WorkItemSourceContribution[];
+  linkedContextProviders: LinkedContextProviderContribution[];
+  searchableTypes: SearchableTypeContribution[];
+  taggableTypes: TaggableTypeContribution[];
+  attachableTypes: AttachableTypeContribution[];
+}
+
+export interface PermissionContribution extends CatalogContribution {
+  id: string;
+  label: string;
+  description: string;
+  resource?: string;
+  operation?: string;
 }
 
 export interface ResourceDefinitionContribution extends CatalogContribution {
@@ -235,8 +306,8 @@ export interface ModuleSettingDefinition {
   label: string;
   type: "boolean" | "toggle" | "text" | "textarea" | "number" | "select" | "multi-select" | "radio" | "info" | (string & {});
   placement: "workspace" | "user" | "module" | "new-workspace" | (string & {});
-  target?: "module";
-  protected?: false;
+  target?: "module" | "framework";
+  protected?: boolean;
   ownerOnly?: boolean;
   readOnly?: boolean;
   description?: string;
@@ -814,8 +885,8 @@ export interface SearchRecord {
   title?: string;
   body?: string;
   record_status?: string;
-  record_created_at?: string;
-  record_updated_at?: string;
+  record_created_at?: string | null;
+  record_updated_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -857,8 +928,8 @@ export interface SearchResult {
 export interface SearchPermissionTarget {
   moduleId: string;
   recordType: string;
-  requiredReadPermission: string;
-  sourceLabel: string;
+  requiredReadPermission?: string;
+  sourceLabel?: string;
   [key: string]: unknown;
 }
 
@@ -955,13 +1026,15 @@ export interface InternalEvent {
   recordId?: string;
   record_label?: string;
   recordLabel?: string;
-  previous_value?: Record<string, unknown> | null;
-  new_value?: Record<string, unknown> | null;
+  previous_value?: Record<string, unknown> | unknown[] | null;
+  new_value?: Record<string, unknown> | unknown[] | null;
   source?: string;
   metadata?: Record<string, unknown>;
-  session?: RequestSession | null;
+  session?: Partial<RequestSession> | null;
   emitted_at?: string;
 }
+
+export type EventSummaryInput = Omit<InternalEvent, "session"> & { session?: unknown };
 
 export interface EventSummaryResolverContext {
   event: InternalEvent;
@@ -977,6 +1050,7 @@ export interface EventSummarySection {
   body?: EventSummaryText;
   url?: EventSummaryText;
   recipientHints?: EventSummaryRecipientHints;
+  terminology?: TerminologyMap;
 }
 
 export interface EventSummaryDeclaration {
@@ -984,6 +1058,7 @@ export interface EventSummaryDeclaration {
   moduleId?: string;
   activity?: EventSummarySection;
   notification?: EventSummarySection;
+  terminology?: TerminologyMap;
 }
 
 // ---------------------------------------------------------------------------
@@ -1016,7 +1091,33 @@ export interface TaggableTypeContribution {
   recordType?: string;
   targetType?: string;
   label?: string;
+  description?: string;
+  tableName?: string;
+  idField?: string;
+  labelField?: string;
+  workspaceField?: string;
+  clientField?: string;
+  projectField?: string;
+  requiredReadPermission?: string;
+  requiredTagPermission?: string;
+  requiredModules?: string[];
   [key: string]: unknown;
+}
+
+export interface TagPropagationContribution extends CatalogContribution {
+  id?: string;
+  sourceModuleId?: string;
+  sourceTargetType?: string;
+  targetModuleId?: string;
+  targetType?: string;
+  relationshipResolver?: string;
+  workspaceField?: string;
+  sourceReadPermission?: string;
+  targetReadPermission?: string;
+  targetTagPermission?: string;
+  snapshotOnCreate?: boolean;
+  propagateOnParentChange?: boolean;
+  propagateOnRelationshipChange?: boolean;
 }
 
 export interface SearchableTypeContribution {
@@ -1031,8 +1132,21 @@ export interface AttachableTypeContribution {
   moduleId?: string;
   targetType?: string;
   label?: string;
+  description?: string;
+  tableName?: string;
+  idField?: string;
+  labelField?: string;
+  workspaceField?: string;
+  clientField?: string;
+  projectField?: string;
+  requiredReadPermission?: string;
+  requiredAttachPermission?: string;
+  requiredRemovePermission?: string;
   allowedFileCategories?: string[];
-  maxFileSizeBytes?: number | string;
+  allowedVisibilityValues?: string[];
+  lifecycleEvents?: string[];
+  maxFilesPerRecord?: number;
+  maxFileSizeBytes?: number;
   [key: string]: unknown;
 }
 
@@ -1216,3 +1330,10 @@ export interface JobWorkerStatus {
   deadCount: number;
   registeredJobTypes?: string[];
 }
+export type ValidatedService<T> = {
+  [K in keyof T]: T[K] extends (...args: infer Args) => infer Result
+    ? (...args: { [I in keyof Args]: unknown }) => Result
+    : T[K];
+};
+
+export type NormalizeInferredEmptyArray<T> = T extends never[] ? Record<string, unknown>[] : T;

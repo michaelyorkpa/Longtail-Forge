@@ -13,7 +13,7 @@ describe("resolveFocusMode", () => {
     const resolved = await resolveFocusMode({}, { workspaceType: "business" });
     expect(resolved.id).toBe(FOCUS_MODE_IDS.startMyDay);
     expect(resolved.scope.type).toBe("workspace");
-    expect(resolved.candidateQuery.rankBuckets.length).toBeGreaterThan(0);
+    expect((resolved.candidateQuery.rankBuckets || []).length).toBeGreaterThan(0);
     expect(resolved.candidateQuery.excludeStatusFilters).toEqual(["blocked"]);
     expect(resolved.summary).toContain("as of");
   });

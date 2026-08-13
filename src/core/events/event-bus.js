@@ -1,5 +1,14 @@
+/** @typedef {import("../../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {{ session?: Partial<RequestSession> | null | undefined, workspace_id?: string | null, workspaceId?: string | null, actor_user_id?: string, actorUserId?: string, module_id?: string, moduleId?: string, record_type?: string, recordType?: string, record_id?: string, recordId?: string, previous_value?: unknown, previousValue?: unknown, new_value?: unknown, newValue?: unknown, source?: string, metadata?: Record<string, unknown>, emitted_at?: string, emittedAt?: string }} InternalEventPayload */
+/** @typedef {(event: InternalEvent) => unknown | Promise<unknown>} InternalEventHandler */
+/** @typedef {{ id: string, moduleId: string, handler: InternalEventHandler }} InternalEventListener */
+/** @typedef {{ id?: string, moduleId?: string }} InternalEventListenerOptions */
+
+/** @type {Map<string, InternalEventListener[]>} */
 const listenersByEvent = new Map();
 
+/** @param {string} eventName @param {InternalEventHandler} handler @param {InternalEventListenerOptions} [options] */
 function onInternalEvent(eventName, handler, options = {}) {
   const normalizedEventName = normalizeEventName(eventName);
 
@@ -25,6 +34,7 @@ function onInternalEvent(eventName, handler, options = {}) {
   };
 }
 
+/** @param {string} eventName @param {InternalEventPayload} [payload] */
 async function emitInternalEvent(eventName, payload = {}) {
   const normalizedEventName = normalizeEventName(eventName);
   const event = normalizeEvent(normalizedEventName, payload);
@@ -47,7 +57,7 @@ async function emitInternalEvent(eventName, payload = {}) {
         hookId: listener.id,
         moduleId: listener.moduleId,
         status: "failed",
-        error: error?.message || String(error),
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -72,6 +82,7 @@ function resetInternalEventSubscriptions() {
   listenersByEvent.clear();
 }
 
+/** @param {string} eventName @param {InternalEventPayload} payload @returns {InternalEvent} */
 function normalizeEvent(eventName, payload) {
   const session = payload.session || null;
   const workspaceId = payload.workspace_id || payload.workspaceId || session?.workspace_id || "";
@@ -87,16 +98,20 @@ function normalizeEvent(eventName, payload) {
     previous_value: normalizeOptionalObject(payload.previous_value || payload.previousValue),
     new_value: normalizeOptionalObject(payload.new_value || payload.newValue),
     source: payload.source || "manual",
-    metadata: normalizeOptionalObject(payload.metadata) || {},
+    metadata: payload.metadata || {},
     session,
     emitted_at: payload.emitted_at || payload.emittedAt || new Date().toISOString(),
   };
 }
 
+/** @param {unknown} value @returns {Record<string, unknown> | unknown[] | null} */
 function normalizeOptionalObject(value) {
-  return value === undefined ? null : value;
+  return value && typeof value === "object"
+    ? /** @type {Record<string, unknown> | unknown[]} */ (value)
+    : null;
 }
 
+/** @param {unknown} eventName */
 function normalizeEventName(eventName) {
   const normalizedEventName = String(eventName || "").trim();
 

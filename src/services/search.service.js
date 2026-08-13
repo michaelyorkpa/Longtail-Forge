@@ -16,10 +16,14 @@ import { resolveClientProjectFilterScope } from "../core/client-project-filter-s
 
 /** @typedef {import("../types/framework-contracts.js").PermissionSafeSearchRequest} PermissionSafeSearchRequest */
 /** @typedef {import("../types/framework-contracts.js").SearchExecutionResult} SearchExecutionResult */
+/** @typedef {import("../types/framework-contracts.js").SearchRecord} SearchRecord */
 /** @typedef {import("../types/framework-contracts.js").SearchableTypeContribution} SearchableTypeContribution */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {{adapterId?: string, dryRun?: boolean, dry_run?: boolean, forceFallback?: boolean, refresh?: boolean, requireRegisteredIndexer?: boolean, throwOnError?: boolean}} SearchServiceOptions */
+/** @typedef {Record<string, unknown>} SearchDocumentInput */
+/** @typedef {Partial<SearchRecord> & SearchDocumentInput} PartialSearchRecord */
 /**
  * Canonical camelCase Search record reference plus the live persistence aliases
  * retained for adapters and result envelopes.
@@ -86,6 +90,7 @@ function getCapabilities() {
   };
 }
 
+/** @param {SearchServiceOptions} [options] */
 async function getRuntimeCapabilities(options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -102,6 +107,7 @@ async function getRuntimeCapabilities(options = {}) {
   };
 }
 
+/** @param {SearchServiceOptions} [options] */
 async function ensureSearchBackendStorage(options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -113,6 +119,7 @@ async function ensureSearchBackendStorage(options = {}) {
   return adapter.ensureStorage({ refresh: options.refresh === true });
 }
 
+/** @param {Record<string, unknown>} [scope] @param {SearchServiceOptions} [options] @returns {Promise<Record<string, unknown> & {failedCount?: number, missingCount?: number, orphanedCount?: number, rebuiltCount?: number, repairedCount?: number, skipped?: boolean, skippedCount?: number}>} */
 async function repairSearchBackendIndex(scope = {}, options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -121,10 +128,10 @@ async function repairSearchBackendIndex(scope = {}, options = {}) {
     throw new AppError(`Search backend adapter '${adapterId}' does not expose search index repair.`, 500);
   }
 
-  return adapter.repairIndex(scope, {
+  return /** @type {Promise<Record<string, unknown> & {failedCount?: number, missingCount?: number, orphanedCount?: number, rebuiltCount?: number, repairedCount?: number, skipped?: boolean, skippedCount?: number}>} */ (adapter.repairIndex(scope, {
     dryRun: options.dryRun === true || options.dry_run === true,
     refresh: options.refresh === true,
-  });
+  }));
 }
 
 /** @returns {ActiveSearchableTypeDeclaration[]} */
@@ -146,6 +153,10 @@ async function listActiveSearchableTypes(workspaceId) {
   ].map(normalizeSearchableType);
 }
 
+/**
+ * @param {SearchableTypeContribution | undefined} declaration
+ * @param {SearchServiceOptions} [options]
+ */
 function validateSearchableTypeDeclaration(declaration, options = {}) {
   const errors = [];
   const normalized = normalizeSearchableType(declaration);
@@ -171,7 +182,7 @@ function validateSearchableTypeDeclaration(declaration, options = {}) {
   if (declaration.bodyFields !== undefined) {
     if (!Array.isArray(declaration.bodyFields) || declaration.bodyFields.length === 0) {
       errors.push("bodyFields must be a non-empty array when provided.");
-    } else if (declaration.bodyFields.some((fieldName) => typeof fieldName !== "string" || !fieldName.trim())) {
+    } else if (declaration.bodyFields.some((/** @type {string} */ fieldName) => typeof fieldName !== "string" || !fieldName.trim())) {
       errors.push("bodyFields must contain only non-empty strings.");
     }
   } else {
@@ -196,13 +207,14 @@ function validateSearchableTypeDeclaration(declaration, options = {}) {
   if (declaration.requiredModules !== undefined) {
     if (!Array.isArray(declaration.requiredModules)) {
       errors.push("requiredModules must be an array of non-empty strings when provided.");
-    } else if (declaration.requiredModules.some((moduleId) => typeof moduleId !== "string" || !moduleId.trim())) {
+    } else if (declaration.requiredModules.some((/** @type {string} */ moduleId) => typeof moduleId !== "string" || !moduleId.trim())) {
       errors.push("requiredModules must contain only non-empty strings.");
     }
   }
 
-  if (options.requireRegisteredIndexer && declaration.indexer && !hasSearchIndexer(declaration.indexer)) {
-    errors.push(`indexer '${declaration.indexer}' is not registered.`);
+  const indexerId = normalizeString(declaration.indexer);
+  if (options.requireRegisteredIndexer && indexerId && !hasSearchIndexer(indexerId)) {
+    errors.push(`indexer '${indexerId}' is not registered.`);
   }
 
   return {
@@ -212,6 +224,7 @@ function validateSearchableTypeDeclaration(declaration, options = {}) {
   };
 }
 
+/** @param {SearchableTypeContribution[]} [declarations] @param {SearchServiceOptions} [options] */
 function validateSearchableTypeDeclarations(declarations = [], options = {}) {
   const errors = [];
   const seenRecordTypes = new Set();
@@ -419,6 +432,7 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
   };
 }
 
+/** @param {SearchRecord[]} [documents] @param {SearchServiceOptions} [options] */
 async function upsertSearchDocuments(documents = [], options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -430,6 +444,10 @@ async function upsertSearchDocuments(documents = [], options = {}) {
   return adapter.upsertDocuments(documents, options);
 }
 
+/**
+ * @param {SearchRecord} document
+ * @param {SearchServiceOptions} [options]
+ */
 async function indexSearchDocument(document, options = {}) {
   try {
     validateNormalizedSearchDocument(document);
@@ -457,6 +475,7 @@ async function indexSearchDocument(document, options = {}) {
   }
 }
 
+/** @param {SearchDocumentInput} [recordReference] @param {SearchServiceOptions} [options] */
 async function removeSearchDocument(recordReference = {}, options = {}) {
   try {
     const normalizedReference = normalizeSearchRecordReference(recordReference);
@@ -486,6 +505,7 @@ async function removeSearchDocument(recordReference = {}, options = {}) {
   }
 }
 
+/** @param {SearchDocumentInput} [recordReference] @param {SearchServiceOptions} [options] */
 async function reindexSearchRecord(recordReference = {}, options = {}) {
   try {
     const declaration = resolveSearchableType(recordReference);
@@ -555,12 +575,15 @@ async function executeSearch(request, options = {}) {
     throw new AppError(`Search backend adapter '${adapterId}' does not support prototype search execution.`, 500);
   }
 
-  return adapter.search(request, options);
+  return /** @type {SearchExecutionResult} */ (await adapter.search(request, options));
 }
 
+/** @param {SearchDocumentInput} [recordReference] */
 function resolveSearchableType(recordReference = {}) {
   if (recordReference.searchableType) {
-    return normalizeSearchableType(recordReference.searchableType);
+    return normalizeSearchableType(isPlainObject(recordReference.searchableType)
+      ? /** @type {Partial<SearchableTypeContribution>} */ (/** @type {unknown} */ (recordReference.searchableType))
+      : {});
   }
 
   const moduleId = normalizeString(recordReference.moduleId || recordReference.module_id);
@@ -576,7 +599,7 @@ function resolveSearchableType(recordReference = {}) {
 }
 
 /**
- * @param {SearchableTypeContribution} [declaration]
+ * @param {Partial<SearchableTypeContribution>} [declaration]
  * @returns {ActiveSearchableTypeDeclaration}
  */
 function normalizeSearchableType(declaration = {}) {
@@ -606,6 +629,11 @@ function normalizeSearchableType(declaration = {}) {
   };
 }
 
+/**
+ * @param {ActiveSearchableTypeDeclaration} searchableType
+ * @param {SearchDocumentInput} [document]
+ * @returns {SearchRecord}
+ */
 function normalizeSearchDocument(searchableType, document = {}) {
   const validation = validateSearchableTypeDeclaration(searchableType);
 
@@ -670,6 +698,7 @@ function normalizeSearchDocument(searchableType, document = {}) {
   };
 }
 
+/** @param {PartialSearchRecord} [document] */
 function validateNormalizedSearchDocument(document = {}) {
   const missingFields = [
     "search_index_id",
@@ -726,8 +755,15 @@ function normalizeSearchRecordReference(recordReference = {}) {
   };
 }
 
+/**
+ * @param {unknown} result
+ */
 function extractSingleIndexerDocument(result) {
-  if (!result || result.searchable === false) {
+  if (!isPlainObject(result) && !Array.isArray(result)) {
+    return null;
+  }
+
+  if (!Array.isArray(result) && result.searchable === false) {
     return null;
   }
 
@@ -743,9 +779,14 @@ function extractSingleIndexerDocument(result) {
     return result.document;
   }
 
-  return result;
+  return /** @type {SearchDocumentInput} */ (result);
 }
 
+/**
+ * @param {string} operation
+ * @param {unknown} error
+ * @param {SearchServiceOptions & Record<string, unknown>} [context]
+ */
 function createIndexingErrorResult(operation, error, context = {}) {
   if (context.throwOnError) {
     throw error;
@@ -761,12 +802,13 @@ function createIndexingErrorResult(operation, error, context = {}) {
     errors: [
       {
         code: error instanceof AppError ? `search_indexing_${error.statusCode || 500}` : "search_indexing_error",
-        message: error?.message || String(error),
+        message: error instanceof Error ? error.message : String(error),
       },
     ],
   };
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeIdList(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -777,9 +819,13 @@ function normalizeIdList(value) {
     .filter(Boolean);
 }
 
+/**
+ * @param {string | string[] | undefined} value
+ */
 function normalizeSearchTagFilters(value) {
   const filters = normalizeIdList(value);
   let noTagsMode = "";
+  /** @type {string[]} */
   const tagIds = [];
 
   filters.forEach((filter) => {
@@ -797,6 +843,9 @@ function normalizeSearchTagFilters(value) {
   };
 }
 
+/**
+ * @param {string | string[] | undefined} value
+ */
 function normalizeFilterList(value) {
   if (Array.isArray(value)) {
     return normalizeIdList(value);
@@ -805,6 +854,11 @@ function normalizeFilterList(value) {
   return normalizeString(value) ? [normalizeString(value)] : [];
 }
 
+/**
+ * @param {Record<PropertyKey, unknown>} filters
+ * @param {PropertyKey} explicitField
+ * @param {PropertyKey[]} [aliasFields]
+ */
 function resolveHasSearchFilter(filters, explicitField, aliasFields = []) {
   if (Object.hasOwn(filters, explicitField)) {
     return Boolean(filters[explicitField]);
@@ -813,15 +867,26 @@ function resolveHasSearchFilter(filters, explicitField, aliasFields = []) {
   return aliasFields.some((fieldName) => Object.hasOwn(filters, fieldName));
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeNullableString(value) {
   const normalized = normalizeString(value);
   return normalized || null;
 }
 
+/**
+ * @param {unknown} value
+ * @param {Record<PropertyKey, unknown>} document
+ * @param {string[]} bodyFields
+ */
 function normalizeBody(value, document, bodyFields) {
   if (typeof value === "string") {
     return value.trim();
@@ -833,10 +898,15 @@ function normalizeBody(value, document, bodyFields) {
     .join("\n");
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeTagsText(value) {
   if (Array.isArray(value)) {
     return value
-      .map((item) => typeof item === "string" ? item.trim() : normalizeString(item?.name || item?.slug))
+      .map((item) => typeof item === "string"
+        ? item.trim()
+        : normalizeString(isPlainObject(item) ? item.name || item.slug : ""))
       .filter(Boolean)
       .join(" ");
   }
@@ -844,6 +914,10 @@ function normalizeTagsText(value) {
   return normalizeString(value);
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<PropertyKey, unknown>}
+ */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }

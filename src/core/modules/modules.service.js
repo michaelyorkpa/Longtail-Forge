@@ -51,12 +51,33 @@ import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } from "../public-demo-enforcement.js";
 
 /** @typedef {import("../../types/framework-contracts.js").ModuleManifest} ModuleManifest */
+/** @typedef {import("../../types/framework-contracts.js").NormalizedModuleManifest} NormalizedModuleManifest */
 /** @typedef {import("../../types/framework-contracts.js").CatalogContribution} CatalogContribution */
 /** @typedef {import("../../types/framework-contracts.js").ModuleEventHook} ModuleEventHook */
 /** @typedef {import("../../types/framework-contracts.js").ApiScopeCatalogEntry} ApiScopeCatalogEntry */
+/** @typedef {import("../../types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+/** @typedef {import("../../types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor */
+/** @typedef {import("../../types/framework-contracts.js").BrowserAssetContribution} BrowserAssetContribution */
+/** @typedef {import("../../types/framework-contracts.js").ResourceDefinitionContribution} ResourceDefinitionContribution */
+/** @typedef {import("../../types/framework-contracts.js").ReportingContribution} ReportingContribution */
+/** @typedef {import("../../types/framework-contracts.js").LinkedContextProviderContribution} LinkedContextProviderContribution */
 /** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
 /** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
-/** @typedef {ModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
+/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {NormalizedModuleManifest & {shortLabel?: string}} ResolvedModuleManifest */
+/** @typedef {CatalogContribution & Record<string, unknown>} ModuleContribution */
+/** @typedef {Partial<ResolvedModuleManifest> & { id: string, name: string, displayName: string, status: string, canDisable: boolean, settings: ModuleSettingDefinition[], moduleDependencies?: string[], workspaceCapabilityRequirements?: string[] }} WorkspaceModuleDefinition */
+/** @typedef {{ enabledModules: string[], moduleStatusById: Record<string, string>, modules: WorkspaceModuleDefinition[] }} WorkspaceModuleContext */
+/** @typedef {{ session?: WorkspaceRequestSession|null, source?: string, force?: boolean, moduleId?: string }} ModuleStateOptions */
+/** @typedef {"resourceDefinitions"|"browserAssets"|"navigation"|"settings"|"viewSurfaces"|"workbench"|"dashboard"|"reporting"|"timerSources"|"workItemSources"|"linkedContextProviders"} ModuleContributionField */
+/** @typedef {CatalogContribution & {id: string, sourceModuleId: string, sourceTargetType: string, targetModuleId: string, targetType: string, relationshipResolver: string, workspaceField: string, sourceReadPermission: string, targetReadPermission: string, targetTagPermission: string}} TagPropagationRule */
+/** @typedef {CatalogContribution & { id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean }} ProtectedViewContribution */
+/** @typedef {CatalogContribution & { id: string, moduleId: string, path: string, type: string, views?: string[] }} BrowserAssetCandidate */
+/** @typedef {CatalogContribution & { key: string, moduleId: string, label: string, operations: string[] }} ResourceDefinitionCandidate */
+/** @typedef {Pick<ModuleManifest, "id"|"workspaceCapabilityRequirements">} ModuleRequirementOwner */
+/** @typedef {{ moduleId?: unknown, requiresEnabledModules?: unknown, requiredModules?: unknown, requiredWorkspaceCapabilities?: unknown, requiredPermissions?: unknown }} ContributionRequirements */
+/** @typedef {ContributionRequirements & Record<string, unknown>} HelpContributionItem */
+/** @typedef {ModuleSettingDefinition & {moduleId: string, moduleStatus?: boolean, readOnlyReason?: string, disabledReason?: string, value?: unknown}} ActiveModuleSetting */
 
 const MODULE_INSERT_COLUMNS = [
   "module_id",
@@ -107,10 +128,14 @@ const WORKSPACE_MODULE_INSERT_SQL = `${db.dialect.conflict.buildInsertOnConflict
   tableName: "workspace_modules",
   valueExpressions: WORKSPACE_MODULE_INSERT_VALUE_EXPRESSIONS,
 })};`;
+/** @type {ModuleRequirementOwner} */
 const FRAMEWORK_VIEW_SURFACE_MODULE = Object.freeze({
   id: FRAMEWORK_VIEW_SURFACE_MODULE_ID,
   workspaceCapabilityRequirements: [],
 });
+/**
+ * @type {(() => void)[]}
+ */
 let moduleEventHookUnsubscribers = [];
 let moduleEventHooksRegistered = false;
 const workspaceModuleContextCache = new Map();
@@ -125,12 +150,15 @@ const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
   "workspace-settings",
 ]);
 
-/** @returns {ModuleManifest[]} */
+/** @returns {NormalizedModuleManifest[]} */
 function listModules() {
   return listRegisteredModules();
 }
 
-/** @returns {ModuleManifest | null} */
+/**
+ * @returns {NormalizedModuleManifest | null}
+ * @param {string} moduleId
+ */
 function getModule(moduleId) {
   return getRegisteredModule(moduleId);
 }
@@ -141,13 +169,19 @@ function getModule(moduleId) {
  * @returns {ResolvedModuleManifest}
  */
 function resolveModuleTerminology(moduleDefinition, workspaceType) {
-  return resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
+  return /** @type {ResolvedModuleManifest} */ (/** @type {unknown} */ (resolveModuleDefinitionTerminology(moduleDefinition, workspaceType)));
 }
 
+/**
+ * @param {string} type
+ */
 function listModuleRoutes(type) {
   return listRegisteredModuleRoutes(type);
 }
 
+/**
+ * @param {string} type
+ */
 function listModuleRouteEntries(type) {
   return listRegisteredModuleRouteEntries(type);
 }
@@ -182,15 +216,16 @@ function listRolePermissionDefaults() {
   ];
 }
 
+/** @returns {import("../../types/framework-contracts.js").ResourceDefinitionContribution[]} */
 function listResourceDefinitions() {
-  return [
+  return /** @type {import("../../types/framework-contracts.js").ResourceDefinitionContribution[]} */ (/** @type {unknown} */ ([
     ...listFrameworkResourceDefinitions(),
     ...listModuleResourceDefinitions(),
-  ];
+  ]));
 }
 
 /** @param {string} workspaceId @param {RequestSession | null} [session] */
-async function listActiveResourceDefinitions(workspaceId, session = null) {
+async function listActiveResourceDefinitions(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   if (!workspaceId) {
     return [];
   }
@@ -211,10 +246,11 @@ async function listActiveResourceDefinitions(workspaceId, session = null) {
   }
 
   return [...frameworkResources, ...moduleResources]
-    .map(normalizeResourceDefinition)
+    .map((resource) => normalizeResourceDefinition(/** @type {ResourceDefinitionCandidate} */ (resource)))
     .sort((left, right) => left.label.localeCompare(right.label) || left.key.localeCompare(right.key));
 }
 
+/** @param {ResourceDefinitionCandidate} resource */
 function normalizeResourceDefinition(resource) {
   return {
     key: String(resource.key || "").trim(),
@@ -230,7 +266,7 @@ function listModuleApiScopes() {
 
 /** @returns {ApiScopeCatalogEntry[]} */
 function listModuleApiScopeEntries() {
-  return listRegisteredModuleApiScopeEntries();
+  return /** @type {ApiScopeCatalogEntry[]} */ (listRegisteredModuleApiScopeEntries());
 }
 
 function listModuleAuditRecordTypes() {
@@ -254,10 +290,17 @@ function listModuleEventTypes() {
   return listRegisteredModuleEventTypes();
 }
 
+/**
+ * @param {string} eventName
+ * @param {import("../events/event-bus.js").InternalEventHandler} handler
+ */
 function onInternalEvent(eventName, handler, options = {}) {
   return internalEventBus.on(eventName, handler, options);
 }
 
+/**
+ * @param {string} scope
+ */
 function getModuleForApiScope(scope) {
   return listModuleApiScopeEntries().find((entry) => entry.scope === scope)?.moduleId || "";
 }
@@ -267,9 +310,12 @@ function listTaggableTypes() {
 }
 
 function listTagPropagationRules() {
-  return listRegisteredTagPropagationRules();
+  return /** @type {TagPropagationRule[]} */ (listRegisteredTagPropagationRules());
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listActiveTagPropagationRules(workspaceId) {
   if (!workspaceId) {
     return [];
@@ -296,12 +342,13 @@ function listLinkedContextProviders() {
   return listRegisteredLinkedContextProviders();
 }
 
-async function listActiveLinkedContextProviders(workspaceId, session = null) {
+/** @param {string} workspaceId @returns {Promise<LinkedContextProviderContribution[]>} */
+async function listActiveLinkedContextProviders(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   if (!workspaceId) {
     return [];
   }
 
-  const providers = await listWorkspaceContributions(workspaceId, session, "linkedContextProviders");
+  const providers = /** @type {LinkedContextProviderContribution[]} */ (/** @type {unknown} */ (await listWorkspaceContributions(workspaceId, session, "linkedContextProviders")));
   return providers.sort((left, right) => (
     String(left.targetType || "").localeCompare(String(right.targetType || "")) ||
     String(left.label || "").localeCompare(String(right.label || "")) ||
@@ -309,6 +356,9 @@ async function listActiveLinkedContextProviders(workspaceId, session = null) {
   ));
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listActiveAttachableTypes(workspaceId) {
   if (!workspaceId) {
     return [];
@@ -335,7 +385,10 @@ function listHelpContributions() {
   return listRegisteredHelpContributions();
 }
 
-async function listActiveHelpContributions(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listActiveHelpContributions(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const [sections, articles] = await Promise.all([
     listActiveHelpSections(workspaceId, session),
     listActiveHelpArticles(workspaceId, session),
@@ -344,14 +397,23 @@ async function listActiveHelpContributions(workspaceId, session = null) {
   return { sections, articles };
 }
 
-async function listActiveHelpSections(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listActiveHelpSections(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listActiveHelpItems(workspaceId, session, listHelpSections());
 }
 
-async function listActiveHelpArticles(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listActiveHelpArticles(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listActiveHelpItems(workspaceId, session, listHelpArticles());
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listActiveSearchableTypes(workspaceId) {
   if (!workspaceId) {
     return [];
@@ -393,6 +455,7 @@ function listModuleSettingsForWorkspaceType(workspaceType = "business") {
         ...moduleDefinition,
         status,
         canDisable: moduleDefinition.canDisable !== false,
+        settings: moduleDefinition.settings || [],
       };
 
       return {
@@ -414,19 +477,25 @@ function listModulePublicViews() {
 }
 
 function listModuleBrowserAssets() {
-  return listRegisteredModuleBrowserAssets().map(normalizeAssetContribution);
+  return /** @type {BrowserAssetContribution[]} */ (listRegisteredModuleBrowserAssets()).map(normalizeAssetContribution);
 }
 
-async function listActiveModuleBrowserAssets(workspaceId, session = null, viewTarget = "") {
+/**
+ * @param {string} workspaceId
+ */
+async function listActiveModuleBrowserAssets(workspaceId, session = /** @type {RequestSession|null} */ (null), viewTarget = "") {
   const assets = await listWorkspaceContributions(workspaceId, session, "browserAssets");
   const normalizedTarget = String(viewTarget || "").trim();
 
   return assets
-    .filter((asset) => !normalizedTarget || asset.views?.includes(normalizedTarget))
+    .filter((asset) => !normalizedTarget || (Array.isArray(asset.views) && asset.views.includes(normalizedTarget)))
     .map(normalizeAssetContribution)
     .sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.id.localeCompare(right.id));
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function syncModuleRegistry(workspaceId) {
   registerModuleEventHooks();
   const modules = listModules();
@@ -467,6 +536,12 @@ async function syncModulePermissionContracts() {
   );
 }
 
+/**
+ * @template {Record<string, unknown>} T
+ * @param {T} settings
+ * @param {string} workspaceId
+ * @returns {Promise<T & {workspaceId: string, workspace_id: string, enabledModules: string[], moduleSettings: Awaited<ReturnType<typeof readWorkspaceModuleSettings>>, modules: WorkspaceModuleDefinition[]}>}
+ */
 async function decorateWorkspaceSettings(settings, workspaceId) {
   const moduleContext = await readWorkspaceModuleContext(workspaceId);
   const moduleSettings = await readWorkspaceModuleSettings(workspaceId, settings, moduleContext);
@@ -481,6 +556,11 @@ async function decorateWorkspaceSettings(settings, workspaceId) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {Record<string, unknown>} settings
+ * @param {WorkspaceModuleContext|null} [moduleContext]
+ */
 async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext = null) {
   const [resolvedModuleContext, workspaceCapabilities] = await Promise.all([
     moduleContext || readWorkspaceModuleContext(workspaceId),
@@ -503,6 +583,10 @@ async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext 
     .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
 }
 
+/**
+ * @param {string} workspaceId
+ * @returns {Promise<WorkspaceModuleContext>}
+ */
 async function readWorkspaceModuleContext(workspaceId) {
   const cacheKey = text(workspaceId);
   const rows = await db.query(`
@@ -522,7 +606,10 @@ ORDER BY module_id;
     return cached.contextPromise;
   }
 
-  const contextPromise = loadWorkspaceModuleContext(cacheKey, rows);
+  const contextPromise = loadWorkspaceModuleContext(
+    cacheKey,
+    /** @type {{module_id: string, status: string}[]} */ (/** @type {unknown} */ (rows)),
+  );
   workspaceModuleContextCache.set(cacheKey, {
     contextPromise: contextPromise.catch((error) => {
       invalidateWorkspaceModuleContext(cacheKey);
@@ -543,11 +630,16 @@ function invalidateWorkspaceModuleContext(workspaceId = null) {
   workspaceModuleContextCache.delete(text(workspaceId));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {{module_id: string, status: string}[]} rows
+ * @returns {Promise<WorkspaceModuleContext>}
+ */
 async function loadWorkspaceModuleContext(workspaceId, rows) {
   const installedModules = listModules();
   const workspaceCapabilities = await readWorkspaceCapabilities(workspaceId);
   const workspaceType = workspaceCapabilities.workspaceType || "business";
-  const statusById = rows.reduce((statusMap, row) => {
+  const statusById = rows.reduce((/** @type {{ [x: string]: string; }} */ statusMap, /** @type {{ module_id: string | number; status: string; }} */ row) => {
     statusMap[row.module_id] = row.status === "enabled" ? "enabled" : "disabled";
     return statusMap;
   }, {});
@@ -583,7 +675,7 @@ async function loadWorkspaceModuleContext(workspaceId, rows) {
       workspaceCapabilityRequirements: moduleDefinition.workspaceCapabilityRequirements || [],
     };
   });
-  const moduleStatusById = modules.reduce((statusMap, moduleDefinition) => {
+  const moduleStatusById = modules.reduce((/** @type {Record<string, string>} */ statusMap, moduleDefinition) => {
     statusMap[moduleDefinition.id] = moduleDefinition.status;
     return statusMap;
   }, {});
@@ -602,6 +694,11 @@ async function loadWorkspaceModuleContext(workspaceId, rows) {
 // lifecycle-managed workspace (one with rows) required modules read as
 // enabled, mirroring repairRequiredWorkspaceModules without writing; a
 // workspace with no rows at all (unknown or never-ensured) has no modules.
+/**
+ * @param {ResolvedModuleManifest} moduleDefinition
+ * @param {Record<string, string>} statusById
+ * @param {boolean} hasModuleRows
+ */
 function workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows) {
   if (hasModuleRows && moduleDefinition.canDisable === false) {
     return "enabled";
@@ -610,12 +707,18 @@ function workspaceModuleStatus(moduleDefinition, statusById, hasModuleRows) {
   return statusById[moduleDefinition.id] || "disabled";
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listEnabledModules(workspaceId) {
   const moduleContext = await readWorkspaceModuleContext(workspaceId);
 
-  return moduleContext.modules.filter((moduleDefinition) => moduleDefinition.status === "enabled");
+  return moduleContext.modules.filter((/** @type {{ status: string; }} */ moduleDefinition) => moduleDefinition.status === "enabled");
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function listAvailableApiScopes(workspaceId) {
   const [enabledModuleIds, workspaceCapabilities] = await Promise.all([
     readEnabledModuleIds(workspaceId),
@@ -642,10 +745,18 @@ async function listAvailableApiScopes(workspaceId) {
     });
 }
 
+/**
+ * @param {CatalogContribution} scope
+ * @param {string} workspaceType
+ */
 function apiScopeSupportsWorkspaceType(scope, workspaceType) {
   return contributionSupportsWorkspaceType(scope, workspaceType);
 }
 
+/**
+ * @param {CatalogContribution} contribution
+ * @param {string} workspaceType
+ */
 function contributionSupportsWorkspaceType(contribution, workspaceType) {
   if (Array.isArray(contribution.workspaceTypes) && contribution.workspaceTypes.length > 0) {
     return contribution.workspaceTypes.includes(workspaceType);
@@ -654,6 +765,9 @@ function contributionSupportsWorkspaceType(contribution, workspaceType) {
   return true;
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readEnabledModuleIds(workspaceId) {
   if (!workspaceId) {
     return [];
@@ -663,6 +777,10 @@ async function readEnabledModuleIds(workspaceId) {
   return [...moduleContext.enabledModules].sort();
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ */
 async function canReadModule(workspaceId, moduleId) {
   const moduleDefinition = getModule(moduleId);
 
@@ -674,11 +792,19 @@ async function canReadModule(workspaceId, moduleId) {
     await readModuleStatus(workspaceId, moduleId) === "enabled";
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ */
 async function canWriteModule(workspaceId, moduleId) {
   return Boolean(workspaceId && moduleId) &&
     await readModuleStatus(workspaceId, moduleId) === "enabled";
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ */
 async function readModuleStatus(workspaceId, moduleId) {
   const moduleDefinition = getModule(moduleId);
 
@@ -690,6 +816,7 @@ async function readModuleStatus(workspaceId, moduleId) {
   return moduleContext.moduleStatusById[moduleId] === "enabled" ? "enabled" : "disabled";
 }
 
+/** @param {string} workspaceId @param {ModuleManifest[]} modules */
 async function ensureWorkspaceModuleRows(workspaceId, modules) {
   const moduleDefinitions = modules.filter(Boolean);
 
@@ -712,7 +839,7 @@ async function ensureAllWorkspaceModuleRows() {
   const workspaces = await db.query("SELECT workspace_id FROM workspaces ORDER BY workspace_id;");
 
   for (const workspace of workspaces) {
-    await ensureWorkspaceModuleRows(workspace.workspace_id, modules);
+    await ensureWorkspaceModuleRows(String(workspace.workspace_id || ""), modules);
   }
 }
 
@@ -768,8 +895,17 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ * @param {boolean} enabled
+ * @param {ModuleStateOptions} [options]
+ */
 async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {
   const moduleDefinition = getModule(moduleId);
+  if (!moduleDefinition) {
+    throw new AppError(`Unknown module '${moduleId}'.`, 404);
+  }
   const previousStatus = await readModuleStatus(workspaceId, moduleId);
   const nextStatus = enabled ? "enabled" : "disabled";
 
@@ -847,6 +983,10 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ */
 async function assertModuleCanBeEnabled(workspaceId, moduleId) {
   const moduleDefinition = getModule(moduleId);
 
@@ -876,6 +1016,10 @@ async function assertModuleCanBeEnabled(workspaceId, moduleId) {
   }
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} moduleId
+ */
 async function assertModuleCanBeDisabled(workspaceId, moduleId) {
   const moduleDefinition = getModule(moduleId);
 
@@ -902,8 +1046,13 @@ async function assertModuleCanBeDisabled(workspaceId, moduleId) {
   }
 }
 
+/**
+ * @param {ModuleManifest|null} moduleDefinition
+ * @param {string} hookName
+ * @param {Record<string, unknown>} context
+ */
 async function runModuleLifecycleHook(moduleDefinition, hookName, context) {
-  const hook = moduleDefinition?.hooks?.[hookName];
+  const hook = /** @type {Record<string, unknown>} */ (moduleDefinition?.hooks || {})[hookName];
 
   if (typeof hook !== "function") {
     return null;
@@ -921,6 +1070,7 @@ async function runModuleLifecycleHook(moduleDefinition, hookName, context) {
   }
 }
 
+/** @param {{force?: boolean}} [options] */
 function registerModuleEventHooks(options = {}) {
   if (moduleEventHooksRegistered && !options.force) {
     return listModuleEventHooks();
@@ -953,11 +1103,21 @@ function registerModuleEventHooks(options = {}) {
   return listModuleEventHooks();
 }
 
+/**
+ * @param {string} eventName
+ */
 async function emitInternalEvent(eventName, payload = {}) {
   registerModuleEventHooks();
   return internalEventBus.emit(eventName, payload);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {ModuleManifest|null} moduleDefinition
+ * @param {string} previousStatus
+ * @param {string} nextStatus
+ * @param {ModuleStateOptions} options
+ */
 async function recordModuleStateChanged(workspaceId, moduleDefinition, previousStatus, nextStatus, options) {
   const { auditService } = await import("../../services/audit.service.js");
   const moduleId = moduleDefinition?.id || options.moduleId || "";
@@ -987,6 +1147,13 @@ async function recordModuleStateChanged(workspaceId, moduleDefinition, previousS
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {ModuleManifest|null} moduleDefinition
+ * @param {boolean} enabling
+ * @param {unknown} error
+ * @param {ModuleStateOptions} options
+ */
 async function recordModuleStateFailure(workspaceId, moduleDefinition, enabling, error, options) {
   const { auditService } = await import("../../services/audit.service.js");
   const moduleId = moduleDefinition?.id || options.moduleId || "";
@@ -1003,7 +1170,7 @@ async function recordModuleStateFailure(workspaceId, moduleDefinition, enabling,
     previousValue: null,
     newValue: null,
     metadata: {
-      error: error?.message || String(error),
+      error: error instanceof Error ? error.message : String(error),
       module_id: moduleId,
       workspace_id: workspaceId,
     },
@@ -1011,29 +1178,41 @@ async function recordModuleStateFailure(workspaceId, moduleDefinition, enabling,
   });
 }
 
-async function listModuleNavigation(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listModuleNavigation(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listWorkspaceContributions(workspaceId, session, "navigation");
 }
 
-async function listModuleSettings(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listModuleSettings(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listSettingsContributions(workspaceId, session);
 }
 
-async function listSettingsContributions(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listSettingsContributions(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const settings = await listWorkspaceContributions(workspaceId, session, "settings");
 
-  return settings.map((setting) => ({
+  return settings.filter(isActiveModuleSetting).map((setting) => ({
     ...setting,
     target: setting.target || "module",
   })).sort((left, right) => (
-    left.placement.localeCompare(right.placement) ||
-    left.moduleId.localeCompare(right.moduleId) ||
-    left.label.localeCompare(right.label) ||
-    left.id.localeCompare(right.id)
+    String(left.placement || "").localeCompare(String(right.placement || "")) ||
+    String(left.moduleId || "").localeCompare(String(right.moduleId || "")) ||
+    String(left.label || "").localeCompare(String(right.label || "")) ||
+    String(left.id || "").localeCompare(String(right.id || ""))
   ));
 }
 
-async function listModuleSettingsNavigation(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listModuleSettingsNavigation(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const [moduleContext, workspaceCapabilities] = await Promise.all([
     readWorkspaceModuleContext(workspaceId),
     readWorkspaceCapabilities(workspaceId),
@@ -1069,10 +1248,13 @@ async function listModuleSettingsNavigation(workspaceId, session = null) {
     });
   }
 
-  return items.sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
+  return items.sort((left, right) => String(left.label || "").localeCompare(String(right.label || "")) || String(left.id || "").localeCompare(String(right.id || "")));
 }
 
-async function listActiveViewSurfaces(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listActiveViewSurfaces(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   if (!workspaceId) {
     return [];
   }
@@ -1089,6 +1271,7 @@ async function listActiveViewSurfaces(workspaceId, session = null) {
     ...listRegisteredModuleProtectedViews().map(normalizeViewContribution),
     ...listFrameworkProtectedViews().map(normalizeViewContribution),
   ].map((view) => [`${view.moduleId}:${view.id}`, view]));
+  /** @type {{surface: ViewSurfaceDescriptor, frameworkOwned: boolean}[]} */
   const viewSurfaceEntries = [
     ...listRegisteredModuleViewSurfaces().map((surface) => ({ surface, frameworkOwned: false })),
     ...listFrameworkViewSurfaces().map((surface) => ({ surface, frameworkOwned: true })),
@@ -1106,6 +1289,10 @@ async function listActiveViewSurfaces(workspaceId, session = null) {
     }
 
     if (frameworkOwned && (!moduleDefinition || !protectedView)) {
+      continue;
+    }
+
+    if (!moduleDefinition || !protectedView) {
       continue;
     }
 
@@ -1140,6 +1327,11 @@ async function listActiveViewSurfaces(workspaceId, session = null) {
   return surfaces.sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.id.localeCompare(right.id));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {RequestSession|null} session
+ * @param {string} requestPath
+ */
 async function resolveProtectedModuleView(workspaceId, session, requestPath) {
   const pathName = normalizeViewPath(requestPath);
 
@@ -1210,37 +1402,47 @@ async function resolveProtectedModuleView(workspaceId, session, requestPath) {
   return null;
 }
 
-async function listWorkbenchCards(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listWorkbenchCards(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const cards = await listWorkspaceContributions(workspaceId, session, "workbench");
 
   return cards.sort((left, right) => (
     Number(left.sortOrder) - Number(right.sortOrder) ||
-    left.label.localeCompare(right.label) ||
-    left.id.localeCompare(right.id)
+    String(left.label || "").localeCompare(String(right.label || "")) ||
+    String(left.id || "").localeCompare(String(right.id || ""))
   ));
 }
 
-async function listDashboardPanels(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listDashboardPanels(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const panels = await listWorkspaceContributions(workspaceId, session, "dashboard");
 
   return panels.map(normalizeDashboardPanel).sort((left, right) => (
     Number(left.sortOrder) - Number(right.sortOrder) ||
-    left.label.localeCompare(right.label) ||
-    left.id.localeCompare(right.id)
+    String(left.label || "").localeCompare(String(right.label || "")) ||
+    String(left.id || "").localeCompare(String(right.id || ""))
   ));
 }
 
-async function listReportingReports(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listReportingReports(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   const reports = await listWorkspaceContributions(workspaceId, session, "reporting");
 
-  return reports.sort((left, right) => (
+  return reports.filter(isReportingContribution).sort((left, right) => (
     Number(left.sortOrder) - Number(right.sortOrder) ||
     String(left.category || "").localeCompare(String(right.category || "")) ||
-    left.label.localeCompare(right.label) ||
-    left.id.localeCompare(right.id)
+    String(left.label || "").localeCompare(String(right.label || "")) ||
+    String(left.id || "").localeCompare(String(right.id || ""))
   ));
 }
 
+/** @param {ModuleContribution} panel */
 function normalizeDashboardPanel(panel) {
   return {
     ...panel,
@@ -1248,33 +1450,90 @@ function normalizeDashboardPanel(panel) {
   };
 }
 
-async function listTimerSources(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listTimerSources(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listSourceContributions(workspaceId, session, "timerSources");
 }
 
-async function listWorkItemSources(workspaceId, session = null) {
+/**
+ * @param {string} workspaceId
+ */
+async function listWorkItemSources(workspaceId, session = /** @type {RequestSession|null} */ (null)) {
   return listSourceContributions(workspaceId, session, "workItemSources");
 }
 
+/** @param {string} moduleId @param {string} sourceType */
 async function getTimerSource(moduleId, sourceType) {
   return getSourceContribution(moduleId, sourceType, "timerSources");
 }
 
+/** @param {string} moduleId @param {string} sourceType */
 async function getWorkItemSource(moduleId, sourceType) {
   return getSourceContribution(moduleId, sourceType, "workItemSources");
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/http-contracts.js").RequestSession | null} session
+ * @param {ModuleContributionField} fieldName
+ */
 async function listSourceContributions(workspaceId, session, fieldName) {
   return listWorkspaceContributions(workspaceId, session, fieldName);
 }
 
+/** @param {string} moduleId @param {string} sourceType @param {ModuleContributionField} fieldName */
 async function getSourceContribution(moduleId, sourceType, fieldName) {
   const moduleDefinition = getModule(moduleId);
-  const source = (moduleDefinition?.[fieldName] || []).find((item) => item.sourceType === sourceType);
+  const sourceValues = moduleDefinition?.[fieldName];
+  const source = (Array.isArray(sourceValues) ? sourceValues : []).find((item) => (
+    item !== null && typeof item === "object" && "sourceType" in item && item.sourceType === sourceType
+  ));
 
-  return source ? normalizeContribution(moduleDefinition, source) : null;
+  return source && moduleDefinition
+    ? normalizeContribution(moduleDefinition, /** @type {ModuleContribution} */ (source))
+    : null;
 }
 
+/**
+ * @param {ModuleContribution} value
+ * @returns {value is ActiveModuleSetting & {placement: "workspace"|"user"|"module"|"new-workspace"}}
+ */
+function isActiveModuleSetting(value) {
+  return typeof value.id === "string" &&
+    typeof value.moduleId === "string" &&
+    typeof value.label === "string" &&
+    typeof value.type === "string" &&
+    typeof value.placement === "string" &&
+    ["workspace", "user", "module", "new-workspace"].includes(value.placement);
+}
+
+/**
+ * @param {ModuleContribution} value
+ * @returns {value is ReportingContribution & ModuleContribution}
+ */
+function isReportingContribution(value) {
+  return typeof value.id === "string" &&
+    typeof value.moduleId === "string" &&
+    typeof value.label === "string" &&
+    typeof value.description === "string" &&
+    typeof value.category === "string" &&
+    typeof value.renderer === "string" &&
+    typeof value.runner === "string" &&
+    Array.isArray(value.requiredPermissions) &&
+    Array.isArray(value.requiredWorkspaceCapabilities) &&
+    Array.isArray(value.requiresEnabledModules) &&
+    Array.isArray(value.filters) &&
+    Array.isArray(value.browserAssetIds);
+}
+
+/**
+ * @param {string} workspaceId
+ * @param {RequestSession|null} session
+ * @param {ModuleContributionField} fieldName
+ * @returns {Promise<ModuleContribution[]>}
+ */
 async function listWorkspaceContributions(workspaceId, session, fieldName) {
   const [moduleContext, workspaceCapabilities] = await Promise.all([
     readWorkspaceModuleContext(workspaceId),
@@ -1291,10 +1550,12 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
       continue;
     }
 
-    for (const contribution of moduleDefinition[fieldName] || []) {
+    const moduleContributions = moduleDefinition[fieldName];
+    for (const contribution of (Array.isArray(moduleContributions) ? moduleContributions : [])) {
+      if (!contribution || typeof contribution !== "object") continue;
       const normalized = normalizeContribution(
         moduleDefinition,
-        resolveContributionTerminology(contribution, workspaceType, fieldName),
+        /** @type {ModuleContribution} */ (resolveContributionTerminology(contribution, workspaceType, fieldName)),
       );
 
       if (!moduleContributionRequirementsAvailable(normalized, moduleDefinition, {
@@ -1315,6 +1576,11 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
   return contributions;
 }
 
+/**
+ * @param {ModuleContribution} contribution
+ * @param {ModuleManifest} moduleDefinition
+ * @param {{enabledModuleIds?: Set<string>|string[], availableTools?: Set<string>|string[]}} [context]
+ */
 function moduleContributionRequirementsAvailable(contribution, moduleDefinition, context = {}) {
   const enabledModuleIds = context.enabledModuleIds instanceof Set
     ? context.enabledModuleIds
@@ -1327,6 +1593,13 @@ function moduleContributionRequirementsAvailable(contribution, moduleDefinition,
     requiredCapabilitiesAvailable(contribution, moduleDefinition, availableTools);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {RequestSession|null|undefined} session
+ * @template {import("../../types/help-static-contracts.js").HelpSection|import("../../types/help-static-contracts.js").HelpArticle} Item
+ * @param {Item[]} items
+ * @returns {Promise<Item[]>}
+ */
 async function listActiveHelpItems(workspaceId, session, items) {
   if (!workspaceId) {
     return [];
@@ -1340,6 +1613,7 @@ async function listActiveHelpItems(workspaceId, session, items) {
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
   const workspaceType = workspaceCapabilities.workspaceType || "business";
   const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
+  /** @type {Item[]} */
   const activeItems = [];
 
   for (const item of items) {
@@ -1347,7 +1621,8 @@ async function listActiveHelpItems(workspaceId, session, items) {
       continue;
     }
 
-    const moduleDefinition = modulesById.get(item.moduleId);
+    const itemModuleId = String(item.moduleId || "");
+    const moduleDefinition = modulesById.get(itemModuleId);
     const resolvedItem = resolveContributionTerminology(item, workspaceType, "help");
 
     if (moduleDefinition && !requiredCapabilitiesAvailable(resolvedItem, moduleDefinition, availableTools)) {
@@ -1358,19 +1633,31 @@ async function listActiveHelpItems(workspaceId, session, items) {
       continue;
     }
 
-    activeItems.push(normalizeContribution(moduleDefinition || { id: item.moduleId || "" }, resolvedItem));
+    activeItems.push(resolvedItem);
   }
 
   return activeItems;
 }
 
+/**
+ * @param {{id: string}} moduleDefinition
+ * @param {ModuleContribution} contribution
+ * @returns {ModuleContribution}
+ */
 function normalizeContribution(moduleDefinition, contribution) {
   return filterPublicDemoContributionActions({
     ...contribution,
-    moduleId: contribution.moduleId || moduleDefinition.id,
+    moduleId: typeof contribution.moduleId === "string" && contribution.moduleId
+      ? contribution.moduleId
+      : moduleDefinition.id,
   });
 }
 
+/**
+ * @param {ModuleRequirementOwner} moduleDefinition
+ * @param {ViewSurfaceDescriptor} surface
+ * @param {ProtectedViewContribution} protectedView
+ */
 function normalizeViewSurfaceContribution(moduleDefinition, surface, protectedView) {
   return {
     ...surface,
@@ -1380,28 +1667,40 @@ function normalizeViewSurfaceContribution(moduleDefinition, surface, protectedVi
   };
 }
 
+/** @param {ProtectedViewContribution} view */
 function normalizeViewContribution(view) {
   return {
     ...view,
+    id: String(view.id || ""),
+    moduleId: String(view.moduleId || ""),
     path: normalizeViewPath(view.path),
     file: String(view.file || "").trim(),
   };
 }
 
+/**
+ * @param {CatalogContribution & {moduleId?: string}} contribution
+ */
 function omitOwningModuleRequirement(contribution) {
   const { moduleId: _moduleId, ...rest } = contribution;
 
   return rest;
 }
 
+/**
+ * @param {BrowserAssetCandidate|ModuleContribution} asset
+ */
 function normalizeAssetContribution(asset) {
   return {
     ...asset,
-    path: withAssetVersion(asset.path),
+    id: String(asset.id || ""),
+    moduleId: String(asset.moduleId || ""),
+    path: withAssetVersion(String(asset.path || "")),
     type: asset.type === "style" ? "style" : "script",
   };
 }
 
+/** @param {unknown} value */
 function normalizeViewPath(value) {
   const pathName = String(value || "").trim();
 
@@ -1412,6 +1711,10 @@ function normalizeViewPath(value) {
   return pathName.startsWith("/") ? pathName : `/${pathName}`;
 }
 
+/**
+ * @param {ModuleRequirementOwner} moduleDefinition
+ * @param {Set<string>} availableTools
+ */
 function moduleSettingsMatchWorkspace(moduleDefinition, availableTools) {
   const requiredCapabilities = moduleDefinition.workspaceCapabilityRequirements || [];
 
@@ -1422,6 +1725,11 @@ function moduleSettingsMatchWorkspace(moduleDefinition, availableTools) {
   return requiredCapabilities.some((capability) => availableTools.has(capability));
 }
 
+/**
+ * @param {WorkspaceModuleDefinition} moduleDefinition
+ * @param {ModuleSettingDefinition} setting
+ * @param {Record<string, unknown>} settings
+ */
 function readModuleSettingValue(moduleDefinition, setting, settings) {
   if (setting.moduleStatus === true) {
     return moduleDefinition.status === "enabled";
@@ -1434,6 +1742,12 @@ function readModuleSettingValue(moduleDefinition, setting, settings) {
   return defaultSettingValue(setting);
 }
 
+/**
+ * @param {WorkspaceModuleDefinition} moduleDefinition
+ * @param {ModuleSettingDefinition} setting
+ * @param {Record<string, unknown>} settings
+ * @param {Record<string, string>} [moduleStatusById]
+ */
 function decorateModuleSetting(moduleDefinition, setting, settings, moduleStatusById = {}) {
   const statusMetadata = setting.moduleStatus === true
     ? readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById)
@@ -1448,6 +1762,10 @@ function decorateModuleSetting(moduleDefinition, setting, settings, moduleStatus
   };
 }
 
+/**
+ * @param {WorkspaceModuleDefinition} moduleDefinition
+ * @param {Record<string, string>} moduleStatusById
+ */
 function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
   if (moduleDefinition.canDisable === false) {
     return {
@@ -1462,7 +1780,7 @@ function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
 
   if (moduleDefinition.status !== "enabled") {
     const missingDependencies = (moduleDefinition.moduleDependencies || [])
-      .filter((moduleId) => !enabledModuleIds.has(moduleId));
+      .filter((/** @type {string} */ moduleId) => !enabledModuleIds.has(moduleId));
 
     if (missingDependencies.length > 0) {
       return {
@@ -1509,6 +1827,9 @@ function isModuleSettingsView(view, moduleDefinition = null) {
   return contributedUnderSettings && hasModuleSettings;
 }
 
+/**
+ * @param {ModuleSettingDefinition} setting
+ */
 function defaultSettingValue(setting) {
   if (Object.hasOwn(setting, "defaultValue")) {
     return setting.defaultValue;
@@ -1529,18 +1850,29 @@ function defaultSettingValue(setting) {
   return "";
 }
 
+/**
+ * @param {ContributionRequirements} contribution
+ * @param {Set<string>} enabledModuleIds
+ */
 function requiredModulesEnabled(contribution, enabledModuleIds) {
   const requiredModules = [
-    contribution.moduleId,
-    ...(contribution.requiresEnabledModules || []),
-    ...(contribution.requiredModules || []),
-  ];
+    typeof contribution.moduleId === "string" ? contribution.moduleId : "",
+    ...(Array.isArray(contribution.requiresEnabledModules) ? contribution.requiresEnabledModules : []),
+    ...(Array.isArray(contribution.requiredModules) ? contribution.requiredModules : []),
+  ].filter((moduleId) => typeof moduleId === "string");
 
   return requiredModules.every((moduleId) => !moduleId || enabledModuleIds.has(moduleId));
 }
 
+/**
+ * @param {ContributionRequirements} contribution
+ * @param {ModuleRequirementOwner} moduleDefinition
+ * @param {Set<string>} availableTools
+ */
 function requiredCapabilitiesAvailable(contribution, moduleDefinition, availableTools) {
-  const contributionCapabilities = contribution.requiredWorkspaceCapabilities || [];
+  const contributionCapabilities = Array.isArray(contribution.requiredWorkspaceCapabilities)
+    ? contribution.requiredWorkspaceCapabilities.filter((capability) => typeof capability === "string")
+    : [];
   const moduleCapabilities = moduleDefinition.workspaceCapabilityRequirements || [];
   const relevantCapabilities = contributionCapabilities.length > 0
     ? contributionCapabilities
@@ -1553,17 +1885,23 @@ function requiredCapabilitiesAvailable(contribution, moduleDefinition, available
   return relevantCapabilities.some((capability) => availableTools.has(capability));
 }
 
+/**
+ * @param {ContributionRequirements} contribution
+ * @param {RequestSession | null | undefined} session
+ */
 async function requiredPermissionsAllowed(contribution, session) {
   if (!session) {
     return true;
   }
 
-  const requiredPermissions = contribution.requiredPermissions || [];
+  const requiredPermissions = Array.isArray(contribution.requiredPermissions)
+    ? contribution.requiredPermissions.filter((permissionId) => typeof permissionId === "string")
+    : [];
   const { permissionsService } = await import("../../services/permissions.service.js");
 
   for (const permissionId of requiredPermissions) {
     if (!(await permissionsService.canInAnyScope(session, permissionId, {
-      workspace_id: session.workspace_id,
+      workspace_id: session.workspace_id || "",
       operation: "read",
     }))) {
       return false;
@@ -1573,6 +1911,9 @@ async function requiredPermissionsAllowed(contribution, session) {
   return true;
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readWorkspaceCapabilities(workspaceId) {
   const rows = await db.query(`
 SELECT workspace_type
@@ -1584,6 +1925,10 @@ LIMIT 1;
   return getWorkspaceCapabilities(rows[0]?.workspace_type);
 }
 
+/**
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} moduleDefinition
+ * @param {string} now
+ */
 function moduleSyncParams(moduleDefinition, now) {
   return {
     category: text(moduleDefinition.category),
@@ -1597,17 +1942,24 @@ function moduleSyncParams(moduleDefinition, now) {
   };
 }
 
+/**
+ * @param {string[]} ids
+ */
 function normalizeIdList(ids) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => text(id).trim())
     .filter(Boolean))];
 }
 
+/**
+ * @param {unknown} value
+ */
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }
 
-export const modulesService = {
+const modulesServiceInternal = {
   canReadModule,
   canWriteModule,
   decorateWorkspaceSettings,
@@ -1681,3 +2033,6 @@ export const modulesService = {
   setModuleStatus,
   syncModuleRegistry,
 };
+
+/** @typedef {import("../../types/framework-contracts.js").ValidatedService<Omit<typeof modulesServiceInternal, "decorateWorkspaceSettings">> & Pick<typeof modulesServiceInternal, "decorateWorkspaceSettings">} PublicModulesService */
+export const modulesService = /** @type {PublicModulesService} */ (modulesServiceInternal);

@@ -865,7 +865,7 @@ async function createWorkspace(payload, session, sessionId = "") {
       module_statuses: moduleStatusChanges.reduce((statuses, change) => {
         statuses[change.moduleId] = change.enabled ? "enabled" : "disabled";
         return statuses;
-      }, {}),
+      }, /** @type {Record<string, "enabled" | "disabled">} */ ({})),
       time_tracking_enabled: moduleStatusChanges.find((change) => change.moduleId === "time-tracking")?.enabled,
     },
   });
@@ -1535,11 +1535,11 @@ async function readSaasWorkspaceTypes(session, baseTypes) {
 
 /** @param {unknown} workspaceType @returns {string} */
 function formatWorkspaceType(workspaceType) {
-  return {
+  return /** @type {Record<string, string>} */ ({
     business: "Business",
     personal: "Personal",
     family: "Family",
-  }[workspaceType] || "Workspace";
+  })[String(workspaceType)] || "Workspace";
 }
 
 /** @param {ReplaceMembershipsInput} input @returns {Promise<void>} */

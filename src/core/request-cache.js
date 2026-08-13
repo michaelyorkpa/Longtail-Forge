@@ -5,7 +5,7 @@
 // outlive the request or leak across users. Pass the session only from read
 // paths: entries are not invalidated by writes inside the same request.
 
-/** @typedef {import("../types/http-contracts.js").RequestSession & { __requestCache?: Map<string, Map<unknown, unknown>> }} RequestCacheSession */
+/** @typedef {import("../types/http-contracts.js").PermissionSession & { __requestCache?: Map<string, Map<unknown, unknown>> }} RequestCacheSession */
 
 /**
  * @template K, V

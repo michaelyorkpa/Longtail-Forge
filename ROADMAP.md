@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.15 - Type framework core and shared services
-
-**Model: High Effort** - Framework services feed many modules and contain permission, Files, Search, job, and resume-state contracts.
-
-- [ ] Close full-strict debt in remaining `src/core/`, shared `src/services/`, and framework repositories after the HTTP/database foundations.
-- [ ] Replace empty-container inference and implicit payload shapes with named contracts; narrow `unknown` at real boundaries.
-- [ ] Preserve module independence and avoid module-specific types in framework helpers.
-- [ ] Reduce these owner sections to zero without increasing explicit-`any` inventory.
-
 ### 0.33.33.16 - Add Notes edge schemas and extract the link-target directory
 
 **Model: High Effort** - Notes input validation, Secure Notes fields, and cross-module target visibility are permission-sensitive.

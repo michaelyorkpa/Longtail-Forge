@@ -676,6 +676,9 @@ async function assertDescendantHierarchyFocusScopes(session) {
     modeId: FOCUS_MODE_IDS.clientFocus,
     today,
   });
+  if (!parentClientContext.candidateQuery.clientIds || !parentClientContext.candidateQuery.clientProjectIds) {
+    throw new Error("Client focus should include descendant client and project scopes.");
+  }
   assert.ok(
     parentClientContext.candidateQuery.clientIds.includes(parentClientId) &&
       parentClientContext.candidateQuery.clientIds.includes(childClientId),
@@ -715,6 +718,7 @@ async function assertDescendantHierarchyFocusScopes(session) {
     projectId: parentProjectId,
     today,
   });
+  if (!parentProjectContext.candidateQuery.projectIds) throw new Error("Project focus should include descendant project scope.");
   assert.ok(
     parentProjectContext.candidateQuery.projectIds.includes(parentProjectId) &&
       parentProjectContext.candidateQuery.projectIds.includes(childProjectId),

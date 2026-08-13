@@ -84,7 +84,8 @@ async function assertTaskProducerWritesTaskAndChecklistState(session) {
 
   item = await findResumeItem(session, taskId);
   assert.equal(item.last_action_type, "task.checklist_item.checked");
-  assert.equal(item.metadata.checklist_progress.completed_count, 1);
+  const checklistProgress = /** @type {Record<string, unknown>} */ (item.metadata.checklist_progress);
+  assert.equal(checklistProgress.completed_count, 1);
 }
 
 async function assertListProducerWritesListItemAndLinkState(session) {

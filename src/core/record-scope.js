@@ -2,12 +2,18 @@ import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { AppError } from "../utils/app-error.js";
 
+/** @typedef {{ allowArchived?: boolean, archivedMessage?: string, notFoundMessage?: string, required?: boolean }} RecordReadOptions */
+/** @typedef {{ allowArchivedClient?: boolean, allowArchivedProject?: boolean, archivedClientMessage?: string, archivedProjectMessage?: string, clientNotFoundMessage?: string, projectNotFoundMessage?: string }} ProjectRecordScopeOptions */
+/** @typedef {{ client_id?: unknown, project_id?: unknown, status?: unknown }} ScopedRecord */
+
+/** @param {unknown} workspaceId */
 function assertWorkspaceScope(workspaceId) {
   if (!String(workspaceId || "").trim()) {
     throw new AppError("Workspace context is required.", 400);
   }
 }
 
+/** @param {string} workspaceId @param {unknown} clientId @param {RecordReadOptions} [options] */
 async function readClientScope(workspaceId, clientId, options = {}) {
   assertWorkspaceScope(workspaceId);
   const normalizedClientId = String(clientId || "").trim();
@@ -33,6 +39,7 @@ async function readClientScope(workspaceId, clientId, options = {}) {
   return client;
 }
 
+/** @param {string} workspaceId @param {unknown} projectId @param {RecordReadOptions} [options] */
 async function readProjectScope(workspaceId, projectId, options = {}) {
   assertWorkspaceScope(workspaceId);
   const normalizedProjectId = String(projectId || "").trim();
@@ -58,12 +65,16 @@ async function readProjectScope(workspaceId, projectId, options = {}) {
   return project;
 }
 
+/** @param {string} workspaceId @param {ScopedRecord} record @param {ProjectRecordScopeOptions} [options] */
 async function resolveProjectRecordScope(workspaceId, record, options = {}) {
   const project = await readProjectScope(workspaceId, record?.project_id, {
     archivedMessage: options.archivedProjectMessage,
     notFoundMessage: options.projectNotFoundMessage,
     allowArchived: Boolean(options.allowArchivedProject),
   });
+  if (!project) {
+    throw new AppError(options.projectNotFoundMessage || "Project not found", 404);
+  }
   const requestedClientId = String(record?.client_id || "").trim();
   const effectiveClientId = project.client_id || requestedClientId;
   const client = await readClientScope(workspaceId, effectiveClientId, {
@@ -79,6 +90,7 @@ async function resolveProjectRecordScope(workspaceId, record, options = {}) {
   return { client, project };
 }
 
+/** @param {{status?: unknown}} record */
 function isArchivedRecord(record) {
   const status = String(record?.status || "").trim().toLowerCase();
   return status === "inactive" || status === "archived" || status === "completed";

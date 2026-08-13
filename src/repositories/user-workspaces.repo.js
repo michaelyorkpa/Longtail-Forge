@@ -5,24 +5,22 @@ import { createRecordId } from "../core/identifiers.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
 
-/**
- * @typedef {DatabaseRow & Object} UserWorkspaceMembershipRow
- * @property {string} user_workspace_id
- * @property {string} user_id
- * @property {string} workspace_id
- * @property {string} [workspace_name]
- * @property {string} status
- * @property {string} created_at
- * @property {string} updated_at
- */
-/**
- * @typedef {DatabaseRow & Object} AssignableWorkspaceRow
- * @property {string} workspace_id
- * @property {string} workspace_name
- * @property {string} workspace_type
- * @property {string | null} owner_user_id
- * @property {string | null} owner_username
- */
+/** @typedef {DatabaseRow & {
+ *   user_workspace_id: string,
+ *   user_id: string,
+ *   workspace_id: string,
+ *   workspace_name?: string,
+ *   status: string,
+ *   created_at: string,
+ *   updated_at: string,
+ * }} UserWorkspaceMembershipRow */
+/** @typedef {DatabaseRow & {
+ *   workspace_id: string,
+ *   workspace_name: string,
+ *   workspace_type: string,
+ *   owner_user_id: string | null,
+ *   owner_username: string | null,
+ * }} AssignableWorkspaceRow */
 /** @typedef {DatabaseRow & { workspace_id: string, workspace_name: string }} InstallSecurityWorkspaceRow */
 /** @typedef {DatabaseRow & { count: unknown }} WorkspaceMembershipCountRow */
 

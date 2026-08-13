@@ -5,22 +5,29 @@ import { db } from "../core/database.js";
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
 /** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
 
-/**
- * @typedef {DatabaseRow & Object} StoredSession
- * @property {string} session_id
- * @property {string | null} home_workspace_id
- * @property {string | null} active_workspace_id
- * @property {string} user_id
- * @property {string | undefined} [username]
- * @property {string | undefined} [timezone]
- * @property {string | null} ip_address
- * @property {string | undefined} [session_mode]
- * @property {string | null | undefined} [support_session_id]
- * @property {string} expires_at
- * @property {string | undefined} [created_at]
- * @property {string | undefined} [updated_at]
- * @property {boolean | number | string | null | undefined} [password_change_required]
- */
+/** @typedef {DatabaseRow & {
+ *   session_id: string,
+ *   home_workspace_id: string | null,
+ *   active_workspace_id: string | null,
+ *   user_id: string,
+ *   username: string,
+ *   timezone: string,
+ *   ip_address: string | null,
+ *   session_mode: string | null,
+ *   support_session_id: string | null,
+ *   expires_at: string,
+ *   password_change_required?: boolean | number | string | null,
+ * }} StoredSession */
+/** @typedef {DatabaseRow & {
+ *   session_id: string,
+ *   home_workspace_id: string | null,
+ *   active_workspace_id: string | null,
+ *   user_id: string,
+ *   ip_address: string | null,
+ *   expires_at: string,
+ *   created_at: string,
+ *   updated_at: string,
+ * }} StoredSessionListRow */
 /**
  * @typedef {Object} SessionCreateInput
  * @property {string} session_id
@@ -109,9 +116,9 @@ LIMIT 1;
 `, { sessionId }));
 }
 
-/** @param {string} userId @returns {Promise<StoredSession[]>} */
+/** @param {string} userId @returns {Promise<StoredSessionListRow[]>} */
 async function listForUser(userId) {
-  return /** @type {Promise<StoredSession[]>} */ (db.query(`
+  return /** @type {Promise<StoredSessionListRow[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,
@@ -127,9 +134,9 @@ ORDER BY created_at DESC, session_id;
 `, { userId }));
 }
 
-/** @param {string} userId @param {string} workspaceId @returns {Promise<StoredSession[]>} */
+/** @param {string} userId @param {string} workspaceId @returns {Promise<StoredSessionListRow[]>} */
 async function listForUserInWorkspace(userId, workspaceId) {
-  return /** @type {Promise<StoredSession[]>} */ (db.query(`
+  return /** @type {Promise<StoredSessionListRow[]>} */ (db.query(`
 SELECT
   session_id,
   home_workspace_id,

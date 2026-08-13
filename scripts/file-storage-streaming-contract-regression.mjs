@@ -66,7 +66,7 @@ function assertStaticContracts() {
   assert.match(changelog, /Busboy[\s\S]*instead of hand-rolling multipart parsing/, "changelog should record the Busboy multipart parser decision");
   assert.match(changelog, /saveStream\(readable, options\)[\s\S]*save\(buffer, options\)/, "changelog should record the streaming storage adapter contract");
   assert.match(localStorageAdapter, /async saveStream\(readable, options = \{\}\)/, "local storage adapter should expose saveStream");
-  assert.match(localStorageAdapter, /pipeline\(readable, createWriteStream\(target\.filePath\)\)/, "local saveStream should pipe directly into the storage file");
+  assert.match(localStorageAdapter, /typeof \/\*\* @type \{\{pipe\?: unknown\}\} \*\/ \(readable\)\.pipe !== "function"[\s\S]*const readableStream = \/\*\* @type \{import\("node:stream"\)\.Readable\} \*\/ \(readable\)[\s\S]*pipeline\(readableStream, createWriteStream\(target\.filePath\)\)/, "local saveStream should validate and pipe the readable directly into the storage file");
   assert.match(localStorageAdapter, /fs\.rm\(target\.filePath, \{ force: true \}\)/, "local saveStream should clean up partial files on stream errors");
   assert.match(filesService, /\["save", "saveStream", "read", "metadata", "delete", "health"\]/, "Files storage adapter registration should require saveStream");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");

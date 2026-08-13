@@ -34,6 +34,17 @@ const FOCUS_SCOPES = Object.freeze({
   project: "project",
   workspace: "workspace",
 });
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../types/framework-contracts.js").WorkCandidate} WorkCandidate */
+/** @typedef {Record<string, unknown>} FocusInput */
+/** @typedef {{today: string, weekEnd: string}} FocusDates */
+/** @typedef {{availableTools: string[], focusPolicy: import("../core/settings/workbench-focus-policy.js").WorkbenchFocusPolicy, timezone: string, workspaceId: string, workspaceType: string}} FocusWorkspaceContext */
+/** @typedef {Record<string, unknown> & {clientId?: string, date?: unknown, excludePassiveRecurringCreated?: boolean, excludeStatus?: unknown, includeTaskCandidates?: boolean, projectId?: string, rankBuckets?: string[], sort?: string, status?: unknown}} FocusFilters */
+/** @typedef {FocusFilters & {clientIds?: string[], clientProjectIds?: string[], projectIds?: string[]}} FocusCandidateQuery */
+/** @typedef {{clientId: string, date: {dueBefore: string, dueFrom: string, dueOn: string, dueTo: string}, excludePassiveRecurringCreated: boolean, excludeStatus: string[], includeTaskCandidates: boolean, projectId: string, rankBuckets: string[], sort: string, status: string[]}} NormalizedFocusFilters */
+/** @typedef {{filters?: FocusFilters, resumeStrategy?: unknown, scope?: Record<string, unknown>, summary?: unknown}} FocusResolution */
+/** @typedef {{candidateQuery: FocusCandidateQuery, description: string, filters: NormalizedFocusFilters, id: string, label: string, modeId: string, requiredSelection: string, resumeStrategy: {fallback: string, fallbackRankBuckets: string[], primary: string}|null, scope: Record<string, unknown>, summary: string, workspaceType: string}} ResolvedFocusContext */
+/** @typedef {Awaited<ReturnType<typeof workCandidateService.listWorkCandidates>>} CandidateResult */
 /**
  * @typedef {Object} FocusModeInternalDefinition
  * @property {string} id
@@ -41,12 +52,13 @@ const FOCUS_SCOPES = Object.freeze({
  * @property {string} description
  * @property {string} scope
  * @property {number} sortOrder
- * @property {(context: { dates: any, input: any, workspaceContext: any }) => any} resolve
+ * @property {(context: { dates: FocusDates, input: FocusInput, workspaceContext: FocusWorkspaceContext }) => FocusResolution} resolve
  * @property {string} [requiredSelection]
+ * @property {string[]} [workspaceTypes]
  */
 
 /** @type {readonly FocusModeInternalDefinition[]} */
-const FOCUS_MODE_DEFINITIONS = Object.freeze([
+const FOCUS_MODE_DEFINITIONS = Object.freeze(/** @type {FocusModeInternalDefinition[]} */ ([
   Object.freeze({
     description: "Start with active, due, stale, and recently touched work.",
     id: FOCUS_MODE_IDS.startMyDay,
@@ -199,19 +211,29 @@ const FOCUS_MODE_DEFINITIONS = Object.freeze([
       };
     },
   }),
-]);
+]));
 const FOCUS_MODE_BY_ID = new Map(FOCUS_MODE_DEFINITIONS.map((definition) => [definition.id, definition]));
 
+/**
+ * @param {Partial<WorkspaceRequestSession>} session
+ * @param {FocusInput} [options]
+ */
 async function listFocusModes(session, options = {}) {
-  const workspaceContext = await readWorkspaceContext(session, options);
+  const workspaceContext = await readWorkspaceContext(/** @type {WorkspaceRequestSession} */ (session), options);
 
   return FOCUS_MODE_DEFINITIONS
     .filter((definition) => focusModeAvailable(definition, workspaceContext))
     .map((definition) => focusModeDescriptor(definition));
 }
 
+/**
+ * @param {Partial<WorkspaceRequestSession>} session
+ * @param {FocusInput} [input]
+ * @returns {Promise<ResolvedFocusContext>}
+ */
 async function resolveFocusMode(session, input = {}) {
-  const workspaceContext = await readWorkspaceContext(session, input);
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  const workspaceContext = await readWorkspaceContext(workspaceSession, input);
   const modeId = normalizeFocusModeId(firstValue(input.modeId, input.mode_id, input.id, input.mode)) ||
     FOCUS_MODE_IDS.startMyDay;
   const definition = FOCUS_MODE_BY_ID.get(modeId);
@@ -229,7 +251,7 @@ async function resolveFocusMode(session, input = {}) {
     definition,
     mergeScopeFilters(resolved.filters, input, workspaceContext),
   ));
-  const hierarchyScope = await resolveClientProjectFilterScope(session, {
+  const hierarchyScope = await resolveClientProjectFilterScope(workspaceSession, {
     clientId: filters.clientId,
     hasClientFilter: Boolean(filters.clientId),
     hasProjectFilter: Boolean(filters.projectId),
@@ -256,9 +278,13 @@ async function resolveFocusMode(session, input = {}) {
   };
 }
 
+/**
+ * @param {Partial<WorkspaceRequestSession>} session
+ * @param {FocusInput} [input]
+ */
 async function listFocusCandidates(session, input = {}) {
   const focusContext = await resolveFocusMode(session, input);
-  const result = await executeFocusCandidateStrategy(session, focusContext);
+  const result = await executeFocusCandidateStrategy(/** @type {WorkspaceRequestSession} */ (session), focusContext);
 
   return {
     ...result,
@@ -266,6 +292,7 @@ async function listFocusCandidates(session, input = {}) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {ResolvedFocusContext} focusContext */
 async function executeFocusCandidateStrategy(session, focusContext) {
   if (focusContext.resumeStrategy?.primary === "work-resume") {
     return listResumeFocusCandidates(session, focusContext);
@@ -274,6 +301,7 @@ async function executeFocusCandidateStrategy(session, focusContext) {
   return workCandidateService.listWorkCandidates(session, focusContext.candidateQuery);
 }
 
+/** @param {WorkspaceRequestSession} session @param {ResolvedFocusContext} focusContext */
 async function listResumeFocusCandidates(session, focusContext) {
   const primaryQuery = resumePrimaryQuery(focusContext);
   const [primaryResult, liveTimerCandidates] = await Promise.all([
@@ -303,6 +331,7 @@ async function listResumeFocusCandidates(session, focusContext) {
   return mergeLiveTimerCandidates(primaryResult, liveTimerCandidates, primaryQuery);
 }
 
+/** @param {CandidateResult} result @param {Array<WorkCandidate|null>} liveTimerCandidates @param {Record<string, unknown>} query */
 function mergeLiveTimerCandidates(result, liveTimerCandidates, query) {
   const ranked = workCandidateService.rankWorkCandidates([
     ...(liveTimerCandidates || []),
@@ -319,6 +348,7 @@ function mergeLiveTimerCandidates(result, liveTimerCandidates, query) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {ResolvedFocusContext} focusContext @param {CandidateResult} result @param {Record<string, unknown>} query */
 async function mergeSecondMostRecentTaskBoost(session, focusContext, result, query) {
   if (focusContext?.id !== FOCUS_MODE_IDS.pickUpWhereLeftOff) {
     return result;
@@ -352,7 +382,9 @@ async function mergeSecondMostRecentTaskBoost(session, focusContext, result, que
   };
 }
 
+/** @param {ResolvedFocusContext} focusContext */
 function resumePrimaryQuery(focusContext) {
+  /** @type {FocusFilters} */
   const query = { ...(focusContext.candidateQuery || {}) };
 
   delete query.rankBuckets;
@@ -366,6 +398,7 @@ function resumePrimaryQuery(focusContext) {
   };
 }
 
+/** @param {ResolvedFocusContext} focusContext */
 function resumeFallbackQuery(focusContext) {
   return {
     ...(focusContext.candidateQuery || {}),
@@ -376,6 +409,7 @@ function resumeFallbackQuery(focusContext) {
   };
 }
 
+/** @param {ResolvedFocusContext} focusContext */
 function resumeDistantFallbackQuery(focusContext) {
   return {
     ...(focusContext.candidateQuery || {}),
@@ -388,6 +422,7 @@ function resumeDistantFallbackQuery(focusContext) {
   };
 }
 
+/** @param {FocusModeInternalDefinition} definition */
 function focusModeDescriptor(definition) {
   return {
     description: definition.description,
@@ -400,10 +435,12 @@ function focusModeDescriptor(definition) {
   };
 }
 
+/** @param {FocusModeInternalDefinition} definition @param {FocusWorkspaceContext} workspaceContext */
 function focusModeAvailable(definition, workspaceContext) {
   return !definition.workspaceTypes || definition.workspaceTypes.includes(workspaceContext.workspaceType);
 }
 
+/** @param {FocusFilters} [filters] @returns {NormalizedFocusFilters} */
 function normalizeFilters(filters = {}) {
   const date = objectValue(filters.date);
 
@@ -425,18 +462,20 @@ function normalizeFilters(filters = {}) {
   };
 }
 
-function applyRequiredStatusPolicy(definition, filters = {}) {
+/** @param {FocusModeInternalDefinition} definition @param {FocusFilters} filters @returns {FocusFilters} */
+function applyRequiredStatusPolicy(definition, filters) {
   if (definition.id === FOCUS_MODE_IDS.reviewBlockedWork) {
     return filters;
   }
 
   return {
     ...filters,
-    excludeStatus: [...new Set([...(filters.excludeStatus || []), "blocked"])],
+    excludeStatus: [...new Set([...normalizeTextList(filters.excludeStatus), "blocked"])],
   };
 }
 
-function mergeScopeFilters(filters = {}, input = {}, workspaceContext = {}) {
+/** @param {FocusFilters} filters @param {FocusInput} input @param {FocusWorkspaceContext} workspaceContext @returns {FocusFilters} */
+function mergeScopeFilters(filters = {}, input = {}, workspaceContext) {
   const merged = {
     ...objectValue(filters),
   };
@@ -459,6 +498,7 @@ function mergeScopeFilters(filters = {}, input = {}, workspaceContext = {}) {
   return merged;
 }
 
+/** @param {Record<string, unknown>} scope @param {NormalizedFocusFilters} filters */
 function normalizeScope(scope, filters) {
   return {
     clientId: textValue(firstValue(scope.clientId, filters.clientId), 160),
@@ -467,7 +507,9 @@ function normalizeScope(scope, filters) {
   };
 }
 
+/** @param {FocusModeInternalDefinition} definition @param {NormalizedFocusFilters} filters @param {FocusDates} dates @param {FocusInput} input @param {FocusWorkspaceContext} workspaceContext @param {Record<string, unknown>} [hierarchyScope] @returns {FocusCandidateQuery} */
 function buildCandidateQuery(definition, filters, dates, input, workspaceContext, hierarchyScope = {}) {
+  /** @type {FocusCandidateQuery} */
   const query = {
     mode: definition.id,
     timezone: workspaceContext.timezone,
@@ -527,19 +569,22 @@ function buildCandidateQuery(definition, filters, dates, input, workspaceContext
   return query;
 }
 
+/** @param {unknown} strategy */
 function normalizeResumeStrategy(strategy) {
   if (!strategy || typeof strategy !== "object" || Array.isArray(strategy)) {
     return null;
   }
 
+  const value = /** @type {Record<string, unknown>} */ (strategy);
   return {
-    fallback: textValue(strategy.fallback, 80),
-    fallbackRankBuckets: normalizeTextList(strategy.fallbackRankBuckets),
-    primary: textValue(strategy.primary, 80),
+    fallback: textValue(value.fallback, 80),
+    fallbackRankBuckets: normalizeTextList(value.fallbackRankBuckets),
+    primary: textValue(value.primary, 80),
   };
 }
 
-async function readWorkspaceContext(session = {}, options = {}) {
+/** @param {WorkspaceRequestSession} session @param {FocusInput} [options] @returns {Promise<FocusWorkspaceContext>} */
+async function readWorkspaceContext(session, options = {}) {
   const workspaceId = textValue(session?.workspace_id, 160);
   const rows = workspaceId
     ? await db.query(`
@@ -563,6 +608,9 @@ LIMIT 1;
   };
 }
 
+/**
+ * @param {{ workspace_id: string; }} context
+ */
 async function readWorkbenchFocusPolicy(context) {
   const [candidateGroups, priorityOrder] = await Promise.all([
     readWorkbenchFocusSetting(context, WORKBENCH_FOCUS_SETTING_IDS.candidateGroups),
@@ -572,6 +620,10 @@ async function readWorkbenchFocusPolicy(context) {
   return normalizeWorkbenchFocusPolicy({ candidateGroups, priorityOrder });
 }
 
+/**
+ * @param {{ workspace_id: string; }} context
+ * @param {string} settingId
+ */
 async function readWorkbenchFocusSetting(context, settingId) {
   try {
     return await settingsService.getFrameworkValue(context, settingId);
@@ -585,6 +637,9 @@ async function readWorkbenchFocusSetting(context, settingId) {
   }
 }
 
+/**
+ * @param {import("../core/settings/workbench-focus-policy.js").WorkbenchFocusPolicy | undefined} policy
+ */
 function configurableRankBuckets(policy, supportedGroups = Object.values(WORKBENCH_FOCUS_GROUPS)) {
   const supported = new Set(supportedGroups);
   return [
@@ -594,7 +649,8 @@ function configurableRankBuckets(policy, supportedGroups = Object.values(WORKBEN
   ];
 }
 
-function focusDates(input = {}, workspaceContext = {}) {
+/** @param {FocusInput} input @param {FocusWorkspaceContext} workspaceContext @returns {FocusDates} */
+function focusDates(input = {}, workspaceContext) {
   const timezone = workspaceContext.timezone || DEFAULT_TIMEZONE;
   const today = normalizeDateKey(firstValue(input.today, input.todayDate, input.today_date)) ||
     localDateKey(new Date(), timezone);
@@ -605,6 +661,7 @@ function focusDates(input = {}, workspaceContext = {}) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeFocusModeId(value) {
   const normalized = textValue(value, 120)
     .toLowerCase()
@@ -615,6 +672,7 @@ function normalizeFocusModeId(value) {
   return FOCUS_MODE_BY_ID.has(normalized) ? normalized : "";
 }
 
+/** @param {unknown} value */
 function normalizeDateKey(value) {
   const text = textValue(value, 80);
   const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -622,12 +680,19 @@ function normalizeDateKey(value) {
   return match ? match[1] : "";
 }
 
+/**
+ * @param {string} dateKey
+ * @param {number} days
+ */
 function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * @param {number | Date | undefined} date
+ */
 function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -639,6 +704,7 @@ function localDateKey(date, timezone = DEFAULT_TIMEZONE) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {unknown} value */
 function normalizeTextList(value) {
   const rawValues = Array.isArray(value)
     ? value
@@ -649,26 +715,40 @@ function normalizeTextList(value) {
     .filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeSortMode(value) {
   const sort = textValue(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
   const supportedSorts = /** @type {string[]} */ (Object.values(WORK_CANDIDATE_SORTS));
   return supportedSorts.includes(sort) ? sort : "";
 }
 
+/**
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
 function objectValue(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
 }
 
+/** @param {...unknown} values */
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
 
+/** @param {unknown} value @param {number} [limit] */
 function textValue(value, limit = 1000) {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ */
 function boundedInteger(value, min, max, fallback = min) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -677,11 +757,14 @@ function boundedInteger(value, min, max, fallback = min) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+/** @param {Array<WorkCandidate|null>} [candidates] */
 function dedupeCandidatesBySource(candidates = []) {
   const seen = new Set();
+  /** @type {WorkCandidate[]} */
   const deduped = [];
 
   for (const candidate of candidates) {
+    if (!candidate) continue;
     const key = candidateSourceKey(candidate);
 
     if (seen.has(key)) {
@@ -695,6 +778,7 @@ function dedupeCandidatesBySource(candidates = []) {
   return deduped;
 }
 
+/** @param {Partial<WorkCandidate>} [candidate] */
 function candidateSourceKey(candidate = {}) {
   return [
     textValue(candidate.moduleId || candidate.module_id, 80),
@@ -703,6 +787,7 @@ function candidateSourceKey(candidate = {}) {
   ].join(":");
 }
 
+/** @param {Partial<WorkCandidate>} [candidate] */
 function isTimerResumeCandidate(candidate = {}) {
   const recordType = textValue(candidate.recordType || candidate.record_type, 80);
   const timerStatus = textValue(
@@ -714,15 +799,18 @@ function isTimerResumeCandidate(candidate = {}) {
     ["running", "active", "paused"].includes(timerStatus);
 }
 
+/** @param {Record<string, unknown>} [query] */
 function focusCandidateLimit(query = {}) {
   return boundedInteger(firstValue(query.limit, query.pageSize, query.page_size), 1, 100, 25);
 }
 
-const workFocusModesService = {
+const workFocusModesServiceInternal = {
   listFocusCandidates,
   listFocusModes,
   resolveFocusMode,
 };
+
+const workFocusModesService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workFocusModesServiceInternal>} */ (workFocusModesServiceInternal);
 
 export {
   FOCUS_MODE_IDS,

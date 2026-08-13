@@ -54,7 +54,7 @@ assert.doesNotMatch(
 
 assert.match(
   focusModesService,
-  /function mergeScopeFilters\(filters = \{\}, input = \{\}, workspaceContext = \{\}\)[\s\S]*workspaceContext\.workspaceType === "business"[\s\S]*merged\.clientId = clientId[\s\S]*merged\.projectId = projectId/,
+  /function mergeScopeFilters\(filters = \{\}, input = \{\}, workspaceContext\)[\s\S]*workspaceContext\.workspaceType === "business"[\s\S]*merged\.clientId = clientId[\s\S]*merged\.projectId = projectId/,
   "Focus resolver should merge exact client/project filters before building the candidate query",
 );
 assert.match(

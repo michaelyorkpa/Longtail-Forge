@@ -14,6 +14,9 @@ if (!appVersion) {
   throw new Error("package.json must define a non-empty version.");
 }
 
+/**
+ * @param {string} value
+ */
 function normalizeReleaseBranch(value, { required = false } = {}) {
   const branch = String(value || "").trim().toLowerCase();
   if (!branch) {

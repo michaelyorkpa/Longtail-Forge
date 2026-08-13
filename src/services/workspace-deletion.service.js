@@ -10,6 +10,14 @@ const DELETION_GRACE_DAYS = 30;
 const RECENT_BACKUP_WINDOW_HOURS = 24;
 const NO_CURRENT_BACKUP_ACKNOWLEDGEMENT = "DELETE WITHOUT CURRENT BACKUP";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../repositories/workspaces.repo.js").WorkspaceRow} WorkspaceRow */
+/** @typedef {import("../repositories/workspace-deletion-lifecycle.repo.js").WorkspaceDeletionLifecycle} WorkspaceDeletionLifecycle */
+/** @typedef {import("../repositories/workspace-backup-exports.repo.js").WorkspaceBackupExport} WorkspaceBackupExport */
+/** @typedef {{ workspaceName?: unknown, acknowledgement?: unknown }} WorkspaceDeletionRequestPayload */
+/** @typedef {{ now?: unknown }} WorkspaceDeletionOptions */
+
+/** @param {WorkspaceRequestSession} session */
 async function read(session) {
   assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   await assertCanManageWorkspaceDeletion(session);
@@ -21,8 +29,10 @@ async function read(session) {
   return toBrowserState({ lifecycle, latestBackup, workspace });
 }
 
-async function request(payload, session, options = {}) {
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session @param {WorkspaceDeletionOptions} [options] */
+async function request(rawPayload, session, options = {}) {
   assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
+  const payload = /** @type {WorkspaceDeletionRequestPayload} */ (rawPayload && typeof rawPayload === "object" ? rawPayload : {});
   await assertCanManageWorkspaceDeletion(session);
   const workspace = await requireWorkspace(session.workspace_id);
   const existing = await workspaceDeletionLifecycleRepository.read(session.workspace_id);
@@ -58,6 +68,7 @@ async function request(payload, session, options = {}) {
   return toBrowserState({ lifecycle, latestBackup, workspace });
 }
 
+/** @param {WorkspaceRequestSession} session @param {WorkspaceDeletionOptions} [options] */
 async function cancel(session, options = {}) {
   assertPublicDemoCapabilityAllowed("administration.workspace_lifecycle");
   await assertCanManageWorkspaceDeletion(session);
@@ -86,23 +97,31 @@ async function cancel(session, options = {}) {
   });
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readBootstrapState(workspaceId) {
   const lifecycle = await workspaceDeletionLifecycleRepository.read(workspaceId);
   return lifecycle ? toLifecycleSummary(lifecycle) : null;
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function assertCanManageWorkspaceDeletion(session) {
   if (!await permissionsService.isWorkspaceAdministrator(session)) {
     throw new AppError("Only a Workspace Administrator or Super Admin may manage workspace deletion.", 403);
   }
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function requireWorkspace(workspaceId) {
   const workspace = await workspacesRepository.readById(workspaceId);
   if (!workspace) throw new AppError("Workspace not found.", 404);
   return workspace;
 }
 
+/** @param {{ lifecycle: WorkspaceDeletionLifecycle | null, latestBackup: WorkspaceBackupExport | null, workspace: WorkspaceRow }} value */
 function toBrowserState({ lifecycle, latestBackup, workspace }) {
   const recentBackup = isRecentBackup(latestBackup, new Date());
   return {
@@ -120,6 +139,7 @@ function toBrowserState({ lifecycle, latestBackup, workspace }) {
   };
 }
 
+/** @param {WorkspaceDeletionLifecycle} lifecycle */
 function toLifecycleSummary(lifecycle) {
   return {
     backupProtected: Boolean(lifecycle.backupId),
@@ -131,6 +151,10 @@ function toLifecycleSummary(lifecycle) {
   };
 }
 
+/**
+ * @param {import("../repositories/workspace-backup-exports.repo.js").WorkspaceBackupExport | null} receipt
+ * @param {Date} now
+ */
 function isRecentBackup(receipt, now) {
   if (!receipt?.createdAt) return null;
   const createdAt = new Date(receipt.createdAt);
@@ -138,12 +162,14 @@ function isRecentBackup(receipt, now) {
   return Number.isFinite(age) && age >= 0 && age <= RECENT_BACKUP_WINDOW_HOURS * 60 * 60 * 1000 ? receipt : null;
 }
 
+/** @param {unknown} value */
 function readNow(value) {
   const now = value instanceof Date ? value : new Date();
   if (Number.isNaN(now.getTime())) throw new AppError("A valid deletion request time is required.", 500);
   return now;
 }
 
+/** @param {WorkspaceRequestSession} session @param {WorkspaceRow} workspace @param {string} action @param {string} changeType @param {Record<string, unknown>} metadata */
 async function recordLifecycleAudit(session, workspace, action, changeType, metadata) {
   return auditService.record({
     session,
@@ -158,12 +184,14 @@ async function recordLifecycleAudit(session, workspace, action, changeType, meta
   });
 }
 
-export const workspaceDeletionService = {
+const workspaceDeletionServiceInternal = {
   cancel,
   read,
   readBootstrapState,
   request,
 };
+
+export const workspaceDeletionService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workspaceDeletionServiceInternal>} */ (workspaceDeletionServiceInternal);
 
 export {
   DELETION_GRACE_DAYS,

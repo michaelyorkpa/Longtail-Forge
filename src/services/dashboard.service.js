@@ -12,6 +12,9 @@ const DASHBOARD_REGIONS = [
   { id: "secondary", label: "Secondary" },
 ];
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+
+/** @param {WorkspaceRequestSession} session */
 async function readDashboard(session) {
   const [settings, dashboardPanels, browserAssets] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id, session),
@@ -92,6 +95,7 @@ async function readDashboard(session) {
   };
 }
 
+/** @param {unknown[]} dashboardPanels @param {unknown[]} warnings */
 function dashboardPulseSummary(dashboardPanels, warnings) {
   if (warnings.length > 0) {
     return `${warnings.length} setup item${warnings.length === 1 ? "" : "s"} may need review.`;
@@ -119,6 +123,8 @@ function readSetupWarnings() {
     .filter((warning) => warning.message);
 }
 
-export const dashboardService = {
+const dashboardServiceInternal = {
   readDashboard,
 };
+
+export const dashboardService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof dashboardServiceInternal>} */ (dashboardServiceInternal);
