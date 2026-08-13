@@ -198,6 +198,7 @@ Release-wide measurable acceptance:
 - [ ] Type release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict.
 - [ ] Preserve every retained assertion ID and current-contract failure message.
 - [ ] Avoid typing retired files or reintroducing one-file-per-assertion structure.
+- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.30 - Type framework, views, and permission regression owners
@@ -207,6 +208,7 @@ Release-wide measurable acceptance:
 - [ ] Close full-strict debt in framework, views, permissions, and registered permission-harness support code.
 - [ ] Type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof.
 - [ ] Preserve security, accessibility, permission, and module-enablement expectations.
+- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
@@ -216,6 +218,7 @@ Release-wide measurable acceptance:
 - [ ] Close full-strict debt in database, Files, jobs, migration, recovery, storage, scanner, and worker regressions.
 - [ ] Type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly.
 - [ ] Preserve real child/database isolation and do not merge processes merely to satisfy a target.
+- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.32 - Type product regressions and close the scripts program
@@ -225,6 +228,7 @@ Release-wide measurable acceptance:
 - [ ] Close full-strict debt in Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, public API, and remaining legacy owners.
 - [ ] Keep the scripts estate free of file-local pragmas; do not add excludes or blanket `any` while closing the ledger.
 - [ ] Enable direct scripts-program `checkJs` and `noImplicitAny`, delete the scripts ledger section at zero, and keep every operational entry directly runnable.
+- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition, and close the release-wide acceptance that no active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content and fewer than 40 surviving programs read planning/history documents.
 - [ ] Re-run the assertion/entry-point/process inventory after strict closure.
 
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
