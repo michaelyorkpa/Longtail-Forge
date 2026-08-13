@@ -16,6 +16,10 @@ import { searchIndexSyncService } from "../../services/search-index-sync.service
 import { searchService } from "../../services/search.service.js";
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import {
+  NoteCatalogSecurityTransitionSchema,
+  parseNotesEdgePayload,
+} from "./notes.contracts.js";
+import {
   CATALOG_SECURITY_POLICIES,
   CATALOG_SECURITY_TRANSITION_STATES,
   resolveNoteEffectiveSecurity,
@@ -59,22 +63,27 @@ async function preflight(collectionId, query = {}, session) {
   return { preflight: publicPreflight(context) };
 }
 
-async function enable(collectionId, payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function enable(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   return startTransition(collectionId, TRANSITION_ACTIONS.ENABLE, payload, session);
 }
 
-async function remove(collectionId, payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function remove(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const context = await buildTransitionContext(session.workspace_id, collectionId, TRANSITION_ACTIONS.REMOVE);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   assertDowngradeConfirmation(payload, context);
   await reauthenticateCurrentUser(payload, session);
   return startTransition(collectionId, TRANSITION_ACTIONS.REMOVE, payload, session, { context });
 }
 
-async function retry(collectionId, payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function retry(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const collection = await readCollectionOrThrow(session.workspace_id, collectionId);
@@ -84,6 +93,7 @@ async function retry(collectionId, payload = {}, session) {
 
   const action = normalizeAction(collection.security_transition_action);
   const context = await buildTransitionContext(session.workspace_id, collectionId, action);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   if (action === TRANSITION_ACTIONS.REMOVE) {
     assertDowngradeConfirmation(payload, context);
     await reauthenticateCurrentUser(payload, session);

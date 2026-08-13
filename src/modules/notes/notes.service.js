@@ -1,5 +1,20 @@
 import { notesRepository } from "./notes.repo.js";
 import {
+  CreateNoteCollectionSchema,
+  CreateNoteSchema,
+  MoveNoteCollectionSchema,
+  NoteBulkUpdateSchema,
+  NoteCatalogBulkActionSchema,
+  NoteCollectionAssignmentSchema,
+  NoteImportCollectionPathSchema,
+  NoteLibraryChangeSchema,
+  NoteLinkSchema,
+  NoteMarkdownPreviewSchema,
+  UpdateNoteCollectionSchema,
+  UpdateNoteSchema,
+  parseNotesEdgePayload,
+} from "./notes.contracts.js";
+import {
   NOTE_IMPORT_METADATA_FIELDS,
   NOTE_PERMISSIONS,
   canAccessNote,
@@ -209,7 +224,8 @@ async function read(noteId, session) {
   return { note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
 
-async function previewMarkdown(payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function previewMarkdown(rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const canPreview = await permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.CREATE) ||
     await permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.UPDATE);
@@ -218,7 +234,8 @@ async function previewMarkdown(payload = {}, session) {
     throw new AppError("You do not have permission to preview note Markdown.", 403);
   }
 
-  const bodyMarkdown = assertSafeMarkdown(payload?.body_markdown ?? payload?.bodyMarkdown ?? "");
+  const payload = parseNotesEdgePayload(NoteMarkdownPreviewSchema, rawPayload);
+  const bodyMarkdown = assertSafeMarkdown(String(payload?.body_markdown ?? payload?.bodyMarkdown ?? ""));
 
   return {
     bodyFormat: "markdown",
@@ -228,8 +245,10 @@ async function previewMarkdown(payload = {}, session) {
   };
 }
 
-async function create(payload, session) {
+/** @param {unknown} rawPayload */
+async function create(rawPayload, session) {
   await assertNotesWriteEnabled(session);
+  const payload = parseNotesEdgePayload(CreateNoteSchema, rawPayload);
   const normalized = await normalizeNotePayload(payload, session);
   await assertSecureNoteCanBePersisted(session, normalized);
   await assertLinkedContextAccess(session, normalized);
@@ -258,10 +277,22 @@ async function create(payload, session) {
   };
 }
 
-async function update(noteId, payload, session) {
+/** @param {unknown} rawPayload */
+async function update(noteId, rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, previousNote, "update");
+  const payload = parseNotesEdgePayload(UpdateNoteSchema, rawPayload);
+  return updateValidatedNote(noteId, payload, session, previousNote);
+}
+
+/**
+ * @param {string} noteId
+ * @param {import("zod").output<typeof UpdateNoteSchema>} payload
+ * @param {import("../../types/http-contracts.js").WorkspaceRequestSession} session
+ * @param {NonNullable<Awaited<ReturnType<typeof notesRepository.readById>>>} previousNote
+ */
+async function updateValidatedNote(noteId, payload, session, previousNote) {
   const nextNote = await normalizeNotePayload(payload, session, previousNote);
   await assertSecureNoteCanBePersisted(session, nextNote, previousNote);
   await assertLinkedContextAccess(session, nextNote);
@@ -319,14 +350,17 @@ async function update(noteId, payload, session) {
 
 async function changeLibrary(noteId, payload, session) {
   const previousNote = await readNoteOrThrow(session, noteId);
-  const nextBucket = normalizeEnum(payload?.libraryBucket || payload?.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket");
+  await assertCanAccess(session, previousNote, "update");
+  const parsedPayload = parseNotesEdgePayload(NoteLibraryChangeSchema, payload);
+  const nextBucket = normalizeEnum(parsedPayload?.libraryBucket || parsedPayload?.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket");
+  await assertNotesWriteEnabled(session);
 
-  return update(noteId, {
+  return updateValidatedNote(noteId, {
     ...previousNote,
     library_bucket: nextBucket,
     library_bucket_source: NOTE_LIBRARY_BUCKET_SOURCES.MANUAL,
     note_collection_id: previousNote.library_bucket === nextBucket ? previousNote.note_collection_id : null,
-  }, session);
+  }, session, previousNote);
 }
 
 async function archive(noteId, session) {
@@ -508,8 +542,18 @@ async function listCollections(session, query = {}) {
   };
 }
 
-async function createCollection(payload, session) {
+/** @param {unknown} rawPayload */
+async function createCollection(rawPayload, session) {
   await assertCollectionsWriteEnabled(session);
+  const payload = parseNotesEdgePayload(CreateNoteCollectionSchema, rawPayload);
+  return createValidatedCollection(payload, session);
+}
+
+/**
+ * @param {import("zod").output<typeof CreateNoteCollectionSchema>} payload
+ * @param {import("../../types/http-contracts.js").WorkspaceRequestSession} session
+ */
+async function createValidatedCollection(payload, session) {
   const collection = await normalizeCollectionPayload(payload, session);
   await assertCollectionSiblingAvailable(session.workspace_id, collection);
   const created = await notesRepository.createCollection(session.workspace_id, collection);
@@ -518,8 +562,19 @@ async function createCollection(payload, session) {
   return { collection: created };
 }
 
-async function updateCollection(collectionId, payload, session) {
+/** @param {unknown} rawPayload */
+async function updateCollection(collectionId, rawPayload, session) {
   await assertCollectionsWriteEnabled(session);
+  const payload = parseNotesEdgePayload(UpdateNoteCollectionSchema, rawPayload);
+  return updateValidatedCollection(collectionId, payload, session);
+}
+
+/**
+ * @param {string} collectionId
+ * @param {import("zod").output<typeof UpdateNoteCollectionSchema>} payload
+ * @param {import("../../types/http-contracts.js").WorkspaceRequestSession} session
+ */
+async function updateValidatedCollection(collectionId, payload, session) {
   const previous = await readCollectionOrThrow(session, collectionId);
   await assertCollectionMutationStable(session, previous);
   const next = await normalizeCollectionPayload(payload, session, previous);
@@ -548,8 +603,11 @@ async function updateCollection(collectionId, payload, session) {
   return { collection: await notesRepository.readCollectionById(session.workspace_id, updated.note_library_collection_id) };
 }
 
-async function moveCollection(collectionId, payload, session) {
-  return updateCollection(collectionId, {
+/** @param {unknown} rawPayload */
+async function moveCollection(collectionId, rawPayload, session) {
+  await assertCollectionsWriteEnabled(session);
+  const payload = parseNotesEdgePayload(MoveNoteCollectionSchema, rawPayload);
+  return updateValidatedCollection(collectionId, {
     parentCollectionId: payload.parentCollectionId ?? payload.parent_collection_id ?? null,
     title: payload.title,
     name: payload.name,
@@ -648,15 +706,19 @@ async function deleteEmptyCollection(collectionId, session) {
 async function assignNoteCollection(noteId, payload, session) {
   const previousNote = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, previousNote, "update");
-  const noteCollectionId = normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id ?? payload.collectionId ?? payload.collection_id);
+  const parsedPayload = parseNotesEdgePayload(NoteCollectionAssignmentSchema, payload);
+  const noteCollectionId = normalizeOptionalText(parsedPayload.noteCollectionId ?? parsedPayload.note_collection_id ?? parsedPayload.collectionId ?? parsedPayload.collection_id);
+  await assertNotesWriteEnabled(session);
 
-  return update(noteId, {
+  return updateValidatedNote(noteId, {
     note_collection_id: noteCollectionId || null,
-  }, session);
+  }, session, previousNote);
 }
 
-async function ensureCollectionsForImportPath(session, payload = {}) {
+/** @param {unknown} rawPayload */
+async function ensureCollectionsForImportPath(session, rawPayload) {
   await assertCollectionsWriteEnabled(session);
+  const payload = parseNotesEdgePayload(NoteImportCollectionPathSchema, rawPayload);
   const libraryBucket = normalizeEnum(
     payload.libraryBucket || payload.library_bucket || NOTE_LIBRARY_BUCKETS.REFERENCE,
     LIBRARY_BUCKET_VALUES,
@@ -682,7 +744,7 @@ async function ensureCollectionsForImportPath(session, payload = {}) {
       continue;
     }
 
-    const created = await createCollection({
+    const created = await createValidatedCollection({
       collectionSource: "imported",
       libraryBucket,
       parentCollectionId: parent?.note_library_collection_id || null,
@@ -734,10 +796,12 @@ async function readConsumerSummary(noteId, session, consumerId) {
   return shapeConsumerNoteSummary(note);
 }
 
-async function createLink(noteId, payload, session) {
+/** @param {unknown} rawPayload */
+async function createLink(noteId, rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "manage_links");
+  const payload = parseNotesEdgePayload(NoteLinkSchema, rawPayload);
   const link = normalizeLinkPayload(payload, noteId, session);
   await assertTargetAccess(session, link);
   const createdLink = await notesRepository.createLink(session.workspace_id, link);
@@ -820,8 +884,10 @@ async function listCatalogSettings(session) {
   };
 }
 
-async function bulkManageCatalogs(payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function bulkManageCatalogs(rawPayload, session) {
   await assertCatalogSettingsAccess(session);
+  const payload = parseNotesEdgePayload(NoteCatalogBulkActionSchema, rawPayload);
   const catalogIds = [...new Set(normalizeIdList(payload.catalogIds ?? payload.catalog_ids))];
   const action = normalizeEnum(payload.action, new Set(["archive", "restore"]), "Catalog bulk action");
 
@@ -875,8 +941,10 @@ async function bulkManageCatalogs(payload = {}, session) {
   };
 }
 
-async function bulkUpdate(payload, session) {
+/** @param {unknown} rawPayload */
+async function bulkUpdate(rawPayload, session) {
   await assertNotesWriteEnabled(session);
+  const payload = parseNotesEdgePayload(NoteBulkUpdateSchema, rawPayload);
   const noteIds = [...new Set(normalizeIdList(payload?.noteIds || payload?.note_ids || []))];
   if (noteIds.length === 0) {
     throw new AppError("Select at least one note to update.", 400);
@@ -891,7 +959,9 @@ async function bulkUpdate(payload, session) {
 
   for (const noteId of noteIds) {
     try {
-      const result = await update(noteId, changes, session);
+      const previousNote = await readNoteOrThrow(session, noteId);
+      await assertCanAccess(session, previousNote, "update");
+      const result = await updateValidatedNote(noteId, changes, session, previousNote);
       notes.push(result.note);
     } catch (error) {
       errors.push({

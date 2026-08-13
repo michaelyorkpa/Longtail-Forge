@@ -20,7 +20,7 @@ const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesService = await readText("src/modules/notes/notes.service.js");
 
 assert.match(notesRoutes, /post\("\/notes\/bulk"[\s\S]*notesService\.bulkUpdate/, "Notes should expose one module-owned bulk metadata route");
-assert.match(functionBlock(notesService, "bulkUpdate"), /assertNotesWriteEnabled\(session\)[\s\S]*at most 100 notes[\s\S]*normalizeNoteBulkChanges[\s\S]*await update\(noteId, changes, session\)[\s\S]*errors\.push/, "bulk updates should stay bounded and run every selected note through the canonical update pipeline");
+assert.match(functionBlock(notesService, "bulkUpdate"), /assertNotesWriteEnabled\(session\)[\s\S]*at most 100 notes[\s\S]*normalizeNoteBulkChanges[\s\S]*readNoteOrThrow\(session, noteId\)[\s\S]*assertCanAccess\(session, previousNote, "update"\)[\s\S]*updateValidatedNote\(noteId, changes, session, previousNote\)[\s\S]*errors\.push/, "bulk updates should stay bounded and run every selected note through the canonical validated update pipeline");
 assert.match(functionBlock(notesService, "normalizeNoteBulkChanges"), /readCollectionById\(session\.workspace_id, noteCollectionId\)[\s\S]*collection\.library_bucket[\s\S]*changes\.note_collection_id = null[\s\S]*Choose at least one Notes field/, "bulk field normalization should keep collection and Library state consistent and reject empty changes");
 
 assert.match(notesModule, /id: "note-bulk-editor"[\s\S]*field: "library"[\s\S]*field: "collection"[\s\S]*field: "noteType"[\s\S]*field: "visibility"[\s\S]*field: "tagAction"/, "the Notes descriptor should declare metadata fields plus the bulk tag action");

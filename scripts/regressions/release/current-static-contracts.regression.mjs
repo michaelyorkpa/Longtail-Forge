@@ -153,6 +153,7 @@ const narrowVitestOwners = {
   "test:contracts": [
     "tests/contracts/files-contracts.test.mjs",
     "tests/contracts/normalizers-timezones.test.mjs",
+    "tests/contracts/notes-contracts.test.mjs",
     "tests/contracts/tasks-contracts.test.mjs",
     "tests/contracts/time-tracking-contracts.test.mjs",
   ],
