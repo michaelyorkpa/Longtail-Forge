@@ -125,12 +125,12 @@
       ]
     },
     {
-      "sourceRegression": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "sourceRegression": "scripts/regressions/tasks/current-static-contracts.regression.mjs",
       "movedInVersion": "0.33.27.7.5",
       "movementType": "duplicate-contract-to-regression",
       "assertionCount": 534,
       "rationale": "Package, lock-root, and lock-package current-version equality was repeated across legacy regressions even though the direct version guard already owns the canonical runtime and metadata relationship.",
-      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; release.closeout-conductor runs that direct gate once.",
+      "assertionDisposition": "scripts/version-literal-guardrail-regression.mjs owns package.json, both package-lock version fields, the runtime helper, app-info, changelog heading, and roadmap advancement; tasks.current-static-contracts remains the discovered workflow-module source owner and release.closeout-conductor runs the direct version gate once.",
       "movedTo": "scripts/version-literal-guardrail-regression.mjs",
       "retainedIntegrationOwner": "scripts/regressions/release/closeout-conductor.regression.mjs",
       "sourceInventory": "scripts/validation-ownership-consolidation.json",

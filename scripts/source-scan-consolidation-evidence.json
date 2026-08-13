@@ -12,7 +12,7 @@
   "pattern": "[\\s\\S]* or [^]*",
   "targetedFiles": [
     {
-      "path": "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
+      "path": "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs",
       "before": 170,
       "after": 159
     },
@@ -22,7 +22,7 @@
       "after": 121
     },
     {
-      "path": "scripts/tasks-strict-guardrail-inventory-regression.mjs",
+      "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
       "before": 125,
       "after": 119
     }
