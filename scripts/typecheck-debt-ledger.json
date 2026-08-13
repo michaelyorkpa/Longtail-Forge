@@ -6117,7 +6117,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 10441,
+      "errorCount": 10406,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -11230,7 +11230,7 @@
         "scripts/regressions/release/developer-verification-throughput.regression.mjs": [
           {
             "code": 2322,
-            "count": 33
+            "count": 1
           },
           {
             "code": 7006,
@@ -11783,12 +11783,8 @@
         ],
         "scripts/release/checkpoint-commits.mjs": [
           {
-            "code": 2322,
-            "count": 1
-          },
-          {
             "code": 2339,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2353,
@@ -11800,7 +11796,7 @@
           },
           {
             "code": 7031,
-            "count": 2
+            "count": 1
           }
         ],
         "scripts/release/configure-github-release-operations.mjs": [
@@ -13492,7 +13488,7 @@
   },
   "totals": {
     "files": 1002,
-    "errors": 31288,
+    "errors": 31253,
     "explicitAny": 47
   },
   "explicitAnyByFile": {

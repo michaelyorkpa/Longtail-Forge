@@ -7,7 +7,7 @@
 - [x] Extended each discovered owner's generated `assertionCount` with the assertion rows of its imported `scripts/regression-contracts/` modules, exposing entry-point, contract-module, and combined counts without double-counting direct owners.
 - [x] Made manifest validation reject orphaned, missing, multiply owned, or undiscovered-owner contract modules, and proved that an unreviewed contract-row deletion shrinks the owner and fails the floor while reviewed retirement credit preserves the existing semantics.
 - [x] Reconciled the recorded `17,839` to `14,026` entry-point drop in the retirement evidence index across 355 archived historical pins, 126 reviewed true duplicates, 38 Vitest movements, the 4,009-assertion table-compression artifact, and a separately disclosed 715-assertion current-owner growth offset.
-- [x] Re-baselined the generated owned-assertion inventory at 18,051 and advanced the effective shrink-only assertion floor from 18,704 to 18,720 with synthetic positive, negative, orphan, uniqueness, and deterministic-generation proof.
+- [x] Re-baselined the generated owned-assertion inventory at 18,054 and advanced the effective shrink-only assertion floor from 18,704 to 18,723 with synthetic positive, negative, orphan, uniqueness, and deterministic-generation proof, including declared nested-checkpoint validation.
 
 ## Version 0.33.33.12 - Establish three-program full-strict governance
 

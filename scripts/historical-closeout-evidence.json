@@ -5,8 +5,8 @@
     "version": "0.33.33.12.1",
     "legacyEntryPointBaseline": 17839,
     "legacyEntryPointCurrent": 14026,
-    "postGuardEntryPointCurrent": 14042,
-    "correctedOwnedAssertionCurrent": 18051,
+    "postGuardEntryPointCurrent": 14045,
+    "correctedOwnedAssertionCurrent": 18054,
     "categories": {
       "archivedHistoricalPins": {
         "assertions": 355,
@@ -31,8 +31,8 @@
     },
     "equations": [
       "17839 - 355 - 126 - 38 - 4009 + 715 = 14026",
-      "14026 + 4009 + 16 inventory-guard assertions = 18051",
-      "18051 owned + 101 Vitest + 72 direct-owner + 496 reviewed reduction credit = 18720 effective"
+      "14026 + 4009 + 19 inventory-guard assertions = 18054",
+      "18054 owned + 101 Vitest + 72 direct-owner + 496 reviewed reduction credit = 18723 effective"
     ]
   },
   "singleOwnership": {

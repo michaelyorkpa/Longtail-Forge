@@ -33,6 +33,19 @@ function parseCheckpointTrailers(message) {
   return Object.freeze({ duplicates, values });
 }
 
+/**
+ * @param {{
+ *   message?: string,
+ *   packageAfterSource?: string,
+ *   packageBeforeSource?: string,
+ *   parentCount?: number,
+ *   paths?: string[],
+ *   roadmapArchiveSource?: string,
+ *   roadmapSource?: string,
+ *   series?: string,
+ *   closeoutCheckpoint?: string,
+ * }} options
+ */
 function validateCheckpointCommit({
   message,
   packageAfterSource = "",
@@ -64,9 +77,9 @@ function validateCheckpointCommit({
   const checkpoint = trailers.values.get(TRAILER_NAMES.checkpoint);
   const summary = trailers.values.get(TRAILER_NAMES.summary);
   const docsDisposition = trailers.values.get(TRAILER_NAMES.docs);
-  const checkpointPattern = new RegExp(`^${escapeRegExp(series)}\\.[1-9][0-9]*$`);
+  const checkpointPattern = new RegExp(`^${escapeRegExp(series)}(?:\\.[1-9][0-9]*)+$`);
   if (!checkpointPattern.test(checkpoint)) {
-    errors.push(`${TRAILER_NAMES.checkpoint} must be a numeric ${series}.# slice`);
+    errors.push(`${TRAILER_NAMES.checkpoint} must be a numeric ${series}.#[.#...] slice`);
   }
   if (summary.length < 10 || summary.length > 200 || /[\r\n]/.test(summary)) {
     errors.push(`${TRAILER_NAMES.summary} must be a single-line 10-200 character outcome`);
