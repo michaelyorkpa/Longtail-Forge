@@ -46,19 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.12 - Establish three-program full-strict governance
-
-**Model: High Effort** - The temporary debt ledger becomes a hard repository-wide compiler authority.
-
-- [ ] Define server/tests, browser, and scripts TypeScript programs with `allowJs`, `checkJs`, full `strict`, correct Node/DOM environments, and no first-party file omitted from its owning program.
-- [ ] Assign the root executable configuration files (`eslint.config.js`, `playwright.config.js`, `vitest.config.mjs`) to an owning checked program so no first-party root file sits outside the combined universe.
-- [ ] Generate the exact per-file, per-code error ledger for the consolidated tree and fail on growth, new unchecked files, suppressions, or unjustified explicit `any`.
-- [ ] Make the ordinary typecheck conductor accept only diagnostics that exactly match the temporary ledger; direct program output remains visibly nonzero until its owner slices close it.
-- [ ] Migrate the live `framework.typecheck-seams` gate and the seam/clean-file/repository-pass inventories to ledger authority with credited retirements at this checkpoint, so later pragma removal and program flips cannot fight superseded per-file floors mid-branch.
-- [ ] Prove first-party `.d.ts` contract files are themselves error-free through a scoped declaration probe, since `skipLibCheck` otherwise exempts them; keep the `skipLibCheck` justification scoped to third-party declarations.
-- [ ] Keep negative compile fixtures and third-party ambient declarations as the only narrow, documented exceptions.
-- [ ] Make newly created or scaffolded files strict-clean from birth while existing debt can only shrink.
-
 ### 0.33.33.13 - Type Node entry points, HTTP core, and shared route seams
 
 **Model: High Effort** - Request/session/error types are shared security boundaries across all server routes.
