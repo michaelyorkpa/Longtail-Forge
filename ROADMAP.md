@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.10 - Consolidate workflow-module static owners
-
-**Model: High Effort** - Cross-module mechanical consolidation still risks losing module-specific workflow assertions.
-
-- [ ] Consolidate pure source owners for Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, and Notifications by contract family.
-- [ ] Keep database, service, permission, lifecycle, job, and browser-rendered owners separate.
-- [ ] Preserve module-specific expectations as table rows with stable IDs and descriptions.
-- [ ] Prove the assertion inventory and changed-area routing for every affected module.
-
 ### 0.33.33.11 - Consolidate data, Files, and security static owners
 
 **Model: High Effort** - Static cleanup near high-risk data/security contracts must not disturb their executable guarantees.

@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.10 - Consolidate workflow-module static owners
+
+**Model: High Effort** - Cross-module mechanical consolidation still risked losing module-specific workflow assertions.
+
+- [x] Consolidated 61 pure source owners for Lists, Notes, Search, Tags, Tasks, Time Tracking, and Workbench into seven table-driven `current-static-contracts` owners while preserving all 1,826 assertion bodies; Notifications retained its three behavioral database/job owners because it had no pure source owner to fold.
+- [x] Kept database, service, permission, lifecycle, job, fake-browser, HTTP, and browser-memory owners independently runnable, including 15 explicitly recorded mixed owners and all three Notifications owners.
+- [x] Recorded every moved contract with a stable ID, module family, old source path, retained contract-module path, assertion count, retained owner, and module-specific description.
+- [x] Ratcheted active discovery from 424 to 370 scripts, static discovery from 197 to 143 owners, and effective assertion coverage from 18,651 to 18,658; all eight affected area commands passed with their retained behavioral coverage.
+
 ## Version 0.33.33.9 - Consolidate framework and view static owners
 
 **Model: High Effort** - Framework/view assertions spanned shared anatomy, accessibility, security headers, and browser contracts.
