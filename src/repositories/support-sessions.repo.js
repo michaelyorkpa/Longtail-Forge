@@ -372,6 +372,7 @@ ORDER BY outcome;
   };
 }
 
+/** @param {string} cutoffIso */
 async function pruneBefore(cutoffIso) {
   return db.transaction(async (transaction) => {
     const candidates = /** @type {SupportSessionCandidateRow[]} */ (await transaction.query(`
@@ -417,10 +418,12 @@ function buildAuditParams(filters) {
   };
 }
 
+/** @param {SupportViewAuditOption} left @param {SupportViewAuditOption} right */
 function compareAuditOptions(left, right) {
   return compareLabels(left.label, right.label) || compareLabels(left.value, right.value);
 }
 
+/** @param {SupportViewTargetRow} left @param {SupportViewTargetRow} right */
 function compareTargetRows(left, right) {
   return compareLabels(left.display_name || left.username, right.display_name || right.username)
     || compareLabels(left.workspace_name, right.workspace_name)
@@ -428,10 +431,12 @@ function compareTargetRows(left, right) {
     || compareLabels(left.workspace_id, right.workspace_id);
 }
 
+/** @param {string | null | undefined} left @param {string | null | undefined} right */
 function compareLabels(left, right) {
   return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
 }
 
+/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
 function boundedInteger(value, min, max, fallback) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Math.max(min, Math.min(max, Number.isFinite(parsed) ? parsed : fallback));

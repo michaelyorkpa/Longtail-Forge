@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.14 - Type database adapters and repository row projections
+
+**Model: High Effort** - Database result shapes, transactions, and provider boundaries carry data-integrity risk.
+
+- [x] Add named row/result projections for database adapters and framework repositories instead of broad casts or inferred `{}`/`never` containers.
+- [x] Preserve parameter binding, transaction semantics, SQLite behavior, migration ownership, and the future provider-neutral boundary.
+- [x] Type nullable and optional database results explicitly without changing not-found behavior.
+- [x] Reduce the database/repository server ledger to zero and retain schema, dialect, binding, and integrity proofs.
+
 ## Version 0.33.33.13 - Type Node entry points, HTTP core, and shared route seams
 
 **Model: High Effort** - Request/session/error types are shared security boundaries across all server routes.

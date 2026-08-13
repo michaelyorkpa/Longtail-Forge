@@ -39,7 +39,7 @@ const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sor
 const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.13");
+assert.equal(ledger.checkpoint, "0.33.33.14");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -55,7 +55,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/database-contracts.fixture.mjs:8",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 11, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 12, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);

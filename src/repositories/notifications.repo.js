@@ -4,6 +4,22 @@ import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
+/** @typedef {{ notification_id?: string, workspace_id: string, module_id?: string | null, event_type: string, recipient_user_id: string, actor_user_id?: string | null, record_type?: string | null, record_id?: string | null, title: string, body?: string | null, url?: string | null, status?: string, priority?: string, created_at?: string, read_at?: string | null, dismissed_at?: string | null, metadata_json?: string | null }} NotificationCreateInput */
+/** @typedef {{ limit?: unknown, offset?: unknown, status?: unknown, moduleId?: unknown, module_id?: unknown, module?: unknown, eventType?: unknown, event_type?: unknown, priority?: unknown }} NotificationListOptions */
+/** @typedef {{ notification_subscription_id?: string, module_id?: string, target_type?: string, target_id?: string, event_type?: string | null }} NotificationSubscriptionTarget */
+/** @typedef {{ now?: unknown, status?: unknown, subscriptionId?: unknown }} NotificationSubscriptionWriteOptions */
+/** @typedef {{ event_type?: unknown, enabled?: boolean }} NotificationUserPreferenceInput */
+/** @typedef {{ event_type?: unknown, enabled?: boolean, priority?: unknown }} NotificationWorkspaceDefaultInput */
+/** @typedef {{ grouping_mode?: unknown }} NotificationDisplayPreferenceInput */
+/** @typedef {DatabaseRow & { total: unknown }} NotificationTotalRow */
+/** @typedef {DatabaseRow & { count: unknown }} NotificationCountRow */
+/** @typedef {DatabaseRow & { module_id: string | null }} NotificationModuleOptionRow */
+/** @typedef {DatabaseRow & { event_type: string | null }} NotificationEventOptionRow */
+/** @typedef {DatabaseRow & { unread_count: unknown, badge_count: unknown, low_unread_count: unknown, urgent_priority_count: unknown, high_priority_count: unknown }} NotificationBellSummaryRow */
+/** @typedef {DatabaseRow & { user_id: string }} NotificationUserIdRow */
+/** @typedef {DatabaseRow & { workspace_id: string, user_id: string, event_type: string, enabled: unknown, created_at: string, updated_at: string }} NotificationUserPreferenceRow */
+/** @typedef {DatabaseRow & { workspace_id: string, event_type: string, enabled: unknown, priority: string, created_at: string, updated_at: string }} NotificationWorkspaceDefaultRow */
 /** @typedef {DatabaseRow & { notification_id: string, workspace_id: string, module_id: string | null, event_type: string, recipient_user_id: string, actor_user_id: string | null, record_type: string | null, record_id: string | null, title: string, body: string | null, url: string | null, status: string, priority: string, created_at: string, read_at: string | null, dismissed_at: string | null, metadata_json: string | null }} NotificationRow */
 /** @typedef {DatabaseRow & { workspace_id: string, user_id: string, grouping_mode: string, created_at: string, updated_at: string }} NotificationDisplayPreferenceRow */
 /** @typedef {DatabaseRow & { notification_subscription_id: string, workspace_id: string, user_id: string, module_id: string, target_type: string, target_id: string, event_type: string | null, status: string, created_at: string, updated_at: string }} NotificationSubscriptionRow */
@@ -106,6 +122,7 @@ const NOTIFICATION_DISPLAY_PREFERENCE_VALUE_EXPRESSIONS = {
   workspace_id: ":workspaceId",
 };
 
+/** @param {NotificationCreateInput} notification */
 async function create(notification) {
   const notificationId = notification.notification_id || createRecordId();
   const now = notification.created_at || new Date().toISOString();
@@ -171,11 +188,12 @@ VALUES (
   return readById(notification.workspace_id, notificationId);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {NotificationListOptions} [options] */
 async function listForRecipient(workspaceId, recipientUserId, options = {}) {
   const limit = clampLimit(options.limit);
   const offset = clampOffset(options.offset);
   const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, options);
-  const rows = await db.query(`
+  const rows = /** @type {NotificationRow[]} */ (await db.query(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
@@ -187,43 +205,45 @@ OFFSET :offset;
     ...params,
     limit: integerParam(limit),
     offset: integerParam(offset),
-  });
+  }));
 
   return rows.map(notificationRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {NotificationListOptions} [options] */
 async function countForRecipient(workspaceId, recipientUserId, options = {}) {
   const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, options);
-  const row = await db.get(`
+  const row = /** @type {NotificationTotalRow | null} */ (await db.get(`
 SELECT COUNT(*) AS total
 FROM notifications
 WHERE ${clauses.join("\n  AND ")};
-`, params);
+`, params));
 
   return Number(row?.total || 0);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {NotificationListOptions} [options] */
 async function readFilterOptionsForRecipient(workspaceId, recipientUserId, options = {}) {
   const { clauses, params } = notificationListWhereClauses(workspaceId, recipientUserId, {
     status: options.status,
   });
   const [modules, events] = await Promise.all([
-    db.query(`
+    /** @type {Promise<NotificationModuleOptionRow[]>} */ (db.query(`
 SELECT DISTINCT module_id
 FROM notifications
 WHERE ${clauses.join("\n  AND ")}
   AND module_id IS NOT NULL
   AND module_id != ''
 ORDER BY ${db.dialect.comparison.orderByNoCase("module_id", "ASC")};
-`, { ...params }),
-    db.query(`
+`, { ...params })),
+    /** @type {Promise<NotificationEventOptionRow[]>} */ (db.query(`
 SELECT DISTINCT event_type
 FROM notifications
 WHERE ${clauses.join("\n  AND ")}
   AND event_type IS NOT NULL
   AND event_type != ''
 ORDER BY ${db.dialect.comparison.orderByNoCase("event_type", "ASC")};
-`, { ...params }),
+`, { ...params })),
   ]);
 
   return {
@@ -232,8 +252,9 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("event_type", "ASC")};
   };
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId */
 async function countUnreadForRecipient(workspaceId, recipientUserId) {
-  const row = await db.get(`
+  const row = /** @type {NotificationCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM notifications
 WHERE workspace_id = :workspaceId
@@ -243,13 +264,14 @@ WHERE workspace_id = :workspaceId
     recipientUserId: textParam(recipientUserId),
     unreadStatus: "unread",
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return Number(row?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId */
 async function readBellSummaryForRecipient(workspaceId, recipientUserId) {
-  const row = await db.get(`
+  const row = /** @type {NotificationBellSummaryRow | null} */ (await db.get(`
 SELECT
   SUM(CASE WHEN status = :unreadStatus THEN 1 ELSE 0 END) AS unread_count,
   SUM(CASE WHEN status = :unreadStatus AND priority != :lowPriority THEN 1 ELSE 0 END) AS badge_count,
@@ -267,16 +289,16 @@ WHERE workspace_id = :workspaceId
     unreadStatus: "unread",
     urgentPriority: "urgent",
     workspaceId: textParam(workspaceId),
-  });
-  const summary = row || {};
-  const urgentPriorityCount = Number(summary.urgent_priority_count || 0);
-  const highPriorityCount = Number(summary.high_priority_count || 0);
+  }));
+  const summary = row;
+  const urgentPriorityCount = Number(summary?.urgent_priority_count || 0);
+  const highPriorityCount = Number(summary?.high_priority_count || 0);
 
   return {
-    count: Number(summary.badge_count || 0),
-    unreadCount: Number(summary.badge_count || 0),
-    totalUnreadCount: Number(summary.unread_count || 0),
-    lowPriorityUnreadCount: Number(summary.low_unread_count || 0),
+    count: Number(summary?.badge_count || 0),
+    unreadCount: Number(summary?.badge_count || 0),
+    totalUnreadCount: Number(summary?.unread_count || 0),
+    lowPriorityUnreadCount: Number(summary?.low_unread_count || 0),
     urgentPriorityCount,
     highPriorityCount,
     hasUrgentPriority: urgentPriorityCount > 0,
@@ -285,8 +307,9 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} notificationId */
 async function readByIdForRecipient(workspaceId, recipientUserId, notificationId) {
-  const row = await db.get(`
+  const row = /** @type {NotificationRow | null} */ (await db.get(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
@@ -298,13 +321,14 @@ LIMIT 1;
     notificationId: textParam(notificationId),
     recipientUserId: textParam(recipientUserId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return row ? notificationRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} notificationId */
 async function readById(workspaceId, notificationId) {
-  const row = await db.get(`
+  const row = /** @type {NotificationRow | null} */ (await db.get(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
@@ -314,11 +338,12 @@ LIMIT 1;
 `, {
     notificationId: textParam(notificationId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return row ? notificationRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} notificationId */
 async function markRead(workspaceId, recipientUserId, notificationId) {
   const now = new Date().toISOString();
 
@@ -341,6 +366,7 @@ WHERE workspace_id = :workspaceId
   return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId */
 async function markAllRead(workspaceId, recipientUserId) {
   const now = new Date().toISOString();
 
@@ -360,6 +386,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} notificationId */
 async function dismiss(workspaceId, recipientUserId, notificationId) {
   const now = new Date().toISOString();
 
@@ -381,6 +408,7 @@ WHERE workspace_id = :workspaceId
   return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId */
 async function dismissAll(workspaceId, recipientUserId) {
   const now = new Date().toISOString();
 
@@ -400,6 +428,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} cutoffIso */
 async function archiveOlderThan(cutoffIso) {
   await db.run(`
 UPDATE notifications
@@ -413,6 +442,7 @@ WHERE created_at < :cutoffIso
   });
 }
 
+/** @param {string} workspaceId @param {string} moduleId @param {string} recordType @param {unknown[]} [recordIds] */
 async function removeForTargets(workspaceId, moduleId, recordType, recordIds = []) {
   const ids = [...new Set((Array.isArray(recordIds) ? recordIds : [recordIds])
     .map((recordId) => textParam(recordId).trim())
@@ -447,8 +477,9 @@ WHERE workspace_id = :workspaceId
   return { removed: true, targetCount: ids.length };
 }
 
+/** @param {string} workspaceId */
 async function readWorkspaceAdminUserIds(workspaceId) {
-  const rows = await db.query(`
+  const rows = /** @type {NotificationUserIdRow[]} */ (await db.query(`
 SELECT DISTINCT user_id
 FROM user_role_assignments
 WHERE workspace_id = :workspaceId
@@ -456,13 +487,14 @@ WHERE workspace_id = :workspaceId
 `, {
     roleId: "workspace_admin",
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return rows.map((row) => row.user_id).filter(Boolean);
 }
 
+/** @param {string} workspaceId @param {string} userId */
 async function readUserPreferences(workspaceId, userId) {
-  return db.query(`
+  return /** @type {Promise<NotificationUserPreferenceRow[]>} */ (db.query(`
 SELECT workspace_id, user_id, event_type, enabled, created_at, updated_at
 FROM notification_user_preferences
 WHERE workspace_id = :workspaceId
@@ -471,11 +503,12 @@ ORDER BY event_type;
 `, {
     userId: textParam(userId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
+/** @param {string} workspaceId @param {string} userId */
 async function readUserDisplayPreferences(workspaceId, userId) {
-  const row = await db.get(`
+  const row = /** @type {NotificationDisplayPreferenceRow | null} */ (await db.get(`
 SELECT workspace_id, user_id, grouping_mode, created_at, updated_at
 FROM notification_user_display_preferences
 WHERE workspace_id = :workspaceId
@@ -484,24 +517,26 @@ LIMIT 1;
 `, {
     userId: textParam(userId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return row ? displayPreferenceRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId */
 async function readWorkspaceDefaults(workspaceId) {
-  return db.query(`
+  return /** @type {Promise<NotificationWorkspaceDefaultRow[]>} */ (db.query(`
 SELECT workspace_id, event_type, enabled, priority, created_at, updated_at
 FROM notification_workspace_defaults
 WHERE workspace_id = :workspaceId
 ORDER BY event_type;
 `, {
     workspaceId: textParam(workspaceId),
-  });
+  }));
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationSubscriptionTarget} target */
 async function readSubscription(workspaceId, userId, target) {
-  const row = await db.get(`
+  const row = /** @type {NotificationSubscriptionRow | null} */ (await db.get(`
 SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
 FROM notification_subscriptions
 WHERE workspace_id = :workspaceId
@@ -511,13 +546,14 @@ WHERE workspace_id = :workspaceId
   AND target_id = :targetId
   AND COALESCE(event_type, '') = :eventType
 LIMIT 1;
-`, subscriptionTargetParams(workspaceId, userId, target));
+`, subscriptionTargetParams(workspaceId, userId, target)));
 
   return row ? subscriptionRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {NotificationSubscriptionTarget} target */
 async function readSubscriptionsForTarget(workspaceId, target) {
-  const rows = await db.query(`
+  const rows = /** @type {NotificationSubscriptionRow[]} */ (await db.query(`
 SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
 FROM notification_subscriptions
 WHERE workspace_id = :workspaceId
@@ -534,11 +570,12 @@ ORDER BY created_at;
     targetId: textParam(target.target_id),
     targetType: textParam(target.target_type),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return rows.map(subscriptionRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationSubscriptionTarget} target */
 async function saveSubscription(workspaceId, userId, target) {
   const subscriptionId = target.notification_subscription_id || createRecordId();
   const now = new Date().toISOString();
@@ -560,6 +597,7 @@ async function saveSubscription(workspaceId, userId, target) {
   return readSubscription(workspaceId, userId, target);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationSubscriptionTarget} target */
 async function removeSubscription(workspaceId, userId, target) {
   const now = new Date().toISOString();
 
@@ -582,6 +620,7 @@ WHERE workspace_id = :workspaceId
   return readSubscription(workspaceId, userId, target);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationUserPreferenceInput[]} preferences */
 async function saveUserPreferences(workspaceId, userId, preferences) {
   const now = new Date().toISOString();
   const rows = Array.isArray(preferences) ? preferences : [];
@@ -604,6 +643,7 @@ async function saveUserPreferences(workspaceId, userId, preferences) {
   }
 }
 
+/** @param {string} workspaceId @param {NotificationWorkspaceDefaultInput[]} defaults */
 async function saveWorkspaceDefaults(workspaceId, defaults) {
   const now = new Date().toISOString();
   const rows = Array.isArray(defaults) ? defaults : [];
@@ -627,6 +667,7 @@ async function saveWorkspaceDefaults(workspaceId, defaults) {
   }
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationDisplayPreferenceInput} preferences */
 async function saveUserDisplayPreferences(workspaceId, userId, preferences) {
   const now = new Date().toISOString();
 
@@ -644,9 +685,9 @@ async function saveUserDisplayPreferences(workspaceId, userId, preferences) {
   return readUserDisplayPreferences(workspaceId, userId);
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {NotificationRow} databaseRow */
 function notificationRowToAppValue(databaseRow) {
-  const row = /** @type {NotificationRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     notification_id: row.notification_id,
     workspace_id: row.workspace_id,
@@ -668,9 +709,9 @@ function notificationRowToAppValue(databaseRow) {
   };
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {NotificationDisplayPreferenceRow} databaseRow */
 function displayPreferenceRowToAppValue(databaseRow) {
-  const row = /** @type {NotificationDisplayPreferenceRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     workspace_id: row.workspace_id,
     user_id: row.user_id,
@@ -680,9 +721,9 @@ function displayPreferenceRowToAppValue(databaseRow) {
   };
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {NotificationSubscriptionRow} databaseRow */
 function subscriptionRowToAppValue(databaseRow) {
-  const row = /** @type {NotificationSubscriptionRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     notification_subscription_id: row.notification_subscription_id,
     workspace_id: row.workspace_id,
@@ -697,6 +738,7 @@ function subscriptionRowToAppValue(databaseRow) {
   };
 }
 
+/** @param {string | null | undefined} metadataJson */
 function parseMetadata(metadataJson) {
   try {
     const parsed = JSON.parse(metadataJson || "{}");
@@ -706,6 +748,7 @@ function parseMetadata(metadataJson) {
   }
 }
 
+/** @param {NotificationCreateInput} notification @param {string} notificationId @param {string} now */
 function notificationCreateParams(notification, notificationId, now) {
   return {
     actorUserId: nullableTextParam(notification.actor_user_id),
@@ -728,6 +771,7 @@ function notificationCreateParams(notification, notificationId, now) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationSubscriptionTarget} [target] */
 function subscriptionTargetParams(workspaceId, userId, target = {}) {
   return {
     eventType: textParam(target.event_type || ""),
@@ -739,6 +783,7 @@ function subscriptionTargetParams(workspaceId, userId, target = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationSubscriptionTarget} target @param {NotificationSubscriptionWriteOptions} [options] */
 function subscriptionWriteParams(workspaceId, userId, target, options = {}) {
   return {
     createdAt: textParam(options.now),
@@ -754,6 +799,7 @@ function subscriptionWriteParams(workspaceId, userId, target, options = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationUserPreferenceInput} [preference] @param {string} [now] */
 function notificationUserPreferenceParams(workspaceId, userId, preference = {}, now) {
   return {
     createdAt: textParam(now),
@@ -765,6 +811,7 @@ function notificationUserPreferenceParams(workspaceId, userId, preference = {}, 
   };
 }
 
+/** @param {string} workspaceId @param {NotificationWorkspaceDefaultInput} [preference] @param {string} [now] */
 function notificationWorkspaceDefaultParams(workspaceId, preference = {}, now) {
   return {
     createdAt: textParam(now),
@@ -776,6 +823,7 @@ function notificationWorkspaceDefaultParams(workspaceId, preference = {}, now) {
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {NotificationDisplayPreferenceInput} [preferences] @param {string} [now] */
 function notificationDisplayPreferenceParams(workspaceId, userId, preferences = {}, now) {
   return {
     createdAt: textParam(now),
@@ -786,17 +834,20 @@ function notificationDisplayPreferenceParams(workspaceId, userId, preferences = 
   };
 }
 
+/** @param {unknown} error */
 function isDuplicateNotificationIdError(error) {
-  const message = String(error?.message || error || "");
+  const message = error instanceof Error ? error.message : String(error ?? "");
   return message.includes("UNIQUE constraint failed: notifications.notification_id") ||
     message.includes("PRIMARY KEY");
 }
 
+/** @param {unknown} status */
 function normalizeStatusFilter(status) {
   const normalizedStatus = String(status || "").trim();
   return ["active", "unread", "read", "dismissed", "archived"].includes(normalizedStatus) ? normalizedStatus : "";
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {NotificationListOptions} [options] */
 function notificationListWhereClauses(workspaceId, recipientUserId, options = {}) {
   const status = normalizeStatusFilter(options.status);
   const moduleId = normalizeTextFilter(options.moduleId || options.module_id || options.module);
@@ -806,6 +857,7 @@ function notificationListWhereClauses(workspaceId, recipientUserId, options = {}
     "workspace_id = :workspaceId",
     "recipient_user_id = :recipientUserId",
   ];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     recipientUserId: textParam(recipientUserId),
     workspaceId: textParam(workspaceId),
@@ -834,32 +886,38 @@ function notificationListWhereClauses(workspaceId, recipientUserId, options = {}
   return { clauses, params };
 }
 
+/** @param {unknown} value */
 function textParam(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value */
 function integerParam(value) {
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/** @param {unknown} value */
 function normalizeTextFilter(value) {
   return String(value || "").trim().slice(0, 120);
 }
 
+/** @param {unknown} value */
 function normalizePriorityFilter(value) {
   const priority = String(value || "").trim();
   return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "";
 }
 
+/** @param {unknown} limit */
 function clampLimit(limit) {
-  const numericLimit = Number.parseInt(limit, 10);
+  const numericLimit = Number.parseInt(String(limit ?? ""), 10);
   if (!Number.isFinite(numericLimit)) {
     return 25;
   }
@@ -867,8 +925,9 @@ function clampLimit(limit) {
   return Math.min(Math.max(numericLimit, 1), 100);
 }
 
+/** @param {unknown} offset */
 function clampOffset(offset) {
-  const numericOffset = Number.parseInt(offset, 10);
+  const numericOffset = Number.parseInt(String(offset ?? ""), 10);
   return Number.isFinite(numericOffset) && numericOffset > 0 ? numericOffset : 0;
 }
 

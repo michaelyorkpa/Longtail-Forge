@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.13",
+  "checkpoint": "0.33.33.14",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -350,7 +350,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 9507,
+      "errorCount": 9086,
       "diagnostics": {
         "src/config.js": [
           {
@@ -519,7 +519,7 @@
           },
           {
             "code": 7006,
-            "count": 5
+            "count": 4
           },
           {
             "code": 7034,
@@ -922,128 +922,6 @@
           {
             "code": 7006,
             "count": 1
-          }
-        ],
-        "src/db/adapters/sqlite-adapter.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/db/adapters/sqlite-dialect-seams.js": [
-          {
-            "code": 7006,
-            "count": 38
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/db/app-startup-maintenance.js": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 40
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/db/index.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/db/migration-lock.js": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/db/parameter-bindings.js": [
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "src/db/regression-baseline-fast-path.js": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7031,
-            "count": 5
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
-        "src/db/regression-database-safety.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/db/sqlite.js": [
-          {
-            "code": 7006,
-            "count": 33
-          },
-          {
-            "code": 7016,
-            "count": 1
-          }
-        ],
-        "src/db/startup-coordinator.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
-        "src/db/startup-readiness.js": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "src/modules/client-projects/client-project-settings.service.js": [
@@ -1960,48 +1838,6 @@
             "count": 1
           }
         ],
-        "src/repositories/authentication-throttle.repo.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/repositories/notifications.repo.js": [
-          {
-            "code": 2339,
-            "count": 29
-          },
-          {
-            "code": 7006,
-            "count": 84
-          }
-        ],
-        "src/repositories/permissions.repo.js": [
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/repositories/support-sessions.repo.js": [
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "src/repositories/tags.repo.js": [
-          {
-            "code": 2339,
-            "count": 18
-          },
-          {
-            "code": 7006,
-            "count": 55
-          }
-        ],
         "src/runtime-env.js": [
           {
             "code": 2339,
@@ -2241,7 +2077,7 @@
           },
           {
             "code": 7006,
-            "count": 85
+            "count": 82
           },
           {
             "code": 7031,
@@ -2553,11 +2389,7 @@
           },
           {
             "code": 7006,
-            "count": 78
-          },
-          {
-            "code": 7016,
-            "count": 1
+            "count": 77
           },
           {
             "code": 7031,
@@ -5767,7 +5599,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 10406,
+      "errorCount": 10389,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -8549,14 +8381,6 @@
           {
             "code": 18047,
             "count": 5
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 11
           }
         ],
         "scripts/parameter-binding-layer-regression.mjs": [
@@ -9556,7 +9380,7 @@
           },
           {
             "code": 7006,
-            "count": 22
+            "count": 18
           },
           {
             "code": 7016,
@@ -13138,8 +12962,8 @@
   },
   "totals": {
     "files": 1002,
-    "errors": 31047,
-    "explicitAny": 47
+    "errors": 30609,
+    "explicitAny": 41
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
@@ -13148,7 +12972,6 @@
     "src/core/modules/terminology.js": 2,
     "src/modules/lists/search-indexers.js": 4,
     "src/repositories/account-export-recovery.repo.js": 1,
-    "src/repositories/authentication-throttle.repo.js": 6,
     "src/services/notifications.service.js": 8,
     "src/services/tags.service.js": 1,
     "src/services/work-candidate.service.js": 1,
@@ -13164,7 +12987,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 11,
+    "firstPartyFiles": 12,
     "errors": 0
   }
 }

@@ -250,7 +250,7 @@ async function assertCoordinatorOrderAndFailureBehavior() {
 
   await assert.rejects(
     runStartupActions(actions, {
-      now: () => ticks.shift(),
+      now: () => Number(ticks.shift()),
       report: (event) => reports.push(event),
     }),
     (error) => error === failure,

@@ -1,4 +1,7 @@
+// @ts-check
 import { databaseDialect, db, querySql } from "./provider.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseRow & { name: string }} TableColumnRow */
 
 async function verifyWorkerSchemaReady() {
   if (!(await tableExists("schema_migrations"))) {
@@ -47,6 +50,7 @@ LIMIT 1;
   return true;
 }
 
+/** @param {string} tableName */
 async function tableExists(tableName) {
   const row = await db.get(`
 SELECT name
@@ -59,8 +63,9 @@ LIMIT 1;
   return Boolean(row);
 }
 
+/** @param {string} tableName @param {readonly string[]} columnNames */
 async function columnsExist(tableName, columnNames) {
-  const columns = await querySql(databaseDialect.introspection.tableInfo(tableName));
+  const columns = /** @type {TableColumnRow[]} */ (await querySql(databaseDialect.introspection.tableInfo(tableName)));
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));

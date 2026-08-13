@@ -4,9 +4,18 @@ import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
+/** @typedef {{ tag_id?: string, name?: string, slug?: string, description?: string | null, color?: string | null, status?: string, created_by_user_id?: string | null }} TagWriteInput */
+/** @typedef {{ status?: unknown, search?: unknown }} TagListOptions */
+/** @typedef {{ source?: unknown }} TagAssignmentListOptions */
+/** @typedef {{ tag_id: string, target_type: string, target_id: string, created_by_user_id?: string | null, source?: string, source_assignment_id?: string | null, source_target_type?: string | null, source_target_id?: string | null, propagation_rule_id?: string | null }} TagAssignmentInput */
+/** @typedef {{ source?: unknown, targetId?: unknown, targetType?: unknown }} TagAssignmentWhereOptions */
+/** @typedef {{ propagation_rule_id?: string | null, source_target_id?: string, source_target_type?: string, target_id?: string, target_type?: string }} TagPropagationContext */
+/** @typedef {{ tag_assignment_suppression_id?: string, tag_id: string, target_type: string, target_id: string, source_target_type: string, source_target_id: string, propagation_rule_id?: string | null, suppressed_by_user_id?: string | null }} TagSuppressionInput */
 /** @typedef {DatabaseRow & { tag_id: string, workspace_id: string, name: string, slug: string, description: string | null, color: string | null, status: string, usage_count?: unknown, direct_usage_count?: unknown, propagated_usage_count?: unknown, system_usage_count?: unknown, created_by_user_id: string | null, created_at: string, updated_at: string }} TagRow */
 /** @typedef {DatabaseRow & { tag_assignment_id: string, workspace_id: string, tag_id: string, target_type: string, target_id: string, created_by_user_id: string | null, source: string, source_assignment_id: string | null, source_target_type: string | null, source_target_id: string | null, propagation_rule_id: string | null, created_at: string, name: string, slug: string, description: string | null, color: string | null, status: string }} TagAssignmentRow */
 /** @typedef {DatabaseRow & { tag_assignment_suppression_id: string, workspace_id: string, tag_id: string, target_type: string, target_id: string, source_target_type: string, source_target_id: string, propagation_rule_id: string | null, suppressed_by_user_id: string | null, created_at: string }} TagSuppressionRow */
+/** @typedef {DatabaseRow & { found: unknown }} TagSuppressionFoundRow */
 
 const ASSIGNMENT_SOURCES = new Set(["manual", "propagated", "system"]);
 
@@ -112,6 +121,7 @@ const TAG_SUPPRESSION_VALUE_EXPRESSIONS = {
   workspace_id: ":workspaceId",
 };
 
+/** @param {string} workspaceId @param {TagWriteInput} tag */
 async function createTag(workspaceId, tag) {
   const now = new Date().toISOString();
   const tagId = tag.tag_id || createRecordId();
@@ -157,6 +167,7 @@ VALUES (
   return readTagById(workspaceId, tagId);
 }
 
+/** @param {string} workspaceId @param {string} tagId @param {TagWriteInput} updates */
 async function updateTag(workspaceId, tagId, updates) {
   const now = new Date().toISOString();
 
@@ -182,6 +193,7 @@ WHERE tags.workspace_id = :workspaceId
   return readTagById(workspaceId, tagId);
 }
 
+/** @param {string} workspaceId @param {string} tagId @param {string} status */
 async function setTagStatus(workspaceId, tagId, status) {
   await db.run(`
 UPDATE tags
@@ -199,10 +211,12 @@ WHERE workspace_id = :workspaceId
   return readTagById(workspaceId, tagId);
 }
 
+/** @param {string} workspaceId @param {TagListOptions} [options] */
 async function listTags(workspaceId, options = {}) {
   const statusFilter = tagStatusFilter(options.status);
   const search = String(options.search || "").trim().toLowerCase();
   const clauses = ["tags.workspace_id = :workspaceId"];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     workspaceId: text(workspaceId),
   };
@@ -216,7 +230,7 @@ async function listTags(workspaceId, options = {}) {
     params.searchPattern = `%${search}%`;
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {TagRow[]} */ (await db.query(`
 SELECT
 ${QUALIFIED_TAG_COLUMNS},
 COALESCE(tag_usage.usage_count, 0) AS usage_count,
@@ -242,13 +256,14 @@ ORDER BY
   CASE tags.status WHEN 'active' THEN 0 WHEN 'disabled' THEN 1 ELSE 2 END,
   ${db.dialect.comparison.orderByNoCase("tags.name", "ASC")},
   tags.tag_id;
-`, params);
+`, params));
 
   return rows.map(tagRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} tagId */
 async function readTagById(workspaceId, tagId) {
-  const row = await db.get(`
+  const row = /** @type {TagRow | null} */ (await db.get(`
 SELECT
 ${TAG_COLUMNS}
 FROM tags
@@ -258,13 +273,14 @@ LIMIT 1;
 `, {
     tagId: text(tagId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? tagRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} slug */
 async function readTagBySlug(workspaceId, slug) {
-  const row = await db.get(`
+  const row = /** @type {TagRow | null} */ (await db.get(`
 SELECT
 ${TAG_COLUMNS}
 FROM tags
@@ -274,11 +290,12 @@ LIMIT 1;
 `, {
     slug: text(slug),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? tagRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {unknown[]} tagIds */
 async function readTagsByIds(workspaceId, tagIds) {
   const normalizedIds = normalizeIdList(tagIds);
 
@@ -286,7 +303,7 @@ async function readTagsByIds(workspaceId, tagIds) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {TagRow[]} */ (await db.query(`
 SELECT
 ${TAG_COLUMNS}
 FROM tags
@@ -296,18 +313,19 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("name", "ASC")}, tag_id;
 `, {
     tagIds: normalizedIds,
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(tagRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} targetType @param {string} targetId @param {TagAssignmentListOptions} [options] */
 async function listAssignmentsForTarget(workspaceId, targetType, targetId, options = {}) {
   const { clauses, params } = assignmentWhereClauses(workspaceId, {
     source: options.source,
     targetId,
     targetType,
   });
-  const rows = await db.query(`
+  const rows = /** @type {TagAssignmentRow[]} */ (await db.query(`
 SELECT
 ${ASSIGNMENT_COLUMNS}
 FROM tag_assignments
@@ -316,11 +334,12 @@ INNER JOIN tags
   AND tags.tag_id = tag_assignments.tag_id
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY ${db.dialect.comparison.orderByNoCase("tags.name", "ASC")}, tags.tag_id;
-`, params);
+`, params));
 
   return rows.map(assignmentRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} targetType @param {unknown[]} targetIds @param {TagAssignmentListOptions} [options] */
 async function listAssignmentsForTargets(workspaceId, targetType, targetIds, options = {}) {
   const normalizedIds = normalizeIdList(targetIds);
   const sourceFilter = assignmentSourceFilter(options.source);
@@ -334,6 +353,7 @@ async function listAssignmentsForTargets(workspaceId, targetType, targetIds, opt
     "tag_assignments.target_type = :targetType",
     "tag_assignments.target_id IN (:targetIds)",
   ];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     targetIds: normalizedIds,
     targetType: text(targetType),
@@ -345,7 +365,7 @@ async function listAssignmentsForTargets(workspaceId, targetType, targetIds, opt
     params.source = text(sourceFilter);
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {TagAssignmentRow[]} */ (await db.query(`
 SELECT
 ${ASSIGNMENT_COLUMNS}
 FROM tag_assignments
@@ -354,11 +374,12 @@ INNER JOIN tags
   AND tags.tag_id = tag_assignments.tag_id
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY tag_assignments.target_id, ${db.dialect.comparison.orderByNoCase("tags.name", "ASC")}, tags.tag_id;
-`, params);
+`, params));
 
   return rows.map(assignmentRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {TagAssignmentInput} assignment */
 async function addAssignment(workspaceId, assignment) {
   const assignmentId = createRecordId();
   const now = new Date().toISOString();
@@ -371,6 +392,7 @@ async function addAssignment(workspaceId, assignment) {
   })};`, assignmentInsertParams(workspaceId, assignment, assignmentId, source, now));
 }
 
+/** @param {string} workspaceId @param {string} targetType @param {string} targetId @param {string} tagId @param {TagAssignmentListOptions} [options] */
 async function removeAssignment(workspaceId, targetType, targetId, tagId, options = {}) {
   const sourceFilter = assignmentSourceFilter(options.source);
   const clauses = [
@@ -379,6 +401,7 @@ async function removeAssignment(workspaceId, targetType, targetId, tagId, option
     "target_id = :targetId",
     "tag_id = :tagId",
   ];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     tagId: text(tagId),
     targetId: text(targetId),
@@ -397,6 +420,7 @@ WHERE ${clauses.join("\n  AND ")};
 `, params);
 }
 
+/** @param {string} workspaceId @param {string} assignmentId */
 async function removeAssignmentById(workspaceId, assignmentId) {
   await db.run(`
 DELETE FROM tag_assignments
@@ -408,8 +432,9 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId @param {string} assignmentId */
 async function readAssignmentById(workspaceId, assignmentId) {
-  const row = await db.get(`
+  const row = /** @type {TagAssignmentRow | null} */ (await db.get(`
 SELECT
 ${ASSIGNMENT_COLUMNS}
 FROM tag_assignments
@@ -422,13 +447,14 @@ LIMIT 1;
 `, {
     assignmentId: text(assignmentId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? assignmentRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {TagPropagationContext} [context] */
 async function listAssignmentsForPropagationContext(workspaceId, context = {}) {
-  const rows = await db.query(`
+  const rows = /** @type {TagAssignmentRow[]} */ (await db.query(`
 SELECT
 ${ASSIGNMENT_COLUMNS}
 FROM tag_assignments
@@ -451,13 +477,14 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("tags.name", "ASC")}, tags.tag_id
     targetId: text(context.target_id),
     targetType: text(context.target_type),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(assignmentRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {TagSuppressionInput} suppression */
 async function hasSuppression(workspaceId, suppression) {
-  const row = await db.get(`
+  const row = /** @type {TagSuppressionFoundRow | null} */ (await db.get(`
 SELECT 1 AS found
 FROM tag_assignment_suppressions
 WHERE workspace_id = :workspaceId
@@ -476,11 +503,12 @@ LIMIT 1;
     targetId: text(suppression.target_id),
     targetType: text(suppression.target_type),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return Boolean(row);
 }
 
+/** @param {string} workspaceId @param {TagSuppressionInput} suppression */
 async function addSuppression(workspaceId, suppression) {
   const suppressionId = suppression.tag_assignment_suppression_id || createRecordId();
   const now = new Date().toISOString();
@@ -492,8 +520,9 @@ async function addSuppression(workspaceId, suppression) {
   })};`, suppressionInsertParams(workspaceId, suppression, suppressionId, now));
 }
 
+/** @param {string} workspaceId @param {string} targetType @param {string} targetId */
 async function listSuppressionsForTarget(workspaceId, targetType, targetId) {
-  const rows = await db.query(`
+  const rows = /** @type {TagSuppressionRow[]} */ (await db.query(`
 SELECT
   tag_assignment_suppression_id,
   workspace_id,
@@ -514,11 +543,12 @@ ORDER BY created_at, tag_assignment_suppression_id;
     targetId: text(targetId),
     targetType: text(targetType),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(suppressionRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {TagAssignmentWhereOptions} [options] */
 function assignmentWhereClauses(workspaceId, options = {}) {
   const sourceFilter = assignmentSourceFilter(options.source);
   const clauses = [
@@ -526,6 +556,7 @@ function assignmentWhereClauses(workspaceId, options = {}) {
     "tag_assignments.target_type = :targetType",
     "tag_assignments.target_id = :targetId",
   ];
+  /** @type {Record<string, DatabaseNamedParameterInput>} */
   const params = {
     targetId: text(options.targetId),
     targetType: text(options.targetType),
@@ -540,6 +571,7 @@ function assignmentWhereClauses(workspaceId, options = {}) {
   return { clauses, params };
 }
 
+/** @param {string} workspaceId @param {TagAssignmentInput} assignment @param {string} assignmentId @param {string} source @param {string} now */
 function assignmentInsertParams(workspaceId, assignment, assignmentId, source, now) {
   return {
     assignmentId: text(assignmentId),
@@ -557,6 +589,7 @@ function assignmentInsertParams(workspaceId, assignment, assignmentId, source, n
   };
 }
 
+/** @param {string} workspaceId @param {TagSuppressionInput} suppression @param {string} suppressionId @param {string} now */
 function suppressionInsertParams(workspaceId, suppression, suppressionId, now) {
   return {
     createdAt: text(now),
@@ -572,25 +605,28 @@ function suppressionInsertParams(workspaceId, suppression, suppressionId, now) {
   };
 }
 
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableText(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown[]} [ids] */
 function normalizeIdList(ids = []) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => String(id || "").trim())
     .filter(Boolean))];
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {TagRow} databaseRow */
 function tagRowToAppValue(databaseRow) {
-  const row = /** @type {TagRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     tag_id: row.tag_id,
     workspace_id: row.workspace_id,
@@ -609,9 +645,9 @@ function tagRowToAppValue(databaseRow) {
   };
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {TagAssignmentRow} databaseRow */
 function assignmentRowToAppValue(databaseRow) {
-  const row = /** @type {TagAssignmentRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     tag_assignment_id: row.tag_assignment_id,
     workspace_id: row.workspace_id,
@@ -637,9 +673,9 @@ function assignmentRowToAppValue(databaseRow) {
   };
 }
 
-/** @param {DatabaseRow} databaseRow */
+/** @param {TagSuppressionRow} databaseRow */
 function suppressionRowToAppValue(databaseRow) {
-  const row = /** @type {TagSuppressionRow} */ (databaseRow);
+  const row = databaseRow;
   return {
     tag_assignment_suppression_id: row.tag_assignment_suppression_id,
     workspace_id: row.workspace_id,
@@ -654,16 +690,19 @@ function suppressionRowToAppValue(databaseRow) {
   };
 }
 
+/** @param {unknown} status */
 function tagStatusFilter(status) {
   const normalized = String(status || "").trim().toLowerCase();
   return ["active", "archived", "disabled"].includes(normalized) ? normalized : "";
 }
 
+/** @param {unknown} source */
 function assignmentSourceFilter(source) {
   const normalized = String(source || "").trim().toLowerCase();
   return ASSIGNMENT_SOURCES.has(normalized) ? normalized : "";
 }
 
+/** @param {unknown} source */
 function normalizeAssignmentSource(source) {
   const normalized = String(source || "manual").trim().toLowerCase();
 

@@ -252,7 +252,7 @@ WHERE user_id IN (${placeholders(retainedUserIds)});
     const rowCounts = Object.fromEntries(
       ["workspaces", ...workspaceTables]
         .filter((table) => !EXCLUDED_WORKSPACE_TABLES.has(table))
-        .map((table) => [table, Number(database.prepare(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`).get().count)]),
+        .map((table) => [table, readRequiredCount(database, `SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`)]),
     );
     const migrations = database.prepare(`
 SELECT version, module_id AS moduleId, name, checksum, applied_at AS appliedAt
@@ -260,11 +260,20 @@ FROM schema_migrations
 ORDER BY applied_at, version;
 `).all();
     const secureNotes = readSecureNotesInventory(database);
-    const identityCount = Number(database.prepare("SELECT COUNT(DISTINCT user_id) AS count FROM users;").get().count);
+    const identityCount = readRequiredCount(database, "SELECT COUNT(DISTINCT user_id) AS count FROM users;");
     return { identityCount, migrations, rowCounts, secureNotes, workspace };
   } finally {
     database.close();
   }
+}
+
+/** @param {InstanceType<typeof Database>} database @param {string} sql */
+function readRequiredCount(database, sql) {
+  const row = database.prepare(sql).get();
+  if (!row) {
+    throw new Error("Database count query returned no row.");
+  }
+  return Number(row.count || 0);
 }
 
 function readSchema(database) {
@@ -450,12 +459,12 @@ function verifyScopedDatabase(databaseFile, manifest) {
     }
     for (const table of ["api_keys", "api_key_scopes", "sessions", "user_workspace_creation_permissions", "app_settings", "jobs", "active_work_timers", "search_index", "search_index_fts", "workspace_backup_exports"]) {
       if (!schema.tables.includes(table)) continue;
-      const count = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`).get().count);
+      const count = readRequiredCount(database, `SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`);
       if (count !== 0) throw new Error(`Workspace backup retained excluded data in ${table}.`);
     }
     for (const table of ["search_index_fts_content", "search_index_fts_docsize", "search_index_fts_idx"]) {
       if (!schema.tables.includes(table)) continue;
-      const count = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`).get().count);
+      const count = readRequiredCount(database, `SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)};`);
       if (count !== 0) throw new Error(`Workspace backup retained excluded search data in ${table}.`);
     }
     const unsafeIdentity = database.prepare(`

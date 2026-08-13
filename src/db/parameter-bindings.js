@@ -98,6 +98,7 @@ function createBulkValuesBindings(rows, columns, options = {}) {
   };
 }
 
+/** @param {number} rowCount @param {number} columnCount */
 function assertBulkValuesPlaceholderBudget(rowCount, columnCount) {
   const placeholderCount = rowCount * columnCount;
 
@@ -375,6 +376,7 @@ function assertNoProvidedParameters(parameters) {
   }
 }
 
+/** @param {unknown} name */
 function normalizeDatabaseParameterName(name) {
   const text = String(name || "").trim();
   const bareName = text.match(/^[:@$]?([A-Za-z_][A-Za-z0-9_]*)$/)?.[1];
@@ -386,6 +388,7 @@ function normalizeDatabaseParameterName(name) {
   return bareName;
 }
 
+/** @param {unknown} name */
 function normalizeBulkValuesColumnName(name) {
   const text = String(name || "").trim();
 
@@ -620,6 +623,7 @@ function analyzeSqlStatement(sql) {
   };
 }
 
+/** @param {string} sql @param {number} start */
 function readNamedParameter(sql, start) {
   let end = start + 2;
 
@@ -633,6 +637,7 @@ function readNamedParameter(sql, start) {
   };
 }
 
+/** @param {string} sql @param {number} start @param {number} fallbackPosition */
 function readQuestionParameter(sql, start, fallbackPosition) {
   let end = start + 1;
 

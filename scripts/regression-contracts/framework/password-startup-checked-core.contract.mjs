@@ -37,7 +37,7 @@ assert.match(passwordSource, /leftBuffer\.length === rightBuffer\.length && timi
 assert.doesNotMatch(passwordSource, /argon2Sync|pbkdf2Sync|scryptSync/);
 
 assert.match(appSource, /@typedef \{import\("node:http"\)\.Server\} HttpServer/);
-assert.match(appSource, /@typedef \{\{ id: string, durationMs: number,[^\n]+\}\} StartupPhaseEvent/);
+assert.match(appSource, /@typedef \{import\("\.\.\/types\/database-contracts\.js"\)\.DatabaseStartupPhaseEvent\} StartupPhaseEvent/);
 assert.match(appSource, /@param \{HttpServer\} server/);
 assert.match(appSource, /@param \{NodeJS\.Signals\} signal/);
 assert.match(appSource, /function readUnknownErrorMessage\(error\)/);

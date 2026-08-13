@@ -1,4 +1,20 @@
+// @ts-check
 import { config } from "../config.js";
+
+/** @typedef {import("../types/database-contracts.js").DatabaseParameterValue} DatabaseParameterValue */
+/** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupAction} DatabaseStartupAction */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupContext} DatabaseStartupContext */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupOptions} DatabaseStartupOptions */
+/** @typedef {DatabaseStartupContext & { workspaceId?: string }} AppStartupContext */
+/** @typedef {DatabaseRow & { __rowid: DatabaseParameterValue, active_workspace_id: string | null, home_workspace_id: string | null, protected_user: string, theme_mode: string, user_id: string, user_status: string }} DuplicateUserRow */
+/** @typedef {DatabaseRow & { user_id: string }} UserIdRow */
+/** @typedef {DatabaseRow & { user_id: string, user_status: string }} UserStatusRow */
+/** @typedef {DatabaseRow & { workspace_id: string }} WorkspaceIdRow */
+/** @typedef {DatabaseRow & { active_workspace_id: string, user_id: string }} ActiveWorkspaceRow */
+/** @typedef {DatabaseRow & { name: string }} TableColumnRow */
+/** @typedef {Record<string, DatabaseParameterValue> & { __rowid: DatabaseParameterValue }} UtcRepairRow */
+/** @typedef {{ params: Record<string, DatabaseParameterValue>, sql: string }} UtcRepairPlan */
 import { createRecordId } from "../core/identifiers.js";
 import { normalizeSettings, normalizeThemeMode } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
@@ -51,14 +67,16 @@ const VERSIONED_REPAIR_INSERT_SQL = databaseDialect.conflict.buildInsertOnConfli
   tableName: "startup_maintenance_runs",
 });
 
+/** @param {DatabaseStartupOptions} [options] */
 async function runAppStartupMaintenance(options = {}) {
   return runStartupActions(createAppStartupActions(), {
-    context: options.context || {},
+    context: /** @type {AppStartupContext} */ (options.context || {}),
     now: options.now,
     report: options.report,
   });
 }
 
+/** @returns {DatabaseStartupAction[]} */
 function createAppStartupActions() {
   return [
     recurringCheck("app.ensure-framework-module", ensureFrameworkModuleRecord),
@@ -75,31 +93,41 @@ function createAppStartupActions() {
         return result.created ? undefined : { status: "skipped", reason: "workspace-exists" };
       },
     },
-    recurringCheck("app.ensure-workspace-settings", (context) => ensureWorkspaceSettings(context.workspaceId)),
-    recurringCheck("app.sync-module-registry", (context) => modulesService.syncModuleRegistry(context.workspaceId)),
+    recurringCheck("app.ensure-workspace-settings", (context) => ensureWorkspaceSettings(startupWorkspaceId(context))),
+    recurringCheck("app.sync-module-registry", (context) => modulesService.syncModuleRegistry(startupWorkspaceId(context))),
     recurringCheck("app.ensure-workspace-module-rows", () => modulesService.ensureAllWorkspaceModuleRows()),
-    versionedRepair("repair.redacted-seed-users-v1", (context) => repairRedactedSeedUsers(context.workspaceId)),
+    versionedRepair("repair.redacted-seed-users-v1", (context) => repairRedactedSeedUsers(startupWorkspaceId(context))),
     {
       id: "bootstrap.ensure-super-admin",
       lifecycle: STARTUP_LIFECYCLES.FIRST_INSTALL,
       owner: "app-startup-maintenance",
       async run(context) {
-        const result = await seedSuperAdminUser(context.workspaceId);
+        const result = await seedSuperAdminUser(startupWorkspaceId(context));
         return result.created ? undefined : { status: "skipped", reason: result.reason };
       },
     },
-    versionedRepair("repair.local-time-entry-user-v1", (context) => repairLocalTimeEntryUser(context.workspaceId)),
-    recurringCheck("app.ensure-workspace-memberships", (context) => ensureWorkspaceMemberships(context.workspaceId)),
+    versionedRepair("repair.local-time-entry-user-v1", (context) => repairLocalTimeEntryUser(startupWorkspaceId(context))),
+    recurringCheck("app.ensure-workspace-memberships", (context) => ensureWorkspaceMemberships(startupWorkspaceId(context))),
     versionedRepair("repair.deduplicate-workspace-users-v1", repairDuplicateWorkspaceUserRows),
     versionedRepair("repair.user-active-workspaces-v1", repairUserActiveWorkspaces),
-    versionedRepair("repair.workspace-type-v1", (context) => ensureWorkspaceType(context.workspaceId)),
+    versionedRepair("repair.workspace-type-v1", (context) => ensureWorkspaceType(startupWorkspaceId(context))),
     recurringCheck("app.sync-workspace-permission-contracts", ensureWorkspacePermissionContracts),
     recurringCheck("app.reconcile-calendar-subscriptions", reconcileCalendarSubscriptions),
     versionedRepair("repair.personal-workspace-memberships-v1", repairPersonalWorkspaceMemberships),
-    recurringCheck("app.ensure-protected-user-roles", (context) => ensureProtectedUserRoles(context.workspaceId)),
+    recurringCheck("app.ensure-protected-user-roles", (context) => ensureProtectedUserRoles(startupWorkspaceId(context))),
   ];
 }
 
+/** @param {DatabaseStartupContext} context @returns {string} */
+function startupWorkspaceId(context) {
+  const workspaceId = context.workspaceId;
+  if (typeof workspaceId !== "string" || !workspaceId) {
+    throw new Error("Application startup workspace context is unavailable.");
+  }
+  return workspaceId;
+}
+
+/** @param {string} id @param {DatabaseStartupAction["run"]} run @returns {DatabaseStartupAction} */
 function recurringCheck(id, run) {
   return {
     id,
@@ -109,6 +137,7 @@ function recurringCheck(id, run) {
   };
 }
 
+/** @param {string} id @param {DatabaseStartupAction["run"]} repair @returns {DatabaseStartupAction} */
 function versionedRepair(id, repair) {
   return {
     id,
@@ -118,6 +147,7 @@ function versionedRepair(id, repair) {
   };
 }
 
+/** @param {string} maintenanceId @param {() => unknown | Promise<unknown>} repair */
 async function runVersionedRepair(maintenanceId, repair) {
   const completed = await db.get(`
 SELECT maintenance_id
@@ -170,7 +200,7 @@ async function repairDuplicateWorkspaceUserRows() {
   }
 
   const duplicateUserRowId = databaseDialect.identity.rowId({ alias: "__rowid" });
-  const duplicateRows = await querySql(`
+  const duplicateRows = /** @type {DuplicateUserRow[]} */ (await querySql(`
 SELECT
   ${duplicateUserRowId},
   user_id,
@@ -192,8 +222,9 @@ WHERE user_id IN (
   HAVING COUNT(1) > 1
 )
 ORDER BY user_id, ${databaseDialect.identity.rowId()};
-`);
+`));
 
+  /** @type {Map<string, DuplicateUserRow[]>} */
   const rowsByUserId = duplicateRows.reduce((groups, row) => {
     if (!groups.has(row.user_id)) {
       groups.set(row.user_id, []);
@@ -205,15 +236,15 @@ ORDER BY user_id, ${databaseDialect.identity.rowId()};
 
   for (const rows of rowsByUserId.values()) {
     const canonical = rows[0];
-    const activeMemberships = await db.query(`
+    const activeMemberships = /** @type {WorkspaceIdRow[]} */ (await db.query(`
 SELECT workspace_id
 FROM user_workspaces
 WHERE user_id = :userId
   AND status = 'active'
 ORDER BY created_at, workspace_id;
-`, { userId: canonical.user_id });
+`, { userId: canonical.user_id }));
     const activeWorkspaceIds = new Set(activeMemberships.map((membership) => membership.workspace_id));
-    const activeWorkspaceId = activeWorkspaceIds.has(canonical.active_workspace_id)
+    const activeWorkspaceId = canonical.active_workspace_id && activeWorkspaceIds.has(canonical.active_workspace_id)
       ? canonical.active_workspace_id
       : activeMemberships[0]?.workspace_id || canonical.active_workspace_id || canonical.home_workspace_id;
     const preferredTheme = rows.some((row) => row.theme_mode === "dark")
@@ -289,12 +320,13 @@ ${ensureRolePermissionSql};
   });
 }
 
+/** @param {string} workspaceId */
 async function repairRedactedSeedUsers(workspaceId) {
   if (!(await tableExists("users"))) {
     return;
   }
 
-  const redactedUsers = await db.query(`
+  const redactedUsers = /** @type {UserIdRow[]} */ (await db.query(`
 SELECT user_id
 FROM users
 WHERE home_workspace_id = :workspaceId
@@ -302,13 +334,13 @@ WHERE home_workspace_id = :workspaceId
 `, {
     redactedUsername: REDACTED_SEED_USERNAME,
     workspaceId,
-  });
+  }));
 
   if (redactedUsers.length === 0) {
     return;
   }
 
-  const defaultUser = await db.get(`
+  const defaultUser = /** @type {UserIdRow | null} */ (await db.get(`
 SELECT user_id
 FROM users
 WHERE home_workspace_id = :workspaceId
@@ -317,7 +349,7 @@ LIMIT 1;
 `, {
     defaultUsername: DEFAULT_SUPER_ADMIN_USERNAME,
     workspaceId,
-  });
+  }));
   const now = new Date().toISOString();
 
   if (!defaultUser) {
@@ -449,19 +481,20 @@ async function standardizeStoredTimesToUtc() {
   }
 }
 
+/** @param {string} tableName @param {string} idColumn @param {readonly string[]} columns */
 async function standardizeTableColumns(tableName, idColumn, columns) {
   if (!(await tableExists(tableName))) {
     return;
   }
 
   const rowIdColumn = databaseDialect.identity.rowId({ alias: "__rowid" });
-  const rows = await querySql(`
+  const rows = /** @type {UtcRepairRow[]} */ (await querySql(`
 SELECT ${rowIdColumn}, ${[idColumn, ...columns].join(", ")}
 FROM ${tableName};
-`);
+`));
   const repairs = rows
     .map((row) => createUtcRepairPlan(tableName, idColumn, columns, row))
-    .filter(Boolean);
+    .filter((repair) => repair !== null);
 
   if (repairs.length > 0) {
     await db.transaction(async (transaction) => {
@@ -472,7 +505,9 @@ FROM ${tableName};
   }
 }
 
+/** @param {string} tableName @param {string} idColumn @param {readonly string[]} columns @param {UtcRepairRow} row @returns {UtcRepairPlan | null} */
 function createUtcRepairPlan(tableName, idColumn, columns, row) {
+  /** @type {Record<string, DatabaseParameterValue>} */
   const params = {
     recordId: row[idColumn],
     rowId: row.__rowid,
@@ -506,6 +541,7 @@ WHERE ${idColumn} = :recordId
   };
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeStoredTime(value) {
   const text = String(value || "").trim();
 
@@ -516,6 +552,7 @@ function normalizeStoredTime(value) {
   return normalizeUtcIso(text, DEFAULT_TIMEZONE);
 }
 
+/** @param {string} tableName */
 async function tableExists(tableName) {
   const row = await db.get(`
 SELECT name
@@ -529,7 +566,7 @@ LIMIT 1;
 }
 
 async function ensureDefaultWorkspace() {
-  const workspaces = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  const workspaces = /** @type {WorkspaceIdRow[]} */ (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"));
 
   if (workspaces.length > 0) {
     return {
@@ -578,6 +615,7 @@ VALUES (
   };
 }
 
+/** @param {string} workspaceId */
 async function ensureWorkspaceSettings(workspaceId) {
   const settings = await db.get(`
 SELECT workspace_id
@@ -614,8 +652,9 @@ function getDefaultSettings() {
   return normalizeSettings({ workspaceName: DEFAULT_WORKSPACE_NAME });
 }
 
+/** @param {string} workspaceId */
 async function seedSuperAdminUser(workspaceId) {
-  const existingAdministrators = await db.query(`
+  const existingAdministrators = /** @type {UserIdRow[]} */ (await db.query(`
 SELECT users.user_id
 FROM users
 WHERE users.protected_user = 'yes'
@@ -630,17 +669,17 @@ ORDER BY
   users.username,
   users.user_id
 LIMIT 1;
-`);
+`));
 
   if (existingAdministrators.length > 0) {
     return { created: false, reason: "super-admin-exists" };
   }
 
-  const existingUsers = await db.query(`
+  const existingUsers = /** @type {UserIdRow[]} */ (await db.query(`
 SELECT user_id
 FROM users
 LIMIT 1;
-`);
+`));
 
   if (existingUsers.length > 0) {
     return { created: false, reason: "existing-install-users" };
@@ -689,8 +728,9 @@ VALUES (
   return { created: true };
 }
 
+/** @param {string} workspaceId */
 async function repairLocalTimeEntryUser(workspaceId) {
-  const user = await db.get(`
+  const user = /** @type {UserIdRow | null} */ (await db.get(`
 SELECT user_id
 FROM users
 WHERE home_workspace_id = :workspaceId
@@ -699,7 +739,7 @@ LIMIT 1;
 `, {
     username: DEFAULT_SUPER_ADMIN_USERNAME,
     workspaceId,
-  });
+  }));
 
   if (!user) {
     return;
@@ -716,6 +756,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId */
 async function ensureWorkspaceMemberships(workspaceId) {
   const membershipTable = await tableExists("user_workspaces");
   const hasOwnerColumn = await columnsExist("workspaces", ["owner_user_id"]);
@@ -724,11 +765,11 @@ async function ensureWorkspaceMemberships(workspaceId) {
     return;
   }
 
-  const users = await db.query(`
+  const users = /** @type {UserStatusRow[]} */ (await db.query(`
 SELECT user_id, user_status
 FROM users
 WHERE home_workspace_id = :workspaceId;
-`, { workspaceId });
+`, { workspaceId }));
 
   const now = new Date().toISOString();
 
@@ -794,7 +835,7 @@ SET active_workspace_id = home_workspace_id
 WHERE active_workspace_id IS NULL OR active_workspace_id = '';
 `);
 
-  const rows = await querySql(`
+  const rows = /** @type {ActiveWorkspaceRow[]} */ (await querySql(`
 SELECT sessions.user_id, sessions.active_workspace_id
 FROM sessions
 INNER JOIN (
@@ -810,7 +851,7 @@ INNER JOIN user_workspaces
   ON user_workspaces.user_id = sessions.user_id
   AND user_workspaces.workspace_id = sessions.active_workspace_id
   AND user_workspaces.status = 'active';
-`);
+`));
 
   if (rows.length > 0) {
     await db.transaction(async (transaction) => {
@@ -828,6 +869,7 @@ WHERE user_id = :userId;
   }
 }
 
+/** @param {string} workspaceId */
 async function ensureWorkspaceType(workspaceId) {
   if (!(await columnsExist("workspaces", ["workspace_type"]))) {
     return;
@@ -871,6 +913,7 @@ WHERE status = 'active'
 `, { updatedAt: new Date().toISOString() });
 }
 
+/** @param {string} workspaceId */
 async function ensureProtectedUserRoles(workspaceId) {
   await db.run(`
 UPDATE user_role_assignments
@@ -885,12 +928,12 @@ WHERE workspace_id = :workspaceId
     workspaceId,
   });
 
-  const rows = await db.query(`
+  const rows = /** @type {UserIdRow[]} */ (await db.query(`
 SELECT user_id
 FROM users
 WHERE home_workspace_id = :workspaceId
   AND protected_user = 'yes';
-`, { workspaceId });
+`, { workspaceId }));
 
   const now = new Date().toISOString();
 
@@ -950,8 +993,9 @@ WHERE ${databaseDialect.identity.rowId()} = (
 `);
 }
 
+/** @param {string} tableName @param {readonly string[]} columnNames */
 async function columnsExist(tableName, columnNames) {
-  const columns = await querySql(databaseDialect.introspection.tableInfo(tableName));
+  const columns = /** @type {TableColumnRow[]} */ (await querySql(databaseDialect.introspection.tableInfo(tableName)));
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));

@@ -13,6 +13,8 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 
+/** @typedef {{ user_id: string, username: string, home_workspace_id: string, active_workspace_id: string | null }} ProtectedSessionProjection */
+
 try {
   await initializeDatabase();
 
@@ -305,13 +307,13 @@ ORDER BY name;
 }
 
 async function readProtectedSession() {
-  const rows = await querySql(`
+  const rows = /** @type {ProtectedSessionProjection[]} */ (await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
-`);
+`));
   const user = rows[0];
 
   assert.ok(user, "protected user should exist");

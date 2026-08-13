@@ -46,15 +46,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.14 - Type database adapters and repository row projections
-
-**Model: High Effort** - Database result shapes, transactions, and provider boundaries carry data-integrity risk.
-
-- [ ] Add named row/result projections for database adapters and framework repositories instead of broad casts or inferred `{}`/`never` containers.
-- [ ] Preserve parameter binding, transaction semantics, SQLite behavior, migration ownership, and the future provider-neutral boundary.
-- [ ] Type nullable and optional database results explicitly without changing not-found behavior.
-- [ ] Reduce the database/repository server ledger to zero and retain schema, dialect, binding, and integrity proofs.
-
 ### 0.33.33.15 - Type framework core and shared services
 
 **Model: High Effort** - Framework services feed many modules and contain permission, Files, Search, job, and resume-state contracts.

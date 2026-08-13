@@ -1,5 +1,14 @@
+// @ts-check
 import { performance } from "node:perf_hooks";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupAction} DatabaseStartupAction */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupContext} DatabaseStartupContext */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupLifecycle} DatabaseStartupLifecycle */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupOptions} DatabaseStartupOptions */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupPhaseEvent} DatabaseStartupPhaseEvent */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupStatus} DatabaseStartupStatus */
+
+/** @type {Readonly<Record<string, DatabaseStartupLifecycle>>} */
 const STARTUP_LIFECYCLES = Object.freeze({
   BACKGROUND_JOB: "background-job",
   EVERY_BOOT: "every-boot-coordination",
@@ -10,8 +19,10 @@ const STARTUP_LIFECYCLES = Object.freeze({
   VERSIONED_REPAIR: "one-time-migration-versioned-repair",
 });
 
+/** @type {ReadonlySet<DatabaseStartupLifecycle>} */
 const VALID_LIFECYCLES = new Set(Object.values(STARTUP_LIFECYCLES));
 
+/** @param {DatabaseStartupAction[]} actions @param {DatabaseStartupOptions} [options] */
 async function runStartupActions(actions, options = {}) {
   validateStartupActions(actions);
 
@@ -26,14 +37,15 @@ async function runStartupActions(actions, options = {}) {
 
     try {
       const outcome = await action.run(context);
-      const status = outcome?.status === "skipped" ? "skipped" : "completed";
-      const result = createEvent(action, status, elapsedMilliseconds(startedAt, now()), outcome?.reason);
+      const startupOutcome = isStartupOutcome(outcome) ? outcome : null;
+      const status = startupOutcome?.status === "skipped" ? "skipped" : "completed";
+      const result = createEvent(action, status, elapsedMilliseconds(startedAt, now()), startupOutcome?.reason);
       results.push(result);
       report(result);
     } catch (error) {
       report({
         ...createEvent(action, "failed", elapsedMilliseconds(startedAt, now())),
-        errorType: error?.name || "Error",
+        errorType: error && typeof error === "object" && "name" in error ? String(error.name || "Error") : "Error",
       });
       throw error;
     }
@@ -42,6 +54,12 @@ async function runStartupActions(actions, options = {}) {
   return { context, results };
 }
 
+/** @param {unknown} value @returns {value is import("../types/database-contracts.js").DatabaseStartupOutcome} */
+function isStartupOutcome(value) {
+  return Boolean(value && typeof value === "object");
+}
+
+/** @param {DatabaseStartupAction[]} actions */
 function validateStartupActions(actions) {
   if (!Array.isArray(actions)) {
     throw new TypeError("Startup actions must be an array.");
@@ -74,6 +92,7 @@ function validateStartupActions(actions) {
   }
 }
 
+/** @param {DatabaseStartupAction} action @param {DatabaseStartupStatus} status @param {number} durationMs @param {string} [reason] @returns {DatabaseStartupPhaseEvent} */
 function createEvent(action, status, durationMs, reason = "") {
   return {
     durationMs,
@@ -85,6 +104,7 @@ function createEvent(action, status, durationMs, reason = "") {
   };
 }
 
+/** @param {number} startedAt @param {number} finishedAt */
 function elapsedMilliseconds(startedAt, finishedAt) {
   return Math.max(0, Math.round(finishedAt - startedAt));
 }

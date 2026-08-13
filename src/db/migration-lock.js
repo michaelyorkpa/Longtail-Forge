@@ -1,4 +1,9 @@
+// @ts-check
 import fs from "node:fs/promises";
+
+/** @typedef {import("node:fs/promises").FileHandle} FileHandle */
+/** @typedef {{ acquiredAt?: string, databaseFile?: string, hostname?: string, ownerId?: string, pid?: number, provider?: string }} MigrationLockMetadata */
+/** @typedef {{ handle: FileHandle, lockPath: string, ownerId: string }} MigrationLock */
 import os from "node:os";
 import path from "node:path";
 import { config } from "../config.js";
@@ -10,6 +15,7 @@ function migrationLockPath() {
   return path.join(path.dirname(config.databaseFile), MIGRATION_LOCK_FILE_NAME);
 }
 
+/** @template T @param {(lock: MigrationLock) => Promise<T> | T} callback @returns {Promise<T>} */
 async function withMigrationLock(callback) {
   if (typeof callback !== "function") {
     throw new Error("Migration lock requires a callback.");
@@ -32,11 +38,11 @@ async function acquireMigrationLock() {
   try {
     handle = await fs.open(lockPath, "wx");
   } catch (error) {
-    if (error.code === "EEXIST") {
+    if (errorCode(error) === "EEXIST") {
       throw await createHeldMigrationLockError(lockPath);
     }
 
-    throw new Error(`Could not acquire SQLite migration lock at ${lockPath}: ${error.message || error}`);
+    throw new Error(`Could not acquire SQLite migration lock at ${lockPath}: ${errorMessage(error)}`);
   }
 
   const metadata = {
@@ -53,7 +59,7 @@ async function acquireMigrationLock() {
   } catch (error) {
     await handle.close().catch(() => {});
     await fs.rm(lockPath, { force: true }).catch(() => {});
-    throw new Error(`Could not write SQLite migration lock metadata at ${lockPath}: ${error.message || error}`);
+    throw new Error(`Could not write SQLite migration lock metadata at ${lockPath}: ${errorMessage(error)}`);
   }
 
   return Object.freeze({
@@ -63,6 +69,7 @@ async function acquireMigrationLock() {
   });
 }
 
+/** @param {MigrationLock} lock */
 async function releaseMigrationLock(lock) {
   await lock.handle.close();
 
@@ -74,12 +81,13 @@ async function releaseMigrationLock(lock) {
   try {
     await fs.unlink(lock.lockPath);
   } catch (error) {
-    if (error.code !== "ENOENT") {
+    if (errorCode(error) !== "ENOENT") {
       throw error;
     }
   }
 }
 
+/** @param {string} lockPath */
 async function createHeldMigrationLockError(lockPath) {
   const metadata = await readMigrationLockMetadata(lockPath);
   const owner = formatMigrationLockOwner(metadata);
@@ -91,6 +99,7 @@ async function createHeldMigrationLockError(lockPath) {
   );
 }
 
+/** @param {string} lockPath @returns {Promise<MigrationLockMetadata | null>} */
 async function readMigrationLockMetadata(lockPath) {
   try {
     return JSON.parse(await fs.readFile(lockPath, "utf8"));
@@ -99,6 +108,17 @@ async function readMigrationLockMetadata(lockPath) {
   }
 }
 
+/** @param {unknown} error @returns {string} */
+function errorCode(error) {
+  return error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
+}
+
+/** @param {unknown} error @returns {string} */
+function errorMessage(error) {
+  return error && typeof error === "object" && "message" in error ? String(error.message || error) : String(error);
+}
+
+/** @param {MigrationLockMetadata | null} metadata */
 function formatMigrationLockOwner(metadata) {
   if (!metadata) {
     return "The lock owner could not be read.";
