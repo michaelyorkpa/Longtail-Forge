@@ -1,7 +1,9 @@
+// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { NOTES_PROTECTED_CONTENT_CONSUMERS } from "./consumer-policy.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
+/** @type {Pick<import("../../types/framework-contracts.js").ModuleManifest, "protectedContentConsumers" | "publicApiEndpoints" | "apiScopes" | "timerSources" | "workItemSources" | "taggableTypes" | "tagPropagation" | "searchableTypes" | "attachableTypes" | "linkedContextProviders">} */
 const notesIntegrations = {
   protectedContentConsumers: NOTES_PROTECTED_CONTENT_CONSUMERS,
   publicApiEndpoints: [

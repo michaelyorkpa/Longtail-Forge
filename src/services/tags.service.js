@@ -11,6 +11,7 @@ import { searchIndexSyncService } from "./search-index-sync.service.js";
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TAGS_MODULE_ID = "tags";
 /** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} TagSession */
+/** @typedef {import("../types/http-contracts.js").AuthorizationSession & {workspace_id: string}} TagReadSession */
 /** @typedef {import("../types/framework-contracts.js").TaggableTypeContribution & {moduleId: string, targetType: string, label: string, description: string, tableName: string, idField: string, labelField: string, workspaceField: string, requiredReadPermission: string, requiredTagPermission: string}} TaggableType */
 /** @typedef {import("../types/framework-contracts.js").TagPropagationContribution & {id: string, sourceModuleId: string, sourceTargetType: string, targetModuleId: string, targetType: string, relationshipResolver: string}} TagPropagationRule */
 /** @typedef {Record<string, unknown>} LooseRecord */
@@ -35,7 +36,7 @@ const propagationFailures = [];
  * @property {string | null} client_id
  * @property {string | null} project_id
  * @property {string | null} [url]
- * @param {TagSession} session
+ * @param {TagReadSession} session
  * @param {LooseRecord} [query]
  */
 async function list(session, query = {}) {
@@ -500,7 +501,7 @@ async function listDirectTagsForTarget(session, targetType, targetId) {
 }
 
 /**
- * @param {TagSession} session
+ * @param {TagReadSession} session
  * @param {string} targetType
  * @param {string} targetId
  */
@@ -513,7 +514,7 @@ async function listPropagatedTagsForTarget(session, targetType, targetId) {
 }
 
 /**
- * @param {TagSession} session
+ * @param {TagReadSession} session
  * @param {string} targetType
  * @param {string} targetId
  */
@@ -525,7 +526,7 @@ async function listEffectiveTagsForTarget(session, targetType, targetId) {
   return tagsRepository.listAssignmentsForTarget(session.workspace_id, targetType, targetId);
 }
 
-/** @param {TagSession} session @param {string} targetType @param {LooseRecord[]} records @param {{idField?: string}} [options] @returns {Promise<DecoratedTagRecord[]>} */
+/** @param {TagReadSession} session @param {string} targetType @param {LooseRecord[]} records @param {{idField?: string}} [options] @returns {Promise<DecoratedTagRecord[]>} */
 async function decorateRecordsWithEffectiveTags(session, targetType, records, options = {}) {
   return decorateRecordsForTarget(session, targetType, records, options);
 }
@@ -814,7 +815,7 @@ function listTagPropagationFailures(workspaceId = "") {
     .map((failure) => ({ ...failure }));
 }
 
-/** @template T @param {TagSession} session @param {string} targetType @param {T[]} records @param {{idField?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
+/** @template T @param {TagReadSession} session @param {string} targetType @param {T[]} records @param {{idField?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
 async function decorateRecordsForTarget(session, targetType, records, options = {}) {
   if (!Array.isArray(records) || records.length === 0 || !(await tagsModuleReadable(session))) {
     return /** @type {Array<T & DecoratedTagRecord>} */ (Array.isArray(records) ? records : []);
@@ -844,7 +845,7 @@ async function decorateRecordsForTarget(session, targetType, records, options = 
   });
 }
 
-/** @template T @param {TagSession} session @param {string} targetType @param {T[]} records @param {unknown} tagIds @param {{idField?: string, match?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
+/** @template T @param {TagReadSession} session @param {string} targetType @param {T[]} records @param {unknown} tagIds @param {{idField?: string, match?: string}} [options] @returns {Promise<Array<T & DecoratedTagRecord>>} */
 async function filterRecordsByTags(session, targetType, records, tagIds, options = {}) {
   const normalizedFilters = normalizeTagFilterIntent(tagIds);
   const normalizedTagIds = normalizedFilters.tagIds;
@@ -880,7 +881,7 @@ async function filterRecordsByTags(session, targetType, records, tagIds, options
   });
 }
 
-/** @param {TagSession} session @param {unknown} value @param {{status?: string}} [options] */
+/** @param {TagReadSession} session @param {unknown} value @param {{status?: string}} [options] */
 async function resolveTagFilterValues(session, value, options = {}) {
   const filters = normalizeOptionalTagIds(value);
   if (filters.length === 0) {
@@ -1260,13 +1261,13 @@ async function readTargetForSession(session, rawTargetType, rawTargetId, operati
   };
 }
 
-/** @param {TagSession} session */
+/** @param {TagReadSession} session */
 async function tagsModuleReadable(session) {
   return modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID);
 }
 
 /**
- * @param {TagSession} session
+ * @param {TagReadSession} session
  */
 async function assertTaggingReadEnabled(session) {
   if (await modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID)) {

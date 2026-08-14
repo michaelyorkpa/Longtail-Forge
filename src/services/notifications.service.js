@@ -23,6 +23,7 @@ import { permissionsService } from "./permissions.service.js";
 /** @typedef {import("../types/framework-contracts.js").NotificationEventPayload} NotificationEventPayload */
 /** @typedef {import("../types/framework-contracts.js").NotificationTemplateContribution} NotificationTemplateContribution */
 /** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/notes-domain-contracts.js").NotesServiceSession} NotesServiceSession */
 /** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 /** @typedef {import("../repositories/notifications.repo.js").NotificationCreateInput} NotificationCreateInput */
 /** @typedef {import("../repositories/notifications.repo.js").NotificationDisplayPreferenceRow} NotificationDisplayPreferenceRow */
@@ -32,7 +33,7 @@ import { permissionsService } from "./permissions.service.js";
 /** @typedef {Record<string, unknown>} LooseRecord */
 /** @typedef {NonNullable<Awaited<ReturnType<typeof notificationsRepository.create>>>} NotificationValue */
 /** @typedef {NonNullable<Awaited<ReturnType<typeof notificationsRepository.readUserDisplayPreferences>>>} NotificationDisplayPreferenceValue */
-/** @typedef {{role?: string, user_id?: string, username?: string, workspace_id?: string|null}} NotificationSessionContext */
+/** @typedef {{authorization_source?: "notification", role?: string, user_id?: string, username?: string, workspace_id?: string|null}} NotificationSessionContext */
 /** @typedef {{actor_user_id?: string, emitted_at?: string, metadata?: LooseRecord, module_id?: string, name: string, new_value?: unknown, previous_value?: unknown, record_id?: string, record_type?: string, session?: NotificationSessionContext|import("../types/http-contracts.js").RequestSession|null, source?: string, workspace_id?: string}} NotificationEventRecord */
 /** @typedef {NotificationEventRecord & {actor_user_id: string, emitted_at: string, metadata: LooseRecord, module_id: string, new_value: LooseRecord, previous_value: LooseRecord, record_id: string, record_type: string, session: NotificationSessionContext|null, source: string, workspace_id: string}} NormalizedNotificationEvent */
 /** @typedef {{job?: JobExecutionRecord|LooseRecord, maxAttempts?: number, max_attempts?: number, priority?: number}} NotificationEventOptions */
@@ -737,6 +738,7 @@ function normalizeJobSession(session = null) {
   }
 
   return {
+    authorization_source: "notification",
     role: normalizeJobText(/** @type {LooseRecord} */ (session).role),
     user_id: normalizeJobText(/** @type {LooseRecord} */ (session).user_id || /** @type {LooseRecord} */ (session).userId),
     username: normalizeJobText(/** @type {LooseRecord} */ (session).username),
@@ -914,6 +916,9 @@ async function readNoteTargetMetadata(notification, session, baseMetadata) {
   const { notesService } = await import("../modules/notes/notes.service.js");
 
   try {
+    if (!isNotesServiceSession(session)) {
+      return baseMetadata;
+    }
     const note = /** @type {LooseRecord} */ (await notesService.readConsumerSummary(
       normalizeJobText(notification.record_id),
       session,
@@ -933,6 +938,28 @@ async function readNoteTargetMetadata(notification, session, baseMetadata) {
   } catch {
     return baseMetadata;
   }
+}
+
+/** @param {NotificationSessionContext} session @returns {session is NotesServiceSession} */
+function isNotesServiceSession(session) {
+  if (!session.workspace_id || !session.user_id || typeof session.username !== "string") {
+    return false;
+  }
+
+  const record = /** @type {LooseRecord} */ (session);
+  if (record.authorization_source === "notification") {
+    return true;
+  }
+  if (typeof record.api_key_id === "string" && record.api_key_id) {
+    return true;
+  }
+
+  return typeof record.timezone === "string" &&
+    typeof record.ip_address === "string" &&
+    typeof record.active_workspace_id === "string" &&
+    (typeof record.home_workspace_id === "string" || record.home_workspace_id === null) &&
+    typeof record.session_mode === "string" &&
+    (typeof record.password_change_required === "boolean" || record.session_mode === "private_feed");
 }
 
 /** @param {string} moduleId @param {string} recordType */
@@ -985,7 +1012,9 @@ async function canUserAccessTarget(target) {
     record_type: target.target_type,
     url: target.url || "",
   }, {
+    authorization_source: "notification",
     user_id: normalizeJobText(target.user_id),
+    username: normalizeJobText(target.username),
     workspace_id: normalizeJobText(target.workspace_id),
   });
 

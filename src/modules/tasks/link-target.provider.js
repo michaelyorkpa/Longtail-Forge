@@ -7,7 +7,7 @@ import {
   targetSourceUrl,
 } from "../../core/linked-context/link-target-shape.js";
 
-/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetSession} WorkspaceRequestSession */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessState} LinkTargetAccessState */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTargetCandidate */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetDirectoryContext} LinkTargetDirectoryContext */

@@ -200,12 +200,18 @@ WHERE note_id = ${sqlText(noteId)};
   assert.ok(revisionRows.every((row) => row.key_wrapping_algorithm === "aes-256-gcm"));
   assert.ok(revisionRows.every((row) => row.encryption_nonce && row.encryption_auth_tag && row.key_wrapping_nonce && row.key_wrapping_auth_tag && row.encrypted_at));
 
-  const revisionRead = await notesService.readRevision(noteId, visibleRevisions.revisions[0].note_revision_id, session);
-  assert.match(revisionRead.revision.body_markdown, /Updated secure body needle|Sensitive body needle/);
+  const visibleRevision = visibleRevisions.revisions[0];
+  assert.ok(visibleRevision, "a secure revision should be available for read and restore");
+  const visibleRevisionId = visibleRevision.note_revision_id;
+  assert.ok(visibleRevisionId, "the secure revision should have an ID");
+  const revisionRead = await notesService.readRevision(noteId, visibleRevisionId, session);
+  const revisionBody = revisionRead.revision.body_markdown;
+  assert.ok(revisionBody, "the decrypted secure revision should expose its body");
+  assert.match(revisionBody, /Updated secure body needle|Sensitive body needle/);
   assert.equal(revisionRead.revision.body_excerpt, null);
   assertNoBrowserSecureStorageFields(revisionRead.revision);
 
-  const restored = await notesService.restoreRevision(noteId, visibleRevisions.revisions[0].note_revision_id, session);
+  const restored = await notesService.restoreRevision(noteId, visibleRevisionId, session);
   assertNoBrowserSecureStorageFields(restored.note);
   assertNoBrowserSecureStorageFields(restored.restoredRevision);
   assert.equal(Object.hasOwn(restored.restoredRevision, "body_markdown"), false);

@@ -22,6 +22,7 @@ import { AppError } from "../../core/errors.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 
 /** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceSession} NotesServiceSession */
 /** @typedef {import("../../types/notes-collections-contracts.js").NoteCatalogBulkError} NoteCatalogBulkError */
 /** @typedef {import("../../types/notes-collections-contracts.js").NoteCatalogSettingsRow} NoteCatalogSettingsRow */
 /** @typedef {import("../../types/notes-collections-contracts.js").NoteCollectionCountFilters} NoteCollectionCountFilters */
@@ -377,7 +378,7 @@ function createNotesCollectionsService(dependencies) {
     return { action, affectedCount, catalogs, errors, requestedCount: catalogIds.length };
   }
 
-  /** @param {WorkspaceRequestSession} session @param {NoteCollectionSelection} selection */
+  /** @param {NotesServiceSession} session @param {NoteCollectionSelection} selection */
   async function resolveListFilter(session, selection) {
     const collectionId = selection.noteCollectionId;
     if (!collectionId) return {};

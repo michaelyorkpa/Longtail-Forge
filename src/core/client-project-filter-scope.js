@@ -15,7 +15,7 @@ const FILTER_SCOPE_MODES = Object.freeze({
 /** @typedef {{ id: string, client_id?: unknown, parent_project_id?: unknown } & Record<string, unknown>} ScopedProjectRecord */
 /** @typedef {{ clientFilterMode: FilterScopeMode, clientId: string, clientIds: string[], clientProjectIds: string[], hasClientFilter: boolean, hasProjectFilter: boolean, omitClientFilterBecauseProjectSelected: boolean, projectFilterMode: FilterScopeMode, projectId: string, projectIds: string[], usesClientScope: boolean, workspaceType: string }} ClientProjectFilterScope */
 
-/** @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @param {ClientProjectFilterOptions} [options] @returns {Promise<ClientProjectFilterScope>} */
+/** @param {import("../types/http-contracts.js").AuthorizationSession & {workspace_id: string}} session @param {ClientProjectFilterOptions} [options] @returns {Promise<ClientProjectFilterScope>} */
 async function resolveClientProjectFilterScope(session, options = {}) {
   const workspaceId = String(session?.workspace_id || "").trim();
   const settings = workspaceId

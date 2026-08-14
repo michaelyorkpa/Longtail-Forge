@@ -1,4 +1,6 @@
-import type { WorkspaceRequestSession } from "./http-contracts.js";
+import type { AuthorizationSession } from "./http-contracts.js";
+
+export type LinkTargetSession = AuthorizationSession & { workspace_id: string };
 
 export type LinkTargetType = "workspace" | "client" | "project" | "task" | "note" | "list" | "user";
 export type LinkTargetAccessState = "readable" | "unavailable" | "forbidden";
@@ -57,18 +59,18 @@ export interface LinkTargetProviderOptions {
 export interface LinkTargetProvider {
   readonly targetTypes: readonly LinkTargetType[];
   list(
-    session: WorkspaceRequestSession,
+    session: LinkTargetSession,
     targetType: LinkTargetType,
     options: LinkTargetProviderOptions,
   ): Promise<LinkTargetCandidate[]>;
   read(
-    session: WorkspaceRequestSession,
+    session: LinkTargetSession,
     targetType: LinkTargetType,
     targetId: string,
     options: LinkTargetProviderOptions,
   ): Promise<LinkTargetCandidate | null>;
   readAccess(
-    session: WorkspaceRequestSession,
+    session: LinkTargetSession,
     targetType: LinkTargetType,
     targetIds: readonly string[],
   ): Promise<Map<string, LinkTargetAccessState>>;

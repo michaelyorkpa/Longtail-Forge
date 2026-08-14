@@ -19,7 +19,7 @@ import {
 } from "../utils/normalizers.js";
 
 /** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
-/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/http-contracts.js").AuthorizationSession} PermissionSession */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /** @typedef {import("../repositories/permissions.repo.js").PermissionAssignmentRow} PermissionAssignmentRow */
@@ -779,7 +779,7 @@ async function recordAuthorizationDenied(session, action, resource) {
     actorUserId: session?.user_id,
     actorUserName: session?.username,
     eventType: "security.authorization.denied",
-    ipAddress: session?.ip_address,
+    ipAddress: session && "ip_address" in session ? session.ip_address : undefined,
     metadata: {
       operation: resource?.operation,
       permission: action,
@@ -903,7 +903,7 @@ async function createPermissionEvaluator(session, action, { operation = "read" }
   };
 }
 
-/** @template T @param {WorkspaceRequestSession} session @param {T[]} clients @returns {Promise<T[]>} */
+/** @template T @param {PermissionSession & {workspace_id: string}} session @param {T[]} clients @returns {Promise<T[]>} */
 async function filterReadableClients(session, clients) {
   if (await can(session, "clients.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return clients;
@@ -913,7 +913,7 @@ async function filterReadableClients(session, clients) {
   return clients.filter((client) => readableScopes.clientIds.has(/** @type {LooseRecord} */ (client).id));
 }
 
-/** @template T @param {WorkspaceRequestSession} session @param {T[]} projects @returns {Promise<T[]>} */
+/** @template T @param {PermissionSession & {workspace_id: string}} session @param {T[]} projects @returns {Promise<T[]>} */
 async function filterReadableProjects(session, projects) {
   if (await can(session, "projects.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return projects;
@@ -1182,7 +1182,7 @@ async function isSuperAdmin(session) {
 }
 
 /**
- * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession} session
+ * @param {PermissionSession} session
  */
 async function isInstallationSuperAdmin(session) {
   const cache = readRequestCache(session);
@@ -1225,7 +1225,7 @@ async function isWorkspaceAdministrator(session) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {PermissionSession & {workspace_id: string}} session
  */
 async function readReadableScopes(session) {
   const assignments = await readAssignmentsForSession(session);
@@ -1257,7 +1257,7 @@ async function readReadableScopes(session) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {PermissionSession & {workspace_id: string}} session
  */
 async function readCurrentUser(session) {
   const cache = readRequestCache(session);
@@ -1271,7 +1271,7 @@ async function readCurrentUser(session) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {PermissionSession & {workspace_id: string}} session
  */
 async function readAssignmentsForSession(session) {
   const cache = readRequestCache(session);

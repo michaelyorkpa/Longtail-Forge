@@ -235,6 +235,9 @@ async function assertLinkedRows(session, fixtures) {
   const noteLink = read.note.links.find((link) => link.target_id === fixtures.alphaNote.note_id);
   const listLink = read.note.links.find((link) => link.target_id === fixtures.checklistList.list_id);
 
+  assert.ok(noteLink, "linked Notes row should be present");
+  assert.ok(listLink, "linked Lists row should be present");
+
   assert.equal(noteLink.label, fixtures.alphaNote.title);
   assert.equal(noteLink.display_label, fixtures.alphaNote.title);
   assert.equal(noteLink.secondary_label, fixtures.contextLabel);

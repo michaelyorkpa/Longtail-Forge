@@ -1,6 +1,12 @@
 import type { Buffer as NodeBuffer } from "node:buffer";
 import type { DatabaseNamedParameterInput, DatabaseRow, TransactionClient } from "./database-contracts.js";
-import type { WorkspaceRequestSession } from "./http-contracts.js";
+import type { ApiSession, ServiceAuthorizationSession, WorkspaceRequestSession } from "./http-contracts.js";
+import type {
+  LinkTargetCandidate,
+  LinkTargetClientContext,
+  LinkTargetDirectoryContext,
+  LinkTargetType,
+} from "./link-target-directory-contracts.js";
 import type { NoteCollectionRecord, NoteLibraryBucket } from "./notes-collections-contracts.js";
 
 export type NoteStatus = "active" | "pinned" | "archived" | "deleted";
@@ -199,6 +205,8 @@ export interface MarkdownNoteInput {
 }
 
 export interface RevisionSnapshotOptions {
+  noteRevisionId?: string | null;
+  note_revision_id?: string | null;
   revisionNumber?: number | string | null;
   revision_number?: number | string | null;
   changedByUserId?: string | null;
@@ -315,6 +323,7 @@ export interface NotesDomainSupportService {
 }
 
 export type NotesWorkspaceSession = WorkspaceRequestSession;
+export type NotesServiceSession = WorkspaceRequestSession | ApiSession | ServiceAuthorizationSession;
 export type NotesCollectionRecord = NoteCollectionRecord;
 export type NotesLibraryBucket = NoteLibraryBucket;
 export type NodeCryptoKey = NodeBuffer;
@@ -381,6 +390,7 @@ export interface NoteStoredRecord extends NoteDatabaseRow {
 }
 
 export type NotePersistenceInput = Partial<NoteDatabaseRow> & Pick<NoteDatabaseRow, "title">;
+export type NotesServiceWritableNote = NotePersistenceInput & NoteSecuritySourceRecord & Partial<NoteEffectiveSecurityProjection>;
 
 export interface NoteRevisionDatabaseRow extends DatabaseRow, SecureNoteEncryptedFields {
   note_revision_id: string;
@@ -827,3 +837,416 @@ export interface CatalogSecurityService {
   remove(collectionId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<CatalogSecurityStartResult>;
   retry(collectionId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<CatalogSecurityStartResult>;
 }
+
+export interface NotesServiceTag {
+  id?: string;
+  tag_id?: string;
+  tagId?: string;
+  name?: string;
+  label?: string;
+  slug?: string;
+  description?: string;
+}
+
+export interface NotesServiceSearchDocument {
+  workspace_id: string;
+  note_id: string;
+  title: string;
+  summary: string;
+  body: string;
+  tags_text?: string;
+  client_id: string | null;
+  project_id: string | null;
+  library_bucket: string;
+  note_collection_id: string;
+  collection_path?: string;
+  visibility: string;
+  search_status: "active" | "archived";
+  source: "Notes";
+  record_created_at: string;
+  record_updated_at: string;
+}
+
+export type NoteSearchSource = Pick<NoteRecord,
+  | "note_id"
+  | "workspace_id"
+  | "title"
+  | "body_markdown"
+  | "body_excerpt"
+  | "body_plaintext_index"
+  | "library_bucket"
+  | "status"
+  | "visibility"
+  | "security_mode"
+  | "created_at"
+  | "updated_at"
+> & Partial<Pick<NoteRecord,
+  | "archived_at"
+  | "deleted_at"
+  | "client_id"
+  | "project_id"
+  | "task_id"
+  | "ticket_id"
+  | "linked_user_id"
+  | "note_collection_id"
+  | "effective_security_mode"
+  | "explicit_security_mode"
+  | "security_catalog_id"
+  | "security_inherited"
+  | "security_resolution_state"
+  | "security_source"
+>>;
+
+export interface NotesServiceNote extends NoteRecord {
+  __candidateOffset?: number;
+  body_html?: string;
+  directTags?: NotesServiceTag[];
+  effectiveTags?: NotesServiceTag[];
+  files?: unknown[];
+  links?: NotesServiceDecoratedLink[];
+  linked_context?: unknown;
+  owner_display_name?: unknown;
+  owner?: { id?: string; label?: string } | null;
+  searchDocument?: NotesServiceSearchDocument | null;
+  secure_body_decrypted?: boolean;
+  secure_title_warning?: string;
+  suggested_library_bucket?: string;
+  tags?: NotesServiceTag[];
+  tagIds?: string[];
+}
+
+export type NotesServiceNoteLike = Partial<NotesServiceNote>;
+export type NotesServiceRevisionLike = Partial<NoteRevisionRecord>;
+export type NotesServiceLinkLike = Partial<NoteLinkRecord> & PropagatedNoteLinkInput;
+
+export interface NotesServiceDecoratedLink extends Omit<NotesServiceTarget, "metadata_json"> {
+  note_link_id: string;
+  workspace_id: string;
+  note_id: string;
+  module_id: string;
+  target_type: string;
+  target_id: string;
+  link_role: string;
+  scope_role: string;
+  created_by_user_id: string | null;
+  created_at: string;
+  removed_at: string | null;
+  metadata_json: string | null;
+}
+
+export interface NotesServiceQuery {
+  client_scope?: unknown;
+  clientScope?: unknown;
+  client_context?: unknown;
+  client_context_id?: unknown;
+  client_filter_mode?: unknown;
+  client_id?: unknown;
+  client_ids?: unknown;
+  clientContext?: unknown;
+  clientContextId?: unknown;
+  clientFilterMode?: unknown;
+  clientId?: unknown;
+  clientIds?: unknown;
+  collection?: unknown;
+  collection_id?: unknown;
+  collectionId?: unknown;
+  context?: unknown;
+  context_search?: unknown;
+  contextSearch?: unknown;
+  cursor?: unknown;
+  include_deleted?: unknown;
+  includeDeleted?: unknown;
+  include_archived?: unknown;
+  includeArchived?: unknown;
+  library?: unknown;
+  library_bucket?: unknown;
+  libraryBucket?: unknown;
+  limit?: unknown;
+  linked_user_id?: unknown;
+  linkedUserId?: unknown;
+  mode?: unknown;
+  module_id?: unknown;
+  moduleId?: unknown;
+  note_collection_id?: unknown;
+  noteCollectionId?: unknown;
+  note_id?: unknown;
+  noteId?: unknown;
+  note_type?: unknown;
+  noteType?: unknown;
+  offset?: unknown;
+  operation?: unknown;
+  order?: unknown;
+  owner?: unknown;
+  owner_search?: unknown;
+  owner_user_id?: unknown;
+  ownerSearch?: unknown;
+  ownerUserId?: unknown;
+  page_size?: unknown;
+  pageSize?: unknown;
+  project_id?: unknown;
+  project_ids?: unknown;
+  projectId?: unknown;
+  projectIds?: unknown;
+  q?: unknown;
+  query?: unknown;
+  search?: unknown;
+  security?: unknown;
+  security_mode?: unknown;
+  securityMode?: unknown;
+  sort?: unknown;
+  sort_by?: unknown;
+  sort_mode?: unknown;
+  sortMode?: unknown;
+  status?: unknown;
+  tag_id?: unknown;
+  tag_ids?: unknown;
+  tag_match?: unknown;
+  tag_query?: unknown;
+  tagId?: unknown;
+  tagIds?: unknown;
+  tagMatch?: unknown;
+  tagQuery?: unknown;
+  tags?: unknown;
+  task_id?: unknown;
+  task_ids?: unknown;
+  taskId?: unknown;
+  taskIds?: unknown;
+  target_id?: unknown;
+  target_type?: unknown;
+  targetId?: unknown;
+  targetType?: unknown;
+  ticket_id?: unknown;
+  ticket_ids?: unknown;
+  ticketId?: unknown;
+  ticketIds?: unknown;
+  updated_since?: unknown;
+  updatedSince?: unknown;
+  user_id?: unknown;
+  userId?: unknown;
+  visibility?: unknown;
+  workspace_id?: unknown;
+  workspaceId?: unknown;
+}
+
+export interface NotesServicePayload extends NotesServiceQuery {
+  [key: string]: unknown;
+  archived_at?: unknown;
+  body_markdown?: unknown;
+  bodyMarkdown?: unknown;
+  changes?: unknown;
+  deleted_at?: unknown;
+  links?: unknown;
+  metadata?: unknown;
+  metadata_json?: unknown;
+  note_ids?: unknown;
+  note_link_id?: unknown;
+  note_revision_id?: unknown;
+  noteIds?: unknown;
+  noteLinkId?: unknown;
+  noteRevisionId?: unknown;
+  link_role?: unknown;
+  linkRole?: unknown;
+  scope_role?: unknown;
+  scopeRole?: unknown;
+  slug?: unknown;
+  title?: unknown;
+}
+
+export interface NotesServiceOptions {
+  consumer_id?: unknown;
+  consumerId?: unknown;
+  includeBody?: boolean;
+  includeBodyHtml?: boolean;
+  note_ids?: unknown;
+  noteIds?: unknown;
+  offset?: number;
+  pageSize?: number;
+  paginate?: boolean;
+}
+
+export interface NotesServicePagination {
+  offset: number;
+  pageSize: number;
+}
+
+export interface NotesServiceListFilters extends NoteListFilters {
+  clientFilterMode?: string;
+  clientIds?: string[];
+  clientProjectIds?: string[];
+  contextSearch?: string;
+  hasClientFilter?: boolean;
+  hasProjectFilter?: boolean;
+  libraryBucket?: string;
+  noteCollectionId?: string;
+  noteCollectionIds?: string[];
+  noteType?: string;
+  offset?: number;
+  omitClientFilterBecauseProjectSelected?: boolean;
+  ownerSearch?: string;
+  ownerUserId?: string;
+  projectFilterMode?: string;
+  projectIds?: string[];
+  searchQuery?: string;
+  securityMode?: string;
+  sort?: string;
+  status?: string;
+  tagId?: string;
+  tagIds?: string[];
+  tagMatch?: "all" | "any";
+  tagQuery?: string;
+  uncategorizedCollection?: boolean;
+  updatedSince?: string;
+  visibility?: string;
+}
+
+export interface NotesServicePropagationOptions {
+  links?: NotesServiceLinkLike[];
+  sourceTaskId?: string;
+  taskId?: string;
+  templateId?: string;
+}
+
+export interface NotesServiceTarget {
+  ariaLabel?: string;
+  aria_label?: string;
+  clientContext?: string;
+  client_context?: string;
+  clientId?: string;
+  client_id?: string;
+  clientName?: string;
+  client_name?: string;
+  displayLabel?: string;
+  display_label?: string;
+  fullLabel?: string;
+  full_label?: string;
+  isAvailable?: boolean;
+  is_available?: boolean;
+  label?: string;
+  linkRole?: string;
+  link_role?: string;
+  listId?: string;
+  list_id?: string;
+  moduleId?: string;
+  module_id?: string;
+  metadata?: unknown;
+  metadata_json?: unknown;
+  noteId?: string;
+  note_id?: string;
+  noteLinkId?: string;
+  note_link_id?: string;
+  projectId?: string;
+  project_id?: string;
+  projectName?: string;
+  project_name?: string;
+  secondaryLabel?: string;
+  secondary_label?: string;
+  sortKey?: string;
+  sort_key?: string;
+  sourceUrl?: string;
+  source_url?: string;
+  scopeRole?: string;
+  scope_role?: string;
+  subtitle?: string;
+  status?: string;
+  suggestedLibraryBucket?: string;
+  suggested_library_bucket?: string;
+  targetId?: string;
+  target_id?: string;
+  targetType?: string;
+  target_type?: string;
+  taskId?: string;
+  task_id?: string;
+  title?: string;
+  unavailable?: boolean;
+  userId?: string;
+  user_id?: string;
+  workspaceId?: string;
+  workspace_id?: string;
+  workspaceName?: string;
+  workspace_name?: string;
+}
+
+export interface NotesServiceClientScope {
+  clientIds?: string[];
+  clientProjectIds?: string[];
+  hasClientFilter?: boolean;
+  clientFilterMode?: string;
+  mode?: string;
+}
+
+export interface NotesServiceTargetContext extends Partial<LinkTargetDirectoryContext> {
+  clientsById?: Map<string, { id: string; label: string; name?: string }>;
+  projectsById?: Map<string, { id: string; label: string; clientId: string; clientName: string; name?: string }>;
+}
+
+export interface NotesServiceContextRecord {
+  clientId?: unknown;
+  client_id?: string | null;
+  projectId?: unknown;
+  project_id?: string | null;
+}
+
+export interface NotesServiceModuleState {
+  enabled?: boolean;
+  isEnabled?: boolean;
+  historicalReadAccess?: boolean;
+}
+
+export interface NotesServiceCandidateBatch {
+  candidates: NotesServiceNoteLike[];
+  filters: NotesServiceListFilters;
+  offset: number;
+  session: NotesServiceSession;
+}
+
+export interface NotesServiceLinkContext {
+  createdLinks?: NoteLinkRecord[];
+  removedLinks?: NoteLinkRecord[];
+}
+
+export interface NotesServiceLinkedContextAccessCache {
+  directory: import("./link-target-directory-contracts.js").LinkTargetAccessCache;
+  notes: Map<string, NoteRecord>;
+}
+
+export interface NotesServiceAuditValue {
+  archived_at?: string | null;
+  body_excerpt?: string | null;
+  client_id?: string | null;
+  effective_security_mode?: string | null;
+  library_bucket?: string | null;
+  linked_user_id?: string | null;
+  metadata_json?: string | null;
+  note_collection_id?: string | null;
+  note_library_collection_id?: string;
+  note_id?: string;
+  note_link_id?: string;
+  note_revision_id?: string;
+  note_type?: string | null;
+  parent_collection_id?: string | null;
+  project_id?: string | null;
+  security_mode?: string | null;
+  security_inherited?: boolean;
+  security_resolution_state?: string | null;
+  security_source?: string | null;
+  target_id?: string;
+  task_id?: string | null;
+  ticket_id?: string | null;
+  title?: string | null;
+  visibility?: string | null;
+  workspace_id?: string | null;
+  status?: string | null;
+  deleted_at?: string | null;
+}
+
+export interface NotesServiceEventMetadata {
+  link?: NoteLinkRecord | null;
+  restored_revision_id?: string;
+  revision_id?: string;
+  note_revision_id?: string | null;
+  revision_number?: number | string | null;
+  title?: string | null;
+}
+
+export type NotesServiceLinkTargetType = LinkTargetType;
+export type NotesServiceLinkTargetClientContext = LinkTargetClientContext;

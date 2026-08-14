@@ -156,6 +156,10 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   const noteLink = read.note.links.find((link) => link.target_type === "note" || link.targetType === "note");
   const listLink = read.note.links.find((link) => link.target_type === "list" || link.targetType === "list");
 
+  assert.ok(taskLink, "task link should be present");
+  assert.ok(noteLink, "note link should be present");
+  assert.ok(listLink, "list link should be present");
+
   assert.equal(read.note.task_id || "", "");
   assert.equal(taskLink.label, "Picker Task");
   assert.equal(taskLink.source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
@@ -224,6 +228,7 @@ async function assertNoteLifecycle(session) {
   assert.equal(createResult.note.links.length, 1);
   assert.ok(createResult.searchDocument, "normal Notes creation should return a search document");
   assert.equal(createResult.searchDocument.recordType, "note");
+  assert.ok(createResult.note.body_excerpt, "normal Notes should expose a Markdown excerpt");
   assert.match(createResult.note.body_excerpt, /Heading/);
   assert.equal((await notesService.listRevisions(noteId, session)).revisions.length, 0);
 
@@ -294,8 +299,11 @@ async function assertNoteLifecycle(session) {
   assert.equal(restoreResult.note.status, NOTE_STATUSES.ACTIVE);
 
   const revisionToRestore = revisionsAfterSecondUpdate.revisions.at(-1);
-  const revisionRestoreResult = await notesService.restoreRevision(noteId, revisionToRestore.note_revision_id, session);
-  assert.equal(revisionRestoreResult.restoredRevision.note_revision_id, revisionToRestore.note_revision_id);
+  assert.ok(revisionToRestore, "an earlier revision should be available to restore");
+  const revisionIdToRestore = revisionToRestore.note_revision_id;
+  assert.ok(revisionIdToRestore, "the restorable revision should have an ID");
+  const revisionRestoreResult = await notesService.restoreRevision(noteId, revisionIdToRestore, session);
+  assert.equal(revisionRestoreResult.restoredRevision.note_revision_id, revisionIdToRestore);
 
   const links = await notesService.listLinks(noteId, session);
   assert.equal(links.links.length, 1);
@@ -404,8 +412,10 @@ async function assertNotesTagAndTargetIntegrations(session) {
 
   const filtered = await notesService.list(session, { tagIds: [tag.tag.tag_id] });
   assert.ok(filtered.notes.some((note) => note.note_id === noteId), "Notes list should filter by assigned tags");
+  const filteredNote = filtered.notes.find((note) => note.note_id === noteId);
+  assert.ok(filteredNote, "the tagged note should remain in the filtered result");
   assert.equal(
-    filtered.notes.find((note) => note.note_id === noteId).library_bucket,
+    filteredNote.library_bucket,
     createResult.note.library_bucket,
     "Tag filtering should not alter Library bucket classification",
   );

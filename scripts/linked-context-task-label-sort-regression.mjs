@@ -139,6 +139,7 @@ async function assertBusinessTaskTargets(session) {
   }, session);
   const read = await notesService.read(linkedNote.note.note_id, session);
   const taskLink = read.note.links.find((link) => link.target_id === taskIds.clientProject);
+  assert.ok(taskLink, "linked Task row should be present");
   assert.equal(taskLink.label, titles.clientProject);
   assert.equal(taskLink.display_label, titles.clientProject);
   assert.equal(taskLink.secondary_label, "LCTask Acme Client | LCTask Client Project");
