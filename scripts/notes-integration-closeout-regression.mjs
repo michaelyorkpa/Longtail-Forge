@@ -154,6 +154,8 @@ async function assertPermissionSafeCollectionCounts(adminSession, limitedSession
   const adminCollection = adminTree.collections.find((item) => item.note_library_collection_id === collection.collection.note_library_collection_id);
   const limitedCollection = limitedTree.collections.find((item) => item.note_library_collection_id === collection.collection.note_library_collection_id);
 
+  assert.ok(adminCollection, "The collection should remain visible to its administrator");
+  assert.ok(limitedCollection, "The collection shell should remain visible without leaking inaccessible notes");
   assert.equal(adminCollection.accessibleNoteCount, 3);
   assert.equal(limitedCollection.accessibleNoteCount, 1);
   assert.equal(limitedCollection.directAccessibleNoteCount, 1);
