@@ -393,4 +393,4 @@ const runtimeDiagnosticsServiceInternal = {
   read,
 };
 
-export const runtimeDiagnosticsService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof runtimeDiagnosticsServiceInternal>} */ (runtimeDiagnosticsServiceInternal);
+export const runtimeDiagnosticsService = runtimeDiagnosticsServiceInternal;

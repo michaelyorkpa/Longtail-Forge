@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-legacy-cleanup-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-legacy-cleanup-test.db");
@@ -45,7 +46,7 @@ WHERE type = 'table'
 async function assertLegacyStaticPagesRemoved() {
   const workspaceId = await readDefaultWorkspaceId();
   const userId = await readDefaultUserId(workspaceId);
-  const session = { workspace_id: workspaceId, user_id: userId, username: "legacy-cleanup", timezone: "America/New_York" };
+  const session = workspaceSessionFixture({ workspace_id: workspaceId, user_id: userId, username: "legacy-cleanup" });
   const organizationSettings = await staticService.read("/organization-settings.html", session);
   const clientsProjects = await staticService.read("/clients-projects.html", session);
 
@@ -57,12 +58,7 @@ async function assertLegacyStaticPagesRemoved() {
 async function assertSettingsRejectLegacyAliases() {
   const workspaceId = await readDefaultWorkspaceId();
   const user = await readDefaultUser(workspaceId);
-  const session = {
-    workspace_id: workspaceId,
-    user_id: user.user_id,
-    username: user.username,
-    timezone: user.timezone || "America/New_York",
-  };
+  const session = workspaceSessionFixture({ ...user, workspace_id: workspaceId });
   const settings = await settingsService.read(session);
 
   await assert.rejects(
@@ -154,12 +150,12 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
 async function readDefaultWorkspaceId() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.ok(rows[0]?.workspace_id, "expected initialized default workspace");
-  return rows[0].workspace_id;
+  return fixtureString(rows[0].workspace_id, "default workspace ID");
 }
 
 async function readDefaultUserId(workspaceId) {
   const user = await readDefaultUser(workspaceId);
-  return user.user_id;
+  return fixtureString(user.user_id, "default user ID");
 }
 
 async function readDefaultUser(workspaceId) {

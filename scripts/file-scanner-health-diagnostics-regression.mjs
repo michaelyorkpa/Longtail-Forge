@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { fileURLToPath } from "node:url";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
@@ -110,16 +111,7 @@ LIMIT 1;
 `);
   assert.ok(admin?.user_id, "fresh database should seed a protected admin");
 
-  const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    home_workspace_id: admin.home_workspace_id,
-    timezone: admin.timezone || "America/New_York",
-    user_id: admin.user_id,
-    username: admin.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture(admin);
 }
 
 function runDiagnosticsChild(mode) {

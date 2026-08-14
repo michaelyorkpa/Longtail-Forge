@@ -707,6 +707,4 @@ const settingsServiceInternal = {
   setValue,
 };
 
-/** @typedef {"registerFrameworkSetting" | "registerOnChangeEffect" | "registerPersistenceHandler"} StrongSettingsMethod */
-/** @typedef {import("../types/framework-contracts.js").ValidatedService<Omit<typeof settingsServiceInternal, StrongSettingsMethod>> & Pick<typeof settingsServiceInternal, StrongSettingsMethod>} PublicSettingsService */
-export const settingsService = /** @type {PublicSettingsService} */ (settingsServiceInternal);
+export const settingsService = settingsServiceInternal;

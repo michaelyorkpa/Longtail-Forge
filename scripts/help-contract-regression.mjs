@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-contract-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-contract-test.db");
@@ -257,5 +258,5 @@ async function readDefaultWorkspaceId() {
   const workspaceId = rows[0]?.workspace_id;
 
   assert.ok(workspaceId, "fresh database should seed a default workspace");
-  return workspaceId;
+  return fixtureString(workspaceId, "default workspace ID");
 }

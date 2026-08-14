@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
@@ -835,15 +836,14 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assignProjectAdminRole(userId, workspaceId, projectId) {

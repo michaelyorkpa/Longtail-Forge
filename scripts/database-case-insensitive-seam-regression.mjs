@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -135,7 +136,7 @@ LIMIT 1;
   const literalTaskId = randomUUID();
   const broadTaskId = randomUUID();
   const now = "2026-07-05T15:30:00.000Z";
-  const session = {
+  const session = workspaceSessionFixture({
     active_workspace_id: workspaceId,
     display_name: admin.display_name,
     home_workspace_id: workspaceId,
@@ -143,7 +144,7 @@ LIMIT 1;
     user_id: admin.user_id,
     username: admin.username,
     workspace_id: workspaceId,
-  };
+  });
 
   await db.run(`
 INSERT INTO tasks (

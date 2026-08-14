@@ -7,6 +7,7 @@ import { readResumeStateBatchReadResolver, readResumeStateReadResolver } from ".
 
 /** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {Pick<RequestSession, "workspace_id" | "user_id">} ResumeStateWriteSession */
 /** @typedef {import("../types/framework-contracts.js").ResumeStatePayload} ResumeStatePayload */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
@@ -124,7 +125,7 @@ LIMIT 1;
   }),
 });
 
-/** @param {RequestSession} session @param {ResumeStateUpsertPayload} [payload] */
+/** @param {ResumeStateWriteSession} session @param {ResumeStateUpsertPayload} [payload] */
 async function upsertResumeState(session, payload = {}) {
   assertSession(session);
   const normalized = await normalizeUpsertPayload(session, payload);
@@ -379,7 +380,7 @@ WHERE workspace_id = :workspaceId
   };
 }
 
-/** @param {RequestSession} session @param {ResumeStateUpsertPayload} payload */
+/** @param {ResumeStateWriteSession} session @param {ResumeStateUpsertPayload} payload */
 async function normalizeUpsertPayload(session, payload) {
   const workspaceId = normalizeText(payload.workspace_id || payload.workspaceId || session.workspace_id, 160);
   const userId = normalizeText(payload.user_id || payload.userId || session.user_id, 160);
@@ -652,8 +653,7 @@ function normalizeListQuery(query = {}) {
 }
 
 /**
- * @param {RequestSession} session
- * @returns {asserts session is WorkspaceRequestSession}
+ * @param {ResumeStateWriteSession} session
  */
 function assertSession(session) {
   if (!session?.workspace_id || !session?.user_id) {
@@ -803,4 +803,4 @@ const workResumeStateServiceInternal = {
   upsertResumeState,
 };
 
-export const workResumeStateService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workResumeStateServiceInternal>} */ (workResumeStateServiceInternal);
+export const workResumeStateService = workResumeStateServiceInternal;

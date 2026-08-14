@@ -8,6 +8,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appVersion } from "../src/core/version.js";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notification-regression-"));
@@ -879,10 +880,11 @@ WHERE event_type = 'task.assigned';
   await drainQueuedJobs();
   const afterActorUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
   const afterOtherUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
-  const labelList = await notificationsService.list({
+  const labelList = await notificationsService.list(workspaceSessionFixture({
     user_id: fixtures.users.otherProjectUser.userId,
+    username: fixtures.users.otherProjectUser.username,
     workspace_id: fixtures.workspaceId,
-  });
+  }));
   const descriptionLabelNotification = labelList.notifications.find((notification) => (
     notification.record_id === "description-label-task" && notification.event_type === "task.updated"
   ));

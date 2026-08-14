@@ -4,6 +4,7 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { workResumeStateService } from "./work-resume-state.service.js";
 
 /** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {Pick<import("../types/http-contracts.js").RequestSession, "workspace_id" | "user_id">} ResumeStateWriteSession */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult & Record<string, unknown> & {updatedAt?: string, updated_at?: string}} ProducerPayload */
 /** @typedef {{event: InternalEvent, helpers: typeof producerHelpers, summary: ReturnType<typeof summarizeActivityEvent>}} ProducerBuilderContext */
 /** @typedef {(context: ProducerBuilderContext) => ProducerPayload | null | undefined | Promise<ProducerPayload | null | undefined>} ProducerBuilder */
@@ -148,7 +149,7 @@ async function handleProducerEvent(definition, event) {
   const workspaceId = event.workspace_id || session?.workspace_id || "";
   const moduleId = definition.moduleId || event.module_id || "";
 
-  if (!session?.workspace_id || !session?.user_id || !workspaceId || workspaceId !== session.workspace_id) {
+  if (!isResumeStateWriteSession(session) || !workspaceId || workspaceId !== session.workspace_id) {
     return { status: "skipped", reason: "missing_current_user_session" };
   }
 
@@ -191,6 +192,20 @@ async function handleProducerEvent(definition, event) {
 
   await workResumeStateService.upsertResumeState(session, payload);
   return { status: "upserted" };
+}
+
+/** @param {unknown} session @returns {session is ResumeStateWriteSession} */
+function isResumeStateWriteSession(session) {
+  return Boolean(
+    session &&
+    typeof session === "object" &&
+    "workspace_id" in session &&
+    typeof session.workspace_id === "string" &&
+    session.workspace_id &&
+    "user_id" in session &&
+    typeof session.user_id === "string" &&
+    session.user_id
+  );
 }
 
 /** @param {ResumeProducerIdentity} definition @param {InternalEvent} event @param {ProducerPayload} [producerPayload] */

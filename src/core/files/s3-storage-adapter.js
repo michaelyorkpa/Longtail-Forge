@@ -222,7 +222,7 @@ function normalizeUpdatedAt(value) {
   return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
 }
 
-/** @param {unknown} body @returns {NodeJS.ReadableStream} */
+/** @param {unknown} body @returns {import("node:stream").Readable} */
 function toReadable(body) {
   if (isNodeReadable(body)) {
     return body;
@@ -244,9 +244,9 @@ function isRecord(value) {
   return Boolean(value) && typeof value === "object";
 }
 
-/** @param {unknown} value @returns {value is NodeJS.ReadableStream} */
+/** @param {unknown} value @returns {value is import("node:stream").Readable} */
 function isNodeReadable(value) {
-  return isRecord(value) && typeof value.pipe === "function";
+  return value instanceof Readable;
 }
 
 /** @param {unknown} value @returns {value is import("node:stream/web").ReadableStream} */

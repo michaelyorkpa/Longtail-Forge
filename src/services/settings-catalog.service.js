@@ -238,6 +238,6 @@ const settingsCatalogServiceInternal = {
   read,
 };
 
-export const settingsCatalogService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof settingsCatalogServiceInternal>} */ (settingsCatalogServiceInternal);
+export const settingsCatalogService = settingsCatalogServiceInternal;
 
 export { SETTINGS_ATTACHMENT_POINTS };

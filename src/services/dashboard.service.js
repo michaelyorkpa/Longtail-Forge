@@ -127,4 +127,4 @@ const dashboardServiceInternal = {
   readDashboard,
 };
 
-export const dashboardService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof dashboardServiceInternal>} */ (dashboardServiceInternal);
+export const dashboardService = dashboardServiceInternal;

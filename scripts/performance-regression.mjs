@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { performance } from "node:perf_hooks";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-performance-regression-"));
@@ -62,13 +63,8 @@ LIMIT 1;
   });
 
   return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
+    ...workspaceSessionFixture(user),
     session_id: session.sessionId,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
 }
 

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-scan-job-handoff-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -93,17 +94,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  const workspaceId = user.active_workspace_id || user.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    display_name: "Admin User",
-    role: "super_admin",
-    timezone: user.timezone || "UTC",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
 async function createTask(session, title) {

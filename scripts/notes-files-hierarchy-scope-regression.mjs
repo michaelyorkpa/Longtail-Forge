@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
@@ -552,14 +553,13 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assignProjectAdminRole(userId, workspaceId, projectId) {
@@ -600,16 +600,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {

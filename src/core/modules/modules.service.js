@@ -1578,7 +1578,7 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
 
 /**
  * @param {ModuleContribution} contribution
- * @param {ModuleManifest} moduleDefinition
+ * @param {ModuleRequirementOwner} moduleDefinition
  * @param {{enabledModuleIds?: Set<string>|string[], availableTools?: Set<string>|string[]}} [context]
  */
 function moduleContributionRequirementsAvailable(contribution, moduleDefinition, context = {}) {
@@ -2034,5 +2034,4 @@ const modulesServiceInternal = {
   syncModuleRegistry,
 };
 
-/** @typedef {import("../../types/framework-contracts.js").ValidatedService<Omit<typeof modulesServiceInternal, "decorateWorkspaceSettings">> & Pick<typeof modulesServiceInternal, "decorateWorkspaceSettings">} PublicModulesService */
-export const modulesService = /** @type {PublicModulesService} */ (modulesServiceInternal);
+export const modulesService = modulesServiceInternal;

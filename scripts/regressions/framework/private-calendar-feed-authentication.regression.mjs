@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("private-calendar-feed-authentication");
 const ADMIN_USERNAME = "private-feed-admin@example.test";
@@ -559,11 +560,11 @@ WHERE private_feed_token_id = :subscriptionId;
     status: "revoked",
   });
   await modulesService.setModuleStatus(ownerWorkspaceId, "tasks", false, {
-    session: {
+    session: workspaceSessionFixture({
       user_id: ownerUserId,
       username: ADMIN_USERNAME,
       workspace_id: ownerWorkspaceId,
-    },
+    }),
   });
   assert.equal(
     (await api.raw(new URL(workspaceSubscription.body.feedUrl).pathname)).status,

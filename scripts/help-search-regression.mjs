@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-search-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-search-test.db");
@@ -77,11 +78,12 @@ try {
     assert.ok(rows.every((row) => row.record_type === "help_article"));
     assert.ok(rows.every((row) => row.source === "Help"));
     assert.ok(helpCenterRow, "framework Help Center article should be indexed");
-    assert.match(helpCenterRow.body, /in-app product manual/);
-    assert.match(helpCenterRow.body, new RegExp(escapeRegExp(helpCenterText.slice(0, 80))));
-    assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
-    assert.doesNotMatch(helpCenterRow.body, /\[[^\]]+]\([^)]+\)/);
-    assert.doesNotMatch(helpCenterRow.body, /\|?\s*:?-{3,}:?\s*\|/, "Help search text should not expose table separator Markdown");
+    const helpCenterBody = fixtureString(helpCenterRow.body, "Help Center search body");
+    assert.match(helpCenterBody, /in-app product manual/);
+    assert.match(helpCenterBody, new RegExp(escapeRegExp(helpCenterText.slice(0, 80))));
+    assert.doesNotMatch(helpCenterBody, /^#\s/m);
+    assert.doesNotMatch(helpCenterBody, /\[[^\]]+]\([^)]+\)/);
+    assert.doesNotMatch(helpCenterBody, /\|?\s*:?-{3,}:?\s*\|/, "Help search text should not expose table separator Markdown");
     assert.ok(rows.every((row) => !/Knowledge Base/i.test(`${row.title} ${row.summary} ${row.body}`)));
   });
 
@@ -178,14 +180,7 @@ LIMIT 1;
 
   assert.ok(user, "protected user fixture is required");
 
-  const session = {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  const session = workspaceSessionFixture(user);
   const created = await createSession(session);
 
   return {

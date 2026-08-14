@@ -399,4 +399,4 @@ const reportingServiceInternal = {
   runReport,
 };
 
-export const reportingService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof reportingServiceInternal>} */ (reportingServiceInternal);
+export const reportingService = reportingServiceInternal;

@@ -47,4 +47,4 @@ const workbenchServiceInternal = {
   bootstrap,
 };
 
-export const workbenchService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workbenchServiceInternal>} */ (workbenchServiceInternal);
+export const workbenchService = workbenchServiceInternal;

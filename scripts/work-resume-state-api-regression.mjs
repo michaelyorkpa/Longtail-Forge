@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-api-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-api.db");
@@ -74,10 +75,18 @@ async function seedFixture() {
   await activeTimersRepository.upsert({
     active_timer_id: activeTimerId,
     accumulated_elapsed_seconds: 60,
+    billable: "no",
     client_id: "",
+    client_name: "",
     description: "Resume API manual timer",
     last_active_start_time: "2026-06-13T19:00:00.000Z",
     project_id: "",
+    project_name: "",
+    source_id: null,
+    source_label: "Resume API manual timer",
+    source_module_id: null,
+    source_type: "manual",
+    source_url: "",
     timer_slot: "7",
     timer_status: "running",
     user_id: session.user_id,
@@ -206,14 +215,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function createSession(session) {

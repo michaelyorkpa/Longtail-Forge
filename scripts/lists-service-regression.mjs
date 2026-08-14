@@ -520,7 +520,7 @@ function assertAccessPolicy() {
 
 async function assertDisabledModuleWriteBlocking(session) {
   const created = await listsService.create({ title: "Disable Test" }, session);
-  await modulesService.setModuleStatus(session.workspace_id, "lists", false, { actorUserId: session.user_id });
+  await modulesService.setModuleStatus(session.workspace_id, "lists", false, { session });
 
   const readResult = await listsService.read(created.list.list_id, session);
   assert.equal(readResult.list.title, "Disable Test");
@@ -529,7 +529,7 @@ async function assertDisabledModuleWriteBlocking(session) {
     /This module is disabled for this workspace/,
   );
 
-  await modulesService.setModuleStatus(session.workspace_id, "lists", true, { actorUserId: session.user_id });
+  await modulesService.setModuleStatus(session.workspace_id, "lists", true, { session });
 }
 
 async function readSession() {

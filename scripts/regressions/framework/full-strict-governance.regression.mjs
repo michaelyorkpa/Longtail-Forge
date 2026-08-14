@@ -37,9 +37,11 @@ const liveFiles = firstPartyJavaScriptFiles();
 const declarationFiles = fs.readdirSync("src/types").filter((name) => name.endsWith(".d.ts")).map((name) => `src/types/${name}`).sort();
 const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sort());
 const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
+const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
+const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.16.1");
+assert.equal(ledger.checkpoint, "0.33.33.16.2");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -53,6 +55,9 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/browser-database-boundary.fixture.mjs:3",
   "tests/typecheck/database-contracts.fixture.mjs:15",
   "tests/typecheck/database-contracts.fixture.mjs:8",
+  "tests/typecheck/precise-service-contracts.fixture.mjs:24",
+  "tests/typecheck/precise-service-contracts.fixture.mjs:27",
+  "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
 assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 12, errors: 0 });
@@ -75,6 +80,12 @@ assert.deepEqual(scriptsConfig.include, ["scripts/**/*.mjs", "eslint.config.js",
 assert.equal(declarationConfig.compilerOptions.skipLibCheck, false);
 assert.equal(declarationConfig.compilerOptions.strict, true);
 assert.deepEqual(declarationConfig.include, ["src/types/**/*.d.ts"]);
+assert.doesNotMatch(firstPartySource, /\bValidatedService\b/, "blanket-widened service exports must stay retired");
+assert.doesNotMatch(
+  firstPartyTypeSource,
+  /\[\s*K\s+in\s+keyof[^\]]+\][\s\S]{0,500}infer\s+Args[\s\S]{0,500}\[\s*I\s+in\s+keyof\s+Args\s*\]\s*:\s*unknown/,
+  "mapped service contracts must not rewrite every method argument to unknown",
+);
 assert.match(governanceSource, /process\.argv\.includes\("--write"\)/);
 assert.match(governanceSource, /else verifyLedger\(state\)/);
 
@@ -94,7 +105,7 @@ const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].di
   filePath.startsWith("src/repositories/")
 ));
 if (frameworkOwnerDiagnostics.length > 0) {
-  throw new Error(`Framework core, shared services, and repositories must stay strict-clean after checkpoint 0.33.33.16.1: ${frameworkOwnerDiagnostics.join(", ")}`);
+  throw new Error(`Framework core, shared services, and repositories must stay strict-clean after checkpoint 0.33.33.16.2: ${frameworkOwnerDiagnostics.join(", ")}`);
 }
 for (const retiredPath of [
   "scripts/typecheck-seam-inventory.json",

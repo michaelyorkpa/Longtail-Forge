@@ -191,7 +191,7 @@ const workspaceDeletionServiceInternal = {
   request,
 };
 
-export const workspaceDeletionService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workspaceDeletionServiceInternal>} */ (workspaceDeletionServiceInternal);
+export const workspaceDeletionService = workspaceDeletionServiceInternal;
 
 export {
   DELETION_GRACE_DAYS,
