@@ -66,6 +66,8 @@ async function assertProtectedView(session) {
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
+  const linkTargetDirectoryJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/link-target-directory.service.js"), "utf8");
+  const listsLinkTargetProviderJs = await fs.readFile(path.join(process.cwd(), "src/modules/lists/link-target.provider.js"), "utf8");
   const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
   assert.match(notesJs, /createCollectionActionsDialogShell/);
   assert.match(notesJs, /notes-collection-actions-modal-body/);
@@ -314,9 +316,9 @@ async function assertProtectedView(session) {
   assert.match(notesCss, /\.view-linked-context-picker-row-hint\s*\{[\s\S]*color:\s*var\(--color-muted\);/, "The shared picker should style Primary Context hint copy through shared row anatomy");
   assert.match(notesServiceJs, /const LINK_TARGET_TYPES = new Set\(\["workspace", "client", "project", "task", "note", "list", "user"\]\)/, "Notes service should keep backend support for Workspace while adding Note/List link targets");
   assert.match(notesServiceJs, /if \(targetType === "note"\)[\s\S]*notesRepository\.list[\s\S]*noteSourceUrl\(note\.note_id\)/, "Notes should provide permission-safe Note link targets");
-  assert.match(notesServiceJs, /if \(targetType === "list"\)[\s\S]*listsRepository\.list[\s\S]*canAccessListTarget[\s\S]*lists\.html\?list/, "Notes should provide permission-safe List link targets");
+  assert.match(listsLinkTargetProviderJs, /listsRepository\.list[\s\S]*canReadList[\s\S]*targetSourceUrl\("list"/, "Lists should provide permission-safe List link targets through its provider");
   assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "note"\)[\s\S]*canAccessNoteTarget/, "Notes should validate linked Note target access");
-  assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "list"\)[\s\S]*canAccessListTarget/, "Notes should validate linked List target access");
+  assert.match(linkTargetDirectoryJs, /listsLinkTargetProvider[\s\S]*canAccess\(session, targetType, targetId\)/, "Notes should validate linked List target access through the directory");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

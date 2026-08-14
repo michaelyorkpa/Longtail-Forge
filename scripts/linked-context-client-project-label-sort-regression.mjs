@@ -33,13 +33,15 @@ try {
 async function assertBrowserUsesProviderLabels() {
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
+  const providerJs = await fs.readFile(path.join(process.cwd(), "src/modules/client-projects/link-target.provider.js"), "utf8");
 
   assert.match(notesJs, /function primaryClientOptionLabel\(client = \{\}\)[\s\S]*providerDisplayLabel\(client\.displayLabel, client\.display_label\)/, "Primary Context client options should prefer provider display labels without trimming hierarchy indentation");
   assert.match(notesJs, /function primaryProjectOptionLabel\(project = \{\}\)[\s\S]*const providerLabel = providerDisplayLabel\(project\.displayLabel, project\.display_label\)[\s\S]*return providerLabel;/, "Primary Context project options should prefer provider display labels");
   assert.match(notesJs, /function targetPickerDisplayLabel\(target = \{\}\)[\s\S]*const providerLabel = providerDisplayLabel\(target\.displayLabel, target\.display_label\)[\s\S]*return providerLabel;/, "Linked Context picker options should render provider display labels directly");
   assert.match(notesJs, /function providerDisplayLabel\(\.\.\.values\)[\s\S]*if \(label\.trim\(\)\)[\s\S]*return label;/, "Provider display labels should be presence-checked without trimming provider-owned text");
   assert.doesNotMatch(notesJs, /return contextName \? `\$\{label\} \(\$\{contextName\}\)` : label;/, "Business project picker fallback should no longer use parenthesized browser-built labels");
-  assert.match(notesServiceJs, /clientsService\.listClients\(session,[\s\S]*include_depth: true,[\s\S]*shape: "flat"[\s\S]*status: "All"/, "Notes Client targets should consume Clients/Projects-owned hierarchy ordering");
+  assert.match(notesServiceJs, /linkTargetDirectory\.list/, "Notes should consume provider-owned target labels through the directory");
+  assert.match(providerJs, /clientsService\.listClients\(session,[\s\S]*include_depth: true,[\s\S]*shape: "flat"[\s\S]*status: "All"/, "Clients/Projects provider should own client hierarchy ordering");
   assert.doesNotMatch(notesServiceJs, /filterReadableClients\(session, await clientsRepository\.readAll\(session\.workspace_id\)\)/, "Notes should not bypass Clients/Projects-owned client target ordering");
 }
 

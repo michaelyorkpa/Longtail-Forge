@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.16.3 - Extract the Notes link-target directory
+
+**Model: High Effort** - Cross-module target summaries preserve permission pruning, safe labels, and public-entry ownership.
+
+- [x] Extracted the link-target directory/read-summary seam so Notes no longer owns the Client, Project, Task, List, and User row shapes directly.
+- [x] Consumed supported module public entries and kept target-specific visibility, access checks, labels, sorting, source URLs, and summary shaping inside the owning providers.
+- [x] Preserved client/project scope, unavailable-target behavior, safe labels, the established Notes link payload, and the complete `0.33.33.16.1` schema behavior.
+- [x] Closed full-strict debt for the extracted seam with Notes, module-boundary, compiler-governance, and permission proof; as the final numeric child, this checkpoint closes the `0.33.33.16` parent.
+
 ## Version 0.33.33.16.2 - Restore precise public service contracts
 
 **Model: High Effort** - This corrected a framework-wide typing shortcut across high-fan-in service interfaces while preserving runtime behavior and restoring compiler protection at service call sites.

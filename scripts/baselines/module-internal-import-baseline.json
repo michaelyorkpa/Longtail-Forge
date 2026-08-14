@@ -23,30 +23,6 @@
       "specifier": "../tasks/tasks.repo.js"
     },
     {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../client-projects/clients.repo.js"
-    },
-    {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../client-projects/clients.service.js"
-    },
-    {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../client-projects/projects.repo.js"
-    },
-    {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../lists/access-policy.js"
-    },
-    {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../lists/lists.repo.js"
-    },
-    {
-      "file": "src/modules/notes/notes.service.js",
-      "specifier": "../tasks/tasks.repo.js"
-    },
-    {
       "file": "src/modules/tasks/task-recurrence.service.js",
       "specifier": "../notes/notes.service.js"
     },

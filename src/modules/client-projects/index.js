@@ -10,3 +10,4 @@ export { clientsService } from "./clients.service.js";
 export { clientsRepository } from "./clients.repo.js";
 export { projectsRepository } from "./projects.repo.js";
 export { clientProjectSettingsService } from "./client-project-settings.service.js";
+export { clientProjectsLinkTargetProvider } from "./link-target.provider.js";

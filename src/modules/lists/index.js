@@ -6,6 +6,7 @@
 // deep imports. Everything exported here is a supported cross-module contract.
 
 export { listsModule } from "./module.js";
+export { listsLinkTargetProvider } from "./link-target.provider.js";
 export { listsService } from "./lists.service.js";
 export { listsRepository } from "./lists.repo.js";
 export { LIST_STATUSES } from "./storage-contract.js";

@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.16.3 - Extract the Notes link-target directory
-
-**Model: High Effort** - Cross-module target summaries must preserve permission pruning, safe labels, and public-entry ownership.
-
-- [ ] Extract the link-target directory/read-summary seam so Notes no longer owns five cross-module row shapes directly.
-- [ ] Consume supported module public entries and keep target-specific visibility and shaping inside the owning provider boundary.
-- [ ] Preserve client/project scope, unavailable-target behavior, safe labels, and the established Notes link payload.
-- [ ] Close full-strict debt for the extracted seam with Notes, module-boundary, and permission proof.
-
 ### 0.33.33.17.1 - Extract Notes collections
 
 **Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.

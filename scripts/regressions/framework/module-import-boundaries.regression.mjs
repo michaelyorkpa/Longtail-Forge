@@ -20,11 +20,27 @@ const moduleNames = readdirSync(MODULES_ROOT).filter((entry) =>
 );
 
 // Public entry points must exist for the modules other code consumes today.
-for (const expected of ["client-projects", "lists", "notes", "tasks", "time-tracking"]) {
+for (const expected of ["client-projects", "lists", "notes", "tasks", "time-tracking", "users"]) {
   const entryPath = path.join(MODULES_ROOT, expected, "index.js");
   assert.ok(statSync(entryPath).isFile(), `${entryPath} public entry point must exist`);
   const entrySource = readFileSync(entryPath, "utf8");
   assert.match(entrySource, /Public entry point/, `${entryPath} should document that it is the module's public entry`);
+}
+
+const notesServiceSource = readFileSync(path.join(MODULES_ROOT, "notes", "notes.service.js"), "utf8");
+const linkTargetDirectorySource = readFileSync(path.join(MODULES_ROOT, "notes", "link-target-directory.service.js"), "utf8");
+assert.match(notesServiceSource, /linkTargetDirectory/, "Notes should consume the extracted link-target directory");
+assert.doesNotMatch(
+  notesServiceSource,
+  /\.\.\/client-projects\/(?:clients|projects)|\.\.\/tasks\/tasks\.repo|\.\.\/lists\/(?:lists\.repo|access-policy)/,
+  "Notes must not read another module's link-target rows directly",
+);
+for (const publicEntry of ["client-projects", "lists", "tasks", "users"]) {
+  assert.match(
+    linkTargetDirectorySource,
+    new RegExp(`from ["']\\.\\.\\/${publicEntry}\\/index\\.js["']`),
+    `Link-target directory should consume ${publicEntry} through its public entry point`,
+  );
 }
 
 const findings = [];

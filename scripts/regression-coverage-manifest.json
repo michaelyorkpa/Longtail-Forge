@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18057,
+    "activeAssertionCount": 18064,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18726,
+    "effectiveAssertionCount": 18733,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1712,11 +1712,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 32,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy linked context client project label sort contract.",
-      "entryPointAssertionCount": 32,
+      "entryPointAssertionCount": 33,
       "id": "legacy.linked.context.client.project.label.sort",
       "legacy": true,
       "path": "scripts/linked-context-client-project-label-sort-regression.mjs",
@@ -1729,11 +1729,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 35,
+      "assertionCount": 36,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy linked context client scope picker contract.",
-      "entryPointAssertionCount": 35,
+      "entryPointAssertionCount": 36,
       "id": "legacy.linked.context.client.scope.picker",
       "legacy": true,
       "path": "scripts/linked-context-client-scope-picker-regression.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 48,
+      "assertionCount": 50,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 48,
+      "entryPointAssertionCount": 50,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3608,11 +3608,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 3,
+      "assertionCount": 6,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Rejects new cross-module internal imports: modules must consume another module's capabilities through its public index.js entry point; pre-existing deep imports are baseline-managed.",
-      "entryPointAssertionCount": 3,
+      "entryPointAssertionCount": 6,
       "id": "framework.module-import-boundaries",
       "legacy": false,
       "path": "scripts/regressions/framework/module-import-boundaries.regression.mjs",
