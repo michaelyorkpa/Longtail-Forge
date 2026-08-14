@@ -107,7 +107,7 @@
     "version:guard": "node scripts/version-literal-guardrail-regression.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "13.0.1",
+    "better-sqlite3": "13.0.3",
     "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
