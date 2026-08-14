@@ -8,11 +8,9 @@ import { normalizeSettings } from "../utils/normalizers.js";
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {ReturnType<typeof normalizeSettings>} WorkspaceSettings */
 /**
- * @typedef {Object} WorkspaceSettingsInput
- * @property {unknown} [workspaceName]
- * @property {unknown} [workspaceType]
- * @property {unknown} [workspace_type]
- * @property {{ loggingEnabled?: unknown, retentionDays?: unknown } | null} [audit]
+ * @typedef {Partial<Pick<WorkspaceSettings, "audit" | "workspaceName" | "workspaceType">> & {
+ *   workspace_type?: unknown
+ * }} WorkspaceSettingsInput
  */
 /**
  * @typedef {Record<string, unknown> & {

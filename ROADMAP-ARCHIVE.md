@@ -1,5 +1,24 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.16.2 - Restore precise public service contracts
+
+**Model: High Effort** - This corrected a framework-wide typing shortcut across high-fan-in service interfaces while preserving runtime behavior and restoring compiler protection at service call sites.
+
+- [x] Inventoried every `ValidatedService<T>` use and replaced each blanket-widened service export with a precise public contract across framework and shared owners.
+- [x] Kept sessions, identifiers, records, projections, options, providers, adapters, callbacks, handlers, and trusted service-to-service payloads strongly typed; reserved `unknown` for genuine untrusted inputs and narrowed or validated them once at the owning boundary.
+- [x] Removed `ValidatedService<T>` without introducing another blanket mapper, broad domain-object records, explicit `any`, double assertions, checker suppressions, unchecked files, or caller-silencing casts.
+- [x] Corrected real caller errors exposed by the restored interfaces while preserving every service object's runtime shape and method names plus the complete `0.33.33.16.1` Notes validation behavior.
+- [x] Added durable positive/negative compiler and governance proof for precise sessions, identifiers, and options/internal records, with no growth in explicit-any, suppression, checked-file, or full-strict debt inventories.
+
+## Version 0.33.33.16.1 - Add Notes edge schemas
+
+**Model: High Effort** - Notes input validation and Secure Notes fields are permission- and confidentiality-sensitive.
+
+- [x] Captured the current accepted/rejected Notes payload corpus before changing validation ownership.
+- [x] Added module-owned Zod edge schemas with liberal-strip workflow calibration and strict rejection for security-sensitive Secure Notes fields.
+- [x] Wired each schema once at its owning service entry without re-parsing trusted internal objects or changing existing error envelopes.
+- [x] Closed full-strict debt at the validation edge with focused Notes and permission coverage.
+
 ## Version 0.33.33.15 - Type framework core and shared services
 
 **Model: High Effort** - Framework services feed many modules and contain permission, Files, Search, job, and resume-state contracts.

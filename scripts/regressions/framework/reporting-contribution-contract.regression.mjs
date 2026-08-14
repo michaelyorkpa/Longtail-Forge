@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("reporting-contribution-contract");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
@@ -338,12 +339,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

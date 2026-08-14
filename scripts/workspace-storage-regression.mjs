@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-storage-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workspace-storage-test.db");
@@ -43,10 +44,6 @@ try {
   await settingsRepository.saveWorkspaceSettings(workspaceId, {
     workspaceName: "Workspace Storage Regression",
     workspaceType: initialSettings.workspaceType,
-    fiscalYear: { startMonth: 4, startDay: 15 },
-    defaultBillingRate: "125",
-    billingPeriod: { type: "monthly", startDay: 7 },
-    billingRounding: { enabled: true, increment: "nearestQuarterHour" },
     audit: { loggingEnabled: true, retentionDays: 45 },
   });
 
@@ -114,7 +111,7 @@ try {
 async function readDefaultWorkspaceId() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.ok(rows[0]?.workspace_id, "expected initialized default workspace");
-  return rows[0].workspace_id;
+  return fixtureString(rows[0].workspace_id, "default workspace ID");
 }
 
 async function readDefaultUserId(workspaceId) {
@@ -126,7 +123,7 @@ ORDER BY protected_user DESC, username
 LIMIT 1;
 `);
   assert.ok(rows[0]?.user_id, "expected initialized default user");
-  return rows[0].user_id;
+  return fixtureString(rows[0].user_id, "default user ID");
 }
 
 async function assertLegacyTablesRemoved() {

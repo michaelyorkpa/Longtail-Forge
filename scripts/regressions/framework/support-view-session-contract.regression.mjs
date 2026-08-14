@@ -222,7 +222,9 @@ ORDER BY role_id;
   const exitedRow = await supportSessionsRepository.readById(firstStart.supportView.supportSessionId);
   assert.equal(exitedRow.outcome, "exited");
   assert.deepEqual((await supportSessionsRepository.listEvents(firstStart.supportView.supportSessionId)).map((row) => row.event_type), ["entered", "exited"]);
-  const diagnostics = await runtimeDiagnosticsService.read(await readRequestSession(exited.session.sessionId));
+  const exitedRequestSession = await readRequestSession(exited.session.sessionId);
+  assertWorkspaceRequestSession(exitedRequestSession);
+  const diagnostics = await runtimeDiagnosticsService.read(exitedRequestSession);
   assert.deepEqual(diagnostics.features.supportView, { enabled: true });
   assert.deepEqual(diagnostics.features.publicDemo.perimeter, {
     enabled: false,
@@ -408,6 +410,16 @@ async function readRequestSession(sessionId) {
     protocol: "http",
     socket: { remoteAddress: "127.0.0.1" },
   });
+}
+
+/**
+ * @param {import("../../../src/types/http-contracts.js").RequestSession|null} session
+ * @returns {asserts session is import("../../../src/types/http-contracts.js").WorkspaceRequestSession}
+ */
+function assertWorkspaceRequestSession(session) {
+  if (!session?.workspace_id) {
+    assert.fail("request session should remain workspace-scoped");
+  }
 }
 
 function requestContext(overrides = {}) {

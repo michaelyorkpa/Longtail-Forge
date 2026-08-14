@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-descriptor-host-"));
@@ -165,11 +166,11 @@ function assertNoProtectedAnatomy(html, label) {
 }
 
 function sessionFor(userId) {
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
     workspace_id: workspaceId,
     user_id: userId,
     username: userId,
-  };
+  });
 }

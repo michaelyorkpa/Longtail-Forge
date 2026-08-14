@@ -12,6 +12,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import http from "node:http";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("workspace-deletion-lifecycle");
 const ADMIN_USERNAME = "workspace-deletion-admin@example.test";
@@ -38,12 +39,12 @@ try {
   const cookie = readSessionCookie(loginResponse);
   const workspaceId = loginResponse.body.user.workspace_id;
   const workspaceName = loginResponse.body.user.workspaceContext.workspaceName;
-  const adminSession = {
+  const adminSession = workspaceSessionFixture({
     display_name: ADMIN_USERNAME,
     user_id: loginResponse.body.user.user_id,
     username: ADMIN_USERNAME,
     workspace_id: workspaceId,
-  };
+  });
 
   const initialState = await api.get("/api/settings/workspace-deletion", { cookie });
   assert.equal(initialState.status, 200, JSON.stringify(initialState.body));

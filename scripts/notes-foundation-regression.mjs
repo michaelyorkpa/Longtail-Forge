@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-foundation-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-foundation.db");
@@ -392,14 +393,14 @@ WHERE workspace_id = ${sqlText(workspace.workspace_id)}
 
   assert.equal(rows[0]?.status, "enabled", "Notes should be enabled by default for the workspace");
 
-  await modulesService.setModuleStatus(workspace.workspace_id, "notes", false, { actorUserId: "test" });
+  await modulesService.setModuleStatus(workspace.workspace_id, "notes", false);
   assert.equal(await modulesService.canWriteModule(workspace.workspace_id, "notes"), false);
   assert.equal(await modulesService.canReadModule(workspace.workspace_id, "notes"), true);
 }
 
 async function readWorkspace() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY workspace_id LIMIT 1;");
-  return rows[0];
+  return { workspace_id: fixtureString(rows[0]?.workspace_id, "workspace fixture ID") };
 }
 
 async function assertIntegrity() {

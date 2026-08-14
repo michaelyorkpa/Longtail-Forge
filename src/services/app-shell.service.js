@@ -715,4 +715,4 @@ const appShellServiceInternal = {
   bootstrap,
 };
 
-export const appShellService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof appShellServiceInternal>} */ (appShellServiceInternal);
+export const appShellService = appShellServiceInternal;

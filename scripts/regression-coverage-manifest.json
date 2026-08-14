@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18054,
+    "activeAssertionCount": 18057,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18723,
+    "effectiveAssertionCount": 18726,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 46,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 46,
+      "entryPointAssertionCount": 48,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -4137,11 +4137,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 64,
+      "assertionCount": 65,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the gated durable Support View session contract, actor/effective identity separation, rotation, expiry, reauthentication throttling, revocation, and safe event persistence.",
-      "entryPointAssertionCount": 64,
+      "entryPointAssertionCount": 65,
       "id": "framework.support-view-session-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/support-view-session-contract.regression.mjs",

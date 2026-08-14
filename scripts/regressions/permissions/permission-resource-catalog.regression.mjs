@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("permission-resource-catalog");
@@ -114,14 +115,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name || user.username,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

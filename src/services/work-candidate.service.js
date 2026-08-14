@@ -1643,7 +1643,7 @@ const workCandidateServiceInternal = {
   resolveWorkCandidateRankBucket,
 };
 
-const workCandidateService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workCandidateServiceInternal>} */ (workCandidateServiceInternal);
+const workCandidateService = workCandidateServiceInternal;
 
 export {
   candidateFromResumeRow,

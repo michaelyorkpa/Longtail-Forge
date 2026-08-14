@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString, workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-module-context-read-"));
@@ -45,7 +46,7 @@ try {
   // Fresh install: startup creates the default workspace with its module rows.
   await initializeDatabase();
   const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
-  const workspaceId = workspace.workspace_id;
+  const workspaceId = fixtureString(workspace.workspace_id, "default workspace ID");
   const moduleRowCount = await db.get(
     "SELECT COUNT(*) AS row_count FROM workspace_modules WHERE workspace_id = :workspaceId;",
     { workspaceId },
@@ -54,11 +55,7 @@ try {
   assert.equal(await modulesService.readModuleStatus(workspaceId, "tasks"), "enabled", "default-enabled modules should read enabled on a fresh install");
 
   const user = await db.get("SELECT user_id, username FROM users WHERE protected_user = 'yes' LIMIT 1;");
-  const session = {
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  const session = workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 
   // Zero-write proof: module-context reads, contribution lists, decorated
   // settings, and the workbench bootstrap registry reads change no rows.
@@ -115,7 +112,7 @@ WHERE workspace_id = :workspaceId
   // Workspace creation ensures module rows at creation time.
   const { workspacesRepository } = await import("../../../src/repositories/workspaces.repo.js");
   const createdWorkspace = await workspacesRepository.createWorkspace({
-    ownerUser: { user_id: user.user_id },
+    ownerUser: { user_id: session.user_id },
     workspaceName: "Module Context Created Workspace",
     workspaceType: "personal",
   });

@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
@@ -138,7 +139,7 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
 
   const storedFile = await readFileRow(fixtures.workspaceId, upload.file.fileId);
   assert.ok(storedFile?.storage_key, "uploaded fixture should have a storage key before deleting the object");
-  await filesService.getFileStorageAdapter(storedFile.storage_provider).delete(storedFile.storage_key);
+  await filesService.getFileStorageAdapter(fixtureString(storedFile.storage_provider, "storage provider ID")).delete(fixtureString(storedFile.storage_key, "storage key"));
 
   const download = await api.get(`/api/files/${upload.file.fileId}/download`, {
     cookie: fixtures.sessionId,

@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("project-time-billing-runner");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
@@ -247,12 +248,5 @@ LIMIT 1;
   const user = users[0];
 
   assert.ok(user, "Expected a protected seed user");
-  return {
-    user_id: user.user_id,
-    username: user.username,
-    timezone: user.timezone || "UTC",
-    home_workspace_id: user.home_workspace_id,
-    active_workspace_id: user.active_workspace_id,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

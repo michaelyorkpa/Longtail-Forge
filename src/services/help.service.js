@@ -976,7 +976,7 @@ const helpServiceInternal = {
   readArticle,
 };
 
-export const helpService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof helpServiceInternal>} */ (helpServiceInternal);
+export const helpService = helpServiceInternal;
 
 export {
   FRAMEWORK_HELP_MODULE_ID,

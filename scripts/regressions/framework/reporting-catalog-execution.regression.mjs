@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import http from "node:http";
 import express from "express";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("reporting-catalog-execution");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
@@ -173,7 +174,10 @@ try {
 
 function assertRegistryContract() {
   assert.throws(() => registerReportRunner("not a stable id", async () => null), /stable data identifier/);
-  assert.throws(() => registerReportRunner("sample.runner", "not-a-function"), /must be a function/);
+  assert.throws(
+    () => Reflect.apply(registerReportRunner, null, ["sample.runner", "not-a-function"]),
+    /must be a function/,
+  );
   const runner = async () => null;
   const unregister = registerReportRunner("sample.runner", runner);
   assert.deepEqual(listReportRunnerIds(), ["sample.runner"]);
@@ -224,6 +228,7 @@ function assertCatalogReport(report) {
   assert.equal(JSON.stringify(report).includes("function"), false);
 }
 
+/** @param {{status: number, body: {error: {code: string, message: string, requestId: string}}}} response @param {number} status @param {string} code @param {string|null} [message] */
 function assertExecutionError(response, status, code, message = null) {
   assert.equal(response.status, status);
   assert.equal(response.body.error.code, code);
@@ -294,12 +299,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

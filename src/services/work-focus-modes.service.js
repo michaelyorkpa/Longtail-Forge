@@ -810,7 +810,7 @@ const workFocusModesServiceInternal = {
   resolveFocusMode,
 };
 
-const workFocusModesService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof workFocusModesServiceInternal>} */ (workFocusModesServiceInternal);
+const workFocusModesService = workFocusModesServiceInternal;
 
 export {
   FOCUS_MODE_IDS,

@@ -1,4 +1,5 @@
 import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -185,7 +186,7 @@ LIMIT 1;
 `);
     assert.equal(fileRows.length, 1, "uploaded file should still exist after scan");
     const row = fileRows[0];
-    const storageText = await streamToText(await filesService.getFileStorageAdapter(row.storage_provider).read(row.storage_key));
+    const storageText = await streamToText(await filesService.getFileStorageAdapter(fixtureString(row.storage_provider, "storage provider ID")).read(fixtureString(row.storage_key, "storage key")));
 
     let downloadText = "";
     let downloadBlocked = false;
@@ -372,17 +373,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  const workspaceId = user.active_workspace_id || user.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    display_name: "Admin User",
-    role: "super_admin",
-    timezone: user.timezone || "UTC",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
 async function createTask(runSql, sqlText, session, title) {

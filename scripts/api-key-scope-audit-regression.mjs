@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const EXPECTED_VISIBLE_SCOPES = [
   "clients:read",
@@ -104,5 +105,5 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0].workspace_id;
+  return fixtureString(rows[0].workspace_id, "workspace fixture ID");
 }

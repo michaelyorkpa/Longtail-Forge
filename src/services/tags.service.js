@@ -1725,6 +1725,4 @@ const tagsServiceInternal = {
   update,
 };
 
-/** @typedef {"decorateRecordsForTarget" | "decorateRecordsWithEffectiveTags" | "filterRecordsByTags"} StrongTagMethod */
-/** @typedef {import("../types/framework-contracts.js").ValidatedService<Omit<typeof tagsServiceInternal, StrongTagMethod>> & Pick<typeof tagsServiceInternal, StrongTagMethod>} PublicTagsService */
-export const tagsService = /** @type {PublicTagsService} */ (tagsServiceInternal);
+export const tagsService = tagsServiceInternal;

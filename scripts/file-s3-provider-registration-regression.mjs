@@ -94,7 +94,7 @@ async function assertStaticContracts() {
   assert.match(configSource, /readRuntimeSecret\("LONGTAIL_S3_ACCESS_KEY_ID", env\)/, "S3 access key should be read as a server-side runtime secret");
   assert.match(configSource, /readRuntimeSecret\("LONGTAIL_S3_SECRET_ACCESS_KEY", env\)/, "S3 secret key should be read as a server-side runtime secret");
   assert.match(filesServiceSource, /createS3FileStorageAdapter/, "Files service should import the S3 storage adapter");
-  assert.match(filesServiceSource, /\["s3",[\s\S]{0,200}createS3FileStorageAdapter\([\s\S]{0,160}config\.storage\?\.s3[\s\S]{0,80}\)\)\]/, "Files service should register the S3 provider under the explicit s3 key");
+  assert.match(filesServiceSource, /storageAdapters\.set\(\s*"s3"\s*,\s*createS3FileStorageAdapter\([\s\S]{0,200}config\.storage\?\.s3[\s\S]{0,120}\)\s*\)/, "Files service should register the S3 provider under the explicit s3 key");
   assert.match(filesServiceSource, /async function assertConfiguredFileStorageProviderReady/, "Files service should expose startup storage provider validation");
   assert.match(appSource, /filesService\.assertConfiguredFileStorageProviderReady\(\)/, "app startup should validate the configured storage provider before listening");
   assert.match(workerSource, /filesService\.assertConfiguredFileStorageProviderReady\(\)/, "separate worker startup should validate the configured storage provider before polling jobs");

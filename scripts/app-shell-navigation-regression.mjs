@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-app-shell-navigation-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-app-shell-navigation.db");
@@ -136,6 +137,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {string} workspaceId @param {string[]} moduleIds */
 async function disableFixtureModules(workspaceId, moduleIds) {
   const now = new Date().toISOString();
   const quotedModuleIds = moduleIds.map(sqlText).join(", ");
@@ -163,13 +165,5 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    active_workspace_id: rows[0].workspace_id,
-    display_name: rows[0].display_name,
-    home_workspace_id: rows[0].workspace_id,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  return workspaceSessionFixture(rows[0]);
 }

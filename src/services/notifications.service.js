@@ -1337,7 +1337,7 @@ const notificationsServiceInternal = {
   unreadCount,
 };
 
-export const notificationsService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof notificationsServiceInternal>} */ (notificationsServiceInternal);
+export const notificationsService = notificationsServiceInternal;
 
 export {
   NOTIFICATION_EVENT_JOB_TYPE,

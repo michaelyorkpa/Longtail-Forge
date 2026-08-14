@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -403,11 +404,11 @@ VALUES (
 }
 
 function sessionFor(workspaceId, userId) {
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
     workspace_id: workspaceId,
     user_id: userId,
     username: userId,
-  };
+  });
 }

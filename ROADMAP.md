@@ -48,16 +48,7 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.16.1 - Add Notes edge schemas
-
-**Model: High Effort** - Notes input validation and Secure Notes fields are permission- and confidentiality-sensitive.
-
-- [ ] Capture the current accepted/rejected Notes payload corpus before changing validation ownership.
-- [ ] Add module-owned Zod edge schemas with liberal-strip workflow calibration and strict rejection for security-sensitive Secure Notes fields.
-- [ ] Wire each schema once at its owning service entry without re-parsing trusted internal objects or changing existing error envelopes.
-- [ ] Close full-strict debt at the validation edge with focused Notes and permission coverage.
-
-### 0.33.33.16.2 - Extract the Notes link-target directory
+### 0.33.33.16.3 - Extract the Notes link-target directory
 
 **Model: High Effort** - Cross-module target summaries must preserve permission pruning, safe labels, and public-entry ownership.
 

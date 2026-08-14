@@ -1330,10 +1330,5 @@ export interface JobWorkerStatus {
   deadCount: number;
   registeredJobTypes?: string[];
 }
-export type ValidatedService<T> = {
-  [K in keyof T]: T[K] extends (...args: infer Args) => infer Result
-    ? (...args: { [I in keyof Args]: unknown }) => Result
-    : T[K];
-};
 
 export type NormalizeInferredEmptyArray<T> = T extends never[] ? Record<string, unknown>[] : T;

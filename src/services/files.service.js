@@ -49,15 +49,22 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
 /** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
 /** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {{displayName?: unknown, moduleId?: unknown, originalFilename?: unknown, targetId?: unknown, targetType?: unknown}} RawUploadEventFields */
 /** @typedef {{allowedExtensions: string[], blockedExtensions: string[], createdAt: string, fileTypePolicyMode: string, internalStorageLimitBytes: number|null, perUserStorageLimitBytes: number|null, updatedAt: string, workspaceId: string}} WorkspaceFileSettings */
-/** @typedef {{id: string, save: Function, saveStream: Function, read: Function, metadata: Function, delete: Function, health: () => Promise<LooseRecord>, [key: string]: unknown}} FileStorageAdapter */
-/** @typedef {{id: string, health: () => Promise<{available?: boolean, ok?: boolean, status?: string}>, scan: Function}} FileScannerAdapter */
+/** @typedef {{storageKey: string, storedFilename: string}} FileStorageWriteResult */
+/** @typedef {{workspaceId?: string}} FileStorageWriteOptions */
+/** @typedef {{available?: boolean, ok?: boolean, status?: string, [key: string]: unknown}} FileAdapterHealth */
+/** @typedef {{id: string, save: (buffer: Buffer, options?: FileStorageWriteOptions) => Promise<FileStorageWriteResult>, saveStream: (readable: import("node:stream").Readable, options?: FileStorageWriteOptions) => Promise<FileStorageWriteResult>, read: (storageKey: string) => Promise<import("node:stream").Readable>, metadata: (storageKey: string) => Promise<{size: number, updatedAt: string}>, delete: (storageKey: string) => Promise<void>, health: () => Promise<FileAdapterHealth>, resolveStoragePath?: (storageKey: string) => string}} FileStorageAdapter */
+/** @typedef {{fileId?: string, openReadStream?: () => import("node:stream").Readable | Promise<import("node:stream").Readable>}} FileScannerInput */
+/** @typedef {{fileId?: string, metadata?: LooseRecord, reason?: string, scanStatus: string, status: string}} FileScannerResult */
+/** @typedef {{id: string, health: () => Promise<FileAdapterHealth>, scan: (file?: FileScannerInput) => Promise<FileScannerResult>}} FileScannerAdapter */
 /** @typedef {"allowedExtensions"|"blockedExtensions"|"fileTypePolicyMode"|"internalStorageLimitBytes"|"perUserStorageLimitBytes"} FileSettingField */
 /** @typedef {DatabaseRow & {file_id: string, workspace_id: string, original_filename: string, display_name: string, stored_filename: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, sha256_hash: string, storage_provider: string, storage_key: string, storage_kind: string, status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, created_at: string, updated_at: string, deleted_at?: string|null, previous_status?: string, metadata_json?: unknown}} FileRow */
 /** @typedef {DatabaseRow & {file_attachment_id: string, file_id: string, workspace_id: string, module_id: string, target_type: string, target_id: string, client_id: string|null, project_id: string|null, visibility: string, attachment_role: string, caption: string, sort_order: number, created_by_user_id: string, created_at: string, removed_at?: string|null, metadata_json?: unknown, original_filename: string, display_name: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, status: string, file_status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, storage_provider: string, storage_key: string, sha256_hash: string}} AttachmentRow */
 /** @typedef {DatabaseRow & {target_id: string, label?: string, client_id?: string|null, project_id?: string|null}} AttachableTargetRow */
 /** @typedef {LooseRecord & {label: string, moduleId: string, moduleLabel: string, targetId: string, targetType: string, targetTypeLabel: string, clientId?: string, clientLabel?: string, projectId?: string, projectLabel?: string, contextLabel?: string, value: LooseRecord & {moduleId: string, targetId: string, targetType: string, clientId?: string, projectId?: string}}} AttachableTargetOption */
 /** @typedef {{displayName: string, extension: string, fileSizeBytes: number, mimeTypeClaimed: string, mimeTypeDetected: string, metadata: LooseRecord, originalFilename: string, sha256Hash: string, storageKey?: string, storageProvider?: string, storedFilename?: string, buffer?: Buffer}} PreparedUpload */
+/** @typedef {PreparedUpload & {buffer: Buffer}} BufferedPreparedUpload */
 /** @typedef {ReturnType<typeof normalizeAttachmentListOptions>} AttachmentListOptions */
 /** @typedef {FileSession & {role: string}} FileJobSession */
 /** @typedef {{availabilityStatus: string, calculatedAt: unknown, externalReportedBytes: number, externalSourceProvider: string, fileCount: number, internalBytes: number, storageAccountingId: unknown, storageKind: unknown, storageProvider: string, userId: string, workspaceId: unknown}} StorageAccountingEntry */
@@ -147,10 +154,9 @@ const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
 registerFilesSettingsContributions();
 
 /** @type {Map<string, FileStorageAdapter>} */
-const storageAdapters = new Map([
-  ["local", /** @type {FileStorageAdapter} */ (createLocalFileStorageAdapter())],
-  ["s3", /** @type {FileStorageAdapter} */ (createS3FileStorageAdapter(/** @type {Parameters<typeof createS3FileStorageAdapter>[0]} */ (config.storage?.s3)))],
-]);
+const storageAdapters = new Map();
+storageAdapters.set("local", createLocalFileStorageAdapter());
+storageAdapters.set("s3", createS3FileStorageAdapter(/** @type {Parameters<typeof createS3FileStorageAdapter>[0]} */ (config.storage?.s3)));
 const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
 /** @type {Map<string, FileScannerAdapter>} */
 const scannerAdapters = new Map([
@@ -281,7 +287,7 @@ function registerFileStorageAdapter(providerId, adapter) {
     throw new TypeError("File storage provider ID is required.");
   }
 
-  for (const methodName of ["save", "saveStream", "read", "metadata", "delete", "health"]) {
+  for (const methodName of /** @type {const} */ (["save", "saveStream", "read", "metadata", "delete", "health"])) {
     if (typeof adapter?.[methodName] !== "function") {
       throw new TypeError(`File storage adapter '${normalizedProviderId}' must implement ${methodName}().`);
     }
@@ -496,14 +502,15 @@ async function resolveAttachableType(workspaceId, moduleId, targetType) {
   return /** @type {AttachableType} */ (attachableType);
 }
 
-/** @param {FileSession} session @param {LooseRecord} [payload] */
+/** @param {FileSession} session @param {unknown} [payload] */
 async function uploadAndAttach(session, payload = {}) {
   assertFileIngressAllowed();
+  const rawEventFields = readRawUploadEventFields(payload);
   await emitFileLifecycleEvent("file.upload.requested", {
     session,
-    moduleId: payload.moduleId,
-    targetType: payload.targetType,
-    targetId: payload.targetId,
+    moduleId: rawEventFields.moduleId,
+    targetType: rawEventFields.targetType,
+    targetId: rawEventFields.targetId,
     status: "pending",
     scanStatus: "pending",
   });
@@ -611,16 +618,17 @@ async function finishUploadedFileAttachment(session, payload, attachableType, ta
 
 /**
  * @param {FileSession} session
- * @param {LooseRecord} payload
+ * @param {unknown} payload
  * @param {unknown} error
  */
 async function recordUploadRejected(session, payload, error) {
+  const rawEventFields = readRawUploadEventFields(payload);
   const failure = /** @type {{message?: string}} */ (error);
   await emitFileLifecycleEvent("file.upload.rejected", {
     session,
-    moduleId: payload.moduleId,
-    targetType: payload.targetType,
-    targetId: payload.targetId,
+    moduleId: rawEventFields.moduleId,
+    targetType: rawEventFields.targetType,
+    targetId: rawEventFields.targetId,
     status: "deleted",
     scanStatus: "error",
     reason: failure?.message || String(error),
@@ -629,13 +637,33 @@ async function recordUploadRejected(session, payload, error) {
     action: "file.upload_rejected",
     changeType: "create",
     recordId: "",
-    recordLabel: payload.originalFilename || payload.displayName || "File upload",
+    recordLabel: rawEventFields.originalFilename || rawEventFields.displayName || "File upload",
     metadata: {
       reason: failure?.message || String(error),
-      target_id: payload.targetId || "",
-      target_type: payload.targetType || "",
+      target_id: rawEventFields.targetId || "",
+      target_type: rawEventFields.targetType || "",
     },
   });
+}
+
+/** @param {unknown} value @returns {value is LooseRecord} */
+function isRawObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** @param {unknown} payload @returns {RawUploadEventFields} */
+function readRawUploadEventFields(payload) {
+  if (!isRawObject(payload)) {
+    return {};
+  }
+
+  return {
+    displayName: payload.displayName,
+    moduleId: payload.moduleId,
+    originalFilename: payload.originalFilename,
+    targetId: payload.targetId,
+    targetType: payload.targetType,
+  };
 }
 
 /** @param {FileSession} session @param {unknown} rawPayload */
@@ -2563,7 +2591,7 @@ LIMIT 1;
   return row;
 }
 
-/** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings @returns {PreparedUpload} */
+/** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings @returns {BufferedPreparedUpload} */
 function prepareUpload(payload, attachableType, fileSettings) {
   const policy = prepareUploadPolicy(payload, attachableType, fileSettings);
   const buffer = decodeBase64(payload.contentBase64 || payload.content || "");
@@ -5021,7 +5049,7 @@ const filesServiceInternal = {
   uploadStreamAndAttach,
 };
 
-export const filesService = /** @type {import("../types/framework-contracts.js").ValidatedService<typeof filesServiceInternal>} */ (filesServiceInternal);
+export const filesService = filesServiceInternal;
 
 export {
   FILE_SCAN_JOB_TYPE,
