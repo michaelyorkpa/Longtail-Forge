@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.16.3",
+  "checkpoint": "0.33.33.17.2",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -361,7 +361,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 4802,
+      "errorCount": 4274,
       "diagnostics": {
         "src/config.js": [
           {
@@ -609,138 +609,10 @@
             "count": 1
           }
         ],
-        "src/modules/notes/access-policy.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 25
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 5
-          }
-        ],
-        "src/modules/notes/catalog-security.service.js": [
-          {
-            "code": 2339,
-            "count": 23
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 70
-          }
-        ],
-        "src/modules/notes/consumer-artifacts.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/notes/consumer-policy.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "src/modules/notes/effective-security.js": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/notes/library.js": [
-          {
-            "code": 2339,
-            "count": 14
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/modules/notes/markdown.js": [
-          {
-            "code": 2339,
-            "count": 39
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 4
-          }
-        ],
         "src/modules/notes/module.events.js": [
           {
             "code": 7031,
             "count": 21
-          }
-        ],
-        "src/modules/notes/notes.repo.js": [
-          {
-            "code": 2339,
-            "count": 56
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 162
-          },
-          {
-            "code": 7031,
-            "count": 6
-          },
-          {
-            "code": 7034,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 4
           }
         ],
         "src/modules/notes/notes.service.js": [
@@ -754,7 +626,7 @@
           },
           {
             "code": 2339,
-            "count": 487
+            "count": 448
           },
           {
             "code": 2345,
@@ -762,7 +634,7 @@
           },
           {
             "code": 2740,
-            "count": 5
+            "count": 1
           },
           {
             "code": 7006,
@@ -797,16 +669,6 @@
           {
             "code": 2339,
             "count": 34
-          }
-        ],
-        "src/modules/notes/secure-crypto.js": [
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 7006,
-            "count": 2
           }
         ],
         "src/modules/tasks/module.events.js": [
@@ -1768,10 +1630,6 @@
           }
         ],
         "tests/unit/notes-effective-security.test.mjs": [
-          {
-            "code": 2322,
-            "count": 3
-          },
           {
             "code": 2345,
             "count": 6
@@ -4467,7 +4325,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9842,
+      "errorCount": 9829,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -6736,7 +6594,7 @@
           },
           {
             "code": 2322,
-            "count": 15
+            "count": 2
           },
           {
             "code": 7006,
@@ -11556,7 +11414,7 @@
   },
   "totals": {
     "files": 1014,
-    "errors": 25778,
+    "errors": 25237,
     "explicitAny": 15
   },
   "explicitAnyByFile": {
@@ -11578,7 +11436,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 14,
+    "firstPartyFiles": 15,
     "errors": 0
   }
 }

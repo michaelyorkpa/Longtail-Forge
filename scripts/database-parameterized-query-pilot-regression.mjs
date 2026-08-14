@@ -291,6 +291,7 @@ VALUES (
 `, { createdAt: now, noteId, title, updatedAt: now, workspaceId });
 
   const note = await notesRepository.readById(workspaceId, noteId);
+  assert.ok(note, "parameterized Notes read should find the inserted record");
   assert.equal(note.note_id, noteId);
   assert.equal(note.title, title);
 

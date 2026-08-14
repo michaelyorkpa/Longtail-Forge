@@ -1,3 +1,5 @@
+// @ts-check
+
 import { AppError } from "../../core/errors.js";
 import {
   MARKDOWN_RENDER_MODES,
@@ -7,6 +9,14 @@ import {
   renderMarkdownToHtml,
 } from "../../core/markdown/markdown.service.js";
 
+/** @typedef {import("../../types/notes-domain-contracts.js").MarkdownNoteInput} MarkdownNoteInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").MarkdownSafetyResult} MarkdownSafetyResult */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionSnapshot} NoteRevisionSnapshot */
+/** @typedef {import("../../types/notes-domain-contracts.js").RevisionChange} RevisionChange */
+/** @typedef {import("../../types/notes-domain-contracts.js").RevisionChangelogInput} RevisionChangelogInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").RevisionSnapshotOptions} RevisionSnapshotOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").WikiLink} WikiLink */
+
 const UNSAFE_MARKDOWN_PATTERNS = [
   /<\s*\/?\s*(script|iframe|object|embed|style|link|meta|form|input|button|textarea|select|option|svg|math)\b/i,
   /\son[a-z]+\s*=/i,
@@ -14,6 +24,7 @@ const UNSAFE_MARKDOWN_PATTERNS = [
 ];
 
 const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g;
+/** @type {readonly RevisionChange["field"][]} */
 const REVISION_FIELDS = [
   "title",
   "body_markdown",
@@ -24,12 +35,15 @@ const REVISION_FIELDS = [
   "security_mode",
 ];
 
+/** @param {string | null | undefined} [markdown] */
 function normalizeMarkdown(markdown = "") {
   return normalizeMarkdownSource(markdown);
 }
 
+/** @param {string | null | undefined} [markdown] @returns {MarkdownSafetyResult} */
 function validateMarkdownSafety(markdown = "") {
   const normalized = normalizeMarkdown(markdown);
+  /** @type {string[]} */
   const errors = [];
 
   for (const pattern of UNSAFE_MARKDOWN_PATTERNS) {
@@ -46,26 +60,31 @@ function validateMarkdownSafety(markdown = "") {
   };
 }
 
+/** @param {string | null | undefined} [markdown] */
 function assertSafeMarkdown(markdown = "") {
   const result = validateMarkdownSafety(markdown);
 
   if (!result.ok) {
-    throw new AppError(result.errors[0], 400);
+    throw new AppError(result.errors[0] || "Markdown contains unsafe content.", 400);
   }
 
   return result.markdown;
 }
 
+/** @param {string | null | undefined} [markdown] */
 function extractPlainTextFromMarkdown(markdown = "") {
   return markdownToPlainText(replaceWikiLinksWithText(markdown));
 }
 
+/** @param {string | null | undefined} [markdown] @param {number} [maxLength] */
 function createMarkdownExcerpt(markdown = "", maxLength = 220) {
   return createFrameworkMarkdownExcerpt(replaceWikiLinksWithText(markdown), maxLength);
 }
 
+/** @param {string | null | undefined} [markdown] */
 function renderMarkdownToSafeHtml(markdown = "") {
   const safeMarkdown = assertSafeMarkdown(markdown);
+  /** @type {Array<{ placeholder: string, target: string, label: string }>} */
   const wikiLinks = [];
   const placeholderMarkdown = safeMarkdown.replace(WIKI_LINK_PATTERN, (_match, target, label) => {
     const placeholder = `LTFWIKILINK${wikiLinks.length}TOKEN`;
@@ -84,8 +103,10 @@ function renderMarkdownToSafeHtml(markdown = "") {
   return html;
 }
 
+/** @param {string | null | undefined} [markdown] @returns {WikiLink[]} */
 function extractWikiLinks(markdown = "") {
   const normalized = normalizeMarkdown(markdown);
+  /** @type {WikiLink[]} */
   const links = [];
   const seen = new Set();
   let match;
@@ -112,6 +133,11 @@ function extractWikiLinks(markdown = "") {
   return links;
 }
 
+/**
+ * @param {MarkdownNoteInput} [note]
+ * @param {RevisionSnapshotOptions} [options]
+ * @returns {NoteRevisionSnapshot}
+ */
 function createRevisionSnapshot(note = {}, options = {}) {
   return {
     note_id: note.note_id || note.noteId || "",
@@ -133,6 +159,7 @@ function createRevisionSnapshot(note = {}, options = {}) {
   };
 }
 
+/** @param {MarkdownNoteInput} [previousNote] @param {MarkdownNoteInput} [nextNote] @returns {RevisionChange[]} */
 function describeRevisionChanges(previousNote = {}, nextNote = {}) {
   return REVISION_FIELDS
     .filter((fieldName) => normalizeComparable(previousNote[fieldName]) !== normalizeComparable(nextNote[fieldName]))
@@ -143,10 +170,12 @@ function describeRevisionChanges(previousNote = {}, nextNote = {}) {
     }));
 }
 
+/** @param {MarkdownNoteInput} [previousNote] @param {MarkdownNoteInput} [nextNote] */
 function shouldCreateRevision(previousNote = {}, nextNote = {}) {
   return describeRevisionChanges(previousNote, nextNote).length > 0;
 }
 
+/** @param {RevisionChangelogInput} [revision] @param {RevisionChange[]} [changes] */
 function createChangelogEntry(revision = {}, changes = []) {
   const changedFields = changes.map((change) => change.field);
 
@@ -164,18 +193,22 @@ function createChangelogEntry(revision = {}, changes = []) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeComparable(value) {
   return value === undefined || value === null ? "" : String(value);
 }
 
+/** @param {string | null | undefined} [value] */
 function normalizeWikiTarget(value = "") {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+/** @param {string | null | undefined} [markdown] */
 function replaceWikiLinksWithText(markdown = "") {
   return normalizeMarkdown(markdown).replace(WIKI_LINK_PATTERN, (_match, target, label) => label || target);
 }
 
+/** @param {string | null | undefined} [value] */
 function slugifyNoteTitle(value = "") {
   return normalizeWikiTarget(value)
     .toLowerCase()
@@ -183,6 +216,7 @@ function slugifyNoteTitle(value = "") {
     .replace(/^-+|-+$/g, "");
 }
 
+/** @param {string | null | undefined} [value] */
 function escapeHtml(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -192,6 +226,7 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#39;");
 }
 
+/** @param {string | null | undefined} [value] */
 function escapeAttribute(value = "") {
   return escapeHtml(value).replaceAll("`", "&#96;");
 }

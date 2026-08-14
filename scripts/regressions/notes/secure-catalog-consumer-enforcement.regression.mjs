@@ -153,6 +153,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     body_markdown: `${secretBody} updated`,
   }, session);
   const stored = await notesRepository.readById(session.workspace_id, created.note_id);
+  assert.ok(stored, "created secure-catalog note should remain readable through the repository");
   assert.equal(stored.security_mode, "normal");
   assert.equal(stored.effective_security_mode, "secure");
   assert.equal(stored.body_markdown, "");

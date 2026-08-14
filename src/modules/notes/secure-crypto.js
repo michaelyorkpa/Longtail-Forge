@@ -1,12 +1,24 @@
+// @ts-check
+
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { config, readRuntimeSecret } from "../../config.js";
 import { AppError } from "../../core/errors.js";
 
+/** @typedef {import("../../types/notes-domain-contracts.js").CompleteSecureNoteEncryptedFields} CompleteSecureNoteEncryptedFields */
+/** @typedef {import("../../types/notes-domain-contracts.js").NodeCryptoKey} NodeCryptoKey */
+/** @typedef {import("../../types/notes-domain-contracts.js").SecureNoteEncryptedFields} SecureNoteEncryptedFields */
+/** @typedef {import("../../types/notes-domain-contracts.js").SecureNoteEnvelope} SecureNoteEnvelope */
+/** @typedef {import("../../types/notes-domain-contracts.js").SecureNotesConfiguration} SecureNotesConfiguration */
+
+/** @type {"aes-256-gcm"} */
 const BODY_ALGORITHM = "aes-256-gcm";
+/** @type {"aes-256-gcm"} */
 const KEY_WRAPPING_ALGORITHM = "aes-256-gcm";
+/** @type {"1"} */
 const PAYLOAD_VERSION = "1";
 const DEFAULT_KEY_VERSION = "v1";
 
+/** @param {string} [bodyMarkdown] @returns {SecureNoteEnvelope} */
 function encryptSecureNoteBody(bodyMarkdown = "") {
   const masterKey = readMasterKey();
   const dataKey = randomBytes(32);
@@ -40,6 +52,7 @@ function encryptSecureNoteBody(bodyMarkdown = "") {
   };
 }
 
+/** @param {SecureNoteEncryptedFields} [note] @returns {string} */
 function decryptSecureNoteBody(note = {}) {
   assertEncryptedPayloadPresent(note);
   const masterKey = readMasterKey();
@@ -68,6 +81,7 @@ function assertSecureNotesConfigured() {
   readMasterKey();
 }
 
+/** @returns {SecureNotesConfiguration} */
 function describeSecureNotesConfiguration() {
   try {
     readMasterKey();
@@ -85,11 +99,12 @@ function describeSecureNotesConfiguration() {
       keyVersion: currentSecureNotesKeyVersion(),
       keyWrappingAlgorithm: KEY_WRAPPING_ALGORITHM,
       payloadVersion: PAYLOAD_VERSION,
-      reason: error?.code || "SECURE_NOTES_NOT_CONFIGURED",
+      reason: secureConfigurationErrorCode(error),
     };
   }
 }
 
+/** @param {SecureNoteEncryptedFields} [note] @returns {note is CompleteSecureNoteEncryptedFields} */
 function hasEncryptedSecurePayload(note = {}) {
   return Boolean(
     note.secure_payload &&
@@ -109,6 +124,7 @@ function safeSecurePlaceholders() {
   };
 }
 
+/** @param {SecureNoteEncryptedFields} [note] @returns {asserts note is CompleteSecureNoteEncryptedFields} */
 function assertEncryptedPayloadPresent(note = {}) {
   if (!hasEncryptedSecurePayload(note)) {
     throw new AppError("Secure note content is locked until it is recreated through the secure-note flow.", 423, {
@@ -117,6 +133,7 @@ function assertEncryptedPayloadPresent(note = {}) {
   }
 }
 
+/** @param {CompleteSecureNoteEncryptedFields} note @param {NodeCryptoKey} masterKey @returns {NodeCryptoKey} */
 function unwrapDataKey(note, masterKey) {
   const decipher = createDecipheriv(
     note.key_wrapping_algorithm || KEY_WRAPPING_ALGORITHM,
@@ -130,6 +147,7 @@ function unwrapDataKey(note, masterKey) {
   ]);
 }
 
+/** @returns {NodeCryptoKey} */
 function readMasterKey() {
   const raw = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY") || readRuntimeSecret("SECURE_NOTES_MASTER_KEY");
   const value = raw.trim();
@@ -158,6 +176,14 @@ function readMasterKey() {
 
 function currentSecureNotesKeyVersion() {
   return config.secureNotes.keyVersion || DEFAULT_KEY_VERSION;
+}
+
+/** @param {unknown} error */
+function secureConfigurationErrorCode(error) {
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string" && error.code) {
+    return error.code;
+  }
+  return "SECURE_NOTES_NOT_CONFIGURED";
 }
 
 export {

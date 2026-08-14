@@ -1,9 +1,19 @@
+// @ts-check
+
 import {
   NOTE_LIBRARY_BUCKETS,
   NOTE_STATUSES,
   NOTE_VISIBILITIES,
 } from "./library.js";
 import { isEffectivelySecureNote } from "./effective-security.js";
+
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteAccessOptions} NoteAccessOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteAccessRecord} NoteAccessRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteAccessResult} NoteAccessResult */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteAggregateAccessOptions} NoteAggregateAccessOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLifecycleChanges} NoteLifecycleChanges */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLifecyclePayload} NoteLifecyclePayload */
+/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 
 const NOTE_PERMISSIONS = Object.freeze({
   VIEW: "notes.view",
@@ -115,6 +125,7 @@ const WRITE_OPERATIONS = new Set([
   "manage_library",
 ]);
 
+/** @type {Readonly<Record<string, string>>} */
 const OPERATION_PERMISSIONS = Object.freeze({
   read: NOTE_PERMISSIONS.VIEW,
   create: NOTE_PERMISSIONS.CREATE,
@@ -128,6 +139,7 @@ const OPERATION_PERMISSIONS = Object.freeze({
   manage_library: NOTE_PERMISSIONS.MANAGE_LIBRARY,
 });
 
+/** @param {string} event @param {string} label @param {string} description @param {string} [recordType] */
 function eventType(event, label, description, recordType = "note") {
   return {
     event,
@@ -138,14 +150,17 @@ function eventType(event, label, description, recordType = "note") {
   };
 }
 
+/** @param {Set<string> | string[] | string | null} [permissions] @returns {Set<string>} */
 function createPermissionSet(permissions = []) {
   if (permissions instanceof Set) {
     return permissions;
   }
 
-  return new Set((Array.isArray(permissions) ? permissions : [permissions]).filter(Boolean));
+  const values = Array.isArray(permissions) ? permissions : permissions ? [permissions] : [];
+  return new Set(values.filter((permission) => typeof permission === "string" && permission.length > 0));
 }
 
+/** @param {NoteAccessOptions} [options] @returns {NoteAccessResult} */
 function canAccessNote({
   note = {},
   operation = "read",
@@ -211,6 +226,7 @@ function canAccessNote({
   return allow();
 }
 
+/** @param {string | null | undefined} visibility @param {string} [workspaceType] */
 function noteVisibilityForWorkspace(visibility, workspaceType = "business") {
   const normalizedWorkspaceType = String(workspaceType || "").trim().toLowerCase();
 
@@ -224,13 +240,15 @@ function noteVisibilityForWorkspace(visibility, workspaceType = "business") {
   return visibility || NOTE_VISIBILITIES.INTERNAL;
 }
 
-function normalizeNoteVisibilityForWorkspace(note = {}, workspaceType = "business") {
+/** @template {NoteAccessRecord} NoteType @param {NoteType} note @param {string} [workspaceType] */
+function normalizeNoteVisibilityForWorkspace(note, workspaceType = "business") {
   return {
     ...note,
     visibility: noteVisibilityForWorkspace(note.visibility, workspaceType),
   };
 }
 
+/** @param {NoteAggregateAccessOptions} [options] */
 function canExposeNoteInAggregate({
   note = {},
   session = {},
@@ -259,18 +277,22 @@ function canExposeNoteInAggregate({
   return true;
 }
 
+/** @param {string | null | undefined} libraryBucket @param {boolean} [linkedRecordAccess] */
 function libraryBucketCanUseContext(libraryBucket, linkedRecordAccess = true) {
   if (!linkedRecordAccess) {
     return false;
   }
 
-  return [
+  /** @type {ReadonlySet<string>} */
+  const supportedBuckets = new Set([
     NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
     NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
     NOTE_LIBRARY_BUCKETS.REFERENCE,
-  ].includes(libraryBucket || NOTE_LIBRARY_BUCKETS.REFERENCE);
+  ]);
+  return supportedBuckets.has(libraryBucket || NOTE_LIBRARY_BUCKETS.REFERENCE);
 }
 
+/** @param {NoteAccessRecord} note @param {Partial<WorkspaceRequestSession>} session @param {Set<string>} permissionSet */
 function canReadPrivateNote(note, session, permissionSet) {
   return note.owner_user_id === session.user_id ||
     note.created_by_user_id === session.user_id ||
@@ -278,6 +300,7 @@ function canReadPrivateNote(note, session, permissionSet) {
     permissionSet.has(NOTE_PERMISSIONS.VIEW_ALL);
 }
 
+/** @param {NoteAccessRecord} note @param {Partial<WorkspaceRequestSession>} session @param {Set<string>} permissionSet @param {string} operation @returns {NoteAccessResult} */
 function canAccessSecureNote(note, session, permissionSet, operation) {
   const securePermission = securePermissionForOperation(operation);
   if (!permissionSet.has(securePermission) && !permissionSet.has(NOTE_PERMISSIONS.SECURE_MANAGE)) {
@@ -293,6 +316,7 @@ function canAccessSecureNote(note, session, permissionSet, operation) {
   return allow();
 }
 
+/** @param {string} operation */
 function securePermissionForOperation(operation) {
   return {
     create: NOTE_PERMISSIONS.SECURE_CREATE,
@@ -307,6 +331,7 @@ function securePermissionForOperation(operation) {
   }[operation] || NOTE_PERMISSIONS.SECURE_VIEW;
 }
 
+/** @param {NoteLifecyclePayload} [payload] */
 function sanitizeNoteLifecyclePayload(payload = {}) {
   const safePayload = {
     workspace_id: textOrNull(payload.workspace_id),
@@ -330,18 +355,24 @@ function sanitizeNoteLifecyclePayload(payload = {}) {
   return Object.fromEntries(Object.entries(safePayload).filter(([, value]) => value !== null && value !== undefined));
 }
 
+/** @param {NoteLifecycleChanges | null | undefined} [values] */
 function sanitizeChangeValues(values = {}) {
+  /** @type {Partial<Record<"title" | "library_bucket" | "status" | "visibility" | "security_mode", string | null>>} */
   const allowed = {};
+  const source = values || {};
 
-  for (const fieldName of ["title", "library_bucket", "status", "visibility", "security_mode"]) {
-    if (values[fieldName] !== undefined) {
-      allowed[fieldName] = textOrNull(values[fieldName]);
+  /** @type {Array<"title" | "library_bucket" | "status" | "visibility" | "security_mode">} */
+  const fieldNames = ["title", "library_bucket", "status", "visibility", "security_mode"];
+  for (const fieldName of fieldNames) {
+    if (source[fieldName] !== undefined) {
+      allowed[fieldName] = textOrNull(source[fieldName]);
     }
   }
 
   return Object.keys(allowed).length > 0 ? allowed : undefined;
 }
 
+/** @param {unknown} value */
 function textOrNull(value) {
   if (value === null || value === undefined) {
     return null;
@@ -350,10 +381,12 @@ function textOrNull(value) {
   return String(value);
 }
 
+/** @returns {NoteAccessResult} */
 function allow() {
   return { allowed: true, reason: "allowed" };
 }
 
+/** @param {string} reason @returns {NoteAccessResult} */
 function deny(reason) {
   return { allowed: false, reason };
 }

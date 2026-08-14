@@ -1,3 +1,9 @@
+// @ts-check
+
+/** @typedef {import("../../types/notes-domain-contracts.js").NormalizedNoteLinkContext} NormalizedNoteLinkContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkContext} NoteLinkContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkContextEntry} NoteLinkContextEntry */
+
 const NOTE_LIBRARY_BUCKETS = Object.freeze({
   ACTIVE_WORK: "active_work",
   ONGOING_AREA: "ongoing_area",
@@ -71,6 +77,7 @@ const NOTE_TYPE_LABELS = Object.freeze({
   [LEGACY_NOTE_TYPES.USER]: "Legacy user",
 });
 
+/** @param {NoteLinkContext} [linkContext] */
 function deriveSuggestedLibraryBucket(linkContext = {}) {
   const links = normalizeLinkContext(linkContext);
   const hasTaskOrTicket = links.tasks.length > 0 || links.tickets.length > 0;
@@ -90,6 +97,10 @@ function deriveSuggestedLibraryBucket(linkContext = {}) {
   return NOTE_LIBRARY_BUCKETS.REFERENCE;
 }
 
+/**
+ * @param {NoteLinkContext} [linkContext]
+ * @returns {NormalizedNoteLinkContext}
+ */
 function normalizeLinkContext(linkContext = {}) {
   const links = Array.isArray(linkContext)
     ? linkContext
@@ -97,6 +108,7 @@ function normalizeLinkContext(linkContext = {}) {
 
   const normalized = {
     clients: new Set(normalizeIds(linkContext.clientIds || linkContext.client_ids)),
+    /** @type {Map<string, string>} */
     projects: new Map(),
     tasks: new Set(normalizeIds(linkContext.taskIds || linkContext.task_ids)),
     tickets: new Set(normalizeIds(linkContext.ticketIds || linkContext.ticket_ids)),
@@ -138,6 +150,7 @@ function normalizeLinkContext(linkContext = {}) {
   };
 }
 
+/** @param {unknown | unknown[]} value @returns {string[]} */
 function normalizeIds(value) {
   if (!value) {
     return [];
@@ -148,16 +161,19 @@ function normalizeIds(value) {
     .filter(Boolean);
 }
 
+/** @param {NormalizedNoteLinkContext} links */
 function hasMultipleClientContexts(links) {
   return collectKnownClientIds(links).size > 1 || links.clients.length > 1;
 }
 
+/** @param {NormalizedNoteLinkContext} links */
 function hasOneKnownClientContext(links) {
   const clientIds = collectKnownClientIds(links);
 
   return clientIds.size === 1 || (clientIds.size === 0 && links.clients.length === 1);
 }
 
+/** @param {NormalizedNoteLinkContext} links */
 function collectKnownClientIds(links) {
   return new Set([
     ...links.clients,

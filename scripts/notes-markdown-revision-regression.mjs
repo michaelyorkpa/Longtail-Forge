@@ -261,10 +261,13 @@ async function assertColumns(tableName, expectedColumns) {
 async function assertRevisionStorage() {
   const workspace = await readWorkspace();
   const user = await readUser();
+  assert.ok(typeof workspace.workspace_id === "string", "revision fixture workspace identity should be text");
+  assert.ok(typeof user.user_id === "string", "revision fixture user identity should be text");
+  const workspaceId = workspace.workspace_id;
   const now = new Date().toISOString();
   const note = {
     note_id: "note-markdown-1",
-    workspace_id: workspace.workspace_id,
+    workspace_id: workspaceId,
     title: "Markdown Note",
     body_markdown: "# Markdown Note\n\n[[Linked Note]]",
     note_type: "general",
