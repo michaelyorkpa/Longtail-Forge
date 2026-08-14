@@ -60,12 +60,7 @@ import {
   canExposeNoteToConsumer,
 } from "./consumer-policy.js";
 import { noteConsumerArtifactsService } from "./consumer-artifacts.service.js";
-import { clientsRepository } from "../client-projects/clients.repo.js";
-import { clientsService } from "../client-projects/clients.service.js";
-import { projectsRepository } from "../client-projects/projects.repo.js";
-import { LIST_PERMISSIONS, listResource } from "../lists/access-policy.js";
-import { listsRepository } from "../lists/lists.repo.js";
-import { tasksRepository } from "../tasks/tasks.repo.js";
+import { linkTargetDirectory } from "./link-target-directory.service.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
 import { createRecordId } from "../../core/identifiers.js";
@@ -105,20 +100,11 @@ const NOTE_LIST_SORT_MODES = new Set([
   "primary_context_updated_desc",
 ]);
 const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
-const TASK_TARGET_TITLE_MAX_LENGTH = 20;
+const NOTE_TARGET_TITLE_MAX_LENGTH = 20;
 const NOTE_LIST_DEFAULT_PAGE_SIZE = 50;
 const NOTE_LIST_MAX_PAGE_SIZE = 200;
 const NOTE_LIST_BATCH_MULTIPLIER = 5;
 const NOTE_LIST_MAX_CANDIDATE_SCAN = 1000;
-const LIST_TARGET_TYPE_LABELS = Object.freeze({
-  bill_of_materials: "Bill of Materials",
-  checklist: "Checklist",
-  packing: "Packing",
-  parts: "Parts",
-  procurement: "Procurement",
-  shopping: "Shopping",
-  supplies: "Supplies",
-});
 const SECURE_STORAGE_FIELDS = Object.freeze([
   "secure_payload",
   "secure_payload_version",
@@ -1074,7 +1060,9 @@ async function listLinkTargets(session, query = {}) {
       throw new AppError("Unsupported note link target type.", 400);
     }
 
-    targets.push(...await listTargetsByType(session, type, { clientContext }));
+    targets.push(...(linkTargetDirectory.externalTargetTypes.includes(type)
+      ? await linkTargetDirectory.list(session, type, clientContext)
+      : await listTargetsByType(session, type)));
   }
 
   return {
@@ -1619,55 +1607,12 @@ async function canTargetAccess(session, target, seenTargets = new Set()) {
     return normalizedTarget.target_id === session.workspace_id;
   }
 
-  if (normalizedTarget.target_type === "client") {
-    if (!(await workspaceSupportsClientTargets(session))) {
-      return false;
-    }
-
-    const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    return Boolean(client) && permissionsService.can(session, "clients.manage", {
-      workspace_id: session.workspace_id,
-      client_id: client.id,
-      operation: "read",
-    });
-  }
-
-  if (normalizedTarget.target_type === "project") {
-    const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    return Boolean(project) && permissionsService.can(session, "projects.manage", {
-      workspace_id: session.workspace_id,
-      client_id: project.client_id,
-      project_id: project.id,
-      operation: "read",
-    });
-  }
-
-  if (normalizedTarget.target_type === "task") {
-    const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    return Boolean(task) && permissionsService.can(session, "tasks.view", {
-      workspace_id: session.workspace_id,
-      client_id: task.client_id,
-      project_id: task.project_id,
-      task_id: task.task_id,
-      operation: "read",
-    });
-  }
-
   if (normalizedTarget.target_type === "note") {
     return canAccessNoteTarget(session, normalizedTarget, nextSeenTargets);
   }
 
-  if (normalizedTarget.target_type === "list") {
-    return canAccessListTarget(session, normalizedTarget);
-  }
-
-  if (normalizedTarget.target_type === "user") {
-    return normalizedTarget.target_id === session.user_id ||
-      permissionsService.can(session, "users.manage", {
-        workspace_id: session.workspace_id,
-        user_id: normalizedTarget.target_id,
-        operation: "read",
-      });
+  if (linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
+    return linkTargetDirectory.canAccess(session, normalizedTarget.target_type, normalizedTarget.target_id);
   }
 
   return false;
@@ -1694,64 +1639,13 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
     return normalizedTarget.target_id === session.workspace_id;
   }
 
-  if (normalizedTarget.target_type === "client") {
-    if (!(await workspaceSupportsClientTargets(session)) || !(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
-      return true;
-    }
-
-    const client = accessCache
-      ? accessCache.clients.get(normalizedTarget.target_id) || null
-      : await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    if (!client) {
-      return true;
-    }
-
-    return permissionsService.can(session, "clients.manage", {
-      workspace_id: session.workspace_id,
-      client_id: client.id,
-      operation: "read",
-    });
-  }
-
-  if (normalizedTarget.target_type === "project") {
-    if (!(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
-      return true;
-    }
-
-    const project = accessCache
-      ? accessCache.projects.get(normalizedTarget.target_id) || null
-      : await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    if (!project) {
-      return true;
-    }
-
-    return permissionsService.can(session, "projects.manage", {
-      workspace_id: session.workspace_id,
-      client_id: project.client_id,
-      project_id: project.id,
-      operation: "read",
-    });
-  }
-
-  if (normalizedTarget.target_type === "task") {
-    if (!(await modulesService.canReadModule(session.workspace_id, "tasks"))) {
-      return true;
-    }
-
-    const task = accessCache
-      ? accessCache.tasks.get(normalizedTarget.target_id) || null
-      : await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    if (!task) {
-      return true;
-    }
-
-    return permissionsService.can(session, "tasks.view", {
-      workspace_id: session.workspace_id,
-      client_id: task.client_id,
-      project_id: task.project_id,
-      task_id: task.task_id,
-      operation: "read",
-    });
+  if (linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
+    return linkTargetDirectory.canAccessSaved(
+      session,
+      normalizedTarget.target_type,
+      normalizedTarget.target_id,
+      accessCache?.directory || null,
+    );
   }
 
   if (normalizedTarget.target_type === "note") {
@@ -1773,36 +1667,6 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
       ...(await readNotesModuleState(session)),
     });
     return access.allowed;
-  }
-
-  if (normalizedTarget.target_type === "list") {
-    if (!(await modulesService.canReadModule(session.workspace_id, "lists"))) {
-      return true;
-    }
-
-    const listRecord = accessCache
-      ? accessCache.lists.get(normalizedTarget.target_id) || null
-      : await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    if (!listRecord || listRecord.status === "deleted" || listRecord.deleted_at) {
-      return true;
-    }
-
-    return permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord)) ||
-      permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
-  }
-
-  if (normalizedTarget.target_type === "user") {
-    const user = await usersRepository.readById(session.workspace_id, normalizedTarget.target_id);
-    if (!user) {
-      return true;
-    }
-
-    return normalizedTarget.target_id === session.user_id ||
-      permissionsService.can(session, "users.manage", {
-        workspace_id: session.workspace_id,
-        user_id: normalizedTarget.target_id,
-        operation: "read",
-      });
   }
 
   return true;
@@ -1831,21 +1695,7 @@ async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
   return access.allowed;
 }
 
-async function canAccessListTarget(session, target) {
-  if (!(await modulesService.canReadModule(session.workspace_id, "lists"))) {
-    return false;
-  }
-
-  const listRecord = await listsRepository.readById(session.workspace_id, target.target_id);
-  if (!listRecord || listRecord.status === "deleted" || listRecord.deleted_at) {
-    return false;
-  }
-
-  return permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord)) ||
-    permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
-}
-
-async function listTargetsByType(session, targetType, options = {}) {
+async function listTargetsByType(session, targetType) {
   if (!(await canReadLinkTargetType(session, targetType))) {
     return [];
   }
@@ -1859,94 +1709,6 @@ async function listTargetsByType(session, targetType, options = {}) {
       subtitle: "Workspace",
       source_url: "dashboard.html",
     })];
-  }
-
-  if (targetType === "client") {
-    if (!(await workspaceSupportsClientTargets(session))) {
-      return [];
-    }
-
-    const { clients } = await clientsService.listClients(session, {
-      include_depth: true,
-      shape: "flat",
-      status: "All",
-    });
-    return clients.map((client, index) => {
-      const label = clientTargetPlainLabel(client);
-      const displayLabel = clientTargetDisplayLabel(client);
-
-      return shapeLinkTarget({
-        target_type: "client",
-        target_id: client.id,
-        label,
-        display_label: displayLabel,
-        secondary_label: "",
-        sort_key: clientTargetSortKey(client, index),
-        source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
-        client_id: client.id,
-        workspace_id: session.workspace_id,
-        status: client.status || "",
-      });
-    });
-  }
-
-  if (targetType === "project") {
-    const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
-    const workspace = await workspacesRepository.readById(session.workspace_id);
-    const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
-    const projectLabelOptions = {
-      omitBusinessContext: isScopedLinkTargetClientContext(options.clientContext),
-    };
-    return projects.map((project) => {
-      const projectName = projectTargetPlainLabel(project);
-
-      return shapeLinkTarget({
-        target_type: "project",
-        target_id: project.id,
-        label: projectName,
-        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace, projectLabelOptions),
-        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace, projectLabelOptions),
-        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace, projectLabelOptions),
-        source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
-        client_id: project.client_id || "",
-        client_name: project.client_name || "",
-        project_id: project.id,
-        project_name: projectName,
-        workspace_id: session.workspace_id,
-        workspace_name: workspaceTargetName(workspace),
-      });
-    });
-  }
-
-  if (targetType === "task") {
-    const workspace = await workspacesRepository.readById(session.workspace_id);
-    const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
-    const tasks = await filterReadableTasks(session, await tasksRepository.readAll(session.workspace_id));
-    return tasks.map((task) => {
-      const taskTitle = taskTargetPlainLabel(task);
-      const displayLabel = taskTargetPickerDisplayLabel(task, workspace, isBusinessWorkspace);
-
-      return shapeLinkTarget({
-        target_type: "task",
-        target_id: task.task_id,
-        label: taskTitle,
-        display_label: displayLabel,
-        secondary_label: "",
-        sort_key: taskTargetSortKey(task, workspace, isBusinessWorkspace),
-        source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
-        client_id: task.client_id || "",
-        client_name: task.client_name || "",
-        project_id: task.project_id || "",
-        project_name: taskTargetProjectName(task),
-        task_id: task.task_id,
-        title: taskTitle,
-        full_label: taskTitle,
-        aria_label: taskTargetAccessibleLabel(task, workspace, isBusinessWorkspace),
-        workspace_id: session.workspace_id,
-        workspace_name: workspaceTargetName(workspace),
-        suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
-      });
-    });
   }
 
   if (targetType === "note") {
@@ -1981,66 +1743,7 @@ async function listTargetsByType(session, targetType, options = {}) {
     });
   }
 
-  if (targetType === "list") {
-    if (!(await canReadLinkTargetType(session, "list"))) {
-      return [];
-    }
-    const lists = await listsRepository.list(session.workspace_id, {});
-    const targetContext = await readLinkTargetContext(session);
-    const readableLists = [];
-    for (const listRecord of lists) {
-      if (await canAccessListTarget(session, {
-        module_id: "lists",
-        target_type: "list",
-        target_id: listRecord.list_id,
-      })) {
-        const listTitle = listTargetPlainLabel(listRecord);
-        const displayLabel = listTargetPickerDisplayLabel(listRecord, targetContext);
-        const secondaryLabel = listTargetSecondaryLabel(listRecord, targetContext);
-        readableLists.push(shapeLinkTarget({
-          target_type: "list",
-          target_id: listRecord.list_id,
-          label: listTitle,
-          display_label: displayLabel,
-          secondary_label: secondaryLabel,
-          sort_key: listTargetSortKey(listRecord, targetContext),
-          subtitle: secondaryLabel,
-          source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
-          client_id: listRecord.client_id || "",
-          client_name: recordTargetClientName(listRecord, targetContext),
-          project_id: listRecord.project_id || "",
-          project_name: recordTargetProjectName(listRecord, targetContext),
-          list_id: listRecord.list_id,
-          title: listTitle,
-          full_label: listTitle,
-          aria_label: listTargetAccessibleLabel(listRecord, targetContext),
-          workspace_id: session.workspace_id,
-          workspace_name: targetContext.workspaceName,
-        }));
-      }
-    }
-    return readableLists;
-  }
-
-  if (targetType === "user") {
-    const users = await filterReadableUsers(session, await usersRepository.readAll(session.workspace_id));
-    return users.map((user) => shapeLinkTarget({
-      target_type: "user",
-      target_id: user.user_id,
-      label: readableTargetLabel(user.displayName || user.display_name || user.username, "user"),
-      subtitle: user.username || "User",
-      source_url: "settings.html",
-      user_id: user.user_id,
-      suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
-    }));
-  }
-
   return [];
-}
-
-async function workspaceSupportsClientTargets(session) {
-  const workspace = await workspacesRepository.readById(session.workspace_id);
-  return normalizeWorkspaceType(workspace?.workspace_type) === "business";
 }
 
 async function canReadLinkTargetType(session, targetType) {
@@ -2053,33 +1756,6 @@ async function canReadLinkTargetType(session, targetType) {
   }[targetType];
 
   return moduleId ? modulesService.canWriteModule(session.workspace_id, moduleId) : true;
-}
-
-async function filterReadableTasks(session, tasks = []) {
-  const readable = [];
-
-  for (const task of tasks) {
-    if (await permissionsService.can(session, "tasks.view", {
-      workspace_id: session.workspace_id,
-      client_id: task.client_id,
-      project_id: task.project_id,
-      task_id: task.task_id,
-      operation: "read",
-    })) {
-      readable.push(task);
-    }
-  }
-
-  return readable;
-}
-
-async function filterReadableUsers(session, users = []) {
-  const canManageUsers = await permissionsService.can(session, "users.manage", {
-    workspace_id: session.workspace_id,
-    operation: "read",
-  });
-
-  return users.filter((user) => canManageUsers || user.user_id === session.user_id);
 }
 
 function targetMatchesSearch(target, search) {
@@ -2116,145 +1792,13 @@ function compareLinkTargets(left = {}, right = {}) {
     compareText(left.targetId, right.targetId);
 }
 
-function clientTargetPlainLabel(client = {}) {
-  return readableTargetLabel(client.name || client.label, "client");
-}
-
-function clientTargetDisplayLabel(client = {}) {
-  return readProviderDisplayLabel(client.display_label || client.displayLabel) || clientTargetPlainLabel(client);
-}
-
-function clientTargetSortKey(client = {}, index = 0) {
-  return normalizeOptionalText(client.sort_key || client.sortKey) || String(Number(index) || 0).padStart(6, "0");
-}
-
-function projectTargetPlainLabel(project = {}) {
-  return readableTargetLabel(project.name || project.label, "project");
-}
-
-function projectTargetDisplayLabel(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
-  const projectName = projectTargetPlainLabel(project);
-  if (!isBusinessWorkspace || options.omitBusinessContext) {
-    return projectName;
-  }
-
-  return `${projectName} - ${projectTargetContextLabel(project, workspace)}`;
-}
-
-function projectTargetSecondaryLabel(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
-  return isBusinessWorkspace && !options.omitBusinessContext ? projectTargetContextLabel(project, workspace) : "";
-}
-
-function projectTargetSortKey(project = {}, workspace = {}, isBusinessWorkspace = false, options = {}) {
-  const projectName = projectTargetPlainLabel(project);
-  if (!isBusinessWorkspace || options.omitBusinessContext) {
-    return sortText(projectName);
-  }
-
-  const hasClientContext = Boolean(normalizeOptionalText(project.client_id || project.clientId));
-  const contextOrder = hasClientContext ? "1" : "0";
-  return [
-    contextOrder,
-    sortText(projectTargetContextLabel(project, workspace)),
-    sortText(projectName),
-  ].join("|");
-}
-
-function projectTargetContextLabel(project = {}, workspace = {}) {
-  const hasClientContext = Boolean(normalizeOptionalText(project.client_id || project.clientId));
-  if (hasClientContext) {
-    return readableTargetLabel(project.client_name || project.clientName, "client");
-  }
-
-  return workspaceTargetName(workspace);
-}
-
-function taskTargetPlainLabel(task = {}) {
-  return readableTargetLabel(task.title || task.label, "task");
-}
-
-function taskTargetPickerDisplayLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
-  const title = truncateTaskTargetTitle(taskTargetPlainLabel(task));
-  const context = taskTargetContextLabel(task, workspace, isBusinessWorkspace);
-  return context ? `${title} - ${context}` : title;
-}
-
-function taskTargetSummaryDisplayLabel(task = {}) {
-  return taskTargetPlainLabel(task);
-}
-
-function taskTargetAccessibleLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
-  const title = taskTargetPlainLabel(task);
-  const context = taskTargetContextLabel(task, workspace, isBusinessWorkspace);
-  return context ? `${title} - ${context}` : title;
-}
-
-function taskTargetContextLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
-  const projectName = taskTargetProjectName(task);
-  if (!projectName) {
-    return "";
-  }
-
-  if (!isBusinessWorkspace) {
-    return projectName;
-  }
-
-  return `${taskTargetBusinessContextName(task, workspace)} | ${projectName}`;
-}
-
-function taskTargetBusinessContextName(task = {}, workspace = {}) {
-  const hasClientContext = Boolean(normalizeOptionalText(task.client_id || task.clientId));
-  if (hasClientContext) {
-    return readableTargetLabel(task.client_name || task.clientName, "client");
-  }
-
-  return workspaceTargetName(workspace);
-}
-
-function taskTargetProjectName(task = {}) {
-  if (!normalizeOptionalText(task.project_id || task.projectId)) {
-    return "";
-  }
-
-  return readableTargetLabel(task.project_name || task.projectName, "project");
-}
-
-function taskTargetSortKey(task = {}, workspace = {}, isBusinessWorkspace = false) {
-  return [
-    taskTargetUsefulnessRank(task),
-    sortText(taskTargetSortContextName(task, workspace, isBusinessWorkspace)),
-    sortText(taskTargetProjectName(task)),
-    sortText(taskTargetPlainLabel(task)),
-    sortText(task.task_id || task.taskId),
-  ].join("|");
-}
-
-function taskTargetSortContextName(task = {}, workspace = {}, isBusinessWorkspace = false) {
-  if (!taskTargetProjectName(task)) {
-    return "";
-  }
-
-  return isBusinessWorkspace ? taskTargetBusinessContextName(task, workspace) : "";
-}
-
-function taskTargetUsefulnessRank(task = {}) {
-  const status = normalizeOptionalText(task.status).toLowerCase();
-  const isInactive = task.archived_at ||
-    task.archivedAt ||
-    task.completed_at ||
-    task.completedAt ||
-    status === "archived" ||
-    status === "complete";
-  return isInactive ? "1" : "0";
-}
-
-function truncateTaskTargetTitle(title) {
+function truncateNoteTargetTitle(title) {
   const text = normalizeOptionalText(title);
-  if (text.length <= TASK_TARGET_TITLE_MAX_LENGTH) {
+  if (text.length <= NOTE_TARGET_TITLE_MAX_LENGTH) {
     return text;
   }
 
-  return `${text.slice(0, TASK_TARGET_TITLE_MAX_LENGTH - 3).trimEnd()}...`;
+  return `${text.slice(0, NOTE_TARGET_TITLE_MAX_LENGTH - 3).trimEnd()}...`;
 }
 
 async function readNoteCollectionsById(session) {
@@ -2263,33 +1807,11 @@ async function readNoteCollectionsById(session) {
 }
 
 async function readLinkTargetContext(session) {
-  const workspace = await workspacesRepository.readById(session.workspace_id);
-  const baseContext = {
-    clientsById: new Map(),
-    isBusinessWorkspace: isBusinessWorkspaceRecord(workspace),
-    projectsById: new Map(),
-    workspace,
-    workspaceName: workspaceTargetName(workspace),
-  };
-
-  if (!(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
-    return baseContext;
+  const context = await linkTargetDirectory.readContext(session);
+  if (await modulesService.canReadModule(session.workspace_id, "client-projects")) {
+    return context;
   }
-
-  const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
-  const clients = baseContext.isBusinessWorkspace
-    ? (await clientsService.listClients(session, {
-        include_depth: true,
-        shape: "flat",
-        status: "All",
-      })).clients || []
-    : [];
-
-  return {
-    ...baseContext,
-    clientsById: new Map(clients.map((client) => [client.id, client])),
-    projectsById: new Map(projects.map((project) => [project.id, project])),
-  };
+  return { ...context, clientsById: new Map(), projectsById: new Map() };
 }
 
 function noteTargetPlainLabel(note = {}) {
@@ -2297,7 +1819,7 @@ function noteTargetPlainLabel(note = {}) {
 }
 
 function noteTargetPickerDisplayLabel(note = {}, targetContext = {}) {
-  const title = truncateTaskTargetTitle(noteTargetPlainLabel(note));
+  const title = truncateNoteTargetTitle(noteTargetPlainLabel(note));
   const context = noteTargetContextLabel(note, targetContext);
   return context ? `${title} - ${context}` : title;
 }
@@ -2359,48 +1881,6 @@ function noteTargetCollectionLabel(note = {}, collectionsById = new Map()) {
   return normalizeOptionalText(collection?.path_cache || collection?.title);
 }
 
-function listTargetPlainLabel(listRecord = {}) {
-  return readableTargetLabel(listRecord.title || listRecord.label, "list");
-}
-
-function listTargetPickerDisplayLabel(listRecord = {}, targetContext = {}) {
-  const title = truncateTaskTargetTitle(listTargetPlainLabel(listRecord));
-  const context = listTargetContextLabel(listRecord, targetContext);
-  return context ? `${title} - ${context}` : title;
-}
-
-function listTargetSecondaryLabel(listRecord = {}, targetContext = {}) {
-  return listTargetContextLabel(listRecord, targetContext) || listTargetTypeLabel(listRecord);
-}
-
-function listTargetAccessibleLabel(listRecord = {}, targetContext = {}) {
-  const label = listTargetPlainLabel(listRecord);
-  const secondaryLabel = listTargetSecondaryLabel(listRecord, targetContext);
-  return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
-}
-
-function listTargetContextLabel(listRecord = {}, targetContext = {}) {
-  return recordTargetContextLabel(listRecord, targetContext);
-}
-
-function listTargetSortKey(listRecord = {}, targetContext = {}) {
-  return [
-    sortText(listTargetContextLabel(listRecord, targetContext)),
-    sortText(listTargetTypeLabel(listRecord)),
-    sortText(listTargetPlainLabel(listRecord)),
-    sortText(listRecord.list_id || listRecord.listId),
-  ].join("|");
-}
-
-function listTargetTypeLabel(listRecord = {}) {
-  const listType = normalizeOptionalText(listRecord.list_type || listRecord.listType);
-  return LIST_TARGET_TYPE_LABELS[listType] || formatLabelToken(listType);
-}
-
-function workspaceTargetName(workspace = {}) {
-  return readableTargetLabel(workspace?.workspace_name || workspace?.name, "workspace");
-}
-
 function recordTargetContextLabel(record = {}, targetContext = {}) {
   const projectName = recordTargetProjectName(record, targetContext);
   if (projectName) {
@@ -2417,33 +1897,29 @@ function recordTargetContextLabel(record = {}, targetContext = {}) {
 }
 
 function recordTargetBusinessContextName(record = {}, targetContext = {}) {
-  return recordTargetClientName(record, targetContext) || targetContext.workspaceName || workspaceTargetName(targetContext.workspace);
+  return recordTargetClientName(record, targetContext) || targetContext.workspaceName || "Workspace";
 }
 
 function recordTargetClientName(record = {}, targetContext = {}) {
   const project = recordTargetProject(record, targetContext);
-  const projectClientName = normalizeOptionalText(project?.client_name || project?.clientName);
+  const projectClientName = normalizeOptionalText(project?.clientName);
   if (projectClientName) {
     return readableTargetLabel(projectClientName, "client");
   }
 
   const clientId = normalizeOptionalText(record.client_id || record.clientId);
   const client = clientId ? targetContext.clientsById?.get(clientId) : null;
-  return client ? clientTargetPlainLabel(client) : "";
+  return normalizeOptionalText(client?.label);
 }
 
 function recordTargetProjectName(record = {}, targetContext = {}) {
   const project = recordTargetProject(record, targetContext);
-  return project ? projectTargetPlainLabel(project) : "";
+  return normalizeOptionalText(project?.label);
 }
 
 function recordTargetProject(record = {}, targetContext = {}) {
   const projectId = normalizeOptionalText(record.project_id || record.projectId);
   return projectId ? targetContext.projectsById?.get(projectId) : null;
-}
-
-function isBusinessWorkspaceRecord(workspace = {}) {
-  return normalizeWorkspaceType(workspace?.workspace_type) === "business";
 }
 
 function sortText(value) {
@@ -2456,15 +1932,6 @@ function formatLabelToken(value) {
     .filter(Boolean)
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
     .join(" ");
-}
-
-function readProviderDisplayLabel(value) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  const text = String(value);
-  return text.trim() ? text : "";
 }
 
 function noteContextTargets(note = {}) {
@@ -2808,27 +2275,21 @@ async function createLinkedContextAccessCache(session, notes = [], linksByNoteId
     for (const target of targets) {
       const targetType = normalizeOptionalText(target.target_type);
       const targetId = normalizeOptionalText(target.target_id);
-      if (!targetType || !targetId || !["client", "project", "task", "note", "list"].includes(targetType)) continue;
+      if (!targetType || !targetId || !["client", "project", "task", "note", "list", "user"].includes(targetType)) continue;
       if (!idsByType.has(targetType)) idsByType.set(targetType, new Set());
       idsByType.get(targetType).add(targetId);
     }
   }
 
-  const read = async (targetType, repository, idField) => {
-    const ids = [...(idsByType.get(targetType) || [])];
-    if (ids.length === 0) return new Map();
-    const records = await repository.readByIds(session.workspace_id, ids);
-    return new Map(records.map((record) => [record[idField], record]));
-  };
-
-  const [clients, projects, tasks, linkedNotes, lists] = await Promise.all([
-    read("client", clientsRepository, "id"),
-    read("project", projectsRepository, "id"),
-    read("task", tasksRepository, "task_id"),
-    read("note", notesRepository, "note_id"),
-    read("list", listsRepository, "list_id"),
+  const noteIds = [...(idsByType.get("note") || [])];
+  const [directory, linkedNotes] = await Promise.all([
+    linkTargetDirectory.createAccessCache(session, idsByType),
+    noteIds.length > 0 ? notesRepository.readByIds(session.workspace_id, noteIds) : [],
   ]);
-  return { clients, projects, tasks, notes: linkedNotes, lists };
+  return {
+    directory,
+    notes: new Map(linkedNotes.map((note) => [note.note_id, note])),
+  };
 }
 
 function shapeConsumerNoteSummary(note = {}) {
@@ -2906,6 +2367,10 @@ async function readTargetSummary(session, target = {}) {
       return safeUnavailableTarget(normalizedTarget);
     }
 
+    if (linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
+      return linkTargetDirectory.readSummary(session, normalizedTarget.target_type, normalizedTarget.target_id);
+    }
+
     if (normalizedTarget.target_type === "workspace") {
       const workspace = await workspacesRepository.readById(session.workspace_id);
       return {
@@ -2913,65 +2378,6 @@ async function readTargetSummary(session, target = {}) {
         subtitle: "Workspace",
         source_url: "dashboard.html",
       };
-    }
-    if (normalizedTarget.target_type === "client") {
-      const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-      const label = client ? clientTargetPlainLabel(client) : "";
-      return client ? {
-        label,
-        display_label: label,
-        secondary_label: "",
-        sort_key: clientTargetSortKey(client, 0),
-        source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
-        client_id: client.id,
-        workspace_id: session.workspace_id,
-        status: client.status || "",
-      } : safeUnavailableTarget(normalizedTarget);
-    }
-    if (normalizedTarget.target_type === "project") {
-      const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-      const workspace = await workspacesRepository.readById(session.workspace_id);
-      const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
-      const projectName = project ? projectTargetPlainLabel(project) : "";
-      return project ? {
-        label: projectName,
-        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace),
-        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
-        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace),
-        subtitle: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
-        source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
-        client_id: project.client_id || "",
-        client_name: project.client_name || "",
-        project_id: project.id,
-        project_name: projectName,
-        workspace_id: session.workspace_id,
-        workspace_name: workspaceTargetName(workspace),
-      } : safeUnavailableTarget(normalizedTarget);
-    }
-    if (normalizedTarget.target_type === "task") {
-      const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
-      const workspace = await workspacesRepository.readById(session.workspace_id);
-      const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
-      const contextLabel = task ? taskTargetContextLabel(task, workspace, isBusinessWorkspace) : "";
-      const taskTitle = task ? taskTargetPlainLabel(task) : "";
-      return task ? {
-        label: taskTitle,
-        display_label: taskTargetSummaryDisplayLabel(task),
-        secondary_label: contextLabel,
-        sort_key: taskTargetSortKey(task, workspace, isBusinessWorkspace),
-        subtitle: contextLabel,
-        source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
-        client_id: task.client_id || "",
-        client_name: task.client_name || "",
-        project_id: task.project_id || "",
-        project_name: taskTargetProjectName(task),
-        task_id: task.task_id,
-        title: taskTitle,
-        full_label: taskTitle,
-        aria_label: taskTargetAccessibleLabel(task, workspace, isBusinessWorkspace),
-        workspace_id: session.workspace_id,
-        workspace_name: workspaceTargetName(workspace),
-      } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "note") {
       const note = await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
@@ -2999,39 +2405,6 @@ async function readTargetSummary(session, target = {}) {
         aria_label: noteTargetAccessibleLabel(note, collectionsById, targetContext),
         workspace_id: session.workspace_id,
         workspace_name: targetContext.workspaceName,
-      } : safeUnavailableTarget(normalizedTarget);
-    }
-    if (normalizedTarget.target_type === "list") {
-      const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
-      const targetContext = await readLinkTargetContext(session);
-      const listTitle = listRecord ? listTargetPlainLabel(listRecord) : "";
-      const secondaryLabel = listRecord ? listTargetSecondaryLabel(listRecord, targetContext) : "";
-      return listRecord ? {
-        label: listTitle,
-        display_label: listTitle,
-        secondary_label: secondaryLabel,
-        sort_key: listTargetSortKey(listRecord, targetContext),
-        subtitle: secondaryLabel,
-        source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
-        client_id: listRecord.client_id || "",
-        client_name: recordTargetClientName(listRecord, targetContext),
-        project_id: listRecord.project_id || "",
-        project_name: recordTargetProjectName(listRecord, targetContext),
-        list_id: listRecord.list_id,
-        title: listTitle,
-        full_label: listTitle,
-        aria_label: listTargetAccessibleLabel(listRecord, targetContext),
-        workspace_id: session.workspace_id,
-        workspace_name: targetContext.workspaceName,
-      } : safeUnavailableTarget(normalizedTarget);
-    }
-    if (normalizedTarget.target_type === "user") {
-      const user = await usersRepository.readById(session.workspace_id, normalizedTarget.target_id);
-      return user ? {
-        label: readableTargetLabel(user.display_name || user.displayName || user.username, "user"),
-        subtitle: user.username || "User",
-        source_url: "settings.html",
-        user_id: user.user_id,
       } : safeUnavailableTarget(normalizedTarget);
     }
   } catch {

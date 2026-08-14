@@ -39,6 +39,8 @@ async function assertStaticContract() {
   const pickerShell = await readText("public/js/shared/view-builder.js");
   const notesJs = await readText("public/js/notes.js");
   const notesServiceSource = await readText("src/modules/notes/notes.service.js");
+  const linkTargetDirectorySource = await readText("src/modules/notes/link-target-directory.service.js");
+  const clientProjectsProviderSource = await readText("src/modules/client-projects/link-target.provider.js");
   const pickerContract = await readText("docs/linked-context-picker-contract.md");
 
   assert.match(pickerShell, /clientContextSelect/, "Picker shell should expose an optional client-context select");
@@ -55,9 +57,10 @@ async function assertStaticContract() {
   assert.match(notesJs, /if \(!usesBusinessScope\(\)\)[\s\S]*setClientContexts\(\[\]\)/, "Notes should hide client context outside Business workspaces");
 
   assert.match(notesServiceSource, /normalizeLinkTargetClientContext/, "Notes service should normalize the picker client scope");
-  assert.match(notesServiceSource, /resolveLinkTargetClientScope[\s\S]*resolveClientProjectFilterScope/, "Notes service should use the shared hierarchy resolver for picker client scoping");
-  assert.match(notesServiceSource, /targetMatchesClientContext/, "Notes service should filter link targets by the resolved client context");
-  assert.match(notesServiceSource, /omitBusinessContext: isScopedLinkTargetClientContext/, "Project target labels should drop client/workspace suffixes in scoped client contexts");
+  assert.match(notesServiceSource, /linkTargetDirectory\.list/, "Notes service should delegate external target lookup to the directory");
+  assert.match(linkTargetDirectorySource, /resolveClientProjectFilterScope/, "Link-target directory should use the shared hierarchy resolver for picker client scoping");
+  assert.match(linkTargetDirectorySource, /targetMatchesClientContext/, "Link-target directory should filter external targets by the resolved client context");
+  assert.match(clientProjectsProviderSource, /clientContext\?\.mode === "client" \|\| options\.clientContext\?\.mode === "workspace"/, "Project provider should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
   assertRoadmapCursorAtLeast("0.33.8", "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
 }

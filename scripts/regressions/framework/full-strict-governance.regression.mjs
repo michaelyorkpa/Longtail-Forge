@@ -41,7 +41,7 @@ const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.16.2");
+assert.equal(ledger.checkpoint, "0.33.33.16.3");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -60,7 +60,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 12, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 13, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -97,6 +97,17 @@ for (const strictCleanPath of [
   "scripts/regressions/framework/full-strict-governance.regression.mjs",
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
+}
+for (const strictCleanPath of [
+  "src/core/linked-context/link-target-shape.js",
+  "src/modules/client-projects/link-target.provider.js",
+  "src/modules/lists/link-target.provider.js",
+  "src/modules/notes/link-target-directory.service.js",
+  "src/modules/tasks/link-target.provider.js",
+  "src/modules/users/link-target.provider.js",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
 }
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (

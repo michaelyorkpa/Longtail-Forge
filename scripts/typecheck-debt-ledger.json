@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.16.2",
+  "checkpoint": "0.33.33.16.3",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -36,6 +36,7 @@
         "src/core/jobs/job-types.js",
         "src/core/jobs/worker-cli.js",
         "src/core/jobs/worker-process-lock.js",
+        "src/core/linked-context/link-target-shape.js",
         "src/core/linked-context/provider-contract.js",
         "src/core/list-enrichment.js",
         "src/core/markdown/markdown.service.js",
@@ -101,6 +102,7 @@
         "src/modules/client-projects/clients.routes.js",
         "src/modules/client-projects/clients.service.js",
         "src/modules/client-projects/index.js",
+        "src/modules/client-projects/link-target.provider.js",
         "src/modules/client-projects/module.js",
         "src/modules/client-projects/project-update-planner.js",
         "src/modules/client-projects/projects.repo.js",
@@ -111,6 +113,7 @@
         "src/modules/developer-example/routes.js",
         "src/modules/lists/access-policy.js",
         "src/modules/lists/index.js",
+        "src/modules/lists/link-target.provider.js",
         "src/modules/lists/lists.repo.js",
         "src/modules/lists/lists.routes.js",
         "src/modules/lists/lists.service.js",
@@ -126,6 +129,7 @@
         "src/modules/notes/effective-security.js",
         "src/modules/notes/index.js",
         "src/modules/notes/library.js",
+        "src/modules/notes/link-target-directory.service.js",
         "src/modules/notes/markdown.js",
         "src/modules/notes/module.events.js",
         "src/modules/notes/module.help.js",
@@ -142,6 +146,7 @@
         "src/modules/notes/secure-crypto.js",
         "src/modules/tags/module.js",
         "src/modules/tasks/index.js",
+        "src/modules/tasks/link-target.provider.js",
         "src/modules/tasks/module.events.js",
         "src/modules/tasks/module.integrations.js",
         "src/modules/tasks/module.js",
@@ -186,6 +191,8 @@
         "src/modules/time-tracking/time-tracking-dashboard.service.js",
         "src/modules/time-tracking/time-tracking-settings.service.js",
         "src/modules/time-tracking/time-tracking.contracts.js",
+        "src/modules/users/index.js",
+        "src/modules/users/link-target.provider.js",
         "src/modules/users/module.js",
         "src/repositories/account-export-recovery.repo.js",
         "src/repositories/api-keys.repo.js",
@@ -353,7 +360,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 5025,
+      "errorCount": 4929,
       "diagnostics": {
         "src/config.js": [
           {
@@ -742,19 +749,15 @@
           },
           {
             "code": 18047,
-            "count": 6
+            "count": 3
           },
           {
             "code": 2339,
-            "count": 635
+            "count": 575
           },
           {
             "code": 2345,
-            "count": 30
-          },
-          {
-            "code": 2353,
-            "count": 5
+            "count": 15
           },
           {
             "code": 2740,
@@ -766,7 +769,7 @@
           },
           {
             "code": 7006,
-            "count": 268
+            "count": 256
           },
           {
             "code": 7031,
@@ -778,7 +781,7 @@
           },
           {
             "code": 7053,
-            "count": 15
+            "count": 14
           }
         ],
         "src/modules/notes/public-api.routes.js": [
@@ -11559,8 +11562,8 @@
     }
   },
   "totals": {
-    "files": 1006,
-    "errors": 26001,
+    "files": 1013,
+    "errors": 25905,
     "explicitAny": 15
   },
   "explicitAnyByFile": {
@@ -11582,7 +11585,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 12,
+    "firstPartyFiles": 13,
     "errors": 0
   }
 }
