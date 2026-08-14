@@ -136,6 +136,7 @@
         "src/modules/notes/module.integrations.js",
         "src/modules/notes/module.js",
         "src/modules/notes/module.permissions.js",
+        "src/modules/notes/notes-collections.service.js",
         "src/modules/notes/notes.contracts.js",
         "src/modules/notes/notes.repo.js",
         "src/modules/notes/notes.routes.js",
@@ -360,7 +361,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 4929,
+      "errorCount": 4802,
       "diagnostics": {
         "src/config.js": [
           {
@@ -745,7 +746,7 @@
         "src/modules/notes/notes.service.js": [
           {
             "code": 18046,
-            "count": 5
+            "count": 4
           },
           {
             "code": 18047,
@@ -753,31 +754,23 @@
           },
           {
             "code": 2339,
-            "count": 575
+            "count": 487
           },
           {
             "code": 2345,
-            "count": 15
+            "count": 14
           },
           {
             "code": 2740,
             "count": 5
           },
           {
-            "code": 7005,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 256
+            "count": 221
           },
           {
             "code": 7031,
             "count": 5
-          },
-          {
-            "code": 7034,
-            "count": 1
           },
           {
             "code": 7053,
@@ -11562,8 +11555,8 @@
     }
   },
   "totals": {
-    "files": 1013,
-    "errors": 25905,
+    "files": 1014,
+    "errors": 25778,
     "explicitAny": 15
   },
   "explicitAnyByFile": {
@@ -11585,7 +11578,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 13,
+    "firstPartyFiles": 14,
     "errors": 0
   }
 }

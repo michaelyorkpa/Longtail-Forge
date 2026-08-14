@@ -48,14 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.17.1 - Extract Notes collections
-
-**Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.
-
-- [ ] Extract collection tree, path, count, and catalog behavior into one cohesive Notes-owned service.
-- [ ] Keep existing Notes routes, library-bucket semantics, ordering, selection, and permission behavior stable.
-- [ ] Give the extracted service explicit row/result contracts and focused collection and access coverage.
-
 ### 0.33.33.17.2 - Type Notes persistence, policy, and security dependencies
 
 **Model: High Effort** - Notes persistence, visibility, revisions, and encryption carry data-integrity and confidentiality risk.

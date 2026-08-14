@@ -215,12 +215,16 @@ async function assertCollectionDefaultsAndCounts(adminSession, limitedSession) {
   assert.deepEqual(tree.defaults.libraries.all, { label: "All Libraries", value: "all" });
   assert.deepEqual(tree.defaults.collections.all, { label: "All collections", value: "" });
   assert.deepEqual(tree.defaults.collections.uncategorized, { label: "Uncategorized", value: "__uncategorized" });
+  assert.ok(tree.collections[0], "The collection read model should include its active-work root");
+  assert.ok(tree.collections.at(-1), "The collection read model should include its reference root");
+  assert.ok(parentRow, "The parent collection should remain in the permission-safe tree");
+  assert.ok(childRow, "The child collection should remain in the permission-safe tree");
   assert.equal(tree.collections[0].library_bucket, NOTE_LIBRARY_BUCKETS.ACTIVE_WORK, "collection read model should be bucket-first");
-  assert.equal(tree.collections.at(-1).note_library_collection_id, reference.collection.note_library_collection_id);
+  assert.equal(tree.collections.at(-1)?.note_library_collection_id, reference.collection.note_library_collection_id);
   assert.equal(parentRow.accessibleNoteCount, 1, "rolled-up counts should use access-filtered notes");
   assert.equal(childRow.directAccessibleNoteCount, 1, "direct counts should use access-filtered notes");
-  assert.equal(JSON.stringify(tree).includes(privateNote.note.title), false, "private note labels should never appear in collection trees");
-  assert.equal(JSON.stringify(tree).includes(visible.note.title), false, "collection trees should expose counts, not note labels");
+  assert.equal(JSON.stringify(tree).includes(String(privateNote.note.title)), false, "private note labels should never appear in collection trees");
+  assert.equal(JSON.stringify(tree).includes(String(visible.note.title)), false, "collection trees should expose counts, not note labels");
 }
 
 async function assertResumeContextHook(adminSession) {

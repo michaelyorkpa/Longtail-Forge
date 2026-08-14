@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.17.1 - Extract Notes collections
+
+**Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.
+
+- [x] Extracted collection tree shaping, path maintenance, permission-safe counts, lifecycle operations, import mapping, catalog management, and collection-based note selection into one cohesive Notes-owned service.
+- [x] Preserved the existing Notes service and route method names, Library-bucket semantics, bucket/path ordering, descendant selection, archived compatibility, Support View pruning, permissions, audit, and search synchronization.
+- [x] Added explicit collection row, read-model, catalog, lifecycle, dependency, and service result contracts while keeping raw request queries and payloads `unknown` only at their owning runtime boundaries.
+- [x] Closed the extracted service to zero strict diagnostics and retained focused Notes collection, catalog, Secure Catalog, linked-panel, integration, and permission coverage; `0.33.33.17.2` remains the next child checkpoint.
+
 ## Version 0.33.33.16.3 - Extract the Notes link-target directory
 
 **Model: High Effort** - Cross-module target summaries preserve permission pruning, safe labels, and public-entry ownership.

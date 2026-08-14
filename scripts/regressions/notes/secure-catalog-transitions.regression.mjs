@@ -338,6 +338,7 @@ async function assertWrongPasswordRejected(session) {
   assert.equal(unchanged.security_transition_state, "stable");
 }
 
+/** @param {string | null} [parentCollectionId] */
 async function createCatalog(session, title, parentCollectionId = null) {
   return (await notesService.createCollection({
     libraryBucket: "reference",

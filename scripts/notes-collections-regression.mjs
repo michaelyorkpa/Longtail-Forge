@@ -38,6 +38,11 @@ try {
 }
 
 async function assertManifestAndSchema() {
+  const [collectionServiceSource, notesServiceSource, collectionContractsSource] = await Promise.all([
+    fs.readFile(new URL("../src/modules/notes/notes-collections.service.js", import.meta.url), "utf8"),
+    fs.readFile(new URL("../src/modules/notes/notes.service.js", import.meta.url), "utf8"),
+    fs.readFile(new URL("../src/types/notes-collections-contracts.d.ts", import.meta.url), "utf8"),
+  ]);
   const notesModule = modulesService.getModule("notes");
   assert.equal(notesModule.version, appVersion, [
     "path_cache",
@@ -55,6 +60,13 @@ WHERE type = 'table'
   AND name = 'note_collections';
 `);
   assert.deepEqual(tables, [], "0.33.1.5 must extend note_library_collections instead of creating note_collections");
+
+  assert.match(collectionServiceSource, /^\/\/ @ts-check/m, "the extracted collection aggregate must stay in the full-strict program");
+  assert.match(collectionServiceSource, /function createNotesCollectionsService[\s\S]*listCollections[\s\S]*bulkManageCatalogs[\s\S]*resolveListFilter/);
+  assert.match(notesServiceSource, /notesCollectionsService\.listCollections[\s\S]*notesCollectionsService\.createCollection/);
+  assert.doesNotMatch(notesServiceSource, /function (buildCollectionTree|collectionDescendants|shapeCatalogSettingsRow|normalizeCollectionPayload)/);
+  assert.match(collectionContractsSource, /interface NoteCollectionRecord[\s\S]*interface NoteCollectionReadModel[\s\S]*interface NotesCollectionsService/);
+  assert.match(collectionContractsSource, /collectionId: string, session: WorkspaceRequestSession/);
 }
 
 async function assertCollectionService(session) {
@@ -126,6 +138,8 @@ async function assertCollectionService(session) {
   });
   const countedRoot = countedTree.collections.find((collection) => collection.note_library_collection_id === otherRoot.collection.note_library_collection_id);
   const countedChild = countedTree.collections.find((collection) => collection.note_library_collection_id === moved.collection.note_library_collection_id);
+  assert.ok(countedRoot, "Parent collection should remain in the permission-safe read model");
+  assert.ok(countedChild, "Child collection should remain in the permission-safe read model");
   assert.equal(countedRoot.accessibleNoteCount, 1, "Parent collection counts should include permission-safe child notes");
   assert.equal(countedRoot.directAccessibleNoteCount, 0, "Parent direct count should stay separate from rolled-up totals");
   assert.equal(countedChild.accessibleNoteCount, 1);

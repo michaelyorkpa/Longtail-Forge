@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18064,
+    "activeAssertionCount": 18078,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18733,
+    "effectiveAssertionCount": 18747,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -2053,11 +2053,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 32,
+      "assertionCount": 40,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes collections contract.",
-      "entryPointAssertionCount": 32,
+      "entryPointAssertionCount": 40,
       "id": "legacy.notes.collections",
       "legacy": true,
       "path": "scripts/notes-collections-regression.mjs",
@@ -2122,11 +2122,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 39,
+      "assertionCount": 41,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes integration closeout contract.",
-      "entryPointAssertionCount": 39,
+      "entryPointAssertionCount": 41,
       "id": "legacy.notes.integration.closeout",
       "legacy": true,
       "path": "scripts/notes-integration-closeout-regression.mjs",
@@ -2140,11 +2140,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 72,
+      "assertionCount": 76,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes linked panel contract.",
-      "entryPointAssertionCount": 72,
+      "entryPointAssertionCount": 76,
       "id": "legacy.notes.linked.panel",
       "legacy": true,
       "path": "scripts/notes-linked-panel-regression.mjs",

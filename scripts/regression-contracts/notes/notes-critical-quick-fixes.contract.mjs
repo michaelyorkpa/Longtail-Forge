@@ -17,11 +17,12 @@ const css = await readText("public/css/longtail-forge.css");
 const notes = await readText("public/js/notes.js");
 const notesModule = await readText("src/modules/notes/module.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
+const notesCollectionsService = await readText("src/modules/notes/notes-collections.service.js");
 const notesService = await readText("src/modules/notes/notes.service.js");
 
 assert.match(notesRoutes, /post\("\/notes\/bulk"[\s\S]*notesService\.bulkUpdate/, "Notes should expose one module-owned bulk metadata route");
 assert.match(functionBlock(notesService, "bulkUpdate"), /assertNotesWriteEnabled\(session\)[\s\S]*at most 100 notes[\s\S]*normalizeNoteBulkChanges[\s\S]*readNoteOrThrow\(session, noteId\)[\s\S]*assertCanAccess\(session, previousNote, "update"\)[\s\S]*updateValidatedNote\(noteId, changes, session, previousNote\)[\s\S]*errors\.push/, "bulk updates should stay bounded and run every selected note through the canonical validated update pipeline");
-assert.match(functionBlock(notesService, "normalizeNoteBulkChanges"), /readCollectionById\(session\.workspace_id, noteCollectionId\)[\s\S]*collection\.library_bucket[\s\S]*changes\.note_collection_id = null[\s\S]*Choose at least one Notes field/, "bulk field normalization should keep collection and Library state consistent and reject empty changes");
+assert.match(`${functionBlock(notesService, "normalizeNoteBulkChanges")}\n${functionBlock(notesCollectionsService, "readAssignableCollection")}`, /notesCollectionsService\.readAssignableCollection\(session, noteCollectionId\)[\s\S]*collection\.library_bucket[\s\S]*changes\.note_collection_id = null[\s\S]*Choose at least one Notes field[\s\S]*readCollectionOrThrow\(session, collectionId, \{ includeArchived: true \}\)/, "bulk field normalization should use the extracted collection owner, keep Library state consistent, preserve archived collection compatibility, and reject empty changes");
 
 assert.match(notesModule, /id: "note-bulk-editor"[\s\S]*field: "library"[\s\S]*field: "collection"[\s\S]*field: "noteType"[\s\S]*field: "visibility"[\s\S]*field: "tagAction"/, "the Notes descriptor should declare metadata fields plus the bulk tag action");
 assert.match(functionBlock(notes, "createNotesListChrome"), /createNotesBulkToolbar\(\)[\s\S]*list/, "the bulk control should stay with the Notes List in the slide-out sidebar");
