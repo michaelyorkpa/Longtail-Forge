@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.15",
+  "checkpoint": "0.33.33.16.1",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -132,6 +132,7 @@
         "src/modules/notes/module.integrations.js",
         "src/modules/notes/module.js",
         "src/modules/notes/module.permissions.js",
+        "src/modules/notes/notes.contracts.js",
         "src/modules/notes/notes.repo.js",
         "src/modules/notes/notes.routes.js",
         "src/modules/notes/notes.service.js",
@@ -291,6 +292,7 @@
         "src/utils/workspaces.js",
         "tests/contracts/files-contracts.test.mjs",
         "tests/contracts/normalizers-timezones.test.mjs",
+        "tests/contracts/notes-contracts.test.mjs",
         "tests/contracts/tasks-contracts.test.mjs",
         "tests/contracts/time-tracking-contracts.test.mjs",
         "tests/e2e/a11y-keyboard.spec.mjs",
@@ -350,7 +352,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 5055,
+      "errorCount": 5025,
       "diagnostics": {
         "src/config.js": [
           {
@@ -732,12 +734,6 @@
             "count": 4
           }
         ],
-        "src/modules/notes/notes.routes.js": [
-          {
-            "code": 2345,
-            "count": 6
-          }
-        ],
         "src/modules/notes/notes.service.js": [
           {
             "code": 18046,
@@ -749,7 +745,7 @@
           },
           {
             "code": 2339,
-            "count": 652
+            "count": 635
           },
           {
             "code": 2345,
@@ -769,7 +765,7 @@
           },
           {
             "code": 7006,
-            "count": 275
+            "count": 268
           },
           {
             "code": 7031,
@@ -4473,7 +4469,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9910,
+      "errorCount": 9909,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -8784,7 +8780,7 @@
           },
           {
             "code": 2345,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2810,
@@ -11617,8 +11613,8 @@
     }
   },
   "totals": {
-    "files": 1002,
-    "errors": 26099,
+    "files": 1004,
+    "errors": 26068,
     "explicitAny": 15
   },
   "explicitAnyByFile": {

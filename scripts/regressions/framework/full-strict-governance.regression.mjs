@@ -39,7 +39,7 @@ const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sor
 const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.15");
+assert.equal(ledger.checkpoint, "0.33.33.16.1");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -94,7 +94,7 @@ const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].di
   filePath.startsWith("src/repositories/")
 ));
 if (frameworkOwnerDiagnostics.length > 0) {
-  throw new Error(`Framework core, shared services, and repositories must stay strict-clean after checkpoint 0.33.33.15: ${frameworkOwnerDiagnostics.join(", ")}`);
+  throw new Error(`Framework core, shared services, and repositories must stay strict-clean after checkpoint 0.33.33.16.1: ${frameworkOwnerDiagnostics.join(", ")}`);
 }
 for (const retiredPath of [
   "scripts/typecheck-seam-inventory.json",
