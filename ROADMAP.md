@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.17.2 - Type Notes persistence, policy, and security dependencies
-
-**Model: High Effort** - Notes persistence, visibility, revisions, and encryption carry data-integrity and confidentiality risk.
-
-- [ ] Type Notes repository rows, results, transactions, revision and link persistence, and not-found states under full strict.
-- [ ] Type access policy, catalog security, effective security, Secure Notes crypto, Markdown, and library support contracts without broad casts.
-- [ ] Preserve transaction, encryption, visibility, revision, search, attachment, and safe-error behavior with their existing owners.
-- [ ] Leave the typed dependency surface ready for one final Notes service burn rather than revisiting these owners later.
-
 ### 0.33.33.17.3 - Finish Notes strict typing
 
 **Model: High Effort** - The main Notes service joins workflow, permission, revision, link, and integration contracts.

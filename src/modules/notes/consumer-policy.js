@@ -1,6 +1,13 @@
+// @ts-check
+
 import { AppError } from "../../core/errors.js";
 import { isEffectivelySecureNote } from "./effective-security.js";
 
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteConsumerOptions} NoteConsumerOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteConsumerPolicy} NoteConsumerPolicy */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteSecuritySourceRecord} NoteSecuritySourceRecord */
+
+/** @type {readonly NoteConsumerPolicy[]} */
 const NOTES_PROTECTED_CONTENT_CONSUMERS = Object.freeze([
   consumer("notes.workspace", "browser-api", "authorize"),
   consumer("notes.revisions", "history", "authorize"),
@@ -19,6 +26,7 @@ const NOTES_PROTECTED_CONTENT_CONSUMERS = Object.freeze([
 
 const consumerById = new Map(NOTES_PROTECTED_CONTENT_CONSUMERS.map((entry) => [entry.id, entry]));
 
+/** @param {NoteSecuritySourceRecord} note @param {string} consumerId @param {NoteConsumerOptions} [options] */
 function canExposeNoteToConsumer(note = {}, consumerId, options = {}) {
   const policy = readNoteConsumerPolicy(consumerId);
   if (!isEffectivelySecureNote(note)) {
@@ -28,7 +36,14 @@ function canExposeNoteToConsumer(note = {}, consumerId, options = {}) {
   return policy.behavior === "authorize" && options.authorized === true;
 }
 
-function assertNoteConsumerAccess(note = {}, consumerId, options = {}) {
+/**
+ * @template {NoteSecuritySourceRecord} NoteType
+ * @param {NoteType} note
+ * @param {string} consumerId
+ * @param {NoteConsumerOptions} [options]
+ * @returns {NoteType}
+ */
+function assertNoteConsumerAccess(note, consumerId, options = {}) {
   if (!canExposeNoteToConsumer(note, consumerId, options)) {
     throw new AppError("Note not found.", 404, {
       code: "protected_note_excluded",
@@ -37,6 +52,7 @@ function assertNoteConsumerAccess(note = {}, consumerId, options = {}) {
   return note;
 }
 
+/** @param {string} consumerId @returns {NoteConsumerPolicy} */
 function readNoteConsumerPolicy(consumerId) {
   const normalizedId = String(consumerId || "").trim();
   const policy = consumerById.get(normalizedId);
@@ -46,6 +62,7 @@ function readNoteConsumerPolicy(consumerId) {
   return policy;
 }
 
+/** @param {string} id @param {string} surface @param {"authorize" | "exclude"} behavior @returns {NoteConsumerPolicy} */
 function consumer(id, surface, behavior) {
   return Object.freeze({
     id,

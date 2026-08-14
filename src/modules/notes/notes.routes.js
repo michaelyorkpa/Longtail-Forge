@@ -2,6 +2,10 @@ import { Router } from "express";
 import { notesService } from "./notes.service.js";
 import { catalogSecurityService } from "./catalog-security.service.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
+import { AppError } from "../../core/errors.js";
+
+/** @typedef {import("../../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 
 const notesRoutes = Router();
 
@@ -103,25 +107,25 @@ notesRoutes.post("/notes/collections/:collectionId/move", asyncRoute(async (requ
 }));
 
 notesRoutes.get("/notes/collections/:collectionId/security/preflight", asyncRoute(async (request, response) => {
-  const result = await catalogSecurityService.preflight(request.params.collectionId, request.query, request.session);
+  const result = await catalogSecurityService.preflight(request.params.collectionId, request.query, requireWorkspaceSession(request.session));
   response.status(200).json(result);
 }));
 
 notesRoutes.post("/notes/collections/:collectionId/security/enable", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
-  const result = await catalogSecurityService.enable(request.params.collectionId, payload, request.session);
+  const result = await catalogSecurityService.enable(request.params.collectionId, payload, requireWorkspaceSession(request.session));
   response.status(result.execution === "job" ? 202 : 200).json(result);
 }));
 
 notesRoutes.post("/notes/collections/:collectionId/security/remove", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
-  const result = await catalogSecurityService.remove(request.params.collectionId, payload, request.session);
+  const result = await catalogSecurityService.remove(request.params.collectionId, payload, requireWorkspaceSession(request.session));
   response.status(result.execution === "job" ? 202 : 200).json(result);
 }));
 
 notesRoutes.post("/notes/collections/:collectionId/security/retry", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
-  const result = await catalogSecurityService.retry(request.params.collectionId, payload, request.session);
+  const result = await catalogSecurityService.retry(request.params.collectionId, payload, requireWorkspaceSession(request.session));
   response.status(result.execution === "job" ? 202 : 200).json(result);
 }));
 
@@ -222,3 +226,14 @@ notesRoutes.post("/notes/:noteId/links/:noteLinkId/remove", asyncRoute(async (re
 }));
 
 export { notesRoutes };
+
+/** @param {RequestSession | null | undefined} session @returns {WorkspaceRequestSession} */
+function requireWorkspaceSession(session) {
+  if (!hasWorkspaceSession(session)) throw new AppError("Authentication is required.", 401);
+  return session;
+}
+
+/** @param {RequestSession | null | undefined} session @returns {session is WorkspaceRequestSession} */
+function hasWorkspaceSession(session) {
+  return Boolean(session?.workspace_id);
+}

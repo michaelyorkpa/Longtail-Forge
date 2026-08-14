@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.17.2 - Type Notes persistence, policy, and security dependencies
+
+**Model: High Effort** - Notes persistence, visibility, revisions, and encryption carry data-integrity and confidentiality risk.
+
+- [x] Typed Notes repository rows, projections, query options, transactions, revision and link persistence, successful write results, and genuine not-found or transition-race states under full strict.
+- [x] Typed access policy, catalog security, effective security, Secure Notes crypto, Markdown, library, and consumer support contracts without broad casts or repeated parsing of trusted records.
+- [x] Preserved transaction, encryption, visibility, revision, search, attachment, consumer-exclusion, and safe-error behavior with their existing owners, including explicit caller narrowing for nullable reads.
+- [x] Closed every dependency owner to zero strict diagnostics and retained focused Notes, Secure Catalog, Markdown, repository, compiler-governance, and permission coverage; `0.33.33.17.3` remains the final Notes strict-typing checkpoint.
+
 ## Version 0.33.33.17.1 - Extract Notes collections
 
 **Model: High Effort** - Collections are a separate secured aggregate with route and catalog implications.

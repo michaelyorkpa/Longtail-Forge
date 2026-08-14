@@ -222,6 +222,7 @@ async function assertNoteLifecycle(session) {
 
   assert.equal(createResult.note.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
   assert.equal(createResult.note.links.length, 1);
+  assert.ok(createResult.searchDocument, "normal Notes creation should return a search document");
   assert.equal(createResult.searchDocument.recordType, "note");
   assert.match(createResult.note.body_excerpt, /Heading/);
   assert.equal((await notesService.listRevisions(noteId, session)).revisions.length, 0);

@@ -151,6 +151,7 @@ async function assertRepositoryMutationLifecycle(session) {
     "createWithLinks should persist staged links inside the transaction",
   );
   const workspaceLink = links.find((link) => link.target_type === "workspace");
+  assert.ok(workspaceLink, "staged workspace link should be readable after creation");
   links.forEach((link) => assertUuidVersion(link.note_link_id, 7, "new Notes relationship identity"));
   assert.equal(workspaceLink.metadata.staged, "workspace", "link metadata should remain parsed after conversion");
   const batchedLinks = await notesRepository.listLinksForNotes(session.workspace_id, [noteResult.note_id, noteResult.note_id]);
@@ -221,9 +222,12 @@ async function assertRepositoryMutationLifecycle(session) {
   assertUuidVersion(revisionOne.note_revision_id, 7, "first new Notes revision identity");
   assertUuidVersion(revisionTwo.note_revision_id, 7, "second new Notes revision identity");
   assert.deepEqual(revisions.map((revision) => revision.revision_number), [2, 1], "revision lists should remain newest-first");
-  assert.equal((await notesRepository.readRevisionById(session.workspace_id, noteResult.note_id, revisionTwo.note_revision_id)).title, updatedNote.title);
+  const storedRevisionTwo = await notesRepository.readRevisionById(session.workspace_id, noteResult.note_id, revisionTwo.note_revision_id);
+  assert.ok(storedRevisionTwo, "created Notes revision should be readable by identity");
+  assert.equal(storedRevisionTwo.title, updatedNote.title);
 
   const removedLink = await notesRepository.removeLink(session.workspace_id, noteResult.note_id, workspaceLink.note_link_id);
+  assert.ok(removedLink, "existing Notes link removal should return the removed record");
   assert.ok(removedLink.removed_at, "link removal should soft-remove active links");
   const remainingLinks = await notesRepository.listLinks(session.workspace_id, noteResult.note_id);
   assert.equal(remainingLinks.length, 1, "active link lists should exclude removed rows");

@@ -61,6 +61,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   await notesService.archiveCollection(middle.note_library_collection_id, session);
 
   const projectedLeaf = await notesRepository.readCollectionById(session.workspace_id, leaf.note_library_collection_id);
+  assert.ok(projectedLeaf, "archived secure-catalog leaf should remain readable");
   assert.equal(projectedLeaf.status, "archived");
   assert.equal(projectedLeaf.effective_security_mode, "secure");
   assert.equal(projectedLeaf.security_inherited, true);
@@ -79,6 +80,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
 
   const projectedCreated = await notesRepository.readById(session.workspace_id, created.note_id);
+  assert.ok(projectedCreated, "inherited secure note should remain readable after creation");
   assert.equal(projectedCreated.security_mode, "normal", "catalog inheritance must not copy the explicit note flag");
   assert.equal(projectedCreated.effective_security_mode, "secure");
   assert.equal(projectedCreated.security_source, "ancestor_catalog");
@@ -126,6 +128,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     title: "Explicit secure note",
   }, session)).note;
   const projectedExplicit = await notesRepository.readById(session.workspace_id, explicit.note_id);
+  assert.ok(projectedExplicit, "explicit secure note should remain readable after creation");
   assert.equal(projectedExplicit.effective_security_mode, "secure");
   assert.equal(projectedExplicit.security_inherited, false);
   assert.equal(projectedExplicit.security_source, "explicit_note");

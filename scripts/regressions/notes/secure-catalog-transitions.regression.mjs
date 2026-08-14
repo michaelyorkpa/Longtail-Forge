@@ -117,6 +117,7 @@ async function assertSynchronousEnablePreservationAndDowngrade(session) {
     confirmAffectedNoteCount: preflight.affectedNoteCount,
   }, session);
   assert.equal(enabled.execution, "synchronous");
+  assert.ok("collection" in enabled && enabled.collection, "synchronous enable should complete with its catalog");
   assert.equal(enabled.collection.security_policy, "secure");
   assert.equal(enabled.collection.security_transition_state, "stable");
   await assertEncrypted(rootNote.note_id, "Root transition body");
@@ -160,6 +161,7 @@ SELECT
     session,
   );
   assert.equal(removed.execution, "synchronous");
+  assert.ok("collection" in removed && removed.collection, "synchronous removal should complete with its catalog");
   assert.equal(removed.collection.security_policy, "normal");
   assert.equal(removed.collection.security_transition_state, "stable");
   await assertPlaintext(rootNote.note_id, "Root transition body");
@@ -221,6 +223,7 @@ async function assertLargeCatalogFailureRetryAndDowngrade(session) {
   assert.ok(queued.jobId);
 
   const securing = await notesRepository.readCollectionById(session.workspace_id, catalog.note_library_collection_id);
+  assert.ok(securing, "queued security transition catalog should remain readable");
   assert.equal(securing.security_policy, "normal");
   assert.equal(securing.security_transition_state, "securing");
   assert.equal(securing.effective_security_mode, "secure");
@@ -251,6 +254,7 @@ async function assertLargeCatalogFailureRetryAndDowngrade(session) {
   );
   process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = secureKey;
   const failed = await notesRepository.readCollectionById(session.workspace_id, catalog.note_library_collection_id);
+  assert.ok(failed, "failed security transition catalog should remain readable");
   assert.equal(failed.security_transition_state, "failed");
   assert.equal(failed.effective_security_mode, "secure");
   assert.ok(failed.security_transition_error_code);
@@ -261,10 +265,12 @@ async function assertLargeCatalogFailureRetryAndDowngrade(session) {
   const completed = await catalogSecurityService.handleCatalogSecurityJob({
     payload: jobPayload(retried, session, catalog, "enable"),
   });
+  assert.ok("completed" in completed, "retried security transition job should complete");
   assert.equal(completed.completed, true);
   const stale = await catalogSecurityService.handleCatalogSecurityJob({
     payload: jobPayload(queued, session, catalog, "enable"),
   });
+  assert.ok("skipped" in stale, "superseded security transition job should be skipped");
   assert.equal(stale.skipped, true);
   assert.equal(stale.reason, "stale_transition_claim");
   assert.equal(await countRevisions(notes.map((note) => note.note_id)), initialRevisionCount, "retry must not duplicate revisions");
@@ -297,6 +303,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     /could not be decrypted/i,
   );
   const partialFailure = await notesRepository.readCollectionById(session.workspace_id, catalog.note_library_collection_id);
+  assert.ok(partialFailure, "partially failed transition catalog should remain readable");
   assert.equal(partialFailure.security_transition_state, "failed");
   assert.equal(partialFailure.effective_security_mode, "secure");
   await assert.rejects(notesService.read(notes[0].note_id, session), (error) => error?.statusCode === 423);
@@ -316,6 +323,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
         payload: jobPayload(retriedRemoval, session, catalog, "remove"),
       })
     : retriedRemoval;
+  assert.ok("completed" in downgradeCompleted, "retried downgrade should complete");
   assert.equal(downgradeCompleted.completed, true, JSON.stringify(downgradeCompleted));
   await assertPlaintext(notes[0].note_id, "Large transition body 0");
   assert.equal(await countRevisions(notes.map((note) => note.note_id)), initialRevisionCount);
@@ -334,6 +342,7 @@ async function assertWrongPasswordRejected(session) {
     (error) => error?.statusCode === 400 && /incorrect/i.test(error.message),
   );
   const unchanged = await notesRepository.readCollectionById(session.workspace_id, catalog.note_library_collection_id);
+  assert.ok(unchanged, "wrong-password rejection should leave the catalog readable");
   assert.equal(unchanged.security_policy, "secure");
   assert.equal(unchanged.security_transition_state, "stable");
 }

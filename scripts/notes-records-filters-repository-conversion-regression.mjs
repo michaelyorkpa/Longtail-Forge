@@ -233,6 +233,7 @@ async function assertRepositoryRecordReads(session, fixtures) {
   assert.equal(activeOwnedIds.has(fixtures.outsideNote.note_id), false, "record list should exclude non-matching Library rows");
 
   const secureRow = activeOwned.find((note) => note.note_id === fixtures.secureNote.note_id);
+  assert.ok(secureRow, "secure Notes list filtering should retain the matching fixture");
   assert.equal(secureRow.body_markdown || "", "", "secure note record reads should preserve closed Markdown placeholders");
   assert.equal(secureRow.body_excerpt, null, "secure note record reads should preserve closed excerpt placeholders");
   assert.equal(secureRow.body_plaintext_index, null, "secure note record reads should preserve closed plaintext placeholders");

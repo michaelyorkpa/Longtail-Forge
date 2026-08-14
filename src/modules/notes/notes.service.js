@@ -69,6 +69,12 @@ import {
   resolveClientProjectFilterScope,
 } from "../../core/client-project-filter-scope.js";
 
+/** @typedef {import("../../types/notes-domain-contracts.js").NotePersistenceInput} NotePersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRecord} NoteRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionPersistenceInput} NoteRevisionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionRecord} NoteRevisionRecord */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessCache} LinkTargetAccessCache */
+
 const NOTES_MODULE_ID = "notes";
 const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "note", "list", "user"]);
 const LINK_TARGET_CLIENT_SCOPED_TYPES = new Set(["client", "project", "task", "note", "list"]);
@@ -278,7 +284,7 @@ async function update(noteId, rawPayload, session) {
 
 /**
  * @param {string} noteId
- * @param {import("zod").output<typeof UpdateNoteSchema>} payload
+ * @param {import("zod").output<typeof UpdateNoteSchema> | NotePersistenceInput} payload
  * @param {import("../../types/http-contracts.js").WorkspaceRequestSession} session
  * @param {NonNullable<Awaited<ReturnType<typeof notesRepository.readById>>>} previousNote
  */
@@ -290,6 +296,7 @@ async function updateValidatedNote(noteId, payload, session, previousNote) {
   await assertCanAccess(session, nextNote, "update");
 
   const becameEffectivelySecure = !isEffectivelySecureNote(previousNote) && isEffectivelySecureNote(nextNote);
+  /** @type {(NoteRevisionPersistenceInput & { note_revision_id: string }) | null} */
   let transitionRevision = null;
   let note;
   if (becameEffectivelySecure) {
@@ -878,6 +885,7 @@ function deriveLibrarySuggestion(payload = {}) {
   };
 }
 
+/** @param {NoteRecord | null} [previousNote] */
 async function normalizeNotePayload(payload = {}, session, previousNote = null) {
   const bodyWasProvided = Object.hasOwn(payload || {}, "body_markdown") || Object.hasOwn(payload || {}, "bodyMarkdown");
   const previousBodyMarkdown = previousNote && isEffectivelySecureNote(previousNote) && hasEncryptedSecurePayload(previousNote)
@@ -945,7 +953,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     note_collection_id: normalizedCollectionId || null,
     security_mode: securityMode,
   });
-  const wasEffectivelySecure = Boolean(previousNote) && isEffectivelySecureNote(previousNote);
+  const wasEffectivelySecure = previousNote ? isEffectivelySecureNote(previousNote) : false;
   let willBeEffectivelySecure = securityProjection.effective_security_mode === NOTE_SECURITY_MODES.SECURE;
   if (wasEffectivelySecure && !willBeEffectivelySecure) {
     securityMode = NOTE_SECURITY_MODES.SECURE;
@@ -986,8 +994,8 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     ),
     status: normalizeEnum(payload.status || previousNote?.status || NOTE_STATUSES.ACTIVE, NOTE_STATUS_VALUES, "Note status"),
     visibility,
-    security_mode: securityMode,
     ...securityProjection,
+    security_mode: securityMode,
     client_id: normalizeNullablePayloadText(payload, "clientId", "client_id", previousNote?.client_id),
     project_id: normalizeNullablePayloadText(payload, "projectId", "project_id", previousNote?.project_id),
     task_id: null,
@@ -1213,6 +1221,7 @@ async function assertCanAccess(session, note, operation) {
   }
 }
 
+/** @param {NoteRecord | null} [previousNote] */
 async function assertSecureNoteCanBePersisted(session, note, previousNote = null) {
   if (!isEffectivelySecureNote(note)) {
     return;
@@ -1262,6 +1271,7 @@ function decryptSecureRevisionForRead(revision = {}) {
   };
 }
 
+/** @param {{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> } | null} [accessCache] */
 async function canAccessLinkedContext(session, note, links = [], seenTargets = new Set(), accessCache = null) {
   const targets = [
     ...noteContextTargets(note),
@@ -1317,6 +1327,7 @@ async function canTargetAccess(session, target, seenTargets = new Set()) {
   return false;
 }
 
+/** @param {{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> } | null} [accessCache] */
 async function canAccessSavedContextTarget(session, target, seenTargets = new Set(), accessCache = null) {
   const normalizedTarget = normalizeSavedTarget(target);
   const targetKey = linkedContextTargetKey(normalizedTarget);
@@ -1769,6 +1780,7 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
   return revision;
 }
 
+/** @returns {NoteRevisionPersistenceInput & { note_revision_id: string }} */
 function createEncryptedRevisionSnapshot(note, options = {}) {
   const bodyMarkdown = isEffectivelySecureNote(note) && hasEncryptedSecurePayload(note)
     ? decryptSecureNoteBody(note)
@@ -1784,7 +1796,8 @@ function createEncryptedRevisionSnapshot(note, options = {}) {
   };
 }
 
-function createEncryptedStoredRevision(revision = {}) {
+/** @param {NoteRevisionRecord} revision @returns {NoteRevisionPersistenceInput & { note_revision_id: string }} */
+function createEncryptedStoredRevision(revision) {
   if (revision.security_mode === NOTE_SECURITY_MODES.SECURE && hasEncryptedSecurePayload(revision)) {
     return revision;
   }
@@ -1961,6 +1974,7 @@ function shapeResumeContextNote(note = {}) {
   };
 }
 
+/** @returns {Promise<{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> }>} */
 async function createLinkedContextAccessCache(session, notes = [], linksByNoteId = new Map()) {
   const idsByType = new Map();
   for (const note of notes) {
@@ -2343,7 +2357,9 @@ function notePermissionResource(note = {}) {
   };
 }
 
+/** @returns {Promise<Set<string>>} */
 async function readNotePermissionSet(session, resource = {}) {
+  /** @type {Array<[string, boolean]>} */
   const entries = await Promise.all(NOTE_PERMISSION_VALUES.map(async (permissionId) => [
     permissionId,
     await permissionsService.can(session, permissionId, {
@@ -2669,6 +2685,7 @@ function normalizeMetadata(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+/** @param {NoteRecord | null} [previousNote] */
 function normalizeImportMetadata(payload = {}, previousNote = null) {
   return Object.fromEntries(NOTE_IMPORT_METADATA_FIELDS.map((fieldName) => [
     fieldName,

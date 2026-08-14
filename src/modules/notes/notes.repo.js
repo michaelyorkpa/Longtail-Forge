@@ -1,9 +1,51 @@
+// @ts-check
+
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import {
   resolveCollectionEffectiveSecurity,
   resolveNoteEffectiveSecurity,
 } from "./effective-security.js";
+
+/** @typedef {import("../../types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityBatch} CatalogSecurityBatch */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityClaim} CatalogSecurityClaim */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityClaimOptions} CatalogSecurityClaimOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityFailureOptions} CatalogSecurityFailureOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityFinalizeOptions} CatalogSecurityFinalizeOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionDatabaseRow} NoteCollectionDatabaseRow */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionFilters} NoteCollectionFilters */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionPersistenceIdentity} NoteCollectionPersistenceIdentity */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionPersistenceInput} NoteCollectionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionStoredRecord} NoteCollectionStoredRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCountFilters} NoteCountFilters */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCreateWithLinksOptions} NoteCreateWithLinksOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteDatabaseRow} NoteDatabaseRow */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteEffectiveSecurityProjection} NoteEffectiveSecurityProjection */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteExactFilterName} NoteExactFilterName */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteJsonObject} NoteJsonObject */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkDatabaseRow} NoteLinkDatabaseRow */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkPersistenceInput} NoteLinkPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkPropagation} NoteLinkPropagation */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkRecord} NoteLinkRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteListFilters} NoteListFilters */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteListFilterKey} NoteListFilterKey */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotePersistenceIdentity} NotePersistenceIdentity */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotePersistenceInput} NotePersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteQueryOptions} NoteQueryOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteQueryParams} NoteQueryParams */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRecord} NoteRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionDatabaseRow} NoteRevisionDatabaseRow */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionPersistenceInput} NoteRevisionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionRecord} NoteRevisionRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteSecuritySourceRecord} NoteSecuritySourceRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteStoredRecord} NoteStoredRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteTarget} NoteTarget */
+/** @typedef {import("../../types/notes-domain-contracts.js").NormalizedPropagatedNoteLink} NormalizedPropagatedNoteLink */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesRepository} NotesRepository */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesTransactionClient} NotesTransactionClient */
+/** @typedef {import("../../types/notes-domain-contracts.js").PropagatedNoteLinkInput} PropagatedNoteLinkInput */
+/** @typedef {import("../../types/notes-collections-contracts.js").NoteCollectionRecord} NoteCollectionRecord */
 
 const NOTE_COLUMNS = [
   "note_id",
@@ -115,8 +157,10 @@ const COLLECTION_COLUMNS = [
   "metadata_json",
 ];
 
+/** @param {string} workspaceId @param {NoteListFilters} [filters] @returns {Promise<NoteRecord[]>} */
 async function list(workspaceId, filters = {}) {
   const clauses = ["workspace_id = :workspaceId"];
+  /** @type {NoteQueryParams} */
   const params = { workspaceId };
 
   if (!filters.includeDeleted) {
@@ -133,7 +177,8 @@ async function list(workspaceId, filters = {}) {
     params.libraryBucket = filters.libraryBucket;
   }
 
-  for (const [filterKey, columnName] of Object.entries({
+  /** @type {Readonly<Record<NoteListFilterKey, string>>} */
+  const filterColumns = {
     clientId: "client_id",
     projectId: "project_id",
     taskId: "task_id",
@@ -141,26 +186,32 @@ async function list(workspaceId, filters = {}) {
     linkedUserId: "linked_user_id",
     ownerUserId: "owner_user_id",
     noteCollectionId: "note_collection_id",
-  })) {
+  };
+  /** @type {NoteListFilterKey[]} */
+  const filterKeys = ["clientId", "projectId", "taskId", "ticketId", "linkedUserId", "ownerUserId", "noteCollectionId"];
+  for (const filterKey of filterKeys) {
+    const columnName = filterColumns[filterKey];
     if (filters[filterKey]) {
       clauses.push(`${columnName} = :${filterKey}`);
       params[filterKey] = filters[filterKey];
     }
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {NoteDatabaseRow[]} */ (await db.query(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
-`, params);
+`, params));
 
   return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
+/** @param {string} workspaceId @param {NoteQueryOptions} [options] */
 async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
   const normalizedOffset = normalizePositiveInteger(options.offset, 0);
+  /** @type {NoteQueryParams} */
   const params = {
     workspaceId,
   };
@@ -173,7 +224,7 @@ async function queryList(workspaceId, options = {}) {
     params.offset = normalizedOffset;
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {NoteDatabaseRow[]} */ (await db.query(`
 SELECT ${NOTE_LIST_COLUMNS.map((column) => `notes.${column}`).join(", ")}
 FROM notes
 LEFT JOIN note_library_collections
@@ -181,7 +232,7 @@ LEFT JOIN note_library_collections
   AND note_library_collections.note_library_collection_id = notes.note_collection_id
 ${whereSql}
 ${orderSql}${limitSql};
-`, params);
+`, params));
   const hasMore = normalizedLimit > 0 && rows.length > normalizedLimit;
   const noteRows = hasMore ? rows.slice(0, normalizedLimit) : rows;
 
@@ -192,14 +243,15 @@ ${orderSql}${limitSql};
   };
 }
 
+/** @param {string} workspaceId @param {string} noteId @returns {Promise<NoteRecord | null>} */
 async function readById(workspaceId, noteId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<NoteDatabaseRow | null>} */ (db.get(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId
 LIMIT 1;
-`, { noteId, workspaceId });
+`, { noteId, workspaceId }));
 
   if (!row) {
     return null;
@@ -208,6 +260,7 @@ LIMIT 1;
   return (await projectNoteSecurity(workspaceId, [noteRowToAppValue(row)]))[0];
 }
 
+/** @param {string} workspaceId @param {string[]} [noteIds] @returns {Promise<NoteRecord[]>} */
 async function readByIds(workspaceId, noteIds = []) {
   const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
     .map((noteId) => String(noteId || "").trim())
@@ -217,25 +270,27 @@ async function readByIds(workspaceId, noteIds = []) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {NoteDatabaseRow[]} */ (await db.query(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
 WHERE workspace_id = :workspaceId
   AND note_id IN (:noteIds)
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}, note_id ASC;
-`, { noteIds: ids, workspaceId });
+`, { noteIds: ids, workspaceId }));
 
   return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput} note */
 async function create(workspaceId, note) {
   const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
 
   await insertNote(db, workspaceId, note, noteId, now);
-  return readById(workspaceId, noteId);
+  return requirePersistedRecord(await readById(workspaceId, noteId), "Created note could not be read back.");
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput} note @param {NoteLinkPersistenceInput[]} [links] @param {NoteCreateWithLinksOptions | null} [options] */
 async function createWithLinks(workspaceId, note, links = [], options = null) {
   const noteId = note.note_id || createRecordId();
   const now = note.created_at || new Date().toISOString();
@@ -260,9 +315,10 @@ async function createWithLinks(workspaceId, note, links = [], options = null) {
     }
   });
 
-  return readById(workspaceId, noteId);
+  return requirePersistedRecord(await readById(workspaceId, noteId), "Created note could not be read back.");
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {NotePersistenceInput} note @param {string} noteId @param {string} now */
 async function insertNote(databaseClient, workspaceId, note, noteId, now) {
   await databaseClient.run(`
 INSERT INTO notes (
@@ -370,13 +426,15 @@ VALUES (
   }));
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput & { note_id: string }} note */
 async function update(workspaceId, note) {
   const updatedAt = note.updated_at || new Date().toISOString();
 
   await updateNote(db, workspaceId, note, updatedAt);
-  return readById(workspaceId, note.note_id);
+  return requirePersistedRecord(await readById(workspaceId, note.note_id), "Updated note could not be read back.");
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput & { note_id: string }} note @param {Array<NoteRevisionPersistenceInput & { note_revision_id: string }>} [revisions] @param {(NoteRevisionPersistenceInput & { note_revision_id: string }) | null} [transitionRevision] */
 async function secureNoteAndRevisions(workspaceId, note, revisions = [], transitionRevision = null) {
   const updatedAt = note.updated_at || new Date().toISOString();
 
@@ -397,9 +455,10 @@ async function secureNoteAndRevisions(workspaceId, note, revisions = [], transit
     }
   });
 
-  return readById(workspaceId, note.note_id);
+  return requirePersistedRecord(await readById(workspaceId, note.note_id), "Secured note could not be read back.");
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {NotePersistenceInput & { note_id: string }} note @param {string} updatedAt */
 async function updateNote(databaseClient, workspaceId, note, updatedAt) {
   await databaseClient.run(`
 UPDATE notes
@@ -456,13 +515,18 @@ WHERE workspace_id = :workspaceId
   }));
 }
 
+/** @param {string} workspaceId @param {NoteRevisionPersistenceInput} revision */
 async function createRevision(workspaceId, revision) {
   const revisionId = revision.note_revision_id || createRecordId();
 
   await insertRevision(db, workspaceId, revision, revisionId);
-  return readRevisionById(workspaceId, revision.note_id, revisionId);
+  return requirePersistedRecord(
+    await readRevisionById(workspaceId, revision.note_id, revisionId),
+    "Created note revision could not be read back.",
+  );
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {NoteRevisionPersistenceInput} revision @param {string} revisionId */
 async function insertRevision(databaseClient, workspaceId, revision, revisionId) {
   await databaseClient.run(`
 INSERT INTO note_revisions (
@@ -584,6 +648,7 @@ VALUES (
   });
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {NoteRevisionPersistenceInput & { note_revision_id: string }} revision */
 async function updateRevisionSecurity(databaseClient, workspaceId, revision) {
   await databaseClient.run(`
 UPDATE note_revisions
@@ -626,50 +691,58 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId @param {string} noteId */
 async function nextRevisionNumber(workspaceId, noteId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<DatabaseRow & { revision_number: unknown } | null>} */ (db.get(`
 SELECT COALESCE(MAX(revision_number), 0) + 1 AS revision_number
 FROM note_revisions
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId;
-`, { noteId, workspaceId });
+`, { noteId, workspaceId }));
 
   return Number(row?.revision_number || 1);
 }
 
+/** @param {string} workspaceId @param {string} noteId @returns {Promise<NoteRevisionRecord[]>} */
 async function listRevisions(workspaceId, noteId) {
-  const rows = await db.query(`
+  const rows = /** @type {NoteRevisionDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM note_revisions
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId
 ORDER BY revision_number DESC;
-`, { noteId, workspaceId });
+`, { noteId, workspaceId }));
 
   return rows.map(revisionRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} noteId @param {string} revisionId @returns {Promise<NoteRevisionRecord | null>} */
 async function readRevisionById(workspaceId, noteId, revisionId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<NoteRevisionDatabaseRow | null>} */ (db.get(`
 SELECT *
 FROM note_revisions
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId
   AND note_revision_id = :revisionId
 LIMIT 1;
-`, { noteId, revisionId, workspaceId });
+`, { noteId, revisionId, workspaceId }));
 
   return row ? revisionRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {NoteLinkPersistenceInput & { note_id: string }} link */
 async function createLink(workspaceId, link) {
   const linkId = link.note_link_id || createRecordId();
   const now = link.created_at || new Date().toISOString();
 
   await insertNoteLink(db, workspaceId, link, linkId, now);
-  return readLinkById(workspaceId, link.note_id, linkId);
+  return requirePersistedRecord(
+    await readLinkById(workspaceId, link.note_id, linkId),
+    "Created note link could not be read back.",
+  );
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {NoteLinkPersistenceInput} link @param {string} linkId @param {string} now */
 async function insertNoteLink(databaseClient, workspaceId, link, linkId, now) {
   await databaseClient.run(`
 INSERT INTO note_links (
@@ -715,19 +788,21 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId @param {string} noteId @returns {Promise<NoteLinkRecord[]>} */
 async function listLinks(workspaceId, noteId) {
-  const rows = await db.query(`
+  const rows = /** @type {NoteLinkDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId
   AND removed_at IS NULL
 ORDER BY created_at ASC;
-`, { noteId, workspaceId });
+`, { noteId, workspaceId }));
 
   return rows.map(linkRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string[]} noteIds @returns {Promise<NoteLinkRecord[]>} */
 async function listLinksForNotes(workspaceId, noteIds) {
   const ids = [...new Set((noteIds || []).filter(Boolean))];
 
@@ -735,20 +810,21 @@ async function listLinksForNotes(workspaceId, noteIds) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {NoteLinkDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
   AND note_id IN (:noteIds)
   AND removed_at IS NULL
 ORDER BY created_at ASC;
-`, { noteIds: ids, workspaceId });
+`, { noteIds: ids, workspaceId }));
 
   return rows.map(linkRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {NoteTarget} target @returns {Promise<NoteLinkRecord[]>} */
 async function listLinksForTarget(workspaceId, target) {
-  const rows = await db.query(`
+  const rows = /** @type {NoteLinkDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -762,28 +838,32 @@ ORDER BY created_at ASC, note_link_id ASC;
     targetId: text(target.target_id),
     targetType: text(target.target_type),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(linkRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} noteId @param {string} linkId @returns {Promise<NoteLinkRecord | null>} */
 async function readLinkById(workspaceId, noteId, linkId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<NoteLinkDatabaseRow | null>} */ (db.get(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
   AND note_id = :noteId
   AND note_link_id = :linkId
 LIMIT 1;
-`, { linkId, noteId, workspaceId });
+`, { linkId, noteId, workspaceId }));
 
   return row ? linkRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {NoteTarget} target @param {PropagatedNoteLinkInput[]} [links] @param {NoteLinkPropagation} [propagation] */
 async function replacePropagatedLinksForTarget(workspaceId, target, links = [], propagation = {}) {
   const now = new Date().toISOString();
   const normalizedLinks = normalizePropagatedLinks(links);
+  /** @type {NoteLinkRecord[]} */
   const removedLinks = [];
+  /** @type {NoteLinkRecord[]} */
   const createdLinks = [];
   const templateId = text(propagation.recurrence_template_id);
   const sourceTaskId = text(propagation.source_task_id);
@@ -793,7 +873,7 @@ async function replacePropagatedLinksForTarget(workspaceId, target, links = [], 
   });
 
   await db.transaction(async (transaction) => {
-    const existingPropagated = await transaction.query(`
+    const existingPropagated = /** @type {NoteLinkDatabaseRow[]} */ (await transaction.query(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -811,7 +891,7 @@ ORDER BY created_at ASC, note_link_id ASC;
       targetType: text(target.target_type),
       templateNeedle: `%\"recurrence_template_id\"%\"${templateId}\"%`,
       workspaceId: text(workspaceId),
-    });
+    }));
 
     if (existingPropagated.length > 0) {
       await transaction.run(`
@@ -841,7 +921,7 @@ WHERE workspace_id = :workspaceId
     }
 
     for (const link of normalizedLinks) {
-      const existing = await transaction.get(`
+      const existing = await /** @type {Promise<NoteLinkDatabaseRow | null>} */ (transaction.get(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -857,7 +937,7 @@ LIMIT 1;
         targetId: text(target.target_id),
         targetType: text(target.target_type),
         workspaceId: text(workspaceId),
-      });
+      }));
 
       if (existing) {
         continue;
@@ -888,6 +968,7 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @param {string} noteId @param {string} linkId */
 async function removeLink(workspaceId, noteId, linkId) {
   const now = new Date().toISOString();
 
@@ -908,8 +989,9 @@ WHERE workspace_id = :workspaceId
   return readLinkById(workspaceId, noteId, linkId);
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {string} noteId @param {string} linkId */
 async function readLinkByIdWithClient(databaseClient, workspaceId, noteId, linkId) {
-  const row = await databaseClient.get(`
+  const row = await /** @type {Promise<NoteLinkDatabaseRow | null>} */ (databaseClient.get(`
 SELECT *
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -920,13 +1002,15 @@ LIMIT 1;
     linkId,
     noteId,
     workspaceId,
-  });
+  }));
 
   return row ? linkRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {NoteCollectionFilters} [filters] @returns {Promise<NoteCollectionRecord[]>} */
 async function listCollections(workspaceId, filters = {}) {
   const clauses = ["workspace_id = :workspaceId"];
+  /** @type {NoteQueryParams} */
   const params = { workspaceId };
 
   if (!filters.includeDeleted) {
@@ -942,16 +1026,17 @@ async function listCollections(workspaceId, filters = {}) {
     params.libraryBucket = filters.libraryBucket;
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {NoteCollectionDatabaseRow[]} */ (await db.query(`
 SELECT ${COLLECTION_COLUMNS.join(", ")}
 FROM note_library_collections
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY library_bucket ASC, ${db.dialect.comparison.orderByNoCase("path_cache", "ASC")}, sort_order ASC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
-`, params);
+`, params));
 
   return projectCollectionSecurity(workspaceId, rows.map(collectionRowToAppValue));
 }
 
+/** @param {string} workspaceId @param {string} collectionId @returns {Promise<NoteCollectionRecord | null>} */
 async function readCollectionById(workspaceId, collectionId) {
   const row = await readCollectionRowById(db, workspaceId, collectionId);
 
@@ -962,16 +1047,18 @@ async function readCollectionById(workspaceId, collectionId) {
   return (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(row)]))[0];
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {string} collectionId @returns {Promise<NoteCollectionDatabaseRow | null>} */
 async function readCollectionRowById(databaseClient, workspaceId, collectionId) {
-  return databaseClient.get(`
+  return /** @type {Promise<NoteCollectionDatabaseRow | null>} */ (databaseClient.get(`
 SELECT *
 FROM note_library_collections
 WHERE workspace_id = :workspaceId
   AND note_library_collection_id = :collectionId
 LIMIT 1;
-`, { collectionId, workspaceId });
+`, { collectionId, workspaceId }));
 }
 
+/** @param {string} workspaceId @param {NoteCollectionPersistenceInput} collection */
 async function createCollection(workspaceId, collection) {
   const collectionId = collection.note_library_collection_id || createRecordId();
   const now = collection.created_at || new Date().toISOString();
@@ -1041,9 +1128,13 @@ VALUES (
     updatedAt: collection.updated_at || now,
   }));
 
-  return readCollectionById(workspaceId, collectionId);
+  return requirePersistedRecord(
+    await readCollectionById(workspaceId, collectionId),
+    "Created note collection could not be read back.",
+  );
 }
 
+/** @param {string} workspaceId @param {NoteCollectionPersistenceInput & { note_library_collection_id: string }} collection */
 async function updateCollection(workspaceId, collection) {
   const updatedAt = collection.updated_at || new Date().toISOString();
   const expectedTransitionState = text(collection.security_transition_state || "stable");
@@ -1108,13 +1199,14 @@ WHERE workspace_id = :workspaceId
   return (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(updatedRow)]))[0];
 }
 
+/** @param {string} workspaceId @param {string[]} [collectionIds] */
 async function readCatalogSecuritySnapshot(workspaceId, collectionIds = []) {
   const normalizedCollectionIds = normalizedIdArray(collectionIds);
   if (normalizedCollectionIds.length === 0) {
     return { notes: [], revisions: [], searchDocumentCount: 0 };
   }
 
-  const noteRows = await db.query(`
+  const noteRows = /** @type {NoteDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -1123,28 +1215,28 @@ ORDER BY created_at ASC, note_id ASC;
 `, {
     collectionIds: normalizedCollectionIds,
     workspaceId,
-  });
+  }));
   const notes = await projectNoteSecurity(workspaceId, noteRows.map(noteRowToAppValue));
   const noteIds = notes.map((note) => note.note_id);
   if (noteIds.length === 0) {
     return { notes, revisions: [], searchDocumentCount: 0 };
   }
 
-  const revisionRows = await db.query(`
+  const revisionRows = /** @type {NoteRevisionDatabaseRow[]} */ (await db.query(`
 SELECT *
 FROM note_revisions
 WHERE workspace_id = :workspaceId
   AND note_id IN (:noteIds)
 ORDER BY note_id ASC, revision_number ASC;
-`, { noteIds, workspaceId });
-  const searchRow = await db.get(`
+`, { noteIds, workspaceId }));
+  const searchRow = await /** @type {Promise<DatabaseRow & { count: unknown } | null>} */ (db.get(`
 SELECT COUNT(*) AS count
 FROM search_index
 WHERE workspace_id = :workspaceId
   AND module_id = 'notes'
   AND record_type = 'note'
   AND record_id IN (:noteIds);
-`, { noteIds, workspaceId });
+`, { noteIds, workspaceId }));
 
   return {
     notes,
@@ -1153,6 +1245,7 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityClaimOptions} [options] */
 async function claimCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
   const action = text(options.action);
   const expectedPolicy = text(options.expectedPolicy);
@@ -1206,6 +1299,7 @@ WHERE workspace_id = :workspaceId
   return claimedRow ? (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(claimedRow)]))[0] : null;
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityClaimOptions} [options] */
 async function setCatalogSecurityTransitionJob(workspaceId, collectionId, options = {}) {
   const action = text(options.action);
   const transitionVersion = integer(options.transitionVersion);
@@ -1245,6 +1339,7 @@ WHERE workspace_id = :workspaceId
   return updatedRow ? collectionRowToAppValue(updatedRow) : null;
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityClaimOptions} [options] */
 async function resumeCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
   const action = text(options.action);
   const transitionVersion = integer(options.transitionVersion);
@@ -1284,6 +1379,7 @@ WHERE workspace_id = :workspaceId
   return updatedRow ? collectionRowToAppValue(updatedRow) : null;
 }
 
+/** @param {string} workspaceId @param {CatalogSecurityClaim} [claim] @param {CatalogSecurityBatch} [batch] */
 async function applyCatalogSecurityBatch(workspaceId, claim = {}, batch = {}) {
   return db.transaction(async (transaction) => {
     const active = await transitionClaimMatches(transaction, workspaceId, claim);
@@ -1306,6 +1402,7 @@ async function applyCatalogSecurityBatch(workspaceId, claim = {}, batch = {}) {
   });
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityFinalizeOptions} [options] */
 async function finalizeCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
   const now = options.completedAt || new Date().toISOString();
   const action = text(options.action);
@@ -1354,6 +1451,7 @@ WHERE workspace_id = :workspaceId
   return finalizedRow ? (await projectCollectionSecurity(workspaceId, [collectionRowToAppValue(finalizedRow)]))[0] : null;
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityFailureOptions} [options] */
 async function failCatalogSecurityTransition(workspaceId, collectionId, options = {}) {
   const action = text(options.action);
   const transitionVersion = integer(options.transitionVersion);
@@ -1394,6 +1492,7 @@ WHERE workspace_id = :workspaceId
   return failedRow ? collectionRowToAppValue(failedRow) : null;
 }
 
+/** @param {NotesTransactionClient} databaseClient @param {string} workspaceId @param {CatalogSecurityClaim} [claim] */
 async function transitionClaimMatches(databaseClient, workspaceId, claim = {}) {
   const row = await databaseClient.get(`
 SELECT note_library_collection_id
@@ -1413,6 +1512,7 @@ LIMIT 1;
   return Boolean(row);
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {NoteCountFilters} [filters] */
 async function countNotesInCollection(workspaceId, collectionId, filters = {}) {
   const clauses = [
     "workspace_id = :workspaceId",
@@ -1423,15 +1523,16 @@ async function countNotesInCollection(workspaceId, collectionId, filters = {}) {
     clauses.push("status != 'deleted'");
   }
 
-  const row = await db.get(`
+  const row = await /** @type {Promise<DatabaseRow & { count: unknown } | null>} */ (db.get(`
 SELECT COUNT(*) AS count
 FROM notes
 WHERE ${clauses.join("\n  AND ")};
-`, { collectionId, workspaceId });
+`, { collectionId, workspaceId }));
 
   return Number(row?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {NoteCountFilters} [filters] */
 async function countChildCollections(workspaceId, collectionId, filters = {}) {
   const clauses = [
     "workspace_id = :workspaceId",
@@ -1446,27 +1547,30 @@ async function countChildCollections(workspaceId, collectionId, filters = {}) {
     clauses.push("status != 'archived'");
   }
 
-  const row = await db.get(`
+  const row = await /** @type {Promise<DatabaseRow & { count: unknown } | null>} */ (db.get(`
 SELECT COUNT(*) AS count
 FROM note_library_collections
 WHERE ${clauses.join("\n  AND ")};
-`, { collectionId, workspaceId });
+`, { collectionId, workspaceId }));
 
   return Number(row?.count || 0);
 }
 
+/** @param {string} workspaceId @param {NoteTarget} target @returns {Promise<NoteRecord[]>} */
 async function listForTarget(workspaceId, target) {
-  const directColumn = {
+  /** @type {Readonly<Record<string, string>>} */
+  const directColumns = {
     client: "client_id",
     project: "project_id",
     task: "task_id",
     ticket: "ticket_id",
     user: "linked_user_id",
-  }[target.target_type];
+  };
+  const directColumn = directColumns[target.target_type];
   const directClause = directColumn
     ? `OR notes.${directColumn} = :targetId`
     : "";
-  const rows = await db.query(`
+  const rows = /** @type {NoteDatabaseRow[]} */ (await db.query(`
 SELECT DISTINCT ${NOTE_COLUMNS.map((column) => `notes.${column}`).join(", ")}
 FROM notes
 LEFT JOIN note_links
@@ -1489,13 +1593,14 @@ ORDER BY notes.updated_at DESC, ${db.dialect.comparison.orderByNoCase("notes.tit
     targetId: target.target_id,
     targetType: target.target_type,
     workspaceId,
-  });
+  }));
 
   return projectNoteSecurity(workspaceId, rows.map(noteRowToAppValue));
 }
 
+/** @param {string} workspaceId */
 async function countPlaintextSecurePlaceholders(workspaceId) {
-  const row = await db.get(`
+  const row = await /** @type {Promise<DatabaseRow & { count: unknown } | null>} */ (db.get(`
 SELECT COUNT(*) AS count
 FROM notes
 WHERE workspace_id = :workspaceId
@@ -1506,11 +1611,12 @@ WHERE workspace_id = :workspaceId
     OR COALESCE(body_excerpt, '') != ''
     OR COALESCE(body_plaintext_index, '') != ''
   );
-`, { workspaceId });
+`, { workspaceId }));
 
   return Number(row?.count || 0);
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput} note @param {NotePersistenceIdentity & { createdAt: string }} options */
 function noteInsertPersistenceParams(workspaceId, note, options) {
   return {
     ...notePersistenceParams(workspaceId, note, options),
@@ -1519,6 +1625,7 @@ function noteInsertPersistenceParams(workspaceId, note, options) {
   };
 }
 
+/** @param {string} workspaceId @param {NotePersistenceInput} note @param {NotePersistenceIdentity} identity */
 function notePersistenceParams(workspaceId, note, { noteId, updatedAt }) {
   return {
     archivedAt: nullableText(note.archived_at),
@@ -1569,6 +1676,7 @@ function notePersistenceParams(workspaceId, note, { noteId, updatedAt }) {
   };
 }
 
+/** @param {string} workspaceId @param {NoteCollectionPersistenceInput} collection @param {NoteCollectionPersistenceIdentity & { createdAt: string }} options */
 function collectionInsertPersistenceParams(workspaceId, collection, options) {
   return {
     ...collectionPersistenceParams(workspaceId, collection, options),
@@ -1577,6 +1685,7 @@ function collectionInsertPersistenceParams(workspaceId, collection, options) {
   };
 }
 
+/** @param {string} workspaceId @param {NoteCollectionPersistenceInput} collection @param {NoteCollectionPersistenceIdentity} identity */
 function collectionPersistenceParams(workspaceId, collection, { collectionId, updatedAt }) {
   return {
     archivedAt: nullableText(collection.archived_at),
@@ -1607,21 +1716,25 @@ function collectionPersistenceParams(workspaceId, collection, { collectionId, up
   };
 }
 
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableText(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value */
 function integer(value) {
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/** @param {NoteDatabaseRow} row @returns {NoteStoredRecord} */
 function noteRowToAppValue(row) {
   return {
     ...row,
@@ -1629,6 +1742,7 @@ function noteRowToAppValue(row) {
   };
 }
 
+/** @param {NoteRevisionDatabaseRow} row @returns {NoteRevisionRecord} */
 function revisionRowToAppValue(row) {
   return {
     ...row,
@@ -1636,6 +1750,7 @@ function revisionRowToAppValue(row) {
   };
 }
 
+/** @param {NoteLinkDatabaseRow} row @returns {NoteLinkRecord} */
 function linkRowToAppValue(row) {
   return {
     ...row,
@@ -1643,6 +1758,7 @@ function linkRowToAppValue(row) {
   };
 }
 
+/** @param {NoteCollectionDatabaseRow} row @returns {NoteCollectionStoredRecord} */
 function collectionRowToAppValue(row) {
   return {
     ...row,
@@ -1653,6 +1769,7 @@ function collectionRowToAppValue(row) {
   };
 }
 
+/** @param {string} workspaceId @param {NoteStoredRecord[]} [notes] @returns {Promise<NoteRecord[]>} */
 async function projectNoteSecurity(workspaceId, notes = []) {
   if (notes.length === 0) {
     return [];
@@ -1666,10 +1783,29 @@ async function projectNoteSecurity(workspaceId, notes = []) {
   }));
 }
 
-async function projectEffectiveSecurity(workspaceId, note = {}) {
-  return (await projectNoteSecurity(workspaceId, [{ ...note, workspace_id: workspaceId }]))[0];
+/** @template {NoteSecuritySourceRecord} NoteType @param {string} workspaceId @param {NoteType} note @returns {Promise<NoteType & NoteEffectiveSecurityProjection>} */
+async function projectEffectiveSecurity(workspaceId, note) {
+  const projectedNote = { ...note, workspace_id: workspaceId };
+  const collections = await readCollectionSecurityRows(workspaceId);
+  const collectionsById = new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
+  return {
+    ...projectedNote,
+    ...resolveNoteEffectiveSecurity(projectedNote, collectionsById, workspaceId),
+  };
 }
 
+/**
+ * @template Value
+ * @param {Value | null | undefined} value
+ * @param {string} message
+ * @returns {Value}
+ */
+function requirePersistedRecord(value, message) {
+  if (!value) throw new Error(message);
+  return value;
+}
+
+/** @param {string} workspaceId @param {NoteCollectionStoredRecord[]} [collections] @returns {Promise<NoteCollectionRecord[]>} */
 async function projectCollectionSecurity(workspaceId, collections = []) {
   if (collections.length === 0) {
     return [];
@@ -1689,8 +1825,9 @@ async function projectCollectionSecurity(workspaceId, collections = []) {
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<NoteCollectionStoredRecord[]>} */
 async function readCollectionSecurityRows(workspaceId) {
-  const rows = await db.query(`
+  const rows = /** @type {NoteCollectionDatabaseRow[]} */ (await db.query(`
 SELECT
   note_library_collection_id,
   workspace_id,
@@ -1721,22 +1858,30 @@ SELECT
   metadata_json
 FROM note_library_collections
 WHERE workspace_id = :workspaceId;
-`, { workspaceId });
+`, { workspaceId }));
   return rows.map(collectionRowToAppValue);
 }
 
+/** @param {string | null | undefined} value @param {NoteJsonObject} fallback @returns {NoteJsonObject} */
 function parseJson(value, fallback) {
   if (!value) {
     return fallback;
   }
 
   try {
-    return JSON.parse(value);
+    const parsed = /** @type {unknown} */ (JSON.parse(value));
+    return isNoteJsonObject(parsed) ? parsed : fallback;
   } catch {
     return fallback;
   }
 }
 
+/** @param {unknown} value @returns {value is NoteJsonObject} */
+function isNoteJsonObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/** @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function noteListWhereSql(options, params) {
   const conditions = ["notes.workspace_id = :workspaceId"];
 
@@ -1759,6 +1904,7 @@ function noteListWhereSql(options, params) {
   return `WHERE ${conditions.join("\n  AND ")}`;
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteStatusFilter(conditions, options, params) {
   const status = normalizedFilter(options.status);
 
@@ -1779,6 +1925,7 @@ function applyNoteStatusFilter(conditions, options, params) {
   params.status = status;
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params @param {NoteExactFilterName} optionName @param {string} columnName */
 function applyNoteExactFilter(conditions, options, params, optionName, columnName) {
   const value = normalizedText(options[optionName]);
 
@@ -1790,6 +1937,7 @@ function applyNoteExactFilter(conditions, options, params, optionName, columnNam
   params[optionName] = value;
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteProjectScopeFilter(conditions, options, params) {
   if (!options.hasProjectFilter) {
     return;
@@ -1815,6 +1963,7 @@ function applyNoteProjectScopeFilter(conditions, options, params) {
   params.projectIds = projectIds;
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteClientScopeFilter(conditions, options, params) {
   if (!options.hasClientFilter || options.omitClientFilterBecauseProjectSelected) {
     return;
@@ -1837,6 +1986,7 @@ function applyNoteClientScopeFilter(conditions, options, params) {
     return;
   }
 
+  /** @type {string[]} */
   const scopedConditions = [];
 
   if (clientIds.length > 0) {
@@ -1852,6 +2002,7 @@ function applyNoteClientScopeFilter(conditions, options, params) {
   conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteCollectionFilter(conditions, options, params) {
   if (options.uncategorizedCollection) {
     conditions.push("(notes.note_collection_id IS NULL OR notes.note_collection_id = '')");
@@ -1871,6 +2022,7 @@ function applyNoteCollectionFilter(conditions, options, params) {
   applyNoteExactFilter(conditions, options, params, "noteCollectionId", "note_collection_id");
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteOwnerFilter(conditions, options, params) {
   const ownerUserId = normalizedText(options.ownerUserId);
   if (ownerUserId) {
@@ -1886,6 +2038,7 @@ function applyNoteOwnerFilter(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteUpdatedSinceFilter(conditions, options, params) {
   const updatedSince = normalizedText(options.updatedSince);
 
@@ -1897,6 +2050,7 @@ function applyNoteUpdatedSinceFilter(conditions, options, params) {
   params.updatedSince = updatedSince;
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteContextSearchFilter(conditions, options, params) {
   const contextSearch = normalizedText(options.contextSearch).toLowerCase();
 
@@ -1914,6 +2068,7 @@ function applyNoteContextSearchFilter(conditions, options, params) {
   params.contextSearch = db.dialect.comparison.likePattern(contextSearch, { mode: "contains" });
 }
 
+/** @param {string[]} conditions @param {NoteQueryOptions} options @param {NoteQueryParams} params */
 function applyNoteSearchFilter(conditions, options, params) {
   const searchQuery = normalizedText(options.searchQuery).toLowerCase();
 
@@ -1928,6 +2083,7 @@ function applyNoteSearchFilter(conditions, options, params) {
   params.searchQuery = db.dialect.comparison.likePattern(searchQuery, { mode: "contains" });
 }
 
+/** @param {string | null | undefined} sort */
 function noteListOrderSql(sort) {
   const stableTitle = `${db.dialect.comparison.orderByNoCase("notes.title", "ASC")}, notes.created_at ASC, notes.note_id ASC`;
   const updatedDesc = `COALESCE(notes.updated_at, '') DESC, ${stableTitle}`;
@@ -1968,17 +2124,21 @@ function noteListOrderSql(sort) {
   return `ORDER BY ${updatedDesc}`;
 }
 
+/** @param {unknown} value */
 function normalizedText(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} values @returns {string[]} */
 function normalizedIdArray(values) {
   return [...new Set((Array.isArray(values) ? values : [])
     .map(normalizedText)
     .filter(Boolean))];
 }
 
+/** @param {PropagatedNoteLinkInput[]} [links] @returns {NormalizedPropagatedNoteLink[]} */
 function normalizePropagatedLinks(links = []) {
+  /** @type {Set<string>} */
   const seen = new Set();
   return (Array.isArray(links) ? links : [])
     .map((link) => ({
@@ -1999,6 +2159,7 @@ function normalizePropagatedLinks(links = []) {
     });
 }
 
+/** @param {{ recurrenceTemplateId: string, sourceTaskId: string }} options */
 function recurrencePropagationMetadata({ recurrenceTemplateId, sourceTaskId }) {
   return {
     propagation_source: "task_recurrence",
@@ -2007,15 +2168,18 @@ function recurrencePropagationMetadata({ recurrenceTemplateId, sourceTaskId }) {
   };
 }
 
+/** @param {unknown} value */
 function normalizedFilter(value) {
   return normalizedText(value).toLowerCase();
 }
 
+/** @param {unknown} value @param {number} fallback */
 function normalizePositiveInteger(value, fallback) {
-  const number = Number.parseInt(value, 10);
+  const number = Number.parseInt(String(value ?? ""), 10);
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
+/** @type {NotesRepository} */
 export const notesRepository = {
   applyCatalogSecurityBatch,
   claimCatalogSecurityTransition,

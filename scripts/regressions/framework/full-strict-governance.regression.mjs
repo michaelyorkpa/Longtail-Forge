@@ -41,7 +41,7 @@ const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.16.3");
+assert.equal(ledger.checkpoint, "0.33.33.17.2");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -60,7 +60,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 14, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 15, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -103,7 +103,16 @@ for (const strictCleanPath of [
   "src/core/linked-context/link-target-shape.js",
   "src/modules/client-projects/link-target.provider.js",
   "src/modules/lists/link-target.provider.js",
+  "src/modules/notes/access-policy.js",
+  "src/modules/notes/catalog-security.service.js",
+  "src/modules/notes/consumer-artifacts.service.js",
+  "src/modules/notes/consumer-policy.js",
+  "src/modules/notes/effective-security.js",
+  "src/modules/notes/library.js",
   "src/modules/notes/link-target-directory.service.js",
+  "src/modules/notes/markdown.js",
+  "src/modules/notes/notes.repo.js",
+  "src/modules/notes/secure-crypto.js",
   "src/modules/tasks/link-target.provider.js",
   "src/modules/users/link-target.provider.js",
 ]) {
