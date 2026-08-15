@@ -17,6 +17,7 @@ import {
   CLOSEOUT_CHECKPOINT,
   TRAILER_NAMES,
   parseCheckpointTrailers,
+  resolveCheckpointBaseSha,
   validateCheckpointCommit,
 } from "../../release/checkpoint-commits.mjs";
 
@@ -94,6 +95,7 @@ const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6"
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const versioning = readFileSync("docs/versioning.md", "utf8");
+const packageSource = JSON.parse(readFileSync("package.json", "utf8"));
 const firstCheckpointMessage = checkpointMessage({
   checkpoint: "0.33.33.1",
   docs: "Docs updated: AGENTS.md, docs/versioning.md.",
@@ -176,6 +178,14 @@ assert.equal(parsedTrailers.values.get(TRAILER_NAMES.docs), "Docs updated: AGENT
 
 const missingTrailers = validateCheckpointCommit({ message: "Implement work without trailers", paths: ["src/core/app.js"], roadmapSource });
 assert.match(missingTrailers.errors.join("\n"), /missing required LTF-Checkpoint trailer/);
+const separatedTrailers = validateCheckpointCommit({
+  message: "Complete work\n\nLTF-Checkpoint: 0.33.33.1\n\nLTF-Summary: Separate trailers incorrectly\n\nLTF-Docs: No docs change needed: synthetic separated trailer proof.",
+  paths: ["src/core/app.js"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.match(separatedTrailers.errors.join("\n"), /missing required LTF-Checkpoint trailer/);
+assert.match(separatedTrailers.errors.join("\n"), /missing required LTF-Summary trailer/);
 const planningCommit = validateCheckpointCommit({ message: "Plan the branch", paths: ["ROADMAP.md"], roadmapSource });
 assert.equal(planningCommit.kind, "planning", "a roadmap-only umbrella planning commit may precede checkpoint enforcement");
 assert.deepEqual(planningCommit.errors, []);
@@ -236,6 +246,17 @@ const docsMismatch = validateCheckpointCommit({
   roadmapSource,
 });
 assert.match(docsMismatch.errors.join("\n"), /paths must exactly match changed documentation/);
+const roadmapDocsMismatch = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.1",
+    docs: "Docs updated: ROADMAP-ARCHIVE.md, ROADMAP.md.",
+    summary: "Misclassify roadmap bookkeeping as durable documentation",
+  }),
+  paths: ["ROADMAP.md", "ROADMAP-ARCHIVE.md"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.match(roadmapDocsMismatch.errors.join("\n"), /must use "No docs change needed:/);
 const ceremonyOverflow = validateCheckpointCommit({
   message: firstCheckpointMessage,
   paths: ["AGENTS.md", "docs/versioning.md", "ROADMAP.md"],
@@ -259,8 +280,28 @@ assert.match(workflowSource, /node scripts\/release\/checkpoint-commits\.mjs/);
 assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
 assert.match(agentGuide, /LTF-Summary: <single-line outcome>/);
 assert.match(agentGuide, /LTF-Docs: <documentation disposition>/);
+assert.match(agentGuide, /final bookkeeping commit in the same protected pull request/);
+assert.match(agentGuide, /ceremony\/bookkeeping paths, not documentation paths/);
+assert.match(agentGuide, /npm run checkpoint:validate/);
 assert.match(versioning, /Version-wide Internal Checkpoints/);
-assert.match(versioning, /Completed numbered checkpoints move from `ROADMAP\.md` to `ROADMAP-ARCHIVE\.md` after their protected merge/);
+assert.match(versioning, /final bookkeeping commit in the same protected pull request/);
+assert.match(versioning, /becomes authoritative only when that pull request merges/);
+assert.match(versioning, /npm run checkpoint:validate/);
+assert.equal(packageSource.scripts["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
+
+const syntheticBaseSha = "a".repeat(40);
+assert.equal(resolveCheckpointBaseSha({ environment: { LTF_CHECKPOINT_BASE_SHA: syntheticBaseSha } }), syntheticBaseSha);
+let mergeBaseArgs;
+assert.equal(resolveCheckpointBaseSha({
+  args: ["--base-ref", "origin/nightly"],
+  cwd: "synthetic-cwd",
+  runGitCommand: (args, cwd) => {
+    mergeBaseArgs = { args, cwd };
+    return `${syntheticBaseSha}\n`;
+  },
+}), syntheticBaseSha);
+assert.deepEqual(mergeBaseArgs, { args: ["merge-base", "origin/nightly", "HEAD"], cwd: "synthetic-cwd" });
+assert.throws(() => resolveCheckpointBaseSha({ args: ["--unknown"] }), /Usage: node scripts\/release\/checkpoint-commits\.mjs/);
 
 console.log("Developer verification throughput regression passed.");
 

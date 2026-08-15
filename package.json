@@ -33,6 +33,7 @@
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",
     "check": "npm run check:fast && npm run test:regressions",
     "check:fast": "npm run typecheck && npm run test:unit && npm run lint",
+    "checkpoint:validate": "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly",
     "typecheck": "node scripts/typecheck-governance.mjs",
     "typecheck:ledger:write": "node scripts/typecheck-governance.mjs --write",
     "test:unit": "vitest run",
