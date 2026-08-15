@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "database",
   tier: "release-gate",
   tags: ["adapter", "backup", "baseline-bypass", "bindings", "concurrency", "migration", "recovery", "sqlite"],
-  description: "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
+  description: "Proves better-sqlite3 13.0.3 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
   runMode: "isolated-database",
 });
 
@@ -41,7 +41,7 @@ let writerB;
 let reopened;
 
 try {
-  assert.equal(driverPackage.version, "13.0.1", "the data-compatibility checkpoint should run under the qualified native driver");
+  assert.equal(driverPackage.version, "13.0.3", "the data-compatibility checkpoint should run under the qualified native driver");
 
   const health = await initializeDatabase();
   adapterOpen = true;
@@ -238,7 +238,7 @@ WHERE native_fts MATCH ?;
   assert.equal(reopened.pragma("integrity_check")[0].integrity_check, "ok");
   assert.deepEqual(reopened.pragma("foreign_key_check"), []);
 
-  console.log("better-sqlite3 13.0.1 data compatibility regression passed: integrity=ok foreign_key_violations=0.");
+  console.log("better-sqlite3 13.0.3 data compatibility regression passed: integrity=ok foreign_key_violations=0.");
 } finally {
   if (adapterOpen) {
     await closeDatabase().catch(() => {});

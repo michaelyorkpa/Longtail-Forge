@@ -167,7 +167,7 @@ const platformManifest = {
   platform: "linux/amd64",
   platformManifest: { digest: platformDigest, mediaType: "application/vnd.oci.image.manifest.v1+json", os: "linux", architecture: "amd64" },
   imageConfigDigest: `sha256:${"1".repeat(64)}`,
-  nativeDependency: { architecture: "x64", betterSqlite3Version: "13.0.1", execution: "published-digest", platform: "linux", sqliteVersion: "3.53.3" },
+  nativeDependency: { architecture: "x64", betterSqlite3Version: "13.0.3", execution: "published-digest", platform: "linux", sqliteVersion: "3.53.4" },
   attestations: {
     sbom: { manifestDigest: sbomDigest, predicateType: SBOM_PREDICATE },
     provenance: { manifestDigest: provenanceDigest, predicateType: [...PROVENANCE_PREDICATES][0] },

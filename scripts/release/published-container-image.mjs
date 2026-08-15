@@ -222,7 +222,7 @@ function inspectNativeDependency(reference, rootDir) {
     "--entrypoint", "node", reference, "-e", proofScript,
   ], { cwd: rootDir }));
   if (result.platform !== "linux" || result.architecture !== "x64"
-      || result.packageVersion !== "13.0.1" || result.returning !== "ok"
+      || result.packageVersion !== "13.0.3" || result.returning !== "ok"
       || !/^\d+\.\d+\.\d+$/.test(result.sqliteVersion || "")) {
     throw new Error("Published digest failed the native better-sqlite3 linux/amd64 execution proof.");
   }
@@ -299,7 +299,7 @@ function validatePublishedReleaseMetadata(metadata, expected = {}) {
   if (nativeDependency?.execution !== "published-digest"
       || nativeDependency?.platform !== "linux"
       || nativeDependency?.architecture !== "x64"
-      || nativeDependency?.betterSqlite3Version !== "13.0.1") {
+      || nativeDependency?.betterSqlite3Version !== "13.0.3") {
     throw new Error("Published release metadata is missing the native better-sqlite3 digest proof.");
   }
   if (metadata.image.attestations?.sbom?.predicateType !== SBOM_PREDICATE

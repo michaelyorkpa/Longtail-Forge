@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.8, Node types 26.1.2, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.8, Node types 26.2.0, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -25,10 +25,10 @@ const linkifyItLock = packageLock.packages["node_modules/linkify-it"];
 const mdurlLock = packageLock.packages["node_modules/mdurl"];
 const ucMicroLock = packageLock.packages["node_modules/uc.micro"];
 
-assert.equal(packageJson.devDependencies.eslint, "^10.8.0", "ESLint should use the reviewed 10.8 development baseline");
+assert.equal(packageJson.devDependencies.eslint, "^10.8.1", "ESLint should use the reviewed 10.8 development baseline");
 assert.equal(packageJson.dependencies.eslint, undefined, "ESLint must remain development-only tooling");
-assert.equal(rootLock.devDependencies.eslint, "^10.8.0", "the lockfile root should match the ESLint package contract");
-assert.equal(eslintLock.version, "10.8.0", "the resolved ESLint baseline should remain 10.8.0");
+assert.equal(rootLock.devDependencies.eslint, "^10.8.1", "the lockfile root should match the ESLint package contract");
+assert.equal(eslintLock.version, "10.8.1", "the resolved ESLint baseline should remain 10.8.1");
 assert.equal(eslintLock.dev, true, "the resolved ESLint package must remain development-only");
 assert.match(eslintLock.engines.node, />=24/, "ESLint 10.8 should declare support for the repository's Node 24 runtime line");
 assert.equal(eslintLock.dependencies["@eslint/config-helpers"], "^0.7.0", "ESLint should retain its reviewed config-helpers range");
@@ -36,14 +36,14 @@ assert.equal(eslintConfigHelpersLock.version, "0.7.0", "config-helpers should re
 assert.equal(eslintLock.dependencies.minimatch, "^10.2.5", "ESLint should retain its reviewed minimatch range");
 assert.equal(minimatchLock.version, "10.2.5", "minimatch should resolve to the reviewed 10.2.5 baseline");
 
-assert.equal(packageJson.devDependencies["@types/node"], "^26.1.2", "Node types should use the reviewed 26.1.2 development baseline");
+assert.equal(packageJson.devDependencies["@types/node"], "^26.2.0", "Node types should use the reviewed 26.2.0 development baseline");
 assert.equal(packageJson.dependencies["@types/node"], undefined, "Node types must remain development-only tooling");
-assert.equal(rootLock.devDependencies["@types/node"], "^26.1.2", "the lockfile root should match the Node types package contract");
+assert.equal(rootLock.devDependencies["@types/node"], "^26.2.0", "the lockfile root should match the Node types package contract");
 assert.equal(rootLock.dependencies["@types/node"], undefined, "the lockfile root must not promote Node types to a runtime dependency");
-assert.equal(nodeTypesLock.version, "26.1.2", "the resolved Node types baseline should remain 26.1.2");
+assert.equal(nodeTypesLock.version, "26.2.0", "the resolved Node types baseline should remain 26.2.0");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
 assert.equal(packageJson.engines.node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
-assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.1": true }, "the approved lifecycle-script allowlist must remain unchanged");
+assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
 
 assert.equal(packageJson.dependencies["markdown-it"], "^15.0.0", "Markdown-it should use the reviewed 15.0 runtime baseline");
 assert.equal(packageJson.devDependencies["markdown-it"], undefined, "Markdown-it must remain runtime parser infrastructure");
