@@ -33,7 +33,7 @@ const content = Object.fromEntries(
 const packageJson = JSON.parse(content.package);
 
 assert.deepEqual(packageJson.allowScripts, {
-  "better-sqlite3@13.0.1": true,
+  "better-sqlite3@13.0.3": true,
 }, "clean installs should approve only the pinned native SQLite lifecycle");
 
 for (const requirement of [

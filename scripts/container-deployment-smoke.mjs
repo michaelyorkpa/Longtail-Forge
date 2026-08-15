@@ -468,7 +468,7 @@ async function verifyContainer(name, port, version, expectedImageDigest, expecte
   assert.equal(runtimeProof.database, true);
   assert.equal(runtimeProof.wal, true, "the live SQLite WAL should stay inside the durable data volume");
   assert.equal(runtimeProof.shm, true, "the live SQLite SHM should stay inside the durable data volume");
-  assert.match(runtimeProof.driver, /^(?:12\.11\.1|13\.0\.1)$/);
+  assert.match(runtimeProof.driver, /^(?:12\.11\.1|13.0.3)$/);
   assert.match(runtimeProof.nativeBinding, /\/(?:prebuilds\/linux-x64|build\/Release\/better_sqlite3)\.node$/);
   assert.deepEqual(
     {

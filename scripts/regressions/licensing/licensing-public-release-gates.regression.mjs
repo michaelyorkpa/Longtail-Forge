@@ -111,7 +111,7 @@ assert.equal(
   "notice table escaping should preserve literal backslashes while escaping every pipe",
 );
 assert.equal(escapeTable("a||b"), "a\\|\\|b", "notice table escaping should escape repeated pipes");
-assert.match(generatedNotices.content, /\| better-sqlite3 \| 13\.0\.1 \| MIT \|/);
+assert.match(generatedNotices.content, /\| better-sqlite3 \| 13.0.3 \| MIT \|/);
 assert.match(generatedNotices.content, /\| argparse \| 3\.0\.0 \| Python-2\.0 \|/);
 assert.match(generatedNotices.content, /\| uuid \| 14\.0\.1 \| MIT \|/);
 assert.match(generatedNotices.content, /Lucide Icons \(bundled inline SVG subset\)/);
