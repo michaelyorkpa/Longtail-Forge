@@ -40,7 +40,7 @@ export interface ListsItemRecord extends Record<string, unknown> {
   deleted_at?: string | null;
 }
 
-export interface ListsCatalogItemRecord extends Record<string, unknown> {
+export interface ListsItemCatalogSnapshot extends Record<string, unknown> {
   catalog_item_id: string;
   item_name?: string;
   estimated_cost?: number | null;
@@ -49,6 +49,12 @@ export interface ListsCatalogItemRecord extends Record<string, unknown> {
   unit?: string | null;
   url?: string | null;
   vendor_name?: string | null;
+}
+
+export interface ListsItemCatalogOrchestration {
+  createFromListItem(payload: Record<string, unknown>, session: WorkspaceRequestSession): Promise<ListsItemCatalogSnapshot>;
+  readSnapshot(payload: Record<string, unknown>, session: WorkspaceRequestSession): Promise<ListsItemCatalogSnapshot | null>;
+  recordUsage(catalogItemId: string, session: WorkspaceRequestSession): Promise<void>;
 }
 
 export interface ListsItemOrder {
@@ -77,7 +83,6 @@ export interface ListsItemProgressBatch {
 
 export interface ListsItemRepository {
   createItem(workspaceId: string, item: ListsItemRecord): Promise<unknown>;
-  incrementCatalogUsage(workspaceId: string, catalogItemId: string, userId: string): Promise<unknown>;
   listItems(workspaceId: string, listId: string, filters?: { includeDeleted?: boolean }): Promise<unknown[]>;
   listItemsForLists(workspaceId: string, listIds: string[], filters?: { includeDeleted?: boolean }): Promise<unknown[]>;
   readItemById(workspaceId: string, listId: string, itemId: string): Promise<unknown>;
@@ -87,15 +92,13 @@ export interface ListsItemRepository {
 
 export interface ListsItemAggregateDependencies {
   repository: ListsItemRepository;
-  assertCanManageCatalog(session: WorkspaceRequestSession): Promise<void>;
+  catalogItems: ListsItemCatalogOrchestration;
   assertCanManageItem(session: WorkspaceRequestSession, list: ListsItemListRecord, item: ListsItemRecord | null): Promise<void>;
-  createValidatedCatalogItem(payload: Record<string, unknown>, session: WorkspaceRequestSession): Promise<{ catalogItem: unknown }>;
   emitItemEvent(eventName: string, session: WorkspaceRequestSession, previousItem: ListsItemRecord | null, nextItem: ListsItemRecord, list: ListsItemListRecord): Promise<void>;
   emitListEvent(eventName: string, session: WorkspaceRequestSession, previousList: ListsItemListRecord | null, nextList: ListsItemListRecord, metadata?: Record<string, unknown>): Promise<void>;
   nextSortOrder(workspaceId: string, listId: string): Promise<number>;
   normalizeItemOrders(value: unknown): ListsItemOrder[];
   normalizeItemPayload(payload: Record<string, unknown>, session: WorkspaceRequestSession, list: ListsItemListRecord, fallback?: Record<string, unknown>): unknown;
-  readCatalogItemOrThrow(session: WorkspaceRequestSession, catalogItemId: unknown): Promise<unknown>;
   readListOrThrow(session: WorkspaceRequestSession, listId: unknown): Promise<unknown>;
   recordItemAudit(session: WorkspaceRequestSession, action: string, changeType: string, previousItem: ListsItemRecord | null, nextItem: ListsItemRecord, list: ListsItemListRecord): Promise<void>;
   recordListAudit(session: WorkspaceRequestSession, action: string, changeType: string, previousList: ListsItemListRecord, nextList: ListsItemListRecord, metadata?: Record<string, unknown>): Promise<void>;
