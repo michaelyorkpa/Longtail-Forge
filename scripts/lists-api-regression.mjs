@@ -46,6 +46,12 @@ async function assertAuthenticationRequired(api) {
 }
 
 async function assertBusinessListApiFlow(api, fixtures) {
+  const invalidShape = await api.post("/api/lists", {
+    title: { nested: true },
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(invalidShape.status, 400);
+  assert.equal(invalidShape.body.error.message, "List title must be text or a scalar value.");
+
   const mismatch = await api.post("/api/lists", {
     client_id: fixtures.otherClientId,
     project_id: fixtures.projectId,
@@ -355,6 +361,11 @@ async function assertUnauthorizedAndIsolation(api, fixtures) {
     title: "External List",
   }, { cookie: fixtures.externalSessionId });
   assert.equal(externalCreate.status, 403);
+
+  const externalInvalidCreate = await api.post("/api/lists", {
+    title: { nested: true },
+  }, { cookie: fixtures.externalSessionId });
+  assert.equal(externalInvalidCreate.status, 403, "Lists validation must not bypass create permission denial");
 
   const externalLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
     targetId: fixtures.projectId,
