@@ -152,12 +152,14 @@ for (const contract of sourceContracts) {
 const narrowVitestOwners = {
   "test:contracts": [
     "tests/contracts/files-contracts.test.mjs",
+    "tests/contracts/lists-contracts.test.mjs",
     "tests/contracts/normalizers-timezones.test.mjs",
     "tests/contracts/notes-contracts.test.mjs",
     "tests/contracts/tasks-contracts.test.mjs",
     "tests/contracts/time-tracking-contracts.test.mjs",
   ],
   "test:files": ["tests/contracts/files-contracts.test.mjs"],
+  "test:lists": ["tests/contracts/lists-contracts.test.mjs"],
   "test:tasks": ["tests/contracts/tasks-contracts.test.mjs"],
   "test:time-tracking": [
     "tests/contracts/time-tracking-contracts.test.mjs",

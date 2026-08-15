@@ -1,5 +1,17 @@
 import { listsRepository } from "./lists.repo.js";
 import {
+  CreateListCatalogItemSchema,
+  CreateListItemSchema,
+  CreateListLinkSchema,
+  CreateListSchema,
+  DuplicateListSchema,
+  ReorderListItemsSchema,
+  UpdateListCatalogItemSchema,
+  UpdateListItemSchema,
+  UpdateListSchema,
+  parseListsEdgePayload,
+} from "./lists.contracts.js";
+import {
   LIST_PERMISSIONS,
   canAccessList,
   canManageListItem,
@@ -134,8 +146,14 @@ async function read(listId, session, options = {}) {
   };
 }
 
-async function create(payload, session) {
+/** @param {unknown} rawPayload */
+async function create(rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  await permissionsService.assertCanInAnyScope(session, LIST_PERMISSIONS.CREATE, {
+    operation: "create",
+    workspace_id: session.workspace_id,
+  });
+  const payload = parseListsEdgePayload(CreateListSchema, rawPayload);
   const normalized = await normalizeListPayload(payload, session, {
     list_id: payload?.list_id || payload?.id,
     status: LIST_STATUSES.ACTIVE,
@@ -164,10 +182,12 @@ async function create(payload, session) {
   return { list: await shapeListForBrowser(session, listRecord) };
 }
 
-async function update(listId, payload, session) {
+/** @param {unknown} rawPayload */
+async function update(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const previousList = await readListOrThrow(session, listId);
   await assertCanAccessList(session, previousList, "update");
+  const payload = parseListsEdgePayload(UpdateListSchema, rawPayload);
   const normalized = await normalizeListPayload(payload, session, {
     ...previousList,
     updated_by_user_id: session.user_id,
@@ -261,10 +281,12 @@ async function unmarkReusable(listId, session) {
   });
 }
 
-async function duplicate(listId, payload = {}, session) {
+/** @param {unknown} rawPayload */
+async function duplicate(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const sourceList = await readListOrThrow(session, listId);
   await assertCanAccessList(session, sourceList, "duplicate");
+  const payload = parseListsEdgePayload(DuplicateListSchema, rawPayload);
 
   const sourceItems = await listsRepository.listItems(session.workspace_id, sourceList.list_id);
   await reserveAdditionalPublicDemoBudgetUnits(sourceItems.length);
@@ -404,10 +426,12 @@ async function listLinkTargets(session, query = {}) {
   };
 }
 
-async function createLink(listId, payload, session) {
+/** @param {unknown} rawPayload */
+async function createLink(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
   await assertCanAccessList(session, listRecord, "manage_links");
+  const payload = parseListsEdgePayload(CreateListLinkSchema, rawPayload);
   const link = normalizeLinkPayload(payload, listRecord, session);
   await assertLinkTargetProviderAvailable(session, link);
   const target = await readLinkedTargetSummary(session, link, { requireAccess: true });
@@ -441,9 +465,16 @@ async function removeLink(listId, linkId, session) {
   return { link: shapeLinkForBrowser(link, null) };
 }
 
-async function createCatalogItem(payload, session) {
+/** @param {unknown} rawPayload */
+async function createCatalogItem(rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await assertCanManageCatalog(session);
+  const payload = parseListsEdgePayload(CreateListCatalogItemSchema, rawPayload);
+  return createValidatedCatalogItem(payload, session);
+}
+
+/** @param {import("zod").output<typeof CreateListCatalogItemSchema> | Record<string, unknown>} payload */
+async function createValidatedCatalogItem(payload, session) {
   const normalized = await normalizeCatalogPayload(payload, session, {
     catalog_item_id: payload?.catalog_item_id || payload?.id,
     created_by_user_id: session.user_id,
@@ -456,10 +487,12 @@ async function createCatalogItem(payload, session) {
   return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
 }
 
-async function updateCatalogItem(catalogItemId, payload, session) {
+/** @param {unknown} rawPayload */
+async function updateCatalogItem(catalogItemId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await assertCanManageCatalog(session);
   const previousItem = await readCatalogItemOrThrow(session, catalogItemId);
+  const payload = parseListsEdgePayload(UpdateListCatalogItemSchema, rawPayload);
   const normalized = await normalizeCatalogPayload(payload, session, {
     ...previousItem,
     updated_by_user_id: session.user_id,
@@ -494,10 +527,12 @@ async function suggestItems(session, query = {}) {
   return { suggestions: suggestions.map(shapeCatalogItemForBrowser) };
 }
 
-async function createItem(listId, payload, session) {
+/** @param {unknown} rawPayload */
+async function createItem(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
   await assertCanManageItem(session, listRecord, null);
+  const payload = parseListsEdgePayload(CreateListItemSchema, rawPayload);
   const catalogItem = await resolveCatalogItemSnapshot(payload, session);
   const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
   const item = normalizeItemPayload(payload, session, listRecord, {
@@ -512,7 +547,8 @@ async function createItem(listId, payload, session) {
   });
 
   if (payload?.save_to_catalog === true || payload?.save_to_catalog === "true" || payload?.saveToCatalog === true || payload?.saveToCatalog === "true") {
-    const createdCatalog = await createCatalogItem({
+    await assertCanManageCatalog(session);
+    const createdCatalog = await createValidatedCatalogItem({
       ...item,
       client_id: listRecord.client_id || "",
       list_type: listRecord.list_type,
@@ -532,10 +568,12 @@ async function createItem(listId, payload, session) {
   return { item: shapeItemForBrowser(storedItem) };
 }
 
-async function updateItem(listId, itemId, payload, session) {
+/** @param {unknown} rawPayload */
+async function updateItem(listId, itemId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
   await assertCanManageItem(session, listRecord, item);
+  const payload = parseListsEdgePayload(UpdateListItemSchema, rawPayload);
   const catalogItem = await resolveCatalogItemSnapshot(payload, session);
   const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
   const normalized = normalizeItemPayload(payload, session, listRecord, {
@@ -556,10 +594,12 @@ async function updateItem(listId, itemId, payload, session) {
   return { item: shapeItemForBrowser(storedItem) };
 }
 
-async function reorderItems(listId, payload, session) {
+/** @param {unknown} rawPayload */
+async function reorderItems(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
   await assertCanManageItem(session, listRecord, null);
+  const payload = parseListsEdgePayload(ReorderListItemsSchema, rawPayload);
   const itemOrders = normalizeItemOrders(payload?.items || payload?.itemOrders || payload?.item_orders || []);
   const items = await listsRepository.reorderItems(session.workspace_id, listRecord.list_id, itemOrders, session.user_id);
   await recordListAudit(session, "list_items_reordered", "update", listRecord, listRecord, {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.17.3",
+  "checkpoint": "0.33.33.18.1",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -114,6 +114,7 @@
         "src/modules/lists/access-policy.js",
         "src/modules/lists/index.js",
         "src/modules/lists/link-target.provider.js",
+        "src/modules/lists/lists.contracts.js",
         "src/modules/lists/lists.repo.js",
         "src/modules/lists/lists.routes.js",
         "src/modules/lists/lists.service.js",
@@ -299,6 +300,7 @@
         "src/utils/timezones.js",
         "src/utils/workspaces.js",
         "tests/contracts/files-contracts.test.mjs",
+        "tests/contracts/lists-contracts.test.mjs",
         "tests/contracts/normalizers-timezones.test.mjs",
         "tests/contracts/notes-contracts.test.mjs",
         "tests/contracts/tasks-contracts.test.mjs",
@@ -361,7 +363,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 3486,
+      "errorCount": 3474,
       "diagnostics": {
         "src/config.js": [
           {
@@ -539,12 +541,6 @@
             "count": 3
           }
         ],
-        "src/modules/lists/lists.routes.js": [
-          {
-            "code": 2345,
-            "count": 1
-          }
-        ],
         "src/modules/lists/lists.service.js": [
           {
             "code": 18047,
@@ -556,7 +552,7 @@
           },
           {
             "code": 2339,
-            "count": 364
+            "count": 360
           },
           {
             "code": 2345,
@@ -572,7 +568,7 @@
           },
           {
             "code": 7006,
-            "count": 225
+            "count": 218
           },
           {
             "code": 7053,
@@ -11275,8 +11271,8 @@
     }
   },
   "totals": {
-    "files": 1014,
-    "errors": 24106,
+    "files": 1016,
+    "errors": 24094,
     "explicitAny": 14
   },
   "explicitAnyByFile": {

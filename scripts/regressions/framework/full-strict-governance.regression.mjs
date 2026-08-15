@@ -41,7 +41,7 @@ const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.17.3");
+assert.equal(ledger.checkpoint, "0.33.33.18.1");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -102,6 +102,7 @@ for (const strictCleanPath of [
 for (const strictCleanPath of [
   "src/core/linked-context/link-target-shape.js",
   "src/modules/client-projects/link-target.provider.js",
+  "src/modules/lists/lists.contracts.js",
   "src/modules/lists/link-target.provider.js",
   "src/modules/notes/access-policy.js",
   "src/modules/notes/catalog-security.service.js",

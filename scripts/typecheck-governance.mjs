@@ -163,7 +163,7 @@ function collectGovernanceState() {
   const explicitAny = Object.values(policy.explicitAnyByFile).reduce((total, count) => total + count, 0);
   return {
     schemaVersion: 1,
-    checkpoint: "0.33.33.17.3",
+    checkpoint: "0.33.33.18.1",
     programs,
     totals: { files: trackedFiles.length, errors, explicitAny },
     explicitAnyByFile: policy.explicitAnyByFile,

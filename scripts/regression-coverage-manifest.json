@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18115,
+    "activeAssertionCount": 18118,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18784,
+    "effectiveAssertionCount": 18787,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1830,11 +1830,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 125,
+      "assertionCount": 128,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists api contract.",
-      "entryPointAssertionCount": 125,
+      "entryPointAssertionCount": 128,
       "id": "legacy.lists.api",
       "legacy": true,
       "path": "scripts/lists-api-regression.mjs",
