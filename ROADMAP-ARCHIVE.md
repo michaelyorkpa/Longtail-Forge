@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.18.1 - Add Lists edge schemas
+
+**Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.
+
+- [x] Captured the accepted and rejected Lists workflow payload corpus across browser-shaped list and item payloads, dual casing, liberal scalar inputs, lifecycle fields, service-owned required and enum rules, and malformed known fields.
+- [x] Added module-owned Zod schemas for list, item, reorder, catalog, duplicate, and link mutations and parsed untrusted payloads once at their owning Lists service entries.
+- [x] Preserved liberal workflow scalars, established server-managed and lifecycle handling, authorization-before-validation behavior, unknown audit-field stripping, and existing route/service error envelopes.
+- [x] Closed the Lists validation edge under full strict, lowering the combined ledger from 24,106 to 24,094 diagnostics with registered contract, API, regression, and permission proof; `0.33.33.18.2` remains the next Lists checkpoint.
+
 ## Version 0.33.33.17.3 - Finish Notes strict typing
 
 **Model: High Effort** - The main Notes service joins workflow, permission, revision, link, and integration contracts.
