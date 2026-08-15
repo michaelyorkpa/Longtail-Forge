@@ -306,7 +306,7 @@ No direct static file downloads. Downloads go through permission-checked routes.
 
 ### Version-wide internal checkpoints
 
-When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, or perform runtime identity proof. Completed numbered checkpoints move from `ROADMAP.md` to `ROADMAP-ARCHIVE.md` after their protected merge; the branch-closeout checkpoint rolls the remaining deferred identity and durable-documentation items up once.
+When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, or perform runtime identity proof. Stage the completed checkpoint's `ROADMAP.md` to `ROADMAP-ARCHIVE.md` handoff as the final bookkeeping commit in the same protected pull request as its implementation. The archive entry becomes authoritative only when that pull request merges; do not open a second archive-only pull request. The branch-closeout checkpoint rolls the remaining deferred identity and durable-documentation items up once.
 
 Every non-merge implementation commit on that branch must end with exactly one machine-readable trailer of each form:
 
@@ -316,7 +316,7 @@ LTF-Summary: <single-line outcome>
 LTF-Docs: <documentation disposition>
 ```
 
-Use either `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` as the complete `LTF-Docs` value. Internal checkpoints normally change no more than two ceremony files. The first policy checkpoint may update the governing agent/versioning instructions that establish this rule; later internal checkpoints defer durable documentation. A roadmap-only planning commit may precede implementation; it is not a completed checkpoint. The protected pull-request Development gate validates the complete base-to-head commit range. Exact-SHA Nightly, promotion, artifact, and deployment contracts remain unchanged.
+Use either `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` as the complete `LTF-Docs` value. `ROADMAP.md` and `ROADMAP-ARCHIVE.md` are ceremony/bookkeeping paths, not documentation paths for this trailer; their normal handoff uses exactly `LTF-Docs: No docs change needed: completed checkpoint moved to roadmap archive.` Keep all three trailers contiguous in one final commit-message paragraph, with no blank lines between them. Internal checkpoints normally change no more than two ceremony files. The first policy checkpoint may update the governing agent/versioning instructions that establish this rule; later internal checkpoints defer durable documentation. A roadmap-only planning commit may precede implementation; it is not a completed checkpoint. The protected pull-request Development gate validates the complete base-to-head commit range. Exact-SHA Nightly, promotion, artifact, and deployment contracts remain unchanged.
 
 For every implementation slice:
 
@@ -332,6 +332,7 @@ For every implementation slice:
 10. Archive completed roadmap sections according to the roadmap bookkeeping rule.
 11. At final local closeout, run `npm run verify:slice` exactly once. It collects the changed paths once, runs `npm run closeout` once, executes the existing changed-area plan once, and adds the separate permission harness once when the selected areas require it.
 12. After `npm run verify:slice` succeeds, do not separately rerun `closeout`, `check`, changed regressions, an included regression area, or the permission harness unless a source, test, documentation, package, lockfile, workflow, or configuration file changes.
+13. On a version-wide checkpoint branch, after the intended commits are complete, run `npm run checkpoint:validate` before the first push and again after amending any checkpoint commit message. It validates the complete `merge-base(origin/nightly, HEAD)..HEAD` commit range without repeating source verification. A message-only amend does not invalidate a green tree verification; any file change does.
 
 Use the running server for testing when useful. Restart it as needed.
 

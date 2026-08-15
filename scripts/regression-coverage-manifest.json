@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18118,
+    "activeAssertionCount": 18139,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18787,
+    "effectiveAssertionCount": 18808,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1933,11 +1933,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 129,
+      "assertionCount": 137,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists service contract.",
-      "entryPointAssertionCount": 129,
+      "entryPointAssertionCount": 137,
       "id": "legacy.lists.service",
       "legacy": true,
       "path": "scripts/lists-service-regression.mjs",
@@ -4696,11 +4696,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 61,
+      "assertionCount": 74,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
-      "entryPointAssertionCount": 61,
+      "entryPointAssertionCount": 74,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",

@@ -1,13 +1,11 @@
 import { listsRepository } from "./lists.repo.js";
+import { createListItemsService } from "./list-items.service.js";
 import {
   CreateListCatalogItemSchema,
-  CreateListItemSchema,
   CreateListLinkSchema,
   CreateListSchema,
   DuplicateListSchema,
-  ReorderListItemsSchema,
   UpdateListCatalogItemSchema,
-  UpdateListItemSchema,
   UpdateListSchema,
   parseListsEdgePayload,
 } from "./lists.contracts.js";
@@ -36,7 +34,6 @@ import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
 import {
   createVisibleRecordBatch,
-  groupRowsByRecordId,
   mapVisibleRecordBatch,
 } from "../../core/list-enrichment.js";
 import { permissionsService } from "../../core/permissions.js";
@@ -59,6 +56,22 @@ const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
 const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
 const LIST_LINK_TARGET_TYPES = new Set(["client", "note", "project", "task"]);
+const listItemsService = createListItemsService({
+  assertCanManageCatalog,
+  assertCanManageItem,
+  createValidatedCatalogItem,
+  emitItemEvent,
+  emitListEvent,
+  nextSortOrder,
+  normalizeItemOrders,
+  normalizeItemPayload,
+  readCatalogItemOrThrow,
+  readListOrThrow,
+  recordItemAudit,
+  recordListAudit,
+  repository: listsRepository,
+  syncListSearchIndex,
+});
 
 async function list(session, query = {}) {
   await assertListsReadable(session);
@@ -529,133 +542,33 @@ async function suggestItems(session, query = {}) {
 
 /** @param {unknown} rawPayload */
 async function createItem(listId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const listRecord = await readListOrThrow(session, listId);
-  await assertCanManageItem(session, listRecord, null);
-  const payload = parseListsEdgePayload(CreateListItemSchema, rawPayload);
-  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
-  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
-  const item = normalizeItemPayload(payload, session, listRecord, {
-    ...itemFallback,
-    list_item_id: payload?.list_item_id || payload?.id,
-    purchase_status: LIST_ITEM_PURCHASE_STATUSES.NEEDED,
-    quantity: itemFallback.quantity ?? 1,
-    sort_order: await nextSortOrder(session.workspace_id, listRecord.list_id),
-    assigned_user_id: payload?.assigned_user_id || payload?.assignedUserId || session.user_id,
-    created_by_user_id: session.user_id,
-    updated_by_user_id: session.user_id,
-  });
-
-  if (payload?.save_to_catalog === true || payload?.save_to_catalog === "true" || payload?.saveToCatalog === true || payload?.saveToCatalog === "true") {
-    await assertCanManageCatalog(session);
-    const createdCatalog = await createValidatedCatalogItem({
-      ...item,
-      client_id: listRecord.client_id || "",
-      list_type: listRecord.list_type,
-      project_id: listRecord.project_id || "",
-    }, session);
-    item.catalog_item_id = createdCatalog.catalogItem.catalog_item_id;
-  }
-
-  const storedItem = await listsRepository.createItem(session.workspace_id, item);
-  if (storedItem.catalog_item_id) {
-    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
-  }
-  await recordItemAudit(session, "list_item_created", "create", null, storedItem, listRecord);
-  await emitItemEvent("lists.item.created", session, null, storedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_created");
-
-  return { item: shapeItemForBrowser(storedItem) };
+  return listItemsService.createItem(listId, rawPayload, session);
 }
 
 /** @param {unknown} rawPayload */
 async function updateItem(listId, itemId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
-  await assertCanManageItem(session, listRecord, item);
-  const payload = parseListsEdgePayload(UpdateListItemSchema, rawPayload);
-  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
-  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
-  const normalized = normalizeItemPayload(payload, session, listRecord, {
-    ...itemFallback,
-    ...item,
-    catalog_item_id: itemFallback.catalog_item_id || item.catalog_item_id,
-    updated_by_user_id: session.user_id,
-  });
-
-  const storedItem = await listsRepository.updateItem(session.workspace_id, normalized);
-  if (catalogItem && storedItem.catalog_item_id) {
-    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
-  }
-  await recordItemAudit(session, "list_item_updated", "update", item, storedItem, listRecord);
-  await emitItemEvent("lists.item.updated", session, item, storedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_updated");
-
-  return { item: shapeItemForBrowser(storedItem) };
+  return listItemsService.updateItem(listId, itemId, rawPayload, session);
 }
 
 /** @param {unknown} rawPayload */
 async function reorderItems(listId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const listRecord = await readListOrThrow(session, listId);
-  await assertCanManageItem(session, listRecord, null);
-  const payload = parseListsEdgePayload(ReorderListItemsSchema, rawPayload);
-  const itemOrders = normalizeItemOrders(payload?.items || payload?.itemOrders || payload?.item_orders || []);
-  const items = await listsRepository.reorderItems(session.workspace_id, listRecord.list_id, itemOrders, session.user_id);
-  await recordListAudit(session, "list_items_reordered", "update", listRecord, listRecord, {
-    item_orders: itemOrders,
-  });
-  await emitListEvent("lists.item.updated", session, null, listRecord, {
-    item_orders: itemOrders,
-    reason: "reorder",
-  });
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.items_reordered");
-
-  return { items: items.map(shapeItemForBrowser) };
+  return listItemsService.reorderItems(listId, rawPayload, session);
 }
 
 async function checkItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_checked",
-    eventName: "lists.item.checked",
-    patch: (_previousItem, now) => ({
-      checked_at: now,
-      checked_by_user_id: session.user_id,
-    }),
-  });
+  return listItemsService.checkItem(listId, itemId, session);
 }
 
 async function uncheckItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_unchecked",
-    eventName: "lists.item.unchecked",
-    patch: () => ({
-      checked_at: null,
-      checked_by_user_id: null,
-    }),
-  });
+  return listItemsService.uncheckItem(listId, itemId, session);
 }
 
 async function completeItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_completed",
-    eventName: "lists.item.completed",
-    patch: (_previousItem, now) => ({
-      completed_at: now,
-      completed_by_user_id: session.user_id,
-    }),
-  });
+  return listItemsService.completeItem(listId, itemId, session);
 }
 
 async function deleteItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_deleted",
-    changeType: "delete",
-    eventName: "lists.item.deleted",
-    patch: (_previousItem, now) => ({
-      deleted_at: now,
-    }),
-  });
+  return listItemsService.deleteItem(listId, itemId, session);
 }
 
 async function transitionList(listId, session, transition) {
@@ -678,23 +591,6 @@ async function transitionList(listId, session, transition) {
   return { list: await shapeListForBrowser(session, listRecord) };
 }
 
-async function transitionItem(listId, itemId, session, transition) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
-  await assertCanManageItem(session, listRecord, item);
-  const now = new Date().toISOString();
-  const updatedItem = await listsRepository.updateItem(session.workspace_id, {
-    ...item,
-    ...transition.patch(item, now),
-    updated_by_user_id: session.user_id,
-  });
-
-  await recordItemAudit(session, transition.action, transition.changeType || "update", item, updatedItem, listRecord);
-  await emitItemEvent(transition.eventName, session, item, updatedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, transition.eventName);
-  return { item: shapeItemForBrowser(updatedItem) };
-}
-
 async function readListOrThrow(session, listId, options = {}) {
   await assertListsReadable(session);
   const normalizedId = normalizeRequiredText(listId, "List ID");
@@ -705,18 +601,6 @@ async function readListOrThrow(session, listId, options = {}) {
   }
 
   return listRecord;
-}
-
-async function readItemWithListOrThrow(session, listId, itemId) {
-  const listRecord = await readListOrThrow(session, listId);
-  const normalizedItemId = normalizeRequiredText(itemId, "List item ID");
-  const item = await listsRepository.readItemById(session.workspace_id, listRecord.list_id, normalizedItemId);
-
-  if (!item || item.deleted_at) {
-    throw new AppError("List item not found.", 404);
-  }
-
-  return { item, listRecord };
 }
 
 async function assertListsReadable(session) {
@@ -1326,29 +1210,6 @@ async function normalizeCatalogPayload(payload = {}, session, fallback = {}) {
   };
 }
 
-async function resolveCatalogItemSnapshot(payload = {}, session) {
-  const catalogItemId = normalizeOptionalText(payload.catalog_item_id || payload.catalogItemId);
-
-  if (!catalogItemId) {
-    return null;
-  }
-
-  return readCatalogItemOrThrow(session, catalogItemId);
-}
-
-function catalogItemToItemFallback(catalogItem = {}) {
-  return {
-    catalog_item_id: catalogItem.catalog_item_id,
-    estimated_cost: catalogItem.estimated_cost,
-    item_name: catalogItem.item_name,
-    notes: catalogItem.notes,
-    quantity: catalogItem.quantity ?? 1,
-    unit: catalogItem.unit,
-    url: catalogItem.url,
-    vendor_name: catalogItem.vendor_name,
-  };
-}
-
 function duplicateItemPayload(item, listRecord, session, index) {
   return {
     assigned_user_id: item.assigned_user_id || "",
@@ -1909,60 +1770,18 @@ async function shapeListsForBrowser(session, listRecords = []) {
 }
 
 async function readListProgressSummary(session, listRecord = {}) {
-  const items = listRecord.list_id
-    ? await listsRepository.listItems(session.workspace_id, listRecord.list_id, { includeDeleted: false })
-    : [];
-  return listProgressSummaryFromItems(listRecord, items);
+  return listItemsService.readProgressSummary(session, /** @type {import("../../types/lists-item-contracts.js").ListsItemListRecord} */ (listRecord));
 }
 
 async function readListProgressSummaries(session, batch) {
-  const progressByListId = mapVisibleRecordBatch(batch, (listRecord) => listProgressSummaryFromItems(listRecord, []));
-
-  if (batch.isEmpty) {
-    return progressByListId;
-  }
-
-  const items = await listsRepository.listItemsForLists(session.workspace_id, batch.ids, { includeDeleted: false });
-  const itemsByListId = groupRowsByRecordId(items, { idField: "list_id" });
-
-  return mapVisibleRecordBatch(batch, (listRecord) => (
-    listProgressSummaryFromItems(listRecord, itemsByListId.get(listRecord.list_id) || [])
-  ));
+  return listItemsService.readProgressSummaries(session, batch);
 }
 
 function listProgressSummaryFromItems(listRecord = {}, items = []) {
-  const nextUncheckedItem = items
-    .slice()
-    .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
-    .find((item) => !item.checked_at && !item.completed_at);
-  const neededDates = items
-    .map((item) => item.needed_by_date)
-    .filter(Boolean)
-    .sort();
-  const activityCandidates = [
-    listRecord.updated_at,
-    listRecord.created_at,
-    ...items.flatMap((item) => [
-      item.updated_at,
-      item.checked_at,
-      item.completed_at,
-      item.deleted_at,
-      item.created_at,
-    ]),
-  ].filter(Boolean).sort();
-
-  return {
-    assignedUserIds: [...new Set(items.map((item) => item.assigned_user_id).filter(Boolean))].sort(),
-    checkedItemCount: items.filter((item) => Boolean(item.checked_at)).length,
-    completedItemCount: items.filter((item) => Boolean(item.completed_at)).length,
-    earliestNeededByDate: neededDates[0] || null,
-    incompleteItemCount: items.filter((item) => !item.checked_at && !item.completed_at).length,
-    lastActivityAt: activityCandidates.at(-1) || null,
-    neededByDates: [...new Set(neededDates)],
-    nextUncheckedItemLabel: nextUncheckedItem?.item_name || "",
-    totalItemCount: items.length,
-    unassignedItemCount: items.filter((item) => !item.assigned_user_id).length,
-  };
+  return listItemsService.progressSummaryFromItems(
+    /** @type {import("../../types/lists-item-contracts.js").ListsItemListRecord} */ (listRecord),
+    /** @type {import("../../types/lists-item-contracts.js").ListsItemRecord[]} */ (items),
+  );
 }
 
 function buildListResumeContext(listRecord = {}, progress = {}, links = []) {

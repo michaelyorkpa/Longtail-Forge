@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.18.2 - Extract the Lists list-item aggregate
+
+**Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
+
+- [x] Extracted list-item create, update, delete, reorder, check, uncheck, completion, and batched progress behavior behind the checked `createListItemsService(...)` aggregate and its declaration-owned contracts.
+- [x] Preserved item ordering, assignment, needed-by dates, catalog snapshots, progress summaries, audit/events, search synchronization, and repository-owned reorder transactions through the existing route-facing Lists facade.
+- [x] Kept Lists as an operational execution aid, added no workflow or generic framework abstraction, and narrowed untyped persistence results once at the new module-owned aggregate boundary.
+- [x] Proved the seam through the retained Lists contract, service lifecycle, repository, access-policy, full-strict, and permission owners; the combined strict ledger falls from 24,094 to 24,018 diagnostics and `0.33.33.18.3` remains next.
+
 ## Version 0.33.33.18.1 - Add Lists edge schemas
 
 **Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.
