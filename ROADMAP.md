@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.18.1 - Add Lists edge schemas
-
-**Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.
-
-- [ ] Capture the current accepted/rejected Lists workflow payload corpus before changing validation ownership.
-- [ ] Add module-owned Zod edge schemas and wire them once at their owning service entries.
-- [ ] Preserve liberal workflow inputs, server-managed field handling, and existing route/service error envelopes.
-- [ ] Close full-strict debt at the Lists validation edge with contract and permission coverage.
-
 ### 0.33.33.18.2 - Extract the Lists list-item aggregate
 
 **Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
