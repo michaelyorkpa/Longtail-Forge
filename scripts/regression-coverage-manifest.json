@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18131,
+    "activeAssertionCount": 18139,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18800,
+    "effectiveAssertionCount": 18808,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1933,11 +1933,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 129,
+      "assertionCount": 137,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists service contract.",
-      "entryPointAssertionCount": 129,
+      "entryPointAssertionCount": 137,
       "id": "legacy.lists.service",
       "legacy": true,
       "path": "scripts/lists-service-regression.mjs",

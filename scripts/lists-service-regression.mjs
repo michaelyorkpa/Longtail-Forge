@@ -4,6 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 
+const [listItemsServiceSource, listItemsTypesSource, listsServiceSource] = await Promise.all([
+  fs.readFile(new URL("../src/modules/lists/list-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-item-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.service.js", import.meta.url), "utf8"),
+]);
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-service.db");
 process.env.SUPER_ADMIN_PASSWORD = "Lists-Service-Test-123!";
@@ -37,6 +42,15 @@ try {
 }
 
 async function assertManifestContracts() {
+  assert.match(listItemsServiceSource, /^\/\/ @ts-check/m, "the extracted list-item aggregate should remain checked");
+  assert.match(listItemsServiceSource, /function createListItemsService\(dependencies\)/, "Lists should expose one typed item aggregate factory");
+  assert.match(listItemsServiceSource, /repository\.reorderItems[\s\S]*recordListAudit[\s\S]*emitListEvent/, "item reordering should retain repository transaction, audit, and event owners");
+  assert.match(listItemsServiceSource, /assertCanManageItem[\s\S]*repository\.updateItem[\s\S]*recordItemAudit[\s\S]*emitItemEvent/, "item lifecycle transitions should retain permission, repository, audit, and event owners");
+  assert.match(listItemsServiceSource, /readProgressSummaries[\s\S]*listItemsForLists/, "item progress should retain one batched repository read");
+  assert.match(listItemsTypesSource, /interface ListsItemAggregateService[\s\S]*createItem[\s\S]*readProgressSummaries[\s\S]*reorderItems/, "the aggregate seam should declare mutation and progress contracts");
+  assert.match(listsServiceSource, /const listItemsService = createListItemsService\([\s\S]*repository: listsRepository/, "the route-facing Lists service should compose the extracted aggregate with the established repository");
+  assert.match(listsServiceSource, /function createItem\([\s\S]*listItemsService\.createItem[\s\S]*function updateItem\([\s\S]*listItemsService\.updateItem/, "the public Lists facade should delegate item writes without changing its API");
+
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
