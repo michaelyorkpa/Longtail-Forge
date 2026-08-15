@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.18.3 - Extract the Lists catalog-item aggregate
-
-**Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
-
-- [ ] Extract catalog-item suggestion, ranking, usage-count, snapshot, and context behavior behind a cohesive typed service seam.
-- [ ] Preserve archived filtering, stable ordering, context matching, nullable values, and catalog-link lifecycle.
-- [ ] Keep list-item and catalog-item contracts independent except for explicit Lists-owned orchestration.
-- [ ] Prove the extracted aggregate through retained catalog, repository, and permission owners.
-
 ### 0.33.33.18.4 - Finish Lists strict typing
 
 **Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
