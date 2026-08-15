@@ -1,4 +1,4 @@
-import type { WorkspaceRequestSession } from "./http-contracts.js";
+import type { ApiSession, ServiceAuthorizationSession, WorkspaceRequestSession } from "./http-contracts.js";
 
 export type NoteLibraryBucket = "active_work" | "ongoing_area" | "reference";
 export type NoteCollectionStatus = "active" | "archived" | "deleted";
@@ -194,7 +194,7 @@ export interface NotesCollectionsService {
   listCollections(session: WorkspaceRequestSession, rawQuery?: unknown): Promise<NoteCollectionReadModel>;
   moveCollection(collectionId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<NoteCollectionResult>;
   readAssignableCollection(session: WorkspaceRequestSession, collectionId: string): Promise<NoteCollectionRecord>;
-  resolveListFilter(session: WorkspaceRequestSession, selection: NoteCollectionSelection): Promise<NoteCollectionListFilter>;
+  resolveListFilter(session: WorkspaceRequestSession | ApiSession | ServiceAuthorizationSession, selection: NoteCollectionSelection): Promise<NoteCollectionListFilter>;
   restoreCollection(collectionId: string, session: WorkspaceRequestSession): Promise<NoteCollectionResult>;
   updateCollection(collectionId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<NoteCollectionResult>;
 }

@@ -1,9 +1,45 @@
+// @ts-check
 import { NOTE_EVENT_TYPES, NOTE_PERMISSIONS } from "./access-policy.js";
 
-function noteNotificationTitle({ event }) {
-  return event.new_value?.title || event.previous_value?.title || event.metadata?.title || event.record_id || "Note";
+/** @typedef {import("../../types/framework-contracts.js").EventSummaryResolverContext} EventSummaryResolverContext */
+
+/** @param {unknown} value */
+function readEventTitle(value) {
+  if (!value || Array.isArray(value) || typeof value !== "object") return "";
+  return "title" in value && typeof value.title === "string" ? value.title : "";
 }
 
+/** @param {EventSummaryResolverContext} context */
+function noteEventTitle({ event }) {
+  return readEventTitle(event.new_value) || readEventTitle(event.previous_value) || readEventTitle(event.metadata) || event.record_id || "Note";
+}
+
+/** @param {import("../../types/framework-contracts.js").EventSummaryResolverContext} context */
+function noteNotificationTitle({ event }) {
+  return noteEventTitle({ event });
+}
+
+/** @param {EventSummaryResolverContext} context */
+function noteEventUrl({ event }) {
+  return `notes.html?note=${encodeURIComponent(event.record_id || "")}`;
+}
+
+/** @param {string} action @param {EventSummaryResolverContext} context */
+function noteActivitySummary(action, context) {
+  return `${action} note "${noteEventTitle(context)}".`;
+}
+
+/** @param {string} action @param {EventSummaryResolverContext} context */
+function noteNotificationBody(action, context) {
+  return `Note "${noteEventTitle(context)}" was ${action}.`;
+}
+
+/** @param {EventSummaryResolverContext} context */
+function linkedContextSummary(context) {
+  return `Linked context changed for note "${noteEventTitle(context)}".`;
+}
+
+/** @type {Pick<import("../../types/framework-contracts.js").ModuleManifest, "eventTypes" | "eventSummaries" | "hooks" | "notificationEvents" | "notificationFollowTargets">} */
 const notesEvents = {
   eventTypes: NOTE_EVENT_TYPES,
   eventSummaries: [
@@ -12,13 +48,13 @@ const notesEvents = {
         moduleId: "notes",
         activity: {
           label: "Note Updated",
-          summary: ({ event }) => `Updated note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          summary: /** @param {EventSummaryResolverContext} context */ (context) => noteActivitySummary("Updated", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
         },
         notification: {
           title: noteNotificationTitle,
-          body: ({ event }) => `Note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}" was updated.`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          body: /** @param {EventSummaryResolverContext} context */ (context) => noteNotificationBody("updated", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
           recipientHints: [],
         },
       },
@@ -27,13 +63,13 @@ const notesEvents = {
         moduleId: "notes",
         activity: {
           label: "Note Archived",
-          summary: ({ event }) => `Archived note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          summary: /** @param {EventSummaryResolverContext} context */ (context) => noteActivitySummary("Archived", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
         },
         notification: {
           title: noteNotificationTitle,
-          body: ({ event }) => `Note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}" was archived.`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          body: /** @param {EventSummaryResolverContext} context */ (context) => noteNotificationBody("archived", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
           recipientHints: [],
         },
       },
@@ -42,13 +78,13 @@ const notesEvents = {
         moduleId: "notes",
         activity: {
           label: "Note Restored",
-          summary: ({ event }) => `Restored note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          summary: /** @param {EventSummaryResolverContext} context */ (context) => noteActivitySummary("Restored", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
         },
         notification: {
           title: noteNotificationTitle,
-          body: ({ event }) => `Note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}" was restored.`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          body: /** @param {EventSummaryResolverContext} context */ (context) => noteNotificationBody("restored", context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
           recipientHints: [],
         },
       },
@@ -57,13 +93,13 @@ const notesEvents = {
         moduleId: "notes",
         activity: {
           label: "Note Linked",
-          summary: ({ event }) => `Linked context changed for note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          summary: /** @param {EventSummaryResolverContext} context */ (context) => linkedContextSummary(context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
         },
         notification: {
           title: noteNotificationTitle,
-          body: ({ event }) => `Linked context changed for note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          body: /** @param {EventSummaryResolverContext} context */ (context) => linkedContextSummary(context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
           recipientHints: [],
         },
       },
@@ -72,13 +108,13 @@ const notesEvents = {
         moduleId: "notes",
         activity: {
           label: "Note Unlinked",
-          summary: ({ event }) => `Linked context changed for note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          summary: /** @param {EventSummaryResolverContext} context */ (context) => linkedContextSummary(context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
         },
         notification: {
           title: noteNotificationTitle,
-          body: ({ event }) => `Linked context changed for note "${event.new_value?.title || event.previous_value?.title || event.record_id || "Note"}".`,
-          url: ({ event }) => `notes.html?note=${encodeURIComponent(event.record_id || "")}`,
+          body: /** @param {EventSummaryResolverContext} context */ (context) => linkedContextSummary(context),
+          url: /** @param {EventSummaryResolverContext} context */ (context) => noteEventUrl(context),
           recipientHints: [],
         },
       },

@@ -178,6 +178,10 @@ async function listBatchReadResolver({ recordIds, session }) {
 // and secure-content policy, and that boundary is not re-implemented here.
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!session.workspace_id || session.workspace_id !== workspaceId) {
+    return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
+  }
+
   const lifecycleRows = await readSafeNoteLifecycleForIds(workspaceId, recordIds);
   const lifecycleByNoteId = new Map(lifecycleRows.map((row) => [row.note_id, row]));
   const checks = new Map();
@@ -195,7 +199,7 @@ async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
       continue;
     }
 
-    checks.set(recordId, await readEligibleNoteCheck(recordId, session));
+    checks.set(recordId, await readEligibleNoteCheck(recordId, { ...session, workspace_id: workspaceId }));
   }
 
   return checks;
@@ -276,10 +280,14 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
     };
   }
 
-  return readEligibleNoteCheck(recordId, session);
+  if (!session.workspace_id || session.workspace_id !== workspaceId) {
+    return { readable: false };
+  }
+
+  return readEligibleNoteCheck(recordId, { ...session, workspace_id: workspaceId });
 }
 
-/** @param {string} recordId @param {Record<string, any>} session @returns {Promise<ResumeStateReadCheck>} */
+/** @param {string} recordId @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @returns {Promise<ResumeStateReadCheck>} */
 async function readEligibleNoteCheck(recordId, session) {
   try {
     const note = await notesService.readConsumerSummary(recordId, session, "notes.resume");

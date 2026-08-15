@@ -1,6 +1,12 @@
+// @ts-check
 import { notesService } from "./notes.service.js";
 import { assertNoteConsumerAccess, canExposeNoteToConsumer } from "./consumer-policy.js";
 
+/** @typedef {import("../../types/http-contracts.js").ApiSession} ApiSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceNoteLike} NotesServiceNoteLike */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceQuery} NotesServiceQuery */
+
+/** @param {ApiSession} context @param {NotesServiceQuery} [query] */
 async function listNotes(context, query = {}) {
   const result = await notesService.listAll(context, query);
   const notes = result.notes
@@ -10,6 +16,7 @@ async function listNotes(context, query = {}) {
   return paged(notes, query);
 }
 
+/** @param {ApiSession} context @param {string} noteId */
 async function readNote(context, noteId) {
   const result = await notesService.read(noteId, context);
   const note = result.note;
@@ -19,7 +26,8 @@ async function readNote(context, noteId) {
   return withWorkspaceAlias(shapePublicNote(note), context);
 }
 
-function shapePublicNote(note = {}) {
+/** @param {NotesServiceNoteLike} note */
+function shapePublicNote(note) {
   const shaped = { ...note };
 
   delete shaped.body_html;
@@ -30,6 +38,7 @@ function shapePublicNote(note = {}) {
   return shaped;
 }
 
+/** @param {NotesServiceNoteLike} record @param {ApiSession} context */
 function withWorkspaceAlias(record, context) {
   if (!record || typeof record !== "object") {
     return record;
@@ -41,6 +50,7 @@ function withWorkspaceAlias(record, context) {
   };
 }
 
+/** @param {NotesServiceNoteLike[]} items @param {NotesServiceQuery} query */
 function paged(items, query) {
   const limit = clampInteger(query.limit, 1, 100, 50);
   const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
@@ -56,8 +66,9 @@ function paged(items, query) {
   };
 }
 
+/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
 function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;

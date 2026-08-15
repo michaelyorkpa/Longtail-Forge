@@ -11,6 +11,7 @@ import {
 } from "../../core/linked-context/link-target-shape.js";
 
 /** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetSession} LinkTargetSession */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTarget} LinkTarget */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessCache} LinkTargetAccessCache */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessState} LinkTargetAccessState */
@@ -42,7 +43,7 @@ function providerFor(targetType) {
   return providers.find((provider) => provider.targetTypes.includes(targetType)) || null;
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetType} targetType @param {LinkTargetClientContext} clientContext */
+/** @param {LinkTargetSession} session @param {LinkTargetType} targetType @param {LinkTargetClientContext} clientContext */
 async function list(session, targetType, clientContext) {
   const provider = providerFor(targetType);
   if (!provider || !(await canListType(session, targetType))) return [];
@@ -52,14 +53,14 @@ async function list(session, targetType, clientContext) {
   return targets.filter((target) => targetMatchesClientContext(target, scope));
 }
 
-/** @param {WorkspaceRequestSession} session */
+/** @param {LinkTargetSession} session */
 async function readContext(session) {
   const context = await clientProjectsLinkTargetProvider.readContext(session);
   if (await modulesService.canReadModule(session.workspace_id, "client-projects")) return context;
   return { ...context, clientsById: new Map(), projectsById: new Map() };
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetType} targetType @param {string} targetId */
+/** @param {LinkTargetSession} session @param {LinkTargetType} targetType @param {string} targetId */
 async function readSummary(session, targetType, targetId) {
   const provider = providerFor(targetType);
   if (!provider) return unavailableSummary(targetType, targetId);
@@ -72,7 +73,7 @@ async function readSummary(session, targetType, targetId) {
   }
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetType} targetType @param {string} targetId */
+/** @param {LinkTargetSession} session @param {LinkTargetType} targetType @param {string} targetId */
 async function canAccess(session, targetType, targetId) {
   if (targetType === "list" && !(await modulesService.canReadModule(session.workspace_id, "lists"))) return false;
   const provider = providerFor(targetType);
@@ -81,7 +82,7 @@ async function canAccess(session, targetType, targetId) {
   return states.get(targetId) === "readable";
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetType} targetType @param {string} targetId @param {LinkTargetAccessCache | null} cache */
+/** @param {LinkTargetSession} session @param {LinkTargetType} targetType @param {string} targetId @param {LinkTargetAccessCache | null} cache */
 async function canAccessSaved(session, targetType, targetId, cache = null) {
   const moduleId = MODULE_BY_TARGET_TYPE[targetType];
   if (moduleId && !(await modulesService.canReadModule(session.workspace_id, moduleId))) return true;
@@ -91,7 +92,7 @@ async function canAccessSaved(session, targetType, targetId, cache = null) {
   return state !== "forbidden";
 }
 
-/** @param {WorkspaceRequestSession} session @param {Map<LinkTargetType, Set<string>>} idsByType */
+/** @param {LinkTargetSession} session @param {Map<LinkTargetType, Set<string>>} idsByType */
 async function createAccessCache(session, idsByType) {
   /** @type {Map<LinkTargetType, Map<string, LinkTargetAccessState>>} */
   const byType = new Map();
@@ -103,13 +104,13 @@ async function createAccessCache(session, idsByType) {
   return { byType };
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetType} targetType */
+/** @param {LinkTargetSession} session @param {LinkTargetType} targetType */
 async function canListType(session, targetType) {
   const moduleId = MODULE_BY_TARGET_TYPE[targetType];
   return moduleId ? modulesService.canWriteModule(session.workspace_id, moduleId) : true;
 }
 
-/** @param {WorkspaceRequestSession} session @param {LinkTargetClientContext} clientContext */
+/** @param {LinkTargetSession} session @param {LinkTargetClientContext} clientContext */
 async function resolveClientScope(session, clientContext) {
   if (!isScopedClientContext(clientContext)) return { hasClientFilter: false };
   return resolveClientProjectFilterScope(session, {

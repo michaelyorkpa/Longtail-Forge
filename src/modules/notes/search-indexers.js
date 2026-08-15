@@ -7,6 +7,7 @@ import { NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
 import { extractPlainTextFromMarkdown } from "./markdown.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteSearchSource} NoteSearchSource */
 
 const NOTES_SEARCH_INDEXER_ID = "notes.records";
 
@@ -38,7 +39,8 @@ async function indexNoteRecord({ workspaceId, recordId }) {
   return noteToSearchDocument(note);
 }
 
-async function noteToSearchDocument(note = {}) {
+/** @param {NoteSearchSource} note */
+async function noteToSearchDocument(note) {
   if (!isSearchableNote(note)) {
     return null;
   }
@@ -91,7 +93,8 @@ async function noteToSearchDocument(note = {}) {
   };
 }
 
-function isSearchableNote(note = {}) {
+/** @param {NoteSearchSource} note */
+function isSearchableNote(note) {
   if (!note.note_id || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
     return false;
   }
@@ -103,7 +106,8 @@ function isSearchableNote(note = {}) {
   return note.visibility !== NOTE_VISIBILITIES.PRIVATE;
 }
 
-function normalizeNoteSearchStatus(note = {}) {
+/** @param {NoteSearchSource} note */
+function normalizeNoteSearchStatus(note) {
   if (note.status === NOTE_STATUSES.ARCHIVED || note.archived_at) {
     return "archived";
   }

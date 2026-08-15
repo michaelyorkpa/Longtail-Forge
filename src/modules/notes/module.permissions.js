@@ -1,3 +1,4 @@
+// @ts-check
 import { NOTE_AUDIT_RECORD_TYPES, NOTE_PERMISSIONS, NOTE_RESOURCE_DEFINITION } from "./access-policy.js";
 
 const NOTE_PERMISSION_DEFINITIONS = [
@@ -152,6 +153,7 @@ const INTERNAL_NOTE_PERMISSION_IDS = [
   NOTE_PERMISSIONS.MANAGE_LIBRARY,
 ];
 
+/** @type {Pick<import("../../types/framework-contracts.js").ModuleManifest, "requiredPermissions" | "permissions" | "defaultRolePermissions" | "resourceDefinitions" | "auditRecordTypes">} */
 const notesPermissions = {
   requiredPermissions: ALL_NOTE_PERMISSION_IDS,
   permissions: NOTE_PERMISSION_DEFINITIONS,

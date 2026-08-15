@@ -136,9 +136,11 @@ async function assertEditorBoundary() {
 
 async function assertSearchTextUsesSharedMarkdown() {
   const workspace = await readWorkspace();
+  const workspaceId = String(workspace.workspace_id || "");
+  assert.ok(workspaceId, "the Markdown search fixture should have a workspace ID");
   const document = await noteToSearchDocument({
     note_id: "note-search-markdown-1",
-    workspace_id: workspace.workspace_id,
+    workspace_id: workspaceId,
     title: "Search Markdown",
     body_markdown: normalizeMarkdown(`
 # Search Heading

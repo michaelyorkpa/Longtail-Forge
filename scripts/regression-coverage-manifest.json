@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18099,
+    "activeAssertionCount": 18115,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18768,
+    "effectiveAssertionCount": 18784,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1747,11 +1747,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 39,
+      "assertionCount": 41,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy linked context note list label contract.",
-      "entryPointAssertionCount": 39,
+      "entryPointAssertionCount": 41,
       "id": "legacy.linked.context.note.list.label",
       "legacy": true,
       "path": "scripts/linked-context-note-list-label-regression.mjs",
@@ -1796,11 +1796,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 29,
+      "assertionCount": 30,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy linked context task label sort contract.",
-      "entryPointAssertionCount": 29,
+      "entryPointAssertionCount": 30,
       "id": "legacy.linked.context.task.label.sort",
       "legacy": true,
       "path": "scripts/linked-context-task-label-sort-regression.mjs",
@@ -2036,11 +2036,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 74,
+      "assertionCount": 81,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes api service contract.",
-      "entryPointAssertionCount": 74,
+      "entryPointAssertionCount": 81,
       "id": "legacy.notes.api.service",
       "legacy": true,
       "path": "scripts/notes-api-service-regression.mjs",
@@ -2175,11 +2175,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 47,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes markdown revision contract.",
-      "entryPointAssertionCount": 47,
+      "entryPointAssertionCount": 48,
       "id": "legacy.notes.markdown.revision",
       "legacy": true,
       "path": "scripts/notes-markdown-revision-regression.mjs",
@@ -2310,11 +2310,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 61,
+      "assertionCount": 64,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes secure contract.",
-      "entryPointAssertionCount": 61,
+      "entryPointAssertionCount": 64,
       "id": "legacy.notes.secure",
       "legacy": true,
       "path": "scripts/notes-secure-regression.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 50,
+      "assertionCount": 52,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 52,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

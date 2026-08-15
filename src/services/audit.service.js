@@ -21,7 +21,7 @@ const AUDIT_EXPORT_MAX_PAGE_SIZE = 1000;
 /** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, actorUserId?: unknown, changeType?: unknown, dateFrom?: unknown, dateTo?: unknown, limit?: unknown, offset?: unknown, cursor?: unknown, clientId?: unknown, client_id?: unknown, projectId?: unknown, project_id?: unknown, recordType?: unknown, timezone?: unknown }} AuditFilters */
 /** @typedef {{ maxPageSize?: number, securityOnly?: boolean }} AuditListOptions */
 /** @typedef {{ recordType: string, moduleId: string, label: string, description: string }} AuditRecordTypeDefinition */
-/** @typedef {{ workspaceId?: string, session?: WorkspaceRequestSession | null, action?: unknown, changeType?: unknown, recordType?: unknown, allowUnknownRecordType?: boolean, force?: boolean, auditId?: unknown, createdAt?: unknown, actorUserId?: unknown, actorUserName?: unknown, recordId?: unknown, recordLabel?: unknown, recordUrl?: unknown, previousValue?: unknown, newValue?: unknown, metadata?: unknown, ipAddress?: unknown } & Record<string, unknown>} AuditEvent */
+/** @typedef {{ workspaceId?: string, session?: (import("../types/http-contracts.js").AuthorizationSession & {workspace_id: string}) | null, action?: unknown, changeType?: unknown, recordType?: unknown, allowUnknownRecordType?: boolean, force?: boolean, auditId?: unknown, createdAt?: unknown, actorUserId?: unknown, actorUserName?: unknown, recordId?: unknown, recordLabel?: unknown, recordUrl?: unknown, previousValue?: unknown, newValue?: unknown, metadata?: unknown, ipAddress?: unknown } & Record<string, unknown>} AuditEvent */
 
 const CHANGE_TYPES = new Set([
   "create",
@@ -73,7 +73,7 @@ async function record(event) {
   const entry = {
     audit_id: event.auditId || createRecordId(),
     workspace_id: workspaceId,
-    created_at: normalizeUtcIso(normalizeAuditDateInput(event.createdAt), event.session?.timezone),
+    created_at: normalizeUtcIso(normalizeAuditDateInput(event.createdAt), event.session && "timezone" in event.session ? event.session.timezone : undefined),
     actor_user_id: event.actorUserId ?? event.session?.user_id ?? null,
     actor_user_name: event.actorUserName ?? event.session?.username ?? null,
     action,
@@ -85,7 +85,7 @@ async function record(event) {
     previous_value_json: stringifyNullableJson(event.previousValue),
     new_value_json: stringifyNullableJson(event.newValue),
     metadata_json: stringifyNullableJson(event.metadata),
-    ip_address: nullableString(event.ipAddress || event.session?.ip_address),
+    ip_address: nullableString(event.ipAddress || (event.session && "ip_address" in event.session ? event.session.ip_address : "")),
   };
 
   await auditLogsRepository.create(entry);

@@ -41,7 +41,7 @@ const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.17.2");
+assert.equal(ledger.checkpoint, "0.33.33.17.3");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
@@ -119,6 +119,12 @@ for (const strictCleanPath of [
   assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
 }
+const notesOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+  .filter((filePath) => filePath.startsWith("src/modules/notes/"));
+assert.deepEqual(notesOwnerDiagnostics, [], `Notes server owners must stay strict-clean after checkpoint 0.33.33.17.3`);
+const notesOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+  .filter((filePath) => filePath.startsWith("src/modules/notes/"));
+assert.deepEqual(notesOwnerExplicitAny, [], `Notes server owners must stay free of explicit any after checkpoint 0.33.33.17.3`);
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
   filePath.startsWith("src/core/") ||
   filePath.startsWith("src/services/") ||

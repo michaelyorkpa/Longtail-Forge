@@ -83,6 +83,9 @@ async function assertUnavailableContextReadModel(session) {
 
   for (const link of read.note.links) {
     const targetType = link.target_type || link.targetType;
+    if (!targetType) {
+      continue;
+    }
     const expectedLabel = expectedLabels.get(targetType);
     if (!expectedLabel) {
       continue;

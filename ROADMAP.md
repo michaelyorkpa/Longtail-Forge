@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.17.3 - Finish Notes strict typing
-
-**Model: High Effort** - The main Notes service joins workflow, permission, revision, link, and integration contracts.
-
-- [ ] Type the remaining Notes service, routes, public API, events, integrations, and search-indexer contracts under full strict.
-- [ ] Consume the typed schema, directory, collection, repository, policy, security, and Markdown seams from the preceding checkpoints.
-- [ ] Preserve Notes workflow behavior and avoid new framework abstractions or cross-module deep imports.
-- [ ] Reduce the Notes server ledger to zero with lifecycle, integration, and permission proof.
-
 ### 0.33.33.18.1 - Add Lists edge schemas
 
 **Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.

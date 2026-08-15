@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.17.3 - Finish Notes strict typing
+
+**Model: High Effort** - The main Notes service joins workflow, permission, revision, link, and integration contracts.
+
+- [x] Typed the remaining Notes service, routes, public API, events, integrations, search indexers, and exact internal authorization projections under full strict while consuming the established schema, directory, collection, repository, policy, security, and Markdown seams.
+- [x] Preserved Notes workflow, Secure Notes, revisions, linked context, collections, notifications, public API, Search, permission behavior, runtime service shapes, and module ownership; corrected the exposed asynchronous tag-filter caller instead of weakening its contract.
+- [x] Reduced every `src/modules/notes/` server diagnostic to zero, lowered the combined full-strict ledger from 25,237 to 24,106 diagnostics, and reduced explicit-`any` inventory from 15 to 14 with declaration, lifecycle, integration, public API, Search, notification, and 409-check permission proof.
+- [x] Added a durable Notes-owner zero-debt and zero-explicit-`any` ratchet; as the final numeric child, this checkpoint closes the `0.33.33.17` parent and leaves `0.33.33.18.1` as the next active checkpoint.
+
 ## Version 0.33.33.17.2 - Type Notes persistence, policy, and security dependencies
 
 **Model: High Effort** - Notes persistence, visibility, revisions, and encryption carry data-integrity and confidentiality risk.

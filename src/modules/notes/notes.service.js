@@ -1,3 +1,4 @@
+// @ts-check
 import { notesRepository } from "./notes.repo.js";
 import {
   CreateNoteSchema,
@@ -71,8 +72,37 @@ import {
 
 /** @typedef {import("../../types/notes-domain-contracts.js").NotePersistenceInput} NotePersistenceInput */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteRecord} NoteRecord */
-/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionPersistenceInput} NoteRevisionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkRecord} NoteLinkRecord */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionRecord} NoteRevisionRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionPersistenceInput} NoteRevisionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceAuditValue} NotesServiceAuditValue */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceCandidateBatch} NotesServiceCandidateBatch */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceClientScope} NotesServiceClientScope */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceContextRecord} NotesServiceContextRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceDecoratedLink} NotesServiceDecoratedLink */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceLinkContext} NotesServiceLinkContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceLinkedContextAccessCache} NotesServiceLinkedContextAccessCache */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceLinkLike} NotesServiceLinkLike */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceLinkTargetClientContext} NotesServiceLinkTargetClientContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceLinkTargetType} NotesServiceLinkTargetType */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceEventMetadata} NotesServiceEventMetadata */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceListFilters} NotesServiceListFilters */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesLibraryBucket} NotesLibraryBucket */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceModuleState} NotesServiceModuleState */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceNote} NotesServiceNote */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceNoteLike} NotesServiceNoteLike */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceOptions} NotesServiceOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServicePagination} NotesServicePagination */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServicePayload} NotesServicePayload */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServicePropagationOptions} NotesServicePropagationOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceQuery} NotesServiceQuery */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceRevisionLike} NotesServiceRevisionLike */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceSession} NotesServiceSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceTag} NotesServiceTag */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceTarget} NotesServiceTarget */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceTargetContext} NotesServiceTargetContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceWritableNote} NotesServiceWritableNote */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesWorkspaceSession} NotesWorkspaceSession */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessCache} LinkTargetAccessCache */
 
 const NOTES_MODULE_ID = "notes";
@@ -103,20 +133,6 @@ const NOTE_LIST_DEFAULT_PAGE_SIZE = 50;
 const NOTE_LIST_MAX_PAGE_SIZE = 200;
 const NOTE_LIST_BATCH_MULTIPLIER = 5;
 const NOTE_LIST_MAX_CANDIDATE_SCAN = 1000;
-const SECURE_STORAGE_FIELDS = Object.freeze([
-  "secure_payload",
-  "secure_payload_version",
-  "encrypted_data_key",
-  "encryption_key_version",
-  "encryption_algorithm",
-  "key_wrapping_algorithm",
-  "encryption_nonce",
-  "encryption_auth_tag",
-  "key_wrapping_nonce",
-  "key_wrapping_auth_tag",
-  "encrypted_at",
-]);
-
 const notesCollectionsService = createNotesCollectionsService({
   async listAccessibleNotes(session, filters) {
     return (await filterAccessibleNotes(session, await notesRepository.list(session.workspace_id, filters))).map((note) => ({
@@ -129,14 +145,27 @@ const notesCollectionsService = createNotesCollectionsService({
   },
 });
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function list(session, query = {}) {
   return queryNotesList(session, query, { paginate: true });
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listAll(session, query = {}) {
   return queryNotesList(session, query);
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceQuery} query
+ * @param {NotesServiceOptions} options
+ */
 async function queryNotesList(session, query = {}, options = {}) {
   const filters = await normalizeNoteListQuery(session, query);
   const pagination = normalizeNoteListPagination(query, options);
@@ -196,6 +225,9 @@ async function queryNotesList(session, query = {}, options = {}) {
   return noteListResult(notes, pagination, nextCursor);
 }
 
+/**
+ * @param {NotesServiceSession} session
+ */
 async function secureHealth(session) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.SECURE_MANAGE);
   const configuration = describeSecureNotesConfiguration();
@@ -212,6 +244,10 @@ async function secureHealth(session) {
   };
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesServiceSession} session
+ */
 async function read(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
@@ -220,7 +256,10 @@ async function read(noteId, session) {
   return { note: await shapeNoteForWorkspaceRead(session, await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function previewMarkdown(rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const canPreview = await permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.CREATE) ||
@@ -241,7 +280,10 @@ async function previewMarkdown(rawPayload, session) {
   };
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function create(rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const payload = parseNotesEdgePayload(CreateNoteSchema, rawPayload);
@@ -273,7 +315,11 @@ async function create(rawPayload, session) {
   };
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {string} noteId
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function update(noteId, rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
@@ -284,12 +330,15 @@ async function update(noteId, rawPayload, session) {
 
 /**
  * @param {string} noteId
- * @param {import("zod").output<typeof UpdateNoteSchema> | NotePersistenceInput} payload
- * @param {import("../../types/http-contracts.js").WorkspaceRequestSession} session
- * @param {NonNullable<Awaited<ReturnType<typeof notesRepository.readById>>>} previousNote
+ * @param {import("zod").output<typeof UpdateNoteSchema> | Partial<NotePersistenceInput>} payload
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} previousNote
  */
 async function updateValidatedNote(noteId, payload, session, previousNote) {
-  const nextNote = await normalizeNotePayload(payload, session, previousNote);
+  const nextNote = {
+    ...await normalizeNotePayload(payload, session, previousNote),
+    note_id: noteId,
+  };
   await assertSecureNoteCanBePersisted(session, nextNote, previousNote);
   await assertLinkedContextAccess(session, nextNote);
   await assertNoteCollectionAccess(session, nextNote);
@@ -345,6 +394,11 @@ async function updateValidatedNote(noteId, payload, session, previousNote) {
   };
 }
 
+/**
+ * @param {string} noteId
+ * @param {unknown} payload
+ * @param {NotesWorkspaceSession} session
+ */
 async function changeLibrary(noteId, payload, session) {
   const previousNote = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, previousNote, "update");
@@ -360,6 +414,10 @@ async function changeLibrary(noteId, payload, session) {
   }, session, previousNote);
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ */
 async function archive(noteId, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
@@ -380,6 +438,10 @@ async function archive(noteId, session) {
   return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ */
 async function restore(noteId, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
@@ -400,6 +462,10 @@ async function restore(noteId, session) {
   return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ */
 async function softDelete(noteId, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
@@ -419,6 +485,10 @@ async function softDelete(noteId, session) {
   return { note: await shapeNoteForWorkspaceRead(session, note) };
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ */
 async function listRevisions(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
@@ -428,6 +498,11 @@ async function listRevisions(noteId, session) {
   return { revisions: visibleRevisionSnapshots(revisions, note).map((revision) => shapeRevisionForBrowser(revision, { includeBody: false })) };
 }
 
+/**
+ * @param {string} noteId
+ * @param {string} revisionId
+ * @param {NotesWorkspaceSession} session
+ */
 async function readRevision(noteId, revisionId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
@@ -441,6 +516,11 @@ async function readRevision(noteId, revisionId, session) {
   return { revision: shapeRevisionForBrowser(decryptSecureRevisionForRead(revision), { includeBody: true }) };
 }
 
+/**
+ * @param {string} noteId
+ * @param {string} revisionId
+ * @param {NotesWorkspaceSession} session
+ */
 async function restoreRevision(noteId, revisionId, session) {
   await assertNotesWriteEnabled(session);
   const previousNote = await readNoteOrThrow(session, noteId);
@@ -485,6 +565,10 @@ async function restoreRevision(noteId, revisionId, session) {
   };
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ */
 async function listLinks(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
@@ -493,37 +577,69 @@ async function listLinks(noteId, session) {
   return { links: await notesRepository.listLinks(session.workspace_id, noteId) };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listCollections(session, query = {}) {
   return notesCollectionsService.listCollections(session, query);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function createCollection(rawPayload, session) {
   return notesCollectionsService.createCollection(rawPayload, session);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {string} collectionId
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function updateCollection(collectionId, rawPayload, session) {
   return notesCollectionsService.updateCollection(collectionId, rawPayload, session);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {string} collectionId
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function moveCollection(collectionId, rawPayload, session) {
   return notesCollectionsService.moveCollection(collectionId, rawPayload, session);
 }
 
+/**
+ * @param {string} collectionId
+ * @param {NotesWorkspaceSession} session
+ */
 async function archiveCollection(collectionId, session) {
   return notesCollectionsService.archiveCollection(collectionId, session);
 }
 
+/**
+ * @param {string} collectionId
+ * @param {NotesWorkspaceSession} session
+ */
 async function restoreCollection(collectionId, session) {
   return notesCollectionsService.restoreCollection(collectionId, session);
 }
 
+/**
+ * @param {string} collectionId
+ * @param {NotesWorkspaceSession} session
+ */
 async function deleteEmptyCollection(collectionId, session) {
   return notesCollectionsService.deleteEmptyCollection(collectionId, session);
 }
 
+/**
+ * @param {string} noteId
+ * @param {unknown} payload
+ * @param {NotesWorkspaceSession} session
+ */
 async function assignNoteCollection(noteId, payload, session) {
   const previousNote = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, previousNote, "update");
@@ -536,11 +652,19 @@ async function assignNoteCollection(noteId, payload, session) {
   }, session, previousNote);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {unknown} rawPayload
+ */
 async function ensureCollectionsForImportPath(session, rawPayload) {
   return notesCollectionsService.ensureCollectionsForImportPath(session, rawPayload);
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} noteId
+ * @param {import("../../types/notes-domain-contracts.js").NoteAccessOperation} operation
+ */
 async function readForAttachmentAccess(session, noteId, operation = "read") {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, operation);
@@ -550,6 +674,10 @@ async function readForAttachmentAccess(session, noteId, operation = "read") {
   return note;
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceOptions} options
+ */
 async function listConsumerSummaries(session, options = {}) {
   const consumerId = normalizeRequiredText(options.consumerId || options.consumer_id, "Notes consumer ID");
   const noteIds = [...new Set(normalizeIdList(options.noteIds || options.note_ids))];
@@ -563,6 +691,11 @@ async function listConsumerSummaries(session, options = {}) {
     .map(shapeConsumerNoteSummary);
 }
 
+/**
+ * @param {string} noteId
+ * @param {NotesServiceSession} session
+ * @param {string} consumerId
+ */
 async function readConsumerSummary(noteId, session, consumerId) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
@@ -570,7 +703,11 @@ async function readConsumerSummary(noteId, session, consumerId) {
   return shapeConsumerNoteSummary(note);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {string} noteId
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function createLink(noteId, rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const note = await readNoteOrThrow(session, noteId);
@@ -587,6 +724,11 @@ async function createLink(noteId, rawPayload, session) {
   return { link: createdLink };
 }
 
+/**
+ * @param {string} noteId
+ * @param {string} noteLinkId
+ * @param {NotesWorkspaceSession} session
+ */
 async function removeLink(noteId, noteLinkId, session) {
   await assertNotesWriteEnabled(session);
   const note = await readNoteOrThrow(session, noteId);
@@ -606,6 +748,10 @@ async function removeLink(noteId, noteLinkId, session) {
   return { link };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} taskId
+ */
 async function readTaskLinkedNotePropagationStructure(session, taskId) {
   if (!(await canManageLinkedNotePropagation(session))) {
     return {
@@ -637,16 +783,25 @@ async function readTaskLinkedNotePropagationStructure(session, taskId) {
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ */
 async function listCatalogSettings(session) {
   return notesCollectionsService.listCatalogSettings(session);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function bulkManageCatalogs(rawPayload, session) {
   return notesCollectionsService.bulkManageCatalogs(rawPayload, session);
 }
 
-/** @param {unknown} rawPayload */
+/**
+ * @param {unknown} rawPayload
+ * @param {NotesWorkspaceSession} session
+ */
 async function bulkUpdate(rawPayload, session) {
   await assertNotesWriteEnabled(session);
   const payload = parseNotesEdgePayload(NoteBulkUpdateSchema, rawPayload);
@@ -671,8 +826,8 @@ async function bulkUpdate(rawPayload, session) {
     } catch (error) {
       errors.push({
         note_id: noteId,
-        message: error.message || "Note could not be updated.",
-        status: error.status || error.statusCode || 500,
+        message: error instanceof Error && error.message ? error.message : "Note could not be updated.",
+        status: readErrorStatus(error),
       });
     }
   }
@@ -680,6 +835,10 @@ async function bulkUpdate(rawPayload, session) {
   return { notes, errors };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServicePropagationOptions} arg2
+ */
 async function replacePropagatedTaskLinkedNotes(session, { taskId, templateId, links = [], sourceTaskId = "" } = {}) {
   if (!(await canManageLinkedNotePropagation(session))) {
     return {
@@ -712,6 +871,10 @@ async function replacePropagatedTaskLinkedNotes(session, { taskId, templateId, l
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listForTarget(session, query = {}) {
   const target = normalizeTargetFromQuery(query, session);
   await assertTargetAccess(session, target);
@@ -737,6 +900,10 @@ async function listForTarget(session, query = {}) {
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listResumeContext(session, query = {}) {
   const options = normalizeResumeContextOptions(query);
   const notes = await notesRepository.list(session.workspace_id, {
@@ -764,18 +931,22 @@ async function listResumeContext(session, query = {}) {
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listLinkTargets(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
   const targetType = normalizeOptionalText(query.targetType || query.target_type || "all") || "all";
   const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
-  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const limit = Math.min(Math.max(Number.parseInt(String(query.limit), 10) || 20, 1), 50);
   const clientContext = normalizeLinkTargetClientContext(query);
   const clientScope = await resolveLinkTargetClientScope(session, clientContext);
   const targetTypes = targetType === "all" ? ["workspace", "client", "project", "task", "note", "list", "user"] : [targetType];
   const targets = [];
 
   for (const type of targetTypes) {
-    if (!LINK_TARGET_TYPES.has(type)) {
+    if (!isLinkTargetType(type)) {
       throw new AppError("Unsupported note link target type.", 400);
     }
 
@@ -793,6 +964,10 @@ async function listLinkTargets(session, query = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ * @returns {NotesServiceLinkTargetClientContext}
+ */
 function normalizeLinkTargetClientContext(query = {}) {
   const clientScope = normalizeOptionalText(query.clientScope || query.client_scope || query.clientContext || query.client_context).toLowerCase();
   const clientId = normalizeOptionalText(query.clientId || query.client_id || query.clientContextId || query.client_context_id);
@@ -809,11 +984,18 @@ function normalizeLinkTargetClientContext(query = {}) {
   return { clientId: "", mode: "all" };
 }
 
-function isScopedLinkTargetClientContext(clientContext = {}) {
+/**
+ * @param {NotesServiceLinkTargetClientContext} clientContext
+ */
+function isScopedLinkTargetClientContext(clientContext) {
   return ["client", "workspace"].includes(clientContext.mode);
 }
 
-async function resolveLinkTargetClientScope(session, clientContext = {}) {
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkTargetClientContext} clientContext
+ */
+async function resolveLinkTargetClientScope(session, clientContext) {
   if (!isScopedLinkTargetClientContext(clientContext)) {
     return { hasClientFilter: false };
   }
@@ -825,6 +1007,10 @@ async function resolveLinkTargetClientScope(session, clientContext = {}) {
   });
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ * @param {NotesServiceClientScope} scope
+ */
 function targetMatchesClientContext(target = {}, scope = {}) {
   if (!scope.hasClientFilter) {
     return true;
@@ -851,6 +1037,9 @@ function targetMatchesClientContext(target = {}, scope = {}) {
   return Boolean((clientId && clientIds.has(clientId)) || (projectId && projectIds.has(projectId)));
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ */
 async function listLibrary(session) {
   const notes = await notesRepository.list(session.workspace_id, {});
   const accessible = await filterAccessibleNotes(session, notes);
@@ -863,16 +1052,28 @@ async function listLibrary(session) {
   return { buckets };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} libraryBucket
+ * @param {NotesServiceQuery} query
+ */
 async function listByLibraryBucket(session, libraryBucket, query = {}) {
   const normalizedBucket = normalizeEnum(libraryBucket, LIBRARY_BUCKET_VALUES, "Library bucket");
 
   return list(session, { ...query, libraryBucket: normalizedBucket });
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function listArchived(session, query = {}) {
   return list(session, { ...query, status: NOTE_STATUSES.ARCHIVED });
 }
 
+/**
+ * @param {NotesServicePayload} payload
+ */
 function deriveLibrarySuggestion(payload = {}) {
   return {
     libraryBucket: deriveSuggestedLibraryBucket({
@@ -885,7 +1086,12 @@ function deriveLibrarySuggestion(payload = {}) {
   };
 }
 
-/** @param {NoteRecord | null} [previousNote] */
+/**
+ * @param {import("zod").output<typeof CreateNoteSchema> | import("zod").output<typeof UpdateNoteSchema> | Partial<NotePersistenceInput>} payload
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike | null} previousNote
+ * @returns {Promise<NotesServiceWritableNote>}
+ */
 async function normalizeNotePayload(payload = {}, session, previousNote = null) {
   const bodyWasProvided = Object.hasOwn(payload || {}, "body_markdown") || Object.hasOwn(payload || {}, "bodyMarkdown");
   const previousBodyMarkdown = previousNote && isEffectivelySecureNote(previousNote) && hasEncryptedSecurePayload(previousNote)
@@ -980,7 +1186,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
 
   return {
     ...(previousNote || {}),
-    note_id: previousNote?.note_id || payload.note_id || payload.noteId,
+    note_id: previousNote?.note_id || normalizeOptionalText("note_id" in payload ? payload.note_id : "") || undefined,
     workspace_id: session.workspace_id,
     title,
     slug: normalizeOptionalText(payload.slug ?? previousNote?.slug) || slugifyNoteTitle(title),
@@ -1007,13 +1213,19 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     updated_by_user_id: session.user_id,
     created_at: previousNote?.created_at || now,
     updated_at: now,
-    archived_at: payload.archived_at ?? previousNote?.archived_at ?? null,
-    deleted_at: payload.deleted_at ?? previousNote?.deleted_at ?? null,
+    archived_at: normalizeOptionalText(("archived_at" in payload ? payload.archived_at : undefined) ?? previousNote?.archived_at) || null,
+    deleted_at: normalizeOptionalText(("deleted_at" in payload ? payload.deleted_at : undefined) ?? previousNote?.deleted_at) || null,
     metadata_json: JSON.stringify(metadata),
     ...normalizeImportMetadata(payload, previousNote),
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceWritableNote} note
+ * @param {NotesServicePayload} payload
+ * @returns {Promise<import("../../types/notes-domain-contracts.js").NoteLinkPersistenceInput[]>}
+ */
 async function prepareCreateLinksFromPayload(session, note, payload = {}) {
   const links = normalizeLinkPayloads(payload);
 
@@ -1025,7 +1237,7 @@ async function prepareCreateLinksFromPayload(session, note, payload = {}) {
 
   const normalizedLinks = [];
   for (const link of links) {
-    const normalizedLink = normalizeLinkPayload(link, note.note_id, session);
+    const normalizedLink = normalizeLinkPayload(link, note.note_id || "", session);
     await assertTargetAccess(session, normalizedLink);
     normalizedLinks.push(normalizedLink);
   }
@@ -1033,6 +1245,11 @@ async function prepareCreateLinksFromPayload(session, note, payload = {}) {
   return normalizedLinks;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} noteId
+ * @param {NotesServicePayload} payload
+ */
 async function saveTargetTags(session, noteId, payload = {}) {
   if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
     return;
@@ -1045,6 +1262,12 @@ async function saveTargetTags(session, noteId, payload = {}) {
   });
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkTargetType} targetType
+ * @param {string} targetId
+ * @param {string} reason
+ */
 async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
   try {
     await tagsService.refreshPropagatedAssignmentsForTarget(session, {
@@ -1057,6 +1280,10 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
   }
 }
 
+/**
+ * @param {NotesServiceNoteLike} previousNote
+ * @param {NotesServiceNoteLike} nextNote
+ */
 function noteContextChanged(previousNote = {}, nextNote = {}) {
   return [
     "client_id",
@@ -1064,9 +1291,14 @@ function noteContextChanged(previousNote = {}, nextNote = {}) {
   ].some((fieldName) => String(previousNote[fieldName] || "") !== String(nextNote[fieldName] || ""));
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike[]} notes
+ * @param {NotesServiceListFilters} filters
+ */
 async function decorateAndFilterNotesByTags(session, notes, filters = {}) {
   const taggedNotes = await tagsService.decorateRecordsWithEffectiveTags(session, "note", notes, { idField: "note_id" });
-  const filteredNotes = tagsService.filterRecordsByTags(session, "note", taggedNotes, filters.tagIds, {
+  const filteredNotes = await tagsService.filterRecordsByTags(session, "note", taggedNotes, filters.tagIds, {
     idField: "note_id",
     match: filters.tagMatch || "any",
   });
@@ -1074,6 +1306,9 @@ async function decorateAndFilterNotesByTags(session, notes, filters = {}) {
   return filterNotesByTagQuery(filteredNotes, filters.tagQuery);
 }
 
+/**
+ * @param {NotesServiceCandidateBatch} arg1
+ */
 async function filterAndShapeNoteListCandidates({ candidates, filters, offset, session }) {
   const notesWithOffsets = candidates.map((note, index) => ({
     ...note,
@@ -1088,6 +1323,11 @@ async function filterAndShapeNoteListCandidates({ candidates, filters, offset, s
   }));
 }
 
+/**
+ * @param {NotesServiceNoteLike[]} notes
+ * @param {NotesServicePagination | null} pagination
+ * @param {string} nextCursor
+ */
 function noteListResult(notes, pagination, nextCursor = "") {
   return {
     notes,
@@ -1100,6 +1340,9 @@ function noteListResult(notes, pagination, nextCursor = "") {
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function shapeNoteListProjection(note = {}) {
   const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
 
@@ -1117,11 +1360,18 @@ function shapeNoteListProjection(note = {}) {
   return shaped;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function stripNoteListCandidateMetadata(note = {}) {
   const { __candidateOffset, ...safeNote } = note;
   return safeNote;
 }
 
+/**
+ * @param {NotesServiceNoteLike[]} notes
+ * @param {unknown} tagQuery
+ */
 function filterNotesByTagQuery(notes = [], tagQuery = "") {
   const query = normalizeOptionalText(tagQuery).toLowerCase();
 
@@ -1141,24 +1391,34 @@ function filterNotesByTagQuery(notes = [], tagQuery = "") {
   ].filter(Boolean).join(" ").toLowerCase().includes(query)));
 }
 
+/**
+ * @param {unknown} value
+ */
 function isNoTagsQuery(value) {
   const normalized = normalizeOptionalText(value).toLowerCase().replace(/\s+/g, "_");
   return ["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized);
 }
 
+/**
+ * @template {NotesServiceNoteLike} T
+ * @param {NotesServiceSession} session
+ * @param {T[]} notes
+ * @returns {Promise<Array<T & {links: NoteLinkRecord[]}>>}
+ */
 async function filterAccessibleNotes(session, notes) {
   const moduleState = await readNotesModuleState(session);
   const batch = createVisibleRecordBatch(notes, { idField: "note_id" });
   const links = await notesRepository.listLinksForNotes(session.workspace_id, batch.ids);
   const linksByNoteId = groupRowsByRecordId(links, { idField: "note_id" });
   const linkedContextCache = await createLinkedContextAccessCache(session, notes, linksByNoteId);
+  /** @type {Array<T & {links: NoteLinkRecord[]}>} */
   const readable = [];
 
   for (const note of notes) {
     const linkedRecordAccess = await canAccessLinkedContext(
       session,
       note,
-      linksByNoteId.get(note.note_id) || [],
+      linksByNoteId.get(note.note_id || "") || [],
       new Set(),
       linkedContextCache,
     );
@@ -1176,7 +1436,7 @@ async function filterAccessibleNotes(session, notes) {
     if (access.allowed && canExposeNoteToConsumer(note, noteReadConsumerId(session), { authorized: true })) {
       readable.push(normalizeNoteVisibilityForWorkspace({
         ...note,
-        links: linksByNoteId.get(note.note_id) || [],
+        links: linksByNoteId.get(note.note_id || "") || [],
       }, moduleState.workspaceType));
     }
   }
@@ -1184,20 +1444,34 @@ async function filterAccessibleNotes(session, notes) {
   return readable;
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {string} ordinaryConsumerId
+ */
 function noteReadConsumerId(session, ordinaryConsumerId = "notes.workspace") {
-  return session?.support_view ? "notes.support-view" : ordinaryConsumerId;
+  return "support_view" in session && session.support_view ? "notes.support-view" : ordinaryConsumerId;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {NotesServiceSession} session
+ * @param {string} ordinaryConsumerId
+ */
 function assertNoteReadConsumerAccess(note, session, ordinaryConsumerId = "notes.workspace") {
   const consumerId = noteReadConsumerId(session, ordinaryConsumerId);
-  if (session?.support_view && !canExposeNoteToConsumer(note, consumerId, { authorized: true })) {
+  if ("support_view" in session && session.support_view && !canExposeNoteToConsumer(note, consumerId, { authorized: true })) {
     throw new AppError("Note not found.", 404);
   }
   return assertNoteConsumerAccess(note, consumerId, { authorized: true });
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ * @param {import("../../types/notes-domain-contracts.js").NoteAccessOperation} operation
+ */
 async function assertCanAccess(session, note, operation) {
-  const links = note?.links || await notesRepository.listLinks(session.workspace_id, note.note_id);
+  const links = note?.links || await notesRepository.listLinks(session.workspace_id, note.note_id || "");
   const linkedRecordAccess = await canAccessLinkedContext(session, note, links);
   const access = canAccessNote({
     note,
@@ -1221,7 +1495,11 @@ async function assertCanAccess(session, note, operation) {
   }
 }
 
-/** @param {NoteRecord | null} [previousNote] */
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ * @param {NotesServiceNoteLike | null} previousNote
+ */
 async function assertSecureNoteCanBePersisted(session, note, previousNote = null) {
   if (!isEffectivelySecureNote(note)) {
     return;
@@ -1239,7 +1517,13 @@ async function assertSecureNoteCanBePersisted(session, note, previousNote = null
   }
 }
 
-async function decryptSecureNoteForRead(session, note = {}) {
+/**
+ * @template {NotesServiceNoteLike} T
+ * @param {NotesServiceSession} session
+ * @param {T} note
+ * @returns {Promise<T>}
+ */
+async function decryptSecureNoteForRead(session, note) {
   if (!isEffectivelySecureNote(note)) {
     return note;
   }
@@ -1259,6 +1543,9 @@ async function decryptSecureNoteForRead(session, note = {}) {
   }
 }
 
+/**
+ * @param {NotesServiceRevisionLike} revision
+ */
 function decryptSecureRevisionForRead(revision = {}) {
   if (revision.security_mode !== NOTE_SECURITY_MODES.SECURE) {
     return revision;
@@ -1271,7 +1558,13 @@ function decryptSecureRevisionForRead(revision = {}) {
   };
 }
 
-/** @param {{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> } | null} [accessCache] */
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ * @param {Array<NotesServiceLinkLike | NotesServiceDecoratedLink>} links
+ * @param {Set<string>} seenTargets
+ * @param {NotesServiceLinkedContextAccessCache | null} accessCache
+ */
 async function canAccessLinkedContext(session, note, links = [], seenTargets = new Set(), accessCache = null) {
   const targets = [
     ...noteContextTargets(note),
@@ -1291,18 +1584,31 @@ async function canAccessLinkedContext(session, note, links = [], seenTargets = n
   return true;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} note
+ */
 async function assertLinkedContextAccess(session, note) {
   for (const target of noteContextTargets(note)) {
     await assertTargetAccess(session, target);
   }
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceTarget} target
+ */
 async function assertTargetAccess(session, target) {
   if (!(await canTargetAccess(session, target))) {
     throw new AppError("You do not have access to the linked note target.", 403);
   }
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceTarget} target
+ * @param {Set<string>} seenTargets
+ */
 async function canTargetAccess(session, target, seenTargets = new Set()) {
   const normalizedTarget = normalizeTarget(target);
   const targetKey = linkedContextTargetKey(normalizedTarget);
@@ -1320,14 +1626,19 @@ async function canTargetAccess(session, target, seenTargets = new Set()) {
     return canAccessNoteTarget(session, normalizedTarget, nextSeenTargets);
   }
 
-  if (linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
+  if (isLinkTargetType(normalizedTarget.target_type) && linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
     return linkTargetDirectory.canAccess(session, normalizedTarget.target_type, normalizedTarget.target_id);
   }
 
   return false;
 }
 
-/** @param {{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> } | null} [accessCache] */
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceTarget} target
+ * @param {Set<string>} seenTargets
+ * @param {NotesServiceLinkedContextAccessCache | null} accessCache
+ */
 async function canAccessSavedContextTarget(session, target, seenTargets = new Set(), accessCache = null) {
   const normalizedTarget = normalizeSavedTarget(target);
   const targetKey = linkedContextTargetKey(normalizedTarget);
@@ -1341,7 +1652,7 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
     return true;
   }
 
-  if (!LINK_TARGET_TYPES.has(normalizedTarget.target_type)) {
+  if (!isLinkTargetType(normalizedTarget.target_type)) {
     return true;
   }
 
@@ -1382,12 +1693,22 @@ async function canAccessSavedContextTarget(session, target, seenTargets = new Se
   return true;
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function linkedContextTargetKey(target = {}) {
   return [target.module_id || "", target.target_type || "", target.target_id || ""].join(":");
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceTarget} target
+ * @param {Set<string>} seenTargets
+ */
 async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
-  const note = await notesRepository.readById(session.workspace_id, target.target_id);
+  const targetId = normalizeOptionalText(target.target_id);
+  if (!targetId) return false;
+  const note = await notesRepository.readById(session.workspace_id, targetId);
   if (!note || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
     return false;
   }
@@ -1405,6 +1726,10 @@ async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
   return access.allowed;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkTargetType} targetType
+ */
 async function listTargetsByType(session, targetType) {
   if (!(await canReadLinkTargetType(session, targetType))) {
     return [];
@@ -1456,6 +1781,10 @@ async function listTargetsByType(session, targetType) {
   return [];
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkTargetType} targetType
+ */
 async function canReadLinkTargetType(session, targetType) {
   const moduleId = {
     client: "client-projects",
@@ -1463,13 +1792,20 @@ async function canReadLinkTargetType(session, targetType) {
     note: "notes",
     project: "client-projects",
     task: "tasks",
+    user: "",
+    workspace: "",
   }[targetType];
 
   return moduleId ? modulesService.canWriteModule(session.workspace_id, moduleId) : true;
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ * @param {unknown} search
+ */
 function targetMatchesSearch(target, search) {
-  if (!search) {
+  const query = normalizeOptionalText(search);
+  if (!query) {
     return true;
   }
 
@@ -1492,9 +1828,13 @@ function targetMatchesSearch(target, search) {
     target.workspaceName,
     target.taskId,
     target.userId,
-  ].filter(Boolean).join(" ").toLowerCase().includes(search);
+  ].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase());
 }
 
+/**
+ * @param {NotesServiceTarget} left
+ * @param {NotesServiceTarget} right
+ */
 function compareLinkTargets(left = {}, right = {}) {
   return compareText(left.targetType, right.targetType) ||
     compareText(left.sortKey || left.displayLabel || left.label, right.sortKey || right.displayLabel || right.label) ||
@@ -1502,6 +1842,9 @@ function compareLinkTargets(left = {}, right = {}) {
     compareText(left.targetId, right.targetId);
 }
 
+/**
+ * @param {unknown} title
+ */
 function truncateNoteTargetTitle(title) {
   const text = normalizeOptionalText(title);
   if (text.length <= NOTE_TARGET_TITLE_MAX_LENGTH) {
@@ -1511,11 +1854,17 @@ function truncateNoteTargetTitle(title) {
   return `${text.slice(0, NOTE_TARGET_TITLE_MAX_LENGTH - 3).trimEnd()}...`;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ */
 async function readNoteCollectionsById(session) {
   const collections = await notesRepository.listCollections(session.workspace_id, { includeArchived: true });
   return new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
 }
 
+/**
+ * @param {NotesServiceSession} session
+ */
 async function readLinkTargetContext(session) {
   const context = await linkTargetDirectory.readContext(session);
   if (await modulesService.canReadModule(session.workspace_id, "client-projects")) {
@@ -1524,20 +1873,36 @@ async function readLinkTargetContext(session) {
   return { ...context, clientsById: new Map(), projectsById: new Map() };
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function noteTargetPlainLabel(note = {}) {
   return readableTargetLabel(note.title || note.label, "note");
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function noteTargetPickerDisplayLabel(note = {}, targetContext = {}) {
   const title = truncateNoteTargetTitle(noteTargetPlainLabel(note));
   const context = noteTargetContextLabel(note, targetContext);
   return context ? `${title} - ${context}` : title;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {Map<string, import("../../types/notes-collections-contracts.js").NoteCollectionRecord>} collectionsById
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function noteTargetSecondaryLabel(note = {}, collectionsById = new Map(), targetContext = {}) {
   return noteTargetContextLabel(note, targetContext) || noteTargetLibrarySecondaryLabel(note, collectionsById);
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {Map<string, import("../../types/notes-collections-contracts.js").NoteCollectionRecord>} collectionsById
+ */
 function noteTargetLibrarySecondaryLabel(note = {}, collectionsById = new Map()) {
   return [
     noteTargetLibraryLabel(note),
@@ -1545,16 +1910,30 @@ function noteTargetLibrarySecondaryLabel(note = {}, collectionsById = new Map())
   ].filter(Boolean).join(" / ");
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {Map<string, import("../../types/notes-collections-contracts.js").NoteCollectionRecord>} collectionsById
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function noteTargetAccessibleLabel(note = {}, collectionsById = new Map(), targetContext = {}) {
   const label = noteTargetPlainLabel(note);
   const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById, targetContext);
   return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function noteTargetContextLabel(note = {}, targetContext = {}) {
   return recordTargetContextLabel(note, targetContext);
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {Map<string, import("../../types/notes-collections-contracts.js").NoteCollectionRecord>} collectionsById
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function noteTargetSortKey(note = {}, collectionsById = new Map(), targetContext = {}) {
   return [
     sortText(noteTargetContextLabel(note, targetContext)),
@@ -1565,13 +1944,20 @@ function noteTargetSortKey(note = {}, collectionsById = new Map(), targetContext
   ].join("|");
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function noteTargetLibraryLabel(note = {}) {
-  const bucket = normalizeOptionalText(note.library_bucket || note.libraryBucket);
-  return NOTE_LIBRARY_BUCKET_LABELS[bucket] || formatLabelToken(bucket);
+  const bucket = normalizeLibraryBucketFilter(note.library_bucket || note.libraryBucket);
+  return bucket ? NOTE_LIBRARY_BUCKET_LABELS[bucket] : formatLabelToken(note.library_bucket || note.libraryBucket);
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function noteTargetLibrarySortValue(note = {}) {
   const bucket = normalizeOptionalText(note.library_bucket || note.libraryBucket);
+  /** @type {string[]} */
   const order = [
     NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
     NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
@@ -1581,6 +1967,10 @@ function noteTargetLibrarySortValue(note = {}) {
   return index === -1 ? `9:${sortText(bucket)}` : `${index}:${bucket}`;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {Map<string, import("../../types/notes-collections-contracts.js").NoteCollectionRecord>} collectionsById
+ */
 function noteTargetCollectionLabel(note = {}, collectionsById = new Map()) {
   const collectionId = normalizeOptionalText(note.note_collection_id || note.noteCollectionId);
   if (!collectionId) {
@@ -1591,6 +1981,10 @@ function noteTargetCollectionLabel(note = {}, collectionsById = new Map()) {
   return normalizeOptionalText(collection?.path_cache || collection?.title);
 }
 
+/**
+ * @param {NotesServiceContextRecord} record
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function recordTargetContextLabel(record = {}, targetContext = {}) {
   const projectName = recordTargetProjectName(record, targetContext);
   if (projectName) {
@@ -1606,10 +2000,18 @@ function recordTargetContextLabel(record = {}, targetContext = {}) {
   return "";
 }
 
+/**
+ * @param {NotesServiceContextRecord} record
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function recordTargetBusinessContextName(record = {}, targetContext = {}) {
   return recordTargetClientName(record, targetContext) || targetContext.workspaceName || "Workspace";
 }
 
+/**
+ * @param {NotesServiceContextRecord} record
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function recordTargetClientName(record = {}, targetContext = {}) {
   const project = recordTargetProject(record, targetContext);
   const projectClientName = normalizeOptionalText(project?.clientName);
@@ -1622,20 +2024,34 @@ function recordTargetClientName(record = {}, targetContext = {}) {
   return normalizeOptionalText(client?.label);
 }
 
+/**
+ * @param {NotesServiceContextRecord} record
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function recordTargetProjectName(record = {}, targetContext = {}) {
   const project = recordTargetProject(record, targetContext);
   return normalizeOptionalText(project?.label);
 }
 
+/**
+ * @param {NotesServiceContextRecord} record
+ * @param {NotesServiceTargetContext} targetContext
+ */
 function recordTargetProject(record = {}, targetContext = {}) {
   const projectId = normalizeOptionalText(record.project_id || record.projectId);
   return projectId ? targetContext.projectsById?.get(projectId) : null;
 }
 
+/**
+ * @param {unknown} value
+ */
 function sortText(value) {
   return normalizeOptionalText(value).toLowerCase();
 }
 
+/**
+ * @param {unknown} value
+ */
 function formatLabelToken(value) {
   return normalizeOptionalText(value)
     .split(/[_\s-]+/)
@@ -1644,15 +2060,24 @@ function formatLabelToken(value) {
     .join(" ");
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ * @returns {NotesServiceTarget[]}
+ */
 function noteContextTargets(note = {}) {
-  return [
-    note.client_id ? { module_id: "client-projects", target_type: "client", target_id: note.client_id } : null,
-    note.project_id ? { module_id: "client-projects", target_type: "project", target_id: note.project_id } : null,
-    note.task_id ? { module_id: "tasks", target_type: "task", target_id: note.task_id } : null,
-    note.linked_user_id ? { module_id: "users", target_type: "user", target_id: note.linked_user_id } : null,
-  ].filter(Boolean);
+  /** @type {NotesServiceTarget[]} */
+  const targets = [];
+  if (note.client_id) targets.push({ module_id: "client-projects", target_type: "client", target_id: note.client_id });
+  if (note.project_id) targets.push({ module_id: "client-projects", target_type: "project", target_id: note.project_id });
+  if (note.task_id) targets.push({ module_id: "tasks", target_type: "task", target_id: note.task_id });
+  if (note.linked_user_id) targets.push({ module_id: "users", target_type: "user", target_id: note.linked_user_id });
+  return targets;
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ * @param {NotesWorkspaceSession | null} session
+ */
 function normalizeTargetFromQuery(query = {}, session = null) {
   return normalizeTarget({
     module_id: query.moduleId || query.module_id,
@@ -1662,11 +2087,17 @@ function normalizeTargetFromQuery(query = {}, session = null) {
   });
 }
 
+/**
+ * @param {NotesServicePayload | NotesServiceTarget} payload
+ * @param {string} noteId
+ * @param {NotesWorkspaceSession} session
+ * @returns {import("../../types/notes-domain-contracts.js").NoteLinkPersistenceInput & {note_id: string}}
+ */
 function normalizeLinkPayload(payload = {}, noteId, session) {
   const target = normalizeTarget(payload);
 
   return {
-    note_link_id: payload.noteLinkId || payload.note_link_id,
+    note_link_id: normalizeOptionalText(payload.noteLinkId || payload.note_link_id) || undefined,
     workspace_id: session.workspace_id,
     note_id: noteId,
     module_id: target.module_id,
@@ -1679,12 +2110,16 @@ function normalizeLinkPayload(payload = {}, noteId, session) {
   };
 }
 
+/**
+ * @param {NotesServicePayload | NotesServiceTarget} payload
+ * @returns {import("../../types/notes-domain-contracts.js").NoteTarget}
+ */
 function normalizeTarget(payload = {}) {
   const targetType = normalizeOptionalText(payload.targetType || payload.target_type);
   const targetId = normalizeOptionalText(payload.targetId || payload.target_id);
   const moduleId = normalizeOptionalText(payload.moduleId || payload.module_id) || defaultModuleForTargetType(targetType);
 
-  if (!LINK_TARGET_TYPES.has(targetType)) {
+  if (!isLinkTargetType(targetType)) {
     throw new AppError("Unsupported note link target type.", 400);
   }
 
@@ -1695,10 +2130,16 @@ function normalizeTarget(payload = {}) {
   return {
     module_id: moduleId,
     target_type: targetType,
-    target_id: targetType === "workspace" && targetId === "current" ? payload.workspace_id || payload.workspaceId || targetId : targetId,
+    target_id: targetType === "workspace" && targetId === "current"
+      ? normalizeOptionalText(payload.workspace_id || payload.workspaceId) || targetId
+      : targetId,
   };
 }
 
+/**
+ * @param {NotesServicePayload | NotesServiceTarget} payload
+ * @returns {import("../../types/notes-domain-contracts.js").NoteTarget}
+ */
 function normalizeSavedTarget(payload = {}) {
   const targetType = normalizeOptionalText(payload.targetType || payload.target_type);
   const targetId = normalizeOptionalText(payload.targetId || payload.target_id);
@@ -1707,10 +2148,15 @@ function normalizeSavedTarget(payload = {}) {
   return {
     module_id: moduleId,
     target_type: targetType,
-    target_id: targetType === "workspace" && targetId === "current" ? payload.workspace_id || payload.workspaceId || targetId : targetId,
+    target_id: targetType === "workspace" && targetId === "current"
+      ? normalizeOptionalText(payload.workspace_id || payload.workspaceId) || targetId
+      : targetId,
   };
 }
 
+/**
+ * @param {string} targetType
+ */
 function defaultModuleForTargetType(targetType) {
   return {
     workspace: "framework",
@@ -1723,17 +2169,29 @@ function defaultModuleForTargetType(targetType) {
   }[targetType] || "";
 }
 
+/**
+ * @param {unknown} links
+ * @returns {import("../../types/notes-domain-contracts.js").NoteLinkPersistenceInput[]}
+ */
 function normalizeLinksInput(links) {
   return (Array.isArray(links) ? links : [])
-    .map((link) => ({
-      ...link,
-      target_type: link.targetType || link.target_type,
-      target_id: link.targetId || link.target_id,
-      module_id: link.moduleId || link.module_id,
-    }))
+    .filter((link) => Boolean(link) && typeof link === "object" && !Array.isArray(link))
+    .map((link) => {
+      const candidate = /** @type {NotesServiceLinkLike} */ (link);
+      return ({
+        ...candidate,
+        target_type: normalizeOptionalText(candidate.targetType || candidate.target_type),
+        target_id: normalizeOptionalText(candidate.targetId || candidate.target_id),
+        module_id: normalizeOptionalText(candidate.moduleId || candidate.module_id),
+      });
+    })
     .filter((link) => link.target_type && link.target_id);
 }
 
+/**
+ * @param {NotesServicePayload} payload
+ * @returns {import("../../types/notes-domain-contracts.js").NoteLinkPersistenceInput[]}
+ */
 function normalizeLinkPayloads(payload = {}) {
   const links = normalizeLinksInput(payload.links || []);
   const taskId = normalizeOptionalText(payload.taskId ?? payload.task_id);
@@ -1752,12 +2210,20 @@ function normalizeLinkPayloads(payload = {}) {
   return links;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} previousNote
+ * @param {NotesServiceNoteLike} nextNote
+ * @param {string} changeSummary
+ */
 async function maybeCreateRevision(session, previousNote, nextNote, changeSummary) {
   if (!previousNote || !shouldCreateNoteRevision(previousNote, nextNote)) {
     return null;
   }
 
-  const revisionNumber = await notesRepository.nextRevisionNumber(session.workspace_id, nextNote.note_id);
+  const noteId = normalizeOptionalText(nextNote.note_id);
+  if (!noteId) throw new AppError("Note ID is required to create a revision.", 500);
+  const revisionNumber = await notesRepository.nextRevisionNumber(session.workspace_id, noteId);
   const revision = await notesRepository.createRevision(session.workspace_id, {
     ...createRevisionSnapshot(previousNote, {
       revisionNumber,
@@ -1780,7 +2246,10 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
   return revision;
 }
 
-/** @returns {NoteRevisionPersistenceInput & { note_revision_id: string }} */
+/**
+ * @param {NotesServiceNoteLike} note
+ * @param {import("../../types/notes-domain-contracts.js").RevisionSnapshotOptions} options
+ */
 function createEncryptedRevisionSnapshot(note, options = {}) {
   const bodyMarkdown = isEffectivelySecureNote(note) && hasEncryptedSecurePayload(note)
     ? decryptSecureNoteBody(note)
@@ -1796,7 +2265,9 @@ function createEncryptedRevisionSnapshot(note, options = {}) {
   };
 }
 
-/** @param {NoteRevisionRecord} revision @returns {NoteRevisionPersistenceInput & { note_revision_id: string }} */
+/**
+ * @param {NoteRevisionRecord} revision
+ */
 function createEncryptedStoredRevision(revision) {
   if (revision.security_mode === NOTE_SECURITY_MODES.SECURE && hasEncryptedSecurePayload(revision)) {
     return revision;
@@ -1810,6 +2281,10 @@ function createEncryptedStoredRevision(revision) {
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike} previousNote
+ * @param {NotesServiceNoteLike} nextNote
+ */
 function shouldCreateNoteRevision(previousNote, nextNote) {
   if (isEffectivelySecureNote(previousNote) || isEffectivelySecureNote(nextNote)) {
     return [
@@ -1828,6 +2303,10 @@ function shouldCreateNoteRevision(previousNote, nextNote) {
   return shouldCreateRevision(previousNote, nextNote);
 }
 
+/**
+ * @param {NoteRevisionRecord[]} revisions
+ * @param {NotesServiceNoteLike} note
+ */
 function visibleRevisionSnapshots(revisions = [], note = {}) {
   const visible = revisions.filter((revision, index) => shouldShowRevisionSnapshot(revision, revisions, index, note));
 
@@ -1838,19 +2317,29 @@ function visibleRevisionSnapshots(revisions = [], note = {}) {
   return visible;
 }
 
+/**
+ * @param {NoteRevisionRecord} revision
+ * @param {NoteRevisionRecord[]} revisions
+ * @param {number} index
+ * @param {NotesServiceNoteLike} note
+ */
 function shouldShowRevisionSnapshot(revision, revisions, index, note) {
   if (revision.security_mode === NOTE_SECURITY_MODES.SECURE || isEffectivelySecureNote(note)) {
     return true;
   }
 
   const isLatestStoredRevision = index === 0;
-  if (!isLatestStoredRevision || !["Note updated.", "Note restored.", "Note archived.", "Note deleted."].includes(revision.change_summary)) {
+  if (!isLatestStoredRevision || !["Note updated.", "Note restored.", "Note archived.", "Note deleted."].includes(revision.change_summary || "")) {
     return true;
   }
 
   return !revisionMatchesCurrentNote(revision, note);
 }
 
+/**
+ * @param {NoteRevisionRecord} revision
+ * @param {NotesServiceNoteLike} note
+ */
 function revisionMatchesCurrentNote(revision, note) {
   return [
     "title",
@@ -1864,9 +2353,15 @@ function revisionMatchesCurrentNote(revision, note) {
   ].every((fieldName) => String(revision[fieldName] ?? "") === String(note[fieldName] ?? ""));
 }
 
+/**
+ * @template {NotesServiceNoteLike} T
+ * @param {NotesServiceSession} session
+ * @param {T} note
+ * @returns {Promise<T & {body_html: string, links: NotesServiceDecoratedLink[], linked_context: Record<string, NotesServiceTarget>, owner_display_name: string, tags: NotesServiceTag[]}>}
+ */
 async function attachNoteIntegrations(session, note) {
   const [taggedNote] = await tagsService.decorateRecordsWithEffectiveTags(session, "note", [note], { idField: "note_id" });
-  const links = await notesRepository.listLinks(session.workspace_id, note.note_id);
+  const links = await notesRepository.listLinks(session.workspace_id, note.note_id || "");
 
   return {
     ...note,
@@ -1875,9 +2370,14 @@ async function attachNoteIntegrations(session, note) {
     links: await decorateNoteLinks(session, links),
     linked_context: await readLinkedContextSummary(session, note),
     owner_display_name: await resolveNoteOwnerLabel(session, note),
+    tags: taggedNote.tags || [],
   };
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ */
 async function resolveNoteOwnerLabel(session, note = {}) {
   const ownerUserId = normalizeOptionalText(note.owner_user_id);
   if (!ownerUserId) {
@@ -1885,13 +2385,19 @@ async function resolveNoteOwnerLabel(session, note = {}) {
   }
   try {
     const user = await usersRepository.readById(session.workspace_id, ownerUserId);
-    return user ? (user.display_name || user.displayName || user.username || "") : "";
+    return user ? String(user.display_name || user.displayName || user.username || "") : "";
   } catch {
     return "";
   }
 }
 
-function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {
+/**
+ * @template {NotesServiceNoteLike} T
+ * @param {T} note
+ * @param {{ includeBodyHtml?: boolean }} arg2
+ * @returns {T}
+ */
+function shapeNoteForBrowser(note, { includeBodyHtml = false } = {}) {
   const shaped = stripSecureStorageFields(note);
 
   if (isEffectivelySecureNote(shaped)) {
@@ -1908,13 +2414,23 @@ function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {
   return shaped;
 }
 
-async function shapeNoteForWorkspaceRead(session, note = {}, options = {}) {
+/**
+ * @template {NotesServiceNoteLike} T
+ * @param {NotesServiceSession} session
+ * @param {T} note
+ * @param {NotesServiceOptions} options
+ * @returns {Promise<T>}
+ */
+async function shapeNoteForWorkspaceRead(session, note, options = {}) {
   return shapeNoteForBrowser(
     normalizeNoteVisibilityForWorkspace(note, await readNotesWorkspaceType(session)),
     options,
   );
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function shapeLinkedNotePanelItem(note = {}) {
   const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
   delete shaped.body_markdown;
@@ -1931,6 +2447,9 @@ function shapeLinkedNotePanelItem(note = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function shapeResumeContextNote(note = {}) {
   const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
   const links = Array.isArray(shaped.links) ? shaped.links.map(shapeSafeNoteLink) : [];
@@ -1974,13 +2493,18 @@ function shapeResumeContextNote(note = {}) {
   };
 }
 
-/** @returns {Promise<{ directory: LinkTargetAccessCache, notes: Map<string, NoteRecord> }>} */
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike[]} notes
+ * @param {Map<string, NotesServiceLinkLike[]>} linksByNoteId
+ */
 async function createLinkedContextAccessCache(session, notes = [], linksByNoteId = new Map()) {
+  /** @type {Map<NotesServiceLinkTargetType, Set<string>>} */
   const idsByType = new Map();
   for (const note of notes) {
     const targets = [
       ...noteContextTargets(note),
-      ...(linksByNoteId.get(note.note_id) || []).map((link) => ({
+      ...(linksByNoteId.get(note.note_id || "") || []).map((link) => ({
         target_type: link.target_type,
         target_id: link.target_id,
       })),
@@ -1988,9 +2512,10 @@ async function createLinkedContextAccessCache(session, notes = [], linksByNoteId
     for (const target of targets) {
       const targetType = normalizeOptionalText(target.target_type);
       const targetId = normalizeOptionalText(target.target_id);
-      if (!targetType || !targetId || !["client", "project", "task", "note", "list", "user"].includes(targetType)) continue;
-      if (!idsByType.has(targetType)) idsByType.set(targetType, new Set());
-      idsByType.get(targetType).add(targetId);
+      if (!targetId || !isLinkTargetType(targetType) || targetType === "workspace") continue;
+      const ids = idsByType.get(targetType) || new Set();
+      ids.add(targetId);
+      idsByType.set(targetType, ids);
     }
   }
 
@@ -2001,11 +2526,14 @@ async function createLinkedContextAccessCache(session, notes = [], linksByNoteId
   ]);
   return {
     directory,
-    notes: new Map(linkedNotes.map((note) => [note.note_id, note])),
+    notes: new Map(linkedNotes.map((note) => /** @type {const} */ ([note.note_id, note]))),
   };
 }
 
-function shapeConsumerNoteSummary(note = {}) {
+/**
+ * @param {NotesServiceNote} note
+ */
+function shapeConsumerNoteSummary(note) {
   return {
     note_id: note.note_id,
     workspace_id: note.workspace_id,
@@ -2023,50 +2551,85 @@ function shapeConsumerNoteSummary(note = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceLinkLike | NotesServiceDecoratedLink} link
+ */
 function shapeSafeNoteLink(link = {}) {
+  const target = normalizeSavedTarget(link);
   return {
     noteLinkId: link.note_link_id || "",
     moduleId: link.module_id || "",
     targetType: link.target_type || "",
     targetId: link.target_id || "",
-    label: link.label || safeTargetFallbackLabel(link),
-    subtitle: link.subtitle || "",
-    sourceUrl: link.source_url || targetSourceUrl(link),
+    label: String(link.label || safeTargetFallbackLabel(target)),
+    subtitle: String(link.subtitle || ""),
+    sourceUrl: String(link.source_url || targetSourceUrl(target)),
     linkRole: link.link_role || "related",
     scopeRole: link.scope_role || "related",
   };
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NoteLinkRecord[]} links
+ * @returns {Promise<NotesServiceDecoratedLink[]>}
+ */
 async function decorateNoteLinks(session, links = []) {
+  /** @type {NotesServiceDecoratedLink[]} */
   const decorated = [];
 
   for (const link of links) {
+    const summary = await readTargetSummary(session, link);
     decorated.push({
       ...link,
-      ...await readTargetSummary(session, link),
+      ...summary,
+      note_link_id: link.note_link_id,
+      workspace_id: link.workspace_id,
+      note_id: link.note_id,
+      module_id: link.module_id,
+      target_type: link.target_type,
+      target_id: link.target_id,
+      link_role: link.link_role,
+      scope_role: link.scope_role,
+      created_by_user_id: link.created_by_user_id,
+      created_at: link.created_at,
+      removed_at: link.removed_at,
+      metadata_json: link.metadata_json,
     });
   }
 
   return decorated;
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ * @returns {Promise<Record<string, NotesServiceTarget>>}
+ */
 async function readLinkedContextSummary(session, note = {}) {
+  /** @type {Record<string, NotesServiceTarget>} */
   const contexts = {};
 
-  for (const target of noteContextTargets(note)) {
+  for (const rawTarget of noteContextTargets(note)) {
+    const target = normalizeSavedTarget(rawTarget);
     const summary = await readTargetSummary(session, target);
     contexts[target.target_type] = {
       ...shapeLinkTarget({
         ...target,
         ...summary,
       }),
-      unavailable: Boolean(summary.unavailable),
+      unavailable: Boolean("unavailable" in summary && summary.unavailable),
     };
   }
 
   return contexts;
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceTarget | NotesServiceLinkLike} target
+ * @returns {Promise<NotesServiceTarget>}
+ */
 async function readTargetSummary(session, target = {}) {
   const normalizedTarget = normalizeSavedTarget({
     ...target,
@@ -2080,7 +2643,7 @@ async function readTargetSummary(session, target = {}) {
       return safeUnavailableTarget(normalizedTarget);
     }
 
-    if (linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
+    if (isLinkTargetType(normalizedTarget.target_type) && linkTargetDirectory.externalTargetTypes.includes(normalizedTarget.target_type)) {
       return linkTargetDirectory.readSummary(session, normalizedTarget.target_type, normalizedTarget.target_id);
     }
 
@@ -2127,6 +2690,14 @@ async function readTargetSummary(session, target = {}) {
   return safeUnavailableTarget(normalizedTarget);
 }
 
+/** @param {string} value @returns {value is NotesServiceLinkTargetType} */
+function isLinkTargetType(value) {
+  return LINK_TARGET_TYPES.has(value);
+}
+
+/**
+ * @param {NotesServiceTarget} target
+ */
 function shapeLinkTarget(target = {}) {
   const targetType = target.target_type || target.targetType || "";
   const targetId = target.target_id || target.targetId || "";
@@ -2165,6 +2736,9 @@ function shapeLinkTarget(target = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function safeUnavailableTarget(target = {}) {
   const label = safeTargetFallbackLabel(target);
 
@@ -2182,10 +2756,17 @@ function safeUnavailableTarget(target = {}) {
   };
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} targetType
+ */
 function readableTargetLabel(value, targetType) {
   return normalizeOptionalText(value) || safeTargetFallbackLabel({ target_type: targetType });
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function safeTargetFallbackLabel(target = {}) {
   const targetType = target.target_type || target.targetType || "record";
   return {
@@ -2198,6 +2779,9 @@ function safeTargetFallbackLabel(target = {}) {
   }[targetType] || "Unavailable linked context";
 }
 
+/**
+ * @param {string} targetType
+ */
 function suggestedLibraryForTargetType(targetType = "") {
   if (targetType === "task") {
     return NOTE_LIBRARY_BUCKETS.ACTIVE_WORK;
@@ -2208,6 +2792,9 @@ function suggestedLibraryForTargetType(targetType = "") {
   return "";
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function shapeLinkedNoteTarget(target = {}) {
   return {
     moduleId: target.module_id || "",
@@ -2217,6 +2804,10 @@ function shapeLinkedNoteTarget(target = {}) {
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceModuleState} moduleState
+ */
 async function linkedNotePanelActions(session, moduleState = {}) {
   const [canCreate, canManageLinks] = await Promise.all([
     permissionsService.can(session, NOTE_PERMISSIONS.CREATE, {
@@ -2238,6 +2829,9 @@ async function linkedNotePanelActions(session, moduleState = {}) {
   };
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ */
 async function canManageLinkedNotePropagation(session) {
   const moduleState = await readNotesModuleState(session);
   if (!moduleState.enabled) {
@@ -2250,6 +2844,10 @@ async function canManageLinkedNotePropagation(session) {
   });
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkLike[]} links
+ */
 async function accessibleNoteIdSetForLinks(session, links = []) {
   const noteIds = [...new Set((Array.isArray(links) ? links : [])
     .map((link) => normalizeOptionalText(link.note_id || link.noteId))
@@ -2266,6 +2864,10 @@ async function accessibleNoteIdSetForLinks(session, links = []) {
     .map((note) => note.note_id));
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceLinkContext} result
+ */
 async function finalizePropagatedNoteLinkChanges(session, result = {}) {
   const changedLinks = [
     ...(result.removedLinks || []),
@@ -2302,6 +2904,9 @@ async function finalizePropagatedNoteLinkChanges(session, result = {}) {
   }
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function linkedNotePanelEmptyState(target = {}) {
   return {
     title: "No linked notes yet.",
@@ -2313,6 +2918,10 @@ function linkedNotePanelEmptyState(target = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceRevisionLike} revision
+ * @param {{ includeBody?: boolean }} arg2
+ */
 function shapeRevisionForBrowser(revision = {}, { includeBody = true } = {}) {
   const shaped = stripSecureStorageFields(revision);
 
@@ -2328,16 +2937,33 @@ function shapeRevisionForBrowser(revision = {}, { includeBody = true } = {}) {
   return shaped;
 }
 
-function stripSecureStorageFields(value = {}) {
+/**
+ * @template {NotesServiceNoteLike | NotesServiceRevisionLike} T
+ * @param {T} value
+ * @returns {T}
+ */
+function stripSecureStorageFields(value) {
   const safe = { ...value };
 
-  for (const fieldName of SECURE_STORAGE_FIELDS) {
-    delete safe[fieldName];
-  }
+  delete safe.secure_payload;
+  delete safe.secure_payload_version;
+  delete safe.encrypted_data_key;
+  delete safe.encryption_key_version;
+  delete safe.encryption_algorithm;
+  delete safe.key_wrapping_algorithm;
+  delete safe.encryption_nonce;
+  delete safe.encryption_auth_tag;
+  delete safe.key_wrapping_nonce;
+  delete safe.key_wrapping_auth_tag;
+  delete safe.encrypted_at;
 
-  return safe;
+  return /** @type {T} */ (safe);
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {string} noteId
+ */
 async function readNoteOrThrow(session, noteId) {
   const note = await notesRepository.readById(session.workspace_id, noteId);
 
@@ -2348,6 +2974,9 @@ async function readNoteOrThrow(session, noteId) {
   return note;
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function notePermissionResource(note = {}) {
   return {
     client_id: note.client_id || "",
@@ -2357,7 +2986,10 @@ function notePermissionResource(note = {}) {
   };
 }
 
-/** @returns {Promise<Set<string>>} */
+/**
+ * @param {NotesServiceSession} session
+ * @param {Partial<import("../../types/http-contracts.js").PermissionResource>} resource
+ */
 async function readNotePermissionSet(session, resource = {}) {
   /** @type {Array<[string, boolean]>} */
   const entries = await Promise.all(NOTE_PERMISSION_VALUES.map(async (permissionId) => [
@@ -2373,6 +3005,9 @@ async function readNotePermissionSet(session, resource = {}) {
   return new Set(entries.filter(([, allowed]) => allowed).map(([permissionId]) => permissionId));
 }
 
+/**
+ * @param {NotesServiceSession} session
+ */
 async function readNotesModuleState(session) {
   const moduleDefinition = modulesService.getModule(NOTES_MODULE_ID);
   const workspaceType = await readNotesWorkspaceType(session);
@@ -2385,11 +3020,20 @@ async function readNotesModuleState(session) {
   };
 }
 
+/**
+ * @param {NotesServiceSession} session
+ */
 async function readNotesWorkspaceType(session) {
   const workspace = await workspacesRepository.readById(session.workspace_id);
   return normalizeWorkspaceType(workspace?.workspace_type);
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} visibility
+ * @param {{ explicit?: boolean, preserveLegacy?: boolean }} arg3
+ * @returns {Promise<string>}
+ */
 async function normalizeNoteVisibilityForWrite(session, visibility, { explicit = false, preserveLegacy = false } = {}) {
   const workspaceType = await readNotesWorkspaceType(session);
 
@@ -2409,6 +3053,9 @@ async function normalizeNoteVisibilityForWrite(session, visibility, { explicit =
   return visibility;
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ */
 async function assertNotesWriteEnabled(session) {
   if (await modulesService.canWriteModule(session.workspace_id, NOTES_MODULE_ID)) {
     return;
@@ -2417,6 +3064,10 @@ async function assertNotesWriteEnabled(session) {
   throw new AppError("This module is disabled for this workspace.", 403);
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceQuery} query
+ */
 async function normalizeNoteListQuery(session, query = {}) {
   const filters = normalizeListFilters(query);
   const workspaceType = await readNotesWorkspaceType(session);
@@ -2448,9 +3099,13 @@ async function normalizeNoteListQuery(session, query = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ * @returns {NotesServiceListFilters}
+ */
 function normalizeListFilters(query = {}) {
   return {
-    libraryBucket: normalizeOptionalListEnum(query.libraryBucket || query.library_bucket || query.library, LIBRARY_BUCKET_VALUES, "Library bucket"),
+    libraryBucket: normalizeLibraryBucketFilter(query.libraryBucket || query.library_bucket || query.library),
     status: normalizeOptionalListEnum(query.status, NOTE_STATUS_VALUES, "Note status"),
     includeDeleted: query.includeDeleted === "true" || query.include_deleted === "true",
     clientId: normalizeOptionalText(query.clientId || query.client_id),
@@ -2474,19 +3129,27 @@ function normalizeListFilters(query = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceListFilters} filters
+ */
 async function resolveCollectionListFilter(session, filters = {}) {
   return notesCollectionsService.resolveListFilter(session, {
-    libraryBucket: filters.libraryBucket || "",
+    libraryBucket: normalizeLibraryBucketFilter(filters.libraryBucket),
     noteCollectionId: filters.noteCollectionId || "",
   });
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ * @param {NotesServiceOptions} options
+ */
 function normalizeNoteListPagination(query = {}, options = {}) {
   if (!options.paginate) {
     return null;
   }
 
-  const requestedPageSize = Number.parseInt(query.limit || query.page_size || query.pageSize || "", 10);
+  const requestedPageSize = Number.parseInt(String(query.limit || query.page_size || query.pageSize || ""), 10);
   const pageSize = Math.min(
     NOTE_LIST_MAX_PAGE_SIZE,
     Math.max(1, Number.isInteger(requestedPageSize) && requestedPageSize > 0
@@ -2502,11 +3165,27 @@ function normalizeNoteListPagination(query = {}, options = {}) {
   };
 }
 
+/** @param {unknown} value @returns {NotesLibraryBucket | ""} */
+function normalizeLibraryBucketFilter(value) {
+  const bucket = normalizeOptionalListEnum(value, LIBRARY_BUCKET_VALUES, "Library bucket");
+  if (bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK || bucket === NOTE_LIBRARY_BUCKETS.ONGOING_AREA || bucket === NOTE_LIBRARY_BUCKETS.REFERENCE) {
+    return bucket;
+  }
+  return "";
+}
+
+/**
+ * @param {unknown} value
+ */
 function normalizeOffset(value) {
-  const offset = Number.parseInt(value || "", 10);
+  const offset = Number.parseInt(String(value || ""), 10);
   return Number.isInteger(offset) && offset > 0 ? offset : 0;
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ * @param {readonly string[]} keys
+ */
 function hasQueryFilter(query, keys) {
   if (!query || typeof query !== "object") {
     return false;
@@ -2515,10 +3194,16 @@ function hasQueryFilter(query, keys) {
   return keys.some((key) => Object.hasOwn(query, key));
 }
 
+/**
+ * @param {number} offset
+ */
 function encodeNoteListCursor(offset) {
   return Buffer.from(JSON.stringify({ offset: Math.max(0, Number(offset) || 0) })).toString("base64url");
 }
 
+/**
+ * @param {unknown} cursor
+ */
 function decodeNoteListCursor(cursor) {
   try {
     const parsed = JSON.parse(Buffer.from(String(cursor || ""), "base64url").toString("utf8"));
@@ -2534,17 +3219,26 @@ function decodeNoteListCursor(cursor) {
   throw new AppError("Notes list cursor is invalid.", 400);
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeNoteListSort(value) {
   const sort = normalizeOptionalText(value);
   return NOTE_LIST_SORT_MODES.has(sort) ? sort : "updated_desc";
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ */
 function normalizeResumeContextOptions(query = {}) {
   return {
-    limit: Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50),
+    limit: Math.min(Math.max(Number.parseInt(String(query.limit), 10) || 20, 1), 50),
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function isResumeContextEligibleNote(note = {}) {
   return note.library_bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK &&
     note.status === NOTE_STATUSES.ACTIVE &&
@@ -2553,12 +3247,19 @@ function isResumeContextEligibleNote(note = {}) {
     !note.deleted_at;
 }
 
+/**
+ * @param {NotesServiceNoteLike} left
+ * @param {NotesServiceNoteLike} right
+ */
 function compareNotesByUpdatedAt(left = {}, right = {}) {
   const rightTime = Date.parse(right.updated_at || right.created_at || "") || 0;
   const leftTime = Date.parse(left.updated_at || left.created_at || "") || 0;
   return rightTime - leftTime || String(left.title || "").localeCompare(String(right.title || ""));
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeIdList(value) {
   if (Array.isArray(value)) {
     return value.map(normalizeOptionalText).filter(Boolean);
@@ -2570,6 +3271,10 @@ function normalizeIdList(value) {
     .filter(Boolean);
 }
 
+/**
+ * @param {NotesServicePayload} payload
+ * @param {NotesWorkspaceSession} session
+ */
 async function normalizeNoteBulkChanges(payload = {}, session) {
   const hasLibrary = Object.hasOwn(payload, "libraryBucket") || Object.hasOwn(payload, "library_bucket");
   const hasCollection = Object.hasOwn(payload, "noteCollectionId") || Object.hasOwn(payload, "note_collection_id");
@@ -2590,6 +3295,7 @@ async function normalizeNoteBulkChanges(payload = {}, session) {
     libraryBucket = collection.library_bucket;
   }
 
+  /** @type {Partial<NotePersistenceInput>} */
   const changes = {};
   if (libraryBucket) {
     changes.library_bucket = libraryBucket;
@@ -2617,14 +3323,21 @@ async function normalizeNoteBulkChanges(payload = {}, session) {
   return changes;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeAndValidateMarkdown(value) {
   try {
-    return assertSafeMarkdown(value);
+    return assertSafeMarkdown(String(value ?? ""));
   } catch (error) {
-    throw new AppError(error.message || "Note Markdown is unsafe.", 400);
+    throw new AppError(error instanceof Error && error.message ? error.message : "Note Markdown is unsafe.", 400);
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ */
 function normalizeRequiredText(value, label) {
   const text = normalizeOptionalText(value);
 
@@ -2635,6 +3348,9 @@ function normalizeRequiredText(value, label) {
   return text;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeOptionalText(value) {
   if (value === null || value === undefined) {
     return "";
@@ -2643,6 +3359,19 @@ function normalizeOptionalText(value) {
   return String(value).trim();
 }
 
+/** @param {unknown} error */
+function readErrorStatus(error) {
+  if (!error || typeof error !== "object") return 500;
+  const status = "status" in error ? Number(error.status) : 0;
+  const statusCode = "statusCode" in error ? Number(error.statusCode) : 0;
+  return status || statusCode || 500;
+}
+
+/**
+ * @param {unknown} value
+ * @param {ReadonlySet<string>} allowedValues
+ * @param {string} label
+ */
 function normalizeOptionalListEnum(value, allowedValues, label) {
   const text = normalizeOptionalText(value);
 
@@ -2653,6 +3382,11 @@ function normalizeOptionalListEnum(value, allowedValues, label) {
   return normalizeEnum(text, allowedValues, label);
 }
 
+/**
+ * @param {unknown} value
+ * @param {ReadonlySet<string>} allowedValues
+ * @param {string} label
+ */
 function normalizeEnum(value, allowedValues, label) {
   const text = normalizeOptionalText(value);
 
@@ -2663,6 +3397,9 @@ function normalizeEnum(value, allowedValues, label) {
   return text;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeScopeRole(value) {
   const text = normalizeOptionalText(value) || "related";
 
@@ -2673,6 +3410,9 @@ function normalizeScopeRole(value) {
   return text;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeMetadata(value) {
   if (typeof value === "string") {
     try {
@@ -2685,7 +3425,10 @@ function normalizeMetadata(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-/** @param {NoteRecord | null} [previousNote] */
+/**
+ * @param {NotesServicePayload} payload
+ * @param {NotesServiceNoteLike | null} previousNote
+ */
 function normalizeImportMetadata(payload = {}, previousNote = null) {
   return Object.fromEntries(NOTE_IMPORT_METADATA_FIELDS.map((fieldName) => [
     fieldName,
@@ -2693,17 +3436,29 @@ function normalizeImportMetadata(payload = {}, previousNote = null) {
   ]));
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function copyImportMetadata(note = {}) {
   return Object.fromEntries(NOTE_IMPORT_METADATA_FIELDS.map((fieldName) => [fieldName, note[fieldName] || null]));
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} note
+ */
 async function assertNoteCollectionAccess(session, note) {
+  const libraryBucket = normalizeLibraryBucketFilter(note.library_bucket);
+  if (!libraryBucket) throw new AppError("Note library bucket is required.", 400);
   await notesCollectionsService.assertNoteAssignment(session, {
-    library_bucket: note.library_bucket,
+    library_bucket: libraryBucket,
     note_collection_id: normalizeOptionalText(note.note_collection_id) || null,
   });
 }
 
+/**
+ * @param {NotesServiceQuery} query
+ */
 function normalizeLinkedNotePanelOptions(query = {}) {
   const sort = normalizeOptionalText(query.sort || query.sortMode || query.sort_mode) || "updated";
 
@@ -2712,6 +3467,10 @@ function normalizeLinkedNotePanelOptions(query = {}) {
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike[]} notes
+ * @param {string} sortMode
+ */
 function sortLinkedNotePanelNotes(notes = [], sortMode = "updated") {
   return [...notes].sort((left, right) => {
     if (sortMode === "title") {
@@ -2730,36 +3489,58 @@ function sortLinkedNotePanelNotes(notes = [], sortMode = "updated") {
   });
 }
 
+/**
+ * @param {NotesServiceNoteLike} left
+ * @param {NotesServiceNoteLike} right
+ */
 function comparePinnedDesc(left = {}, right = {}) {
   return Number(Boolean(right.metadata?.pinned || right.metadata?.pinned_at)) -
     Number(Boolean(left.metadata?.pinned || left.metadata?.pinned_at));
 }
 
+/**
+ * @param {NotesServiceNoteLike} left
+ * @param {NotesServiceNoteLike} right
+ */
 function compareUpdatedDesc(left = {}, right = {}) {
   return String(right.updated_at || right.created_at || "").localeCompare(String(left.updated_at || left.created_at || ""));
 }
 
+/**
+ * @param {unknown} left
+ * @param {unknown} right
+ */
 function compareText(left, right) {
   return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
 }
 
+/**
+ * @param {string | undefined} noteId
+ */
 function noteSourceUrl(noteId) {
   return `notes.html?note=${encodeURIComponent(noteId || "")}`;
 }
 
+/**
+ * @param {NotesServiceTarget} target
+ */
 function targetSourceUrl(target = {}) {
   const targetId = encodeURIComponent(target.target_id || "");
-  return {
-    workspace: "dashboard.html",
-    client: "clients.html",
-    list: `lists.html?list=${targetId}`,
-    note: noteSourceUrl(target.target_id || ""),
-    project: "projects.html",
-    task: `tasks.html?task=${targetId}`,
-    user: "settings.html",
-  }[target.target_type] || "";
+  switch (target.target_type) {
+    case "workspace": return "dashboard.html";
+    case "client": return "clients.html";
+    case "list": return `lists.html?list=${targetId}`;
+    case "note": return noteSourceUrl(target.target_id || "");
+    case "project": return "projects.html";
+    case "task": return `tasks.html?task=${targetId}`;
+    case "user": return "settings.html";
+    default: return "";
+  }
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function createSearchIndexPayload(note = {}) {
   if (
     !canExposeNoteToConsumer(note, "notes.search") ||
@@ -2798,6 +3579,11 @@ function createSearchIndexPayload(note = {}) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} noteId
+ * @param {string} reason
+ */
 async function syncNoteSearchIndex(workspaceId, noteId, reason) {
   await searchIndexSyncService.reindexRecord({
     workspaceId,
@@ -2808,6 +3594,14 @@ async function syncNoteSearchIndex(workspaceId, noteId, reason) {
   });
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {string} action
+ * @param {string} changeType
+ * @param {NotesServiceAuditValue | null} previousValue
+ * @param {NotesServiceAuditValue | null} newValue
+ * @param {string} recordType
+ */
 async function recordNoteAudit(session, action, changeType, previousValue, newValue, recordType = "note") {
   const noteValue = newValue?.note_id ? newValue : previousValue?.note_id ? previousValue : null;
   const protectedContent = noteValue ? isEffectivelySecureNote(noteValue) : false;
@@ -2843,6 +3637,11 @@ async function recordNoteAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+/**
+ * @param {NotesServiceSession} session
+ * @param {NotesServiceNoteLike} note
+ * @param {unknown} error
+ */
 async function recordSecureDecryptFailure(session, note, error) {
   await auditService.record({
     session,
@@ -2864,11 +3663,20 @@ async function recordSecureDecryptFailure(session, note, error) {
         visibility: note.visibility,
         security_mode: note.security_mode,
       }),
-      reason: error?.code || "secure_note_decrypt_failed",
+      reason: error && typeof error === "object" && "code" in error
+        ? String(error.code || "secure_note_decrypt_failed")
+        : "secure_note_decrypt_failed",
     },
   });
 }
 
+/**
+ * @param {string} eventName
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike | null} previousValue
+ * @param {NotesServiceNoteLike | null} newValue
+ * @param {NotesServiceEventMetadata} metadata
+ */
 async function emitNoteEvent(eventName, session, previousValue, newValue, metadata = {}) {
   const note = newValue || previousValue || {};
   const protectedContent = !canExposeNoteToConsumer(note, "notes.notifications");
@@ -2880,7 +3688,7 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
     recordId: note.note_id,
     previousValue: safeAuditValue(previousValue),
     newValue: safeAuditValue(newValue),
-    source: session?.api_key_id ? "public_api" : "manual",
+    source: "api_key_id" in session && session.api_key_id ? "public_api" : "manual",
     metadata: {
       ...sanitizeNoteLifecyclePayload({
         workspace_id: session.workspace_id,
@@ -2910,6 +3718,11 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
   });
 }
 
+/**
+ * @param {string} eventName
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} note
+ */
 function noteOwnerNotificationRecipients(eventName, session, note = {}) {
   if (eventName !== "note.updated") {
     return [];
@@ -2924,6 +3737,11 @@ function noteOwnerNotificationRecipients(eventName, session, note = {}) {
   return [ownerUserId];
 }
 
+/**
+ * @param {NotesWorkspaceSession} session
+ * @param {NotesServiceNoteLike} previousNote
+ * @param {NotesServiceNoteLike} nextNote
+ */
 async function emitChangeEvents(session, previousNote, nextNote) {
   const changes = describeRevisionChanges(previousNote, nextNote);
   const changedFields = new Set(changes.map((change) => change.field));
@@ -2941,6 +3759,9 @@ async function emitChangeEvents(session, previousNote, nextNote) {
   }
 }
 
+/**
+ * @param {NotesServiceAuditValue | null | undefined} value
+ */
 function safeAuditValue(value) {
   if (!value) {
     return value;
@@ -2975,6 +3796,10 @@ function safeAuditValue(value) {
   return safeValue;
 }
 
+/**
+ * @param {NotesServiceNoteLike} previousNote
+ * @param {NotesServiceNoteLike} nextNote
+ */
 function noteSecurityWasPreservedOnMove(previousNote = {}, nextNote = {}) {
   return previousNote.note_collection_id !== nextNote.note_collection_id &&
     previousNote.security_mode !== NOTE_SECURITY_MODES.SECURE &&
@@ -2982,6 +3807,12 @@ function noteSecurityWasPreservedOnMove(previousNote = {}, nextNote = {}) {
     nextNote.security_mode === NOTE_SECURITY_MODES.SECURE;
 }
 
+/**
+ * @param {NotesServicePayload} payload
+ * @param {keyof NotesServicePayload} camelField
+ * @param {keyof NotesServicePayload} snakeField
+ * @param {unknown} fallback
+ */
 function normalizeNullablePayloadText(payload = {}, camelField, snakeField, fallback = "") {
   if (Object.hasOwn(payload, camelField)) {
     return normalizeOptionalText(payload[camelField]);
@@ -2992,6 +3823,9 @@ function normalizeNullablePayloadText(payload = {}, camelField, snakeField, fall
   return normalizeOptionalText(fallback);
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function copySecureEncryptionFields(note = {}) {
   return {
     secure_payload: note.secure_payload || null,
@@ -3024,6 +3858,9 @@ function clearSecureEncryptionFields() {
   };
 }
 
+/**
+ * @param {NotesServiceNoteLike} note
+ */
 function renderNoteBodyHtml(note = {}) {
   if (isEffectivelySecureNote(note) && !note.secure_body_decrypted) {
     return "";
@@ -3036,6 +3873,9 @@ function renderNoteBodyHtml(note = {}) {
   }
 }
 
+/**
+ * @param {string} reason
+ */
 function noteAccessMessage(reason) {
   return {
     archived_read_only: "Archived notes are read-only until restored.",
