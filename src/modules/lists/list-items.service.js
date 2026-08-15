@@ -13,7 +13,7 @@ import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { AppError } from "../../core/errors.js";
 
 /** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
-/** @typedef {import("../../types/lists-item-contracts.js").ListsCatalogItemRecord} ListsCatalogItemRecord */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemCatalogSnapshot} ListsItemCatalogSnapshot */
 /** @typedef {import("../../types/lists-item-contracts.js").ListsItemAggregateDependencies} ListsItemAggregateDependencies */
 /** @typedef {import("../../types/lists-item-contracts.js").ListsItemAggregateService} ListsItemAggregateService */
 /** @typedef {import("../../types/lists-item-contracts.js").ListsItemListRecord} ListsItemListRecord */
@@ -50,19 +50,18 @@ function createListItemsService(dependencies) {
     }));
 
     if (isTrue(payload.save_to_catalog) || isTrue(payload.saveToCatalog)) {
-      await dependencies.assertCanManageCatalog(session);
-      const createdCatalog = await dependencies.createValidatedCatalogItem({
+      const createdCatalog = await dependencies.catalogItems.createFromListItem({
         ...item,
         client_id: listRecord.client_id || "",
         list_type: listRecord.list_type,
         project_id: listRecord.project_id || "",
       }, session);
-      item.catalog_item_id = asCatalogItemRecord(createdCatalog.catalogItem).catalog_item_id;
+      item.catalog_item_id = createdCatalog.catalog_item_id;
     }
 
     const storedItem = asItemRecord(await dependencies.repository.createItem(session.workspace_id, item));
     if (storedItem.catalog_item_id) {
-      await dependencies.repository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
+      await dependencies.catalogItems.recordUsage(storedItem.catalog_item_id, session);
     }
     await dependencies.recordItemAudit(session, "list_item_created", "create", null, storedItem, listRecord);
     await dependencies.emitItemEvent("lists.item.created", session, null, storedItem, listRecord);
@@ -89,7 +88,7 @@ function createListItemsService(dependencies) {
 
     const storedItem = asItemRecord(await dependencies.repository.updateItem(session.workspace_id, normalized));
     if (catalogItem && storedItem.catalog_item_id) {
-      await dependencies.repository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
+      await dependencies.catalogItems.recordUsage(storedItem.catalog_item_id, session);
     }
     await dependencies.recordItemAudit(session, "list_item_updated", "update", item, storedItem, listRecord);
     await dependencies.emitItemEvent("lists.item.updated", session, item, storedItem, listRecord);
@@ -275,10 +274,9 @@ function createListItemsService(dependencies) {
     };
   }
 
-  /** @param {Record<string, unknown>} payload @param {WorkspaceRequestSession} session @returns {Promise<ListsCatalogItemRecord | null>} */
+  /** @param {Record<string, unknown>} payload @param {WorkspaceRequestSession} session @returns {Promise<ListsItemCatalogSnapshot | null>} */
   async function resolveCatalogItemSnapshot(payload, session) {
-    const catalogItemId = normalizeOptionalText(payload.catalog_item_id || payload.catalogItemId);
-    return catalogItemId ? asCatalogItemRecord(await dependencies.readCatalogItemOrThrow(session, catalogItemId)) : null;
+    return dependencies.catalogItems.readSnapshot(payload, session);
   }
 
   return Object.freeze({
@@ -317,7 +315,7 @@ function normalizeOptionalText(value) {
   return value === null || value === undefined ? "" : String(value).trim();
 }
 
-/** @param {ListsCatalogItemRecord} catalogItem */
+/** @param {ListsItemCatalogSnapshot} catalogItem */
 function catalogItemToItemFallback(catalogItem) {
   return {
     catalog_item_id: catalogItem.catalog_item_id,
@@ -342,14 +340,6 @@ function asListRecord(value) {
     throw new AppError("List persistence result is invalid.", 500);
   }
   return /** @type {ListsItemListRecord} */ (value);
-}
-
-/** @param {unknown} value @returns {ListsCatalogItemRecord} */
-function asCatalogItemRecord(value) {
-  if (!isRecord(value) || typeof value.catalog_item_id !== "string") {
-    throw new AppError("List catalog persistence result is invalid.", 500);
-  }
-  return /** @type {ListsCatalogItemRecord} */ (value);
 }
 
 /** @param {unknown} value @returns {ListsItemRecord} */

@@ -4,7 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 
-const [listItemsServiceSource, listItemsTypesSource, listsServiceSource] = await Promise.all([
+const [catalogItemsServiceSource, catalogItemsTypesSource, listItemsServiceSource, listItemsTypesSource, listsServiceSource] = await Promise.all([
+  fs.readFile(new URL("../src/modules/lists/catalog-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-catalog-item-contracts.d.ts", import.meta.url), "utf8"),
   fs.readFile(new URL("../src/modules/lists/list-items.service.js", import.meta.url), "utf8"),
   fs.readFile(new URL("../src/types/lists-item-contracts.d.ts", import.meta.url), "utf8"),
   fs.readFile(new URL("../src/modules/lists/lists.service.js", import.meta.url), "utf8"),
@@ -42,12 +44,20 @@ try {
 }
 
 async function assertManifestContracts() {
+  assert.match(catalogItemsServiceSource, /^\/\/ @ts-check/m, "the extracted catalog-item aggregate should remain checked");
+  assert.match(catalogItemsServiceSource, /function createCatalogItemsService\(dependencies\)/, "Lists should expose one typed catalog aggregate factory");
+  assert.match(catalogItemsServiceSource, /listCatalogSuggestions[\s\S]*normalizeSuggestionLimit[\s\S]*normalizeCatalogName/, "catalog ranking should remain repository-owned behind normalized suggestion inputs");
+  assert.match(catalogItemsServiceSource, /readCatalogItemOrThrow[\s\S]*archived_at[\s\S]*Catalog item not found/, "catalog snapshots should reject archived rows");
+  assert.match(catalogItemsTypesSource, /interface ListsCatalogAggregateService[\s\S]*createFromListItem[\s\S]*readSnapshot[\s\S]*recordUsage[\s\S]*suggestItems/, "the catalog seam should declare explicit list-item orchestration and suggestion contracts");
   assert.match(listItemsServiceSource, /^\/\/ @ts-check/m, "the extracted list-item aggregate should remain checked");
   assert.match(listItemsServiceSource, /function createListItemsService\(dependencies\)/, "Lists should expose one typed item aggregate factory");
   assert.match(listItemsServiceSource, /repository\.reorderItems[\s\S]*recordListAudit[\s\S]*emitListEvent/, "item reordering should retain repository transaction, audit, and event owners");
   assert.match(listItemsServiceSource, /assertCanManageItem[\s\S]*repository\.updateItem[\s\S]*recordItemAudit[\s\S]*emitItemEvent/, "item lifecycle transitions should retain permission, repository, audit, and event owners");
   assert.match(listItemsServiceSource, /readProgressSummaries[\s\S]*listItemsForLists/, "item progress should retain one batched repository read");
   assert.match(listItemsTypesSource, /interface ListsItemAggregateService[\s\S]*createItem[\s\S]*readProgressSummaries[\s\S]*reorderItems/, "the aggregate seam should declare mutation and progress contracts");
+  assert.match(listItemsServiceSource, /catalogItems\.recordUsage[\s\S]*catalogItems\.readSnapshot/, "the list-item aggregate should consume catalog snapshots and usage only through explicit Lists orchestration");
+  assert.doesNotMatch(listItemsServiceSource, /repository\.incrementCatalogUsage|readCatalogItemById|listCatalogSuggestions/, "the list-item aggregate should not reach through the catalog repository boundary");
+  assert.match(listsServiceSource, /const catalogItemsService = createCatalogItemsService\([\s\S]*repository: listsRepository[\s\S]*catalogItems: catalogItemsService/, "the route-facing Lists service should compose independent catalog and item aggregates");
   assert.match(listsServiceSource, /const listItemsService = createListItemsService\([\s\S]*repository: listsRepository/, "the route-facing Lists service should compose the extracted aggregate with the established repository");
   assert.match(listsServiceSource, /function createItem\([\s\S]*listItemsService\.createItem[\s\S]*function updateItem\([\s\S]*listItemsService\.updateItem/, "the public Lists facade should delegate item writes without changing its API");
 

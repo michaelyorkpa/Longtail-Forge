@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.18.3 - Extract the Lists catalog-item aggregate
+
+**Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
+
+- [x] Extracted catalog-item create/update lifecycle, normalized context, deterministic suggestion inputs, archived-safe snapshot reads, and usage recording behind the checked `createCatalogItemsService(...)` aggregate and declaration-owned contracts.
+- [x] Preserved repository-owned archived filtering and stable ranking, Business client/project context validation, nullable persistence values, snapshot immutability, safe audit/events, and catalog-link usage lifecycle through the unchanged route-facing Lists API.
+- [x] Kept catalog-item contracts independent from the list-item aggregate; the item seam now consumes only explicit Lists-owned create-from-item, read-snapshot, and record-usage orchestration instead of catalog repository operations.
+- [x] Proved the extraction through retained Lists service, catalog/repository, full-strict, and 409-check permission owners; the combined strict ledger falls from 24,018 to 23,947 diagnostics, regression coverage rises to 18,816 assertions across 347 scripts, and `0.33.33.18.4` remains next.
+
 ## Version 0.33.33.18.2 - Extract the Lists list-item aggregate
 
 **Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
