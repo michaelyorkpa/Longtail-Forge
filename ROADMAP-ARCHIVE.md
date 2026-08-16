@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.21.3 - Finish Tasks strict typing
+
+**Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
+
+- [x] Typed the remaining Tasks service, primary repository, routes, contracts, events, public API, link-target provider, reminder adapter, and Search indexer surfaces under full strict through precise server, status, workflow, recurrence, and list-engine contracts.
+- [x] Preserved completion, recurrence, reminder, timer, checklist, relationship, blocking, resume-context, canonical server-side query, and permission behavior through the retained Tasks, Workbench, Time Tracking, calendar-feed, lifecycle, hot-endpoint, and permission owners.
+- [x] Added positive and negative compiler fixtures, pinned every `src/modules/tasks/` server owner strict-clean and free of explicit `any`, expanded the compiler universe to 1,024 files and 24 declarations, and lowered combined strict debt from 22,328 to 21,591 diagnostics.
+- [x] Closed the final `0.33.33.21` numeric child and its parent rollup; `0.33.33.22.1` is now the active implementation checkpoint.
+
 ## Version 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
 
 **Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
