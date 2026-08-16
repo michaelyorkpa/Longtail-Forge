@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.21.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.22.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.22.1, `src/repositories/files.repo.js` owns Files SQL, dynamic filters, dialect-specific comparisons and conflict handling, lifecycle writes, named row projections, and the transaction-scoped persistence operations supplied by `files.service.js`. The service retains permission and policy orchestration, lifecycle events, storage-provider and scanner behavior, response shaping, and explicit transaction ownership; it contains no inline SQL or direct query execution. `files-repository-contracts.d.ts` names the repository rows, `framework.full-strict-governance` pins the repository and its contracts strict-clean and free of explicit `any`, and the retained 32-script Files area plus the permission harness preserve paging, attachment, lifecycle, quota, reporting, provider, and not-found behavior. This checkpoint expands the compiler universe to 1,025 files and 25 declarations while lowering combined strict debt from 21,591 to 21,585 diagnostics; the explicit-`any` inventory remains 10.
 
 As of 0.33.33.21.3, every Tasks server owner is strict-clean. The remaining service, primary repository, routes, edge contracts, events, public API, link-target and Search adapters now consume `task-server-contracts.d.ts`, `task-status-contracts.d.ts`, and the established Tasks workflow, recurrence, list-engine, and framework contracts without weakening lifecycle, permission, query-authority, recurrence, reminder, or integration behavior. The new `task-server-contracts.fixture.mjs` proves accepted repository/service calls and rejects malformed writes and incomplete sessions; `framework.full-strict-governance` pins the complete `src/modules/tasks/` owner set at zero diagnostics and zero explicit `any`. This checkpoint expands the compiler universe to 1,024 files and 24 declarations while lowering combined strict debt from 22,328 to 21,591 diagnostics and closes the `0.33.33.21` Tasks rollup.
 
@@ -299,11 +301,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18209 |
+| Active regression assertions | 18225 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18878 |
+| Effective assertion floor | 18894 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

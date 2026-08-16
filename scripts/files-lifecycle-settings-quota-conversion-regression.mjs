@@ -14,6 +14,7 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Lifecycle-Settings-Quota-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
@@ -41,89 +42,102 @@ try {
 
 function assertStaticContract() {
 
-  assert.match(filesServiceSource, /import \{ db \} from "\.\.\/core\/database\.js";/, "Files service should import only the provider-neutral db facade");
+  assert.match(filesServiceSource, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should delegate persistence to the Files repository");
+  assert.match(filesRepositorySource, /import \{ db \} from "\.\.\/core\/database\.js";/, "Files repository should import only the provider-neutral db facade");
   assert.doesNotMatch(filesServiceSource, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "Files service should be fully off literal helpers and compatibility query wrappers");
+  assert.doesNotMatch(filesServiceSource, /\bdb\.(?:query|get|run|dialect)\b|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/, "Files service should keep SQL and dialect query construction in the repository");
 
-  assertFunctionUsesNamedParams("removeAttachment", [
-    /await db\.run\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "removeAttachment", [
+    /db\.run\(`/,
     /SET removed_at = :removedAt/,
     /file_attachment_id = :attachmentId/,
   ]);
-  assertFunctionUsesNamedParams("deleteFile", [
-    /await db\.run\(`/,
-    /SET status = :fileStatus/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "softDeleteFile", [
+    /db\.run\(`/,
+    /SET status = 'deleted'/,
     /deleted_at = :deletedAt/,
     /metadata_json = :metadataJson/,
   ]);
-  assertFunctionUsesNamedParams("restoreFile", [
-    /await db\.run\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "restoreFile", [
+    /db\.run\(`/,
     /SET status = :fileStatus/,
     /deleted_at = NULL/,
     /metadata_json = :metadataJson/,
   ]);
-  assertFunctionUsesNamedParams("markQuarantinedFileReviewed", [
-    /await db\.run\(`/,
-    /SET status = :fileStatus/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "markQuarantinedFileReviewed", [
+    /db\.run\(`/,
+    /SET status = 'available'/,
     /quarantine_reason = NULL/,
   ]);
-  assertFunctionUsesNamedParams("readStorageAccounting", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readStorageAccounting", [
     /const conditions = \["workspace_id = :workspaceId"\]/,
-    /const rows = await db\.query\(`/,
+    /await db\.query\(`/,
     /storage_kind = :storageKind/,
   ]);
-  assertFunctionUsesNamedParams("recordExternalStorageAccounting", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "upsertExternalStorageAccounting", [
     /db\.dialect\.conflict\.buildInsertOnConflictDoUpdate/,
     /tableName: "file_storage_accounting"/,
     /external_reported_bytes: ":externalReportedBytes"/,
   ]);
-  assertFunctionUsesNamedParams("saveWorkspaceFileSettings", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "saveWorkspaceFileSettings", [
     /db\.dialect\.conflict\.buildInsertOnConflictDoUpdate/,
     /tableName: "file_workspace_settings"/,
     /internal_storage_limit_bytes: ":internalStorageLimitBytes"/,
     /per_user_storage_limit_bytes: ":perUserStorageLimitBytes"/,
   ]);
-  assertFunctionUsesNamedParams("reportFile", [
+  assertFunctionUsesNamedParams(filesServiceSource, "reportFile", [
     /await db\.transaction\(async \(transaction\) => \{/,
-    /await transaction\.run\(`/,
-    /INSERT INTO file_reports/,
-    /UPDATE files/,
-    /status != :deletedStatus/,
+    /filesRepo\.createFileReport\(transaction/,
+    /filesRepo\.markFileReported\(transaction/,
   ]);
-  assertFunctionUsesNamedParams("quarantineFile", [
-    /await db\.run\(`/,
-    /SET status = :fileStatus/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "createFileReport", [
+    /transaction\.run\(`/,
+    /INSERT INTO file_reports/,
+  ]);
+  assertFunctionUsesNamedParams(filesRepositorySource, "markFileReported", [
+    /UPDATE files/,
+    /status != 'deleted'/,
+  ]);
+  assertFunctionUsesNamedParams(filesRepositorySource, "quarantineFile", [
+    /db\.run\(`/,
+    /SET status = 'quarantined'/,
     /quarantine_reason = :quarantineReason/,
   ]);
-  assertFunctionUsesNamedParams("createFileRecord", [
-    /await db\.run\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "createFile", [
+    /db\.run\(`/,
     /INSERT INTO files/,
     /:storageProvider/,
     /:metadataJson/,
   ]);
-  assertFunctionUsesNamedParams("refreshStorageAccounting", [
+  assertFunctionUsesNamedParams(filesServiceSource, "refreshStorageAccounting", [
     /await db\.transaction\(async \(transaction\) => \{/,
+    /filesRepo\.replaceInternalStorageAccounting\(transaction/,
+  ]);
+  assertFunctionUsesNamedParams(filesRepositorySource, "replaceInternalStorageAccounting", [
     /DELETE FROM file_storage_accounting/,
     /status IN \(:storageStatuses\)/,
   ]);
-  assertFunctionUsesNamedParams("scanFile", [
-    /await db\.run\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "updateScanResult", [
+    /db\.run\(`/,
     /scan_status = :scanStatus/,
     /quarantine_reason = :quarantineReason/,
   ]);
-  assertFunctionUsesNamedParams("attachFile", [
-    /await db\.run\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "createAttachment", [
+    /db\.run\(`/,
     /INSERT INTO file_attachments/,
     /:attachmentRole/,
     /:metadataJson/,
   ]);
-  assertFunctionUsesNamedParams("readInternalStorageQuotaUsage", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readInternalStorageQuotaUsage", [
+    /db\.get\(`/,
     /uploaded_by_user_id = :userId/,
     /status IN \(:storageStatuses\)/,
   ]);
-  assertFunctionUsesNamedParams("readWorkspaceFileSettingsForWorkspace", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readWorkspaceFileSettings", [
+    /db\.get\(`/,
     /WHERE workspace_id = :workspaceId/,
+  ]);
+  assertFunctionUsesNamedParams(filesRepositorySource, "createWorkspaceFileSettingsIfMissing", [
     /db\.dialect\.conflict\.buildInsertOrIgnore/,
   ]);
 
@@ -135,8 +149,9 @@ function assertStaticContract() {
   assert.match(changelog, /## Version 0\.33\.5\.27\.20 - [\s\S]*Files lifecycle, settings, quota, and accounting conversion[\s\S]*586 helper invocations[\s\S]*123 direct interpolated operation sites[\s\S]*231 bound operation sites/, "changelog should record the Files lifecycle/settings/quota conversion burndown");
   }
 
-function assertFunctionUsesNamedParams(functionName, patterns) {
-  const block = functionBlock(filesServiceSource, functionName);
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+function assertFunctionUsesNamedParams(source, functionName, patterns) {
+  const block = functionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
