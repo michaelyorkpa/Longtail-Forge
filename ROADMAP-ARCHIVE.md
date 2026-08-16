@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
+
+**Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
+
+- [x] Typed the checklist, relationship, reminder, and timer repositories plus the remaining reminder, timer, settings, work-evidence, and private-calendar-feed owners under full strict; the recurrence calendar and job owners remain strict-clean behind their checkpoint 0.33.33.19 contracts.
+- [x] Reused the recurrence, filter/sort, and block/recover seams through one named `task-workflow-contracts.d.ts` boundary exposed by the imported repositories and services to the main Tasks orchestrator without new deep imports.
+- [x] Preserved checklist and relationship transactions and ordering, reminder inheritance and timezone occurrence calculation, timer lifecycle and evidence rules, queue behavior, private-feed authorization scope, and existing permission boundaries through the retained 34-script Tasks area.
+- [x] Expanded the compiler universe to 1,023 files and 22 declarations, pinned eleven new owners strict-clean and free of explicit `any`, and lowered combined strict debt from 22,511 to 22,328 diagnostics; `0.33.33.21.3` remains next.
+
 ## Version 0.33.33.21.1 - Extract the Tasks block/recover state machine
 
 **Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.

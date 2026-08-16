@@ -348,6 +348,7 @@
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
+        "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
@@ -369,7 +370,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 2105,
+      "errorCount": 1924,
       "diagnostics": {
         "src/config.js": [
           {
@@ -535,12 +536,6 @@
             "count": 1
           }
         ],
-        "src/modules/tasks/private-calendar-feed.provider.js": [
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
         "src/modules/tasks/public-api.routes.js": [
           {
             "code": 7006,
@@ -558,74 +553,6 @@
           }
         ],
         "src/modules/tasks/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/task-checklists.repo.js": [
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 32
-          }
-        ],
-        "src/modules/tasks/task-relationships.repo.js": [
-          {
-            "code": 7006,
-            "count": 38
-          }
-        ],
-        "src/modules/tasks/task-reminders.repo.js": [
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/task-reminders.service.js": [
-          {
-            "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/task-timers.repo.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/tasks/task-timers.service.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7031,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/task-work-evidence.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/tasks-settings.service.js": [
           {
             "code": 7006,
             "count": 3
@@ -681,10 +608,6 @@
           {
             "code": 2339,
             "count": 79
-          },
-          {
-            "code": 2345,
-            "count": 1
           },
           {
             "code": 2551,
@@ -4061,7 +3984,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9272,
+      "errorCount": 9270,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -10284,7 +10207,7 @@
         "scripts/task-recurrence-reminders-repository-conversion-regression.mjs": [
           {
             "code": 7006,
-            "count": 4
+            "count": 2
           }
         ],
         "scripts/task-relationships-regression.mjs": [
@@ -11029,8 +10952,8 @@
     }
   },
   "totals": {
-    "files": 1022,
-    "errors": 22511,
+    "files": 1023,
+    "errors": 22328,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -11047,11 +10970,13 @@
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",
+    "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
+    "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
     "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16"
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 21,
+    "firstPartyFiles": 22,
     "errors": 0
   }
 }

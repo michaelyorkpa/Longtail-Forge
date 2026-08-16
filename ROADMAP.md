@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
-
-**Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
-
-- [ ] Type remaining Tasks repositories and ancillary checklist, relationship, reminder, timer, job, calendar, feed, settings, and work-evidence services under full strict.
-- [ ] Reuse the recurrence, filter/sort, and block/recover seams established by the preceding checkpoints.
-- [ ] Preserve transactions, ordering, timezones, queue behavior, private-feed safety, and permission scope.
-- [ ] Expose named contracts to the main Tasks service instead of broad inferred containers or deep imports.
-
 ### 0.33.33.21.3 - Finish Tasks strict typing
 
 **Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.

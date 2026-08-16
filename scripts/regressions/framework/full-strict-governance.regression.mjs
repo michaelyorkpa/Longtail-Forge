@@ -58,9 +58,11 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
   "tests/typecheck/precise-service-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 21, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 22, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -149,6 +151,22 @@ for (const strictCleanPath of [
 ]) {
   assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.19`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.19`);
+}
+for (const strictCleanPath of [
+  "src/modules/tasks/private-calendar-feed.provider.js",
+  "src/modules/tasks/task-checklists.repo.js",
+  "src/modules/tasks/task-relationships.repo.js",
+  "src/modules/tasks/task-reminders.repo.js",
+  "src/modules/tasks/task-reminders.service.js",
+  "src/modules/tasks/tasks-settings.service.js",
+  "src/modules/tasks/task-timers.repo.js",
+  "src/modules/tasks/task-timers.service.js",
+  "src/modules/tasks/task-work-evidence.service.js",
+  "src/types/task-workflow-contracts.d.ts",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);
 }
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
   filePath.startsWith("src/core/") ||
