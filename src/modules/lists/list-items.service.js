@@ -206,7 +206,7 @@ function createListItemsService(dependencies) {
     return { item, listRecord };
   }
 
-  /** @param {WorkspaceRequestSession} session @param {ListsItemListRecord} listRecord */
+  /** @param {{ workspace_id: string }} session @param {ListsItemListRecord} listRecord */
   async function readProgressSummary(session, listRecord) {
     const items = listRecord.list_id
       ? asItemRecords(await dependencies.repository.listItems(session.workspace_id, listRecord.list_id, { includeDeleted: false }))
@@ -214,7 +214,7 @@ function createListItemsService(dependencies) {
     return progressSummaryFromItems(listRecord, items);
   }
 
-  /** @param {WorkspaceRequestSession} session @param {ListsItemProgressBatch} batch */
+  /** @param {{ workspace_id: string }} session @param {ListsItemProgressBatch} batch */
   async function readProgressSummaries(session, batch) {
     /** @type {Map<string, ListsItemProgressSummary>} */
     const progressByListId = new Map(batch.records.map((listRecord) => [

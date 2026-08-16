@@ -1,15 +1,7 @@
 import type { WorkspaceRequestSession } from "./http-contracts.js";
+import type { ListsRecord } from "./lists-domain-contracts.js";
 
-export interface ListsItemListRecord extends Record<string, unknown> {
-  list_id: string;
-  workspace_id: string;
-  client_id?: string | null;
-  project_id?: string | null;
-  title?: string;
-  status?: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
+export interface ListsItemListRecord extends ListsRecord {}
 
 export interface ListsItemRecord extends Record<string, unknown> {
   list_item_id: string;
@@ -17,7 +9,7 @@ export interface ListsItemRecord extends Record<string, unknown> {
   list_id: string;
   catalog_item_id?: string | null;
   item_name: string;
-  quantity?: number;
+  quantity?: number | null;
   unit?: string | null;
   needed_by_date?: string | null;
   vendor_name?: string | null;
@@ -38,6 +30,7 @@ export interface ListsItemRecord extends Record<string, unknown> {
   created_at?: string | null;
   updated_at?: string | null;
   deleted_at?: string | null;
+  metadata_json?: Record<string, unknown>;
 }
 
 export interface ListsItemCatalogSnapshot extends Record<string, unknown> {
@@ -45,7 +38,7 @@ export interface ListsItemCatalogSnapshot extends Record<string, unknown> {
   item_name?: string;
   estimated_cost?: number | null;
   notes?: string | null;
-  quantity?: number;
+  quantity?: number | null;
   unit?: string | null;
   url?: string | null;
   vendor_name?: string | null;
@@ -111,8 +104,8 @@ export interface ListsItemAggregateService {
   createItem(listId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<{ item: ListsItemRecord & { id: string } }>;
   deleteItem(listId: string, itemId: string, session: WorkspaceRequestSession): Promise<{ item: ListsItemRecord & { id: string } }>;
   progressSummaryFromItems(list: ListsItemListRecord, items: ListsItemRecord[]): ListsItemProgressSummary;
-  readProgressSummaries(session: WorkspaceRequestSession, batch: ListsItemProgressBatch): Promise<Map<string, ListsItemProgressSummary>>;
-  readProgressSummary(session: WorkspaceRequestSession, list: ListsItemListRecord): Promise<ListsItemProgressSummary>;
+  readProgressSummaries(session: { workspace_id: string }, batch: ListsItemProgressBatch): Promise<Map<string, ListsItemProgressSummary>>;
+  readProgressSummary(session: { workspace_id: string }, list: ListsItemListRecord): Promise<ListsItemProgressSummary>;
   reorderItems(listId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<{ items: Array<ListsItemRecord & { id: string }> }>;
   uncheckItem(listId: string, itemId: string, session: WorkspaceRequestSession): Promise<{ item: ListsItemRecord & { id: string } }>;
   updateItem(listId: string, itemId: string, rawPayload: unknown, session: WorkspaceRequestSession): Promise<{ item: ListsItemRecord & { id: string } }>;

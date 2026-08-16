@@ -1,7 +1,14 @@
+// @ts-check
 import {
   LIST_MODULE_ID,
   LIST_STATUSES,
 } from "./storage-contract.js";
+
+/** @typedef {Record<string, unknown> & { workspace_id?: string, client_id?: string | null, project_id?: string | null, list_id?: string, list_item_id?: string, list_link_id?: string, catalog_item_id?: string | null, status?: string, deleted_at?: string | null, title?: string, item_name?: string, list_type?: string | null, purchase_status?: string, link_role?: string, module_id?: string, target_type?: string, target_id?: string, source_url?: string, total_item_count?: number, checked_item_count?: number, completed_item_count?: number, next_unchecked_item_label?: string, earliest_needed_by_date?: string, last_activity_at?: string, timestamp?: string, reason?: string, actor_user_id?: string }} ListsPolicyRecord */
+/** @typedef {{ workspace_id?: string }} ListsPolicySession */
+/** @typedef {{ list?: ListsPolicyRecord, item?: ListsPolicyRecord, operation?: string, session?: ListsPolicySession, permissions?: string | string[] | Set<string>, listsModuleEnabled?: boolean, historicalReadAccess?: boolean }} ListsAccessInput */
+/** @typedef {ListsPolicyRecord & { newValue?: ListsPolicyRecord | null, previousValue?: ListsPolicyRecord | null, list?: ListsPolicyRecord, item?: ListsPolicyRecord, metadata?: ListsPolicyRecord, actorUserId?: string }} ListsLifecyclePayload */
+/** @typedef {{ allowed: boolean, reason: string }} ListsAccessDecision */
 
 const LIST_PERMISSIONS = Object.freeze({
   VIEW: "lists.view",
@@ -124,6 +131,7 @@ const LIST_OPERATION_PERMISSIONS = Object.freeze({
   manage_links: LIST_PERMISSIONS.MANAGE_LINKS,
 });
 
+/** @param {string} event @param {string} label @param {string} description @param {string} recordType */
 function eventType(event, label, description, recordType) {
   return {
     event,
@@ -134,6 +142,7 @@ function eventType(event, label, description, recordType) {
   };
 }
 
+/** @param {string | string[] | Set<string>} [permissions] @returns {Set<string>} */
 function createPermissionSet(permissions = []) {
   if (permissions instanceof Set) {
     return permissions;
@@ -142,9 +151,10 @@ function createPermissionSet(permissions = []) {
   return new Set((Array.isArray(permissions) ? permissions : [permissions]).filter(Boolean));
 }
 
+/** @param {ListsPolicyRecord} [list] @returns {import("../../types/http-contracts.js").PermissionResource & { list_id: string, operation: string }} */
 function listResource(list = {}) {
   return {
-    workspace_id: list.workspace_id,
+    workspace_id: list.workspace_id || "",
     client_id: list.client_id || "",
     project_id: list.project_id || "",
     list_id: list.list_id || "",
@@ -152,6 +162,7 @@ function listResource(list = {}) {
   };
 }
 
+/** @param {ListsPolicyRecord} [list] @param {ListsPolicyRecord} [item] @returns {import("../../types/http-contracts.js").PermissionResource & { list_id: string, list_item_id: string, operation: string }} */
 function itemResource(list = {}, item = {}) {
   return {
     ...listResource(list),
@@ -160,6 +171,7 @@ function itemResource(list = {}, item = {}) {
   };
 }
 
+/** @param {ListsAccessInput} [input] @returns {ListsAccessDecision} */
 function canAccessList({
   list = {},
   operation = "read",
@@ -183,7 +195,7 @@ function canAccessList({
     return deny("workspace_mismatch");
   }
 
-  const requiredPermission = LIST_OPERATION_PERMISSIONS[normalizedOperation] || LIST_PERMISSIONS.VIEW;
+  const requiredPermission = LIST_OPERATION_PERMISSIONS[/** @type {keyof typeof LIST_OPERATION_PERMISSIONS} */ (normalizedOperation)] || LIST_PERMISSIONS.VIEW;
   if (!permissionSet.has(requiredPermission) && !permissionSet.has(LIST_PERMISSIONS.VIEW_ALL)) {
     return deny("missing_permission");
   }
@@ -203,6 +215,7 @@ function canAccessList({
   return allow();
 }
 
+/** @param {ListsAccessInput} [input] @returns {ListsAccessDecision} */
 function canManageListItem({
   list = {},
   item = {},
@@ -240,6 +253,7 @@ function canManageListItem({
   return allow();
 }
 
+/** @param {ListsLifecyclePayload} [payload] */
 function sanitizeListLifecyclePayload(payload = {}) {
   const source = payload.newValue || payload.previousValue || payload.list || payload.item || payload;
   const metadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
@@ -274,10 +288,12 @@ function sanitizeListLifecyclePayload(payload = {}) {
   };
 }
 
+/** @returns {ListsAccessDecision} */
 function allow() {
   return { allowed: true, reason: "" };
 }
 
+/** @param {string} reason @returns {ListsAccessDecision} */
 function deny(reason) {
   return { allowed: false, reason };
 }

@@ -365,7 +365,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 3369,
+      "errorCount": 2656,
       "diagnostics": {
         "src/config.js": [
           {
@@ -504,106 +504,6 @@
         "src/modules/developer-example/routes.js": [
           {
             "code": 18049,
-            "count": 1
-          }
-        ],
-        "src/modules/lists/access-policy.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 30
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/lists/lists.repo.js": [
-          {
-            "code": 2339,
-            "count": 49
-          },
-          {
-            "code": 7006,
-            "count": 82
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/modules/lists/lists.service.js": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2322,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 287
-          },
-          {
-            "code": 2345,
-            "count": 10
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 198
-          },
-          {
-            "code": 7053,
-            "count": 4
-          }
-        ],
-        "src/modules/lists/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/lists/public-api.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/lists/storage-contract.js": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7053,
             "count": 1
           }
         ],
@@ -4257,7 +4157,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9444,
+      "errorCount": 9302,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -6297,10 +6197,6 @@
             "count": 37
           },
           {
-            "code": 2339,
-            "count": 33
-          },
-          {
             "code": 2531,
             "count": 2
           },
@@ -6323,19 +6219,11 @@
             "count": 6
           },
           {
-            "code": 2339,
-            "count": 3
-          },
-          {
             "code": 7006,
             "count": 5
           }
         ],
         "scripts/lists-foundation-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 10
-          },
           {
             "code": 2769,
             "count": 1
@@ -6351,10 +6239,6 @@
             "count": 2
           },
           {
-            "code": 2339,
-            "count": 5
-          },
-          {
             "code": 2532,
             "count": 1
           },
@@ -6367,10 +6251,6 @@
           {
             "code": 18047,
             "count": 62
-          },
-          {
-            "code": 2339,
-            "count": 60
           },
           {
             "code": 2531,
@@ -6391,20 +6271,12 @@
             "count": 3
           },
           {
-            "code": 2322,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 18
-          },
-          {
             "code": 7005,
             "count": 6
           },
           {
             "code": 7006,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7034,
@@ -6529,10 +6401,6 @@
           {
             "code": 18047,
             "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 5
           },
           {
             "code": 7006,
@@ -8469,10 +8337,6 @@
           {
             "code": 18047,
             "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
           },
           {
             "code": 2345,
@@ -11274,13 +11138,12 @@
   },
   "totals": {
     "files": 1018,
-    "errors": 23947,
-    "explicitAny": 14
+    "errors": 23092,
+    "explicitAny": 10
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
     "src/core/jobs/job-runner.js": 1,
-    "src/modules/lists/search-indexers.js": 4,
     "src/repositories/account-export-recovery.repo.js": 1,
     "src/services/work-resume-state-initial-producers.js": 4,
     "src/types/framework-contracts.d.ts": 3
@@ -11296,7 +11159,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 17,
+    "firstPartyFiles": 18,
     "errors": 0
   }
 }

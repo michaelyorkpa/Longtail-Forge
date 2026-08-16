@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.18.4 - Finish Lists strict typing
-
-**Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
-
-- [ ] Type the remaining Lists service, repository, routes, public API, providers, search indexers, and integrations under full strict.
-- [ ] Consume the typed edge, list-item, and catalog-item seams without broad casts or cross-module deep imports.
-- [ ] Preserve linked-record, reusable-list, filtering, sorting, paging, and operational workflow behavior.
-- [ ] Reduce the Lists server ledger to zero without adding new product behavior.
-
 ### 0.33.33.19 - Make the Tasks recurrence service boundary real
 
 **Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
