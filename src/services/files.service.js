@@ -36,6 +36,7 @@ import { db } from "../core/database.js";
 import { filesRepo } from "../repositories/files.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
+import { filesStorageAccountingService } from "./files-storage-accounting.service.js";
 import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
 import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
@@ -67,8 +68,6 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {PreparedUpload & {buffer: Buffer}} BufferedPreparedUpload */
 /** @typedef {ReturnType<typeof normalizeAttachmentListOptions>} AttachmentListOptions */
 /** @typedef {FileSession & {role: string}} FileJobSession */
-/** @typedef {{availabilityStatus: string, calculatedAt: unknown, externalReportedBytes: number, externalSourceProvider: string, fileCount: number, internalBytes: number, storageAccountingId: unknown, storageKind: unknown, storageProvider: string, userId: string, workspaceId: unknown}} StorageAccountingEntry */
-/** @typedef {{externalFileCount: number, externalReportedBytes: number, fileCount: number, internalBytes: number, internalFileCount: number}} StorageAccountingSummary */
 /** @typedef {Record<string, string>} FileResponseHeaders */
 /** @typedef {{headers: FileResponseHeaders, kind: string, preview: LooseRecord, stream: NodeJS.ReadableStream, content?: undefined}} FilePreviewStreamResponse */
 /** @typedef {{content: LooseRecord, preview: LooseRecord, headers?: undefined, stream?: undefined}} FilePreviewTextResponse */
@@ -520,7 +519,12 @@ async function uploadAndAttach(session, payload = {}) {
     const { attachableType, fileSettings, target } = await resolveUploadTarget(session, parsed);
 
     const prepared = prepareUpload(parsed, attachableType, fileSettings);
-    await assertStorageQuotaAllowsUpload(session, fileSettings, prepared.fileSizeBytes);
+    await filesStorageAccountingService.assertStorageQuotaAllowsUpload({
+      fileSettings,
+      uploadBytes: prepared.fileSizeBytes,
+      userId: session.user_id,
+      workspaceId: session.workspace_id,
+    });
     const storageProvider = resolveConfiguredFileStorageProvider();
     const storage = await storageProvider.adapter.save(prepared.buffer, { workspaceId: session.workspace_id });
 
@@ -1515,16 +1519,11 @@ async function readStorageAccounting(session, filters = {}) {
     workspace_id: session.workspace_id,
     operation: "read",
   });
-  await refreshStorageAccounting(session.workspace_id);
-
   const storageKind = normalizeStorageKind(filters.storageKind || filters.storage_kind);
-  const rows = await filesRepo.readStorageAccounting({ storageKind, workspaceId: session.workspace_id });
-  const entries = rows.map(shapeStorageAccountingRow);
-
-  return {
-    entries,
-    totals: summarizeStorageAccounting(entries),
-  };
+  return filesStorageAccountingService.readStorageAccounting({
+    storageKind,
+    workspaceId: session.workspace_id,
+  });
 }
 
 /**
@@ -1547,20 +1546,8 @@ async function recordExternalStorageAccounting(session, payload = {}) {
     0,
     Number.MAX_SAFE_INTEGER,
   );
-  const now = new Date().toISOString();
-  const accountingId = storageAccountingId({
+  await filesStorageAccountingService.recordExternalStorageAccounting({
     availabilityStatus,
-    externalSourceProvider: sourceProvider,
-    storageKind: "external",
-    storageProvider: "external",
-    userId,
-    workspaceId: session.workspace_id,
-  });
-
-  await filesRepo.upsertExternalStorageAccounting({
-    accountingId,
-    availabilityStatus,
-    calculatedAt: now,
     externalReportedBytes,
     fileCount,
     sourceProvider,
@@ -1884,11 +1871,7 @@ async function createFileRecord(session, prepared) {
  */
 /** @param {string} workspaceId */
 async function refreshStorageAccounting(workspaceId) {
-  const now = new Date().toISOString();
-
-  await db.transaction(async (transaction) => {
-    await filesRepo.replaceInternalStorageAccounting(transaction, workspaceId, now);
-  });
+  return filesStorageAccountingService.refreshStorageAccounting(workspaceId);
 }
 
 /** @param {{replace?: boolean}} [options] */
@@ -2220,7 +2203,12 @@ async function prepareStreamedUpload(session, payload, attachableType, fileSetti
   }
 
   const storageProvider = resolveConfiguredFileStorageProvider();
-  const uploadLimit = await resolveStreamedUploadLimit(session, fileSettings, policy.maxSize);
+  const uploadLimit = await filesStorageAccountingService.resolveStreamedUploadLimit({
+    fileSettings,
+    maxFileSizeBytes: policy.maxSize,
+    userId: session.user_id,
+    workspaceId: session.workspace_id,
+  });
   const tracker = createStreamUploadTracker(uploadLimit, {
     extension: policy.extension,
     extensionRule: policy.extensionRule,
@@ -2252,7 +2240,12 @@ async function prepareStreamedUpload(session, payload, attachableType, fileSetti
     throw new AppError("Uploaded file content does not match the allowed file type.", 400);
   }
   try {
-    await assertStorageQuotaAllowsUpload(session, fileSettings, streamed.fileSizeBytes);
+    await filesStorageAccountingService.assertStorageQuotaAllowsUpload({
+      fileSettings,
+      uploadBytes: streamed.fileSizeBytes,
+      userId: session.user_id,
+      workspaceId: session.workspace_id,
+    });
   } catch (error) {
     await deleteRejectedUploadStorage(storageProvider, storage, "quota_rejected_after_stream");
     throw error;
@@ -2271,122 +2264,6 @@ async function prepareStreamedUpload(session, payload, attachableType, fileSetti
     storageProvider: storageProvider.providerId,
     storedFilename: storage.storedFilename,
   };
-}
-
-/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings @param {number} maxFileSizeBytes */
-async function resolveStreamedUploadLimit(session, fileSettings, maxFileSizeBytes) {
-  const quotaLimit = await readStorageQuotaUploadLimit(session, fileSettings);
-  const fileSizeLimit = {
-    exceededMessage: "Uploaded file exceeds the allowed size.",
-    maxBytes: maxFileSizeBytes,
-    statusCode: 413,
-  };
-
-  if (!quotaLimit || quotaLimit.remainingBytes >= maxFileSizeBytes) {
-    return fileSizeLimit;
-  }
-
-  return {
-    exceededMessage: storageQuotaExceededMessage(quotaLimit.scope),
-    maxBytes: quotaLimit.remainingBytes,
-    statusCode: 413,
-  };
-}
-
-/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings @param {number} uploadBytes */
-async function assertStorageQuotaAllowsUpload(session, fileSettings, uploadBytes) {
-  const quota = await readStorageQuotaState(session, fileSettings);
-
-  if (!quota.limitsActive) {
-    return;
-  }
-
-  if (quota.workspaceLimitBytes !== null && quota.workspaceBytes + uploadBytes > quota.workspaceLimitBytes) {
-    throw storageQuotaExceededError("workspace");
-  }
-
-  if (quota.perUserLimitBytes !== null && quota.userBytes + uploadBytes > quota.perUserLimitBytes) {
-    throw storageQuotaExceededError("user");
-  }
-}
-
-/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings */
-async function readStorageQuotaUploadLimit(session, fileSettings) {
-  const quota = await readStorageQuotaState(session, fileSettings);
-
-  if (!quota.limitsActive) {
-    return null;
-  }
-
-  const candidates = [];
-  if (quota.workspaceLimitBytes !== null) {
-    candidates.push({
-      remainingBytes: Math.max(0, quota.workspaceLimitBytes - quota.workspaceBytes),
-      scope: "workspace",
-    });
-  }
-  if (quota.perUserLimitBytes !== null) {
-    candidates.push({
-      remainingBytes: Math.max(0, quota.perUserLimitBytes - quota.userBytes),
-      scope: "user",
-    });
-  }
-
-  return candidates.sort((left, right) => left.remainingBytes - right.remainingBytes)[0] || null;
-}
-
-/** @param {FileSession} session @param {WorkspaceFileSettings} fileSettings */
-async function readStorageQuotaState(session, fileSettings) {
-  const workspaceLimitBytes = nullableInteger(fileSettings?.internalStorageLimitBytes);
-  const perUserLimitBytes = nullableInteger(fileSettings?.perUserStorageLimitBytes);
-
-  if (workspaceLimitBytes === null && perUserLimitBytes === null) {
-    return {
-      limitsActive: false,
-      perUserLimitBytes,
-      userBytes: 0,
-      workspaceBytes: 0,
-      workspaceLimitBytes,
-    };
-  }
-
-  const usage = await readInternalStorageQuotaUsage(session.workspace_id, session.user_id);
-
-  return {
-    limitsActive: true,
-    perUserLimitBytes,
-    userBytes: usage.userBytes,
-    workspaceBytes: usage.workspaceBytes,
-    workspaceLimitBytes,
-  };
-}
-
-/** @param {string} workspaceId @param {string} userId */
-async function readInternalStorageQuotaUsage(workspaceId, userId) {
-  const row = await filesRepo.readInternalStorageQuotaUsage(workspaceId, userId);
-
-  return {
-    userBytes: Number(row?.user_bytes || 0),
-    workspaceBytes: Number(row?.workspace_bytes || 0),
-  };
-}
-
-/**
- * @param {string} scope
- */
-/** @param {string} scope */
-function storageQuotaExceededError(scope) {
-  return new AppError(storageQuotaExceededMessage(scope), 413);
-}
-
-/**
- * @param {string} scope
- */
-/** @param {string} scope */
-function storageQuotaExceededMessage(scope) {
-  return scope === "workspace"
-    ? "Upload would exceed the workspace storage quota."
-    : "Upload would exceed your per-user storage quota.";
 }
 
 /** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings */
@@ -4082,57 +3959,6 @@ function normalizeRestorableStatus(previousStatus, scanStatus) {
   }
 
   return "pending";
-}
-
-/** @param {LooseRecord} row @returns {StorageAccountingEntry} */
-function shapeStorageAccountingRow(row) {
-  return {
-    availabilityStatus: String(row.availability_status || ""),
-    calculatedAt: row.calculated_at,
-    externalReportedBytes: Number(row.external_reported_bytes || 0),
-    externalSourceProvider: String(row.external_source_provider || ""),
-    fileCount: Number(row.file_count || 0),
-    internalBytes: Number(row.internal_bytes || 0),
-    storageAccountingId: row.storage_accounting_id,
-    storageKind: row.storage_kind,
-    storageProvider: String(row.storage_provider || ""),
-    userId: String(row.user_id || ""),
-    workspaceId: row.workspace_id,
-  };
-}
-
-/** @param {StorageAccountingEntry[]} [entries] @returns {StorageAccountingSummary} */
-function summarizeStorageAccounting(entries = []) {
-  return entries.reduce((totals, entry) => {
-    totals.fileCount += entry.fileCount;
-    totals.internalBytes += entry.internalBytes;
-    totals.externalReportedBytes += entry.externalReportedBytes;
-    if (entry.storageKind === "internal") {
-      totals.internalFileCount += entry.fileCount;
-    }
-    if (entry.storageKind === "external") {
-      totals.externalFileCount += entry.fileCount;
-    }
-    return totals;
-  }, /** @type {StorageAccountingSummary} */ ({
-    externalFileCount: 0,
-    externalReportedBytes: 0,
-    fileCount: 0,
-    internalBytes: 0,
-    internalFileCount: 0,
-  }));
-}
-
-/** @param {LooseRecord} [scope] */
-function storageAccountingId(scope = {}) {
-  return [
-    scope.workspaceId || "",
-    scope.storageKind || "",
-    scope.userId || "",
-    scope.storageProvider || "",
-    scope.externalSourceProvider || "",
-    scope.availabilityStatus || "",
-  ].map((value) => String(value || "")).join(":");
 }
 
 /**

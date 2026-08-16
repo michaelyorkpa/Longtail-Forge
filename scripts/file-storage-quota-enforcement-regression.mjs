@@ -49,6 +49,7 @@ async function assertStaticContracts() {
     moduleDevelopment,
     runtimeDocs,
     filesServiceSource,
+    filesStorageAccountingServiceSource,
     _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
@@ -59,6 +60,7 @@ async function assertStaticContracts() {
     readText("docs/module-development.md"),
     readText("docs/runtime-configuration.md"),
     readText("src/services/files.service.js"),
+    readText("src/services/files-storage-accounting.service.js"),
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
@@ -68,9 +70,12 @@ async function assertStaticContracts() {
   assert.match(moduleContract, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module contract should describe service-owned quota enforcement");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module development docs should describe service-owned quota enforcement");
   assert.match(runtimeDocs, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "runtime docs should describe active quota enforcement");
-  assert.match(filesServiceSource, /assertStorageQuotaAllowsUpload/, "Files service should enforce quotas before buffered upload persistence");
-  assert.match(filesServiceSource, /resolveStreamedUploadLimit/, "Files service should enforce quota limits while streaming");
-  assert.match(filesServiceSource, /readInternalStorageQuotaUsage/, "Files service should read actual internal usage for quota checks");
+  assert.match(filesServiceSource, /filesStorageAccountingService\.assertStorageQuotaAllowsUpload/, "Files facade should enforce quotas through the Files accounting policy before buffered upload persistence");
+  assert.match(filesServiceSource, /filesStorageAccountingService\.resolveStreamedUploadLimit/, "Files facade should enforce streamed limits through the Files accounting policy");
+  assert.match(filesStorageAccountingServiceSource, /async function assertStorageQuotaAllowsUpload/, "Files accounting policy should own quota admission");
+  assert.match(filesStorageAccountingServiceSource, /async function resolveStreamedUploadLimit/, "Files accounting policy should own streamed quota limits");
+  assert.match(filesStorageAccountingServiceSource, /filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should read actual internal usage through the repository");
+  assert.doesNotMatch(filesStorageAccountingServiceSource, /storage[_A-Z]?key|protectedPath|scanner/i, "Files accounting policy should not consume storage keys, protected paths, or scanner details");
   }
 
 async function assertBufferedWorkspaceQuota(session, taskId) {

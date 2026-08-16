@@ -262,6 +262,7 @@
         "src/services/auth.service.js",
         "src/services/billing.service.js",
         "src/services/dashboard.service.js",
+        "src/services/files-storage-accounting.service.js",
         "src/services/files.service.js",
         "src/services/help.service.js",
         "src/services/import-jobs.service.js",
@@ -355,6 +356,7 @@
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/client-project-options.test.mjs",
+        "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/legal-content.test.mjs",
@@ -10820,7 +10822,7 @@
     }
   },
   "totals": {
-    "files": 1025,
+    "files": 1027,
     "errors": 21585,
     "explicitAny": 10
   },
@@ -10846,7 +10848,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 25,
+    "firstPartyFiles": 26,
     "errors": 0
   }
 }

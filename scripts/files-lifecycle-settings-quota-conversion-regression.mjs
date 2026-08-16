@@ -14,6 +14,7 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Lifecycle-Settings-Quota-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesStorageAccountingServiceSource = readText("src/services/files-storage-accounting.service.js");
 const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
@@ -109,9 +110,12 @@ function assertStaticContract() {
     /:storageProvider/,
     /:metadataJson/,
   ]);
-  assertFunctionUsesNamedParams(filesServiceSource, "refreshStorageAccounting", [
+  assertFunctionUsesNamedParams(filesStorageAccountingServiceSource, "refreshStorageAccounting", [
     /await db\.transaction\(async \(transaction\) => \{/,
     /filesRepo\.replaceInternalStorageAccounting\(transaction/,
+  ]);
+  assertFunctionUsesNamedParams(filesServiceSource, "refreshStorageAccounting", [
+    /filesStorageAccountingService\.refreshStorageAccounting\(workspaceId\)/,
   ]);
   assertFunctionUsesNamedParams(filesRepositorySource, "replaceInternalStorageAccounting", [
     /DELETE FROM file_storage_accounting/,
@@ -133,6 +137,10 @@ function assertStaticContract() {
     /uploaded_by_user_id = :userId/,
     /status IN \(:storageStatuses\)/,
   ]);
+  assert.match(filesStorageAccountingServiceSource, /async function readStorageQuotaState[\s\S]*filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should own quota-state calculation over repository usage");
+  assert.match(filesStorageAccountingServiceSource, /function summarizeStorageAccounting/, "Files accounting policy should own accounting totals");
+  assert.match(filesStorageAccountingServiceSource, /function storageAccountingId/, "Files accounting policy should own external-accounting identity");
+  assert.doesNotMatch(filesServiceSource, /function (?:readStorageQuotaState|readStorageQuotaUploadLimit|shapeStorageAccountingRow|storageAccountingId|summarizeStorageAccounting)/, "Files facade should not retain duplicate accounting or quota calculations");
   assertFunctionUsesNamedParams(filesRepositorySource, "readWorkspaceFileSettings", [
     /db\.get\(`/,
     /WHERE workspace_id = :workspaceId/,
