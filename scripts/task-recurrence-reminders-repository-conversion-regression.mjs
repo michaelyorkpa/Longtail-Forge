@@ -144,11 +144,11 @@ async function assertReminderOffsetRepository(session) {
     { targetId: randomUUID(), targetType: "unknown" },
   ]);
   assert.deepEqual(
-    offsetsByTarget.get(taskRemindersRepository.reminderKey("task", taskTargetId)).map((offset) => offset.offset_minutes),
+    offsetsByTarget.get(taskRemindersRepository.reminderKey("task", taskTargetId))?.map((offset) => offset.offset_minutes),
     [1440, 5],
   );
   assert.deepEqual(
-    offsetsByTarget.get(taskRemindersRepository.reminderKey("project", projectTargetId)).map((offset) => offset.offset_minutes),
+    offsetsByTarget.get(taskRemindersRepository.reminderKey("project", projectTargetId))?.map((offset) => offset.offset_minutes),
     [15],
   );
 

@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.21.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.21.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.21.2, the Tasks checklist and relationship repositories plus reminder, timer, settings, work-evidence, and private-calendar-feed owners consume the named `task-workflow-contracts.d.ts` boundary under full strict checking. The contracts preserve database boolean binding, transactional replacement and ordering, reminder inheritance and timezone occurrence calculation, Task Timer lifecycle transitions, private-feed authorization scope, and started-work evidence while exposing precise repository and service results to the remaining main Tasks orchestrator. `task-workflow-contracts.fixture.mjs` proves the public seam, `framework.full-strict-governance` pins all eleven owners free of strict diagnostics and explicit `any`, and the retained 34-script Tasks area preserves stateful behavior. This checkpoint expands the compiler universe to 1,023 files and 22 first-party declarations while lowering combined strict debt from 22,511 to 22,328 diagnostics.
 
 As of 0.33.33.21.1, the checked `task-block-recovery-engine.js` and precise `task-block-recovery-contracts.d.ts` own the pure Tasks parent-block and parent-recovery transition table. The engine distinguishes active and terminal tasks, incomplete and cleared blocking children, automatic and manual Blocked reasons, parent-rollup direction, and timer-pause intent without performing persistence or external effects. The main Tasks service retains relationship reads, permissions, persistence, Task Timer pause delegation, audit/event emission, Search reindexing, reminders, and resume-context orchestration. `tests/unit/task-block-recovery-engine.test.mjs` directly covers the transition matrix; retained relationship, timer-status, blocked-recovery browser, permission, and consolidated Tasks owners preserve stateful behavior. The seam lowers combined strict debt from 22,514 to 22,511 diagnostics, advances effective regression assertions to 18,856 across 347 scripts, and keeps the engine, declaration, and direct unit owner strict-clean and free of explicit `any`.
 
@@ -295,11 +297,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18187 |
+| Active regression assertions | 18189 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18856 |
+| Effective assertion floor | 18858 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
