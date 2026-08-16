@@ -6,7 +6,6 @@ import { auditService } from "../../core/audit.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { tasksRepository } from "./tasks.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
-import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 
 const TASKS_MODULE_ID = "tasks";
@@ -24,6 +23,7 @@ const TASK_RECURRENCE_SWEEP_PRIORITY = 15;
 const TASK_RECURRENCE_SWEEP_INTERVAL_HOURS = 12;
 let taskJobHandlersRegistered = false;
 
+/** @param {Pick<import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions, "replace">} [options] */
 function registerTaskJobHandlers(options = {}) {
   if (taskJobHandlersRegistered && !options.replace &&
     getJobHandler(TASK_REMINDER_JOB_TYPE) &&
@@ -42,6 +42,7 @@ function registerTaskJobHandlers(options = {}) {
   taskJobHandlersRegistered = true;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskReminderJobsForTask(task, options = {}) {
   const workspaceId = normalizeText(task?.workspace_id || options.workspaceId || options.workspace_id);
   const taskId = normalizeText(task?.task_id || options.taskId || options.task_id);
@@ -62,7 +63,9 @@ async function queueTaskReminderJobsForTask(task, options = {}) {
 
   const now = normalizeDate(options.now) || new Date();
   const horizonEnd = normalizeDate(options.horizonEnd || options.horizon_end) || taskReminderHorizonEnd(now, options.horizonDays || options.horizon_days);
-  const pendingOccurrences = await taskRemindersService.computePendingReminderOccurrences(task, now);
+  const pendingOccurrences = /** @type {import("../../types/task-recurrence-contracts.d.ts").ReminderOccurrence[]} */ (
+    await taskRemindersService.computePendingReminderOccurrences(task, now)
+  );
   const occurrences = pendingOccurrences.filter((occurrence) => reminderWithinHorizon(occurrence, horizonEnd));
   const jobs = [];
 
@@ -126,6 +129,7 @@ async function queueTaskReminderJobsForTask(task, options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskReminderSweepJobs(options = {}) {
   const workspaceIds = normalizeWorkspaceIds(options.workspaceIds || options.workspace_ids);
   const targetWorkspaceIds = workspaceIds.length > 0 ? workspaceIds : await readActiveWorkspaceIds();
@@ -149,6 +153,7 @@ async function queueTaskReminderSweepJobs(options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskReminderSweepJob(options = {}) {
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task reminder sweep requires a workspace.");
   const availableAt = normalizeDate(options.availableAt || options.available_at) || new Date();
@@ -184,6 +189,7 @@ async function queueTaskReminderSweepJob(options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function sweepTaskReminderJobsForWorkspace(options = {}) {
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task reminder sweep requires a workspace.");
   const now = normalizeDate(options.now) || new Date();
@@ -237,6 +243,7 @@ async function sweepTaskReminderJobsForWorkspace(options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceJobContext} [context] @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskRecurrenceGeneration(context = {}, options = {}) {
   const completedTask = context.completedTask || context.task || {};
   const workspaceId = normalizeRequiredText(
@@ -290,6 +297,7 @@ async function queueTaskRecurrenceGeneration(context = {}, options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskReminderJob({ payload = {} }) {
   const operation = normalizeText(payload.operation || "fire_reminder");
 
@@ -304,6 +312,7 @@ async function handleTaskReminderJob({ payload = {} }) {
   return handleTaskReminderFireJob({ payload });
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskReminderSweepJob({ payload = {} }) {
   assertOperation(payload, "sweep_reminders", TASK_REMINDER_JOB_TYPE);
   const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task reminder sweep requires a workspace.");
@@ -334,6 +343,7 @@ async function handleTaskReminderSweepJob({ payload = {} }) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskReminderFireJob({ payload = {} }) {
   assertOperation(payload, "fire_reminder", TASK_REMINDER_JOB_TYPE);
   const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task reminder job requires a workspace.");
@@ -359,7 +369,9 @@ async function handleTaskReminderFireJob({ payload = {} }) {
     return skippedReminder("task_not_reminder_eligible", workspaceId, taskId);
   }
 
-  const occurrences = await taskRemindersService.computePendingReminderOccurrences(task, new Date(0));
+  const occurrences = /** @type {import("../../types/task-recurrence-contracts.d.ts").ReminderOccurrence[]} */ (
+    await taskRemindersService.computePendingReminderOccurrences(task, new Date(0))
+  );
   const matchedOccurrence = occurrences.find((occurrence) => (
     occurrence.reminder_at_utc === reminderAtUtc &&
     occurrence.due_at_utc === normalizeText(payload.dueAtUtc || payload.due_at_utc) &&
@@ -403,6 +415,7 @@ async function handleTaskReminderFireJob({ payload = {} }) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskRecurrenceJob({ payload = {} }) {
   const operation = normalizeText(payload.operation || "generate_next_instance");
 
@@ -413,6 +426,7 @@ async function handleTaskRecurrenceJob({ payload = {} }) {
   return handleTaskRecurrenceGenerateJob({ payload });
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskRecurrenceGenerateJob({ payload = {} }) {
   assertOperation(payload, "generate_next_instance", TASK_RECURRENCE_JOB_TYPE);
   const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task recurrence job requires a workspace.");
@@ -440,7 +454,7 @@ async function handleTaskRecurrenceGenerateJob({ payload = {} }) {
   });
   const createdTask = recurrenceResult?.task || null;
 
-  if (createdTask && recurrenceResult.wasCreated) {
+  if (createdTask && recurrenceResult?.wasCreated) {
     await recordRecurrenceInstanceCreated({
       completedTask,
       createdTask,
@@ -466,6 +480,7 @@ async function handleTaskRecurrenceGenerateJob({ payload = {} }) {
 // (or a chain that predates that trigger) leaves a template with no open instance and it stays
 // dead forever. This self-rescheduling sweep is the safety net: it periodically re-anchors any
 // active template that has no open instance to the next occurrence on or after today.
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskRecurrenceSweepJobs(options = {}) {
   const workspaceIds = normalizeWorkspaceIds(options.workspaceIds || options.workspace_ids);
   const targetWorkspaceIds = workspaceIds.length > 0 ? workspaceIds : await readActiveWorkspaceIds();
@@ -489,6 +504,7 @@ async function queueTaskRecurrenceSweepJobs(options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function queueTaskRecurrenceSweepJob(options = {}) {
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task recurrence sweep requires a workspace.");
   const availableAt = normalizeDate(options.availableAt || options.available_at) || new Date();
@@ -520,6 +536,7 @@ async function queueTaskRecurrenceSweepJob(options = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobHandlerInput} input */
 async function handleTaskRecurrenceSweepJob({ payload = {} }) {
   assertOperation(payload, "sweep_recurrences", TASK_RECURRENCE_JOB_TYPE);
   const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "Task recurrence sweep requires a workspace.");
@@ -546,16 +563,22 @@ async function handleTaskRecurrenceSweepJob({ payload = {} }) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobOptions} [options] */
 async function backfillStalledRecurrencesForWorkspace(options = {}) {
   const workspaceId = normalizeRequiredText(options.workspaceId || options.workspace_id, "Task recurrence sweep requires a workspace.");
   const today = new Date().toISOString().slice(0, 10);
-  const templates = await taskRecurrenceRepository.readActiveTemplates(workspaceId);
+  const templates = await taskRecurrenceService.listActiveTemplates(workspaceId);
   let healthyCount = 0;
   let createdCount = 0;
   let endedCount = 0;
 
   for (const template of templates) {
-    const stats = await tasksRepository.readRecurrenceInstanceStats(workspaceId, template.recurrence_template_id);
+    const statsRow = await tasksRepository.readRecurrenceInstanceStats(workspaceId, template.recurrence_template_id);
+    const stats = {
+      latestInstanceDate: String(statsRow.latestInstanceDate || ""),
+      openCount: Number(statsRow.openCount || 0),
+      total: Number(statsRow.total || 0),
+    };
 
     if (stats.openCount > 0) {
       // Chain still has an open instance ahead — healthy, nothing to backfill.
@@ -605,6 +628,7 @@ async function backfillStalledRecurrencesForWorkspace(options = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession} session @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} createdByUserId @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter} */
 function recurrenceCreateTaskAdapter(workspaceId, session, createdByUserId) {
   return {
     findExisting: async (templateId, instanceDate) =>
@@ -622,6 +646,7 @@ function recurrenceCreateTaskAdapter(workspaceId, session, createdByUserId) {
   };
 }
 
+/** @param {{ completedTask: Pick<import("../../types/task-recurrence-contracts.d.ts").TaskRecord, "task_id">, createdTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession }} input */
 async function recordRecurrenceInstanceCreated({ completedTask, createdTask, session }) {
   await auditService.record({
     session,
@@ -662,10 +687,12 @@ async function recordRecurrenceInstanceCreated({ completedTask, createdTask, ses
   });
 }
 
+/** @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskRecord>} [task] */
 function isReminderEligibleTask(task = {}) {
-  return Boolean(task.task_id && task.workspace_id && task.due_date && !["archived", "complete"].includes(task.status));
+  return Boolean(task.task_id && task.workspace_id && task.due_date && !["archived", "complete"].includes(String(task.status || "")));
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @param {import("../../types/task-recurrence-contracts.d.ts").ReminderOccurrence} occurrence */
 function taskReminderDedupeKey(task, occurrence) {
   return [
     "task",
@@ -678,6 +705,7 @@ function taskReminderDedupeKey(task, occurrence) {
   ].map(normalizeText).join(":");
 }
 
+/** @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskRecord>} [task] */
 function taskReminderRecipientIds(task = {}) {
   const assigneeIds = Array.isArray(task.assignee_ids)
     ? task.assignee_ids.map(normalizeText).filter(Boolean)
@@ -691,6 +719,7 @@ function taskReminderRecipientIds(task = {}) {
   return creatorId ? [creatorId] : [];
 }
 
+/** @param {string} workspaceId @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} [availableAt] */
 function taskReminderSweepDedupeKey(workspaceId, availableAt = new Date()) {
   const timestamp = normalizeDate(availableAt)?.getTime() || Date.now();
   const intervalMs = TASK_REMINDER_SWEEP_INTERVAL_HOURS * 60 * 60 * 1000;
@@ -699,6 +728,7 @@ function taskReminderSweepDedupeKey(workspaceId, availableAt = new Date()) {
   return ["task", "reminder", "sweep", workspaceId, slot].map(normalizeText).join(":");
 }
 
+/** @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskRecord>} task */
 function taskRecurrenceDedupeKey(task) {
   return [
     "task",
@@ -710,6 +740,7 @@ function taskRecurrenceDedupeKey(task) {
   ].map(normalizeText).join(":");
 }
 
+/** @param {string} workspaceId @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} [availableAt] */
 function taskRecurrenceSweepDedupeKey(workspaceId, availableAt = new Date()) {
   const timestamp = normalizeDate(availableAt)?.getTime() || Date.now();
   const intervalMs = TASK_RECURRENCE_SWEEP_INTERVAL_HOURS * 60 * 60 * 1000;
@@ -729,6 +760,7 @@ ORDER BY created_at, workspace_id;
   return rows.map((row) => normalizeText(row.workspace_id)).filter(Boolean);
 }
 
+/** @param {string} workspaceId @param {string} jobType @param {string} dedupeKey */
 async function completedJobExists(workspaceId, jobType, dedupeKey) {
   const row = await db.get(`
 SELECT job_id
@@ -747,6 +779,7 @@ LIMIT 1;
   return Boolean(row?.job_id);
 }
 
+/** @param {string} reason @param {string} workspaceId @param {string} taskId */
 function skippedReminder(reason, workspaceId, taskId) {
   return {
     fired: false,
@@ -757,6 +790,7 @@ function skippedReminder(reason, workspaceId, taskId) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskJobPayload} payload @param {string} expectedOperation @param {string} jobType */
 function assertOperation(payload, expectedOperation, jobType) {
   const operation = normalizeText(payload.operation || expectedOperation);
 
@@ -765,15 +799,23 @@ function assertOperation(payload, expectedOperation, jobType) {
   }
 }
 
+/** @param {{ userId?: string, workspaceId?: string }} [input] @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession} */
 function jobSession({ userId = "", workspaceId = "" } = {}) {
   return {
+    active_workspace_id: normalizeText(workspaceId),
+    home_workspace_id: normalizeText(workspaceId),
+    ip_address: "",
+    password_change_required: false,
     role: "system",
+    session_mode: "normal",
+    timezone: "America/New_York",
     user_id: normalizeText(userId),
     username: "Job Worker",
     workspace_id: normalizeText(workspaceId),
   };
 }
 
+/** @param {unknown} value @param {string} message */
 function normalizeRequiredText(value, message) {
   const text = normalizeText(value);
 
@@ -784,10 +826,12 @@ function normalizeRequiredText(value, message) {
   return text;
 }
 
+/** @param {unknown} value */
 function normalizeText(value) {
   return String(value || "").trim();
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} value */
 function normalizeDate(value) {
   if (!value) {
     return null;
@@ -797,17 +841,20 @@ function normalizeDate(value) {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
+/** @param {unknown} value @param {number} fallback */
 function normalizePositiveInteger(value, fallback) {
-  const number = Number.parseInt(value, 10);
+  const number = Number.parseInt(String(value || ""), 10);
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
+/** @param {unknown} values */
 function normalizeWorkspaceIds(values) {
   return [...new Set((Array.isArray(values) ? values : [])
     .map(normalizeText)
     .filter(Boolean))];
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} [now] @param {unknown} [horizonDays] */
 function taskReminderHorizonEnd(now = new Date(), horizonDays = TASK_REMINDER_SCHEDULING_HORIZON_DAYS) {
   const days = normalizePositiveInteger(horizonDays, TASK_REMINDER_SCHEDULING_HORIZON_DAYS);
   const base = normalizeDate(now) || new Date();
@@ -815,12 +862,14 @@ function taskReminderHorizonEnd(now = new Date(), horizonDays = TASK_REMINDER_SC
   return new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+/** @param {Partial<import("../../types/task-recurrence-contracts.d.ts").ReminderOccurrence>} [occurrence] @param {Date} [horizonEnd] */
 function reminderWithinHorizon(occurrence = {}, horizonEnd = taskReminderHorizonEnd()) {
   const reminderAt = normalizeDate(occurrence.reminder_at_utc);
 
   return Boolean(reminderAt && reminderAt.getTime() <= horizonEnd.getTime());
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} date @param {number} hours */
 function addHours(date, hours) {
   const base = normalizeDate(date) || new Date();
   return new Date(base.getTime() + hours * 60 * 60 * 1000);

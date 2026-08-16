@@ -23,10 +23,6 @@
       "specifier": "../tasks/tasks.repo.js"
     },
     {
-      "file": "src/modules/tasks/task-recurrence.service.js",
-      "specifier": "../notes/notes.service.js"
-    },
-    {
       "file": "src/modules/tasks/task-reminders.service.js",
       "specifier": "../client-projects/clients.repo.js"
     },

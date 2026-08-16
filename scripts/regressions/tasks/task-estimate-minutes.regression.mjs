@@ -160,6 +160,7 @@ async function assertRecurrencePreservation(session) {
   }, session)).task;
 
   let template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, recurring.recurrence_template_id);
+  assert.ok(template, "created recurrence template should remain readable");
   assert.equal(template.estimate_minutes, 30);
 
   const updated = (await tasksService.update(recurring.task_id, {
@@ -175,6 +176,7 @@ async function assertRecurrencePreservation(session) {
   assert.equal(updated.estimate_minutes, 75);
 
   template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, recurring.recurrence_template_id);
+  assert.ok(template, "updated recurrence template should remain readable");
   assert.equal(template.estimate_minutes, 75);
 
   const next = await taskRecurrenceService.createNextInstance({
