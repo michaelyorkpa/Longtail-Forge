@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.22.1 - Extract the Files repository
-
-**Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
-
-- [ ] Move inline SQL, dynamic `WHERE` composition, and named row projections from `files.service.js` into a Files repository.
-- [ ] Keep service-owned transaction and policy orchestration explicit, passing transaction capability to repository operations only where required.
-- [ ] Preserve paging, lifecycle, attachment, permission, storage-provider, and not-found behavior.
-- [ ] Close full-strict debt for the repository seam with database, Files, and permission proof.
-
 ### 0.33.33.22.2 - Extract Files storage accounting and quota policy
 
 **Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.

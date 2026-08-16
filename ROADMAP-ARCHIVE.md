@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.22.1 - Extract the Files repository
+
+**Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
+
+- [x] Moved Files SQL, dynamic `WHERE` composition, dialect-specific comparisons and conflict handling, lifecycle writes, and named row projections from `files.service.js` into the checked `files.repo.js` boundary.
+- [x] Kept permission and policy orchestration, lifecycle events, storage-provider and scanner behavior, response shaping, and explicit transaction ownership in the Files service, passing transaction capability only to report and storage-accounting repository operations that require it.
+- [x] Preserved paging, attachment reads and target resolution, lifecycle transitions, reporting, storage-provider behavior, quotas, duplicate detection, safe not-found behavior, and permission enforcement through the retained 32-script Files area and permission harness.
+- [x] Added named repository row contracts, pinned the repository seam strict-clean and free of explicit `any`, expanded the compiler universe to 1,025 files and 25 declarations, and lowered combined strict debt from 21,591 to 21,585 diagnostics; `0.33.33.22.2` remains next.
+
 ## Version 0.33.33.21.3 - Finish Tasks strict typing
 
 **Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
