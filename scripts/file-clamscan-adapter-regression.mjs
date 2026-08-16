@@ -55,6 +55,7 @@ function assertStaticContracts() {
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
+  const scannerJobSource = readText("src/services/files-scanner-job.service.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
 
   assert.match(scannerAdapterSource, /function createClamscanFileScannerAdapter/, "scanner adapter module should expose clamscan");
@@ -64,8 +65,9 @@ function assertStaticContracts() {
   assert.match(scannerAdapterSource, /result: "infected"[\s\S]*scanStatus: "failed"/, "infected clamscan results should fail scan safely");
   assert.match(scannerAdapterSource, /scanner:\s*"clamscan"[\s\S]*exitCode/, "clamscan metadata should be bounded to safe scanner result fields");
   assert.doesNotMatch(scannerAdapterSource, /storageKey|storage_key|storagePath|protectedPath|clamscanPath|process\.env/, "clamscan adapter should not receive storage keys, paths, scanner config names, or raw env");
-  assert.match(filesServiceSource, /"clamscan", createClamscanFileScannerAdapter\(\{ executablePath: config\.scanner\?\.clamscanPath \}\)/, "Files service should register clamscan from runtime config");
-  assert.match(filesServiceSource, /status === "quarantined"[\s\S]*file\.quarantined/, "scan lifecycle should keep quarantine review behavior service-owned");
+  assert.match(scannerJobSource, /"clamscan"[\s\S]*createClamscanFileScannerAdapter\(\{ executablePath: config\.scanner\?\.clamscanPath \}\)/, "Files scanner job service should register clamscan from runtime config");
+  assert.match(scannerJobSource, /disposition\.status === "quarantined"[\s\S]*"file\.quarantined"/, "scan lifecycle should keep quarantine review behavior Files-owned");
+  assert.match(filesServiceSource, /filesScannerJobService\.registerFileScannerAdapter/, "Files facade should preserve scanner adapter registration");
   assert.doesNotMatch(runtimeDiagnosticsSource, /clamscanPath|process\.env|storageKey|protectedPath/i, "runtime diagnostics must not expose clamscan paths or storage internals");
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`clamscan`[\s\S]*executable scanner adapter[\s\S]*executable paths/, "runtime docs should describe clamscan adapter redaction");
   assert.match(changelog, /clamscan[\s\S]*unavailable or timed-out scanner executions[\s\S]*without auto-deleting stored files/i, "tracked docs should record clamscan quarantine policy");

@@ -54,17 +54,18 @@ function assertStaticContracts() {
   const configSource = readText("src/config.js");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
+  const scannerJobSource = readText("src/services/files-scanner-job.service.js");
 
   assert.match(configSource, /FILE_SCANNER_MODES = new Set\(\["none", "noop", "clamd", "clamscan"\]\)/, "config should formalize scanner modes");
   assert.match(configSource, /LONGTAIL_FILE_SCANNER[\s\S]*FILE_SCANNER_MODES/, "config should validate scanner mode");
   assert.match(scannerAdapterSource, /function createNoneFileScannerAdapter/, "scanner adapters should include disabled none mode");
   assert.match(scannerAdapterSource, /scanStatus: "not_required"[\s\S]*status: "available"/, "none scanner should make scans terminal without pretending to scan");
   assert.match(scannerAdapterSource, /function createNoopFileScannerAdapter/, "noop scanner should remain explicit");
-  assert.match(filesServiceSource, /const scannerAdapters = new Map\(\[[\s\S]*"clamd", createClamdFileScannerAdapter[\s\S]*"clamscan", createClamscanFileScannerAdapter[\s\S]*"noop", createNoopFileScannerAdapter\(\)/, "Files service should register clamd, clamscan, and noop explicitly");
-  assert.doesNotMatch(filesServiceSource, /let scannerAdapter = createNoopFileScannerAdapter\(\)/, "Files service should not keep hidden noop as the default");
-  assert.match(filesServiceSource, /function resolveConfiguredFileScannerAdapter/, "Files service should resolve scanners from config");
-  assert.match(filesServiceSource, /scanner\.adapter\.scan\(createFileScanContext/, "scanFile should pass a service-owned scan context");
-  assert.doesNotMatch(functionBlock(filesServiceSource, "createFileScanContext"), /storageKey:|storage_key:|storagePath|protectedPath/, "scan context should not expose storage keys or paths");
+  assert.match(scannerJobSource, /const scannerAdapters = new Map\(\[[\s\S]*"clamd"[\s\S]*createClamdFileScannerAdapter[\s\S]*"clamscan"[\s\S]*createClamscanFileScannerAdapter[\s\S]*"noop"[\s\S]*createNoopFileScannerAdapter\(\)/, "Files scanner job service should register clamd, clamscan, and noop explicitly");
+  assert.doesNotMatch(scannerJobSource, /let scannerAdapter = createNoopFileScannerAdapter\(\)/, "Files scanner job service should not keep hidden noop as the default");
+  assert.match(filesServiceSource, /filesScannerJobService\.resolveConfiguredFileScannerAdapter\(\)/, "Files facade should preserve configured scanner resolution");
+  assert.match(scannerJobSource, /scanner\.adapter\.scan\(createFileScanContext/, "scanner job service should pass a Files-owned provider-safe scan context");
+  assert.doesNotMatch(functionBlock(scannerJobSource, "createFileScanContext"), /storageKey:|storage_key:|storagePath|protectedPath/, "scan context should not expose storage keys or paths");
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
   assert.match(moduleDocs, /As of 0\.33\.5\.22\.15[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
