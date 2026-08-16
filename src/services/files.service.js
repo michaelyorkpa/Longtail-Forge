@@ -33,6 +33,7 @@ import {
 } from "../core/files/files.contracts.js";
 import { config } from "../config.js";
 import { db } from "../core/database.js";
+import { filesRepo } from "../repositories/files.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
@@ -47,7 +48,6 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
 /** @typedef {import("../types/framework-contracts.js").AttachableTypeContribution & {moduleId: string, targetType: string, label: string, description: string, tableName: string, idField: string, labelField: string, workspaceField: string, requiredReadPermission: string, requiredAttachPermission: string}} AttachableType */
 /** @typedef {import("../types/database-contracts.js").DatabaseRow} DatabaseRow */
-/** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
 /** @typedef {Record<string, unknown>} LooseRecord */
 /** @typedef {{displayName?: unknown, moduleId?: unknown, originalFilename?: unknown, targetId?: unknown, targetType?: unknown}} RawUploadEventFields */
 /** @typedef {{allowedExtensions: string[], blockedExtensions: string[], createdAt: string, fileTypePolicyMode: string, internalStorageLimitBytes: number|null, perUserStorageLimitBytes: number|null, updatedAt: string, workspaceId: string}} WorkspaceFileSettings */
@@ -59,9 +59,9 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {{fileId?: string, metadata?: LooseRecord, reason?: string, scanStatus: string, status: string}} FileScannerResult */
 /** @typedef {{id: string, health: () => Promise<FileAdapterHealth>, scan: (file?: FileScannerInput) => Promise<FileScannerResult>}} FileScannerAdapter */
 /** @typedef {"allowedExtensions"|"blockedExtensions"|"fileTypePolicyMode"|"internalStorageLimitBytes"|"perUserStorageLimitBytes"} FileSettingField */
-/** @typedef {DatabaseRow & {file_id: string, workspace_id: string, original_filename: string, display_name: string, stored_filename: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, sha256_hash: string, storage_provider: string, storage_key: string, storage_kind: string, status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, created_at: string, updated_at: string, deleted_at?: string|null, previous_status?: string, metadata_json?: unknown}} FileRow */
-/** @typedef {DatabaseRow & {file_attachment_id: string, file_id: string, workspace_id: string, module_id: string, target_type: string, target_id: string, client_id: string|null, project_id: string|null, visibility: string, attachment_role: string, caption: string, sort_order: number, created_by_user_id: string, created_at: string, removed_at?: string|null, metadata_json?: unknown, original_filename: string, display_name: string, extension: string, mime_type: string, mime_type_detected: string, file_category: string, file_size_bytes: number, status: string, file_status: string, scan_status: string, scan_reason: string, uploaded_by_user_id: string, storage_provider: string, storage_key: string, sha256_hash: string}} AttachmentRow */
-/** @typedef {DatabaseRow & {target_id: string, label?: string, client_id?: string|null, project_id?: string|null}} AttachableTargetRow */
+/** @typedef {import("../types/files-repository-contracts.js").FileRow} FileRow */
+/** @typedef {import("../types/files-repository-contracts.js").AttachmentRow} AttachmentRow */
+/** @typedef {import("../types/files-repository-contracts.js").AttachableTargetRow} AttachableTargetRow */
 /** @typedef {LooseRecord & {label: string, moduleId: string, moduleLabel: string, targetId: string, targetType: string, targetTypeLabel: string, clientId?: string, clientLabel?: string, projectId?: string, projectLabel?: string, contextLabel?: string, value: LooseRecord & {moduleId: string, targetId: string, targetType: string, clientId?: string, projectId?: string}}} AttachableTargetOption */
 /** @typedef {{displayName: string, extension: string, fileSizeBytes: number, mimeTypeClaimed: string, mimeTypeDetected: string, metadata: LooseRecord, originalFilename: string, sha256Hash: string, storageKey?: string, storageProvider?: string, storedFilename?: string, buffer?: Buffer}} PreparedUpload */
 /** @typedef {PreparedUpload & {buffer: Buffer}} BufferedPreparedUpload */
@@ -773,65 +773,18 @@ async function listAttachments(session, filters = {}) {
   });
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
   const targetScopedRead = Boolean(filters.targetId || filters.target_id);
-  /** @type {Record<string, DatabaseNamedParameterInput>} */
-  const params = {
-    attachmentWorkspaceId: session.workspace_id,
+  const repositoryQuery = {
+    canManageQuarantine,
+    contextScope,
+    filters,
+    listOptions,
+    statusFilter,
+    targetScopedRead,
+    workspaceId: session.workspace_id,
   };
-  const conditions = [
-    "file_attachments.workspace_id = :attachmentWorkspaceId",
-    "file_attachments.removed_at IS NULL",
-  ];
-
-  if (statusFilter === "all" && canManageQuarantine) {
-    conditions.push("files.status IN ('pending', 'available', 'quarantined', 'deleted')");
-  } else if (statusFilter === "quarantined" && canManageQuarantine) {
-    conditions.push("files.status = 'quarantined'");
-  } else if (statusFilter === "pending" && canManageQuarantine) {
-    conditions.push("files.status = 'pending'");
-  } else if (statusFilter === "deleted") {
-    conditions.push("files.status = 'deleted'");
-  } else if (statusFilter === "all") {
-    conditions.push("files.status IN ('available', 'deleted')");
-    conditions.push("files.scan_status IN ('not_required', 'passed')");
-  } else if (targetScopedRead && !(filters.status || filters.fileStatus || filters.file_status)) {
-    conditions.push(`(
-      (files.status IN ('available', 'deleted') AND files.scan_status IN ('not_required', 'passed'))
-      OR (files.status = 'pending' AND files.scan_status = 'pending')
-    )`);
-  } else {
-    conditions.push("files.status = 'available'");
-    conditions.push("files.scan_status IN ('not_required', 'passed')");
-  }
-  if (filters.fileId || filters.file_id) {
-    conditions.push("file_attachments.file_id = :attachmentFileId");
-    params.attachmentFileId = String(filters.fileId || filters.file_id);
-  }
-  if (filters.moduleId || filters.module_id) {
-    conditions.push("file_attachments.module_id = :attachmentModuleId");
-    params.attachmentModuleId = String(filters.moduleId || filters.module_id);
-  }
-  if (filters.targetType || filters.target_type) {
-    conditions.push("file_attachments.target_type = :attachmentTargetType");
-    params.attachmentTargetType = String(filters.targetType || filters.target_type);
-  }
-  if (filters.targetId || filters.target_id) {
-    conditions.push("file_attachments.target_id = :attachmentTargetId");
-    params.attachmentTargetId = String(filters.targetId || filters.target_id);
-  }
-  applyAttachmentContextScopeFilters(conditions, contextScope, params);
-  if (filters.filename || filters.fileName || filters.q) {
-    const filename = String(filters.filename || filters.fileName || filters.q || "").trim();
-    if (filename) {
-      params.attachmentFilenamePattern = db.dialect.comparison.likePattern(filename, { mode: "contains" });
-      conditions.push(`(
-        ${db.dialect.comparison.containsNoCase("files.original_filename", ":attachmentFilenamePattern")}
-        OR ${db.dialect.comparison.containsNoCase("files.display_name", ":attachmentFilenamePattern")}
-      )`);
-    }
-  }
 
   if (listOptions.paginate) {
-    const visiblePage = await readVisibleAttachmentPage(session, conditions, listOptions, params);
+    const visiblePage = await readVisibleAttachmentPage(session, repositoryQuery, listOptions);
     const knownTotal = visiblePage.hasMore ? null : listOptions.offset + visiblePage.attachments.length;
 
     return {
@@ -846,15 +799,7 @@ async function listAttachments(session, filters = {}) {
     };
   }
 
-  const rows = /** @type {AttachmentRow[]} */ (await db.query(`
-SELECT ${attachmentSelectColumns()}
-FROM file_attachments
-INNER JOIN files
-  ON files.workspace_id = file_attachments.workspace_id
-  AND files.file_id = file_attachments.file_id
-WHERE ${conditions.join("\n  AND ")}
-ORDER BY ${attachmentOrderByClause(listOptions.sort)};
-`, params));
+  const rows = await filesRepo.readAttachmentRows(repositoryQuery);
   /** @type {Array<Awaited<ReturnType<typeof shapeAttachmentForRead>>>} */
   const visible = [];
 
@@ -881,8 +826,8 @@ ORDER BY ${attachmentOrderByClause(listOptions.sort)};
   };
 }
 
-/** @param {FileSession} session @param {string[]} conditions @param {AttachmentListOptions} listOptions @param {Record<string, DatabaseNamedParameterInput>} params */
-async function readVisibleAttachmentPage(session, conditions, listOptions, params) {
+/** @param {FileSession} session @param {{canManageQuarantine: boolean, contextScope: LooseRecord, filters: LooseRecord, listOptions: AttachmentListOptions, statusFilter: string, targetScopedRead: boolean, workspaceId: string}} repositoryQuery @param {AttachmentListOptions} listOptions */
+async function readVisibleAttachmentPage(session, repositoryQuery, listOptions) {
   const targetVisibleCount = listOptions.offset + listOptions.limit + 1;
   const batchLimit = Math.min(
     Math.max(listOptions.limit + 1, listOptions.limit * ATTACHMENT_SCAN_BATCH_MULTIPLIER),
@@ -900,10 +845,10 @@ async function readVisibleAttachmentPage(session, conditions, listOptions, param
   let exhaustedCandidates = false;
 
   while (visibleSeen < targetVisibleCount && scanned < maxRawRowsToScan) {
-    const rows = await readAttachmentCandidateRows(conditions, listOptions, {
-      limit: batchLimit,
-      offset: rawOffset,
-    }, params);
+    const rows = await filesRepo.readAttachmentRows({
+      ...repositoryQuery,
+      page: { limit: batchLimit, offset: rawOffset },
+    });
 
     if (rows.length === 0) {
       exhaustedCandidates = true;
@@ -943,25 +888,6 @@ async function readVisibleAttachmentPage(session, conditions, listOptions, param
     attachments: visible,
     hasMore: !exhaustedCandidates && visible.length > 0,
   };
-}
-
-/** @param {string[]} conditions @param {AttachmentListOptions} listOptions @param {{limit: number, offset: number}} page @param {Record<string, DatabaseNamedParameterInput>} params */
-async function readAttachmentCandidateRows(conditions, listOptions, page, params) {
-  return /** @type {AttachmentRow[]} */ (await db.query(`
-SELECT ${attachmentSelectColumns()}
-FROM file_attachments
-INNER JOIN files
-  ON files.workspace_id = file_attachments.workspace_id
-  AND files.file_id = file_attachments.file_id
-WHERE ${conditions.join("\n  AND ")}
-ORDER BY ${attachmentOrderByClause(listOptions.sort)}
-LIMIT :attachmentPageLimit
-OFFSET :attachmentPageOffset;
-`, {
-    ...params,
-    attachmentPageLimit: page.limit,
-    attachmentPageOffset: page.offset,
-  }));
 }
 
 /**
@@ -1233,12 +1159,7 @@ async function removeAttachment(session, attachmentId) {
   await assertCanUseAttachableTarget(session, attachableType, "remove", target);
 
   const now = new Date().toISOString();
-  await db.run(`
-UPDATE file_attachments
-SET removed_at = :removedAt
-WHERE workspace_id = :workspaceId
-  AND file_attachment_id = :attachmentId;
-`, {
+  await filesRepo.removeAttachment({
     attachmentId: attachment.file_attachment_id,
     removedAt: now,
     workspaceId: session.workspace_id,
@@ -1311,16 +1232,7 @@ async function updateAttachmentContext(session, attachmentId, rawPayload = {}) {
     return { attachment: await shapeAttachmentForRead(session, attachment) };
   }
 
-  await db.run(`
-UPDATE file_attachments
-SET module_id = :attachmentModuleId,
-    target_type = :attachmentTargetType,
-    target_id = :attachmentTargetId,
-    client_id = :attachmentClientId,
-    project_id = :attachmentProjectId
-WHERE workspace_id = :attachmentWorkspaceId
-  AND file_attachment_id = :attachmentId;
-`, {
+  await filesRepo.updateAttachmentContext({
     attachmentClientId: nextContext.clientId || null,
     attachmentId: attachment.file_attachment_id,
     attachmentModuleId: nextContext.moduleId,
@@ -1444,18 +1356,9 @@ async function deleteFile(session, fileId) {
     },
   });
 
-  await db.run(`
-UPDATE files
-SET status = :fileStatus,
-    deleted_at = :deletedAt,
-    updated_at = :updatedAt,
-    metadata_json = :metadataJson
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId;
-`, {
+  await filesRepo.softDeleteFile({
     deletedAt: now,
     fileId: file.file_id,
-    fileStatus: "deleted",
     metadataJson: JSON.stringify(metadata),
     updatedAt: now,
     workspaceId: session.workspace_id,
@@ -1534,15 +1437,7 @@ async function restoreFile(session, fileId) {
     },
   };
 
-  await db.run(`
-UPDATE files
-SET status = :fileStatus,
-    deleted_at = NULL,
-    updated_at = :updatedAt,
-    metadata_json = :metadataJson
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId;
-`, {
+  await filesRepo.restoreFile({
     fileId: file.file_id,
     fileStatus: previousStatus,
     metadataJson: JSON.stringify(nextMetadata),
@@ -1586,16 +1481,8 @@ async function markQuarantinedFileReviewed(session, file) {
 
   const now = new Date().toISOString();
 
-  await db.run(`
-UPDATE files
-SET status = :fileStatus,
-    quarantine_reason = NULL,
-    updated_at = :updatedAt
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId;
-`, {
+  await filesRepo.markQuarantinedFileReviewed({
     fileId: file.file_id,
-    fileStatus: "available",
     updatedAt: now,
     workspaceId: session.workspace_id,
   });
@@ -1631,32 +1518,7 @@ async function readStorageAccounting(session, filters = {}) {
   await refreshStorageAccounting(session.workspace_id);
 
   const storageKind = normalizeStorageKind(filters.storageKind || filters.storage_kind);
-  const conditions = ["workspace_id = :workspaceId"];
-  /** @type {Record<string, DatabaseNamedParameterInput>} */
-  const params = { workspaceId: session.workspace_id };
-
-  if (storageKind) {
-    conditions.push("storage_kind = :storageKind");
-    params.storageKind = storageKind;
-  }
-
-  const rows = await db.query(`
-SELECT
-  storage_accounting_id,
-  workspace_id,
-  user_id,
-  storage_kind,
-  storage_provider,
-  external_source_provider,
-  availability_status,
-  file_count,
-  internal_bytes,
-  external_reported_bytes,
-  calculated_at
-FROM file_storage_accounting
-WHERE ${conditions.join("\n  AND ")}
-ORDER BY storage_kind, user_id, storage_provider, external_source_provider, availability_status;
-`, params);
+  const rows = await filesRepo.readStorageAccounting({ storageKind, workspaceId: session.workspace_id });
   const entries = rows.map(shapeStorageAccountingRow);
 
   return {
@@ -1695,62 +1557,13 @@ async function recordExternalStorageAccounting(session, payload = {}) {
     workspaceId: session.workspace_id,
   });
 
-  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
-    columns: [
-      "storage_accounting_id",
-      "workspace_id",
-      "user_id",
-      "storage_kind",
-      "storage_provider",
-      "external_source_provider",
-      "availability_status",
-      "file_count",
-      "internal_bytes",
-      "external_reported_bytes",
-      "calculated_at",
-      "metadata_json",
-    ],
-    conflictColumns: [
-      "workspace_id",
-      "user_id",
-      "storage_kind",
-      "storage_provider",
-      "external_source_provider",
-      "availability_status",
-    ],
-    tableName: "file_storage_accounting",
-    updateColumns: [
-      "file_count",
-      "internal_bytes",
-      "external_reported_bytes",
-      "calculated_at",
-      "metadata_json",
-    ],
-    valueExpressions: {
-      storage_accounting_id: ":accountingId",
-      workspace_id: ":workspaceId",
-      user_id: ":userId",
-      storage_kind: ":storageKind",
-      storage_provider: ":storageProvider",
-      external_source_provider: ":sourceProvider",
-      availability_status: ":availabilityStatus",
-      file_count: ":fileCount",
-      internal_bytes: ":internalBytes",
-      external_reported_bytes: ":externalReportedBytes",
-      calculated_at: ":calculatedAt",
-      metadata_json: ":metadataJson",
-    },
-  })};`, {
+  await filesRepo.upsertExternalStorageAccounting({
     accountingId,
     availabilityStatus,
     calculatedAt: now,
     externalReportedBytes,
     fileCount,
-    internalBytes: 0,
-    metadataJson: JSON.stringify({ source: "external_accounting_contract" }),
     sourceProvider,
-    storageKind: "external",
-    storageProvider: "external",
     userId,
     workspaceId: session.workspace_id,
   });
@@ -1791,41 +1604,7 @@ async function saveWorkspaceFileSettings(session, payload = {}) {
   const next = normalizeWorkspaceFileSettingsPayload(payload, previous);
   const now = new Date().toISOString();
 
-  await db.run(`${db.dialect.conflict.buildInsertOnConflictDoUpdate({
-    columns: [
-      "workspace_id",
-      "file_type_policy_mode",
-      "allowed_extensions_json",
-      "blocked_extensions_json",
-      "internal_storage_limit_bytes",
-      "per_user_storage_limit_bytes",
-      "created_at",
-      "updated_at",
-      "metadata_json",
-    ],
-    conflictColumns: ["workspace_id"],
-    tableName: "file_workspace_settings",
-    updateColumns: [
-      "file_type_policy_mode",
-      "allowed_extensions_json",
-      "blocked_extensions_json",
-      "internal_storage_limit_bytes",
-      "per_user_storage_limit_bytes",
-      "updated_at",
-      "metadata_json",
-    ],
-    valueExpressions: {
-      workspace_id: ":workspaceId",
-      file_type_policy_mode: ":fileTypePolicyMode",
-      allowed_extensions_json: ":allowedExtensionsJson",
-      blocked_extensions_json: ":blockedExtensionsJson",
-      internal_storage_limit_bytes: ":internalStorageLimitBytes",
-      per_user_storage_limit_bytes: ":perUserStorageLimitBytes",
-      created_at: ":createdAt",
-      updated_at: ":updatedAt",
-      metadata_json: ":metadataJson",
-    },
-  })};`, {
+  await filesRepo.saveWorkspaceFileSettings({
     allowedExtensionsJson: JSON.stringify(next.allowedExtensions),
     blockedExtensionsJson: JSON.stringify(next.blockedExtensions),
     createdAt: now,
@@ -1876,34 +1655,10 @@ async function reportFile(session, fileId, payload = {}) {
   const attachmentId = normalizeOptionalText(payload.attachmentId || payload.fileAttachmentId);
 
   await db.transaction(async (transaction) => {
-    await transaction.run(`
-INSERT INTO file_reports (
-  file_report_id,
-  workspace_id,
-  file_id,
-  file_attachment_id,
-  report_reason,
-  report_notes,
-  reported_by_user_id,
-  created_at,
-  metadata_json
-)
-VALUES (
-  :reportId,
-  :workspaceId,
-  :fileId,
-  :attachmentId,
-  :reason,
-  :notes,
-  :reportedByUserId,
-  :createdAt,
-  :metadataJson
-);
-`, {
+    await filesRepo.createFileReport(transaction, {
       attachmentId: attachmentId || null,
       createdAt: now,
       fileId: file.file_id,
-      metadataJson: JSON.stringify({ source: "browser_api" }),
       notes: notes || null,
       reason,
       reportedByUserId: session.user_id,
@@ -1911,18 +1666,8 @@ VALUES (
       workspaceId: session.workspace_id,
     });
 
-    await transaction.run(`
-UPDATE files
-SET status = :fileStatus,
-    quarantine_reason = :quarantineReason,
-    updated_at = :updatedAt
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId
-  AND status != :deletedStatus;
-`, {
-      deletedStatus: "deleted",
+    await filesRepo.markFileReported(transaction, {
       fileId: file.file_id,
-      fileStatus: "quarantined",
       quarantineReason: `reported:${reason}`,
       updatedAt: now,
       workspaceId: session.workspace_id,
@@ -1989,16 +1734,8 @@ async function quarantineFile(session, fileId, payload = {}) {
   const reason = normalizeOptionalText(payload.reason, { maxLength: 250 }) || "manual_quarantine";
   const now = new Date().toISOString();
 
-  await db.run(`
-UPDATE files
-SET status = :fileStatus,
-    quarantine_reason = :quarantineReason,
-    updated_at = :updatedAt
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId;
-`, {
+  await filesRepo.quarantineFile({
     fileId: file.file_id,
-    fileStatus: "quarantined",
     quarantineReason: reason,
     updatedAt: now,
     workspaceId: session.workspace_id,
@@ -2100,71 +1837,24 @@ async function emitFileLifecycleEvent(eventName, payload = {}) {
 async function createFileRecord(session, prepared) {
   const now = new Date().toISOString();
   const fileId = createRecordId();
+  if (!prepared.storageKey || !prepared.storageProvider || !prepared.storedFilename) {
+    throw new AppError("Uploaded file could not be stored.", 500);
+  }
 
-  await db.run(`
-INSERT INTO files (
-  file_id,
-  workspace_id,
-  storage_provider,
-  storage_key,
-  original_filename,
-  stored_filename,
-  display_name,
-  extension,
-  mime_type_claimed,
-  mime_type_detected,
-  file_size_bytes,
-  sha256_hash,
-  status,
-  scan_status,
-  quarantine_reason,
-  uploaded_by_user_id,
-  created_at,
-  updated_at,
-  deleted_at,
-  metadata_json
-)
-VALUES (
-  :fileId,
-  :workspaceId,
-  :storageProvider,
-  :storageKey,
-  :originalFilename,
-  :storedFilename,
-  :displayName,
-  :extension,
-  :mimeTypeClaimed,
-  :mimeTypeDetected,
-  :fileSizeBytes,
-  :sha256Hash,
-  :fileStatus,
-  :scanStatus,
-  :quarantineReason,
-  :uploadedByUserId,
-  :createdAt,
-  :updatedAt,
-  :deletedAt,
-  :metadataJson
-);
-`, {
+  await filesRepo.createFile({
     createdAt: now,
-    deletedAt: null,
     displayName: prepared.displayName,
     extension: prepared.extension,
     fileId,
     fileSizeBytes: prepared.fileSizeBytes,
-    fileStatus: "pending",
     metadataJson: JSON.stringify(prepared.metadata || {}),
     mimeTypeClaimed: prepared.mimeTypeClaimed,
     mimeTypeDetected: prepared.mimeTypeDetected,
     originalFilename: prepared.originalFilename,
-    quarantineReason: null,
-    scanStatus: "pending",
     sha256Hash: prepared.sha256Hash,
     storageKey: prepared.storageKey,
     storageProvider: prepared.storageProvider,
     storedFilename: prepared.storedFilename,
-    updatedAt: now,
     uploadedByUserId: session.user_id,
     workspaceId: session.workspace_id,
   });
@@ -2197,54 +1887,7 @@ async function refreshStorageAccounting(workspaceId) {
   const now = new Date().toISOString();
 
   await db.transaction(async (transaction) => {
-    await transaction.run(`
-DELETE FROM file_storage_accounting
-WHERE workspace_id = :workspaceId
-  AND storage_kind = :storageKind;
-`, {
-      storageKind: "internal",
-      workspaceId,
-    });
-
-    await transaction.run(`
-INSERT INTO file_storage_accounting (
-  storage_accounting_id,
-  workspace_id,
-  user_id,
-  storage_kind,
-  storage_provider,
-  external_source_provider,
-  availability_status,
-  file_count,
-  internal_bytes,
-  external_reported_bytes,
-  calculated_at,
-  metadata_json
-)
-SELECT
-  workspace_id || ':internal:' || COALESCE(uploaded_by_user_id, '') || ':' || COALESCE(storage_provider, 'local') || ':' || COALESCE(status, ''),
-  workspace_id,
-  COALESCE(uploaded_by_user_id, ''),
-  'internal',
-  COALESCE(storage_provider, 'local'),
-  '',
-  COALESCE(status, ''),
-  COUNT(*),
-  COALESCE(SUM(file_size_bytes), 0),
-  0,
-  :calculatedAt,
-  '{}'
-FROM files
-WHERE workspace_id = :workspaceId
-  AND COALESCE(storage_kind, :storageKind) = :storageKind
-  AND status IN (:storageStatuses)
-GROUP BY workspace_id, COALESCE(uploaded_by_user_id, ''), COALESCE(storage_provider, 'local'), COALESCE(status, '');
-`, {
-      calculatedAt: now,
-      storageKind: "internal",
-      storageStatuses: ["pending", "available", "quarantined", "deleted"],
-      workspaceId,
-    });
+    await filesRepo.replaceInternalStorageAccounting(transaction, workspaceId, now);
   });
 }
 
@@ -2362,15 +2005,7 @@ async function scanFile(session, file) {
   const reason = normalizeOptionalText(scanResult.reason, { maxLength: 250 });
   const now = new Date().toISOString();
 
-  await db.run(`
-UPDATE files
-SET status = :fileStatus,
-    scan_status = :scanStatus,
-    quarantine_reason = :quarantineReason,
-    updated_at = :updatedAt
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId;
-`, {
+  await filesRepo.updateScanResult({
     fileId: file.file_id,
     fileStatus: status,
     quarantineReason: status === "quarantined" ? reason || "scan_failed" : null,
@@ -2474,44 +2109,7 @@ async function attachFile(session, payload = {}, context = {}) {
   const now = new Date().toISOString();
   const attachmentId = createRecordId();
 
-  await db.run(`
-INSERT INTO file_attachments (
-  file_attachment_id,
-  workspace_id,
-  file_id,
-  module_id,
-  target_type,
-  target_id,
-  client_id,
-  project_id,
-  visibility,
-  attachment_role,
-  caption,
-  sort_order,
-  attached_by_user_id,
-  created_at,
-  removed_at,
-  metadata_json
-)
-VALUES (
-  :attachmentId,
-  :workspaceId,
-  :fileId,
-  :moduleId,
-  :targetType,
-  :targetId,
-  :clientId,
-  :projectId,
-  :visibility,
-  :attachmentRole,
-  :caption,
-  :sortOrder,
-  :attachedByUserId,
-  :createdAt,
-  :removedAt,
-  :metadataJson
-);
-`, {
+  await filesRepo.createAttachment({
     attachedByUserId: session.user_id,
     attachmentId,
     attachmentRole: normalizeOptionalText(payload.attachmentRole, { maxLength: 80 }) || null,
@@ -2522,7 +2120,6 @@ VALUES (
     metadataJson: JSON.stringify(payload.metadata || {}),
     moduleId: attachableType.moduleId,
     projectId: target.project_id || null,
-    removedAt: null,
     sortOrder: clampInteger(payload.sortOrder, 0, 0, Number.MAX_SAFE_INTEGER),
     targetId: target.target_id,
     targetType: attachableType.targetType,
@@ -2562,33 +2159,25 @@ VALUES (
 /** @param {string} workspaceId @param {AttachableType} attachableType @param {unknown} targetId @returns {Promise<AttachableTargetRow>} */
 async function readAttachableTarget(workspaceId, attachableType, targetId) {
   const normalizedTargetId = normalizeRequiredText(targetId, "Target ID is required.");
-  const tableName = safeSqlIdentifier(attachableType.tableName);
-  const idField = safeSqlIdentifier(attachableType.idField);
-  const labelField = safeSqlIdentifier(attachableType.labelField);
-  const workspaceField = safeSqlIdentifier(attachableType.workspaceField);
-  const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
-  const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
-  const row = /** @type {AttachableTargetRow | null} */ (await db.get(`
-SELECT
-  ${idField} AS target_id,
-  ${labelField} AS target_label,
-  ${workspaceField} AS workspace_id
-  ${clientField ? `, ${clientField} AS client_id` : ", NULL AS client_id"}
-  ${projectField ? `, ${projectField} AS project_id` : ", NULL AS project_id"}
-FROM ${tableName}
-WHERE ${workspaceField} = :attachableTargetWorkspaceId
-  AND ${idField} = :attachableTargetId
-LIMIT 1;
-`, {
-    attachableTargetId: normalizedTargetId,
-    attachableTargetWorkspaceId: workspaceId,
-  }));
+  const row = await filesRepo.readAttachableTarget(workspaceId, normalizedTargetId, attachableTargetFields(attachableType));
 
   if (!row) {
     throw new AppError("Attachment target not found in this workspace.", 404);
   }
 
   return row;
+}
+
+/** @param {AttachableType} attachableType */
+function attachableTargetFields(attachableType) {
+  return {
+    clientField: String(attachableType.clientField || ""),
+    idField: String(attachableType.idField || ""),
+    labelField: String(attachableType.labelField || ""),
+    projectField: String(attachableType.projectField || ""),
+    tableName: String(attachableType.tableName || ""),
+    workspaceField: String(attachableType.workspaceField || ""),
+  };
 }
 
 /** @param {LooseRecord} payload @param {AttachableType} attachableType @param {WorkspaceFileSettings} fileSettings @returns {BufferedPreparedUpload} */
@@ -2774,20 +2363,7 @@ async function readStorageQuotaState(session, fileSettings) {
 
 /** @param {string} workspaceId @param {string} userId */
 async function readInternalStorageQuotaUsage(workspaceId, userId) {
-  const row = await db.get(`
-SELECT
-  COALESCE(SUM(file_size_bytes), 0) AS workspace_bytes,
-  COALESCE(SUM(CASE WHEN uploaded_by_user_id = :userId THEN file_size_bytes ELSE 0 END), 0) AS user_bytes
-FROM files
-WHERE workspace_id = :workspaceId
-  AND COALESCE(storage_kind, :storageKind) = :storageKind
-  AND status IN (:storageStatuses);
-`, {
-    storageKind: "internal",
-    storageStatuses: ["pending", "available", "quarantined", "deleted"],
-    userId,
-    workspaceId,
-  });
+  const row = await filesRepo.readInternalStorageQuotaUsage(workspaceId, userId);
 
   return {
     userBytes: Number(row?.user_bytes || 0),
@@ -2914,13 +2490,7 @@ async function deleteRejectedUploadStorage(storageProvider, storage, reason) {
 /** @param {string} workspaceId @param {import("../types/database-contracts.js").TransactionClient} [database] */
 /** @param {string} workspaceId @param {typeof db | import("../types/database-contracts.js").TransactionClient} [database] */
 async function purgeWorkspaceStorageObjects(workspaceId, database = db) {
-  const files = /** @type {{ storage_provider: string, storage_key: string, file_size_bytes: unknown }[]} */ (await database.query(`
-SELECT storage_provider, storage_key, file_size_bytes
-FROM files
-WHERE workspace_id = :workspaceId
-  AND storage_kind = 'internal'
-ORDER BY file_id;
-`, { workspaceId }));
+  const files = await filesRepo.readWorkspaceStorageObjects(workspaceId, database);
   let deletedBytes = 0;
   let deletedCount = 0;
 
@@ -3244,28 +2814,14 @@ function previewKindForAttachment(attachment) {
  * @param {unknown} fileId
  */
 async function readFileRow(workspaceId, fileId) {
-  return /** @type {FileRow | null} */ (await db.get(`
-SELECT *
-FROM files
-WHERE workspace_id = :workspaceId
-  AND file_id = :fileId
-LIMIT 1;
-`, {
-    fileId: String(fileId || ""),
-    workspaceId,
-  }));
+  return filesRepo.readFile(workspaceId, fileId);
 }
 
 /**
  * @param {string} workspaceId
  */
 async function readWorkspaceFileSettingsForWorkspace(workspaceId) {
-  const row = await db.get(`
-SELECT *
-FROM file_workspace_settings
-WHERE workspace_id = :workspaceId
-LIMIT 1;
-`, { workspaceId });
+  const row = await filesRepo.readWorkspaceFileSettings(workspaceId);
 
   if (row) {
     return normalizeWorkspaceFileSettingsRow(row);
@@ -3273,31 +2829,7 @@ LIMIT 1;
 
   const defaults = defaultWorkspaceFileSettings(workspaceId);
   const now = new Date().toISOString();
-  await db.run(`${db.dialect.conflict.buildInsertOrIgnore({
-    columns: [
-      "workspace_id",
-      "file_type_policy_mode",
-      "allowed_extensions_json",
-      "blocked_extensions_json",
-      "internal_storage_limit_bytes",
-      "per_user_storage_limit_bytes",
-      "created_at",
-      "updated_at",
-      "metadata_json",
-    ],
-    tableName: "file_workspace_settings",
-    valueExpressions: {
-      workspace_id: ":workspaceId",
-      file_type_policy_mode: ":fileTypePolicyMode",
-      allowed_extensions_json: ":allowedExtensionsJson",
-      blocked_extensions_json: ":blockedExtensionsJson",
-      internal_storage_limit_bytes: ":internalStorageLimitBytes",
-      per_user_storage_limit_bytes: ":perUserStorageLimitBytes",
-      created_at: ":createdAt",
-      updated_at: ":updatedAt",
-      metadata_json: ":metadataJson",
-    },
-  })};`, {
+  await filesRepo.createWorkspaceFileSettingsIfMissing({
     allowedExtensionsJson: JSON.stringify(defaults.allowedExtensions),
     blockedExtensionsJson: JSON.stringify(defaults.blockedExtensions),
     createdAt: now,
@@ -3317,19 +2849,7 @@ LIMIT 1;
  * @param {unknown} attachmentId
  */
 async function readAttachmentById(workspaceId, attachmentId) {
-  return /** @type {AttachmentRow | null} */ (await db.get(`
-SELECT ${attachmentSelectColumns()}
-FROM file_attachments
-INNER JOIN files
-  ON files.workspace_id = file_attachments.workspace_id
-  AND files.file_id = file_attachments.file_id
-WHERE file_attachments.workspace_id = :workspaceId
-  AND file_attachments.file_attachment_id = :attachmentId
-LIMIT 1;
-`, {
-    attachmentId: String(attachmentId || ""),
-    workspaceId,
-  }));
+  return filesRepo.readAttachmentById(workspaceId, attachmentId);
 }
 
 /**
@@ -3337,19 +2857,7 @@ LIMIT 1;
  * @param {unknown} fileId
  */
 async function readActiveAttachmentsForFile(workspaceId, fileId) {
-  return /** @type {AttachmentRow[]} */ (await db.query(`
-SELECT ${attachmentSelectColumns()}
-FROM file_attachments
-INNER JOIN files
-  ON files.workspace_id = file_attachments.workspace_id
-  AND files.file_id = file_attachments.file_id
-WHERE file_attachments.workspace_id = :workspaceId
-  AND file_attachments.file_id = :fileId
-  AND file_attachments.removed_at IS NULL;
-`, {
-    fileId: String(fileId || ""),
-    workspaceId,
-  }));
+  return filesRepo.readActiveAttachmentsForFile(workspaceId, fileId);
 }
 
 /**
@@ -3531,39 +3039,6 @@ async function canReadModuleTargetAttachment(session, attachableType, attachment
   } catch {
     return false;
   }
-}
-
-function attachmentSelectColumns() {
-  return `
-  file_attachments.file_attachment_id,
-  file_attachments.workspace_id,
-  file_attachments.file_id,
-  file_attachments.module_id,
-  file_attachments.target_type,
-  file_attachments.target_id,
-  file_attachments.client_id,
-  file_attachments.project_id,
-  file_attachments.visibility,
-  file_attachments.attachment_role,
-  file_attachments.caption,
-  file_attachments.sort_order,
-  file_attachments.attached_by_user_id,
-  file_attachments.created_at,
-  file_attachments.removed_at,
-  file_attachments.metadata_json,
-  files.original_filename,
-  files.display_name,
-  files.extension,
-  files.mime_type_detected,
-  files.file_size_bytes,
-  files.status AS file_status,
-  files.scan_status,
-  files.created_at AS file_created_at,
-  files.updated_at AS file_updated_at,
-  files.uploaded_by_user_id AS file_uploaded_by_user_id,
-  files.quarantine_reason,
-  files.deleted_at AS file_deleted_at
-`;
 }
 
 /**
@@ -3786,39 +3261,11 @@ async function readAttachmentTargetLabel(workspaceId, attachment) {
  */
 /** @param {string} workspaceId @param {AttachmentRow} attachment */
 async function readAttachmentContextLabels(workspaceId, attachment) {
-  const clientId = attachment.client_id || "";
-  const projectId = attachment.project_id || "";
-  const [clientRow, projectRow] = await Promise.all([
-    clientId
-      ? db.get(`
-SELECT name
-FROM clients
-WHERE workspace_id = :contextWorkspaceId
-  AND id = :contextClientId
-LIMIT 1;
-`, {
-        contextClientId: clientId,
-        contextWorkspaceId: workspaceId,
-      })
-      : Promise.resolve(null),
-    projectId
-      ? db.get(`
-SELECT name
-FROM projects
-WHERE workspace_id = :contextWorkspaceId
-  AND id = :contextProjectId
-LIMIT 1;
-`, {
-        contextProjectId: projectId,
-        contextWorkspaceId: workspaceId,
-      })
-      : Promise.resolve(null),
-  ]);
-
-  return {
-    clientLabel: clientRow?.name || "",
-    projectLabel: projectRow?.name || "",
-  };
+  return filesRepo.readAttachmentContextLabels(
+    workspaceId,
+    attachment.client_id || "",
+    attachment.project_id || "",
+  );
 }
 
 /**
@@ -3826,12 +3273,7 @@ LIMIT 1;
  */
 /** @param {string} workspaceId */
 async function readWorkspaceType(workspaceId) {
-  const row = await db.get(`
-SELECT workspace_type
-FROM workspaces
-WHERE workspace_id = :workspaceId
-LIMIT 1;
-`, { workspaceId });
+  const row = await filesRepo.readWorkspaceType(workspaceId);
 
   return normalizeWorkspaceType(row?.workspace_type);
 }
@@ -3850,42 +3292,15 @@ function normalizeAttachableTargetOptionFilters(filters = {}) {
 
 /** @param {string} workspaceId @param {AttachableType} attachableType @param {LooseRecord} filters @param {LooseRecord} contextScope @param {string} workspaceType @param {number} limit */
 async function readAttachableTargetOptionRows(workspaceId, attachableType, filters, contextScope, workspaceType, limit) {
-  const tableName = safeSqlIdentifier(attachableType.tableName);
-  const idField = safeSqlIdentifier(attachableType.idField);
-  const labelField = safeSqlIdentifier(attachableType.labelField);
-  const workspaceField = safeSqlIdentifier(attachableType.workspaceField);
-  const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
-  const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
-  const columns = await readTableColumnSet(tableName);
-  const labelExpression = `COALESCE(${labelField}, '')`;
-  /** @type {Record<string, DatabaseNamedParameterInput>} */
-  const params = {
-    attachableTargetLimit: limit,
-    attachableTargetWorkspaceId: workspaceId,
-  };
-  const conditions = [
-    `${workspaceField} = :attachableTargetWorkspaceId`,
-    ...attachableTargetActiveConditions(columns),
-    ...attachableTargetFilterConditions(attachableType, contextScope, workspaceType, { clientField, idField, projectField }, params),
-  ];
-
-  if (filters.search) {
-    params.attachableTargetSearchPattern = db.dialect.comparison.likePattern(filters.search, { mode: "contains" });
-    conditions.push(db.dialect.comparison.containsNoCase(labelExpression, ":attachableTargetSearchPattern"));
-  }
-
-  return /** @type {AttachableTargetRow[]} */ (await db.query(`
-SELECT
-  ${idField} AS target_id,
-  ${labelField} AS target_label,
-  ${workspaceField} AS workspace_id
-  ${clientField ? `, ${clientField} AS client_id` : ", NULL AS client_id"}
-  ${projectField ? `, ${projectField} AS project_id` : ", NULL AS project_id"}
-FROM ${tableName}
-WHERE ${conditions.join("\n  AND ")}
-ORDER BY ${db.dialect.comparison.orderByNoCase(labelExpression, "ASC")}, ${idField} ASC
-LIMIT :attachableTargetLimit;
-`, params));
+  return filesRepo.readAttachableTargetOptionRows(
+    workspaceId,
+    attachableType,
+    filters,
+    contextScope,
+    workspaceType,
+    limit,
+    attachableTargetFields(attachableType),
+  );
 }
 
 /** @param {FileSession} session @param {AttachableType} attachableType @param {AttachableTargetRow} row @param {string} workspaceType */
@@ -3950,7 +3365,7 @@ async function decorateAttachableTargetOptions(workspaceId, options, workspaceTy
       ...option,
       value: { ...option.value },
     };
-    const projectLabel = safeDisplayLabel(projectLabels.get(option.projectId), "", [option.projectId]);
+    const projectLabel = safeDisplayLabel(projectLabels.get(option.projectId || ""), "", [option.projectId]);
     const contextParts = [];
 
     if (workspaceType === "business" && option.clientId) {
@@ -4053,235 +3468,16 @@ function hasFilterParameter(filters, keys) {
 
 /** @param {string} workspaceId @param {string[]} clientIds */
 async function readClientLabelMap(workspaceId, clientIds) {
-  if (clientIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db.query(`
-SELECT id, name
-FROM clients
-WHERE workspace_id = :workspaceId
-  AND id IN (:clientIds);
-`, {
-    clientIds,
-    workspaceId,
-  });
+  const rows = await filesRepo.readClientLabels(workspaceId, clientIds);
 
   return new Map(rows.map((row) => [row.id, row.name || ""]));
 }
 
 /** @param {string} workspaceId @param {string[]} projectIds */
 async function readProjectLabelMap(workspaceId, projectIds) {
-  if (projectIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db.query(`
-SELECT id, name
-FROM projects
-WHERE workspace_id = :workspaceId
-  AND id IN (:projectIds);
-`, {
-    projectIds,
-    workspaceId,
-  });
+  const rows = await filesRepo.readProjectLabels(workspaceId, projectIds);
 
   return new Map(rows.map((row) => [row.id, row.name || ""]));
-}
-
-/**
- * @param {string} tableName
- */
-/** @param {string} tableName */
-async function readTableColumnSet(tableName) {
-  const rows = await db.query(db.dialect.introspection.tableInfo(tableName));
-  return new Set(rows.map((row) => String(row.name || "")));
-}
-
-/**
- * @param {Set<unknown>} columns
- */
-/** @param {Set<string>} columns */
-function attachableTargetActiveConditions(columns) {
-  const conditions = [];
-
-  if (columns.has("deleted_at")) {
-    conditions.push("deleted_at IS NULL");
-  }
-  if (columns.has("archived_at")) {
-    conditions.push("archived_at IS NULL");
-  }
-  if (columns.has("removed_at")) {
-    conditions.push("removed_at IS NULL");
-  }
-  if (columns.has("status")) {
-    conditions.push("LOWER(status) NOT IN ('archived', 'deleted', 'disabled', 'inactive')");
-  }
-
-  return conditions;
-}
-
-/** @param {AttachableType} attachableType @param {LooseRecord} contextScope @param {string} workspaceType @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
-function attachableTargetFilterConditions(attachableType, contextScope, workspaceType, fields, params) {
-  /**
- * @type {never[]}
- */
-  const conditions = [];
-  applyAttachableProjectScopeFilter(conditions, attachableType, contextScope, fields, params);
-  applyAttachableClientScopeFilter(conditions, attachableType, contextScope, workspaceType, fields, params);
-
-  return conditions;
-}
-
-/** @param {string[]} conditions @param {LooseRecord} scope @param {Record<string, DatabaseNamedParameterInput>} params */
-function applyAttachmentContextScopeFilters(conditions, scope, params) {
-  if (scope.hasProjectFilter) {
-    if (scope.projectFilterMode === "blank") {
-      conditions.push("(file_attachments.project_id IS NULL OR file_attachments.project_id = '')");
-    } else if (scope.projectFilterMode === "ids") {
-      const projectIds = uniqueNonEmpty(Array.isArray(scope.projectIds) ? scope.projectIds : []);
-
-      if (projectIds.length === 0) {
-        conditions.push("1 = 0");
-      } else {
-        conditions.push("file_attachments.project_id IN (:attachmentProjectIds)");
-        params.attachmentProjectIds = projectIds;
-      }
-    }
-  }
-
-  if (!scope.hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
-    return;
-  }
-
-  if (scope.clientFilterMode === "blank") {
-    conditions.push("(file_attachments.client_id IS NULL OR file_attachments.client_id = '')");
-    return;
-  }
-
-  if (scope.clientFilterMode !== "ids") {
-    return;
-  }
-
-  const clientIds = uniqueNonEmpty(Array.isArray(scope.clientIds) ? scope.clientIds : []);
-  const clientProjectIds = uniqueNonEmpty(Array.isArray(scope.clientProjectIds) ? scope.clientProjectIds : []);
-
-  if (clientIds.length === 0 && clientProjectIds.length === 0) {
-    conditions.push("1 = 0");
-    return;
-  }
-
-  const scopedConditions = [];
-
-  if (clientIds.length > 0) {
-    scopedConditions.push("file_attachments.client_id IN (:attachmentClientIds)");
-    params.attachmentClientIds = clientIds;
-  }
-
-  if (clientProjectIds.length > 0) {
-    scopedConditions.push("file_attachments.project_id IN (:attachmentClientProjectIds)");
-    params.attachmentClientProjectIds = clientProjectIds;
-  }
-
-  conditions.push(`(${scopedConditions.join(" OR ")})`);
-}
-
-/** @param {string[]} conditions @param {AttachableType} attachableType @param {LooseRecord} scope @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
-function applyAttachableProjectScopeFilter(conditions, attachableType, scope, fields, params) {
-  if (!scope.hasProjectFilter) {
-    return;
-  }
-
-  if (scope.projectFilterMode === "blank") {
-    if (attachableType.targetType === "project") {
-      conditions.push("1 = 0");
-    } else if (fields.projectField) {
-      conditions.push(`(${fields.projectField} IS NULL OR ${fields.projectField} = '')`);
-    }
-    return;
-  }
-
-  if (scope.projectFilterMode !== "ids") {
-    return;
-  }
-
-  const projectIds = uniqueNonEmpty(Array.isArray(scope.projectIds) ? scope.projectIds : []);
-
-  if (projectIds.length === 0) {
-    conditions.push("1 = 0");
-    return;
-  }
-
-  if (attachableType.targetType === "project") {
-    params.attachableTargetProjectIds = projectIds;
-    conditions.push(`${fields.idField} IN (:attachableTargetProjectIds)`);
-  } else if (fields.projectField) {
-    params.attachableTargetProjectIds = projectIds;
-    conditions.push(`${fields.projectField} IN (:attachableTargetProjectIds)`);
-  } else {
-    conditions.push("1 = 0");
-  }
-}
-
-/** @param {string[]} conditions @param {AttachableType} attachableType @param {LooseRecord} scope @param {string} workspaceType @param {LooseRecord} fields @param {Record<string, DatabaseNamedParameterInput>} params */
-function applyAttachableClientScopeFilter(conditions, attachableType, scope, workspaceType, fields, params) {
-  if (workspaceType !== "business" || !scope.hasClientFilter || scope.omitClientFilterBecauseProjectSelected) {
-    return;
-  }
-
-  if (scope.clientFilterMode === "blank") {
-    if (attachableType.targetType === "client") {
-      conditions.push("1 = 0");
-    } else if (fields.clientField) {
-      conditions.push(`(${fields.clientField} IS NULL OR ${fields.clientField} = '')`);
-    }
-    return;
-  }
-
-  if (scope.clientFilterMode !== "ids") {
-    return;
-  }
-
-  const clientIds = uniqueNonEmpty(Array.isArray(scope.clientIds) ? scope.clientIds : []);
-  const clientProjectIds = uniqueNonEmpty(Array.isArray(scope.clientProjectIds) ? scope.clientProjectIds : []);
-
-  if (clientIds.length === 0 && clientProjectIds.length === 0) {
-    conditions.push("1 = 0");
-    return;
-  }
-
-  if (attachableType.targetType === "client") {
-    if (clientIds.length === 0) {
-      conditions.push("1 = 0");
-      return;
-    }
-
-    params.attachableTargetClientIds = clientIds;
-    conditions.push(`${fields.idField} IN (:attachableTargetClientIds)`);
-    return;
-  }
-
-  const scopedConditions = [];
-
-  if (fields.clientField && clientIds.length > 0) {
-    params.attachableTargetClientIds = clientIds;
-    scopedConditions.push(`${fields.clientField} IN (:attachableTargetClientIds)`);
-  }
-
-  if (attachableType.targetType === "project" && clientProjectIds.length > 0) {
-    params.attachableTargetClientProjectIds = clientProjectIds;
-    scopedConditions.push(`${fields.idField} IN (:attachableTargetClientProjectIds)`);
-  } else if (fields.projectField && clientProjectIds.length > 0) {
-    params.attachableTargetClientProjectIds = clientProjectIds;
-    scopedConditions.push(`${fields.projectField} IN (:attachableTargetClientProjectIds)`);
-  }
-
-  if (scopedConditions.length === 0) {
-    conditions.push("1 = 0");
-    return;
-  }
-
-  conditions.push(`(${scopedConditions.join(" OR ")})`);
 }
 
 /**
@@ -4324,17 +3520,6 @@ function looksLikeRawIdentifier(value) {
   const text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(text) ||
     /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}/i.test(text);
-}
-
-/** @param {unknown} value */
-function safeSqlIdentifier(value) {
-  const identifier = String(value || "").trim();
-
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
-    throw new AppError("Attachable target metadata is invalid.", 500);
-  }
-
-  return identifier;
 }
 
 /** @param {unknown[]} values */
@@ -4421,24 +3606,11 @@ function assertAttachmentContextPayloadMatchesTarget(attachableType, target, pay
 
 /** @param {string} workspaceId @param {AttachmentRow} attachment @param {AttachableType} attachableType @param {AttachableTargetRow} target */
 async function assertNoDuplicateActiveAttachmentContext(workspaceId, attachment, attachableType, target) {
-  const row = await db.get(`
-SELECT file_attachment_id
-FROM file_attachments
-WHERE workspace_id = :attachmentWorkspaceId
-  AND file_id = :attachmentFileId
-  AND module_id = :attachmentModuleId
-  AND target_type = :attachmentTargetType
-  AND target_id = :attachmentTargetId
-  AND file_attachment_id <> :attachmentId
-  AND removed_at IS NULL
-LIMIT 1;
-`, {
-    attachmentFileId: attachment.file_id,
-    attachmentId: attachment.file_attachment_id,
-    attachmentModuleId: attachableType.moduleId,
-    attachmentTargetId: target.target_id,
-    attachmentTargetType: attachableType.targetType,
-    attachmentWorkspaceId: workspaceId,
+  const row = await filesRepo.findDuplicateActiveAttachment({
+    attachableType,
+    attachment,
+    target,
+    workspaceId,
   });
 
   if (row) {
@@ -4557,24 +3729,6 @@ function normalizeAttachmentListOptions(filters = {}) {
     paginate,
     sort: ATTACHMENT_SORT_MODES.has(sort) ? sort : "newest",
   };
-}
-
-/** @param {string} [sortMode] */
-function attachmentOrderByClause(sortMode = "newest") {
-  if (sortMode === "oldest") {
-    return "file_attachments.created_at ASC, file_attachments.file_attachment_id ASC";
-  }
-  if (sortMode === "filename") {
-    return `${db.dialect.comparison.orderByNoCase("COALESCE(files.display_name, files.original_filename, '')", "ASC")}, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC`;
-  }
-  if (sortMode === "size") {
-    return "files.file_size_bytes DESC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
-  }
-  if (sortMode === "status") {
-    return `${db.dialect.comparison.orderByNoCase("files.status", "ASC")}, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC`;
-  }
-
-  return "file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
 }
 
 /** @template T @param {T[]} [attachments] @param {string} [sortMode] @returns {T[]} */

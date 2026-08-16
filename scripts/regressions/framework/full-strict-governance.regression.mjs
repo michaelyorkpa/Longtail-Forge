@@ -64,7 +64,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 24, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 25, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -175,6 +175,8 @@ for (const strictCleanPath of [
   "src/types/task-server-contracts.d.ts",
   "src/types/task-status-contracts.d.ts",
   "tests/typecheck/task-server-contracts.fixture.mjs",
+  "src/repositories/files.repo.js",
+  "src/types/files-repository-contracts.d.ts",
 ]) {
   assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);

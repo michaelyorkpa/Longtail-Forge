@@ -23,6 +23,7 @@ const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepoSource = readText("src/repositories/files.repo.js");
 
 const {
   closeDatabase,
@@ -52,7 +53,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /escapeLikePattern/, "SQLite dialect seams should expose LIKE pattern escaping");
   assert.match(sqliteDialectSource, /likePattern/, "SQLite dialect seams should expose pattern construction");
 
-  const proofPath = functionBlock(filesServiceSource, "readAttachableTargetOptionRows");
+  const proofPath = functionBlock(filesRepoSource, "readAttachableTargetOptionRows");
   assert.match(proofPath, /db\.query\(`/, "Files attachable target options should use the bound database API");
   assert.match(proofPath, /db\.dialect\.comparison\.containsNoCase/, "Files attachable target search should use the case-insensitive comparison seam");
   assert.match(proofPath, /db\.dialect\.comparison\.likePattern/, "Files attachable target search should use the dialect LIKE pattern helper");

@@ -205,6 +205,7 @@
         "src/repositories/app-settings.repo.js",
         "src/repositories/audit-logs.repo.js",
         "src/repositories/authentication-throttle.repo.js",
+        "src/repositories/files.repo.js",
         "src/repositories/notifications.repo.js",
         "src/repositories/permissions.repo.js",
         "src/repositories/private-feed-tokens.repo.js",
@@ -3863,7 +3864,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9221,
+      "errorCount": 9215,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5066,7 +5067,7 @@
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 11
           },
           {
             "code": 7053,
@@ -5084,7 +5085,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           },
           {
             "code": 7023,
@@ -5108,7 +5109,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           }
         ],
         "scripts/files-preview-availability-route-regression.mjs": [
@@ -10819,8 +10820,8 @@
     }
   },
   "totals": {
-    "files": 1024,
-    "errors": 21591,
+    "files": 1025,
+    "errors": 21585,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -10845,7 +10846,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 24,
+    "firstPartyFiles": 25,
     "errors": 0
   }
 }
