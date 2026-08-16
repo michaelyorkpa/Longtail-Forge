@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.22.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.22.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.22.2, the checked `files-storage-accounting.service.js` seam owns internal accounting reconciliation and its scoped transaction, external-accounting identity and persistence orchestration, safe accounting projection and totals, actual-usage quota state, exact-limit admission, scope-specific rejection, and streamed-upload limits. The main Files facade retains permission checks, payload normalization, workspace settings, provider writes and cleanup, lifecycle/audit effects, and the unchanged public service API; the repository remains the sole SQL owner. `files-storage-accounting-contracts.d.ts` names accounting, quota, and upload-limit shapes, a direct unit owner covers identities, redacted projection, totals, and established quota copy, and the retained 32-script Files area plus permission harness preserve accounting, provider, lifecycle, buffered/streamed quota, cleanup, and authorization behavior. This checkpoint expands the compiler universe to 1,027 files and 26 declarations while holding combined strict debt at 21,585 diagnostics and explicit `any` at 10; it closes the `0.33.33.22` Files rollup.
 
 As of 0.33.33.22.1, `src/repositories/files.repo.js` owns Files SQL, dynamic filters, dialect-specific comparisons and conflict handling, lifecycle writes, named row projections, and the transaction-scoped persistence operations supplied by `files.service.js`. The service retains permission and policy orchestration, lifecycle events, storage-provider and scanner behavior, response shaping, and explicit transaction ownership; it contains no inline SQL or direct query execution. `files-repository-contracts.d.ts` names the repository rows, `framework.full-strict-governance` pins the repository and its contracts strict-clean and free of explicit `any`, and the retained 32-script Files area plus the permission harness preserve paging, attachment, lifecycle, quota, reporting, provider, and not-found behavior. This checkpoint expands the compiler universe to 1,025 files and 25 declarations while lowering combined strict debt from 21,591 to 21,585 diagnostics; the explicit-`any` inventory remains 10.
 
@@ -301,11 +303,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18225 |
+| Active regression assertions | 18237 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18894 |
+| Effective assertion floor | 18906 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

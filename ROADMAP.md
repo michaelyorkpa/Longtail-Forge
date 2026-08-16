@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.22.2 - Extract Files storage accounting and quota policy
-
-**Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.
-
-- [ ] Isolate storage-accounting and quota calculations behind a typed Files-owned service seam.
-- [ ] Preserve transaction ownership, upload admission, workspace and scoped quotas, reconciliation, and provider behavior.
-- [ ] Keep storage keys, paths, scanner internals, and hidden labels out of browser contracts and diagnostics.
-- [ ] Close full-strict debt for the accounting seam with quota, lifecycle, database, Files, and permission proof.
-
 ### 0.33.33.23 - Extract the Files scanner job service
 
 **Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
