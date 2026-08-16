@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18185,
+    "activeAssertionCount": 18187,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18854,
+    "effectiveAssertionCount": 18856,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -5221,8 +5221,8 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 784,
-      "contractAssertionCount": 783,
+      "assertionCount": 786,
+      "contractAssertionCount": 785,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
@@ -5306,7 +5306,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
-          "assertionCount": 41
+          "assertionCount": 43
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",

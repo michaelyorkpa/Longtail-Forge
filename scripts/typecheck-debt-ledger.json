@@ -160,6 +160,7 @@
         "src/modules/tasks/public-api.routes.js",
         "src/modules/tasks/public-api.service.js",
         "src/modules/tasks/search-indexers.js",
+        "src/modules/tasks/task-block-recovery-engine.js",
         "src/modules/tasks/task-calendar-feed.scope.js",
         "src/modules/tasks/task-calendar-feed.service.js",
         "src/modules/tasks/task-calendar.shared.js",
@@ -362,12 +363,13 @@
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
+        "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 2108,
+      "errorCount": 2105,
       "diagnostics": {
         "src/config.js": [
           {
@@ -694,7 +696,7 @@
           },
           {
             "code": 7006,
-            "count": 279
+            "count": 276
           },
           {
             "code": 7031,
@@ -11027,8 +11029,8 @@
     }
   },
   "totals": {
-    "files": 1020,
-    "errors": 22514,
+    "files": 1022,
+    "errors": 22511,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -11049,7 +11051,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 20,
+    "firstPartyFiles": 21,
     "errors": 0
   }
 }
