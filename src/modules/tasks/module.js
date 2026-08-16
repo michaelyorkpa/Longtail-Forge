@@ -16,6 +16,9 @@ import { tasksIntegrations } from "./module.integrations.js";
 import { tasksSettings } from "./module.settings.js";
 import { registerTasksPrivateCalendarFeedProvider } from "./private-calendar-feed.provider.js";
 
+/** @typedef {import("../../types/framework-contracts.d.ts").ModuleActivationContext} ModuleActivationContext */
+
+/** @param {ModuleActivationContext} context */
 function activateTasksAppRuntime(context) {
   registerTasksSearchIndexers();
   registerTasksPrivateCalendarFeedProvider();
@@ -24,12 +27,14 @@ function activateTasksAppRuntime(context) {
   registerTasksStartupSweeps(context, "startup");
 }
 
+/** @param {ModuleActivationContext} context */
 function activateTasksWorkerRuntime(context) {
   registerTasksSearchIndexers();
   registerTaskJobHandlers();
   registerTasksStartupSweeps(context, "worker-startup");
 }
 
+/** @param {ModuleActivationContext} context @param {string} sourcePrefix */
 function registerTasksStartupSweeps({ registerStartupTask }, sourcePrefix) {
   registerStartupTask({
     id: "reminder-sweep",

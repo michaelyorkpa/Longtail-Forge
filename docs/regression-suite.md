@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.21.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.21.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.21.3, every Tasks server owner is strict-clean. The remaining service, primary repository, routes, edge contracts, events, public API, link-target and Search adapters now consume `task-server-contracts.d.ts`, `task-status-contracts.d.ts`, and the established Tasks workflow, recurrence, list-engine, and framework contracts without weakening lifecycle, permission, query-authority, recurrence, reminder, or integration behavior. The new `task-server-contracts.fixture.mjs` proves accepted repository/service calls and rejects malformed writes and incomplete sessions; `framework.full-strict-governance` pins the complete `src/modules/tasks/` owner set at zero diagnostics and zero explicit `any`. This checkpoint expands the compiler universe to 1,024 files and 24 declarations while lowering combined strict debt from 22,328 to 21,591 diagnostics and closes the `0.33.33.21` Tasks rollup.
 
 As of 0.33.33.21.2, the Tasks checklist and relationship repositories plus reminder, timer, settings, work-evidence, and private-calendar-feed owners consume the named `task-workflow-contracts.d.ts` boundary under full strict checking. The contracts preserve database boolean binding, transactional replacement and ordering, reminder inheritance and timezone occurrence calculation, Task Timer lifecycle transitions, private-feed authorization scope, and started-work evidence while exposing precise repository and service results to the remaining main Tasks orchestrator. `task-workflow-contracts.fixture.mjs` proves the public seam, `framework.full-strict-governance` pins all eleven owners free of strict diagnostics and explicit `any`, and the retained 34-script Tasks area preserves stateful behavior. This checkpoint expands the compiler universe to 1,023 files and 22 first-party declarations while lowering combined strict debt from 22,511 to 22,328 diagnostics.
 
@@ -297,11 +299,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18189 |
+| Active regression assertions | 18209 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18858 |
+| Effective assertion floor | 18878 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

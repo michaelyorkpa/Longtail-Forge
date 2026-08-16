@@ -373,7 +373,7 @@ async function copyTemplateNoteLinksToTask({ session, task, template, sourceTask
   });
 }
 
-/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task */
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @returns {Promise<import("../../types/task-server-contracts.d.ts").TaskRecurrenceDetails>} */
 async function readTaskRecurrenceDetails(task) {
   if (!task?.recurrence_template_id) {
     return {

@@ -51,6 +51,7 @@ async function assertTaskEditsExposeLastWorkedAt(session) {
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const item = workbench.items.find((candidate) => candidate.task_id === updated.task_id);
+  assert.ok(item, "updated task should remain in Workbench items");
   assert.equal(item.last_worked_at, updated.last_worked_at);
 }
 
@@ -72,7 +73,8 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
   assert.equal(completed.completionMetrics.created_at, createdAt);
   assert.equal(completed.completionMetrics.completed_at, completed.completed_at);
-  assert.ok(completed.completionMetrics.duration_seconds > 0);
+  assert.notEqual(completed.completionMetrics.duration_seconds, null);
+  assert.ok((completed.completionMetrics.duration_seconds ?? 0) > 0);
   assert.ok(completed.completionMetrics.duration_label);
   assert.equal(completed.resumeContext.active_candidate, false);
   assert.equal(completed.resumeContext.completion_metrics.duration_seconds, completed.completionMetrics.duration_seconds);

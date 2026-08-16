@@ -257,7 +257,7 @@ async function assertWorkItemSummaryPayload(session, fixtures) {
 }
 
 async function assertPermissionFiltering(session) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const result = await tasksService.list(noRoleSession, { status: "active" });
   const workItems = await tasksService.listWorkItems(noRoleSession);
   const workbench = await tasksService.listWorkbenchItems(noRoleSession);
@@ -267,7 +267,7 @@ async function assertPermissionFiltering(session) {
   assert.equal(workbench.items.length, 0, "Workbench should consume permission-filtered canonical task work items");
 
   const hierarchyFixtures = await createHierarchyPermissionFixtures(session);
-  const limitedSession = await createNoRoleSession(session.workspace_id);
+  const limitedSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   await assignProjectAdminRole(limitedSession.user_id, session.workspace_id, hierarchyFixtures.readableProject.id);
 
   const limitedClientScope = await tasksService.list(limitedSession, {

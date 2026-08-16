@@ -14,7 +14,7 @@ import {
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetProviderOptions} LinkTargetProviderOptions */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetType} LinkTargetType */
 
-/** @typedef {{ task_id: string; title?: string; label?: string; client_id?: string; clientId?: string; client_name?: string; clientName?: string; project_id?: string; projectId?: string; project_name?: string; projectName?: string; status?: string; archived_at?: string|null; archivedAt?: string|null; completed_at?: string|null; completedAt?: string|null }} TaskTargetRow */
+/** @typedef {{ task_id: string; title?: string | null; label?: string | null; client_id?: string | null; clientId?: string | null; client_name?: string | null; clientName?: string | null; project_id?: string | null; projectId?: string | null; project_name?: string | null; projectName?: string | null; status?: string | null; archived_at?: string|null; archivedAt?: string|null; completed_at?: string|null; completedAt?: string|null }} TaskTargetRow */
 
 const TASK_TARGET_TITLE_MAX_LENGTH = 20;
 /** @type {readonly LinkTargetType[]} */

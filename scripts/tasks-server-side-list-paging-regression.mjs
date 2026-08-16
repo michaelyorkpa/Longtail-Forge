@@ -107,7 +107,7 @@ async function assertPagedList(session, taskCount) {
 }
 
 async function assertPermissionPruning(session) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const result = await tasksService.list(noRoleSession, {
     task_view: "all",
     status: "all",

@@ -30,6 +30,7 @@ export interface TaskRecord extends PermissionResource {
   resume_note?: NullableText;
   status: string;
   priority?: NullableText;
+  billable?: "yes" | "no" | boolean | NullableText;
   estimate_minutes?: number | null;
   due_date?: NullableText;
   due_time?: NullableText;
@@ -51,6 +52,35 @@ export interface TaskRecord extends PermissionResource {
   created_at?: NullableText;
   updated_at?: NullableText;
   checklistItems?: TaskChecklistSourceItem[];
+  checklistProgress?: {
+    completed_count: number;
+    next_incomplete_item_label: string;
+    total_count: number;
+  };
+  relationshipSummary?: {
+    child_count: number;
+    blocking_child_count: number;
+    incomplete_blocking_child_count: number;
+    parent_count: number;
+    blocking_parent_count: number;
+  };
+  assignees?: TaskAssignee[];
+  tags?: TaskTag[];
+}
+
+export interface TaskAssignee extends Record<string, unknown> {
+  task_assignee_id?: NullableText;
+  task_id?: NullableText;
+  user_id: string;
+  username?: NullableText;
+  displayName?: NullableText;
+  display_name?: NullableText;
+}
+
+export interface TaskTag extends Record<string, unknown> {
+  tag_id?: NullableText;
+  name?: NullableText;
+  label?: NullableText;
 }
 
 export interface TaskRecurrenceTemplate extends Omit<TaskRecord, "task_id"> {
@@ -82,6 +112,8 @@ export interface TaskRecurrenceTemplateUpdate extends TaskRecurrenceTemplateWrit
 export interface TaskChecklistSourceItem {
   label?: NullableText;
   sort_order?: string | number | null;
+  is_checked?: boolean;
+  deleted_at?: NullableText;
 }
 
 export interface TaskRecurrenceChecklistItem {

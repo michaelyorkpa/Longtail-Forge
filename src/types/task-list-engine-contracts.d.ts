@@ -109,6 +109,7 @@ export interface TaskListRow {
   status?: string | null;
   task_id?: string | null;
   title?: string | null;
+  workspace_id?: string;
   updated_at?: string | null;
   resumeContext?: Record<string, unknown> | null;
   resume_note?: string | null;

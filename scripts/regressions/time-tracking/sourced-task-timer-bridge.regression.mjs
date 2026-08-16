@@ -131,7 +131,7 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, {
     taskId: task.task_id,
-    workspaceId: session.workspace_id,
+    workspaceId: String(session.workspace_id),
   });
   assert.equal(remainingTimer, null, "finalized Task Timers must still remove their active sourced row");
 

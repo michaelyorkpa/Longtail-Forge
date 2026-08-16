@@ -68,7 +68,7 @@ async function assertBusinessOptions(session) {
 }
 
 async function assertPermissionFiltering(session) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const options = (await tasksService.list(noRoleSession, { status: "active" })).options;
 
   assert.equal(options.clients.length, 0, "unreadable clients should be absent from picker options");
