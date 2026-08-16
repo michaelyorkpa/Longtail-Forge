@@ -167,7 +167,10 @@ function registerTimerProducer() {
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function taskBatchReadResolver({ recordIds, session }) {
-  return tasksService.readLifecycleForIds(session, recordIds);
+  return tasksService.readLifecycleForIds(
+    /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    recordIds,
+  );
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
@@ -241,7 +244,10 @@ WHERE workspace_id = :workspaceId
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function taskReadResolver({ recordId, session }) {
   try {
-    const result = await tasksService.readCore(recordId, session);
+    const result = await tasksService.readCore(
+      recordId,
+      /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    );
     const task = result.task || {};
     return {
       archived: task.status === "archived",

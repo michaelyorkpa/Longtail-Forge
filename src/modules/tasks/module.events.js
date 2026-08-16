@@ -1,7 +1,12 @@
+/** @typedef {import("../../types/framework-contracts.d.ts").InternalEvent} InternalEvent */
+/** @typedef {import("../../types/framework-contracts.d.ts").EventSummaryResolverContext} EventSummaryResolverContext */
+
+/** @param {EventSummaryResolverContext} context */
 function taskNotificationTitle({ event }) {
   return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
 }
 
+/** @param {EventSummaryResolverContext} context */
 function taskDueSoonNotificationTitle({ event }) {
   const offsetLabel = taskReminderOffsetLabel(event.metadata?.offset_minutes);
   const title = taskNotificationTitle({ event });
@@ -9,6 +14,7 @@ function taskDueSoonNotificationTitle({ event }) {
   return offsetLabel ? `Due in ${offsetLabel}: ${title}` : title;
 }
 
+/** @param {EventSummaryResolverContext} context */
 function taskDueSoonNotificationBody({ event }) {
   const offsetLabel = taskReminderOffsetLabel(event.metadata?.offset_minutes);
   const title = taskNotificationTitle({ event });
@@ -18,6 +24,7 @@ function taskDueSoonNotificationBody({ event }) {
     : `Task "${title}" is due soon.`;
 }
 
+/** @param {unknown} offsetMinutes */
 function taskReminderOffsetLabel(offsetMinutes) {
   const minutes = Number(offsetMinutes);
 
@@ -42,6 +49,7 @@ function taskReminderOffsetLabel(offsetMinutes) {
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }
 
+/** @param {InternalEvent} event @param {string} reason */
 async function markTaskActivityFromEvent(event, reason) {
   const taskId = taskIdFromActivityEvent(event);
   const workspaceId = event.workspace_id || event.session?.workspace_id || "";
@@ -64,20 +72,22 @@ async function markTaskActivityFromEvent(event, reason) {
   });
 }
 
-function taskIdFromActivityEvent(event = {}) {
+/** @param {InternalEvent} event @returns {string} */
+function taskIdFromActivityEvent(event = { name: "" }) {
   const metadata = event.metadata || {};
 
   if (metadata.module_id === "tasks" && metadata.target_type === "task") {
-    return metadata.target_id || "";
+    return String(metadata.target_id || "");
   }
 
   if (event.module_id === "tasks" && event.record_type === "task") {
     return event.record_id || "";
   }
 
-  return metadata.task_id || "";
+  return String(metadata.task_id || "");
 }
 
+/** @type {{ hooks: { events: import("../../types/framework-contracts.d.ts").ModuleEventHookContribution[] }, eventTypes: import("../../types/framework-contracts.d.ts").EventTypeContribution[], eventSummaries: import("../../types/framework-contracts.d.ts").EventSummaryDeclaration[], notificationEvents: import("../../types/framework-contracts.d.ts").NotificationEventContribution[], notificationFollowTargets: import("../../types/framework-contracts.d.ts").NotificationFollowTargetContribution[] }} */
 const tasksEvents = {
   hooks: {
       events: [
@@ -353,7 +363,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Updated",
           summary: ({ event }) => `Added checklist item to task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -362,7 +372,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Updated",
           summary: ({ event }) => `Updated checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -371,7 +381,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Progress",
           summary: ({ event }) => `Checked checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -380,7 +390,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Progress",
           summary: ({ event }) => `Unchecked checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -389,7 +399,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Updated",
           summary: ({ event }) => `Removed checklist item from task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -398,7 +408,7 @@ const tasksEvents = {
         activity: {
           label: "Task Checklist Reordered",
           summary: ({ event }) => `Reordered checklist items for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.task_id || ""))}`,
         },
       },
       {
@@ -407,7 +417,7 @@ const tasksEvents = {
         activity: {
           label: "Task Relationship Added",
           summary: ({ event }) => `Linked child task "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.parent_task_id || ""))}`,
         },
       },
       {
@@ -416,7 +426,7 @@ const tasksEvents = {
         activity: {
           label: "Task Relationship Updated",
           summary: ({ event }) => `Updated child task relationship for "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.parent_task_id || ""))}`,
         },
       },
       {
@@ -425,7 +435,7 @@ const tasksEvents = {
         activity: {
           label: "Task Relationship Removed",
           summary: ({ event }) => `Removed child task relationship for "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
-          url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+          url: ({ event }) => `tasks.html?task=${encodeURIComponent(String(event.metadata?.parent_task_id || ""))}`,
         },
       },
       {

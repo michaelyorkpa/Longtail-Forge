@@ -185,6 +185,14 @@ export interface TaskReminderOccurrence {
   status: "pending";
 }
 
+export interface TaskReminderDetails {
+  computedOccurrences: TaskReminderOccurrence[];
+  effectivePolicy: TaskReminderEffectivePolicy;
+  inheritedFrom: string;
+  overrideEnabled: boolean;
+  taskPolicy: TaskReminderPolicy;
+}
+
 export interface TaskReminderRecord extends TaskRecord {
   due_at_utc?: NullableText;
   due_time?: NullableText;
@@ -251,7 +259,7 @@ export interface TaskTimerSourceTask extends TaskRecord {
   task_id: string;
   workspace_id: string;
   title: string;
-  billable?: unknown;
+  billable?: TaskRecord["billable"];
 }
 
 export interface TaskTimerSavePayload {

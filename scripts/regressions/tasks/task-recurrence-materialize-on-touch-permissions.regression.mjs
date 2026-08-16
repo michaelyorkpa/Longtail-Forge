@@ -206,7 +206,7 @@ async function assertSweepDoesNotDisturbTouchedInstances(session, source, touche
   });
   await runJobs("sweep");
   assert.equal(await recurrenceInstanceCount(session, source.recurrence_template_id, "2026-08-24"), 1);
-  assert.equal((await tasksRepository.readById(session.workspace_id, touchedTask.task_id)).status, "open");
+  assert.equal((await tasksRepository.readById(session.workspace_id, touchedTask.task_id))?.status, "open");
 }
 
 async function assertCompletionContinuity(session, source) {
@@ -215,6 +215,7 @@ async function assertCompletionContinuity(session, source) {
     instanceDate: "2026-09-07",
   }, session);
   const completed = await tasksService.complete(touched.task.task_id, session);
+  assert.ok(completed.recurrenceContinuity, "completed touched instance should expose recurrence continuity");
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.recurrenceContinuity.nextScheduledDate, "2026-09-14");
   assert.equal(completed.recurrenceContinuity.followUpQueued, true);

@@ -1026,8 +1026,8 @@ export interface InternalEvent {
   recordId?: string;
   record_label?: string;
   recordLabel?: string;
-  previous_value?: Record<string, unknown> | unknown[] | null;
-  new_value?: Record<string, unknown> | unknown[] | null;
+  previous_value?: ((Record<string, unknown> | unknown[]) & { title?: unknown }) | null;
+  new_value?: ((Record<string, unknown> | unknown[]) & { title?: unknown }) | null;
   source?: string;
   metadata?: Record<string, unknown>;
   session?: Partial<RequestSession> | null;

@@ -30,7 +30,7 @@ const WINDOW_END = "2026-08-31";
 
 try {
   await initializeDatabase();
-  const session = await readSeedSession();
+  const session = /** @type {import("../../../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await readSeedSession()));
   const fixtures = await createFixtures(session);
 
   await assertBoundedRangeEnforcement(session, fixtures);
@@ -459,14 +459,14 @@ function assertReminderMarkers(result, fixtures) {
 }
 
 async function assertScopedPermissionFiltering(fixtures) {
-  const scopedSession = {
+  const scopedSession = /** @type {import("../../../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ ({
     active_workspace_id: fixtures.workspaceId,
     home_workspace_id: fixtures.workspaceId,
     timezone: "America/New_York",
     user_id: fixtures.scopedUser.userId,
     username: fixtures.scopedUser.username,
     workspace_id: fixtures.workspaceId,
-  };
+  }));
   const scoped = await tasksService.calendarWindow(scopedSession, { start: WINDOW_START, end: WINDOW_END });
   const rowIds = scoped.tasks.map((row) => row.task_id);
   const markerIds = scoped.reminders.map((marker) => marker.task_id);

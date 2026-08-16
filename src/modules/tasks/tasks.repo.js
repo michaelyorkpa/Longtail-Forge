@@ -7,6 +7,22 @@ import {
   taskStatusFilterOverridesActiveScope,
 } from "./task-list-engine.js";
 
+/** @typedef {import("../../types/database-contracts.d.ts").TransactionClient} TransactionClient */
+/** @typedef {import("../../types/database-contracts.d.ts").DatabaseNamedParameterInput} DatabaseNamedParameterInput */
+/** @typedef {import("../../types/database-contracts.d.ts").DatabaseParams} DatabaseParams */
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} TaskRecord */
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskAssignee} TaskAssignee */
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} TaskRecurrenceTemplate */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskAssigneeRow} TaskAssigneeRow */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskDashboardCountRow} TaskDashboardCountRow */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskDatabaseRow} TaskDatabaseRow */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskRepositoryOptions} TaskRepositoryOptions */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskRecurrenceRecoveryResult} TaskRecurrenceRecoveryResult */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskWrite} TaskWrite */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskWriteParamsInput} TaskWriteParamsInput */
+/** @typedef {import("../../types/task-status-contracts.d.ts").TaskStatusRow} TaskStatusRow */
+/** @typedef {Record<string, DatabaseNamedParameterInput>} NamedParams */
+
 const TASK_RECURRENCE_INSTANCE_INSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoNothing({
   columns: [
     "task_id", "workspace_id", "client_id", "project_id", "title", "description",
@@ -29,9 +45,11 @@ const TASK_RECURRENCE_INSTANCE_INSERT_SQL = db.dialect.conflict.buildInsertOnCon
   ],
 });
 
+/** @param {string} workspaceId @param {TaskRepositoryOptions} options */
 async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
   const normalizedOffset = normalizePositiveInteger(options.offset, 0);
+  /** @type {NamedParams} */
   const params = {
     workspaceId,
   };
@@ -44,7 +62,7 @@ async function queryList(workspaceId, options = {}) {
     params.offset = normalizedOffset;
   }
 
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 ${whereSql}
 ${orderSql}${limitSql};
 `), params);
@@ -62,9 +80,10 @@ ${orderSql}${limitSql};
   };
 }
 
+/** @param {string} workspaceId */
 async function readAll(workspaceId) {
   const [tasks, assignees] = await Promise.all([
-    db.query(taskSelectSql(`
+    queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
 ORDER BY
   CASE WHEN tasks.archived_at IS NULL THEN 0 ELSE 1 END,
@@ -78,8 +97,9 @@ ORDER BY
   return attachAssignees(tasks.map(taskRowToAppValue), assignees);
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readById(workspaceId, taskId) {
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.task_id = :taskId
 LIMIT 1;
@@ -93,6 +113,7 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+/** @param {string} workspaceId @param {unknown[]} taskIds @returns {Promise<TaskStatusRow[]>} */
 async function readStatusByIds(workspaceId, taskIds = []) {
   const ids = [...new Set((Array.isArray(taskIds) ? taskIds : [])
     .map((taskId) => String(taskId || "").trim())
@@ -102,7 +123,7 @@ async function readStatusByIds(workspaceId, taskIds = []) {
     return [];
   }
 
-  return db.query(`
+  const rows = await db.query(`
 SELECT task_id, workspace_id, client_id, project_id, status
 FROM tasks
 WHERE tasks.workspace_id = :workspaceId
@@ -111,8 +132,16 @@ WHERE tasks.workspace_id = :workspaceId
     taskIds: ids,
     workspaceId,
   });
+  return rows.map((row) => ({
+    task_id: String(row.task_id || ""),
+    workspace_id: String(row.workspace_id || ""),
+    client_id: row.client_id ? String(row.client_id) : null,
+    project_id: row.project_id ? String(row.project_id) : null,
+    status: String(row.status || "open"),
+  }));
 }
 
+/** @param {string} workspaceId @param {unknown[]} taskIds */
 async function readByIds(workspaceId, taskIds = []) {
   const ids = [...new Set((Array.isArray(taskIds) ? taskIds : [])
     .map((taskId) => String(taskId || "").trim())
@@ -122,7 +151,7 @@ async function readByIds(workspaceId, taskIds = []) {
     return [];
   }
 
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.task_id IN (:taskIds)
 ORDER BY tasks.updated_at DESC, ${db.dialect.comparison.orderByNoCase("tasks.title", "ASC")};
@@ -135,6 +164,7 @@ ORDER BY tasks.updated_at DESC, ${db.dialect.comparison.orderByNoCase("tasks.tit
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
+/** @param {string} workspaceId @param {TaskWrite} task @returns {Promise<TaskRecord>} */
 async function create(workspaceId, task) {
   const now = new Date().toISOString();
   const taskId = task.task_id || createRecordId();
@@ -209,9 +239,10 @@ VALUES (
 `, taskWriteParams({ includeCreatedAt: true, now, task, taskId, workspaceId }));
 
   await replaceAssignees(workspaceId, taskId, task.assignee_ids || [], task.updated_by_user_id || task.created_by_user_id);
-  return readById(workspaceId, taskId);
+  return /** @type {TaskRecord} */ (await readById(workspaceId, taskId));
 }
 
+/** @param {string} workspaceId @param {TaskWrite} task */
 async function createRecurrenceInstance(workspaceId, task) {
   const now = new Date().toISOString();
   const taskId = task.task_id || createRecordId();
@@ -238,16 +269,17 @@ async function createRecurrenceInstance(workspaceId, task) {
     ? await readById(workspaceId, taskId)
     : await readByRecurrenceInstance(
         workspaceId,
-        task.recurrence_template_id,
-        task.recurrence_instance_date,
+        String(task.recurrence_template_id || ""),
+        String(task.recurrence_instance_date || ""),
       );
 
   return {
-    task: materializedTask,
+    task: /** @type {TaskRecord} */ (materializedTask),
     wasCreated,
   };
 }
 
+/** @param {string} workspaceId @param {TaskWrite & { task_id: string }} task @returns {Promise<TaskRecord>} */
 async function update(workspaceId, task) {
   const now = new Date().toISOString();
 
@@ -257,9 +289,10 @@ async function update(workspaceId, task) {
     await replaceAssignees(workspaceId, task.task_id, task.assignee_ids, task.updated_by_user_id);
   }
 
-  return readById(workspaceId, task.task_id);
+  return /** @type {TaskRecord} */ (await readById(workspaceId, task.task_id));
 }
 
+/** @param {string} workspaceId @param {TaskWrite & { task_id: string }} rootTask @param {Array<TaskWrite & { task_id: string }>} descendantTasks */
 async function updateProjectCascade(workspaceId, rootTask, descendantTasks = []) {
   const now = new Date().toISOString();
 
@@ -344,6 +377,7 @@ WHERE workspace_id = :workspaceId
 `;
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {unknown[]} assigneeIds @param {unknown} assignedByUserId */
 async function replaceAssignees(workspaceId, taskId, assigneeIds, assignedByUserId) {
   const now = new Date().toISOString();
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
@@ -353,6 +387,7 @@ async function replaceAssignees(workspaceId, taskId, assigneeIds, assignedByUser
   });
 }
 
+/** @param {TransactionClient} database @param {string} workspaceId @param {string} taskId @param {string[]} assigneeIds @param {unknown} assignedByUserId @param {string} now */
 async function replaceAssigneesWithExecutor(database, workspaceId, taskId, assigneeIds, assignedByUserId, now) {
   await database.run(`
 UPDATE task_assignees
@@ -388,7 +423,7 @@ VALUES (
 );
 `, {
         assignedAt: now,
-        assignedByUserId,
+        assignedByUserId: nullableTextParam(assignedByUserId),
         taskAssigneeId: createRecordId(),
         taskId,
         userId,
@@ -397,14 +432,16 @@ VALUES (
   }
 }
 
+/** @param {string} workspaceId */
 async function readAssigneesForWorkspace(workspaceId) {
-  return db.query(assigneeSelectSql(`
+  return queryAssigneeRows(assigneeSelectSql(`
 WHERE task_assignees.workspace_id = :workspaceId
   AND task_assignees.removed_at IS NULL
 ORDER BY users.username;
 `), { workspaceId });
 }
 
+/** @param {string} workspaceId @param {unknown[]} taskIds */
 async function readAssigneesForTasks(workspaceId, taskIds) {
   const uniqueTaskIds = [...new Set((taskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
 
@@ -412,7 +449,7 @@ async function readAssigneesForTasks(workspaceId, taskIds) {
     return [];
   }
 
-  return db.query(assigneeSelectSql(`
+  return queryAssigneeRows(assigneeSelectSql(`
 WHERE task_assignees.workspace_id = :workspaceId
   AND task_assignees.task_id IN (:taskIds)
   AND task_assignees.removed_at IS NULL
@@ -423,8 +460,9 @@ ORDER BY users.username;
   });
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate */
 async function readByRecurrenceInstance(workspaceId, templateId, instanceDate) {
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.recurrence_template_id = :templateId
   AND tasks.recurrence_instance_date = :instanceDate
@@ -443,8 +481,9 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} beforeDate */
 async function readRecurrenceInstancesBefore(workspaceId, templateId, beforeDate) {
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.recurrence_template_id = :templateId
   AND tasks.recurrence_instance_date < :beforeDate
@@ -468,6 +507,7 @@ async function recoverRecurrenceToCurrent(workspaceId, {
 }) {
   const now = new Date().toISOString();
   const targetTaskId = targetTask?.task_id || createRecordId();
+  /** @type {TaskRecurrenceRecoveryResult | null} */
   let result = null;
 
   await db.transaction(async (transaction) => {
@@ -518,7 +558,7 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, { taskIds, workspaceId });
       if (timers.length > 0) {
-        result = { status: "timer_conflict", taskId: timers[0].source_id };
+        result = { status: "timer_conflict", taskId: String(timers[0].source_id || "") };
         return;
       }
 
@@ -576,30 +616,35 @@ WHERE workspace_id = :workspaceId
     result = { status: "recovered", completedTaskIds: taskIds, targetCreated, targetTaskId };
   });
 
-  if (result?.status !== "recovered") {
-    return result;
+  const recoveryResult = /** @type {TaskRecurrenceRecoveryResult | null} */ (result);
+  if (recoveryResult?.status !== "recovered") {
+    return recoveryResult;
   }
   return {
-    ...result,
-    completedTasks: await readByIds(workspaceId, result.completedTaskIds),
+    ...recoveryResult,
+    completedTasks: await readByIds(workspaceId, recoveryResult.completedTaskIds || []),
     targetTask: targetTask
       ? await readByRecurrenceInstance(workspaceId, templateId, checkpointDate)
       : null,
   };
 }
 
+/** @param {Record<string, unknown> | null} actual @param {TaskRecurrenceTemplate} expected */
 function recurrenceTemplateMatches(actual, expected) {
-  return [
+  /** @type {Array<"recurrence_anchor_date" | "due_time" | "due_timezone" | "rrule" | "recurrence_end_date">} */
+  const fields = [
     "recurrence_anchor_date",
     "due_time",
     "due_timezone",
     "rrule",
     "recurrence_end_date",
-  ].every((key) => String(actual?.[key] || "") === String(expected?.[key] || ""));
+  ];
+  return fields.every((key) => String(actual?.[key] || "") === String(expected?.[key] || ""));
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} afterInstanceDate */
 async function readFutureRecurrenceInstances(workspaceId, templateId, afterInstanceDate) {
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.recurrence_template_id = :templateId
   AND tasks.recurrence_instance_date IS NOT NULL
@@ -621,6 +666,7 @@ ORDER BY tasks.recurrence_instance_date ASC, tasks.due_time ASC, tasks.created_a
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
+/** @param {string} workspaceId @param {string} templateId */
 async function readRecurrenceInstanceStats(workspaceId, templateId) {
   const row = await db.get(`
 SELECT
@@ -644,6 +690,7 @@ WHERE tasks.workspace_id = :workspaceId
   };
 }
 
+/** @param {string} workspaceId @param {string} startDate @param {string} endDate @param {TaskRepositoryOptions} options */
 async function readDueBetween(workspaceId, startDate, endDate, options = {}) {
   const statuses = Array.isArray(options.statuses) && options.statuses.length
     ? options.statuses
@@ -651,7 +698,7 @@ async function readDueBetween(workspaceId, startDate, endDate, options = {}) {
   const statusParams = Object.fromEntries(
     Array.from({ length: 5 }, (_, index) => [`calendarStatus${index}`, statuses[index] || null]),
   );
-  const tasks = await db.query(taskCalendarSelectSql(`
+  const tasks = await queryTaskRows(taskCalendarSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.due_date IS NOT NULL
   AND tasks.due_date >= :startDate
@@ -672,6 +719,7 @@ ORDER BY
   return tasks.map(taskCalendarRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} startDate @param {string} endDate */
 async function readRecurrenceInstancesBetween(workspaceId, startDate, endDate) {
   const rows = await db.query(`
 SELECT
@@ -699,6 +747,7 @@ ORDER BY recurrence_instance_date, recurrence_template_id, task_id;
   }));
 }
 
+/** @param {string} workspaceId @param {string} startDate @param {string} endDate @param {TaskRepositoryOptions} options */
 async function readCalendarFeedCandidates(workspaceId, startDate, endDate, options = {}) {
   const scope = taskCalendarFeedScopeSql(options.scope, {
     projectAlias: "projects",
@@ -726,7 +775,7 @@ ORDER BY
   tasks.updated_at,
   tasks.task_id;
 `);
-  const tasks = await db.query(query, {
+  const tasks = await queryTaskRows(query, {
     endDate,
     startDate,
     workspaceId,
@@ -736,6 +785,7 @@ ORDER BY
   return tasks.map(taskCalendarRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} startDate @param {string} endDate @param {string[]} templateIds @param {TaskRepositoryOptions} options */
 async function readCalendarFeedSuppressedInstances(
   workspaceId,
   startDate,
@@ -779,6 +829,7 @@ ORDER BY tasks.recurrence_instance_date, tasks.recurrence_template_id;
   });
 }
 
+/** @param {string} workspaceId @param {string} userId @param {TaskRepositoryOptions} options */
 async function readDashboardCountGroups(workspaceId, userId, options = {}) {
   const sql = `
 SELECT
@@ -817,17 +868,18 @@ FROM tasks
 WHERE tasks.workspace_id = :workspaceId
 GROUP BY tasks.workspace_id, tasks.client_id, tasks.project_id;
 `;
-  const rows = await db.query(sql, {
+  const rows = /** @type {TaskDashboardCountRow[]} */ (await db.query(sql, {
     currentUserId: userId,
     dueSoonCutoff: options.dueSoonCutoff || "",
     nowIso: options.nowIso || new Date().toISOString(),
     today: options.today || "",
     workspaceId,
-  });
+  }));
 
   return rows.map(dashboardCountGroupRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {TaskRepositoryOptions} options */
 async function readDashboardCandidates(workspaceId, userId, options = {}) {
   const candidateLimit = normalizePositiveInteger(options.candidateLimit, 5);
   const params = {
@@ -889,16 +941,17 @@ WHERE tasks.workspace_id = :workspaceId
 ORDER BY tasks.updated_at DESC, tasks.title ASC, tasks.task_id ASC;
 `)}
 `;
-  const rows = await db.query(sql, params);
+  const rows = await queryTaskRows(sql, params);
   const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
 
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
+/** @param {string} workspaceId @param {TaskRepositoryOptions} options */
 async function readReminderSchedulingCandidates(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 500);
   const normalizedOffset = normalizePositiveInteger(options.offset, 0);
-  const rows = await db.query(taskSelectSql(`
+  const rows = await queryTaskRows(taskSelectSql(`
 WHERE tasks.workspace_id = :workspaceId
   AND tasks.due_date IS NOT NULL
   AND tasks.status NOT IN ('complete', 'archived')
@@ -918,8 +971,9 @@ LIMIT :limit OFFSET :offset;
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readAssigneesForTask(workspaceId, taskId) {
-  return db.query(assigneeSelectSql(`
+  return queryAssigneeRows(assigneeSelectSql(`
 WHERE task_assignees.workspace_id = :workspaceId
   AND task_assignees.task_id = :taskId
   AND task_assignees.removed_at IS NULL
@@ -927,6 +981,7 @@ ORDER BY users.username;
 `), { taskId, workspaceId });
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {string | null | undefined} workedAt @param {string} userId */
 async function markWorkedAt(workspaceId, taskId, workedAt, userId = "") {
   const timestamp = workedAt || new Date().toISOString();
 
@@ -944,9 +999,20 @@ WHERE workspace_id = :workspaceId
     workspaceId,
   });
 
-  return readById(workspaceId, taskId);
+  return /** @type {TaskRecord} */ (await readById(workspaceId, taskId));
 }
 
+/** @param {string} sql @param {DatabaseParams} params */
+async function queryTaskRows(sql, params = {}) {
+  return /** @type {TaskDatabaseRow[]} */ (await db.query(sql, params));
+}
+
+/** @param {string} sql @param {DatabaseParams} params */
+async function queryAssigneeRows(sql, params = {}) {
+  return /** @type {TaskAssigneeRow[]} */ (await db.query(sql, params));
+}
+
+/** @param {string} whereSql */
 function taskSelectSql(whereSql) {
   return `
 SELECT
@@ -993,6 +1059,7 @@ LEFT JOIN projects
 ${whereSql}`;
 }
 
+/** @param {string} whereSql */
 function taskCalendarSelectSql(whereSql) {
   return `
 SELECT
@@ -1024,6 +1091,7 @@ LEFT JOIN projects
 ${whereSql}`;
 }
 
+/** @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function taskListWhereSql(options, params) {
   const conditions = ["tasks.workspace_id = :workspaceId"];
 
@@ -1039,6 +1107,7 @@ function taskListWhereSql(options, params) {
   return `WHERE ${conditions.join("\n  AND ")}`;
 }
 
+/** @param {string} category @param {string} orderingKind @param {string} conditionSql @param {string} categoryRankSql */
 function dashboardCandidateSelect(category, orderingKind, conditionSql, categoryRankSql = "0") {
   return `
 SELECT
@@ -1118,16 +1187,19 @@ function dashboardTimerRankSql() {
   END`;
 }
 
+/** @param {unknown} value */
 function sqlStringLiteral(value) {
   return `'${String(value || "").replaceAll("'", "''")}'`;
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options */
 function applyNextActionFilter(conditions, options) {
   if (options.requireNextAction === true) {
     conditions.push("TRIM(COALESCE(tasks.next_action, '')) <> ''");
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyDueWindowFilter(conditions, options, params) {
   const dueWindowStart = String(options.dueWindowStart || "").trim();
   const dueWindowEnd = String(options.dueWindowEnd || "").trim();
@@ -1149,6 +1221,7 @@ function applyDueWindowFilter(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyTaskViewFilter(conditions, options, params) {
   const taskView = normalizeTaskListFilter(options.taskView);
   // When the Status filter explicitly targets terminal tasks (complete / archived /
@@ -1215,6 +1288,7 @@ function applyTaskViewFilter(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyStatusFilter(conditions, options, params) {
   const statusFilter = normalizeTaskListFilter(options.statusFilter);
 
@@ -1236,6 +1310,7 @@ function applyStatusFilter(conditions, options, params) {
   params.statusFilter = statusFilter;
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyQuickFilter(conditions, options, params) {
   const quickFilter = normalizeTaskListFilter(options.quickFilter);
 
@@ -1260,6 +1335,7 @@ function applyQuickFilter(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyDueFilter(conditions, options, params) {
   const dueFilter = normalizeTaskListFilter(options.dueFilter);
 
@@ -1314,6 +1390,7 @@ function applyDueFilter(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyContextFilters(conditions, options, params) {
   if (options.hasProjectFilter) {
     if (options.projectFilterMode === "blank") {
@@ -1365,6 +1442,7 @@ function applyContextFilters(conditions, options, params) {
   }
 }
 
+/** @param {string[]} conditions @param {TaskRepositoryOptions} options @param {NamedParams} params */
 function applyAssigneeFilters(conditions, options, params) {
   const assigneeFilter = normalizeTaskListFilter(options.assigneeFilter);
 
@@ -1385,6 +1463,7 @@ function applyAssigneeFilters(conditions, options, params) {
   }
 }
 
+/** @param {unknown} sort */
 function taskListOrderSql(sort) {
   const normalizedSort = normalizeTaskListSort(sort);
   const dueSort = "COALESCE(tasks.due_at_utc, COALESCE(tasks.due_date, '9999-12-31') || 'T' || COALESCE(tasks.due_time, '23:59') || ':00')";
@@ -1427,6 +1506,7 @@ function activeTaskSql() {
   return "tasks.status NOT IN ('complete', 'archived')";
 }
 
+/** @param {TaskRepositoryOptions} options */
 function statusFilterOverridesActiveScope(options) {
   // An explicit terminal status (complete/archived/history) OR "all" widens past a saved view's
   // active-only scope. This is always a deliberate user choice: the active-scoped saved views
@@ -1435,6 +1515,7 @@ function statusFilterOverridesActiveScope(options) {
   return taskStatusFilterOverridesActiveScope(options.statusFilter);
 }
 
+/** @param {string} userParam */
 function assigneeExistsSql(userParam) {
   return `EXISTS (
     SELECT 1
@@ -1456,12 +1537,16 @@ function anyAssigneeExistsSql() {
   )`;
 }
 
+/** @param {unknown} value @param {number} fallback */
 function normalizePositiveInteger(value, fallback) {
-  const number = Number.parseInt(value, 10);
+  const number = Number.parseInt(String(value ?? ""), 10);
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
+/** @param {TaskWriteParamsInput} input */
 function taskWriteParams({ includeCreatedAt = false, now, task, taskId, workspaceId }) {
+  /** @type {NamedParams} */
+  /** @type {NamedParams} */
   const params = {
     archivedAt: nullableTextParam(task.archived_at),
     archivedByUserId: nullableTextParam(task.archived_by_user_id),
@@ -1502,22 +1587,26 @@ function taskWriteParams({ includeCreatedAt = false, now, task, taskId, workspac
   return params;
 }
 
+/** @param {unknown} value */
 function textParam(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value */
 function nullableIntegerParam(value) {
   return value === null || value === undefined || value === ""
     ? null
     : Number(value);
 }
 
+/** @param {string} whereSql */
 function assigneeSelectSql(whereSql) {
   return `
 SELECT
@@ -1533,7 +1622,9 @@ LEFT JOIN users
 ${whereSql}`;
 }
 
+/** @param {TaskRecord[]} tasks @param {TaskAssigneeRow[]} assignees */
 function attachAssignees(tasks, assignees) {
+  /** @type {Map<string, TaskAssignee[]>} */
   const assigneesByTask = assignees.reduce((map, assignee) => {
     if (!map.has(assignee.task_id)) {
       map.set(assignee.task_id, []);
@@ -1550,6 +1641,7 @@ function attachAssignees(tasks, assignees) {
   }));
 }
 
+/** @param {TaskDatabaseRow} row @returns {TaskRecord} */
 function taskRowToAppValue(row) {
   return {
     task_id: row.task_id,
@@ -1585,11 +1677,12 @@ function taskRowToAppValue(row) {
     completed_by_user_id: row.completed_by_user_id || "",
     archived_by_user_id: row.archived_by_user_id || "",
     last_worked_at: row.last_worked_at || row.updated_at || row.created_at || "",
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: row.created_at || "",
+    updated_at: row.updated_at || "",
   };
 }
 
+/** @param {TaskDatabaseRow} row */
 function taskCalendarRowToAppValue(row) {
   return {
     task_id: row.task_id,
@@ -1613,6 +1706,7 @@ function taskCalendarRowToAppValue(row) {
   };
 }
 
+/** @param {TaskDashboardCountRow} row */
 function dashboardCountGroupRowToAppValue(row) {
   return {
     workspace_id: row.workspace_id,
@@ -1629,6 +1723,7 @@ function dashboardCountGroupRowToAppValue(row) {
   };
 }
 
+/** @param {TaskAssigneeRow} row */
 function assigneeRowToAppValue(row) {
   return {
     task_assignee_id: row.task_assignee_id,

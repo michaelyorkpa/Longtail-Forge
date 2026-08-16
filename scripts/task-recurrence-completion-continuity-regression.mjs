@@ -78,6 +78,7 @@ async function assertDedicatedCompletionContinuity(session) {
   await tasksService.addChecklistItem(source.task_id, { label: "Second step" }, session);
 
   const result = await tasksService.complete(source.task_id, session);
+  assert.ok(result.recurrenceContinuity, "recurring completion should expose continuity");
   assert.equal(result.task.status, "complete", "dedicated completion should persist before recurrence handoff");
   assert.equal(result.recurrenceContinuity.status, "pending");
   assert.equal(result.recurrenceContinuity.nextScheduledDate, nextDate);
@@ -175,6 +176,7 @@ async function assertQueueFailureAndSweepRecovery(session) {
   const source = await createRecurringTask(session, "Queue failure recovery", dateOffset(6));
   await tasksService.addChecklistItem(source.task_id, { label: "Recovered checklist step" }, session);
   const stored = await tasksRepository.readById(session.workspace_id, source.task_id);
+  assert.ok(stored, "recurring task should remain readable before queue-failure simulation");
   const completedAt = new Date().toISOString();
   await tasksRepository.update(session.workspace_id, {
     ...stored,
@@ -190,11 +192,12 @@ async function assertQueueFailureAndSweepRecovery(session) {
       throw new Error("seeded recurrence queue failure");
     },
   });
+  assert.ok(failedHandoff.recurrenceContinuity, "failed handoff should expose recovery continuity");
 
   assert.equal(failedHandoff.recurrenceContinuity.status, "handoff_failed");
   assert.equal(failedHandoff.recurrenceContinuity.followUpFailed, true);
   assert.equal(failedHandoff.recurrenceJob.failed, true);
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "complete");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "complete");
 
   await queueTaskRecurrenceSweepJob({
     availableAt: new Date(),

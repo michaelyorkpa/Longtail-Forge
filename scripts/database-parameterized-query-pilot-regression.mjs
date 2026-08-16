@@ -109,7 +109,7 @@ function assertPilotSourceShape() {
   assert.match(workspacesSource, /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use the adapter transaction helper after the conversion wave");
   assert.doesNotMatch(workspacesSource, /\bsqlText\b|\bsqlInteger\b|\bquerySql\b|\brunSql\b/, "workspace repository should stay off interpolation helpers after the conversion wave");
 
-  assert.match(tasksSource, /db\.query\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params");
+  assert.match(tasksSource, /queryTaskRows\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params through the typed query helper");
   assert.match(notesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId[\s\S]*note_id = :noteId/, "Notes readById should use named params");
 }
 
@@ -258,6 +258,7 @@ VALUES (
 `, { createdAt: now, taskId, title, updatedAt: now, workspaceId });
 
   const task = await tasksRepository.readById(workspaceId, taskId);
+  assert.ok(task, "parameterized Tasks read should return the inserted task");
   assert.equal(task.task_id, taskId);
   assert.equal(task.title, title);
 

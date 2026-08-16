@@ -396,20 +396,6 @@
       "signature": "4eeb43213ae440817ffe2a21d3368c65ca5c04f0d4419cc338b76e2dce94b853"
     },
     {
-      "id": "dynamic-sql-template.1b8cc5962d9426b9",
-      "file": "src/modules/tasks/tasks.repo.js",
-      "kind": "dynamic-sql-template",
-      "operation": "db.query",
-      "signature": "1b8cc5962d9426b962446cca921d0762b74f16d38d661f79a8a2c2929ea7187e"
-    },
-    {
-      "id": "dynamic-sql-template.440d09fb7ef93b98",
-      "file": "src/modules/tasks/tasks.repo.js",
-      "kind": "dynamic-sql-template",
-      "operation": "db.query",
-      "signature": "440d09fb7ef93b988cf9b98c74f92555978c8fd914e70715ca2e8931cb571cb3"
-    },
-    {
       "id": "dynamic-sql-template.6348dc8e5110be01",
       "file": "src/modules/time-tracking/active-timers.repo.js",
       "kind": "dynamic-sql-template",

@@ -89,7 +89,7 @@ try {
 
   const coreWorkspace = await coreDatabase.db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.equal(coreWorkspace.workspace_id, workspace.workspace_id, "core database facade should share the active provider-neutral db");
-  const tasks = await tasksRepository.readAll(workspace.workspace_id);
+  const tasks = await tasksRepository.readAll(String(workspace.workspace_id));
   assert.deepEqual(tasks, [], "first-party module repositories should be able to query through the provider-neutral database path");
 
   assertDirectSqliteImportInventory();

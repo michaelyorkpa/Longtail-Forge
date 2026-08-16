@@ -259,6 +259,7 @@ async function assertTasksBulkConsumer(session, fixtures) {
 
   assert.equal(result.errors.length, 0);
   assert.equal(result.tasks.length, 1);
+  assert.ok(result.tasks[0], "bulk tag assignment should return the changed task");
   assert.ok(result.tasks[0].tags.some((tag) => tag.tag_id === fixtures.directTag.tag_id));
 }
 

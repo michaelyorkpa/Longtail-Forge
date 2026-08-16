@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.21.3 - Finish Tasks strict typing
-
-**Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
-
-- [ ] Type the remaining Tasks service, primary repository surface, routes, contracts, events, public API, providers, and search indexers under full strict.
-- [ ] Preserve completion, recurrence, reminder, timer, checklist, relationship, blocking, and resume-context behavior.
-- [ ] Keep canonical server-side visibility, filtering, sorting, paging, and permission decisions authoritative.
-- [ ] Reduce the Tasks server ledger to zero with existing lifecycle, hot-endpoint, and permission owners.
-
 ### 0.33.33.22.1 - Extract the Files repository
 
 **Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.

@@ -161,7 +161,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 ORDER BY created_at DESC
 LIMIT 1;
 `);
-  assert.equal(JSON.parse(audit?.metadata_json || "{}").project_id, fixtures.secondProject.id, "bulk Project assignment should retain canonical audit scope metadata");
+  assert.equal(JSON.parse(String(audit?.metadata_json || "{}")).project_id, fixtures.secondProject.id, "bulk Project assignment should retain canonical audit scope metadata");
 
   const indexed = await indexTaskRecord({
     workspaceId: session.workspace_id,
@@ -277,11 +277,12 @@ async function assertTagAddRemoveReplace(session, fixtures) {
     task_ids: [fixtures.first.task_id],
   }, session);
   assert.equal(replaced.errors.length, 0);
+  assert.ok(replaced.tasks[0], "bulk tag replacement should return the changed task");
   assert.deepEqual(replaced.tasks[0].tags.map((tag) => tag.tag_id), [fixtures.replaceTag.tag_id]);
 }
 
 async function assertPermissionsRemainAuthoritative(session, fixtures) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const denied = await tasksService.bulkUpdate({
     action: "priority",
     priority: "urgent",

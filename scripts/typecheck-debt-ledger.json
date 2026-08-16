@@ -348,6 +348,7 @@
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
+        "tests/typecheck/task-server-contracts.fixture.mjs",
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
         "tests/unit/asset-version.test.mjs",
@@ -370,7 +371,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 1924,
+      "errorCount": 1236,
       "diagnostics": {
         "src/config.js": [
           {
@@ -510,128 +511,6 @@
           {
             "code": 18049,
             "count": 1
-          }
-        ],
-        "src/modules/tasks/module.events.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7031,
-            "count": 55
-          }
-        ],
-        "src/modules/tasks/module.js": [
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/modules/tasks/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/public-api.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 24
-          }
-        ],
-        "src/modules/tasks/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/tasks.contracts.js": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/tasks.repo.js": [
-          {
-            "code": 2339,
-            "count": 22
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 2698,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 118
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/tasks.routes.js": [
-          {
-            "code": 2345,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/tasks.service.js": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 79
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 276
-          },
-          {
-            "code": 7031,
-            "count": 62
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
           }
         ],
         "src/modules/time-tracking/active-timers.repo.js": [
@@ -3984,7 +3863,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9270,
+      "errorCount": 9221,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4077,10 +3956,6 @@
           }
         ],
         "scripts/async-recurrence-response-closeout-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
           {
             "code": 7006,
             "count": 7
@@ -9005,7 +8880,7 @@
           },
           {
             "code": 2345,
-            "count": 9
+            "count": 8
           },
           {
             "code": 2531,
@@ -9023,7 +8898,7 @@
         "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs": [
           {
             "code": 18047,
-            "count": 7
+            "count": 5
           },
           {
             "code": 2322,
@@ -9031,7 +8906,7 @@
           },
           {
             "code": 2345,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7005,
@@ -9089,7 +8964,7 @@
         "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs": [
           {
             "code": 7006,
-            "count": 3
+            "count": 2
           }
         ],
         "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs": [
@@ -9098,16 +8973,12 @@
             "count": 2
           },
           {
-            "code": 18047,
-            "count": 2
-          },
-          {
             "code": 2339,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 22
+            "count": 19
           }
         ],
         "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs": [
@@ -9121,7 +8992,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 11
           }
         ],
         "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs": [
@@ -9975,7 +9846,7 @@
         "scripts/tag-bulk-assignment-regression.mjs": [
           {
             "code": 7006,
-            "count": 14
+            "count": 13
           }
         ],
         "scripts/tag-core-records-regression.mjs": [
@@ -9985,7 +9856,7 @@
           },
           {
             "code": 7006,
-            "count": 4
+            "count": 3
           }
         ],
         "scripts/tag-propagation-contract-regression.mjs": [
@@ -10062,10 +9933,6 @@
         ],
         "scripts/task-activity-metrics-regression.mjs": [
           {
-            "code": 18048,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 6
           }
@@ -10073,7 +9940,7 @@
         "scripts/task-bulk-due-tags-regression.mjs": [
           {
             "code": 7006,
-            "count": 11
+            "count": 10
           }
         ],
         "scripts/task-canonical-query-regression.mjs": [
@@ -10101,7 +9968,7 @@
           },
           {
             "code": 2339,
-            "count": 8
+            "count": 2
           },
           {
             "code": 7005,
@@ -10171,13 +10038,13 @@
         "scripts/task-recurrence-checklist-propagation-regression.mjs": [
           {
             "code": 7006,
-            "count": 13
+            "count": 5
           }
         ],
         "scripts/task-recurrence-completion-continuity-regression.mjs": [
           {
             "code": 18047,
-            "count": 23
+            "count": 18
           },
           {
             "code": 18048,
@@ -10189,7 +10056,7 @@
           },
           {
             "code": 7006,
-            "count": 14
+            "count": 9
           }
         ],
         "scripts/task-recurrence-frequency-regression.mjs": [
@@ -10275,7 +10142,7 @@
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7053,
@@ -10351,7 +10218,7 @@
           },
           {
             "code": 7006,
-            "count": 19
+            "count": 16
           },
           {
             "code": 7034,
@@ -10361,7 +10228,7 @@
         "scripts/tasks-primary-repository-conversion-regression.mjs": [
           {
             "code": 7006,
-            "count": 18
+            "count": 16
           }
         ],
         "scripts/tasks-server-side-list-paging-regression.mjs": [
@@ -10952,8 +10819,8 @@
     }
   },
   "totals": {
-    "files": 1023,
-    "errors": 22328,
+    "files": 1024,
+    "errors": 21591,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -10970,13 +10837,15 @@
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",
+    "tests/typecheck/task-server-contracts.fixture.mjs:26",
+    "tests/typecheck/task-server-contracts.fixture.mjs:29",
     "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
     "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
     "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16"
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 22,
+    "firstPartyFiles": 24,
     "errors": 0
   }
 }

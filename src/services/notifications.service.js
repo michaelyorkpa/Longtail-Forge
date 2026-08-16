@@ -893,7 +893,10 @@ async function readTaskTargetMetadata(notification, session, baseMetadata) {
   const { tasksService } = await import("../modules/tasks/tasks.service.js");
 
   try {
-    const result = await tasksService.read(normalizeJobText(notification.record_id), session);
+    const result = await tasksService.read(
+      normalizeJobText(notification.record_id),
+      /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    );
     const task = result.task || {};
     return {
       ...baseMetadata,

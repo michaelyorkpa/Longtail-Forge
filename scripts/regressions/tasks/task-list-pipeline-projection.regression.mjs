@@ -45,7 +45,7 @@ try {
     "list projections must not read reminder details per row",
   );
   assert.match(tasksModuleSource, /listRoute: "\/api\/tasks\/options"/, "the Tasks workbench card should consume the cacheable options route");
-  assert.match(resumeProducersSource, /tasksService\.readCore\(recordId, session\)/, "the resume-state read check should use the lightweight core read");
+  assert.match(resumeProducersSource, /tasksService\.readCore\(\s*recordId,\s*\/\*\* @type \{import\("\.\.\/types\/task-server-contracts\.d\.ts"\)\.TaskServerSession\} \*\/ \(session\),\s*\)/, "the resume-state read check should use the lightweight core read through the named Tasks session boundary");
   assert.match(tasksServiceSource, /createTaskListFilterContext[\s\S]*visibleTaskListCandidates[\s\S]*taskMatchesCanonicalQuery/, "the Tasks orchestrator should consume the typed filter engine boundary");
   assert.doesNotMatch(tasksServiceSource, /function (?:taskMatchesCanonicalQuery|sortCanonicalTasks|normalizeTaskListPagination)\b/, "the Tasks orchestrator must not re-own extracted filter, sort, or paging decisions");
   assert.match(taskListEngineSource, /\/\/ @ts-check[\s\S]*function createTaskListFilterContext[\s\S]*function taskMatchesCanonicalQuery[\s\S]*function sortCanonicalTasks/, "the checked engine should own normalization, filtering, and stable sorting");

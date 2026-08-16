@@ -105,7 +105,7 @@ async function readTargetPoliciesForTargets(workspaceId, targets = []) {
   }));
 }
 
-/** @param {unknown} workspaceId @param {TaskReminderTargetType} targetType @param {unknown} targetId @param {TaskReminderPolicy} policy @param {boolean} inherited */
+/** @param {unknown} workspaceId @param {TaskReminderTargetType} targetType @param {unknown} targetId @param {TaskReminderPolicyInput} policy @param {boolean} inherited */
 async function saveTargetPolicy(workspaceId, targetType, targetId, policy, inherited) {
   await savePolicy(String(workspaceId ?? ""), targetType, targetId, inherited ? null : policy);
 }
@@ -116,7 +116,7 @@ async function readEffectivePolicyForTask(task) {
   return readEffectivePolicyFromChain(chain);
 }
 
-/** @param {TaskReminderRecord} task */
+/** @param {TaskReminderRecord} task @returns {Promise<import("../../types/task-workflow-contracts.d.ts").TaskReminderDetails>} */
 async function readTaskReminderDetails(task) {
   const chain = await readPolicyChain(task);
   const effectivePolicy = readEffectivePolicyFromChain(chain);
@@ -306,7 +306,7 @@ function readEffectivePolicyFromChain(chain) {
   };
 }
 
-/** @param {string} workspaceId @param {TaskReminderTargetType} targetType @param {unknown} targetId @param {TaskReminderPolicy | null} policy */
+/** @param {string} workspaceId @param {TaskReminderTargetType} targetType @param {unknown} targetId @param {TaskReminderPolicyInput | null} policy */
 async function savePolicy(workspaceId, targetType, targetId, policy) {
   const normalizedPolicy = policy ? normalizeReminderPolicy(policy) : { dateTime: [], dateOnly: [] };
   /** @type {import("../../types/task-workflow-contracts.js").TaskReminderOffsetWrite[]} */

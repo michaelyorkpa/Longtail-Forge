@@ -83,7 +83,7 @@ async function readSelectedTask(session, taskId) {
   if (!result?.task) {
     throw new AppError("Task not found", 404);
   }
-  return /** @type {LooseRecord} */ (result.task);
+  return Object.fromEntries(Object.entries(result.task));
 }
 
 /** @param {WorkspaceRequestSession} session @param {LooseRecord} task */
@@ -210,7 +210,7 @@ async function addSharedDirectTagItems(collection, session, task, selectedTagIds
     optionalRead(() => listsService.list(session, { status: "active" }), { fallback: { lists: [] } }),
   ]);
 
-  /** @type {LooseRecord[]} */ (tasks?.tasks || [])
+  (tasks?.tasks || []).map((candidate) => Object.fromEntries(Object.entries(candidate)))
     .filter((candidate) => candidate.task_id !== task.task_id)
     .filter((candidate) => sharesDirectTag(candidate, selectedTagSet))
     .forEach((candidate, index) => addRelatedItem(collection, taskRelatedItem(candidate, {

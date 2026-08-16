@@ -60,9 +60,11 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
   "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
+  "tests/typecheck/task-server-contracts.fixture.mjs:26",
+  "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 22, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 24, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -134,6 +136,12 @@ assert.deepEqual(listsOwnerDiagnostics, [], `Lists server owners must stay stric
 const listsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/lists/"));
 assert.deepEqual(listsOwnerExplicitAny, [], `Lists server owners must stay free of explicit any after checkpoint 0.33.33.18.4`);
+const tasksOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+  .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
+assert.deepEqual(tasksOwnerDiagnostics, [], `Tasks server owners must stay strict-clean after checkpoint 0.33.33.21.3`);
+const tasksOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+  .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
+assert.deepEqual(tasksOwnerExplicitAny, [], `Tasks server owners must stay free of explicit any after checkpoint 0.33.33.21.3`);
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",
@@ -164,6 +172,9 @@ for (const strictCleanPath of [
   "src/modules/tasks/task-work-evidence.service.js",
   "src/types/task-workflow-contracts.d.ts",
   "tests/typecheck/task-workflow-contracts.fixture.mjs",
+  "src/types/task-server-contracts.d.ts",
+  "src/types/task-status-contracts.d.ts",
+  "tests/typecheck/task-server-contracts.fixture.mjs",
 ]) {
   assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);
