@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.19 - Make the Tasks recurrence service boundary real
+
+**Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
+
+- [x] Routed the calendar-feed serializer, Tasks job owner, and main Tasks orchestrator through named `taskRecurrenceService` operations so only the recurrence service imports the recurrence repository.
+- [x] Typed recurrence templates, repository projections, occurrence projection and materialization, completion continuity, calendar-feed scope and serialization, reminder/recurrence jobs, and their selected Tasks adapters under full strict.
+- [x] Preserved recurrence, reminder, timezone, calendar-feed, durable job, completion, materialization, and permission behavior through focused recurrence, feed, reminder, module-boundary, compiler-governance, and permission owners.
+- [x] Converted the touched Notes dependency to its public module entry, removed that resolved deep import from the baseline, lowered combined strict debt from 23,092 to 22,658 diagnostics, and raised retained regression coverage to 18,848 assertions across 347 scripts; `0.33.33.20` remains next.
+
 ## Version 0.33.33.18.4 - Finish Lists strict typing
 
 **Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.

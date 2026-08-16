@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.19 - Make the Tasks recurrence service boundary real
-
-**Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
-
-- [ ] Route the three direct recurrence-repository consumers through `taskRecurrenceService` and expose only named service operations.
-- [ ] Type recurrence templates, projections, jobs, feed serialization, completion continuity, and materialization under full strict.
-- [ ] Preserve recurrence, reminder, timezone, feed, job, and permission behavior.
-- [ ] Remove the direct-import baseline entries only with module-boundary and recurrence proof.
-
 ### 0.33.33.20 - Extract the Tasks filter and sort engine
 
 **Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
