@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.23 - Extract the Files scanner job service
+
+**Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
+
+- [x] Extracted configured scanner registration and readiness, durable `file.scan` enqueue and handler registration, pending-state idempotency, fail-closed disposition, quarantine lifecycle, and worker audit orchestration behind the checked `files-scanner-job.service.js` seam and named declaration contracts.
+- [x] Preserved production scanner readiness, queue dedupe and retry inputs, inline/separate worker behavior, clean/infected/unavailable dispositions, quarantine review, download/preview availability, lifecycle events, and permission enforcement through the retained Files, Jobs, worker, scanner, and permission owners.
+- [x] Kept storage-provider access, upload policy, lifecycle/audit delivery, and the public Files API in the facade; the scanner seam receives a provider-safe projection with an opaque read callback and returns bounded results without storage keys, paths, scanner configuration, or raw scanner output.
+- [x] Added direct fail-closed and redaction coverage, expanded the compiler universe to 1,029 files and 27 declarations with 21,585 diagnostics and 10 explicit-`any` nodes, raised effective regression assertions to 18,911 across 347 scripts, and advanced the active checkpoint to `0.33.33.24`.
+
 ## Version 0.33.33.22.2 - Extract Files storage accounting and quota policy
 
 **Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.

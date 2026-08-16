@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.23 - Extract the Files scanner job service
-
-**Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
-
-- [ ] Extract scanner-job orchestration from Files policy/read behavior with explicit provider-safe inputs and results.
-- [ ] Preserve fail-closed production posture, quarantine lifecycle, retry/idempotency, worker behavior, and redacted diagnostics.
-- [ ] Do not add a module-owned job path or expose scanner configuration.
-- [ ] Close full-strict debt for the scanner seam with existing Files/job proofs.
-
 ### 0.33.33.24 - Extract Files preview and finish Files strict typing
 
 **Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
