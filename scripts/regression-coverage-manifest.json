@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18147,
+    "activeAssertionCount": 18163,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18816,
+    "effectiveAssertionCount": 18832,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1864,11 +1864,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 53,
+      "assertionCount": 55,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists closeout contract.",
-      "entryPointAssertionCount": 53,
+      "entryPointAssertionCount": 55,
       "id": "legacy.lists.closeout",
       "legacy": true,
       "path": "scripts/lists-closeout-regression.mjs",
@@ -1899,11 +1899,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 28,
+      "assertionCount": 30,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists query suggestions contract.",
-      "entryPointAssertionCount": 28,
+      "entryPointAssertionCount": 30,
       "id": "legacy.lists.query.suggestions",
       "legacy": true,
       "path": "scripts/lists-query-suggestions-regression.mjs",
@@ -1933,11 +1933,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 145,
+      "assertionCount": 155,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists service contract.",
-      "entryPointAssertionCount": 145,
+      "entryPointAssertionCount": 155,
       "id": "legacy.lists.service",
       "legacy": true,
       "path": "scripts/lists-service-regression.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 52,
+      "assertionCount": 54,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 52,
+      "entryPointAssertionCount": 54,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

@@ -60,7 +60,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 17, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 18, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -126,6 +126,12 @@ assert.deepEqual(notesOwnerDiagnostics, [], `Notes server owners must stay stric
 const notesOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/notes/"));
 assert.deepEqual(notesOwnerExplicitAny, [], `Notes server owners must stay free of explicit any after checkpoint 0.33.33.17.3`);
+const listsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+  .filter((filePath) => filePath.startsWith("src/modules/lists/"));
+assert.deepEqual(listsOwnerDiagnostics, [], `Lists server owners must stay strict-clean after checkpoint 0.33.33.18.4`);
+const listsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+  .filter((filePath) => filePath.startsWith("src/modules/lists/"));
+assert.deepEqual(listsOwnerExplicitAny, [], `Lists server owners must stay free of explicit any after checkpoint 0.33.33.18.4`);
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
   filePath.startsWith("src/core/") ||
   filePath.startsWith("src/services/") ||

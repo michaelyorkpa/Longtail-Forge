@@ -1,5 +1,26 @@
+// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
+
+/** @typedef {import("../../types/lists-catalog-item-contracts.js").ListsCatalogItemRecord} ListsCatalogItemRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsCatalogItemDatabaseRow} ListsCatalogItemDatabaseRow */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsCatalogSuggestionFilters} ListsCatalogSuggestionFilters */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsCatalogPersistenceInput} ListsCatalogPersistenceInput */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsDatabaseRow} ListsDatabaseRow */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsItemDatabaseRow} ListsItemDatabaseRow */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsJsonObject} ListsJsonObject */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsLinkDatabaseRow} ListsLinkDatabaseRow */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsLinkPersistenceInput} ListsLinkPersistenceInput */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsLinkRecord} ListsLinkRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsQueryParams} ListsQueryParams */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRecord} ListsRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsPersistenceInput} ListsPersistenceInput */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRepository} ListsRepository */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRepositoryFilters} ListsRepositoryFilters */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemOrder} ListsItemOrder */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemRecord} ListsItemRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsItemPersistenceInput} ListsItemPersistenceInput */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsItemUpdateInput} ListsItemUpdateInput */
 
 const LIST_COLUMNS = [
   "list_id",
@@ -93,8 +114,10 @@ const LINK_COLUMNS = [
   "metadata_json",
 ];
 
+/** @param {string} workspaceId @param {ListsRepositoryFilters} [filters] @returns {Promise<ListsRecord[]>} */
 async function list(workspaceId, filters = {}) {
   const clauses = ["workspace_id = :workspaceId"];
+  /** @type {ListsQueryParams} */
   const params = {
     workspaceId: text(workspaceId),
   };
@@ -122,18 +145,19 @@ async function list(workspaceId, filters = {}) {
   applyListProjectScopeFilter(clauses, filters, params);
   applyListClientScopeFilter(clauses, filters, params);
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsDatabaseRow[]} */ (await db.query(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")};
-`, params);
+`, params));
 
   return rows.map(listRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} listId @returns {Promise<ListsRecord | null>} */
 async function readById(workspaceId, listId) {
-  const row = await db.get(`
+  const row = /** @type {ListsDatabaseRow | null} */ (await db.get(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
 WHERE workspace_id = :workspaceId
@@ -142,11 +166,12 @@ LIMIT 1;
 `, {
     listId: text(listId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? listRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string[]} [listIds] @returns {Promise<ListsRecord[]>} */
 async function readByIds(workspaceId, listIds = []) {
   const ids = normalizeIdList(listIds);
 
@@ -154,7 +179,7 @@ async function readByIds(workspaceId, listIds = []) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsDatabaseRow[]} */ (await db.query(`
 SELECT ${LIST_COLUMNS.join(", ")}
 FROM lists
 WHERE workspace_id = :workspaceId
@@ -163,11 +188,12 @@ ORDER BY updated_at DESC, ${db.dialect.comparison.orderByNoCase("title", "ASC")}
 `, {
     listIds: ids,
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(listRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {ListsPersistenceInput} listPayload @returns {Promise<ListsRecord | null>} */
 async function create(workspaceId, listPayload) {
   const listId = listPayload.list_id || createRecordId();
   const now = listPayload.created_at || new Date().toISOString();
@@ -224,6 +250,7 @@ VALUES (
   return readById(workspaceId, listId);
 }
 
+/** @param {string} workspaceId @param {ListsPersistenceInput} listPayload @returns {Promise<ListsRecord | null>} */
 async function update(workspaceId, listPayload) {
   const now = new Date().toISOString();
 
@@ -251,14 +278,16 @@ WHERE workspace_id = :workspaceId
   AND list_id = :listId;
 `, listUpdateParams(workspaceId, listPayload, now));
 
-  return readById(workspaceId, listPayload.list_id);
+  return listPayload.list_id ? readById(workspaceId, listPayload.list_id) : null;
 }
 
+/** @param {string} workspaceId @param {string} listId @param {{includeDeleted?: boolean, purchaseStatus?: string}} [filters] @returns {Promise<ListsItemRecord[]>} */
 async function listItems(workspaceId, listId, filters = {}) {
   const clauses = [
     "workspace_id = :workspaceId",
     "list_id = :listId",
   ];
+  /** @type {ListsQueryParams} */
   const params = {
     listId: text(listId),
     workspaceId: text(workspaceId),
@@ -273,16 +302,17 @@ async function listItems(workspaceId, listId, filters = {}) {
     params.purchaseStatus = text(filters.purchaseStatus);
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsItemDatabaseRow[]} */ (await db.query(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY sort_order ASC, created_at ASC;
-`, params);
+`, params));
 
   return rows.map(itemRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string[]} [listIds] @param {{includeDeleted?: boolean, purchaseStatus?: string}} [filters] @returns {Promise<ListsItemRecord[]>} */
 async function listItemsForLists(workspaceId, listIds = [], filters = {}) {
   const ids = normalizeIdList(listIds);
 
@@ -294,6 +324,7 @@ async function listItemsForLists(workspaceId, listIds = [], filters = {}) {
     "workspace_id = :workspaceId",
     "list_id IN (:listIds)",
   ];
+  /** @type {ListsQueryParams} */
   const params = {
     listIds: ids,
     workspaceId: text(workspaceId),
@@ -308,18 +339,19 @@ async function listItemsForLists(workspaceId, listIds = [], filters = {}) {
     params.purchaseStatus = text(filters.purchaseStatus);
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsItemDatabaseRow[]} */ (await db.query(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY list_id ASC, sort_order ASC, created_at ASC;
-`, params);
+`, params));
 
   return rows.map(itemRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} listId @param {string} itemId @returns {Promise<ListsItemRecord | null>} */
 async function readItemById(workspaceId, listId, itemId) {
-  const row = await db.get(`
+  const row = /** @type {ListsItemDatabaseRow | null} */ (await db.get(`
 SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE workspace_id = :workspaceId
@@ -330,11 +362,12 @@ LIMIT 1;
     itemId: text(itemId),
     listId: text(listId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? itemRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {ListsItemPersistenceInput} item @returns {Promise<ListsItemRecord | null>} */
 async function createItem(workspaceId, item) {
   const itemId = item.list_item_id || createRecordId();
   const now = item.created_at || new Date().toISOString();
@@ -403,6 +436,7 @@ VALUES (
   return readItemById(workspaceId, item.list_id, itemId);
 }
 
+/** @param {string} workspaceId @param {ListsItemUpdateInput} item @returns {Promise<ListsItemRecord | null>} */
 async function updateItem(workspaceId, item) {
   const now = new Date().toISOString();
 
@@ -436,9 +470,10 @@ WHERE workspace_id = :workspaceId
   AND list_item_id = :itemId;
 `, itemUpdateParams(workspaceId, item, now));
 
-  return readItemById(workspaceId, item.list_id, item.list_item_id);
+  return item.list_id && item.list_item_id ? readItemById(workspaceId, item.list_id, item.list_item_id) : null;
 }
 
+/** @param {string} workspaceId @param {string} listId @param {ListsItemOrder[]} [itemOrders] @param {string} [updatedByUserId] @returns {Promise<ListsItemRecord[]>} */
 async function reorderItems(workspaceId, listId, itemOrders = [], updatedByUserId = "") {
   const now = new Date().toISOString();
 
@@ -472,6 +507,7 @@ WHERE workspace_id = :workspaceId
   return listItems(workspaceId, listId);
 }
 
+/** @param {string} workspaceId @param {ListsCatalogPersistenceInput} item @returns {Promise<ListsCatalogItemRecord | null>} */
 async function createCatalogItem(workspaceId, item) {
   const catalogItemId = item.catalog_item_id || createRecordId();
   const now = item.created_at || new Date().toISOString();
@@ -528,6 +564,7 @@ VALUES (
   return readCatalogItemById(workspaceId, catalogItemId);
 }
 
+/** @param {string} workspaceId @param {ListsCatalogPersistenceInput} item @returns {Promise<ListsCatalogItemRecord | null>} */
 async function updateCatalogItem(workspaceId, item) {
   const now = new Date().toISOString();
 
@@ -555,11 +592,12 @@ WHERE workspace_id = :workspaceId
   AND catalog_item_id = :catalogItemId;
 `, catalogUpdateParams(workspaceId, item, now));
 
-  return readCatalogItemById(workspaceId, item.catalog_item_id);
+  return item.catalog_item_id ? readCatalogItemById(workspaceId, item.catalog_item_id) : null;
 }
 
+/** @param {string} workspaceId @param {string} catalogItemId @returns {Promise<ListsCatalogItemRecord | null>} */
 async function readCatalogItemById(workspaceId, catalogItemId) {
-  const row = await db.get(`
+  const row = /** @type {ListsCatalogItemDatabaseRow | null} */ (await db.get(`
 SELECT ${CATALOG_COLUMNS.join(", ")}
 FROM list_item_catalog
 WHERE workspace_id = :workspaceId
@@ -568,16 +606,18 @@ LIMIT 1;
 `, {
     catalogItemId: text(catalogItemId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? catalogRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {ListsCatalogSuggestionFilters} [filters] @returns {Promise<ListsCatalogItemRecord[]>} */
 async function listCatalogSuggestions(workspaceId, filters = {}) {
   const clauses = [
     "workspace_id = :workspaceId",
     "archived_at IS NULL",
   ];
+  /** @type {ListsQueryParams} */
   const params = {
     clientIdMatch: nullableText(filters.clientId),
     limit: integer(Math.max(1, Math.min(Number(filters.limit) || 8, 20))),
@@ -610,7 +650,7 @@ async function listCatalogSuggestions(workspaceId, filters = {}) {
     clauses.push("(project_id IS NULL OR project_id = '')");
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsCatalogItemDatabaseRow[]} */ (await db.query(`
 SELECT ${CATALOG_COLUMNS.join(", ")},
   CASE WHEN list_type = :listTypeMatch THEN 1 ELSE 0 END AS list_type_match,
   CASE WHEN client_id = :clientIdMatch THEN 1 ELSE 0 END AS client_match,
@@ -626,11 +666,12 @@ ORDER BY
   ${db.dialect.comparison.orderByNoCase("item_name", "ASC")},
   catalog_item_id ASC
 LIMIT :limit;
-`, params);
+`, params));
 
   return rows.map(catalogRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} catalogItemId @param {string} [updatedByUserId] @returns {Promise<ListsCatalogItemRecord | null>} */
 async function incrementCatalogUsage(workspaceId, catalogItemId, updatedByUserId = "") {
   const now = new Date().toISOString();
 
@@ -654,6 +695,7 @@ WHERE workspace_id = :workspaceId
   return readCatalogItemById(workspaceId, catalogItemId);
 }
 
+/** @param {string} workspaceId @param {ListsLinkPersistenceInput} link @returns {Promise<ListsLinkRecord | null>} */
 async function createLink(workspaceId, link) {
   const linkId = link.list_link_id || createRecordId();
   const now = link.created_at || new Date().toISOString();
@@ -690,8 +732,9 @@ VALUES (
   return readLinkById(workspaceId, link.list_id, linkId);
 }
 
+/** @param {string} workspaceId @param {string} listId @returns {Promise<ListsLinkRecord[]>} */
 async function listLinks(workspaceId, listId) {
-  const rows = await db.query(`
+  const rows = /** @type {ListsLinkDatabaseRow[]} */ (await db.query(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
 WHERE workspace_id = :workspaceId
@@ -701,11 +744,12 @@ ORDER BY created_at ASC;
 `, {
     listId: text(listId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(linkRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string[]} [listIds] @returns {Promise<ListsLinkRecord[]>} */
 async function listLinksForLists(workspaceId, listIds = []) {
   const ids = normalizeIdList(listIds);
 
@@ -713,7 +757,7 @@ async function listLinksForLists(workspaceId, listIds = []) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ListsLinkDatabaseRow[]} */ (await db.query(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
 WHERE workspace_id = :workspaceId
@@ -723,13 +767,14 @@ ORDER BY list_id ASC, created_at ASC;
 `, {
     listIds: ids,
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(linkRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string} listId @param {string} linkId @returns {Promise<ListsLinkRecord | null>} */
 async function readLinkById(workspaceId, listId, linkId) {
-  const row = await db.get(`
+  const row = /** @type {ListsLinkDatabaseRow | null} */ (await db.get(`
 SELECT ${LINK_COLUMNS.join(", ")}
 FROM list_links
 WHERE workspace_id = :workspaceId
@@ -740,11 +785,12 @@ LIMIT 1;
     linkId: text(linkId),
     listId: text(listId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? linkRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} listId @param {string} linkId @returns {Promise<ListsLinkRecord | null>} */
 async function removeLink(workspaceId, listId, linkId) {
   const now = new Date().toISOString();
 
@@ -765,6 +811,7 @@ WHERE workspace_id = :workspaceId
   return readLinkById(workspaceId, listId, linkId);
 }
 
+/** @param {string} workspaceId @param {ListsPersistenceInput} listPayload @param {string} listId @param {string} now @returns {ListsQueryParams} */
 function listInsertParams(workspaceId, listPayload, listId, now) {
   return {
     archivedAt: nullableText(listPayload.archived_at),
@@ -791,6 +838,7 @@ function listInsertParams(workspaceId, listPayload, listId, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsPersistenceInput} listPayload @param {string} now @returns {ListsQueryParams} */
 function listUpdateParams(workspaceId, listPayload, now) {
   return {
     archivedAt: nullableText(listPayload.archived_at),
@@ -815,6 +863,7 @@ function listUpdateParams(workspaceId, listPayload, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsItemPersistenceInput} item @param {string} itemId @param {string} now @returns {ListsQueryParams} */
 function itemInsertParams(workspaceId, item, itemId, now) {
   return {
     actualCost: numberOrNull(item.actual_cost),
@@ -847,6 +896,7 @@ function itemInsertParams(workspaceId, item, itemId, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsItemUpdateInput} item @param {string} now @returns {ListsQueryParams} */
 function itemUpdateParams(workspaceId, item, now) {
   return {
     actualCost: numberOrNull(item.actual_cost),
@@ -877,6 +927,7 @@ function itemUpdateParams(workspaceId, item, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsCatalogPersistenceInput} item @param {string} catalogItemId @param {string} now @returns {ListsQueryParams} */
 function catalogInsertParams(workspaceId, item, catalogItemId, now) {
   return {
     archivedAt: nullableText(item.archived_at),
@@ -903,6 +954,7 @@ function catalogInsertParams(workspaceId, item, catalogItemId, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsCatalogPersistenceInput} item @param {string} now @returns {ListsQueryParams} */
 function catalogUpdateParams(workspaceId, item, now) {
   return {
     archivedAt: nullableText(item.archived_at),
@@ -927,6 +979,7 @@ function catalogUpdateParams(workspaceId, item, now) {
   };
 }
 
+/** @param {string} workspaceId @param {ListsLinkPersistenceInput} link @param {string} linkId @param {string} now @returns {ListsQueryParams} */
 function linkInsertParams(workspaceId, link, linkId, now) {
   return {
     createdAt: text(now),
@@ -942,21 +995,25 @@ function linkInsertParams(workspaceId, link, linkId, now) {
   };
 }
 
+/** @param {unknown} value */
 function text(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableText(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value */
 function integer(value) {
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/** @param {unknown} value */
 function numberOrNull(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -966,6 +1023,7 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+/** @param {unknown} value */
 function serializeMetadata(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -978,12 +1036,14 @@ function serializeMetadata(value) {
   return JSON.stringify(value);
 }
 
+/** @param {unknown[]} [ids] @returns {string[]} */
 function normalizeIdList(ids = []) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => String(id || "").trim())
     .filter(Boolean))];
 }
 
+/** @param {string[]} conditions @param {ListsRepositoryFilters} filters @param {ListsQueryParams} params */
 function applyListProjectScopeFilter(conditions, filters, params) {
   if (!filters.hasProjectFilter) {
     return;
@@ -1009,6 +1069,7 @@ function applyListProjectScopeFilter(conditions, filters, params) {
   params.projectIds = projectIds;
 }
 
+/** @param {string[]} conditions @param {ListsRepositoryFilters} filters @param {ListsQueryParams} params */
 function applyListClientScopeFilter(conditions, filters, params) {
   if (!filters.hasClientFilter || filters.omitClientFilterBecauseProjectSelected) {
     return;
@@ -1047,53 +1108,59 @@ function applyListClientScopeFilter(conditions, filters, params) {
   }
 }
 
-function listRowToAppValue(row = {}) {
-  return {
+/** @param {ListsDatabaseRow} row @returns {ListsRecord} */
+function listRowToAppValue(row) {
+  return /** @type {ListsRecord} */ ({
     ...row,
     is_reusable: Boolean(row.is_reusable),
     metadata_json: parseMetadata(row.metadata_json),
-  };
+  });
 }
 
-function itemRowToAppValue(row = {}) {
-  return {
+/** @param {ListsItemDatabaseRow} row @returns {ListsItemRecord} */
+function itemRowToAppValue(row) {
+  return /** @type {ListsItemRecord} */ ({
     ...row,
     quantity: row.quantity === null || row.quantity === undefined ? null : Number(row.quantity),
     estimated_cost: row.estimated_cost === null || row.estimated_cost === undefined ? null : Number(row.estimated_cost),
     actual_cost: row.actual_cost === null || row.actual_cost === undefined ? null : Number(row.actual_cost),
     metadata_json: parseMetadata(row.metadata_json),
-  };
+  });
 }
 
-function catalogRowToAppValue(row = {}) {
-  return {
+/** @param {ListsCatalogItemDatabaseRow} row @returns {ListsCatalogItemRecord} */
+function catalogRowToAppValue(row) {
+  return /** @type {ListsCatalogItemRecord} */ ({
     ...row,
     estimated_cost: row.estimated_cost === null || row.estimated_cost === undefined ? null : Number(row.estimated_cost),
     metadata_json: parseMetadata(row.metadata_json),
     quantity: row.quantity === null || row.quantity === undefined ? null : Number(row.quantity),
     use_count: Number(row.use_count) || 0,
-  };
+  });
 }
 
-function linkRowToAppValue(row = {}) {
-  return {
+/** @param {ListsLinkDatabaseRow} row @returns {ListsLinkRecord} */
+function linkRowToAppValue(row) {
+  return /** @type {ListsLinkRecord} */ ({
     ...row,
     metadata_json: parseMetadata(row.metadata_json),
-  };
+  });
 }
 
+/** @param {unknown} value @returns {ListsJsonObject} */
 function parseMetadata(value) {
   if (!value) {
     return {};
   }
 
   try {
-    return JSON.parse(value);
+    return /** @type {ListsJsonObject} */ (JSON.parse(String(value)));
   } catch {
     return {};
   }
 }
 
+/** @type {ListsRepository} */
 const listsRepository = {
   createCatalogItem,
   create,

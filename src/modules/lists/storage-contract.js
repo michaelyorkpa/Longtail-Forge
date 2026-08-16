@@ -1,3 +1,4 @@
+// @ts-check
 const LIST_MODULE_ID = "lists";
 
 const LIST_TYPES = Object.freeze({
@@ -37,26 +38,35 @@ const DEFAULT_LIST_TYPE_BY_WORKSPACE_TYPE = Object.freeze({
   personal: LIST_TYPES.SHOPPING,
 });
 
+/** @typedef {{ workspaceId?: string | null, workspaceType?: string, clientId?: string | null, project?: { workspace_id: string, client_id?: string | null } | null }} ListContextInput */
+/** @typedef {{ list?: { workspace_id: string } | null, itemWorkspaceId?: string | null }} ListItemContextInput */
+
+/** @param {unknown} value */
 function isValidListType(value) {
-  return LIST_TYPE_VALUES.includes(value);
+  return typeof value === "string" && LIST_TYPE_VALUES.includes(/** @type {(typeof LIST_TYPE_VALUES)[number]} */ (value));
 }
 
+/** @param {unknown} value */
 function isValidListStatus(value) {
-  return LIST_STATUS_VALUES.includes(value);
+  return typeof value === "string" && LIST_STATUS_VALUES.includes(/** @type {(typeof LIST_STATUS_VALUES)[number]} */ (value));
 }
 
+/** @param {unknown} value */
 function isValidListItemPurchaseStatus(value) {
-  return LIST_ITEM_PURCHASE_STATUS_VALUES.includes(value);
+  return typeof value === "string" && LIST_ITEM_PURCHASE_STATUS_VALUES.includes(/** @type {(typeof LIST_ITEM_PURCHASE_STATUS_VALUES)[number]} */ (value));
 }
 
+/** @param {string} [workspaceType] */
 function defaultListTypeForWorkspaceType(workspaceType = "business") {
-  return DEFAULT_LIST_TYPE_BY_WORKSPACE_TYPE[workspaceType] || LIST_TYPES.PROCUREMENT;
+  return DEFAULT_LIST_TYPE_BY_WORKSPACE_TYPE[/** @type {keyof typeof DEFAULT_LIST_TYPE_BY_WORKSPACE_TYPE} */ (workspaceType)] || LIST_TYPES.PROCUREMENT;
 }
 
+/** @param {string} [workspaceType] */
 function isClientLinkingAllowedForWorkspaceType(workspaceType = "business") {
   return workspaceType === "business";
 }
 
+/** @param {ListContextInput} [input] */
 function validateListContext({ workspaceId, workspaceType = "business", clientId = null, project = null } = {}) {
   if (!workspaceId) {
     return {
@@ -99,6 +109,7 @@ function validateListContext({ workspaceId, workspaceType = "business", clientId
   };
 }
 
+/** @param {ListItemContextInput} [input] */
 function validateListItemContext({ list = null, itemWorkspaceId = null } = {}) {
   if (!list?.workspace_id) {
     return {
