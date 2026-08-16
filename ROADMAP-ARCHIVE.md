@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.22.2 - Extract Files storage accounting and quota policy
+
+**Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.
+
+- [x] Isolated internal accounting reconciliation, external-accounting identity, safe projection and totals, actual-usage quota state, exact-limit admission, scope-specific rejection, and streamed-upload limits behind the checked `files-storage-accounting.service.js` seam and its named declaration contracts.
+- [x] Preserved the scoped reconciliation transaction, repository-only SQL, buffered and streamed upload admission, workspace and per-user quotas, provider writes and rejected-upload cleanup, accounting refresh, and external-provider behavior.
+- [x] Kept permissions, payload normalization, workspace settings, lifecycle/audit effects, storage-provider writes, and the public Files facade outside the policy seam; its typed inputs and responses expose no storage keys, paths, scanner internals, or hidden labels.
+- [x] Added direct policy coverage and retained the 32-script Files area plus database and permission proof, expanded the compiler universe to 1,027 files and 26 declarations with 21,585 diagnostics and 10 explicit-`any` nodes, and closed the final `0.33.33.22` numeric child and parent rollup; `0.33.33.23` is next.
+
 ## Version 0.33.33.22.1 - Extract the Files repository
 
 **Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
