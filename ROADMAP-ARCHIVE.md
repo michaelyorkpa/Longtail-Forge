@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.21.1 - Extract the Tasks block/recover state machine
+
+**Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.
+
+- [x] Extracted parent block, parent recovery, child status rollup, automatic-reason classification, terminal-state guards, and timer-pause intent into one checked Tasks-owned transition engine with a precise declaration contract.
+- [x] Preserved incomplete-child rollup, manual Blocked reasons, automatic recovery only after every blocker clears, completion/archival terminal behavior, and running Task Timer pause delegation through the existing Tasks orchestrators.
+- [x] Kept relationship reads, permissions, persistence, audit/events, Search synchronization, reminders, and resume-context shaping outside the pure engine and behind their established Tasks-owned boundaries.
+- [x] Proved the transition table through 14 direct unit cases while retaining relationship, timer-status, blocked-recovery browser, consolidated Tasks, and permission owners; combined strict debt falls from 22,514 to 22,511 diagnostics, regression coverage rises to 18,856 assertions across 347 scripts, and `0.33.33.21.2` remains next.
+
 ## Version 0.33.33.20 - Extract the Tasks filter and sort engine
 
 **Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
