@@ -165,6 +165,7 @@
         "src/modules/tasks/task-calendar.shared.js",
         "src/modules/tasks/task-checklists.repo.js",
         "src/modules/tasks/task-jobs.service.js",
+        "src/modules/tasks/task-list-engine.js",
         "src/modules/tasks/task-recurrence.repo.js",
         "src/modules/tasks/task-recurrence.service.js",
         "src/modules/tasks/task-relationships.repo.js",
@@ -361,11 +362,12 @@
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
+        "tests/unit/task-list-engine.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 2248,
+      "errorCount": 2108,
       "diagnostics": {
         "src/config.js": [
           {
@@ -648,7 +650,7 @@
           },
           {
             "code": 7006,
-            "count": 119
+            "count": 118
           },
           {
             "code": 7031,
@@ -676,7 +678,7 @@
           },
           {
             "code": 2339,
-            "count": 171
+            "count": 79
           },
           {
             "code": 2345,
@@ -692,7 +694,7 @@
           },
           {
             "code": 7006,
-            "count": 322
+            "count": 279
           },
           {
             "code": 7031,
@@ -704,7 +706,7 @@
           },
           {
             "code": 7053,
-            "count": 6
+            "count": 2
           }
         ],
         "src/modules/time-tracking/active-timers.repo.js": [
@@ -4057,7 +4059,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9276,
+      "errorCount": 9272,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -10439,10 +10441,6 @@
         ],
         "scripts/tasks-server-side-list-paging-regression.mjs": [
           {
-            "code": 18047,
-            "count": 4
-          },
-          {
             "code": 2339,
             "count": 4
           },
@@ -11029,8 +11027,8 @@
     }
   },
   "totals": {
-    "files": 1018,
-    "errors": 22658,
+    "files": 1020,
+    "errors": 22514,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -11051,7 +11049,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 19,
+    "firstPartyFiles": 20,
     "errors": 0
   }
 }

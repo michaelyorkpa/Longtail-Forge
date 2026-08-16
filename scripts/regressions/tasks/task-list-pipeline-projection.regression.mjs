@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["options", "pagination", "performance", "permissions", "workbench"],
-  description: "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
+  description: "Proves the typed canonical filter/sort engine boundary, opt-in list options, bounded SQL workbench paging, lean projection serialization, due-window pushdown, and permission filtering through one precomputed evaluator.",
   runMode: "isolated-database",
 });
 
@@ -21,6 +21,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "task-list-pipeline.db")
 process.env.SUPER_ADMIN_PASSWORD = "Task-List-Pipeline-Test-123!";
 
 const tasksServiceSource = readFileSync(path.join(root, "src/modules/tasks/tasks.service.js"), "utf8");
+const taskListEngineSource = readFileSync(path.join(root, "src/modules/tasks/task-list-engine.js"), "utf8");
+const tasksRepositorySource = readFileSync(path.join(root, "src/modules/tasks/tasks.repo.js"), "utf8");
 const tasksModuleSource = readFileSync(path.join(root, "src/modules/tasks/module.js"), "utf8");
 const resumeProducersSource = readFileSync(path.join(root, "src/services/work-resume-state-initial-producers.js"), "utf8");
 
@@ -44,6 +46,10 @@ try {
   );
   assert.match(tasksModuleSource, /listRoute: "\/api\/tasks\/options"/, "the Tasks workbench card should consume the cacheable options route");
   assert.match(resumeProducersSource, /tasksService\.readCore\(recordId, session\)/, "the resume-state read check should use the lightweight core read");
+  assert.match(tasksServiceSource, /createTaskListFilterContext[\s\S]*visibleTaskListCandidates[\s\S]*taskMatchesCanonicalQuery/, "the Tasks orchestrator should consume the typed filter engine boundary");
+  assert.doesNotMatch(tasksServiceSource, /function (?:taskMatchesCanonicalQuery|sortCanonicalTasks|normalizeTaskListPagination)\b/, "the Tasks orchestrator must not re-own extracted filter, sort, or paging decisions");
+  assert.match(taskListEngineSource, /\/\/ @ts-check[\s\S]*function createTaskListFilterContext[\s\S]*function taskMatchesCanonicalQuery[\s\S]*function sortCanonicalTasks/, "the checked engine should own normalization, filtering, and stable sorting");
+  assert.match(tasksRepositorySource, /normalizeTaskListSort[\s\S]*taskStatusFilterOverridesActiveScope/, "the repository SQL projection should consume the engine's canonical sort and active-scope normalization");
 
   await initializeDatabase();
   const session = await readSeedSession();
