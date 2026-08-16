@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.22.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.23. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.23, the checked `files-scanner-job.service.js` seam owns configured scanner registration and readiness, durable `file.scan` enqueue and handler registration, pending-state idempotency, fail-closed adapter disposition, quarantine lifecycle orchestration, bounded scanner metadata, and worker audit results. The main Files facade retains upload policy, storage-provider ownership, lifecycle/audit delivery, and the unchanged public service API; it supplies the scanner job seam a provider-safe file projection with an opaque read callback, so storage keys, paths, scanner configuration, and raw scanner output do not cross the new contract. `files-scanner-job-contracts.d.ts` names the adapter, job, dependency, disposition, and safe file shapes; a direct unit owner covers provider-safe context, fail-closed status, metadata redaction, and worker session identity. The retained 32-script Files area, Jobs/idempotency owners, and permission harness preserve queue, worker, clean/infected/unavailable scanner, quarantine, download/preview, and authorization behavior. This checkpoint expands the compiler universe to 1,029 files and 27 declarations while holding combined strict debt at 21,585 diagnostics and explicit `any` at 10; effective regression assertions advance to 18,911 across 347 scripts.
 
 As of 0.33.33.22.2, the checked `files-storage-accounting.service.js` seam owns internal accounting reconciliation and its scoped transaction, external-accounting identity and persistence orchestration, safe accounting projection and totals, actual-usage quota state, exact-limit admission, scope-specific rejection, and streamed-upload limits. The main Files facade retains permission checks, payload normalization, workspace settings, provider writes and cleanup, lifecycle/audit effects, and the unchanged public service API; the repository remains the sole SQL owner. `files-storage-accounting-contracts.d.ts` names accounting, quota, and upload-limit shapes, a direct unit owner covers identities, redacted projection, totals, and established quota copy, and the retained 32-script Files area plus permission harness preserve accounting, provider, lifecycle, buffered/streamed quota, cleanup, and authorization behavior. This checkpoint expands the compiler universe to 1,027 files and 26 declarations while holding combined strict debt at 21,585 diagnostics and explicit `any` at 10; it closes the `0.33.33.22` Files rollup.
 
@@ -303,11 +305,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18237 |
+| Active regression assertions | 18242 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18906 |
+| Effective assertion floor | 18911 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

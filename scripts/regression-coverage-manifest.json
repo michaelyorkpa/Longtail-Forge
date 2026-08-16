@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18237,
+    "activeAssertionCount": 18242,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18906,
+    "effectiveAssertionCount": 18911,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -418,11 +418,11 @@
     },
     {
       "area": "jobs",
-      "assertionCount": 54,
+      "assertionCount": 55,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy background work jobs contract.",
-      "entryPointAssertionCount": 54,
+      "entryPointAssertionCount": 55,
       "id": "legacy.background.work.jobs",
       "legacy": true,
       "path": "scripts/background-work-jobs-regression.mjs",
@@ -915,11 +915,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 57,
+      "assertionCount": 58,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file clamd adapter contract.",
-      "entryPointAssertionCount": 57,
+      "entryPointAssertionCount": 58,
       "id": "legacy.file.clamd.adapter",
       "legacy": true,
       "path": "scripts/file-clamd-adapter-regression.mjs",
@@ -934,11 +934,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 55,
+      "assertionCount": 56,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file clamscan adapter contract.",
-      "entryPointAssertionCount": 55,
+      "entryPointAssertionCount": 56,
       "id": "legacy.file.clamscan.adapter",
       "legacy": true,
       "path": "scripts/file-clamscan-adapter-regression.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 60,
+      "assertionCount": 62,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 60,
+      "entryPointAssertionCount": 62,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

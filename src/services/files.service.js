@@ -11,16 +11,8 @@ import {
 } from "../core/files/file-lifecycle.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { createRecordId } from "../core/identifiers.js";
-import { enqueueJob } from "../core/jobs/job-queue.js";
-import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
 import { createS3FileStorageAdapter } from "../core/files/s3-storage-adapter.js";
-import {
-  createClamdFileScannerAdapter,
-  createClamscanFileScannerAdapter,
-  createNoneFileScannerAdapter,
-  createNoopFileScannerAdapter,
-} from "../core/files/scanner-adapter.js";
 import {
   CreateFileBatchSchema,
   CreateFileSchema,
@@ -36,6 +28,7 @@ import { db } from "../core/database.js";
 import { filesRepo } from "../repositories/files.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
+import { FILE_SCAN_JOB_TYPE, filesScannerJobService } from "./files-scanner-job.service.js";
 import { filesStorageAccountingService } from "./files-storage-accounting.service.js";
 import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
@@ -56,9 +49,11 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {{workspaceId?: string}} FileStorageWriteOptions */
 /** @typedef {{available?: boolean, ok?: boolean, status?: string, [key: string]: unknown}} FileAdapterHealth */
 /** @typedef {{id: string, save: (buffer: Buffer, options?: FileStorageWriteOptions) => Promise<FileStorageWriteResult>, saveStream: (readable: import("node:stream").Readable, options?: FileStorageWriteOptions) => Promise<FileStorageWriteResult>, read: (storageKey: string) => Promise<import("node:stream").Readable>, metadata: (storageKey: string) => Promise<{size: number, updatedAt: string}>, delete: (storageKey: string) => Promise<void>, health: () => Promise<FileAdapterHealth>, resolveStoragePath?: (storageKey: string) => string}} FileStorageAdapter */
-/** @typedef {{fileId?: string, openReadStream?: () => import("node:stream").Readable | Promise<import("node:stream").Readable>}} FileScannerInput */
-/** @typedef {{fileId?: string, metadata?: LooseRecord, reason?: string, scanStatus: string, status: string}} FileScannerResult */
-/** @typedef {{id: string, health: () => Promise<FileAdapterHealth>, scan: (file?: FileScannerInput) => Promise<FileScannerResult>}} FileScannerAdapter */
+/** @typedef {import("../types/files-scanner-job-contracts.js").FileScannerAdapter} FileScannerAdapter */
+/** @typedef {import("../types/files-scanner-job-contracts.js").FileScannerJobContext} FileScannerJobContext */
+/** @typedef {import("../types/files-scanner-job-contracts.js").FileScannerQueueOptions} FileScannerQueueOptions */
+/** @typedef {import("../types/files-scanner-job-contracts.js").FilesScannerJobDependencies} FilesScannerJobDependencies */
+/** @typedef {import("../types/files-scanner-job-contracts.js").FilesScannerJobFile} FilesScannerJobFile */
 /** @typedef {"allowedExtensions"|"blockedExtensions"|"fileTypePolicyMode"|"internalStorageLimitBytes"|"perUserStorageLimitBytes"} FileSettingField */
 /** @typedef {import("../types/files-repository-contracts.js").FileRow} FileRow */
 /** @typedef {import("../types/files-repository-contracts.js").AttachmentRow} AttachmentRow */
@@ -67,7 +62,6 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {{displayName: string, extension: string, fileSizeBytes: number, mimeTypeClaimed: string, mimeTypeDetected: string, metadata: LooseRecord, originalFilename: string, sha256Hash: string, storageKey?: string, storageProvider?: string, storedFilename?: string, buffer?: Buffer}} PreparedUpload */
 /** @typedef {PreparedUpload & {buffer: Buffer}} BufferedPreparedUpload */
 /** @typedef {ReturnType<typeof normalizeAttachmentListOptions>} AttachmentListOptions */
-/** @typedef {FileSession & {role: string}} FileJobSession */
 /** @typedef {Record<string, string>} FileResponseHeaders */
 /** @typedef {{headers: FileResponseHeaders, kind: string, preview: LooseRecord, stream: NodeJS.ReadableStream, content?: undefined}} FilePreviewStreamResponse */
 /** @typedef {{content: LooseRecord, preview: LooseRecord, headers?: undefined, stream?: undefined}} FilePreviewTextResponse */
@@ -156,16 +150,6 @@ registerFilesSettingsContributions();
 const storageAdapters = new Map();
 storageAdapters.set("local", createLocalFileStorageAdapter());
 storageAdapters.set("s3", createS3FileStorageAdapter(/** @type {Parameters<typeof createS3FileStorageAdapter>[0]} */ (config.storage?.s3)));
-const FILE_SCANNER_MODES = new Set(["none", "noop", "clamd", "clamscan"]);
-/** @type {Map<string, FileScannerAdapter>} */
-const scannerAdapters = new Map([
-  ["clamd", createClamdFileScannerAdapter({ host: config.scanner?.clamdHost, port: config.scanner?.clamdPort })],
-  ["clamscan", createClamscanFileScannerAdapter({ executablePath: config.scanner?.clamscanPath })],
-  ["noop", createNoopFileScannerAdapter()],
-]);
-const FILE_SCAN_JOB_TYPE = "file.scan";
-const FILE_SCAN_JOB_PRIORITY = 10;
-let fileScanJobHandlersRegistered = false;
 
 function listFileStatuses() {
   return [...FILE_STATUS_SET];
@@ -301,23 +285,7 @@ function registerFileStorageAdapter(providerId, adapter) {
  * @param {FileScannerAdapter | null} [maybeAdapter]
  */
 function registerFileScannerAdapter(modeOrAdapter, maybeAdapter = null) {
-  const adapter = maybeAdapter || (typeof modeOrAdapter === "string" ? null : modeOrAdapter);
-  if (!adapter) {
-    throw new TypeError("File scanner adapter is required.");
-  }
-  const scannerMode = maybeAdapter
-    ? normalizeFileScannerMode(String(modeOrAdapter))
-    : normalizeFileScannerMode(adapter.id || "");
-
-  if (scannerMode === "none") {
-    throw new TypeError("The 'none' file scanner mode is built in and cannot be replaced.");
-  }
-  if (typeof adapter.scan !== "function") {
-    throw new TypeError(`File scanner adapter '${scannerMode}' must implement scan().`);
-  }
-
-  scannerAdapters.set(scannerMode, adapter);
-  return scannerMode;
+  return filesScannerJobService.registerFileScannerAdapter(modeOrAdapter, maybeAdapter);
 }
 
 function getFileStorageAdapter(providerId = "local") {
@@ -367,41 +335,7 @@ async function assertConfiguredFileStorageProviderReady() {
 
 /** @param {{required?: boolean, scannerMode?: string}} [options] */
 async function assertConfiguredFileScannerReady(options = {}) {
-  const required = options.required ?? (
-    config.environment === "production" && config.security?.allowUnscannedUploads !== true
-  );
-  const scannerMode = options.scannerMode
-    ? normalizeFileScannerMode(options.scannerMode)
-    : normalizeFileScannerMode(config.scanner?.mode || "none");
-  const adapter = getFileScannerAdapter(scannerMode);
-
-  if (!required) {
-    return { scannerMode, status: "not_required" };
-  }
-
-  let health;
-  try {
-    health = await adapter.health();
-  } catch {
-    throw new Error(fileScannerStartupError(scannerMode));
-  }
-
-  if (!("ok" in health && health.ok === true) && health?.available !== true) {
-    throw new Error(fileScannerStartupError(scannerMode));
-  }
-
-  return {
-    scannerMode,
-    status: sanitizeStorageProviderStatus(health?.status || "ok"),
-  };
-}
-
-/**
- * @param {string} scannerMode
- */
-function fileScannerStartupError(scannerMode) {
-  const safeMode = FILE_SCANNER_MODES.has(scannerMode) ? scannerMode : "unavailable";
-  return `File scanner '${safeMode}' is not available at startup. Production uploads require a healthy clamd or clamscan scanner.`;
+  return filesScannerJobService.assertConfiguredFileScannerReady(options);
 }
 
 /**
@@ -431,40 +365,11 @@ function sanitizeStorageProviderStatus(status) {
 }
 
 function getFileScannerAdapter(scannerMode = "none") {
-  const normalizedMode = normalizeFileScannerMode(scannerMode || "none");
-
-  if (normalizedMode === "none") {
-    return createNoneFileScannerAdapter();
-  }
-
-  const adapter = scannerAdapters.get(normalizedMode);
-  if (!adapter) {
-    throw new AppError(`File scanner mode '${normalizedMode}' is not configured.`, 500);
-  }
-
-  return adapter;
+  return filesScannerJobService.getFileScannerAdapter(scannerMode);
 }
 
 function resolveConfiguredFileScannerAdapter() {
-  const scannerMode = normalizeFileScannerMode(config.scanner?.mode || "none");
-
-  return {
-    adapter: getFileScannerAdapter(scannerMode),
-    scannerMode,
-  };
-}
-
-/**
- * @param {string} value
- */
-function normalizeFileScannerMode(value) {
-  const scannerMode = String(value || "").trim();
-
-  if (!FILE_SCANNER_MODES.has(scannerMode)) {
-    throw new AppError(`File scanner mode '${scannerMode || "unknown"}' is not supported.`, 500);
-  }
-
-  return scannerMode;
+  return filesScannerJobService.resolveConfiguredFileScannerAdapter();
 }
 
 function listAttachableTypes() {
@@ -1876,198 +1781,54 @@ async function refreshStorageAccounting(workspaceId) {
 
 /** @param {{replace?: boolean}} [options] */
 function registerFileScanJobHandlers(options = {}) {
-  if (fileScanJobHandlersRegistered && !options.replace && getJobHandler(FILE_SCAN_JOB_TYPE)) {
-    return;
-  }
-
-  registerJobHandler(FILE_SCAN_JOB_TYPE, handleFileScanJob, {
-    publicDemoCapability: "records.workspace",
-    replace: true,
-  });
-  fileScanJobHandlersRegistered = true;
+  return filesScannerJobService.registerFileScanJobHandlers(fileScannerJobDependencies(), options);
 }
 
-/** @param {FileSession} session @param {FileRow} file @param {LooseRecord} [options] */
+/** @param {FileSession} session @param {FileRow} file @param {FileScannerQueueOptions} [options] */
 async function queueFileScanJob(session, file, options = {}) {
-  const workspaceId = normalizeRequiredText(file?.workspace_id || session?.workspace_id || options.workspaceId || options.workspace_id, "File scan job requires a workspace.");
-  const fileId = normalizeRequiredText(file?.file_id || options.fileId || options.file_id, "File scan job requires a file.");
-  const enqueued = await enqueueJob({
-    availableAt: String(options.availableAt || options.available_at || new Date().toISOString()),
-    dedupeKey: `file:scan:${workspaceId}:${fileId}`,
-    jobType: FILE_SCAN_JOB_TYPE,
-    maxAttempts: Number(options.maxAttempts || options.max_attempts || 3),
-    priority: Number(options.priority ?? FILE_SCAN_JOB_PRIORITY),
-    workspaceId,
-    payload: {
-      fileId,
-      operation: "scan_file",
-      requestedByUserId: normalizeOptionalText(session?.user_id || options.requestedByUserId || options.requested_by_user_id),
-      source: normalizeOptionalText(options.source) || "files-service",
-      workspaceId,
+  return filesScannerJobService.queueFileScanJob(session, file, options);
+}
+
+/** @param {FileScannerJobContext} context */
+async function handleFileScanJob(context) {
+  return filesScannerJobService.handleFileScanJob(context, fileScannerJobDependencies());
+}
+
+/** @returns {FilesScannerJobDependencies} */
+function fileScannerJobDependencies() {
+  return {
+    async emitLifecycleEvent(eventName, payload) {
+      return emitFileLifecycleEvent(eventName, { ...payload });
     },
-  });
-
-  return {
-    ok: true,
-    operation: "queue_file_scan",
-    queued: enqueued?.action === "inserted" || enqueued?.action === "updated",
-    deduped: enqueued?.action === "deduped_running",
-    queueAction: enqueued?.action || "",
-    job: enqueued?.job || null,
-    jobId: enqueued?.job?.jobId || "",
-    fileId,
-    workspaceId,
+    readFile: readFileForScannerJob,
+    async recordAudit(session, event) {
+      return recordFileAudit(session, { ...event });
+    },
+    async updateScanResult(input) {
+      return filesRepo.updateScanResult(input);
+    },
   };
 }
 
-/** @param {{payload?: LooseRecord}} context */
-async function handleFileScanJob({ payload = {} }) {
-  const operation = normalizeOptionalText(payload.operation || "scan_file");
-
-  if (operation !== "scan_file") {
-    throw new Error(`Unknown file scan job operation "${operation}".`);
-  }
-
-  const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "File scan job requires a workspace.");
-  const fileId = normalizeRequiredText(payload.fileId || payload.file_id, "File scan job requires a file.");
+/** @param {{fileId: string, workspaceId: string}} lookup @returns {Promise<FilesScannerJobFile | null>} */
+async function readFileForScannerJob({ fileId, workspaceId }) {
   const file = await readFileRow(workspaceId, fileId);
-
   if (!file) {
-    return {
-      scanned: false,
-      skipped: true,
-      reason: "file_not_found",
-      fileId,
-      workspaceId,
-    };
+    return null;
   }
-
-  if (file.status !== "pending" || file.scan_status !== "pending") {
-    return {
-      scanned: false,
-      skipped: true,
-      reason: "file_not_pending_scan",
-      fileId,
-      scanStatus: file.scan_status,
-      status: file.status,
-      workspaceId,
-    };
-  }
-
-  const result = await scanFile(fileJobSession({
-    userId: payload.requestedByUserId || payload.requested_by_user_id,
-    workspaceId,
-  }), file);
 
   return {
-    ...result,
-    fileId,
-    scanned: true,
-    workspaceId,
-  };
-}
-
-/**
- * @param {import("../types/http-contracts.js").WorkspaceRequestSession} session
- * @param {import("../types/database-contracts.js").DatabaseRow} file
- */
-/** @param {FileSession} session @param {FileRow} file */
-async function scanFile(session, file) {
-  await emitFileLifecycleEvent("file.scan.pending", {
-    session,
+    displayName: file.display_name,
+    extension: file.extension,
     fileId: file.file_id,
-    status: "pending",
-    scanStatus: "pending",
-  });
-
-  const scanner = resolveConfiguredFileScannerAdapter();
-  const scanResult = await scanner.adapter.scan(createFileScanContext(file, scanner.scannerMode));
-  const scanStatus = FILE_SCAN_STATUS_SET.has(scanResult.scanStatus) ? scanResult.scanStatus : "error";
-  const status = FILE_STATUS_SET.has(scanResult.status) ? scanResult.status : "quarantined";
-  const successfulScan = status === "available" && ["not_required", "passed"].includes(scanStatus);
-  const reason = normalizeOptionalText(scanResult.reason, { maxLength: 250 });
-  const now = new Date().toISOString();
-
-  await filesRepo.updateScanResult({
-    fileId: file.file_id,
-    fileStatus: status,
-    quarantineReason: status === "quarantined" ? reason || "scan_failed" : null,
-    scanStatus,
-    updatedAt: now,
-    workspaceId: session.workspace_id,
-  });
-
-  if (successfulScan) {
-    await emitFileLifecycleEvent("file.scan.passed", {
-      session,
-      fileId: file.file_id,
-      status,
-      scanStatus,
-      metadata: scanResult.metadata,
-    });
-    await emitFileLifecycleEvent("file.available", {
-      session,
-      fileId: file.file_id,
-      status,
-      scanStatus,
-    });
-  } else if (scanStatus === "failed") {
-    await emitFileLifecycleEvent("file.scan.failed", {
-      session,
-      fileId: file.file_id,
-      status,
-      scanStatus,
-      reason,
-      metadata: scanResult.metadata,
-    });
-    await emitFileLifecycleEvent("file.quarantined", {
-      session,
-      fileId: file.file_id,
-      status,
-      scanStatus,
-      reason,
-    });
-  } else {
-    await emitFileLifecycleEvent("file.scan.failed", {
-      session,
-      fileId: file.file_id,
-      status,
-      scanStatus,
-      reason: reason || "scan_error",
-      metadata: scanResult.metadata,
-    });
-  }
-
-  if (status === "quarantined" || !["not_required", "passed"].includes(scanStatus)) {
-    await recordFileAudit(session, {
-      action: status === "quarantined" ? "file.quarantined" : "file.scan_failed",
-      changeType: "update",
-      recordId: file.file_id,
-      recordLabel: file.display_name,
-      metadata: {
-        reason,
-        scan_status: scanStatus,
-        scanner: scanResult.metadata?.scanner || "",
-      },
-    });
-  }
-
-  return { scanStatus, status };
-}
-
-/** @param {FileRow} file @param {string} scannerMode */
-function createFileScanContext(file, scannerMode) {
-  return {
-    displayName: file.display_name || "",
-    extension: file.extension || "",
-    fileId: file.file_id || "",
     fileSizeBytes: Number(file.file_size_bytes) || 0,
-    mimeTypeClaimed: file.mime_type_claimed || "",
-    mimeTypeDetected: file.mime_type_detected || "",
-    originalFilename: file.original_filename || "",
-    scannerMode,
+    mimeTypeClaimed: file.mime_type_claimed,
+    mimeTypeDetected: file.mime_type_detected,
+    originalFilename: file.original_filename,
+    scanStatus: file.scan_status,
+    status: file.status,
     storageProvider: file.storage_provider || "local",
-    workspaceId: file.workspace_id || "",
+    workspaceId: file.workspace_id,
     async openReadStream() {
       const adapter = getFileStorageAdapter(file.storage_provider || "local");
       return adapter.read(file.storage_key);
@@ -3755,23 +3516,6 @@ function normalizeOptionalText(value, options = {}) {
 
   const text = String(value).trim();
   return options.maxLength ? text.slice(0, options.maxLength) : text;
-}
-
-/** @param {{userId?: unknown, workspaceId?: unknown}} [context] @returns {FileJobSession} */
-function fileJobSession({ userId = "", workspaceId = "" } = {}) {
-  const normalizedWorkspaceId = normalizeOptionalText(workspaceId);
-  return {
-    active_workspace_id: normalizedWorkspaceId,
-    home_workspace_id: normalizedWorkspaceId,
-    ip_address: "",
-    password_change_required: false,
-    role: "system",
-    session_mode: "normal",
-    timezone: "UTC",
-    user_id: normalizeOptionalText(userId),
-    username: "Job Worker",
-    workspace_id: normalizedWorkspaceId,
-  };
 }
 
 /**
