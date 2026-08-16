@@ -36,6 +36,7 @@ try {
   registerTaskJobHandlers({ replace: true });
   const session = await readSeedSession();
 
+  await assertRecurrenceServiceBoundary();
   await assertDedicatedCompletionContinuity(session);
   await assertEstablishedTemplatePreserved(session);
   await assertCompletionSurfaceParity(session);
@@ -47,6 +48,26 @@ try {
   await stopJobWorker().catch(() => {});
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+async function assertRecurrenceServiceBoundary() {
+  const [recurrenceService, calendarFeed, taskJobs, tasksServiceSource, importBaseline] = await Promise.all([
+    fs.readFile(path.resolve("src/modules/tasks/task-recurrence.service.js"), "utf8"),
+    fs.readFile(path.resolve("src/modules/tasks/task-calendar-feed.service.js"), "utf8"),
+    fs.readFile(path.resolve("src/modules/tasks/task-jobs.service.js"), "utf8"),
+    fs.readFile(path.resolve("src/modules/tasks/tasks.service.js"), "utf8"),
+    fs.readFile(path.resolve("scripts/baselines/module-internal-import-baseline.json"), "utf8"),
+  ]);
+
+  assert.match(recurrenceService, /import \{ taskRecurrenceRepository \} from "\.\/task-recurrence\.repo\.js";/);
+  assert.match(recurrenceService, /import \{ notesService \} from "\.\.\/notes\/index\.js";/);
+  assert.doesNotMatch(importBaseline, /src\/modules\/tasks\/task-recurrence\.service\.js/);
+  for (const consumer of [calendarFeed, taskJobs, tasksServiceSource]) {
+    assert.doesNotMatch(consumer, /task-recurrence\.repo\.js|taskRecurrenceRepository/);
+  }
+  assert.match(calendarFeed, /taskRecurrenceService\.listActiveTemplates/);
+  assert.match(taskJobs, /taskRecurrenceService\.listActiveTemplates/);
+  assert.match(tasksServiceSource, /taskRecurrenceService\.(?:listActiveTemplates|readTemplate|replaceTemplateChecklist|replaceTemplateNoteLinks)/);
 }
 
 async function assertDedicatedCompletionContinuity(session) {

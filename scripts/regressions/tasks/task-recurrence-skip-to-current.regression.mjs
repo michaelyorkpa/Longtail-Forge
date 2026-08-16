@@ -139,9 +139,10 @@ async function assertRecoveryConverges(session) {
   assert.equal(await instanceCount(session, source.recurrence_template_id, "2026-08-03"), 1);
 
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "recovered recurrence template should remain readable");
   assert.equal(template.recovery_checkpoint_date, "2026-08-03");
   const calendar = await tasksService.calendarWindow(session, { start: "2026-07-30", end: "2026-08-04" });
-  assert.ok(!calendar.tasks.some((task) => task.virtual && task.instanceDate < "2026-08-03"));
+  assert.ok(!calendar.tasks.some((task) => task.virtual && String(task.instanceDate || "") < "2026-08-03"));
   await assert.rejects(
     tasksService.skipToCurrent(result.targetTask.task_id, session, { now: new Date("2026-08-03T12:00:00.000Z") }),
     (error) => error.statusCode === 409 && /already current/.test(error.message),
@@ -223,6 +224,7 @@ INSERT INTO active_work_timers (
   );
   assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "open");
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "timer-blocked recurrence template should remain readable");
   assert.equal(template.recovery_checkpoint_date, "");
 }
 

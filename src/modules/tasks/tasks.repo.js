@@ -449,11 +449,15 @@ ORDER BY tasks.recurrence_instance_date, tasks.task_id;
   return attachAssignees(rows.map(taskRowToAppValue), assignees);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceRecoveryWrite} options
+ */
 async function recoverRecurrenceToCurrent(workspaceId, {
   actorUserId,
   expectedTaskIds = [],
   checkpointDate,
-  expectedTemplate = {},
+  expectedTemplate,
   targetTask = null,
   templateId,
 }) {
@@ -490,7 +494,7 @@ WHERE workspace_id = :workspaceId
   AND archived_at IS NULL
 ORDER BY recurrence_instance_date, task_id;
 `, { checkpointDate, templateId, workspaceId });
-    const taskIds = rows.map((row) => row.task_id);
+    const taskIds = rows.map((row) => String(row.task_id || ""));
     const allowedIds = new Set(expectedTaskIds);
     if (taskIds.some((taskId) => !allowedIds.has(taskId))) {
       result = { status: "changed" };

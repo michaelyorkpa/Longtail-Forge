@@ -365,7 +365,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 2656,
+      "errorCount": 2248,
       "diagnostics": {
         "src/config.js": [
           {
@@ -559,40 +559,6 @@
             "count": 3
           }
         ],
-        "src/modules/tasks/task-calendar-feed.scope.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/task-calendar-feed.service.js": [
-          {
-            "code": 2322,
-            "count": 3
-          },
-          {
-            "code": 2554,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 69
-          },
-          {
-            "code": 7031,
-            "count": 8
-          }
-        ],
-        "src/modules/tasks/task-calendar.shared.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
         "src/modules/tasks/task-checklists.repo.js": [
           {
             "code": 2345,
@@ -601,64 +567,6 @@
           {
             "code": 7006,
             "count": 32
-          }
-        ],
-        "src/modules/tasks/task-jobs.service.js": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 117
-          },
-          {
-            "code": 7006,
-            "count": 32
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/task-recurrence.repo.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/task-recurrence.service.js": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7031,
-            "count": 40
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "src/modules/tasks/task-relationships.repo.js": [
@@ -728,15 +636,7 @@
         "src/modules/tasks/tasks.repo.js": [
           {
             "code": 2339,
-            "count": 24
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2353,
-            "count": 2
+            "count": 22
           },
           {
             "code": 2551,
@@ -744,15 +644,15 @@
           },
           {
             "code": 2698,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 120
+            "count": 119
           },
           {
             "code": 7031,
-            "count": 8
+            "count": 4
           }
         ],
         "src/modules/tasks/tasks.routes.js": [
@@ -772,7 +672,7 @@
           },
           {
             "code": 2322,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2339,
@@ -792,7 +692,7 @@
           },
           {
             "code": 7006,
-            "count": 334
+            "count": 322
           },
           {
             "code": 7031,
@@ -4157,7 +4057,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9302,
+      "errorCount": 9276,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -9200,7 +9100,7 @@
           },
           {
             "code": 2322,
-            "count": 8
+            "count": 2
           },
           {
             "code": 2345,
@@ -9212,7 +9112,7 @@
           },
           {
             "code": 7006,
-            "count": 15
+            "count": 13
           },
           {
             "code": 7034,
@@ -9222,10 +9122,6 @@
         "scripts/regressions/tasks/task-calendar-window.regression.mjs": [
           {
             "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 2339,
             "count": 4
           },
           {
@@ -9256,7 +9152,7 @@
           },
           {
             "code": 7006,
-            "count": 11
+            "count": 8
           },
           {
             "code": 7034,
@@ -9280,21 +9176,17 @@
           },
           {
             "code": 2339,
-            "count": 9
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 23
+            "count": 22
           }
         ],
         "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs": [
           {
             "code": 18046,
             "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 2
           },
           {
             "code": 2345,
@@ -11138,7 +11030,7 @@
   },
   "totals": {
     "files": 1018,
-    "errors": 23092,
+    "errors": 22658,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -11159,7 +11051,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 18,
+    "firstPartyFiles": 19,
     "errors": 0
   }
 }

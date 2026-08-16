@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18163,
+    "activeAssertionCount": 18179,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18832,
+    "effectiveAssertionCount": 18848,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 54,
+      "assertionCount": 56,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 54,
+      "entryPointAssertionCount": 56,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5429,11 +5429,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 42,
+      "assertionCount": 44,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves nullable quarter-hour Task estimates across storage constraints, service and public API payloads, the canonical editor duplicate flow, read models, and recurrence materialization.",
-      "entryPointAssertionCount": 42,
+      "entryPointAssertionCount": 44,
       "id": "tasks.task-estimate-minutes",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",
@@ -5472,11 +5472,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 43,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves permission-checked, exactly-once recurrence materialization, independent occurrence edits, calendar replacement, and completion/sweep continuity.",
-      "entryPointAssertionCount": 43,
+      "entryPointAssertionCount": 45,
       "id": "tasks.task-recurrence-materialize-on-touch-permissions",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs",
@@ -5493,11 +5493,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 46,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
-      "entryPointAssertionCount": 46,
+      "entryPointAssertionCount": 48,
       "id": "tasks.task-recurrence-skip-to-current",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs",
@@ -6643,11 +6643,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 51,
+      "assertionCount": 58,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves recurrence completion continuity, checklist-template seeding, safe feedback, and durable sweep recovery across every completion surface.",
-      "entryPointAssertionCount": 51,
+      "entryPointAssertionCount": 58,
       "id": "tasks.recurrence-completion-continuity",
       "legacy": false,
       "path": "scripts/task-recurrence-completion-continuity-regression.mjs",
@@ -6699,11 +6699,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 33,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task recurrence reminders repository conversion contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 34,
       "id": "legacy.task.recurrence.reminders.repository.conversion",
       "legacy": true,
       "path": "scripts/task-recurrence-reminders-repository-conversion-regression.mjs",

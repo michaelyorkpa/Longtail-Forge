@@ -2,6 +2,11 @@ import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateWrite} template
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate>}
+ */
 async function createTemplate(workspaceId, template) {
   const now = new Date().toISOString();
   const templateId = template.recurrence_template_id || createRecordId();
@@ -60,9 +65,18 @@ VALUES (
   }));
 
   await replaceTemplateAssignees(workspaceId, templateId, template.assignee_ids || [], template.updated_by_user_id || template.created_by_user_id);
-  return readTemplateById(workspaceId, templateId);
+  const created = await readTemplateById(workspaceId, templateId);
+  if (!created) {
+    throw new Error("Created task recurrence template could not be read.");
+  }
+  return created;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateUpdate} template
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate>}
+ */
 async function updateTemplate(workspaceId, template) {
   const now = new Date().toISOString();
 
@@ -98,9 +112,18 @@ WHERE workspace_id = :workspaceId
     await replaceTemplateAssignees(workspaceId, template.recurrence_template_id, template.assignee_ids, template.updated_by_user_id);
   }
 
-  return readTemplateById(workspaceId, template.recurrence_template_id);
+  const updated = await readTemplateById(workspaceId, template.recurrence_template_id);
+  if (!updated) {
+    throw new Error("Updated task recurrence template could not be read.");
+  }
+  return updated;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate | null>}
+ */
 async function readTemplateById(workspaceId, templateId) {
   const row = await db.get(templateSelectSql(`
 WHERE task_recurrence_templates.workspace_id = :workspaceId
@@ -121,12 +144,19 @@ LIMIT 1;
     readTemplateNoteLinks(workspaceId, templateId),
   ]);
   return {
-    ...attachTemplateAssignees([templateRowToAppValue(row)], assignees)[0],
+    ...attachTemplateAssignees([
+      templateRowToAppValue(/** @type {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateRow} */ (row)),
+    ], assignees)[0],
     checklistItems,
     noteLinks,
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceReadOptions} [options]
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate[]>}
+ */
 async function readActiveTemplates(workspaceId, options = {}) {
   const fromDate = String(options.fromDate || "").trim();
   const throughDate = String(options.throughDate || "").trim();
@@ -161,7 +191,9 @@ ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurre
     return [];
   }
 
-  const templates = rows.map(templateRowToAppValue);
+  const templates = rows.map((row) => templateRowToAppValue(
+    /** @type {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateRow} */ (row),
+  ));
   if (options.includeAssignees === false) {
     return templates;
   }
@@ -172,6 +204,12 @@ ORDER BY task_recurrence_templates.created_at, task_recurrence_templates.recurre
   return templates.map((template, index) => attachTemplateAssignees([template], assignees[index])[0]);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @param {string[]} assigneeIds
+ * @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} assignedByUserId
+ */
 async function replaceTemplateAssignees(workspaceId, templateId, assigneeIds, assignedByUserId) {
   const now = new Date().toISOString();
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
@@ -225,6 +263,11 @@ VALUES (
   });
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistItem[]>}
+ */
 async function readTemplateChecklist(workspaceId, templateId) {
   const rows = await db.query(`
 SELECT
@@ -249,9 +292,18 @@ ORDER BY sort_order, created_at;
     workspaceId: textParam(workspaceId),
   });
 
-  return rows.map(templateChecklistRowToAppValue);
+  return rows.map((row) => templateChecklistRowToAppValue(
+    /** @type {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistRow} */ (row),
+  ));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistWrite[]} items
+ * @param {string} updatedByUserId
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistItem[]>}
+ */
 async function replaceTemplateChecklist(workspaceId, templateId, items, updatedByUserId) {
   const now = new Date().toISOString();
   const normalizedItems = normalizeTemplateChecklistItems(items);
@@ -317,6 +369,12 @@ VALUES (
   return readTemplateChecklist(workspaceId, templateId);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistWrite[]} items
+ * @param {string} updatedByUserId
+ */
 async function seedTemplateChecklistIfEmpty(workspaceId, templateId, items, updatedByUserId) {
   const now = new Date().toISOString();
   const normalizedItems = normalizeTemplateChecklistItems(items);
@@ -394,6 +452,11 @@ VALUES (
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLink[]>}
+ */
 async function readTemplateNoteLinks(workspaceId, templateId) {
   const rows = await db.query(`
 SELECT
@@ -420,9 +483,18 @@ ORDER BY sort_order, created_at;
     workspaceId: textParam(workspaceId),
   });
 
-  return rows.map(templateNoteLinkRowToAppValue);
+  return rows.map((row) => templateNoteLinkRowToAppValue(
+    /** @type {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLinkRow} */ (row),
+  ));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLinkWrite[]} links
+ * @param {string} updatedByUserId
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLink[]>}
+ */
 async function replaceTemplateNoteLinks(workspaceId, templateId, links, updatedByUserId) {
   const now = new Date().toISOString();
   const normalizedLinks = normalizeTemplateNoteLinks(links);
@@ -494,6 +566,7 @@ VALUES (
   return readTemplateNoteLinks(workspaceId, templateId);
 }
 
+/** @param {string} workspaceId @param {string} templateId */
 async function readTemplateAssignees(workspaceId, templateId) {
   return db.query(`
 SELECT recurrence_template_id, user_id
@@ -508,6 +581,7 @@ ORDER BY assigned_at;
   });
 }
 
+/** @param {string} whereSql */
 function templateSelectSql(whereSql) {
   return `
 SELECT
@@ -545,13 +619,18 @@ LEFT JOIN projects
 ${whereSql}`;
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate[]} templates
+ * @param {import("../../types/database-contracts.d.ts").DatabaseRow[]} assignees
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate[]}
+ */
 function attachTemplateAssignees(templates, assignees) {
   const assigneesByTemplate = assignees.reduce((map, assignee) => {
     if (!map.has(assignee.recurrence_template_id)) {
-      map.set(assignee.recurrence_template_id, []);
+      map.set(String(assignee.recurrence_template_id || ""), []);
     }
 
-    map.get(assignee.recurrence_template_id).push(assignee.user_id);
+    map.get(String(assignee.recurrence_template_id || ""))?.push(String(assignee.user_id || ""));
     return map;
   }, new Map());
 
@@ -561,6 +640,10 @@ function attachTemplateAssignees(templates, assignees) {
   }));
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateRow} row
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate}
+ */
 function templateRowToAppValue(row) {
   return {
     recurrence_template_id: row.recurrence_template_id,
@@ -589,9 +672,14 @@ function templateRowToAppValue(row) {
     updated_by_user_id: row.updated_by_user_id || "",
     created_at: row.created_at,
     updated_at: row.updated_at,
+    assignee_ids: [],
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistRow} row
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistItem}
+ */
 function templateChecklistRowToAppValue(row) {
   return {
     created_at: row.created_at || "",
@@ -601,13 +689,17 @@ function templateChecklistRowToAppValue(row) {
     label: row.label || "",
     recurrence_checklist_item_id: row.recurrence_checklist_item_id,
     recurrence_template_id: row.recurrence_template_id,
-    sort_order: Number.parseInt(row.sort_order, 10) || 0,
+    sort_order: Number.parseInt(String(row.sort_order || ""), 10) || 0,
     updated_at: row.updated_at || "",
     updated_by_user_id: row.updated_by_user_id || "",
     workspace_id: row.workspace_id,
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLinkRow} row
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLink}
+ */
 function templateNoteLinkRowToAppValue(row) {
   return {
     created_at: row.created_at || "",
@@ -619,13 +711,16 @@ function templateNoteLinkRowToAppValue(row) {
     recurrence_note_link_id: row.recurrence_note_link_id,
     recurrence_template_id: row.recurrence_template_id,
     scope_role: row.scope_role || "related",
-    sort_order: Number.parseInt(row.sort_order, 10) || 0,
+    sort_order: Number.parseInt(String(row.sort_order || ""), 10) || 0,
     updated_at: row.updated_at || "",
     updated_by_user_id: row.updated_by_user_id || "",
     workspace_id: row.workspace_id,
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistWrite[]} [items]
+ */
 function normalizeTemplateChecklistItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .map((item, index) => ({
@@ -636,6 +731,9 @@ function normalizeTemplateChecklistItems(items = []) {
     .filter((item) => item.label);
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLinkWrite[]} [links]
+ */
 function normalizeTemplateNoteLinks(links = []) {
   const seen = new Set();
   return (Array.isArray(links) ? links : [])
@@ -659,7 +757,12 @@ function normalizeTemplateNoteLinks(links = []) {
     });
 }
 
+/**
+ * @param {{ includeCreatedByUserId?: boolean, now: string, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplateWrite, templateId: string, workspaceId: string }} input
+ * @returns {Record<string, string | number | null>}
+ */
 function templateWriteParams({ includeCreatedByUserId = false, now, template, templateId, workspaceId }) {
+  /** @type {Record<string, string | number | null>} */
   const params = {
     clientId: nullableTextParam(template.client_id),
     description: textParam(template.description),
@@ -688,23 +791,27 @@ function templateWriteParams({ includeCreatedByUserId = false, now, template, te
   return params;
 }
 
+/** @param {unknown} value */
 function textParam(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   const text = String(value ?? "").trim();
   return text ? text : null;
 }
 
+/** @param {unknown} value */
 function nullableIntegerParam(value) {
   return value === null || value === undefined || value === ""
     ? null
     : Number(value);
 }
 
+/** @param {unknown} value */
 function integerParam(value) {
-  const integer = Number.parseInt(value, 10);
+  const integer = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(integer) ? integer : 0;
 }
 

@@ -1,6 +1,6 @@
 import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
-import { notesService } from "../notes/notes.service.js";
+import { notesService } from "../notes/index.js";
 import { AppError } from "../../core/errors.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
@@ -9,6 +9,9 @@ const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR"];
 const WEEKEND_CODES = ["SA", "SU"];
 const MAX_PROJECTED_OCCURRENCE_STEPS = 36600;
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, task: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, recurrence: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrencePayload }} input
+ */
 async function createTemplateFromTask({ session, task, recurrence }) {
   const normalized = normalizeRecurrencePayload(recurrence);
 
@@ -28,6 +31,9 @@ async function createTemplateFromTask({ session, task, recurrence }) {
   });
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, task: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, recurrence: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrencePayload }} input
+ */
 async function updateTemplateFromTask({ session, task, recurrence }) {
   if (!task.recurrence_template_id) {
     return null;
@@ -67,6 +73,10 @@ async function updateTemplateFromTask({ session, task, recurrence }) {
   return taskRecurrenceRepository.updateTemplate(session.workspace_id, nextTemplate);
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, completedTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, createTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter }} input
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceMaterializationResult | null>}
+ */
 async function createNextInstance({ session, completedTask, createTask }) {
   if (!completedTask.recurrence_template_id || !completedTask.recurrence_instance_date) {
     return null;
@@ -91,6 +101,9 @@ async function createNextInstance({ session, completedTask, createTask }) {
   });
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, completedTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, findExisting: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter["findExisting"] }} input
+ */
 async function prepareCompletionContinuity({ session, completedTask, findExisting }) {
   const continuity = await readCompletionContinuity({ session, completedTask, findExisting });
 
@@ -103,10 +116,10 @@ async function prepareCompletionContinuity({ session, completedTask, findExistin
     : await taskChecklistsRepository.readForTask(session.workspace_id, completedTask.task_id);
   const seedResult = await taskRecurrenceRepository.seedTemplateChecklistIfEmpty(
     session.workspace_id,
-    completedTask.recurrence_template_id,
+    String(completedTask.recurrence_template_id || ""),
     sourceItems.map((item, index) => ({
       label: String(item?.label || "").trim(),
-      sort_order: Number.parseInt(item?.sort_order, 10) || ((index + 1) * 1000),
+      sort_order: Number.parseInt(String(item?.sort_order || ""), 10) || ((index + 1) * 1000),
     })).filter((item) => item.label),
     session.user_id,
   );
@@ -117,6 +130,10 @@ async function prepareCompletionContinuity({ session, completedTask, findExistin
   };
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceReadSession, completedTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, findExisting?: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter["findExisting"] }} input
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceContinuity | null>}
+ */
 async function readCompletionContinuity({ session, completedTask, findExisting }) {
   if (!completedTask?.recurrence_template_id || !completedTask?.recurrence_instance_date) {
     return null;
@@ -150,6 +167,7 @@ async function readCompletionContinuity({ session, completedTask, findExisting }
   };
 }
 
+/** @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceContinuity} */
 function endedContinuity() {
   return {
     checklistTemplateSeeded: false,
@@ -162,6 +180,10 @@ function endedContinuity() {
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord | null | undefined} task
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNextTask | null}
+ */
 function safeNextTask(task) {
   if (!task?.task_id) {
     return null;
@@ -179,6 +201,10 @@ function safeNextTask(task) {
 // that has no open instance. Recurrence is generated on completion only, so if a completion
 // ever fails to enqueue generation the chain has no open instance left and stays dead — this
 // backfill is the safety net that regenerates it (used by the recurrence sweep).
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate, latestInstanceDate: string, hasInstances: boolean, today: string, createTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter }} input
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceMaterializationResult | null>}
+ */
 async function ensureUpcomingInstance({ session, template, latestInstanceDate, hasInstances, today, createTask }) {
   if (!template || template.template_status !== "active") {
     return null;
@@ -208,6 +234,10 @@ async function ensureUpcomingInstance({ session, template, latestInstanceDate, h
   return materializeInstance({ session, template, instanceDate, createTask });
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate, instanceDate: string, createTask: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceCreateAdapter, sourceTaskId?: string }} input
+ * @returns {Promise<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceMaterializationResult>}
+ */
 async function materializeInstance({ session, template, instanceDate, createTask, sourceTaskId = "" }) {
   const existing = await createTask.findExisting(template.recurrence_template_id, instanceDate);
   if (existing) {
@@ -222,8 +252,8 @@ async function materializeInstance({ session, template, instanceDate, createTask
     template,
     instanceDate,
   }));
-  const task = creationResult?.task || creationResult;
-  const wasCreated = creationResult?.wasCreated !== false;
+  const task = "task" in creationResult ? creationResult.task : creationResult;
+  const wasCreated = !("wasCreated" in creationResult) || creationResult.wasCreated !== false;
 
   if (!wasCreated) {
     return {
@@ -245,6 +275,10 @@ async function materializeInstance({ session, template, instanceDate, createTask
   };
 }
 
+/**
+ * @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate, instanceDate: string }} input
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceInstanceDraft}
+ */
 function instanceTaskDraft({ session, template, instanceDate }) {
   const dueAtUtc = template.due_time
     ? normalizeUtcIso(`${instanceDate}T${template.due_time}:00`, template.due_timezone || session.timezone)
@@ -271,6 +305,7 @@ function instanceTaskDraft({ session, template, instanceDate }) {
   };
 }
 
+/** @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, task: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate, sourceTaskId?: string }} input */
 async function copyMaterializedInstanceContext({ session, task, template, sourceTaskId = "" }) {
   await copyTemplateChecklistToTask({
     session,
@@ -285,6 +320,7 @@ async function copyMaterializedInstanceContext({ session, task, template, source
   });
 }
 
+/** @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, task: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate }} input */
 async function copyTemplateChecklistToTask({ session, task, template }) {
   if (!task?.task_id || !template?.recurrence_template_id) {
     return [];
@@ -312,6 +348,7 @@ async function copyTemplateChecklistToTask({ session, task, template }) {
   return checklistItems;
 }
 
+/** @param {{ session: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceSession, task: import("../../types/task-recurrence-contracts.d.ts").TaskRecord, template: import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate, sourceTaskId?: string }} input */
 async function copyTemplateNoteLinksToTask({ session, task, template, sourceTaskId = "" }) {
   if (!task?.task_id || !template?.recurrence_template_id) {
     return {
@@ -336,6 +373,7 @@ async function copyTemplateNoteLinksToTask({ session, task, template, sourceTask
   });
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task */
 async function readTaskRecurrenceDetails(task) {
   if (!task?.recurrence_template_id) {
     return {
@@ -363,9 +401,14 @@ async function readTaskRecurrenceDetails(task) {
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrencePayload} [payload]
+ * @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate>} [fallback]
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").NormalizedTaskRecurrence}
+ */
 function normalizeRecurrencePayload(payload = {}, fallback = {}) {
   const frequency = String(payload.frequency || parseRRule(fallback.rrule).frequency || "WEEKLY").trim().toUpperCase();
-  const interval = Math.max(1, Number.parseInt(payload.interval || parseRRule(fallback.rrule).interval || 1, 10));
+  const interval = Math.max(1, Number.parseInt(String(payload.interval || parseRRule(fallback.rrule || "").interval || 1), 10));
   const endDate = normalizeDate(payload.endDate || payload.end_date || fallback.recurrence_end_date || "");
 
   if (!FREQUENCIES.has(frequency)) {
@@ -380,6 +423,7 @@ function normalizeRecurrencePayload(payload = {}, fallback = {}) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").NormalizedTaskRecurrence} input */
 function buildRRule({ frequency, interval, endDate }) {
   const rruleFrequency = frequency === "WEEKDAYS" || frequency === "WEEKENDS" ? "DAILY" : frequency;
   const parts = [`FREQ=${rruleFrequency}`, `INTERVAL=${interval}`];
@@ -397,6 +441,10 @@ function buildRRule({ frequency, interval, endDate }) {
   return parts.join(";");
 }
 
+/**
+ * @param {string} [rrule]
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").ParsedTaskRRule}
+ */
 function parseRRule(rrule = "") {
   const values = String(rrule || "").split(";").reduce((map, part) => {
     const [key, value] = part.split("=");
@@ -404,7 +452,7 @@ function parseRRule(rrule = "") {
       map[key.trim().toUpperCase()] = value.trim().toUpperCase();
     }
     return map;
-  }, {});
+  }, /** @type {Record<string, string>} */ ({}));
 
   const byDay = String(values.BYDAY || "")
     .split(",")
@@ -418,6 +466,7 @@ function parseRRule(rrule = "") {
   };
 }
 
+/** @param {string} currentDate @param {string} rrule @param {string} endDate */
 function nextOccurrenceDate(currentDate, rrule, endDate) {
   const parsed = parseRRule(rrule);
   const date = new Date(`${currentDate}T00:00:00.000Z`);
@@ -444,6 +493,7 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
   return finalEndDate && nextDate > finalEndDate ? "" : nextDate;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceProjectionTemplate} template @param {string} currentDate */
 function nextTemplateOccurrenceDate(template, currentDate) {
   const nextDate = nextOccurrenceDate(currentDate, template?.rrule || "", template?.recurrence_end_date || "");
   const recoveryCheckpointDate = normalizeDate(template?.recovery_checkpoint_date);
@@ -460,6 +510,12 @@ function nextTemplateOccurrenceDate(template, currentDate) {
   );
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceProjectionTemplate} template
+ * @param {string} startDate
+ * @param {string} endDate
+ * @returns {string[]}
+ */
 function projectOccurrenceDates(template, startDate, endDate) {
   const anchorDate = normalizeDate(template?.recurrence_anchor_date);
   const rangeStart = normalizeDate(startDate);
@@ -505,6 +561,7 @@ function projectOccurrenceDates(template, startDate, endDate) {
   return dates;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceProjectionTemplate} template @param {Date | string | number} [referenceDate] @param {string} [timezone] */
 function nextNotPassedOccurrenceDate(template, referenceDate = new Date(), timezone = "America/New_York") {
   const anchorDate = normalizeDate(template?.recurrence_anchor_date);
   const reference = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
@@ -538,6 +595,7 @@ function nextNotPassedOccurrenceDate(template, referenceDate = new Date(), timez
   return "";
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceProjectionTemplate} template @param {string} instanceDate @param {Date} referenceDate @param {string} localToday @param {string} timezone */
 function occurrenceDueBoundaryPassed(template, instanceDate, referenceDate, localToday, timezone) {
   if (!template?.due_time) {
     return instanceDate < localToday;
@@ -551,6 +609,7 @@ function occurrenceDueBoundaryPassed(template, instanceDate, referenceDate, loca
   return Number.isFinite(dueTime) ? dueTime < referenceDate.getTime() : instanceDate < localToday;
 }
 
+/** @param {Date} date @param {string} [timezone] */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
@@ -565,6 +624,7 @@ function localDateKey(date, timezone = "America/New_York") {
 // Walk the recurrence forward from `fromDate` and return the first occurrence on or after
 // `today` (skipping every occurrence that was missed while the chain was stalled). Returns ""
 // if the recurrence ends before reaching `today`.
+/** @param {string} fromDate @param {string} rrule @param {string} endDate @param {string} today */
 function upcomingOccurrenceDate(fromDate, rrule, endDate, today) {
   const normalizedToday = normalizeDate(today);
   let cursor = normalizeDate(fromDate);
@@ -587,6 +647,7 @@ function upcomingOccurrenceDate(fromDate, rrule, endDate, today) {
   return "";
 }
 
+/** @param {string | undefined} frequency @param {string[]} byDay */
 function recurrenceFrequencyFromParts(frequency, byDay) {
   const normalizedFrequency = String(frequency || "").trim().toUpperCase();
   const sortedByDay = [...new Set(byDay)].sort().join(",");
@@ -602,6 +663,7 @@ function recurrenceFrequencyFromParts(frequency, byDay) {
   return FREQUENCIES.has(normalizedFrequency) ? normalizedFrequency : "WEEKLY";
 }
 
+/** @param {Date} date @param {number} interval @param {Set<number>} allowedDays */
 function advanceToMatchingDay(date, interval, allowedDays) {
   let matches = 0;
 
@@ -614,11 +676,13 @@ function advanceToMatchingDay(date, interval, allowedDays) {
   }
 }
 
+/** @param {unknown} value */
 function normalizeDate(value) {
   const text = String(value || "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
+/** @param {unknown} value */
 function normalizeUntilDate(value) {
   const text = String(value || "").trim();
   if (/^\d{8}$/.test(text)) {
@@ -628,18 +692,45 @@ function normalizeUntilDate(value) {
   return normalizeDate(text);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceReadOptions} [options]
+ */
+function listActiveTemplates(workspaceId, options = {}) {
+  return taskRecurrenceRepository.readActiveTemplates(workspaceId, options);
+}
+
+/** @param {string} workspaceId @param {string} templateId */
+function readTemplate(workspaceId, templateId) {
+  return taskRecurrenceRepository.readTemplateById(workspaceId, templateId);
+}
+
+/** @param {string} workspaceId @param {string} templateId @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceChecklistWrite[]} items @param {string} updatedByUserId */
+function replaceTemplateChecklist(workspaceId, templateId, items, updatedByUserId) {
+  return taskRecurrenceRepository.replaceTemplateChecklist(workspaceId, templateId, items, updatedByUserId);
+}
+
+/** @param {string} workspaceId @param {string} templateId @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceNoteLinkWrite[]} links @param {string} updatedByUserId */
+function replaceTemplateNoteLinks(workspaceId, templateId, links, updatedByUserId) {
+  return taskRecurrenceRepository.replaceTemplateNoteLinks(workspaceId, templateId, links, updatedByUserId);
+}
+
 export const taskRecurrenceService = {
   copyMaterializedInstanceContext,
   createNextInstance,
   createTemplateFromTask,
   ensureUpcomingInstance,
   instanceTaskDraft,
+  listActiveTemplates,
   materializeInstance,
   nextNotPassedOccurrenceDate,
   parseRRule,
   prepareCompletionContinuity,
   projectOccurrenceDates,
   readCompletionContinuity,
+  readTemplate,
   readTaskRecurrenceDetails,
+  replaceTemplateChecklist,
+  replaceTemplateNoteLinks,
   updateTemplateFromTask,
 };

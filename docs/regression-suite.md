@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.19. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.19, Tasks recurrence persistence has one checked service owner. The calendar-feed serializer, task jobs, and main Tasks orchestrator consume named `taskRecurrenceService` operations instead of importing the recurrence repository, while the recurrence service consumes Notes through its public module entry. The checked recurrence template, projection, completion-continuity, materialization, calendar-feed, and job contracts lower the combined strict ledger from 23,092 to 22,658 diagnostics; their six server owners plus `task-recurrence-contracts.d.ts` must remain strict-clean and free of explicit `any`. The retained module-import boundary and recurrence completion/materialization/feed/job/permission owners prove the dependency shrink without changing recurrence, reminder, timezone, feed, job, or authorization behavior.
 
 As of 0.33.33.7, the static execution audit assigns every discovered static owner either a reviewed worker decision or an explicit child-process fallback across environment, global state, timers, listeners, cache, process, and filesystem resources. Six read-only source owners are certified: five use the bounded parallel worker lane and the former serial Files documentation owner uses the sequential worker lane. Every unreviewed static owner, all stateful database and Files owners, environment-sensitive scripts, and child-spawning scripts remain child processes. `LTF_STATIC_EXECUTION_MODE=child-process` forces the complete control path. Worker output remains buffered per script, timing JSON records `executionMode`, Node compile-cache configuration is inherited, and worker failures are reported without a masking child rerun. Bucket order, fail-fast scheduling, and isolated-database-only retry behavior are unchanged.
 
@@ -289,11 +291,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18163 |
+| Active regression assertions | 18179 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18832 |
+| Effective assertion floor | 18848 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

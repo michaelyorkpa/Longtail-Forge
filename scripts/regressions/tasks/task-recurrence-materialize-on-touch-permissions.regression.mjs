@@ -37,10 +37,10 @@ try {
   const source = await createRecurringTask(session);
 
   await taskRecurrenceRepository.replaceTemplateChecklist(
-    session.workspace_id,
-    source.recurrence_template_id,
+    String(session.workspace_id || ""),
+    String(source.recurrence_template_id || ""),
     [{ label: "Template step", sort_order: 1000 }],
-    session.user_id,
+    String(session.user_id || ""),
   );
 
   await assertPermissionChecked(session, source);
@@ -144,6 +144,8 @@ async function assertOccurrenceEditsStayIndependent(session, source, task) {
   );
 
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "recurrence template should remain readable after an occurrence-only edit");
+  assert.ok(template.checklistItems, "recurrence template should retain its checklist projection");
   assert.equal(template.description, "Template description", "instance description edits must not rewrite the template");
   assert.deepEqual(template.checklistItems.map((item) => item.label), ["Template step"]);
   assert.equal(await recurrenceInstanceCount(session, source.recurrence_template_id, "2026-08-24"), 0);

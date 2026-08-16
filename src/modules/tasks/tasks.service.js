@@ -11,7 +11,6 @@ import {
 import { tasksRepository } from "./tasks.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
-import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
@@ -475,7 +474,7 @@ async function calendarWindow(session, query = {}) {
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
     tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate, { statuses }),
     statuses.includes("open")
-      ? taskRecurrenceRepository.readActiveTemplates(session.workspace_id, {
+      ? taskRecurrenceService.listActiveTemplates(session.workspace_id, {
           fromDate: startDate,
           includeAssignees: false,
           throughDate: endDate,
@@ -540,7 +539,7 @@ async function materializeRecurrenceInstance(rawPayload, session) {
     };
   }
 
-  const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, templateId);
+  const template = await taskRecurrenceService.readTemplate(session.workspace_id, templateId);
   const isProjectedOccurrence = template?.template_status === "active"
     && taskRecurrenceService.projectOccurrenceDates(template, instanceDate, instanceDate).includes(instanceDate);
 
@@ -1026,7 +1025,7 @@ async function recurrenceRecoveryPlan(session, task, { enforcePermissions = fals
     return null;
   }
 
-  const template = await taskRecurrenceRepository.readTemplateById(
+  const template = await taskRecurrenceService.readTemplate(
     session.workspace_id,
     task.recurrence_template_id,
   );
@@ -2533,7 +2532,7 @@ async function syncRecurringChecklistStructure({ session, sourceTask }) {
   const sourceItems = recurringChecklistStructureItems(
     await taskChecklistsRepository.readForTask(session.workspace_id, sourceTask.task_id),
   );
-  const templateChecklistItems = await taskRecurrenceRepository.replaceTemplateChecklist(
+  const templateChecklistItems = await taskRecurrenceService.replaceTemplateChecklist(
     session.workspace_id,
     templateId,
     sourceItems,
@@ -2599,7 +2598,7 @@ async function syncRecurringLinkedNoteStructure({ session, sourceTask }) {
     };
   }
 
-  const templateNoteLinks = await taskRecurrenceRepository.replaceTemplateNoteLinks(
+  const templateNoteLinks = await taskRecurrenceService.replaceTemplateNoteLinks(
     session.workspace_id,
     templateId,
     sourceResult.links,
@@ -3772,23 +3771,25 @@ function descriptionExcerpt(description, maxLength = 160) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} */
 function taskCalendarRow(task) {
   return {
     task_id: task.task_id,
     id: task.task_id,
     title: task.title,
     status: task.status,
-    priority: task.priority,
-    due_date: task.due_date,
-    due_time: task.due_time,
-    client_name: task.client_name,
-    project_name: task.project_name,
+    priority: String(task.priority || "normal"),
+    due_date: String(task.due_date || ""),
+    due_time: String(task.due_time || ""),
+    client_name: String(task.client_name || ""),
+    project_name: String(task.project_name || ""),
     allDay: !task.due_time,
-    endDate: task.due_date,
-    startDate: task.due_date,
+    endDate: String(task.due_date || ""),
+    startDate: String(task.due_date || ""),
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} */
 function virtualTaskCalendarRow(template, instanceDate) {
   return {
     task_id: "",
@@ -3809,6 +3810,7 @@ function virtualTaskCalendarRow(template, instanceDate) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} first @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} second */
 function compareTaskCalendarRows(first, second) {
   return first.due_date.localeCompare(second.due_date)
     || String(first.due_time || "23:59").localeCompare(String(second.due_time || "23:59"));
