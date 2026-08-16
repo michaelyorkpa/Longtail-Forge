@@ -32,6 +32,14 @@ import {
   visibleTaskListCandidates,
 } from "./task-list-engine.js";
 import {
+  childStatusRollupEffect,
+  isIncompleteTask,
+  isTaskTerminalStatus,
+  planParentBlockTransition,
+  planParentRecoveryTransition,
+  shouldPauseRunningTimersForBlockedTask,
+} from "./task-block-recovery-engine.js";
+import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
 } from "./task-jobs.service.js";
@@ -814,12 +822,11 @@ async function update(taskId, rawPayload, session) {
     reason: "task.updated",
     session,
   });
-  if (previousTask.status !== taskWithDetails.status) {
-    if (isIncompleteBlockingChild(taskWithDetails)) {
-      await blockParentsForIncompleteChild(session, taskWithDetails);
-    } else {
-      await recoverParentsAfterChildStatusChange(session, taskWithDetails);
-    }
+  const parentRollupEffect = childStatusRollupEffect(previousTask.status, taskWithDetails.status);
+  if (parentRollupEffect === "block_parents") {
+    await blockParentsForIncompleteChild(session, taskWithDetails);
+  } else if (parentRollupEffect === "recover_parents") {
+    await recoverParentsAfterChildStatusChange(session, taskWithDetails);
   }
   if (assigneesChanged(previousTask, taskWithDetails)) {
     await emitTaskEvent("task.assigned", {
@@ -1321,7 +1328,7 @@ async function restore(taskId, session) {
     reason: "task.restored",
     session,
   });
-  if (task.status === "complete") {
+  if (isTaskTerminalStatus(task.status)) {
     await recoverParentsAfterChildStatusChange(session, task);
   } else {
     await blockParentsForIncompleteChild(session, task);
@@ -1364,7 +1371,7 @@ async function addChildTask(parentTaskId, rawPayload, session) {
       updated_by_user_id: session.user_id,
     });
 
-  if (relationship.is_blocking && isIncompleteBlockingChild(childTask)) {
+  if (relationship.is_blocking && isIncompleteTask(childTask)) {
     await blockParentForChild(session, parentTask, childTask);
   }
 
@@ -1389,7 +1396,7 @@ async function updateChildTaskRelationship(parentTaskId, childTaskId, rawPayload
     updated_by_user_id: session.user_id,
   });
 
-  if (updated.is_blocking && isIncompleteBlockingChild(childTask)) {
+  if (updated.is_blocking && isIncompleteTask(childTask)) {
     await blockParentForChild(session, parentTask, childTask);
   } else {
     await recoverParentIfNoBlockingChildren(session, parentTask);
@@ -2222,7 +2229,7 @@ async function assertBlockingChildrenAllowStatus(session, task) {
   }
 
   const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, task.task_id);
-  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
+  const incomplete = blockingChildren.filter((relationship) => isIncompleteTask(relationship.child_status));
 
   if (incomplete.length > 0) {
     throw new AppError("Task cannot move to In Progress while blocking child tasks are incomplete.", 400);
@@ -2264,7 +2271,7 @@ async function readActiveRelationshipOrThrow(workspaceId, parentTaskId, childTas
 }
 
 async function blockParentsForIncompleteChild(session, childTask) {
-  if (!isIncompleteBlockingChild(childTask)) {
+  if (!isIncompleteTask(childTask)) {
     return;
   }
 
@@ -2278,38 +2285,39 @@ async function blockParentsForIncompleteChild(session, childTask) {
 }
 
 async function blockParentForChild(session, parentTask, childTask) {
-  if (isCompleteOrArchivedStatus(parentTask.status)) {
+  const transition = planParentBlockTransition({ parentTask, blockingChild: childTask });
+  if (!transition.effects.persistTask || !transition.taskPatch) {
     return;
   }
 
   const now = new Date().toISOString();
-  const blockedReason = parentTask.blocked_reason ||
-    autoBlockedReason([childTask.title || childTask.task_id]);
   const blockedParent = await tasksRepository.update(session.workspace_id, {
     ...parentTask,
-    status: "blocked",
-    blocked_reason: blockedReason,
+    status: transition.taskPatch.status,
+    blocked_reason: transition.taskPatch.blocked_reason,
     last_worked_at: now,
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
-  await pauseRunningTimersForBlockedTask(blockedParent, session);
+  if (transition.effects.pauseRunningTimers) {
+    await pauseRunningTimersForBlockedTask(blockedParent, session);
+  }
   const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
-  await emitTaskEvent("task.updated", {
-    session,
-    previousValue: parentTask,
-    newValue: updatedTask,
-    metadata: {
-      status_transition_reason: "blocked_by_child",
-      blocking_child_task_id: childTask.task_id,
-      blocking_child_title: childTask.title || "",
-    },
-  });
-  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.blocked_by_child");
+  if (transition.effects.emitTaskUpdated) {
+    await emitTaskEvent("task.updated", {
+      session,
+      previousValue: parentTask,
+      newValue: updatedTask,
+      metadata: transition.eventMetadata || undefined,
+    });
+  }
+  if (transition.effects.reindexSearch) {
+    await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, transition.searchReason);
+  }
 }
 
 async function pauseRunningTimersForBlockedTask(task, session) {
-  if (task?.status !== "blocked") {
+  if (!shouldPauseRunningTimersForBlockedTask(task)) {
     return;
   }
 
@@ -2328,53 +2336,36 @@ async function recoverParentsAfterChildStatusChange(session, childTask) {
 }
 
 async function recoverParentIfNoBlockingChildren(session, parentTask) {
-  if (parentTask.status !== "blocked") {
-    return;
-  }
-
   const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, parentTask.task_id);
-  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
-
-  if (incomplete.length > 0) {
-    return;
-  }
-
-  if (parentTask.blocked_reason && !parentTask.blocked_reason.startsWith("Blocked by incomplete child task")) {
+  const transition = planParentRecoveryTransition({
+    parentTask,
+    incompleteBlockingChildCount: blockingChildren.filter((relationship) => isIncompleteTask(relationship.child_status)).length,
+  });
+  if (!transition.effects.persistTask || !transition.taskPatch) {
     return;
   }
 
   const now = new Date().toISOString();
   await tasksRepository.update(session.workspace_id, {
     ...parentTask,
-    status: "open",
-    blocked_reason: "",
+    status: transition.taskPatch.status,
+    blocked_reason: transition.taskPatch.blocked_reason,
     last_worked_at: now,
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
   const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
-  await emitTaskEvent("task.updated", {
-    session,
-    previousValue: parentTask,
-    newValue: updatedTask,
-    metadata: {
-      status_transition_reason: "unblocked_by_child",
-    },
-  });
-  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.unblocked_by_child");
-}
-
-function isIncompleteBlockingChild(task) {
-  return !isCompleteOrArchivedStatus(task.status);
-}
-
-function isCompleteOrArchivedStatus(status) {
-  return status === "complete" || status === "archived";
-}
-
-function autoBlockedReason(childTitles) {
-  const label = childTitles.filter(Boolean).slice(0, 2).join(", ") || "blocking child task";
-  return `Blocked by incomplete child task: ${label}`;
+  if (transition.effects.emitTaskUpdated) {
+    await emitTaskEvent("task.updated", {
+      session,
+      previousValue: parentTask,
+      newValue: updatedTask,
+      metadata: transition.eventMetadata || undefined,
+    });
+  }
+  if (transition.effects.reindexSearch) {
+    await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, transition.searchReason);
+  }
 }
 
 function isOwnTask(session, task) {

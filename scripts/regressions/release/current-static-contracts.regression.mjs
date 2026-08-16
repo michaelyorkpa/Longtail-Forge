@@ -162,6 +162,7 @@ const narrowVitestOwners = {
   "test:lists": ["tests/contracts/lists-contracts.test.mjs"],
   "test:tasks": [
     "tests/contracts/tasks-contracts.test.mjs",
+    "tests/unit/task-block-recovery-engine.test.mjs",
     "tests/unit/task-list-engine.test.mjs",
   ],
   "test:time-tracking": [
@@ -190,6 +191,7 @@ for (const testFile of [
   "tests/unit/focus-mode-resolution.test.mjs",
   "tests/unit/resume-producer-payload.test.mjs",
   "tests/unit/sqlite-health-formatter.test.mjs",
+  "tests/unit/task-block-recovery-engine.test.mjs",
   "tests/unit/task-list-engine.test.mjs",
   "tests/unit/work-candidate-ranking.test.mjs",
 ]) assert.ok(statSync(testFile).isFile(), `${testFile} must remain in the fast unit suite`);

@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.20. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.21.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.21.1, the checked `task-block-recovery-engine.js` and precise `task-block-recovery-contracts.d.ts` own the pure Tasks parent-block and parent-recovery transition table. The engine distinguishes active and terminal tasks, incomplete and cleared blocking children, automatic and manual Blocked reasons, parent-rollup direction, and timer-pause intent without performing persistence or external effects. The main Tasks service retains relationship reads, permissions, persistence, Task Timer pause delegation, audit/event emission, Search reindexing, reminders, and resume-context orchestration. `tests/unit/task-block-recovery-engine.test.mjs` directly covers the transition matrix; retained relationship, timer-status, blocked-recovery browser, permission, and consolidated Tasks owners preserve stateful behavior. The seam lowers combined strict debt from 22,514 to 22,511 diagnostics, advances effective regression assertions to 18,856 across 347 scripts, and keeps the engine, declaration, and direct unit owner strict-clean and free of explicit `any`.
 
 As of 0.33.33.20, the checked `task-list-engine.js` and precise `task-list-engine-contracts.d.ts` own canonical Tasks query normalization, resolved hierarchy filtering, permission-visible candidate offsets, cursor paging, and stable server ordering. The main Tasks service retains async scope resolution and permission/tag/enrichment orchestration, while the repository SQL projection consumes the engine's normalized sort and terminal-status scope rule rather than maintaining alternate aliases. `tests/unit/task-list-engine.test.mjs` directly covers status, timed/date boundaries, hierarchy, visibility, paging, stable tie-breakers, and empty/null normalization; retained list-pipeline, server-paging, permission, dashboard-budget, and workbench hot-endpoint owners preserve stateful and query-count behavior. The seam lowers combined strict debt from 22,658 to 22,514 diagnostics, and the engine, declaration, and direct unit owner must remain strict-clean and free of explicit `any`.
 
@@ -293,11 +295,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18185 |
+| Active regression assertions | 18187 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18854 |
+| Effective assertion floor | 18856 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

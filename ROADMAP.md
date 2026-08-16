@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.21.1 - Extract the Tasks block/recover state machine
-
-**Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.
-
-- [ ] Extract the auto-block/recover transition engine with explicit inputs, outputs, and side-effect boundaries.
-- [ ] Preserve timer pause, blocking-child rollup, manual-block distinctions, completion, and recovery behavior.
-- [ ] Keep persistence, audit, events, search, reminders, and resume-context effects in explicit Tasks-owned orchestrators.
-- [ ] Prove the transition table directly while retaining lifecycle and permission integration owners.
-
 ### 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
 
 **Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
