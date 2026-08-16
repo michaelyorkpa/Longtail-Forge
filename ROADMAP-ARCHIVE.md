@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.18.4 - Finish Lists strict typing
+
+**Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
+
+- [x] Typed the remaining Lists service, repository, browser routes, public API, storage and access policies, search indexers, and resume-state integration under full strict with one declaration-owned domain contract.
+- [x] Consumed the established edge, list-item, and catalog-item seams through precise stored-record, persistence-input, browser-read-model, normalized-query, linked-target, and search-document contracts without broad casts or cross-module deep imports.
+- [x] Preserved linked-record access pruning, reusable-list duplication, canonical filtering and sorting, public API paging, repository coercion compatibility, operational item workflows, audit/events, Search, and resume-state behavior.
+- [x] Reduced every `src/modules/lists/` server diagnostic to zero, lowered the combined full-strict ledger from 23,947 to 23,092 diagnostics, reduced explicit-`any` inventory to 10, and raised retained regression coverage to 18,832 assertions across 347 scripts; as the final numeric child, this checkpoint closes the `0.33.33.18` parent and leaves `0.33.33.19` next.
+
 ## Version 0.33.33.18.3 - Extract the Lists catalog-item aggregate
 
 **Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
