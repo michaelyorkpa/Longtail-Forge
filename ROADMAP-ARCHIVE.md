@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.20 - Extract the Tasks filter and sort engine
+
+**Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
+
+- [x] Extracted canonical query normalization, resolved hierarchy filtering, permission-visible candidate offsets, cursor paging, and stable ordering into a checked Tasks-owned engine with a precise declaration contract.
+- [x] Covered status, timed/date boundaries, hierarchy scopes, visibility, paging, stable tie-breakers, and empty/null normalization through the Tasks narrow Vitest owner while retaining stateful list, permission, and paging integration proof.
+- [x] Preserved repository pushdown, query-count budgets, workbench payload budgets, server-side authority, and browser behavior; the service retains async scope, permission, tag, and enrichment orchestration.
+- [x] Lowered combined strict debt from 22,658 to 22,514 diagnostics, kept the engine/declaration/unit owner strict-clean, and raised retained regression coverage to 18,854 assertions across 347 scripts; `0.33.33.21.1` remains next.
+
 ## Version 0.33.33.19 - Make the Tasks recurrence service boundary real
 
 **Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.

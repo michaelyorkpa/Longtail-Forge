@@ -42,7 +42,7 @@
     "test:files": "vitest run tests/contracts/files-contracts.test.mjs",
     "test:lists": "vitest run tests/contracts/lists-contracts.test.mjs",
     "test:notes": "vitest run tests/contracts/notes-contracts.test.mjs tests/unit/notes-effective-security.test.mjs",
-    "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs",
+    "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs tests/unit/task-list-engine.test.mjs",
     "test:time-tracking": "vitest run tests/contracts/time-tracking-contracts.test.mjs tests/time-tracking/time-tracking-billing.test.mjs",
     "test:e2e": "node scripts/run-playwright-e2e.mjs",
     "test:e2e:install": "playwright install chromium",

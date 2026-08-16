@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18179,
+    "activeAssertionCount": 18185,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18848,
+    "effectiveAssertionCount": 18854,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -5451,11 +5451,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 36,
+      "assertionCount": 40,
       "contractAssertionCount": 0,
       "contractModules": [],
-      "description": "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
-      "entryPointAssertionCount": 36,
+      "description": "Proves the typed canonical filter/sort engine boundary, opt-in list options, bounded SQL workbench paging, lean projection serialization, due-window pushdown, and permission filtering through one precomputed evaluator.",
+      "entryPointAssertionCount": 40,
       "id": "tasks.task-list-pipeline-projection",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
@@ -6787,11 +6787,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 82,
+      "assertionCount": 84,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task resume context contract.",
-      "entryPointAssertionCount": 82,
+      "entryPointAssertionCount": 84,
       "id": "legacy.task.resume.context",
       "legacy": true,
       "path": "scripts/task-resume-context-regression.mjs",

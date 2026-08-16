@@ -1,6 +1,8 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.19. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.20. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.20, the checked `task-list-engine.js` and precise `task-list-engine-contracts.d.ts` own canonical Tasks query normalization, resolved hierarchy filtering, permission-visible candidate offsets, cursor paging, and stable server ordering. The main Tasks service retains async scope resolution and permission/tag/enrichment orchestration, while the repository SQL projection consumes the engine's normalized sort and terminal-status scope rule rather than maintaining alternate aliases. `tests/unit/task-list-engine.test.mjs` directly covers status, timed/date boundaries, hierarchy, visibility, paging, stable tie-breakers, and empty/null normalization; retained list-pipeline, server-paging, permission, dashboard-budget, and workbench hot-endpoint owners preserve stateful and query-count behavior. The seam lowers combined strict debt from 22,658 to 22,514 diagnostics, and the engine, declaration, and direct unit owner must remain strict-clean and free of explicit `any`.
 
 As of 0.33.33.19, Tasks recurrence persistence has one checked service owner. The calendar-feed serializer, task jobs, and main Tasks orchestrator consume named `taskRecurrenceService` operations instead of importing the recurrence repository, while the recurrence service consumes Notes through its public module entry. The checked recurrence template, projection, completion-continuity, materialization, calendar-feed, and job contracts lower the combined strict ledger from 23,092 to 22,658 diagnostics; their six server owners plus `task-recurrence-contracts.d.ts` must remain strict-clean and free of explicit `any`. The retained module-import boundary and recurrence completion/materialization/feed/job/permission owners prove the dependency shrink without changing recurrence, reminder, timezone, feed, job, or authorization behavior.
 
@@ -291,11 +293,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18179 |
+| Active regression assertions | 18185 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18848 |
+| Effective assertion floor | 18854 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

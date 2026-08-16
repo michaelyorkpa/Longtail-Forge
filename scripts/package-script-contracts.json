@@ -86,7 +86,7 @@
     "test:regressions:views": "node scripts/run-regressions.mjs --area views",
     "test:regressions:workbench": "node scripts/run-regressions.mjs --area workbench",
     "test:sqlite-driver": "node scripts/better-sqlite3-install-smoke.mjs",
-    "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs",
+    "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs tests/unit/task-list-engine.test.mjs",
     "test:time-tracking": "vitest run tests/contracts/time-tracking-contracts.test.mjs tests/time-tracking/time-tracking-billing.test.mjs",
     "test:unit": "vitest run",
     "test:watch": "vitest",

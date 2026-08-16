@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.20 - Extract the Tasks filter and sort engine
-
-**Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
-
-- [ ] Extract the pure filter/sort engine behind a typed contract without moving canonical decisions into browser code.
-- [ ] Cover status, date, hierarchy, visibility, paging, stable ordering, and empty/null normalization with direct unit cases plus retained integration owners.
-- [ ] Preserve query-count and hot-endpoint budgets.
-- [ ] Close full-strict debt in the extracted engine and its callers.
-
 ### 0.33.33.21.1 - Extract the Tasks block/recover state machine
 
 **Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.

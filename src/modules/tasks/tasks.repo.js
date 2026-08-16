@@ -1,6 +1,11 @@
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 import { taskCalendarFeedScopeSql } from "./task-calendar-feed.scope.js";
+import {
+  normalizeTaskListFilter,
+  normalizeTaskListSort,
+  taskStatusFilterOverridesActiveScope,
+} from "./task-list-engine.js";
 
 const TASK_RECURRENCE_INSTANCE_INSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoNothing({
   columns: [
@@ -1145,7 +1150,7 @@ function applyDueWindowFilter(conditions, options, params) {
 }
 
 function applyTaskViewFilter(conditions, options, params) {
-  const taskView = normalizedFilter(options.taskView);
+  const taskView = normalizeTaskListFilter(options.taskView);
   // When the Status filter explicitly targets terminal tasks (complete / archived /
   // history) or asks for everything (all), it must win over a saved view's implicit
   // active-only scope. Otherwise the two clauses contradict and the list is always empty
@@ -1211,7 +1216,7 @@ function applyTaskViewFilter(conditions, options, params) {
 }
 
 function applyStatusFilter(conditions, options, params) {
-  const statusFilter = normalizedFilter(options.statusFilter);
+  const statusFilter = normalizeTaskListFilter(options.statusFilter);
 
   if (!statusFilter || statusFilter === "all") {
     return;
@@ -1232,7 +1237,7 @@ function applyStatusFilter(conditions, options, params) {
 }
 
 function applyQuickFilter(conditions, options, params) {
-  const quickFilter = normalizedFilter(options.quickFilter);
+  const quickFilter = normalizeTaskListFilter(options.quickFilter);
 
   if (!quickFilter || quickFilter === "all" || options.taskView) {
     return;
@@ -1256,7 +1261,7 @@ function applyQuickFilter(conditions, options, params) {
 }
 
 function applyDueFilter(conditions, options, params) {
-  const dueFilter = normalizedFilter(options.dueFilter);
+  const dueFilter = normalizeTaskListFilter(options.dueFilter);
 
   if (!dueFilter || dueFilter === "all") {
     return;
@@ -1361,7 +1366,7 @@ function applyContextFilters(conditions, options, params) {
 }
 
 function applyAssigneeFilters(conditions, options, params) {
-  const assigneeFilter = normalizedFilter(options.assigneeFilter);
+  const assigneeFilter = normalizeTaskListFilter(options.assigneeFilter);
 
   if (assigneeFilter === "me" || assigneeFilter === "assigned_to_me") {
     conditions.push(assigneeExistsSql("currentUserId"));
@@ -1381,36 +1386,37 @@ function applyAssigneeFilters(conditions, options, params) {
 }
 
 function taskListOrderSql(sort) {
+  const normalizedSort = normalizeTaskListSort(sort);
   const dueSort = "COALESCE(tasks.due_at_utc, COALESCE(tasks.due_date, '9999-12-31') || 'T' || COALESCE(tasks.due_time, '23:59') || ':00')";
   const stableTitle = "tasks.title ASC, tasks.created_at ASC, tasks.task_id ASC";
   const priorityRank = "CASE tasks.priority WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 WHEN 'low' THEN 1 ELSE 0 END";
   const statusRank = "CASE tasks.status WHEN 'blocked' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'open' THEN 3 WHEN 'complete' THEN 4 WHEN 'archived' THEN 5 ELSE 99 END";
 
-  if (sort === "priority") {
+  if (normalizedSort === "priority") {
     return `ORDER BY ${priorityRank} DESC, ${dueSort} ASC, ${stableTitle}`;
   }
 
-  if (sort === "status") {
+  if (normalizedSort === "status") {
     return `ORDER BY ${statusRank} ASC, ${dueSort} ASC, ${stableTitle}`;
   }
 
-  if (sort === "last_worked") {
+  if (normalizedSort === "last_worked") {
     return `ORDER BY COALESCE(tasks.last_worked_at, '') DESC, ${dueSort} ASC, ${stableTitle}`;
   }
 
-  if (sort === "updated") {
+  if (normalizedSort === "updated") {
     return `ORDER BY COALESCE(tasks.updated_at, '') DESC, ${dueSort} ASC, ${stableTitle}`;
   }
 
-  if (sort === "context") {
+  if (normalizedSort === "context") {
     return `ORDER BY COALESCE(clients.name, '') ASC, COALESCE(projects.name, '') ASC, ${dueSort} ASC, ${stableTitle}`;
   }
 
-  if (sort === "created") {
+  if (normalizedSort === "created") {
     return `ORDER BY COALESCE(tasks.created_at, '') DESC, ${stableTitle}`;
   }
 
-  if (sort === "created_asc") {
+  if (normalizedSort === "created_asc") {
     return `ORDER BY COALESCE(tasks.created_at, '') ASC, ${stableTitle}`;
   }
 
@@ -1426,8 +1432,7 @@ function statusFilterOverridesActiveScope(options) {
   // active-only scope. This is always a deliberate user choice: the active-scoped saved views
   // default their Status control to "active", so the uncluttered landing stays active-only and
   // only an explicit Status selection surfaces completed/archived work.
-  const status = normalizedFilter(options.statusFilter);
-  return status === "complete" || status === "archived" || status === "history" || status === "all";
+  return taskStatusFilterOverridesActiveScope(options.statusFilter);
 }
 
 function assigneeExistsSql(userParam) {
@@ -1454,10 +1459,6 @@ function anyAssigneeExistsSql() {
 function normalizePositiveInteger(value, fallback) {
   const number = Number.parseInt(value, 10);
   return Number.isInteger(number) && number > 0 ? number : fallback;
-}
-
-function normalizedFilter(value) {
-  return String(value || "").trim().toLowerCase();
 }
 
 function taskWriteParams({ includeCreatedAt = false, now, task, taskId, workspaceId }) {

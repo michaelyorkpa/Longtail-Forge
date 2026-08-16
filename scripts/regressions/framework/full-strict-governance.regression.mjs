@@ -60,7 +60,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 19, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 20, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -133,6 +133,9 @@ const listsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/lists/"));
 assert.deepEqual(listsOwnerExplicitAny, [], `Lists server owners must stay free of explicit any after checkpoint 0.33.33.18.4`);
 for (const strictCleanPath of [
+  "src/modules/tasks/task-list-engine.js",
+  "src/types/task-list-engine-contracts.d.ts",
+  "tests/unit/task-list-engine.test.mjs",
   "src/modules/tasks/task-calendar-feed.scope.js",
   "src/modules/tasks/task-calendar-feed.service.js",
   "src/modules/tasks/task-calendar.shared.js",

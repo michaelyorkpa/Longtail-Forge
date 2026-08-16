@@ -18,6 +18,20 @@ import { taskTimersService } from "./task-timers.service.js";
 import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { taskCalendarRecurrenceInstanceKey } from "./task-calendar.shared.js";
 import {
+  TaskListCursorError,
+  compareTaskDueOrder,
+  compareTaskStableTitle,
+  createTaskListFilterContext,
+  encodeTaskCursor,
+  normalizeTaskListPagination,
+  sortCanonicalTasks,
+  stripTaskListCandidateMetadata,
+  taskMatchesCanonicalQuery,
+  taskMatchesContextFilters,
+  taskMatchesStatusFilter,
+  visibleTaskListCandidates,
+} from "./task-list-engine.js";
+import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
 } from "./task-jobs.service.js";
@@ -31,10 +45,7 @@ import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
-import {
-  FILTER_SCOPE_MODES,
-  resolveClientProjectFilterScope,
-} from "../../core/client-project-filter-scope.js";
+import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
 import { createVisibleRecordBatch } from "../../core/list-enrichment.js";
 import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
@@ -46,7 +57,6 @@ import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-const TASK_VIEW_FILTERS = new Set(["my", "all", "unassigned", "overdue", "today", "week", "completed", "archived"]);
 const TASK_LIST_DEFAULT_PAGE_SIZE = 100;
 const TASK_LIST_MAX_PAGE_SIZE = 200;
 const TASK_LIST_BATCH_MULTIPLIER = 5;
@@ -60,10 +70,12 @@ const DASHBOARD_TASK_UPCOMING_LIMIT = 5;
 const DASHBOARD_TASK_PRESSURE_LIMIT = 5;
 const DASHBOARD_WORKBENCH_URL = "workbench.html";
 const DASHBOARD_TASKS_URL = "tasks.html";
-const TASK_SCOPE_QUERY_MARKER = Symbol("taskScopeQuery");
 
 async function list(session, query = {}) {
   const { options, pagination, tasks } = await queryTasks(session, query, { paginate: true });
+  if (!pagination) {
+    throw new Error("Task list pagination invariant failed.");
+  }
 
   return {
     tasks,
@@ -162,12 +174,11 @@ async function queryTasks(session, query = {}, options = {}) {
 
 async function filterAndShapeTaskListCandidates({ candidates, offset, query, resolvedQuery, session, timerByTaskId }) {
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
-  const readableTasks = candidates
-    .map((candidate, index) => ({
-      ...candidate,
-      __candidateOffset: offset + index,
-    }))
-    .filter((task) => canReadTaskRow(taskResource(task)));
+  const readableTasks = visibleTaskListCandidates(
+    candidates,
+    offset,
+    (task) => canReadTaskRow(taskResource(task)),
+  );
 
   const taggedTasks = await tagsService.decorateRecordsForTarget(
     session,
@@ -176,10 +187,7 @@ async function filterAndShapeTaskListCandidates({ candidates, offset, query, res
   );
   const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks, session, { canReadTaskRow });
 
-  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, {
-    ...(query || {}),
-    ...(resolvedQuery || {}),
-  }, session, timerByTaskId));
+  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, resolvedQuery, timerByTaskId));
 }
 
 async function queryTasksResult({ includeOptions = true, pagination, query, session, tasks, timers, nextCursor = "" }) {
@@ -200,8 +208,6 @@ async function queryTasksResult({ includeOptions = true, pagination, query, sess
 async function taskListRepositoryQuery(session, query = {}) {
   const now = new Date();
   const today = localDateKey(now, session.timezone);
-  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
-  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
   const scope = await resolveClientProjectFilterScope(session, {
     clientId: String(query.clientId || query.client_id || "").trim(),
     hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
@@ -209,110 +215,29 @@ async function taskListRepositoryQuery(session, query = {}) {
     projectId: String(query.projectId || query.project_id || "").trim(),
   });
 
-  const dueWindow = taskListDueWindow(query);
-
-  return {
-    [TASK_SCOPE_QUERY_MARKER]: true,
-    assigneeFilter: normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value),
-    assigneeId: String(query.assigneeId || query.assignee_id || "").trim(),
-    clientFilterMode: scope.clientFilterMode,
-    clientId: scope.clientId,
-    clientIds: scope.clientIds,
-    clientProjectIds: scope.clientProjectIds,
+  return createTaskListFilterContext(query, {
     currentUserId: session.user_id,
     currentWeekEnd: currentWeekEndKey(today),
-    dueFilter: normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter),
     dueSoonCutoff: addDaysKey(today, 7),
-    dueWindowEnd: dueWindow.end,
-    dueWindowStart: dueWindow.start,
-    hasClientFilter: scope.hasClientFilter,
-    hasProjectFilter: scope.hasProjectFilter,
     nowIso: now.toISOString(),
-    omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
-    projectFilterMode: scope.projectFilterMode,
-    projectId: scope.projectId,
-    projectIds: scope.projectIds,
-    quickFilter,
-    requireNextAction: query.requireNextAction === true || query.require_next_action === true,
-    sort: normalizedTaskSort(query.sort || query.sort_by || query.order),
-    statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
-    taskView,
+    scope,
     today,
-  };
-}
-
-// Explicit due-window query keys (used by due-oriented focus modes) restrict
-// the repository scan. The window widens one day on each side because the
-// exact match is timezone-sensitive and stays with the in-memory candidate
-// matcher; SQL only needs a superset.
-function taskListDueWindow(query = {}) {
-  const dueOn = normalizeDueDate(query.dueOn || query.due_on);
-  const dueFrom = normalizeDueDate(query.dueFrom || query.due_from);
-  const dueTo = normalizeDueDate(query.dueTo || query.due_to);
-  const dueBefore = normalizeDueDate(query.dueBefore || query.due_before);
-  const startCandidates = [dueFrom, dueOn]
-    .filter(Boolean)
-    .map((dateKey) => addCalendarDaysKey(dateKey, -1));
-  const endCandidates = [
-    dueTo ? addCalendarDaysKey(dueTo, 1) : "",
-    dueOn ? addCalendarDaysKey(dueOn, 1) : "",
-    dueBefore,
-  ].filter(Boolean);
-
-  return {
-    end: endCandidates.length ? endCandidates.reduce((left, right) => (left > right ? left : right)) : "",
-    start: startCandidates.length ? startCandidates.reduce((left, right) => (left < right ? left : right)) : "",
-  };
+  });
 }
 
 function normalizeTaskPagination(query = {}, options = {}) {
-  if (!options.paginate) {
-    return null;
-  }
-
-  const requestedPageSize = Number.parseInt(query.limit || query.page_size || query.pageSize || "", 10);
-  const pageSize = Math.min(
-    TASK_LIST_MAX_PAGE_SIZE,
-    Math.max(1, Number.isInteger(requestedPageSize) && requestedPageSize > 0
-      ? requestedPageSize
-      : TASK_LIST_DEFAULT_PAGE_SIZE),
-  );
-  const cursorOffset = query.cursor ? decodeTaskCursor(query.cursor) : 0;
-  const offset = cursorOffset || normalizeOffset(query.offset);
-
-  return {
-    offset,
-    pageSize,
-  };
-}
-
-function normalizeOffset(value) {
-  const offset = Number.parseInt(value || "", 10);
-  return Number.isInteger(offset) && offset > 0 ? offset : 0;
-}
-
-function encodeTaskCursor(offset) {
-  return Buffer.from(JSON.stringify({ offset: Math.max(0, Number(offset) || 0) })).toString("base64url");
-}
-
-function decodeTaskCursor(cursor) {
   try {
-    const parsed = JSON.parse(Buffer.from(String(cursor || ""), "base64url").toString("utf8"));
-    const offset = Number.parseInt(parsed?.offset, 10);
-
-    if (Number.isInteger(offset) && offset >= 0) {
-      return offset;
+    return normalizeTaskListPagination(query, {
+      defaultPageSize: TASK_LIST_DEFAULT_PAGE_SIZE,
+      maxPageSize: TASK_LIST_MAX_PAGE_SIZE,
+      paginate: options.paginate === true,
+    });
+  } catch (error) {
+    if (error instanceof TaskListCursorError) {
+      throw new AppError(error.message, 400);
     }
-  } catch {
-    // Fall through to the canonical 400 below.
+    throw error;
   }
-
-  throw new AppError("Task list cursor is invalid.", 400);
-}
-
-function stripTaskListCandidateMetadata(task) {
-  const { __candidateOffset, ...publicTask } = task;
-  return publicTask;
 }
 
 async function summary(session) {
@@ -484,10 +409,10 @@ async function calendarWindow(session, query = {}) {
   ]);
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
   const readableTasks = dueTasks.filter((task) => (
-    matchesTaskContextFilters(task, scope) && canReadTaskRow(taskResource(task))
+    taskMatchesContextFilters(task, scope) && canReadTaskRow(taskResource(task))
   ));
   const readableTemplates = activeTemplates.filter((template) => (
-    matchesTaskContextFilters(template, scope) && canReadTaskRow(taskResource(template))
+    taskMatchesContextFilters(template, scope) && canReadTaskRow(taskResource(template))
   ));
   const materializedInstanceKeys = new Set(materializedInstances.map((task) => (
     taskCalendarRecurrenceInstanceKey(task.recurrence_template_id, task.recurrence_instance_date)
@@ -1741,7 +1666,7 @@ async function readTaskOptionPayload(session, query = {}) {
     permissionsService.createPermissionEvaluator(session, "tasks.view"),
   ]);
   const readable = (result.tasks || []).filter((task) => (
-    canReadTaskRow(taskResource(task)) && matchesStatusFilter(task, status)
+    canReadTaskRow(taskResource(task)) && taskMatchesStatusFilter(task, status)
   ));
 
   return sortCanonicalTasks(readable, { sort: "context" }).map(taskPickerOption);
@@ -3132,10 +3057,10 @@ function dashboardUpcomingRows(activeTasks, context) {
 function sortDashboardAttentionTasks(tasks, context) {
   return [...tasks].sort((leftTask, rightTask) =>
     dashboardAttentionRank(leftTask, context) - dashboardAttentionRank(rightTask, context) ||
-    compareByDueAt(leftTask, rightTask) ||
+    compareTaskDueOrder(leftTask, rightTask) ||
     priorityRank(rightTask.priority) - priorityRank(leftTask.priority) ||
     String(rightTask.updated_at || "").localeCompare(String(leftTask.updated_at || "")) ||
-    compareByStableTitle(leftTask, rightTask),
+    compareTaskStableTitle(leftTask, rightTask),
   );
 }
 
@@ -3284,360 +3209,12 @@ function dedupeDashboardRows(rows) {
   });
 }
 
-function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId = new Map()) {
-  const now = new Date();
-  const today = localDateKey(now, session.timezone);
-  const dueSoonCutoff = addDaysKey(today, 7);
-  const currentWeekEnd = currentWeekEndKey(today);
-  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
-  const statusFilter = normalizedTaskFilter(query.status || query.status_filter || query.filter);
-  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
-  const dueFilter = normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter);
-  const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
-  const assigneeFilter = normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value);
-  const assigneeId = String(query.assigneeId || query.assignee_id || "").trim();
-  const scopeQuery = normalizeTaskScopeQuery(query);
-
-  // An explicit terminal Status filter (or "all") overrides a saved view's implicit active-only
-  // scope, so combinations like "Today + Complete" or "All + All" resolve instead of contradicting.
-  // Safe because the active-scoped views default their Status control to "active"; only an explicit
-  // Status choice surfaces completed/archived work.
-  const statusOverridesActiveScope = ["complete", "archived", "history", "all"].includes(statusFilter);
-
-  if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd, statusOverridesActiveScope)) {
-    return false;
-  }
-
-  if (!matchesStatusFilter(task, statusFilter)) {
-    return false;
-  }
-
-  if (!taskView && !matchesQuickFilter(task, quickFilter, session.user_id)) {
-    return false;
-  }
-
-  if (!matchesDueFilter(task, dueFilter, now, today, dueSoonCutoff)) {
-    return false;
-  }
-
-  if (!matchesTaskContextFilters(task, scopeQuery)) {
-    return false;
-  }
-
-  if (!matchesAdvancedAssigneeFilter(task, assigneeFilter, assigneeId, session.user_id)) {
-    return false;
-  }
-
-  if (timerFilter) {
-    const timer = timerByTaskId.get(task.task_id);
-    if (timerFilter === "has_timer" && !timer) {
-      return false;
-    }
-    if (["running", "paused"].includes(timerFilter) && timer?.timer_status !== timerFilter) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function normalizeTaskScopeQuery(query = {}) {
-  if (query?.[TASK_SCOPE_QUERY_MARKER]) {
-    return query;
-  }
-
-  return {
-    clientFilterMode: hasQueryFilter(query, ["clientId", "client_id"])
-      ? (String(query.clientId || query.client_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
-      : FILTER_SCOPE_MODES.all,
-    clientId: String(query.clientId || query.client_id || "").trim(),
-    clientIds: [],
-    clientProjectIds: [],
-    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
-    omitClientFilterBecauseProjectSelected: false,
-    projectFilterMode: hasQueryFilter(query, ["projectId", "project_id"])
-      ? (String(query.projectId || query.project_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
-      : FILTER_SCOPE_MODES.all,
-    projectId: String(query.projectId || query.project_id || "").trim(),
-    projectIds: [],
-    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
-  };
-}
-
-function matchesTaskContextFilters(task = {}, query = {}) {
-  if (query.hasProjectFilter) {
-    if (query.projectFilterMode === FILTER_SCOPE_MODES.blank) {
-      if (String(task.project_id || "").trim()) {
-        return false;
-      }
-    } else if (query.projectFilterMode === FILTER_SCOPE_MODES.ids) {
-      const scopedProjectIds = Array.isArray(query.projectIds) && query.projectIds.length > 0
-        ? query.projectIds
-        : [String(query.projectId || "").trim()].filter(Boolean);
-
-      if (!scopedProjectIds.includes(String(task.project_id || "").trim())) {
-        return false;
-      }
-    }
-  }
-
-  if (!query.hasClientFilter || query.omitClientFilterBecauseProjectSelected) {
-    return true;
-  }
-
-  if (query.clientFilterMode === FILTER_SCOPE_MODES.blank) {
-    return !String(task.client_id || "").trim();
-  }
-
-  if (query.clientFilterMode !== FILTER_SCOPE_MODES.ids) {
-    return true;
-  }
-
-  const scopedClientIds = Array.isArray(query.clientIds) && query.clientIds.length > 0
-    ? query.clientIds
-    : [String(query.clientId || "").trim()].filter(Boolean);
-  const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
-
-  return scopedClientIds.includes(String(task.client_id || "").trim()) ||
-    scopedProjectIds.includes(String(task.project_id || "").trim());
-}
-
-function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false) {
-  const inActiveScope = statusOverridesActiveScope || isActiveTask(task);
-
-  if (taskView === "my") {
-    return inActiveScope && (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (taskView === "all") {
-    return inActiveScope;
-  }
-
-  if (taskView === "unassigned") {
-    return inActiveScope && (task.assignee_ids || []).length === 0;
-  }
-
-  if (taskView === "overdue") {
-    return inActiveScope && Boolean(task.due_date) && task.due_date < today;
-  }
-
-  if (taskView === "today") {
-    return inActiveScope && task.due_date === today;
-  }
-
-  if (taskView === "week") {
-    return inActiveScope && Boolean(task.due_date) && task.due_date >= today && task.due_date <= currentWeekEnd;
-  }
-
-  if (taskView === "completed") {
-    return task.status === "complete";
-  }
-
-  if (taskView === "archived") {
-    return task.status === "archived";
-  }
-
-  return true;
-}
-
-function matchesStatusFilter(task, filter) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (filter === "active") {
-    return !["complete", "archived"].includes(task.status);
-  }
-
-  if (filter === "history") {
-    return ["complete", "archived"].includes(task.status);
-  }
-
-  return task.status === filter;
-}
-
-function matchesQuickFilter(task, filter, currentUserId) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (["my", "assigned_to_me", "assigned"].includes(filter)) {
-    return (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (filter === "unassigned") {
-    return (task.assignee_ids || []).length === 0;
-  }
-
-  if (["in_progress", "blocked"].includes(filter)) {
-    return task.status === filter;
-  }
-
-  if (["overdue", "today", "week", "next_due"].includes(filter)) {
-    return true;
-  }
-
-  return true;
-}
-
-function matchesAdvancedAssigneeFilter(task, filter, assigneeId, currentUserId) {
-  if (filter === "me" || filter === "assigned_to_me") {
-    return (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (filter === "unassigned") {
-    return (task.assignee_ids || []).length === 0;
-  }
-
-  if (assigneeId) {
-    return (task.assignee_ids || []).includes(assigneeId);
-  }
-
-  return true;
-}
-
-function quickDueFilter(filter) {
-  return ["overdue", "today", "week", "next_due"].includes(filter) ? filter : "";
-}
-
-function matchesDueFilter(task, filter, now, today, dueSoonCutoff) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (filter === "overdue") {
-    return isActiveTask(task) && isTaskOverdue(task, now, today);
-  }
-
-  if (filter === "today") {
-    return isActiveTask(task) && task.due_date === today && !isTaskOverdue(task, now, today);
-  }
-
-  if (filter === "week") {
-    return isActiveTask(task) && isTaskDueSoon(task, now, today, dueSoonCutoff);
-  }
-
-  if (filter === "next_due") {
-    return isActiveTask(task) && Boolean(task.due_date);
-  }
-
-  return true;
-}
-
-function sortCanonicalTasks(tasks, query = {}) {
-  const sort = normalizedTaskSort(query.sort || query.sort_by || query.order);
-
-  return [...tasks].sort((left, right) => compareCanonicalTasks(left, right, sort));
-}
-
-function compareCanonicalTasks(left, right, sort) {
-  if (sort === "priority") {
-    return priorityRank(right.priority) - priorityRank(left.priority) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "status") {
-    return statusRank(left.status) - statusRank(right.status) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "last_worked") {
-    return compareDesc(left.last_worked_at, right.last_worked_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "updated") {
-    return compareDesc(left.updated_at, right.updated_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "context") {
-    return String(left.client_name || "").localeCompare(String(right.client_name || "")) ||
-      String(left.project_name || "").localeCompare(String(right.project_name || "")) ||
-      compareByDueAt(left, right) ||
-      compareByStableTitle(left, right);
-  }
-
-  if (sort === "created") {
-    return compareDesc(left.created_at, right.created_at) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "created_asc") {
-    return String(left.created_at || "").localeCompare(String(right.created_at || "")) || compareByStableTitle(left, right);
-  }
-
-  return compareByDueAt(left, right) || priorityRank(right.priority) - priorityRank(left.priority) || compareByStableTitle(left, right);
-}
-
-function compareByDueAt(left, right) {
-  return String(taskDueSortValue(left)).localeCompare(String(taskDueSortValue(right)));
-}
-
-function compareByStableTitle(left, right) {
-  return String(left.title || "").localeCompare(String(right.title || "")) ||
-    String(left.created_at || "").localeCompare(String(right.created_at || "")) ||
-    String(left.task_id || "").localeCompare(String(right.task_id || ""));
-}
-
-function compareDesc(leftValue, rightValue) {
-  return String(rightValue || "").localeCompare(String(leftValue || ""));
-}
-
-function taskDueSortValue(task) {
-  if (task.due_at_utc) {
-    return task.due_at_utc;
-  }
-
-  return `${task.due_date || "9999-12-31"}T${task.due_time || "23:59"}:00`;
-}
-
-function normalizedTaskFilter(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function normalizedTaskView(value) {
-  const taskView = normalizedTaskFilter(value);
-  const aliases = {
-    assigned: "my",
-    assigned_to_me: "my",
-    complete: "completed",
-    due_today: "today",
-    due_this_week: "week",
-  };
-  const normalized = aliases[taskView] || taskView;
-  return TASK_VIEW_FILTERS.has(normalized) ? normalized : "";
-}
-
 function readBoolean(value) {
   return value === true || value === "true" || value === "1" || value === 1;
 }
 
 function hasQueryFilter(query, keys) {
   return keys.some((key) => Object.hasOwn(query || {}, key));
-}
-
-function normalizedTaskSort(value) {
-  const sort = String(value || "due_at").trim().toLowerCase();
-  const aliases = {
-    due: "due_at",
-    due_date: "due_at",
-    due_time: "due_at",
-    priority_desc: "priority",
-    last_worked_at: "last_worked",
-    recent: "updated",
-    recently_updated: "updated",
-    project_client: "context",
-    client_project: "context",
-    oldest: "created_asc",
-  };
-
-  return aliases[sort] || sort;
-}
-
-function statusRank(status) {
-  return {
-    blocked: 1,
-    in_progress: 2,
-    open: 3,
-    complete: 4,
-    archived: 5,
-  }[status] || 99;
 }
 
 function isActiveTask(task) {
