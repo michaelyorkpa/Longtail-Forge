@@ -47,6 +47,40 @@ const activeCloseoutOwners = manifest.regressions
   .sort();
 assert.deepEqual(activeCloseoutOwners, [...evidence.retainedCloseoutOwners].sort(), "the evidence index must inventory every active closeout owner");
 
+const pinBaseline = readJson("scripts/planning-document-pin-baseline.json");
+assert.equal(pinBaseline.schemaVersion, 1);
+assert.ok(pinBaseline.definition.maintenance.startsWith("Shrink-only."), "the pin baseline must document its shrink-only contract");
+const historicalPinPattern = /ROADMAP-ARCHIVE\.md|CHANGELOG\.md/;
+const planningReadPattern = /ROADMAP(?:-ARCHIVE)?\.md|CHANGELOG\.md/;
+/** @type {string[]} */
+const liveHistoricalPinners = [];
+/** @type {string[]} */
+const livePlanningReaders = [];
+for (const entry of manifest.regressions) {
+  if (entry.id === "release.historical-evidence-retirement") {
+    continue;
+  }
+  const combinedSource = [entry.path, ...(entry.contractModules ?? []).map((/** @type {{ path: string }} */ moduleEntry) => moduleEntry.path)]
+    .map((/** @type {string} */ sourcePath) => readFileSync(sourcePath, "utf8"))
+    .join("\n");
+  if (historicalPinPattern.test(combinedSource)) {
+    liveHistoricalPinners.push(entry.id);
+  }
+  if (planningReadPattern.test(combinedSource)) {
+    livePlanningReaders.push(entry.id);
+  }
+}
+assert.deepEqual(
+  liveHistoricalPinners.sort(),
+  [...pinBaseline.historicalContentPinners].sort(),
+  "historical ROADMAP-ARCHIVE/CHANGELOG pinners may only shrink: a new pinner must be stripped, and a stripped pinner must be removed from scripts/planning-document-pin-baseline.json in the same change",
+);
+assert.deepEqual(
+  livePlanningReaders.sort(),
+  [...pinBaseline.planningDocumentReaders].sort(),
+  "planning-document readers may only shrink: a new reader must be removed, and a stripped reader must leave scripts/planning-document-pin-baseline.json in the same change",
+);
+
 const cursorOwner = readFileSync(activeById.get("release.roadmap-cursor-floor").path, "utf8");
 assert.match(cursorOwner, /assertRoadmapCursorAtLeast/);
 assert.match(cursorOwner, /No closeout regression may reintroduce exact cursor or next-section pins/);
