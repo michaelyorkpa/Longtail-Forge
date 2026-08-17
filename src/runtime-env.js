@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_ENV_FILE = path.join(root, ".env");
 
+/** @typedef {Record<string, string | undefined>} RuntimeEnvironment */
+/** @typedef {{ envFile?: string, env?: RuntimeEnvironment, override?: boolean }} RuntimeEnvFileOptions */
+/** @typedef {{ loaded: boolean, path: string, parsed: number, applied: number, skipped: number }} RuntimeEnvFileResult */
+/** @typedef {{ key: string, value: string }} ParsedRuntimeEnvLine */
+
+/** @param {RuntimeEnvFileOptions} [options] @returns {RuntimeEnvFileResult} */
 function loadRuntimeEnvFile(options = {}) {
   const envFile = options.envFile || DEFAULT_ENV_FILE;
   const env = options.env || process.env;
@@ -37,7 +43,9 @@ function loadRuntimeEnvFile(options = {}) {
   };
 }
 
+/** @param {unknown} text @param {string} [sourceName] @returns {Record<string, string>} */
 function parseRuntimeEnvText(text, sourceName = ".env") {
+  /** @type {Record<string, string>} */
   const values = {};
   const normalizedText = String(text || "").replace(/^\uFEFF/, "");
   const lines = normalizedText.split(/\r?\n/);
@@ -53,6 +61,7 @@ function parseRuntimeEnvText(text, sourceName = ".env") {
   return values;
 }
 
+/** @param {string} line @param {number} lineNumber @param {string} sourceName @returns {ParsedRuntimeEnvLine | null} */
 function parseRuntimeEnvLine(line, lineNumber, sourceName) {
   const trimmed = String(line || "").trim();
 
@@ -80,6 +89,7 @@ function parseRuntimeEnvLine(line, lineNumber, sourceName) {
   };
 }
 
+/** @param {string} rawValue @param {number} lineNumber @param {string} sourceName @returns {string} */
 function parseRuntimeEnvValue(rawValue, lineNumber, sourceName) {
   const trimmed = String(rawValue || "").trim();
 
@@ -94,6 +104,7 @@ function parseRuntimeEnvValue(rawValue, lineNumber, sourceName) {
   return parseUnquotedRuntimeEnvValue(rawValue);
 }
 
+/** @param {string} value @param {number} lineNumber @param {string} sourceName @returns {string} */
 function parseQuotedRuntimeEnvValue(value, lineNumber, sourceName) {
   const quote = value.charAt(0);
   let escaped = false;
@@ -123,6 +134,7 @@ function parseQuotedRuntimeEnvValue(value, lineNumber, sourceName) {
   throw new Error(`${sourceName}:${lineNumber} has an unterminated quoted value.`);
 }
 
+/** @param {string} value @returns {string} */
 function parseUnquotedRuntimeEnvValue(value) {
   let parsed = "";
 
@@ -139,6 +151,7 @@ function parseUnquotedRuntimeEnvValue(value) {
   return parsed.trim();
 }
 
+/** @param {string} value @returns {string} */
 function unescapeDoubleQuotedValue(value) {
   return value.replace(/\\([nrt"\\])/g, (_match, escaped) => {
     switch (escaped) {

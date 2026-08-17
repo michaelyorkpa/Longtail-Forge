@@ -21,7 +21,8 @@ const AUDIT_EXPORT_MAX_PAGE_SIZE = 1000;
 /** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, actorUserId?: unknown, changeType?: unknown, dateFrom?: unknown, dateTo?: unknown, limit?: unknown, offset?: unknown, cursor?: unknown, clientId?: unknown, client_id?: unknown, projectId?: unknown, project_id?: unknown, recordType?: unknown, timezone?: unknown }} AuditFilters */
 /** @typedef {{ maxPageSize?: number, securityOnly?: boolean }} AuditListOptions */
 /** @typedef {{ recordType: string, moduleId: string, label: string, description: string }} AuditRecordTypeDefinition */
-/** @typedef {{ workspaceId?: string, session?: (import("../types/http-contracts.js").AuthorizationSession & {workspace_id: string}) | null, action?: unknown, changeType?: unknown, recordType?: unknown, allowUnknownRecordType?: boolean, force?: boolean, auditId?: unknown, createdAt?: unknown, actorUserId?: unknown, actorUserName?: unknown, recordId?: unknown, recordLabel?: unknown, recordUrl?: unknown, previousValue?: unknown, newValue?: unknown, metadata?: unknown, ipAddress?: unknown } & Record<string, unknown>} AuditEvent */
+/** @typedef {{ workspace_id?: string | null, timezone?: string, user_id?: string, username?: string, ip_address?: string | null }} AuditEventSession */
+/** @typedef {{ workspaceId?: string, session?: AuditEventSession | null, action?: unknown, changeType?: unknown, recordType?: unknown, allowUnknownRecordType?: boolean, force?: boolean, auditId?: unknown, createdAt?: unknown, actorUserId?: unknown, actorUserName?: unknown, recordId?: unknown, recordLabel?: unknown, recordUrl?: unknown, previousValue?: unknown, newValue?: unknown, metadata?: unknown, ipAddress?: unknown } & Record<string, unknown>} AuditEvent */
 
 const CHANGE_TYPES = new Set([
   "create",

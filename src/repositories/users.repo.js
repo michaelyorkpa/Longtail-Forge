@@ -210,7 +210,7 @@ LIMIT 1;
 
 /** @param {string} workspaceId @returns {Promise<UserListItem[]>} */
 async function readAll(workspaceId) {
-  const rows = await db.query(`
+  const rows = /** @type {UserRow[]} */ (await db.query(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
@@ -225,7 +225,7 @@ WHERE ${USERS_PHYSICAL_ROW_ID} IN (
   GROUP BY user_workspaces.user_id
 )
 ORDER BY username;
-`, { workspaceId });
+`, { workspaceId }));
 
   return rows.map(userRowToAppValue);
 }

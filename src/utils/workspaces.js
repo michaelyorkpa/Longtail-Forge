@@ -1,6 +1,10 @@
 const WORKSPACE_TYPES = new Set(["business", "personal", "family"]);
 const DEFAULT_WORKSPACE_TYPE = "business";
 
+/** @typedef {"business" | "personal" | "family"} WorkspaceType */
+/** @typedef {{ defaultName: string | null, availableTools: string[], canAddUsers: boolean, maxUsers: number | null, permissionModel: string, accountTypes?: string[] }} WorkspaceCapabilityDefinition */
+/** @typedef {WorkspaceCapabilityDefinition & { workspaceType: WorkspaceType, accountTypes: string[] }} WorkspaceCapabilities */
+/** @type {Record<WorkspaceType, WorkspaceCapabilityDefinition>} */
 const WORKSPACE_CAPABILITIES = {
   business: {
     defaultName: null,
@@ -46,11 +50,13 @@ const WORKSPACE_CAPABILITIES = {
   },
 };
 
+/** @param {unknown} value @returns {WorkspaceType} */
 function normalizeWorkspaceType(value) {
   const type = String(value || "").trim().toLowerCase();
-  return WORKSPACE_TYPES.has(type) ? type : DEFAULT_WORKSPACE_TYPE;
+  return WORKSPACE_TYPES.has(type) ? /** @type {WorkspaceType} */ (type) : DEFAULT_WORKSPACE_TYPE;
 }
 
+/** @param {unknown} type @returns {WorkspaceCapabilities} */
 function getWorkspaceCapabilities(type) {
   const workspaceType = normalizeWorkspaceType(type);
   const capabilities = WORKSPACE_CAPABILITIES[workspaceType];
@@ -63,6 +69,7 @@ function getWorkspaceCapabilities(type) {
   };
 }
 
+/** @param {unknown} type @returns {boolean} */
 function workspaceSupportsBillable(type) {
   return normalizeWorkspaceType(type) === "business";
 }

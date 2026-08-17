@@ -3,6 +3,22 @@
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "./timezones.js";
 import { getWorkspaceCapabilities, normalizeWorkspaceType } from "./workspaces.js";
 
+/** @typedef {import("../types/users-service-contracts.js").UserRow} UserRow */
+/** @typedef {import("../types/users-service-contracts.js").UserValue} UserValue */
+/** @typedef {import("../types/client-project-contracts.js").BillingContact} BillingContact */
+/** @typedef {import("../types/client-project-contracts.js").BillingPeriod} BillingPeriod */
+/** @typedef {import("../types/client-project-contracts.js").BillingRounding} BillingRounding */
+/** @typedef {import("../types/client-project-contracts.js").ClientAggregateRecord} ClientAggregateRecord */
+/** @typedef {import("../types/client-project-contracts.js").ClientRecord} ClientRecord */
+/** @typedef {import("../types/client-project-contracts.js").ProjectTaskDefaults} ProjectTaskDefaults */
+/** @typedef {Record<string, unknown> & { id?: unknown, workspace_id?: unknown, client_id?: unknown, parent_project_id?: unknown, parentProjectId?: unknown, name?: unknown, status?: unknown, billable?: unknown, billing_rate?: unknown, billing_period?: BillingPeriodInput | null, billing_rounding?: BillingRoundingInput | null, taskDefaults?: ProjectTaskDefaultsInput, task_defaults?: ProjectTaskDefaultsInput }} ClientProjectProjectInput */
+/** @typedef {Record<string, unknown> & { id?: unknown, workspace_id?: unknown, parent_client_id?: unknown, parentClientId?: unknown, name?: unknown, status?: unknown, billable?: unknown, billing_rate?: unknown, billing_period?: BillingPeriodInput | null, billing_rounding?: BillingRoundingInput | null, billing_contact?: Partial<BillingContact> | null, childScopeIds?: unknown, projects?: ClientProjectProjectInput[] | null }} ClientProjectClientInput */
+/** @typedef {{ clients?: ClientProjectClientInput[] | null }} ClientProjectDataInput */
+/** @typedef {{ workspaceName?: unknown, workspaceType?: unknown, workspace_type?: unknown, audit?: AuditSettingsInput | null }} SettingsInput */
+/** @typedef {{ priority?: unknown, task_default_priority?: unknown, defaultPriority?: unknown, status?: unknown, task_default_status?: unknown, defaultStatus?: unknown, sortOrder?: unknown, sort_order?: unknown, task_default_sort_order?: unknown, task_default_sort_order_json?: unknown, defaultAssigneeMode?: unknown, default_assignee_mode?: unknown, task_default_assignee_mode?: unknown }} ProjectTaskDefaultsInput */
+/** @typedef {{ type?: unknown, startDay?: unknown }} BillingPeriodInput */
+/** @typedef {{ type?: unknown, enabled?: unknown, increment?: unknown }} BillingRoundingInput */
+/** @typedef {{ loggingEnabled?: unknown, retentionDays?: unknown }} AuditSettingsInput */
 /** @typedef {"yes" | "no" | ""} TimeEntryBillable */
 /** @typedef {"unbilled" | "billed" | "paid"} TimeEntryInvoiceStatus */
 /**
@@ -117,28 +133,34 @@ function normalizeTimeEntryBillable(value) {
   return "";
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeUsername(value) {
   return normalizeEmail(value);
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+/** @param {unknown} value @returns {string | null} */
 function normalizeOptionalEmail(value) {
   const email = normalizeEmail(value);
   return email || null;
 }
 
+/** @param {unknown} value @returns {boolean} */
 function isValidEmail(value) {
   const email = normalizeEmail(value);
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/** @param {unknown} value @param {string} [fallback] @returns {string} */
 function normalizeDisplayName(value, fallback = "") {
   return String(value || "").trim() || fallback;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeTimezone(value) {
   const timezone = String(value || "").trim() || DEFAULT_TIMEZONE;
 
@@ -150,6 +172,7 @@ function normalizeTimezone(value) {
   }
 }
 
+/** @param {unknown} value @returns {boolean} */
 function isValidTimezone(value) {
   const timezone = String(value || "").trim();
 
@@ -165,18 +188,24 @@ function isValidTimezone(value) {
   }
 }
 
+/** @param {unknown} value @returns {"active" | "inactive"} */
 function normalizeUserStatus(value) {
   return value === "inactive" ? "inactive" : "active";
 }
 
+/** @param {unknown} value @returns {boolean} */
 function normalizeProtectedUserFlag(value) {
   return value === true || value === "yes" || value === "1" || value === 1;
 }
 
+/** @param {unknown} value @returns {"light" | "auto" | "dark"} */
 function normalizeThemeMode(value) {
-  return ["light", "auto", "dark"].includes(value) ? value : "light";
+  return typeof value === "string" && ["light", "auto", "dark"].includes(value)
+    ? /** @type {"light" | "auto" | "dark"} */ (value)
+    : "light";
 }
 
+/** @param {unknown} value @returns {"system"} */
 function normalizeThemeAutoSource(value) {
   return value === "system" ? "system" : "system";
 }
@@ -188,14 +217,19 @@ function normalizeUserLandingPage(value) {
     : "dashboard";
 }
 
+/** @param {unknown} value @returns {"day" | "week" | "month" | null} */
 function normalizeCalendarViewPreference(value) {
-  return ["day", "week", "month"].includes(value) ? value : null;
+  return typeof value === "string" && ["day", "week", "month"].includes(value)
+    ? /** @type {"day" | "week" | "month"} */ (value)
+    : null;
 }
 
+/** @param {unknown} value @returns {boolean} */
 function normalizeBooleanPreference(value) {
   return value === true || value === 1 || value === "1" || value === "true" || value === "yes" || value === "on";
 }
 
+/** @param {UserRow} row @returns {UserValue} */
 function userRowToAppValue(row) {
   return {
     user_id: row.user_id,
@@ -215,6 +249,7 @@ function userRowToAppValue(row) {
   };
 }
 
+/** @param {ClientProjectDataInput | null | undefined} data @returns {{ clients: ClientAggregateRecord[] }} */
 function normalizeClientProjectData(data) {
   const clients = Array.isArray(data?.clients) ? data.clients : [];
 
@@ -254,6 +289,7 @@ function normalizeClientProjectData(data) {
   };
 }
 
+/** @param {SettingsInput | null | undefined} settings */
 function normalizeSettings(settings) {
   const workspaceName = String(settings?.workspaceName || "Workspace").trim() || "Workspace";
   const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
@@ -266,11 +302,13 @@ function normalizeSettings(settings) {
   };
 }
 
+/** @param {unknown} value @returns {string | null} */
 function normalizeBillingRate(value) {
   const text = String(value ?? "").trim();
   return text || null;
 }
 
+/** @param {ProjectTaskDefaultsInput} [defaults] @returns {ProjectTaskDefaults} */
 function normalizeProjectTaskDefaults(defaults = {}) {
   return {
     priority: normalizeTaskPriority(defaults.priority || defaults.task_default_priority || defaults.defaultPriority),
@@ -280,21 +318,25 @@ function normalizeProjectTaskDefaults(defaults = {}) {
   };
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeProjectTaskDefaultAssigneeMode(value) {
   const mode = String(value || "").trim();
   return ["creator", "project_admin", "unassigned"].includes(mode) ? mode : "creator";
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeTaskPriority(value) {
   const priority = String(value || "").trim();
   return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeTaskStatus(value) {
   const status = String(value || "").trim();
   return ["open", "in_progress", "blocked", "complete", "archived"].includes(status) ? status : "open";
 }
 
+/** @param {unknown} value @returns {string[]} */
 function normalizeProjectTaskSortOrder(value) {
   const parsed = Array.isArray(value) ? value : parseSortOrderJson(value);
   const allowed = ["due_date", "priority", "status"];
@@ -309,6 +351,7 @@ function normalizeProjectTaskSortOrder(value) {
   return ordered.slice(0, allowed.length);
 }
 
+/** @param {unknown} value @returns {string[]} */
 function parseSortOrderJson(value) {
   try {
     const parsed = JSON.parse(String(value || "[]"));
@@ -318,6 +361,7 @@ function parseSortOrderJson(value) {
   }
 }
 
+/** @param {unknown} value @param {unknown} [fallback] @returns {"yes" | "no"} */
 function normalizeBillableFlag(value, fallback = "yes") {
   if (value === false || value === "no") {
     return "no";
@@ -330,9 +374,10 @@ function normalizeBillableFlag(value, fallback = "yes") {
   return fallback === "no" ? "no" : "yes";
 }
 
+/** @param {BillingPeriodInput | null | undefined} period @returns {BillingPeriod} */
 function normalizeBillingPeriod(period) {
   const type = period?.type === "custom" ? "custom" : "calendarMonth";
-  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
+  const startDay = Math.min(28, Math.max(1, Number.parseInt(String(period?.startDay ?? ""), 10) || 1));
 
   return {
     type,
@@ -340,6 +385,7 @@ function normalizeBillingPeriod(period) {
   };
 }
 
+/** @param {BillingPeriodInput | null | undefined} period @returns {BillingPeriod | null} */
 function normalizeOptionalBillingPeriod(period) {
   if (!period || period.type === "inherit") {
     return null;
@@ -348,9 +394,10 @@ function normalizeOptionalBillingPeriod(period) {
   return normalizeBillingPeriod(period);
 }
 
+/** @param {BillingRoundingInput | null | undefined} rounding @returns {BillingRounding} */
 function normalizeBillingRounding(rounding) {
   const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-  const increment = increments.includes(rounding?.increment)
+  const increment = typeof rounding?.increment === "string" && increments.includes(rounding.increment)
     ? rounding.increment
     : "nearestQuarterHour";
 
@@ -360,9 +407,10 @@ function normalizeBillingRounding(rounding) {
   };
 }
 
+/** @param {AuditSettingsInput | null | undefined} audit */
 function normalizeAuditSettings(audit) {
   const retentionOptions = [7, 14, 30, 60, 90, 180, 365];
-  const retentionDays = Number.parseInt(audit?.retentionDays, 10);
+  const retentionDays = Number.parseInt(String(audit?.retentionDays ?? ""), 10);
 
   return {
     loggingEnabled: audit?.loggingEnabled === false ? false : true,
@@ -370,6 +418,7 @@ function normalizeAuditSettings(audit) {
   };
 }
 
+/** @param {BillingRoundingInput | null | undefined} rounding @returns {BillingRounding | null} */
 function normalizeOptionalBillingRounding(rounding) {
   if (!rounding || rounding.type === "inherit") {
     return null;
@@ -378,6 +427,7 @@ function normalizeOptionalBillingRounding(rounding) {
   return normalizeBillingRounding(rounding);
 }
 
+/** @param {Partial<BillingContact> | null | undefined} contact @returns {BillingContact} */
 function normalizeBillingContact(contact) {
   return {
     name: String(contact?.name || "").trim(),
@@ -394,12 +444,14 @@ function normalizeBillingContact(contact) {
   };
 }
 
+/** @param {unknown} status @returns {string} */
 function normalizeStatus(status) {
-  return ["Active", "Inactive", "Completed"].includes(status) ? status : "Active";
+  return typeof status === "string" && ["Active", "Inactive", "Completed"].includes(status) ? status : "Active";
 }
 
+/** @param {unknown} status @returns {string} */
 function normalizeClientStatus(status) {
-  return ["Active", "Inactive"].includes(status) ? status : "Active";
+  return typeof status === "string" && ["Active", "Inactive"].includes(status) ? status : "Active";
 }
 
 export {

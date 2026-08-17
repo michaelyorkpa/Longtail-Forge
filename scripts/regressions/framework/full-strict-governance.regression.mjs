@@ -223,6 +223,25 @@ assert.deepEqual(smallOwnerExplicitAny, [], "Search, Notifications, Users, Tags,
 assert.match(usersModuleSource, /function moduleDisabledNotificationBody\(\{ event \}\)/, "Users event summaries should use the named resolver-context projection");
 assert.match(developerExampleRouteSource, /workspaceAsyncRoute\(async \(request, response\)/, "the example browser route should use the workspace request contract");
 assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(request, response\)/, "the example public route should use the API-key request contract");
+const remainingServerDiagnosticPaths = Object.keys(ledger.programs["server-tests"].diagnostics);
+assert.ok(
+  remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/")),
+  "only test-owned files may retain server-program diagnostics after checkpoint 0.33.33.25.5",
+);
+for (const rootRuntimeOwnerPath of [
+  "src/config.js",
+  "src/core/request-context.js",
+  "src/runtime-env.js",
+  "src/security/auth-throttle.js",
+  "src/security/cookies.js",
+  "src/security/current-password-verification.js",
+  "src/security/password-events.js",
+  "src/security/security-events.js",
+  "src/utils/normalizers.js",
+  "src/utils/workspaces.js",
+]) {
+  assert.equal(ledger.explicitAnyByFile[rootRuntimeOwnerPath], undefined, `${rootRuntimeOwnerPath} must stay free of explicit any after checkpoint 0.33.33.25.5`);
+}
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",
@@ -320,8 +339,13 @@ assert.match(governanceSource, /Full-strict diagnostics exactly match/);
 assert.match(governanceSource, /tsconfig\.declarations\.json/);
 assert.doesNotThrow(() => validateShrinkOnly(cloneLedger(), cloneLedger()));
 const increasedDiagnostic = cloneLedger();
-increasedDiagnostic.programs["server-tests"].diagnostics["src/config.js"][0].count += 1;
-assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /2339 increased/);
+const existingDiagnostic = Object.entries(increasedDiagnostic.programs["server-tests"].diagnostics)
+  .find(([, diagnostics]) => diagnostics.length > 0);
+if (!existingDiagnostic) throw new Error("The shrink-only mutation proof requires one retained server/test diagnostic until program closeout.");
+const [existingDiagnosticPath, existingDiagnosticCounts] = existingDiagnostic;
+const existingDiagnosticCode = existingDiagnosticCounts[0].code;
+increasedDiagnostic.programs["server-tests"].diagnostics[existingDiagnosticPath][0].count += 1;
+assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), new RegExp(`${existingDiagnosticCode} increased`));
 const increasedAny = cloneLedger();
 increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);

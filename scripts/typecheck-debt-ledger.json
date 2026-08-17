@@ -381,106 +381,8 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 514,
+      "errorCount": 308,
       "diagnostics": {
-        "src/config.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 40
-          }
-        ],
-        "src/runtime-env.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/security/auth-throttle.js": [
-          {
-            "code": 2339,
-            "count": 18
-          },
-          {
-            "code": 7006,
-            "count": 20
-          }
-        ],
-        "src/security/cookies.js": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/security/current-password-verification.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/security/password-events.js": [
-          {
-            "code": 7031,
-            "count": 9
-          }
-        ],
-        "src/security/security-events.js": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7023,
-            "count": 2
-          },
-          {
-            "code": 7024,
-            "count": 2
-          }
-        ],
-        "src/utils/normalizers.js": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 33
-          }
-        ],
-        "src/utils/workspaces.js": [
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "tests/contracts/tasks-contracts.test.mjs": [
           {
             "code": 18046,
@@ -3577,7 +3479,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9170,
+      "errorCount": 9148,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5198,7 +5100,7 @@
           },
           {
             "code": 2339,
-            "count": 42
+            "count": 27
           },
           {
             "code": 2538,
@@ -9162,7 +9064,7 @@
         "scripts/runtime-env-loading-regression.mjs": [
           {
             "code": 2339,
-            "count": 9
+            "count": 2
           },
           {
             "code": 7006,
@@ -10504,7 +10406,7 @@
   },
   "totals": {
     "files": 1034,
-    "errors": 20818,
+    "errors": 20590,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

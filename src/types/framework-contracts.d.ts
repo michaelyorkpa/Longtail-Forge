@@ -1186,7 +1186,7 @@ export interface ApiErrorEnvelope {
 }
 
 export interface AppShellBootstrapUser {
-  preferredCalendarView: string;
+  preferredCalendarView: string | null;
   themeAutoSource: string;
   themeMode: string;
   timezone: string;
