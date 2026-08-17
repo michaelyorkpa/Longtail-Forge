@@ -48,16 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.10 - Add the work-candidate query edge schema
-
-**Model: High Effort** - The work-candidate query boundary parses untrusted browser input shared by Workbench, Tasks, and focus-mode consumers.
-
-- [ ] Add a module-owned Zod edge schema for the work-candidate/focus query following the settled Notes (0.33.33.16.1) and Lists (0.33.33.18.1) pattern, parsing untrusted input once at the owning service entry with list fields normalized to typed string arrays and comma-split preprocessing preserved.
-- [ ] Cover rank buckets, status and exclude-status filters, client/project/record id lists, date bounds, sort, limit, timezone, and boolean flags without changing accepted inputs, defaults, or rejection behavior for currently valid requests, proven by focused regressions against today's normalized query output.
-- [ ] Keep the existing normalize helpers' semantics authoritative during the migration; do not fork a second normalization path.
-- [ ] Remove the sink-local `Array.isArray` guard only if the schema provably severs the tainted path on the protected CodeQL scan; otherwise retain it and record why.
-- [ ] Reduce this boundary's CodeQL type-confusion alert class to zero without weakening Workbench, focus-mode, or Tasks behavior.
-
 ### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
 **Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.

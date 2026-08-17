@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.10 - Add the work-candidate query edge schema
+
+**Model: High Effort** - The work-candidate query boundary parses untrusted browser input shared by Workbench, Tasks, and focus-mode consumers.
+
+- [x] Added `src/services/work-candidate.contracts.js` following the settled Notes (0.33.33.16.1) and Lists (0.33.33.18.1) calibration: Zod owns only the untrusted shape boundary at the single list-query normalization entry, parsing once with every known field surviving in both naming conventions and every retained alias, unknown fields stripped, and list fields always leaving the edge as typed string arrays with comma-split preprocessing preserved.
+- [x] Covered rank buckets, status and exclude-status filters, client/project/record id lists, date bounds, sort, limit, timezone, today, boolean flags, and the nested focus-context variants; the schema is total by construction so accepted inputs, defaults, and rejection behavior are unchanged, proven by `tests/unit/work-candidate-query-edge.test.mjs` freezing nine pre-schema normalized-query captures byte-identically plus marker passthrough identity, typed-array emission, and unknown-key stripping.
+- [x] Kept the service's normalize helpers as the single authoritative normalization path; the schema feeds the existing pipeline and forks nothing.
+- [x] Retained the sink-local `Array.isArray` guard from 0.33.33.25.8 with the recorded reason that protected-scan evidence for the schema alone severing the tainted path cannot precede the merge that carries the schema; guard removal may be revisited with that evidence in hand.
+- [x] Held the boundary's CodeQL type-confusion alert class at zero on the protected scan with Workbench, focus-mode, and Tasks behavior unchanged; the compiler universe grew to 1,036 strict-clean-added files with combined debt unchanged at 20,587, explicit `any` at 7, and the write-derived ledger stamp advancing itself to `0.33.33.25.10`.
+
 ## Version 0.33.33.25.9 - Maintain compiler-ledger metadata
 
 **Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.
