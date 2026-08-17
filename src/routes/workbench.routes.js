@@ -1,7 +1,7 @@
 // @ts-check
 
 import { Router } from "express";
-import { activeTimersService } from "../modules/time-tracking/active-timers.service.js";
+import { activeTimersService } from "../modules/time-tracking/index.js";
 import { workFocusModesService } from "../services/work-focus-modes.service.js";
 import { workbenchService } from "../services/workbench.service.js";
 import { workbenchTaskFocusRelatedContextService } from "../services/workbench-task-focus-related-context.service.js";

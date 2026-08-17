@@ -65,8 +65,10 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/task-server-contracts.fixture.mjs:26",
   "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
+  "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
+  "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 29, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 30, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -154,6 +156,16 @@ const clientProjectsOwnerDiagnostics = Object.keys(ledger.programs["server-tests
 assert.deepEqual(clientProjectsOwnerDiagnostics, [], "Clients/Projects server owners must stay strict-clean after checkpoint 0.33.33.25.1");
 const clientProjectsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(clientProjectsOwnerPaths);
 assert.deepEqual(clientProjectsOwnerExplicitAny, [], "Clients/Projects server owners must stay free of explicit any after checkpoint 0.33.33.25.1");
+/** @param {string} filePath */
+const timeTrackingOwnerPaths = (filePath) => (
+  filePath.startsWith("src/modules/time-tracking/") ||
+  filePath === "src/types/time-tracking-contracts.d.ts" ||
+  filePath.startsWith("tests/typecheck/time-tracking-")
+);
+const timeTrackingOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(timeTrackingOwnerPaths);
+assert.deepEqual(timeTrackingOwnerDiagnostics, [], "Time Tracking server owners must stay strict-clean after checkpoint 0.33.33.25.2");
+const timeTrackingOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(timeTrackingOwnerPaths);
+assert.deepEqual(timeTrackingOwnerExplicitAny, [], "Time Tracking server owners must stay free of explicit any after checkpoint 0.33.33.25.2");
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",

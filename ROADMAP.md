@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.2 - Finish Time Tracking strict typing
-
-**Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
-
-- [ ] Close full-strict debt across Time Tracking entries, active timers, billing, dashboards, reporting, routes, public API, settings, and search indexers.
-- [ ] Preserve authoritative duration, timezone, billable-state, source metadata, Task linking, permissions, and transaction behavior.
-- [ ] Add named projections and service contracts without re-parsing trusted internal records or adding deep imports.
-- [ ] Keep cross-module consumers on the Time Tracking public entry.
-
 ### 0.33.33.25.3 - Close the Jobs payload registry and strict owners
 
 **Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.

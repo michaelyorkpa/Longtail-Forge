@@ -18,12 +18,14 @@ import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerLinkResult} TaskTimerLinkResult */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRecord} TaskTimerRecord */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRemoveResult} TaskTimerRemoveResult */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerResumeContext} TaskTimerResumeContext */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSavePayload} TaskTimerSavePayload */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSaveResult} TaskTimerSaveResult */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSourceTask} TaskTimerSourceTask */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerTransition} TaskTimerTransition */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimersService} TaskTimersService */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskWorkflowSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimerRecord */
 
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
@@ -57,10 +59,10 @@ async function save(taskId, payload, session) {
   try {
     result = await activeTimersService.saveSourced(taskTimerSource(task), {
       active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id,
-      client_id: task.client_id,
-      client_name: task.client_name,
-      project_id: task.project_id,
-      project_name: task.project_name,
+      client_id: String(task.client_id || ""),
+      client_name: String(task.client_name || ""),
+      project_id: String(task.project_id || ""),
+      project_name: String(task.project_name || ""),
       description: task.title,
       billable: taskTimerBillable(task),
       accumulated_elapsed_seconds: elapsedSeconds,
@@ -115,11 +117,11 @@ async function linkManualTimer(taskId, payload, session) {
   try {
     result = await activeTimersService.convertManualToSourced(timerSlot, taskTimerSource(task), {
       billable: taskTimerBillable(task),
-      client_id: task.client_id,
-      client_name: task.client_name,
+      client_id: String(task.client_id || ""),
+      client_name: String(task.client_name || ""),
       description: task.title,
-      project_id: task.project_id,
-      project_name: task.project_name,
+      project_id: String(task.project_id || ""),
+      project_name: String(task.project_name || ""),
       sourceMetadata: {
         linkedFromManualTimerSlot: timerSlot,
         taskTimerStatusTransition: transition,
@@ -481,16 +483,41 @@ function taskTimerBillable(task) {
 }
 
 /**
- * @template {{ active_timer_id: string }} Timer
- * @param {Timer} timer
+ * @param {ActiveTimerRecord & { resumeContext: Record<string, unknown>, resume_context: Record<string, unknown> }} timer
  * @param {TaskTimerSourceTask} task
- * @returns {Timer & { active_task_timer_id: string, task_id: string }}
+ * @returns {TaskTimerRecord}
  */
 function taskTimerFromUnified(timer, task) {
+  /** @type {TaskTimerResumeContext} */
+  const resumeContext = {
+    accumulatedElapsedSeconds: Number(timer.resumeContext.accumulatedElapsedSeconds) || 0,
+    clientId: String(timer.resumeContext.clientId || ""),
+    clientName: String(timer.resumeContext.clientName || ""),
+    lastActiveStartTime: typeof timer.resumeContext.lastActiveStartTime === "string"
+      ? timer.resumeContext.lastActiveStartTime
+      : null,
+    projectId: String(timer.resumeContext.projectId || ""),
+    projectName: String(timer.resumeContext.projectName || ""),
+    sourceId: String(timer.resumeContext.sourceId || task.task_id),
+    sourceLabel: String(timer.resumeContext.sourceLabel || task.title || ""),
+    sourceModuleId: String(timer.resumeContext.sourceModuleId || "tasks"),
+    sourceType: String(timer.resumeContext.sourceType || "task"),
+    sourceUrl: String(timer.resumeContext.sourceUrl || ""),
+    timerStatus: timer.resumeContext.timerStatus === "running" ? "running" : "paused",
+  };
   return {
     ...timer,
     active_task_timer_id: timer.active_timer_id,
     task_id: task.task_id,
+    source_module_id: timer.source_module_id || "tasks",
+    source_type: timer.source_type || "task",
+    source_id: timer.source_id || task.task_id,
+    source_metadata_json: typeof timer.source_metadata_json === "string" ? timer.source_metadata_json : "{}",
+    sourceMetadata: timer.sourceMetadata || {},
+    resumeContext,
+    resume_context: resumeContext,
+    created_at: timer.created_at || "",
+    updated_at: timer.updated_at || "",
   };
 }
 

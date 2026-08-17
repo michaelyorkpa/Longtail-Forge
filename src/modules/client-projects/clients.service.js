@@ -10,7 +10,7 @@ import { isArchivedRecord, readClientScope } from "../../core/record-scope.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeClientProjectData } from "../../utils/normalizers.js";
 import { planProjectUpdate } from "./project-update-planner.js";
-import { timeEntriesRepository } from "../time-tracking/time-entries.repo.js";
+import { timeEntriesRepository } from "../time-tracking/index.js";
 import { taskRemindersService } from "../tasks/task-reminders.service.js";
 
 /** @typedef {import("../../types/client-project-contracts.js").ClientAggregateRecord} ClientAggregateRecord */

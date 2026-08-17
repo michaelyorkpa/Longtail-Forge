@@ -7,10 +7,6 @@
       "specifier": "../tasks/task-reminders.service.js"
     },
     {
-      "file": "src/modules/client-projects/clients.service.js",
-      "specifier": "../time-tracking/time-entries.repo.js"
-    },
-    {
       "file": "src/modules/lists/lists.service.js",
       "specifier": "../client-projects/clients.repo.js"
     },
@@ -31,10 +27,6 @@
       "specifier": "../client-projects/projects.repo.js"
     },
     {
-      "file": "src/modules/tasks/task-timers.repo.js",
-      "specifier": "../time-tracking/active-timers.repo.js"
-    },
-    {
       "file": "src/modules/tasks/tasks.service.js",
       "specifier": "../client-projects/clients.repo.js"
     },
@@ -49,10 +41,6 @@
     {
       "file": "src/modules/tasks/tasks.service.js",
       "specifier": "../notes/notes.service.js"
-    },
-    {
-      "file": "src/modules/time-tracking/time-tracking-billing.service.js",
-      "specifier": "../client-projects/clients.service.js"
     }
   ]
 }

@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.2 - Finish Time Tracking strict typing
+
+**Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
+
+- [x] Closed full-strict debt across Time Tracking entries, active timers, billing, dashboards, reporting, routes, public API, settings, Search indexers, and their focused contract tests without adding checker suppressions or explicit `any`.
+- [x] Added `time-tracking-contracts.d.ts` named timer and time-entry rows, request/API sessions, billing scopes/projects/ranges, report filters, paging, and dashboard projections plus a positive/negative public-entry fixture.
+- [x] Preserved authoritative duration, timezone bounds, billable inheritance and rounding, source metadata redaction, Task linking and status recovery, permissions, audit/Search synchronization, repository normalization, and transaction behavior through retained focused regressions.
+- [x] Moved Workbench, Tasks, Clients/Projects, and shared work-candidate consumers to the Time Tracking public entry and shrank the cross-module deep-import baseline from 13 to 10 entries.
+- [x] Reduced combined strict debt from 21,225 to 20,821 diagnostics while holding explicit `any` at 10, expanded the compiler universe to 1,033 files and 30 declarations, raised effective regression assertions to 18,930 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.3`.
+
 ## Version 0.33.33.25.1 - Finish Clients and Projects strict typing
 
 **Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.

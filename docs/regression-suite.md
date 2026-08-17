@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.2, every Time Tracking server owner is strict-clean. Active timers, entries, billing, dashboard/reporting, routes, public API, settings, Search indexers, and the public module entry consume `time-tracking-contracts.d.ts` for named timer and entry rows, sessions, billing scopes/projects/ranges, report filters, public API paging, and dashboard projections. Authoritative seconds-to-hours derivation, timezone bounds, billable inheritance and rounding, source metadata redaction, Task linking and status recovery, permissions, audit/Search synchronization, and repository transactions remain unchanged. Workbench, Tasks, Clients/Projects, and shared work-candidate consumers now use the Time Tracking public entry, and the legacy deep-import baseline shrinks accordingly. `time-tracking-server-contracts.fixture.mjs` proves public entry calls and rejects malformed repository/session inputs, while `framework.full-strict-governance` pins the complete owner cohort at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,033 files and 30 declarations, combined strict debt falls from 21,225 to 20,821 diagnostics, explicit `any` remains 10, and effective regression assertions advance to 18,930 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: existing Time Tracking workflows, routes, payloads, permissions, billing calculations, timezone behavior, Task linking, Help, schema, runtime configuration, and deployment behavior are unchanged.
 
 As of 0.33.33.25.1, every Clients/Projects server owner is strict-clean. The service, repositories, routes, hierarchy planner, settings owner, Search indexers, link-target provider, and public module entry consume `client-project-contracts.d.ts` for named database rows, read and write records, hierarchy shapes, service inputs, and project-update plans. Repository-bound normalization, client descendant scope, parent-before-child ordering, reparent and project-move safety, billing context, permission checks, transaction ownership, reminders, tags, audit events, Search synchronization, and the public module boundary remain unchanged. `client-project-contracts.fixture.mjs` proves public entry calls and rejected malformed repository/session inputs, while `framework.full-strict-governance` pins the complete owner cohort at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,032 files and 29 declarations, combined strict debt falls from 21,577 to 21,225 diagnostics, explicit `any` remains 10, and effective regression assertions advance to 18,927 across 347 scripts.
 
@@ -317,11 +323,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18258 |
+| Active regression assertions | 18261 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18927 |
+| Effective assertion floor | 18930 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

@@ -356,6 +356,7 @@
         "tests/typecheck/task-server-contracts.fixture.mjs",
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
+        "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/client-project-options.test.mjs",
@@ -379,7 +380,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 890,
+      "errorCount": 517,
       "diagnostics": {
         "src/config.js": [
           {
@@ -401,144 +402,6 @@
           {
             "code": 18049,
             "count": 1
-          }
-        ],
-        "src/modules/time-tracking/active-timers.repo.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 43
-          }
-        ],
-        "src/modules/time-tracking/active-timers.service.js": [
-          {
-            "code": 7006,
-            "count": 36
-          }
-        ],
-        "src/modules/time-tracking/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/time-tracking/public-api.service.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/time-tracking/report-runners.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/reporting.routes.js": [
-          {
-            "code": 2345,
-            "count": 2
-          }
-        ],
-        "src/modules/time-tracking/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-entries.repo.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 22
-          }
-        ],
-        "src/modules/time-tracking/time-entries.routes.js": [
-          {
-            "code": 2345,
-            "count": 6
-          },
-          {
-            "code": 2698,
-            "count": 2
-          }
-        ],
-        "src/modules/time-tracking/time-entries.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 27
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-billing.service.js": [
-          {
-            "code": 2339,
-            "count": 28
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 141
-          },
-          {
-            "code": 7022,
-            "count": 2
-          },
-          {
-            "code": 7023,
-            "count": 2
-          },
-          {
-            "code": 7024,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-dashboard.routes.js": [
-          {
-            "code": 2345,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-dashboard.service.js": [
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-settings.service.js": [
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking.contracts.js": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "src/modules/users/module.js": [
@@ -642,12 +505,6 @@
           },
           {
             "code": 18049,
-            "count": 1
-          }
-        ],
-        "tests/contracts/time-tracking-contracts.test.mjs": [
-          {
-            "code": 18046,
             "count": 1
           }
         ],
@@ -995,12 +852,6 @@
           {
             "code": 18047,
             "count": 3
-          }
-        ],
-        "tests/time-tracking/time-tracking-billing.test.mjs": [
-          {
-            "code": 7006,
-            "count": 8
           }
         ],
         "tests/unit/client-project-options.test.mjs": [
@@ -3743,7 +3594,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9201,
+      "errorCount": 9170,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3752,7 +3603,7 @@
           },
           {
             "code": 18047,
-            "count": 12
+            "count": 8
           },
           {
             "code": 18048,
@@ -3764,7 +3615,7 @@
           },
           {
             "code": 2345,
-            "count": 6
+            "count": 5
           },
           {
             "code": 7006,
@@ -8492,7 +8343,7 @@
           },
           {
             "code": 7006,
-            "count": 7
+            "count": 6
           },
           {
             "code": 7031,
@@ -8871,16 +8722,6 @@
             "count": 11
           }
         ],
-        "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
         "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
           {
             "code": 2345,
@@ -8965,14 +8806,6 @@
           {
             "code": 2339,
             "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "scripts/regressions/time-tracking/timer-task-linking.regression.mjs": [
@@ -8982,7 +8815,7 @@
           },
           {
             "code": 18047,
-            "count": 10
+            "count": 9
           },
           {
             "code": 18048,
@@ -9757,12 +9590,8 @@
             "count": 2
           },
           {
-            "code": 2353,
-            "count": 2
-          },
-          {
             "code": 7006,
-            "count": 16
+            "count": 14
           }
         ],
         "scripts/tag-propagation-service-conversion-regression.mjs": [
@@ -10341,16 +10170,12 @@
         ],
         "scripts/timer-resume-metadata-regression.mjs": [
           {
-            "code": 2345,
-            "count": 1
-          },
-          {
             "code": 7005,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 16
           },
           {
             "code": 7034,
@@ -10364,7 +10189,7 @@
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 12
           }
         ],
         "scripts/user-theme-auto-mode-regression.mjs": [
@@ -10695,8 +10520,8 @@
     }
   },
   "totals": {
-    "files": 1032,
-    "errors": 21225,
+    "files": 1033,
+    "errors": 20821,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -10719,11 +10544,13 @@
     "tests/typecheck/task-server-contracts.fixture.mjs:29",
     "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
     "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
-    "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16"
+    "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
+    "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
+    "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32"
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 29,
+    "firstPartyFiles": 30,
     "errors": 0
   }
 }
