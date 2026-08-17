@@ -10,6 +10,10 @@ import {
 import { activeTimersService } from "./active-timers.service.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimer */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntry */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeTrackingSession} TimeTrackingSession */
+
 const ACTIVE_TIMER_ROW_LIMIT = 3;
 const RECENT_TIME_ROW_LIMIT = 3;
 const RECENT_TIME_WINDOW_DAYS = 7;
@@ -17,6 +21,7 @@ const WORKBENCH_URL = "workbench.html";
 const TIME_ENTRIES_URL = "time-entries.html";
 const REPORTING_URL = "reporting.html";
 
+/** @param {TimeTrackingSession} session */
 async function readDashboardEffortSummary(session) {
   const [settings, canUseTimers, canViewReporting] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id, session),
@@ -77,6 +82,7 @@ async function readDashboardEffortSummary(session) {
   };
 }
 
+/** @param {ActiveTimer} timer @param {string} workspaceType */
 function dashboardTimerRow(timer, workspaceType) {
   return {
     action: { label: "Open Workbench", href: WORKBENCH_URL },
@@ -91,6 +97,7 @@ function dashboardTimerRow(timer, workspaceType) {
   };
 }
 
+/** @param {TimeEntry} entry @param {string} workspaceType @param {string} timezone */
 function dashboardTimeEntryRow(entry, workspaceType, timezone) {
   return {
     action: { label: "View Time Entries", href: TIME_ENTRIES_URL },
@@ -105,15 +112,18 @@ function dashboardTimeEntryRow(entry, workspaceType, timezone) {
   };
 }
 
+/** @param {ActiveTimer} timer */
 function isActiveDashboardTimer(timer) {
   return ["running", "paused"].includes(timer?.timer_status || "");
 }
 
+/** @param {TimeEntry} entry @param {string} [timezone] */
 function entryLocalDateKey(entry, timezone = "America/New_York") {
   const endedAt = new Date(entry?.end_time || "");
   return Number.isNaN(endedAt.getTime()) ? "" : localDateKey(endedAt, timezone);
 }
 
+/** @param {{ client_name?: unknown, project_name?: unknown }} record @param {string} [workspaceType] */
 function dashboardContextLabel(record, workspaceType = "business") {
   const clientName = String(record.client_name || "").trim();
   const projectName = String(record.project_name || "").trim();
@@ -125,8 +135,9 @@ function dashboardContextLabel(record, workspaceType = "business") {
   return projectName || "Workspace";
 }
 
+/** @param {ActiveTimer} timer */
 function timerElapsedSeconds(timer) {
-  const accumulated = Math.max(0, Number.parseInt(timer?.accumulated_elapsed_seconds, 10) || 0);
+  const accumulated = Math.max(0, Number.parseInt(String(timer?.accumulated_elapsed_seconds ?? ""), 10) || 0);
 
   if (timer?.timer_status !== "running" || !timer?.last_active_start_time) {
     return accumulated;
@@ -140,10 +151,12 @@ function timerElapsedSeconds(timer) {
   return accumulated + Math.max(0, Math.floor((Date.now() - lastStartedAt) / 1000));
 }
 
+/** @param {unknown} seconds */
 function durationLabel(seconds) {
   return `${((Number(seconds) || 0) / 3600).toFixed(2)} hrs`;
 }
 
+/** @param {Date} [now] @param {string} [timezone] */
 function dashboardEffortDateWindow(now = new Date(), timezone = DEFAULT_TIMEZONE) {
   const effectiveTimezone = timezone || DEFAULT_TIMEZONE;
   const today = localDateKey(now, effectiveTimezone);

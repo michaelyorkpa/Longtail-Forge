@@ -18,8 +18,11 @@
 import { z } from "zod";
 import { AppError } from "../../utils/app-error.js";
 
+/** @param {string} label */
 const optionalText = (label) => z.string({ error: `${label} must be text.` }).trim().optional();
+/** @param {string} label */
 const optionalNullableText = (label) => optionalText(label).nullable();
+/** @param {string} label */
 const optionalNumberOrText = (label) => z.union(
   [z.number(), z.string().trim()],
   { error: `${label} must be a number or numeric text.` },
@@ -28,6 +31,7 @@ const optionalBillable = z.union(
   [z.boolean(), z.enum(["yes", "no"])],
   { error: "Billable must be a boolean or 'yes'/'no'." },
 ).optional();
+/** @param {string} label */
 const optionalIdList = (label) => z.array(
   z.union([z.string().trim(), z.number(), z.null(), z.undefined()], {
     error: `${label} entries must be text.`,

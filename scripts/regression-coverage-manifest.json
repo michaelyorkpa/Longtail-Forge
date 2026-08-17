@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18258,
+    "activeAssertionCount": 18261,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18927,
+    "effectiveAssertionCount": 18930,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 68,
+      "assertionCount": 70,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 68,
+      "entryPointAssertionCount": 70,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6920,11 +6920,11 @@
     },
     {
       "area": "time-tracking",
-      "assertionCount": 33,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy timer resume metadata contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 34,
       "id": "legacy.timer.resume.metadata",
       "legacy": true,
       "path": "scripts/timer-resume-metadata-regression.mjs",

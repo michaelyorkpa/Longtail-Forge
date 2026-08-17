@@ -1,10 +1,10 @@
 // @ts-check
 
-import { activeTimersRepository } from "../time-tracking/active-timers.repo.js";
+import { activeTimersRepository } from "../time-tracking/index.js";
 
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRecord} TaskTimerRecord */
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerResumeContext} TaskTimerResumeContext */
-/** @typedef {import("../time-tracking/active-timers.repo.js").ActiveTimer} ActiveTimer */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimer */
 
 const TASK_SOURCE = {
   sourceModuleId: "tasks",

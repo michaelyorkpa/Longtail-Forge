@@ -31,6 +31,7 @@ import {
 
 const MODULE_ID = "time-tracking";
 
+/** @param {WorkspaceRequestSession} session */
 async function list(session) {
   const timers = await activeTimersRepository.readAll(session.workspace_id, session.user_id);
   return {
@@ -38,6 +39,7 @@ async function list(session) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function listAll(session) {
   const timers = await activeTimersRepository.readAllWorkTimers(session.workspace_id, session.user_id);
   return {
@@ -102,6 +104,7 @@ async function saveSourced(source, rawPayload, session) {
   };
 }
 
+/** @param {string} timerSlot @param {ActiveTimerSourceInput} source @param {SourcedActiveTimerPayload} payload @param {WorkspaceRequestSession} session */
 async function convertManualToSourced(timerSlot, source, payload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
@@ -169,6 +172,7 @@ async function convertManualToSourced(timerSlot, source, payload, session) {
   };
 }
 
+/** @param {string} timerSlot @param {WorkspaceRequestSession} session */
 async function remove(timerSlot, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
@@ -184,6 +188,7 @@ async function remove(timerSlot, session) {
   return { timer_slot: normalizedTimerSlot, removed: true, timers: await shapeTimerPayloads(session, timers) };
 }
 
+/** @param {string} timerSlot @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function updateStatus(timerSlot, rawPayload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(ActiveTimerStatusSchema, rawPayload);
@@ -219,6 +224,7 @@ async function updateStatus(timerSlot, rawPayload, session) {
   };
 }
 
+/** @param {ActiveTimerSourceInput} source @param {WorkspaceRequestSession} session */
 async function pauseRunningSourced(source, session) {
   const normalizedSource = normalizeSource(source);
 
@@ -236,6 +242,7 @@ async function pauseRunningSourced(source, session) {
   };
 }
 
+/** @param {ActiveTimerSourceInput} source @param {WorkspaceRequestSession} session */
 async function removeSourced(source, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedSource = normalizeSource(source);
@@ -372,6 +379,7 @@ async function finalizeSourced(source, rawPayload, session, entryOverrides = {})
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {ActiveTimer[]} [timers] */
 async function shapeTimerPayloads(session, timers = []) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
   const shaped = [];
@@ -386,6 +394,7 @@ async function shapeTimerPayloads(session, timers = []) {
   return shaped;
 }
 
+/** @param {WorkspaceRequestSession} session @param {ActiveTimer} timer */
 async function shapeTimerPayload(session, timer) {
   const sourceReadable = await canReadTimerSource(session, timer);
   const safeSourceLabel = sourceReadable ? stringOrEmpty(timer.source_label || timer.description) : "";
@@ -417,6 +426,7 @@ async function shapeTimerPayload(session, timer) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {ActiveTimer} timer */
 async function canReadTimerSource(session, timer) {
   if (!timer?.source_module_id || timer.source_type === "manual") {
     return true;
@@ -438,10 +448,12 @@ async function canReadTimerSource(session, timer) {
   return false;
 }
 
+/** @param {ActiveTimer} timer */
 function timerStatusForEvent(timer) {
   return timer?.timer_status === "running" ? "timer.started" : "timer.paused";
 }
 
+/** @param {string} eventName @param {WorkspaceRequestSession} session @param {ActiveTimer} timer @param {Record<string, unknown>} [extraMetadata] */
 async function emitTimerLifecycleEvent(eventName, session, timer, extraMetadata = {}) {
   const payload = safeTimerLifecyclePayload(timer, extraMetadata);
 
@@ -457,6 +469,7 @@ async function emitTimerLifecycleEvent(eventName, session, timer, extraMetadata 
   });
 }
 
+/** @param {ActiveTimer} timer @param {Record<string, unknown>} [extraMetadata] */
 function safeTimerLifecyclePayload(timer, extraMetadata = {}) {
   return {
     accumulated_elapsed_seconds: Number(timer.accumulated_elapsed_seconds) || 0,
@@ -475,6 +488,7 @@ function safeTimerLifecyclePayload(timer, extraMetadata = {}) {
   };
 }
 
+/** @param {unknown} value */
 function safeUrl(value) {
   const url = stringOrEmpty(value);
 
@@ -519,7 +533,7 @@ function finalizedTimerFacts(activeTimer, payload = {}) {
   };
 }
 
-/** @param {ActiveTimer} activeTimer */
+/** @param {ActiveTimer} activeTimer @param {string} endTime */
 function activeTimerElapsedSecondsAt(activeTimer, endTime) {
   const accumulatedSeconds = Math.max(0, Number.parseInt(String(activeTimer.accumulated_elapsed_seconds), 10) || 0);
 
@@ -591,6 +605,7 @@ function normalizeSource(source) {
   return normalized;
 }
 
+/** @param {WorkspaceRequestSession} session @param {ActiveTimer} timer @param {string} operation */
 async function assertCanUseProjectTimer(session, timer, operation) {
   await permissionsService.assertCan(session, "time_entries.create", {
     workspace_id: session.workspace_id,
@@ -600,6 +615,7 @@ async function assertCanUseProjectTimer(session, timer, operation) {
   });
 }
 
+/** @param {string} workspaceId @param {ActiveTimer} timer */
 async function resolveTimerScope(workspaceId, timer) {
   return resolveProjectRecordScope(workspaceId, timer, {
     archivedClientMessage: "Archived clients cannot receive active timers.",
@@ -609,6 +625,7 @@ async function resolveTimerScope(workspaceId, timer) {
   });
 }
 
+/** @param {unknown} timerSlot */
 function normalizeTimerSlot(timerSlot) {
   const normalized = String(timerSlot || "").trim();
 
@@ -619,10 +636,12 @@ function normalizeTimerSlot(timerSlot) {
   return normalized;
 }
 
+/** @param {unknown} value */
 function normalizeIsoDate(value) {
-  return normalizeUtcIso(value);
+  return normalizeUtcIso(/** @type {import("../../utils/timezones.js").DateTimeInput} */ (value));
 }
 
+/** @param {unknown} value */
 function stringOrEmpty(value) {
   return String(value || "").trim();
 }
