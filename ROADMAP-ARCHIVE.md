@@ -1,5 +1,13 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.9 - Maintain compiler-ledger metadata
+
+**Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.
+
+- [x] Made the ledger `checkpoint` stamp write-derived: `typecheck:ledger:write` records the first open numbered checkpoint heading in the live roadmap, falling back to the active version cursor once every numbered checkpoint archives, and verification compares against the stored stamp so the recorded value always means "checkpoint active at the last reviewed ledger write"; the migration write moved the stamp from the frozen `0.33.33.18.1` literal to `0.33.33.25.9` as a one-line ledger diff.
+- [x] Replaced the `framework.full-strict-governance` exact stamp pin with a monotonic `compareDottedVersions` floor at `0.33.33.25.9`, following the cursor-floor doctrine that prohibits exact pins, without adding any planning-document read to the discovered owner.
+- [x] Kept every other shrink-only, suppression-ban, and zone assertion byte-for-byte unchanged, with combined strict debt held at 20,587, explicit `any` at 7, and effective regression assertions unchanged at 18,961 across 347 scripts.
+
 ## Version 0.33.33.25.8 - Baseline and ratchet planning-document pinning
 
 **Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
