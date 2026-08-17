@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.25.9",
+  "checkpoint": "0.33.33.25.10",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -290,6 +290,7 @@
         "src/services/tags.service.js",
         "src/services/user-landing.service.js",
         "src/services/users.service.js",
+        "src/services/work-candidate.contracts.js",
         "src/services/work-candidate.service.js",
         "src/services/work-focus-modes.service.js",
         "src/services/work-resume-state-initial-producers.js",
@@ -378,6 +379,7 @@
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
+        "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
@@ -10397,7 +10399,7 @@
     }
   },
   "totals": {
-    "files": 1034,
+    "files": 1036,
     "errors": 20587,
     "explicitAny": 7
   },

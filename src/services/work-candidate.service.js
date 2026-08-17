@@ -7,6 +7,7 @@ import {
   isForbiddenField,
   sanitizeMetadata,
 } from "./work-resume-state-producers.js";
+import { parseWorkCandidateQueryEdge } from "./work-candidate.contracts.js";
 import { workResumeStateService } from "./work-resume-state.service.js";
 
 /** @typedef {import("../types/framework-contracts.js").WorkCandidate} WorkCandidate */
@@ -746,7 +747,8 @@ function normalizeListQuery(query = {}, options = {}) {
     return /** @type {CandidateQuery} */ (query);
   }
 
-  const flattenedQuery = flattenFocusQuery(query);
+  const edgeQuery = /** @type {CandidateQueryInput} */ (parseWorkCandidateQueryEdge(query));
+  const flattenedQuery = flattenFocusQuery(edgeQuery);
   const timezone = textValue(firstValue(flattenedQuery.timezone, options.timezone), 80) || DEFAULT_TIMEZONE;
 
   return {
@@ -1650,6 +1652,7 @@ export {
   candidateFromResumeRow,
   candidateFromTaskWorkItem,
   candidateFromTimer,
+  normalizeListQuery,
   normalizeWorkCandidate,
   rankWorkCandidates,
   readSecondMostRecentUpdatedTaskCandidate,
