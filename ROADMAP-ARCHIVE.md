@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.5 - Close remaining root runtime strict debt
+
+**Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
+
+- [x] Closed all 206 remaining production diagnostics across root configuration and environment loading, request context and cookies, authentication throttling and current-password admission, password/security events, canonical normalizers, and workspace capabilities with named owner-local JSDoc contracts and no checker suppressions or explicit `any`.
+- [x] Preserved runtime defaults, fail-closed production/public-demo validation, secret handling, unchanged `npm start` delivery, durable throttle and verification-admission semantics, generic authentication failures, cookie security, workspace normalization, security-event redaction, and safe non-blocking persistence failures through retained focused coverage.
+- [x] Aligned the request-context field projection and nullable calendar-view bootstrap contract with existing runtime values, narrowed Users and Clients/Projects caller projections, and kept framework/module ownership, routes, permissions, configuration keys, and deployment behavior unchanged.
+- [x] Left only 308 diagnostics across 39 test-owned files in the server/test ledger, reduced combined strict debt from 20,818 to 20,590 diagnostics while holding explicit `any` at 7, retained the 1,034-file/31-declaration compiler universe, raised effective regression assertions to 18,946 across 347 scripts, and advanced the active checkpoint to `0.33.33.26.1`.
+
 ## Version 0.33.33.25.4 - Finish small module and framework service owners
 
 **Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.

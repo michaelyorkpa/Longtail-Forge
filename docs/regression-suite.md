@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.4. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.5, every production owner in the server/test program is strict-clean; the remaining 308 diagnostics across 39 files are test-owned. Root configuration and `.env` loading, request context and cookies, authentication throttling and current-password admission, password/security events, canonical user/client/project/settings normalization, and workspace capabilities use named owner-local JSDoc contracts with `unknown` narrowed at their existing boundaries. The nullable calendar-view bootstrap contract and the request-context field projection now match shipped runtime values without changing APIs. Existing defaults, fail-closed production/demo validation, secret handling, startup delivery, throttle persistence and admission, generic authentication failures, cookie security, workspace normalization, security-event redaction, and safe persistence failures remain unchanged. Server/test debt falls from 514 to 308 diagnostics and precise exported signatures remove another 22 script diagnostics, reducing combined strict debt from 20,818 to 20,590 while explicit `any` remains 7. The compiler universe remains 1,034 files and 31 declarations, and effective regression assertions advance to 18,946 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable runtime, security, settings, permissions, and module-development documentation remains deferred to the version-wide branch closeout because this checkpoint aligns internal types with already documented behavior and changes no supported configuration, route, permission, startup, or deployment contract.
 
 As of 0.33.33.25.4, Search, Notifications, Users, Tags, and the developer example are strict-clean as one small-owner cohort. Search, Notifications, and Tags retained their zero-diagnostic baselines; the remaining three diagnostics were removed with a named Users event-summary resolver and the framework's existing workspace and API-key route adapters for the example module. The 26 owner files are pinned at zero diagnostics and zero explicit `any` without new module deep imports or shared abstractions. Existing coverage continues to own Search permission pruning, indexing and result shaping, notification delivery and preferences, Tags semantics, Users module events, and disabled example-module isolation. The compiler universe remains 1,034 files and 31 declarations, combined strict debt falls from 20,821 to 20,818 diagnostics, explicit `any` remains 7, and effective regression assertions advance to 18,944 across 347 scripts.
 
@@ -335,11 +341,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18275 |
+| Active regression assertions | 18277 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18944 |
+| Effective assertion floor | 18946 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

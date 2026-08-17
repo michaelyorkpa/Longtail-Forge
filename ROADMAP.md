@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.5 - Close remaining root runtime strict debt
-
-**Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
-
-- [ ] Close full-strict debt in remaining root runtime, configuration, environment, security, and utility owners.
-- [ ] Preserve startup, authentication throttling, password events, cookies, workspace normalization, and safe operational failures.
-- [ ] Remove remaining source-owned server debt without changing `npm start`, runtime delivery, or framework/module ownership.
-- [ ] Leave only test-owned server-program debt in the ledger.
-
 ### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
 **Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.

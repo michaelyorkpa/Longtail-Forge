@@ -2,11 +2,10 @@
 import { createOpaqueId } from "./identifiers.js";
 
 /** @typedef {import("express").Application} Application */
-/** @typedef {import("../types/http-contracts.js").HttpIdentityRequest} HttpIdentityRequest */
 /** @typedef {import("../types/http-contracts.js").RequestContext} RequestContext */
 /** @typedef {import("../types/route-contracts.js").RouteNext} RouteNext */
 /** @typedef {import("../types/route-contracts.js").RouteResponse} RouteResponse */
-/** @typedef {HttpIdentityRequest & { app?: { get?: (name: string) => unknown }, connection?: { remoteAddress?: string }, get?: (name: string) => string | undefined, hostname?: unknown, ip?: unknown, protocol?: unknown, requestContext?: RequestContext, socket?: { remoteAddress?: string } }} RequestContextRequest */
+/** @typedef {{ app?: { get?: (name: string) => unknown }, connection?: { remoteAddress?: string }, get?: (name: string) => string | undefined, headers?: Record<string, string | string[] | undefined>, hostname?: unknown, ip?: unknown, path?: string, protocol?: unknown, requestContext?: RequestContext, socket?: { remoteAddress?: string } }} RequestContextRequest */
 
 /** @param {Application} app @param {readonly string[]} [trustedProxies] @returns {void} */
 function configureTrustedProxy(app, trustedProxies = []) {
