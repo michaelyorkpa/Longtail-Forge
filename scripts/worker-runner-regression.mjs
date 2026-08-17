@@ -226,12 +226,17 @@ async function assertJobRunnerBehavior() {
   assert.equal(unknownSummary.dead, 1);
   assert.match((await readJob("job-unknown")).last_error, /No handler registered/);
 
+  await insertJob({ jobId: "job-array-payload", jobType: "test.success", maxAttempts: 1, payload: [] });
+  const invalidPayloadSummary = await runJobWorkerOnce({ mode: "inline", workerId: "regression-worker" });
+  assert.equal(invalidPayloadSummary.dead, 1);
+  assert.match(String((await readJob("job-array-payload")).last_error || ""), /invalid payload JSON/);
+
   const status = getJobWorkerStatus();
   assert.equal(status.workerId, "regression-worker");
-  assert.ok(status.claimedCount >= 5, "worker status should count claimed jobs");
+  assert.ok(status.claimedCount >= 6, "worker status should count claimed jobs");
   assert.ok(status.completedCount >= 2, "worker status should count completed jobs");
   assert.ok(status.failedCount >= 1, "worker status should count retryable failures");
-  assert.ok(status.deadCount >= 2, "worker status should count dead-letter transitions");
+  assert.ok(status.deadCount >= 3, "worker status should count dead-letter transitions");
   assert.deepEqual(status.registeredJobTypes, ["test.fail-dead", "test.fail-retry", "test.success"]);
 }
 

@@ -352,6 +352,7 @@
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
+        "tests/typecheck/job-payload-contracts.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
         "tests/typecheck/task-server-contracts.fixture.mjs",
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
@@ -10520,16 +10521,15 @@
     }
   },
   "totals": {
-    "files": 1033,
+    "files": 1034,
     "errors": 20821,
-    "explicitAny": 10
+    "explicitAny": 7
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
-    "src/core/jobs/job-runner.js": 1,
     "src/repositories/account-export-recovery.repo.js": 1,
     "src/services/work-resume-state-initial-producers.js": 4,
-    "src/types/framework-contracts.d.ts": 3
+    "src/types/framework-contracts.d.ts": 1
   },
   "expectedErrorDirectives": [
     "tests/typecheck/browser-database-boundary.fixture.mjs:3",
@@ -10537,6 +10537,8 @@
     "tests/typecheck/client-project-contracts.fixture.mjs:30",
     "tests/typecheck/database-contracts.fixture.mjs:15",
     "tests/typecheck/database-contracts.fixture.mjs:8",
+    "tests/typecheck/job-payload-contracts.fixture.mjs:24",
+    "tests/typecheck/job-payload-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",
@@ -10550,7 +10552,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 30,
+    "firstPartyFiles": 31,
     "errors": 0
   }
 }

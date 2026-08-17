@@ -422,6 +422,8 @@ export interface TaskJobPayload extends TaskJobOptions {
   reminder_at_utc?: NullableText;
   dueAtUtc?: NullableText;
   due_at_utc?: NullableText;
+  dueKind?: NullableText;
+  due_kind?: NullableText;
   offsetMinutes?: string | number | null;
   offset_minutes?: string | number | null;
 }

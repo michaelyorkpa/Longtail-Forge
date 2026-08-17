@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.3, framework Jobs use the literal-keyed `JobPayloadRegistry` for every production and retained regression job type. Enqueue calls correlate each stable job type with its exact persisted payload shape, registered handlers receive that same mapped contract, and parsed database JSON remains `unknown` until the runner proves it is a non-array object at the handler boundary. There is no generic payload catch-all. Queue dedupe and availability, claim leases, retry/dead-letter transitions, worker modes and shutdown, handler capability enforcement, and existing payload normalizers remain unchanged. `job-payload-contracts.fixture.mjs` proves accepted Search and Files registrations while rejecting cross-job payloads and undeclared enqueue types; `worker-runner-regression.mjs` proves non-object payloads cannot reach handlers; and `framework.full-strict-governance` pins Jobs queue, runner, handlers, worker, lock, route, service, declaration, and fixture owners at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,034 files and 31 declarations, combined strict debt remains 20,821 diagnostics, explicit `any` falls from 10 to 7, and effective regression assertions advance to 18,939 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable Jobs architecture and operator documentation remain deferred to the version-wide branch closeout because this internal checkpoint changes type contracts and invalid-payload rejection only, not supported queue, worker, route, or deployment behavior.
 
 As of 0.33.33.25.2, every Time Tracking server owner is strict-clean. Active timers, entries, billing, dashboard/reporting, routes, public API, settings, Search indexers, and the public module entry consume `time-tracking-contracts.d.ts` for named timer and entry rows, sessions, billing scopes/projects/ranges, report filters, public API paging, and dashboard projections. Authoritative seconds-to-hours derivation, timezone bounds, billable inheritance and rounding, source metadata redaction, Task linking and status recovery, permissions, audit/Search synchronization, and repository transactions remain unchanged. Workbench, Tasks, Clients/Projects, and shared work-candidate consumers now use the Time Tracking public entry, and the legacy deep-import baseline shrinks accordingly. `time-tracking-server-contracts.fixture.mjs` proves public entry calls and rejects malformed repository/session inputs, while `framework.full-strict-governance` pins the complete owner cohort at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,033 files and 30 declarations, combined strict debt falls from 21,225 to 20,821 diagnostics, explicit `any` remains 10, and effective regression assertions advance to 18,930 across 347 scripts.
 
@@ -323,11 +329,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18261 |
+| Active regression assertions | 18270 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18930 |
+| Effective assertion floor | 18939 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

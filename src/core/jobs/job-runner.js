@@ -466,10 +466,14 @@ function resetJobWorkerStatusForTests() {
   workerStatus = createInitialStatus();
 }
 
-/** @param {JobRecord} job @returns {Record<string, any>} */
+/** @param {JobRecord} job @returns {Record<string, unknown>} */
 function parseJobPayload(job) {
   try {
-    return JSON.parse(job.payload_json || "{}");
+    const payload = /** @type {unknown} */ (JSON.parse(job.payload_json || "{}"));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Job payload must be an object.");
+    }
+    return /** @type {Record<string, unknown>} */ (payload);
   } catch {
     throw new Error(`Job "${job.job_id}" has invalid payload JSON.`);
   }

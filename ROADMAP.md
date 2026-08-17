@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.3 - Close the Jobs payload registry and strict owners
-
-**Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.
-
-- [ ] Replace the two framework Jobs payload `any` terminals with a typed per-job-type payload registry.
-- [ ] Close remaining full-strict debt across Jobs queue, runner, handlers, worker, lock, and route owners.
-- [ ] Preserve queue dedupe, availability, retry, lease, worker, shutdown, and handler behavior.
-- [ ] Reject speculative generic payloads and keep unknown input narrowed at the registered job boundary.
-
 ### 0.33.33.25.4 - Finish small module and framework service owners
 
 **Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.

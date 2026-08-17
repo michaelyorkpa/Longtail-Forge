@@ -52,7 +52,7 @@ async function queueFutureImportJob(context = {}, options = {}) {
   };
 }
 
-/** @param {import("../types/framework-contracts.js").JobHandlerContext} context */
+/** @param {import("../types/framework-contracts.js").JobHandlerContext<"import.future">} context */
 async function handleFutureImportJob({ payload = {} }) {
   const operation = normalizeText(payload.operation || "reserved_import");
 

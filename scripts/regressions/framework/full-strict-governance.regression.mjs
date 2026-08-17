@@ -39,6 +39,9 @@ const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sor
 const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
 const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
+const jobContractsSource = fs.readFileSync("src/types/job-contracts.d.ts", "utf8");
+const frameworkContractsSource = fs.readFileSync("src/types/framework-contracts.d.ts", "utf8");
+const frameworkJobsSeam = frameworkContractsSource.split("// Jobs seam")[1].split("export type NormalizeInferredEmptyArray")[0];
 
 assert.equal(ledger.schemaVersion, 1);
 assert.equal(ledger.checkpoint, "0.33.33.18.1");
@@ -57,6 +60,8 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/client-project-contracts.fixture.mjs:30",
   "tests/typecheck/database-contracts.fixture.mjs:15",
   "tests/typecheck/database-contracts.fixture.mjs:8",
+  "tests/typecheck/job-payload-contracts.fixture.mjs:24",
+  "tests/typecheck/job-payload-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
   "tests/typecheck/precise-service-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
@@ -68,7 +73,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 30, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 31, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -166,6 +171,28 @@ const timeTrackingOwnerDiagnostics = Object.keys(ledger.programs["server-tests"]
 assert.deepEqual(timeTrackingOwnerDiagnostics, [], "Time Tracking server owners must stay strict-clean after checkpoint 0.33.33.25.2");
 const timeTrackingOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(timeTrackingOwnerPaths);
 assert.deepEqual(timeTrackingOwnerExplicitAny, [], "Time Tracking server owners must stay free of explicit any after checkpoint 0.33.33.25.2");
+for (const strictCleanPath of [
+  "worker.js",
+  "src/core/jobs/index.js",
+  "src/core/jobs/job-handlers.js",
+  "src/core/jobs/job-queue.js",
+  "src/core/jobs/job-runner.js",
+  "src/core/jobs/job-types.js",
+  "src/core/jobs/worker-cli.js",
+  "src/core/jobs/worker-process-lock.js",
+  "src/routes/jobs.routes.js",
+  "src/services/jobs.service.js",
+  "src/types/job-contracts.d.ts",
+  "tests/typecheck/job-payload-contracts.fixture.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.25.3`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.25.3`);
+}
+assert.doesNotMatch(frameworkJobsSeam, /\bany\b/, "the framework Jobs seam must not restore generic any payloads");
+assert.match(jobContractsSource, /export interface JobPayloadRegistry/);
+assert.match(jobContractsSource, /"file\.scan": FileScanJobPayload/);
+assert.match(jobContractsSource, /"workspace\.purge": WorkspacePurgeJobPayload/);
+assert.doesNotMatch(jobContractsSource, /\[key:\s*string\]/, "registered job payloads must not fall back to a speculative catch-all bag");
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",

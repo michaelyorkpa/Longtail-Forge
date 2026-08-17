@@ -1,5 +1,6 @@
 import type { Readable } from "node:stream";
 import type { WorkspaceRequestSession } from "./http-contracts.js";
+import type { FileScanJobPayload } from "./job-contracts.js";
 
 export type FileScannerMode = "clamd" | "clamscan" | "none" | "noop";
 
@@ -60,7 +61,7 @@ export interface FileScannerQueueOptions {
 }
 
 export interface FileScannerJobContext {
-  payload?: Record<string, unknown>;
+  payload?: FileScanJobPayload;
 }
 
 export interface FileScannerJobLookup {
