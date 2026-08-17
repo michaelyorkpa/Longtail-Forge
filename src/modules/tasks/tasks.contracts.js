@@ -24,15 +24,18 @@
 import { z } from "zod";
 import { AppError } from "../../utils/app-error.js";
 
+/** @param {number} maxLength @param {string} label */
 const optionalText = (maxLength, label) =>
   z.string({ error: `${label} must be text.` })
     .trim()
     .max(maxLength, `${label} is too long.`)
     .optional();
 
+/** @param {string} label */
 const optionalFlag = (label) =>
   z.union([z.boolean(), z.string(), z.number()], { error: `${label} must be a boolean.` }).optional();
 
+/** @param {string} label */
 const optionalNullableNumberInput = (label) =>
   z.union([
     z.number(),
@@ -43,6 +46,7 @@ const optionalNullableNumberInput = (label) =>
 // List entries stay liberal on purpose: in-process callers pass ids that may
 // be numeric or nullish, and the service normalizes/filters them as it always
 // has. Only structured junk (objects/arrays as entries) is rejected.
+/** @param {string} label */
 const optionalIdList = (label) =>
   z.array(
     z.union([z.string().trim().max(160), z.number(), z.null(), z.undefined()], {

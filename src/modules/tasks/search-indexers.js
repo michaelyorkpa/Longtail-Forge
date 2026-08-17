@@ -6,6 +6,8 @@ import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} TaskRecord */
+/** @typedef {import("../../types/task-workflow-contracts.d.ts").TaskChecklistItem} TaskChecklistItem */
 
 const TASKS_SEARCH_INDEXER_ID = "tasks.records";
 
@@ -35,6 +37,7 @@ async function indexTaskRecord({ workspaceId, recordId }) {
   return taskToSearchDocument(task);
 }
 
+/** @param {TaskRecord} task */
 async function taskToSearchDocument(task) {
   const assigneeText = (task.assignees || [])
     .map((assignee) => assignee.displayName || assignee.username || assignee.user_id)
@@ -77,6 +80,7 @@ async function taskToSearchDocument(task) {
   };
 }
 
+/** @param {TaskChecklistItem[]} items */
 function taskChecklistProgress(items = []) {
   const activeItems = Array.isArray(items) ? items.filter((item) => !item.deleted_at) : [];
   const completedCount = activeItems.filter((item) => item.is_checked).length;

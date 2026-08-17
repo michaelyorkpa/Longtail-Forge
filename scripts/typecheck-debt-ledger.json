@@ -112,8 +112,10 @@
         "src/modules/developer-example/public-api.routes.js",
         "src/modules/developer-example/routes.js",
         "src/modules/lists/access-policy.js",
+        "src/modules/lists/catalog-items.service.js",
         "src/modules/lists/index.js",
         "src/modules/lists/link-target.provider.js",
+        "src/modules/lists/list-items.service.js",
         "src/modules/lists/lists.contracts.js",
         "src/modules/lists/lists.repo.js",
         "src/modules/lists/lists.routes.js",
@@ -158,11 +160,13 @@
         "src/modules/tasks/public-api.routes.js",
         "src/modules/tasks/public-api.service.js",
         "src/modules/tasks/search-indexers.js",
+        "src/modules/tasks/task-block-recovery-engine.js",
         "src/modules/tasks/task-calendar-feed.scope.js",
         "src/modules/tasks/task-calendar-feed.service.js",
         "src/modules/tasks/task-calendar.shared.js",
         "src/modules/tasks/task-checklists.repo.js",
         "src/modules/tasks/task-jobs.service.js",
+        "src/modules/tasks/task-list-engine.js",
         "src/modules/tasks/task-recurrence.repo.js",
         "src/modules/tasks/task-recurrence.service.js",
         "src/modules/tasks/task-relationships.repo.js",
@@ -201,6 +205,7 @@
         "src/repositories/app-settings.repo.js",
         "src/repositories/audit-logs.repo.js",
         "src/repositories/authentication-throttle.repo.js",
+        "src/repositories/files.repo.js",
         "src/repositories/notifications.repo.js",
         "src/repositories/permissions.repo.js",
         "src/repositories/private-feed-tokens.repo.js",
@@ -257,6 +262,9 @@
         "src/services/auth.service.js",
         "src/services/billing.service.js",
         "src/services/dashboard.service.js",
+        "src/services/files-preview.service.js",
+        "src/services/files-scanner-job.service.js",
+        "src/services/files-storage-accounting.service.js",
         "src/services/files.service.js",
         "src/services/help.service.js",
         "src/services/import-jobs.service.js",
@@ -342,12 +350,20 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
+        "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
+        "tests/typecheck/job-payload-contracts.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
+        "tests/typecheck/task-server-contracts.fixture.mjs",
+        "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
+        "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/client-project-options.test.mjs",
+        "tests/unit/files-preview.service.test.mjs",
+        "tests/unit/files-scanner-job.service.test.mjs",
+        "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/legal-content.test.mjs",
@@ -359,794 +375,14 @@
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
+        "tests/unit/task-block-recovery-engine.test.mjs",
+        "tests/unit/task-list-engine.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 3474,
+      "errorCount": 306,
       "diagnostics": {
-        "src/config.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 40
-          }
-        ],
-        "src/modules/client-projects/client-project-settings.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/clients.repo.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 26
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/modules/client-projects/clients.routes.js": [
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/clients.service.js": [
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 45
-          },
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 147
-          },
-          {
-            "code": 7031,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 4
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/project-update-planner.js": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/projects.repo.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/modules/client-projects/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/developer-example/public-api.routes.js": [
-          {
-            "code": 18048,
-            "count": 1
-          }
-        ],
-        "src/modules/developer-example/routes.js": [
-          {
-            "code": 18049,
-            "count": 1
-          }
-        ],
-        "src/modules/lists/access-policy.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 30
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/lists/lists.repo.js": [
-          {
-            "code": 2339,
-            "count": 49
-          },
-          {
-            "code": 7006,
-            "count": 82
-          },
-          {
-            "code": 7053,
-            "count": 3
-          }
-        ],
-        "src/modules/lists/lists.service.js": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2322,
-            "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 360
-          },
-          {
-            "code": 2345,
-            "count": 17
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 218
-          },
-          {
-            "code": 7053,
-            "count": 4
-          }
-        ],
-        "src/modules/lists/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/lists/public-api.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/lists/storage-contract.js": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/tasks/module.events.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7031,
-            "count": 55
-          }
-        ],
-        "src/modules/tasks/module.js": [
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/modules/tasks/private-calendar-feed.provider.js": [
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/public-api.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 24
-          }
-        ],
-        "src/modules/tasks/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/task-calendar-feed.scope.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/task-calendar-feed.service.js": [
-          {
-            "code": 2322,
-            "count": 3
-          },
-          {
-            "code": 2554,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 69
-          },
-          {
-            "code": 7031,
-            "count": 8
-          }
-        ],
-        "src/modules/tasks/task-calendar.shared.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/task-checklists.repo.js": [
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 32
-          }
-        ],
-        "src/modules/tasks/task-jobs.service.js": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 117
-          },
-          {
-            "code": 7006,
-            "count": 32
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/task-recurrence.repo.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/modules/tasks/task-recurrence.service.js": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7031,
-            "count": 40
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/tasks/task-relationships.repo.js": [
-          {
-            "code": 7006,
-            "count": 38
-          }
-        ],
-        "src/modules/tasks/task-reminders.repo.js": [
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/task-reminders.service.js": [
-          {
-            "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/task-timers.repo.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/tasks/task-timers.service.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7031,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/task-work-evidence.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/tasks/tasks-settings.service.js": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "src/modules/tasks/tasks.contracts.js": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/tasks.repo.js": [
-          {
-            "code": 2339,
-            "count": 24
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 2698,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 120
-          },
-          {
-            "code": 7031,
-            "count": 8
-          }
-        ],
-        "src/modules/tasks/tasks.routes.js": [
-          {
-            "code": 2345,
-            "count": 5
-          }
-        ],
-        "src/modules/tasks/tasks.service.js": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 171
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 334
-          },
-          {
-            "code": 7031,
-            "count": 62
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 6
-          }
-        ],
-        "src/modules/time-tracking/active-timers.repo.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 43
-          }
-        ],
-        "src/modules/time-tracking/active-timers.service.js": [
-          {
-            "code": 7006,
-            "count": 36
-          }
-        ],
-        "src/modules/time-tracking/public-api.routes.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/time-tracking/public-api.service.js": [
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "src/modules/time-tracking/report-runners.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/reporting.routes.js": [
-          {
-            "code": 2345,
-            "count": 2
-          }
-        ],
-        "src/modules/time-tracking/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-entries.repo.js": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 22
-          }
-        ],
-        "src/modules/time-tracking/time-entries.routes.js": [
-          {
-            "code": 2345,
-            "count": 6
-          },
-          {
-            "code": 2698,
-            "count": 2
-          }
-        ],
-        "src/modules/time-tracking/time-entries.service.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 27
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-billing.service.js": [
-          {
-            "code": 2339,
-            "count": 28
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 141
-          },
-          {
-            "code": 7022,
-            "count": 2
-          },
-          {
-            "code": 7023,
-            "count": 2
-          },
-          {
-            "code": 7024,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-dashboard.routes.js": [
-          {
-            "code": 2345,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-dashboard.service.js": [
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "src/modules/time-tracking/time-tracking-settings.service.js": [
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/modules/time-tracking/time-tracking.contracts.js": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "src/modules/users/module.js": [
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "src/runtime-env.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "src/security/auth-throttle.js": [
-          {
-            "code": 2339,
-            "count": 18
-          },
-          {
-            "code": 7006,
-            "count": 20
-          }
-        ],
-        "src/security/cookies.js": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "src/security/current-password-verification.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/security/password-events.js": [
-          {
-            "code": 7031,
-            "count": 9
-          }
-        ],
-        "src/security/security-events.js": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7023,
-            "count": 2
-          },
-          {
-            "code": 7024,
-            "count": 2
-          }
-        ],
-        "src/utils/normalizers.js": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 33
-          }
-        ],
-        "src/utils/workspaces.js": [
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "tests/contracts/files-contracts.test.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 18048,
-            "count": 1
-          }
-        ],
         "tests/contracts/tasks-contracts.test.mjs": [
           {
             "code": 18046,
@@ -1154,12 +390,6 @@
           },
           {
             "code": 18049,
-            "count": 1
-          }
-        ],
-        "tests/contracts/time-tracking-contracts.test.mjs": [
-          {
-            "code": 18046,
             "count": 1
           }
         ],
@@ -1509,12 +739,6 @@
             "count": 3
           }
         ],
-        "tests/time-tracking/time-tracking-billing.test.mjs": [
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
         "tests/unit/client-project-options.test.mjs": [
           {
             "code": 2339,
@@ -1590,10 +814,6 @@
           }
         ],
         "tests/unit/slice-verification-plan.test.mjs": [
-          {
-            "code": 2322,
-            "count": 2
-          },
           {
             "code": 7005,
             "count": 1
@@ -4255,7 +3475,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9486,
+      "errorCount": 9147,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4264,7 +3484,7 @@
           },
           {
             "code": 18047,
-            "count": 12
+            "count": 8
           },
           {
             "code": 18048,
@@ -4276,7 +3496,7 @@
           },
           {
             "code": 2345,
-            "count": 6
+            "count": 5
           },
           {
             "code": 7006,
@@ -4348,10 +3568,6 @@
           }
         ],
         "scripts/async-recurrence-response-closeout-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
           {
             "code": 7006,
             "count": 7
@@ -4584,7 +3800,7 @@
         "scripts/client-projects-canonical-payload-regression.mjs": [
           {
             "code": 7006,
-            "count": 11
+            "count": 10
           }
         ],
         "scripts/client-projects-repositories-conversion-regression.mjs": [
@@ -5453,16 +4669,12 @@
             "count": 9
           },
           {
-            "code": 18048,
-            "count": 2
-          },
-          {
             "code": 2345,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 11
           },
           {
             "code": 7053,
@@ -5480,7 +4692,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           },
           {
             "code": 7023,
@@ -5504,7 +4716,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           }
         ],
         "scripts/files-preview-availability-route-regression.mjs": [
@@ -5884,7 +5096,7 @@
           },
           {
             "code": 2339,
-            "count": 42
+            "count": 27
           },
           {
             "code": 2538,
@@ -6295,10 +5507,6 @@
             "count": 37
           },
           {
-            "code": 2339,
-            "count": 34
-          },
-          {
             "code": 2531,
             "count": 2
           },
@@ -6321,19 +5529,11 @@
             "count": 6
           },
           {
-            "code": 2339,
-            "count": 5
-          },
-          {
             "code": 7006,
             "count": 5
           }
         ],
         "scripts/lists-foundation-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 10
-          },
           {
             "code": 2769,
             "count": 1
@@ -6349,10 +5549,6 @@
             "count": 2
           },
           {
-            "code": 2339,
-            "count": 12
-          },
-          {
             "code": 2532,
             "count": 1
           },
@@ -6365,10 +5561,6 @@
           {
             "code": 18047,
             "count": 62
-          },
-          {
-            "code": 2339,
-            "count": 60
           },
           {
             "code": 2531,
@@ -6389,20 +5581,12 @@
             "count": 3
           },
           {
-            "code": 2322,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 49
-          },
-          {
             "code": 7005,
             "count": 6
           },
           {
             "code": 7006,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7034,
@@ -6527,10 +5711,6 @@
           {
             "code": 18047,
             "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 5
           },
           {
             "code": 7006,
@@ -8092,7 +7272,7 @@
           },
           {
             "code": 7006,
-            "count": 9
+            "count": 6
           }
         ],
         "scripts/regressions/framework/csrf-protection.regression.mjs": [
@@ -8469,10 +7649,6 @@
             "count": 1
           },
           {
-            "code": 2339,
-            "count": 3
-          },
-          {
             "code": 2345,
             "count": 2
           },
@@ -8486,7 +7662,7 @@
           },
           {
             "code": 7006,
-            "count": 20
+            "count": 19
           },
           {
             "code": 7016,
@@ -8498,7 +7674,7 @@
           },
           {
             "code": 7031,
-            "count": 7
+            "count": 3
           },
           {
             "code": 7034,
@@ -9048,7 +8224,7 @@
           },
           {
             "code": 7006,
-            "count": 7
+            "count": 6
           },
           {
             "code": 7031,
@@ -9104,10 +8280,6 @@
           }
         ],
         "scripts/regressions/release/developer-verification-throughput.regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
           {
             "code": 7006,
             "count": 1
@@ -9312,7 +8484,7 @@
           },
           {
             "code": 2345,
-            "count": 9
+            "count": 8
           },
           {
             "code": 2531,
@@ -9330,15 +8502,15 @@
         "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs": [
           {
             "code": 18047,
-            "count": 7
+            "count": 5
           },
           {
             "code": 2322,
-            "count": 8
+            "count": 2
           },
           {
             "code": 2345,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7005,
@@ -9346,7 +8518,7 @@
           },
           {
             "code": 7006,
-            "count": 15
+            "count": 13
           },
           {
             "code": 7034,
@@ -9356,10 +8528,6 @@
         "scripts/regressions/tasks/task-calendar-window.regression.mjs": [
           {
             "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 2339,
             "count": 4
           },
           {
@@ -9390,7 +8558,7 @@
           },
           {
             "code": 7006,
-            "count": 11
+            "count": 8
           },
           {
             "code": 7034,
@@ -9400,7 +8568,7 @@
         "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs": [
           {
             "code": 7006,
-            "count": 3
+            "count": 2
           }
         ],
         "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs": [
@@ -9409,16 +8577,12 @@
             "count": 2
           },
           {
-            "code": 18047,
-            "count": 2
-          },
-          {
             "code": 2339,
-            "count": 9
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 23
+            "count": 19
           }
         ],
         "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs": [
@@ -9427,26 +8591,12 @@
             "count": 7
           },
           {
-            "code": 2339,
-            "count": 2
-          },
-          {
             "code": 2345,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 12
-          }
-        ],
-        "scripts/regressions/time-tracking/active-timer-duration-consistency.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 1
+            "count": 11
           }
         ],
         "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
@@ -9533,14 +8683,6 @@
           {
             "code": 2339,
             "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "scripts/regressions/time-tracking/timer-task-linking.regression.mjs": [
@@ -9550,7 +8692,7 @@
           },
           {
             "code": 18047,
-            "count": 10
+            "count": 9
           },
           {
             "code": 18048,
@@ -9914,7 +9056,7 @@
         "scripts/runtime-env-loading-regression.mjs": [
           {
             "code": 2339,
-            "count": 9
+            "count": 2
           },
           {
             "code": 7006,
@@ -10290,7 +9432,7 @@
         "scripts/tag-bulk-assignment-regression.mjs": [
           {
             "code": 7006,
-            "count": 14
+            "count": 13
           }
         ],
         "scripts/tag-core-records-regression.mjs": [
@@ -10300,7 +9442,7 @@
           },
           {
             "code": 7006,
-            "count": 4
+            "count": 1
           }
         ],
         "scripts/tag-propagation-contract-regression.mjs": [
@@ -10325,12 +9467,8 @@
             "count": 2
           },
           {
-            "code": 2353,
-            "count": 2
-          },
-          {
             "code": 7006,
-            "count": 16
+            "count": 14
           }
         ],
         "scripts/tag-propagation-service-conversion-regression.mjs": [
@@ -10377,10 +9515,6 @@
         ],
         "scripts/task-activity-metrics-regression.mjs": [
           {
-            "code": 18048,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 6
           }
@@ -10388,7 +9522,7 @@
         "scripts/task-bulk-due-tags-regression.mjs": [
           {
             "code": 7006,
-            "count": 11
+            "count": 10
           }
         ],
         "scripts/task-canonical-query-regression.mjs": [
@@ -10416,7 +9550,7 @@
           },
           {
             "code": 2339,
-            "count": 8
+            "count": 2
           },
           {
             "code": 7005,
@@ -10486,13 +9620,13 @@
         "scripts/task-recurrence-checklist-propagation-regression.mjs": [
           {
             "code": 7006,
-            "count": 13
+            "count": 5
           }
         ],
         "scripts/task-recurrence-completion-continuity-regression.mjs": [
           {
             "code": 18047,
-            "count": 23
+            "count": 18
           },
           {
             "code": 18048,
@@ -10504,7 +9638,7 @@
           },
           {
             "code": 7006,
-            "count": 14
+            "count": 9
           }
         ],
         "scripts/task-recurrence-frequency-regression.mjs": [
@@ -10522,7 +9656,7 @@
         "scripts/task-recurrence-reminders-repository-conversion-regression.mjs": [
           {
             "code": 7006,
-            "count": 4
+            "count": 2
           }
         ],
         "scripts/task-relationships-regression.mjs": [
@@ -10590,7 +9724,7 @@
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7053,
@@ -10666,7 +9800,7 @@
           },
           {
             "code": 7006,
-            "count": 19
+            "count": 16
           },
           {
             "code": 7034,
@@ -10676,14 +9810,10 @@
         "scripts/tasks-primary-repository-conversion-regression.mjs": [
           {
             "code": 7006,
-            "count": 18
+            "count": 16
           }
         ],
         "scripts/tasks-server-side-list-paging-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
           {
             "code": 2339,
             "count": 4
@@ -10917,16 +10047,12 @@
         ],
         "scripts/timer-resume-metadata-regression.mjs": [
           {
-            "code": 2345,
-            "count": 1
-          },
-          {
             "code": 7005,
             "count": 1
           },
           {
             "code": 7006,
-            "count": 18
+            "count": 16
           },
           {
             "code": 7034,
@@ -10940,7 +10066,7 @@
           },
           {
             "code": 7006,
-            "count": 13
+            "count": 12
           }
         ],
         "scripts/user-theme-auto-mode-regression.mjs": [
@@ -11271,30 +10397,38 @@
     }
   },
   "totals": {
-    "files": 1016,
-    "errors": 24094,
-    "explicitAny": 14
+    "files": 1034,
+    "errors": 20587,
+    "explicitAny": 7
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
-    "src/core/jobs/job-runner.js": 1,
-    "src/modules/lists/search-indexers.js": 4,
     "src/repositories/account-export-recovery.repo.js": 1,
     "src/services/work-resume-state-initial-producers.js": 4,
-    "src/types/framework-contracts.d.ts": 3
+    "src/types/framework-contracts.d.ts": 1
   },
   "expectedErrorDirectives": [
     "tests/typecheck/browser-database-boundary.fixture.mjs:3",
+    "tests/typecheck/client-project-contracts.fixture.mjs:27",
+    "tests/typecheck/client-project-contracts.fixture.mjs:30",
     "tests/typecheck/database-contracts.fixture.mjs:15",
     "tests/typecheck/database-contracts.fixture.mjs:8",
+    "tests/typecheck/job-payload-contracts.fixture.mjs:24",
+    "tests/typecheck/job-payload-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",
-    "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16"
+    "tests/typecheck/task-server-contracts.fixture.mjs:26",
+    "tests/typecheck/task-server-contracts.fixture.mjs:29",
+    "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
+    "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
+    "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
+    "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
+    "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32"
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 15,
+    "firstPartyFiles": 31,
     "errors": 0
   }
 }

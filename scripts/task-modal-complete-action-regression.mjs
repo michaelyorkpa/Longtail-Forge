@@ -68,8 +68,8 @@ function assertStaticContract() {
     "Complete action should pass safe recurrence detail to host surfaces");
   assert.match(workbenchScript, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
     "Workbench should preserve completion-specific status messages from the modal");
-  assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/:taskId\/complete"[\s\S]*tasksService\.complete\(request\.params\.taskId, request\.session\)/,
-    "Protected completion should remain route-backed through tasksService.complete");
+  assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/:taskId\/complete"[\s\S]*tasksService\.complete\(request\.params\.taskId, readTaskSession\(request\)\)/,
+    "Protected completion should remain route-backed through tasksService.complete and the checked session boundary");
   assert.match(tasksServiceSource, /taskTimersService\.hasActiveTaskTimers[\s\S]*Tasks cannot be completed while they have active task timers/,
     "Complete route should preserve the active-timer guard");
 

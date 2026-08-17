@@ -17,8 +17,8 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 /** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
-/** @typedef {import("../types/framework-contracts.js").JobExecutionRecord} JobExecutionRecord */
-/** @typedef {import("../types/framework-contracts.js").JobHandlerContext} JobHandlerContext */
+/** @typedef {import("../types/framework-contracts.js").JobExecutionRecord<"notification.event">} JobExecutionRecord */
+/** @typedef {import("../types/framework-contracts.js").JobHandlerContext<"notification.event">} JobHandlerContext */
 /** @typedef {import("../types/framework-contracts.js").NotificationEventContribution} NotificationEventContribution */
 /** @typedef {import("../types/framework-contracts.js").NotificationEventPayload} NotificationEventPayload */
 /** @typedef {import("../types/framework-contracts.js").NotificationTemplateContribution} NotificationTemplateContribution */
@@ -893,7 +893,10 @@ async function readTaskTargetMetadata(notification, session, baseMetadata) {
   const { tasksService } = await import("../modules/tasks/tasks.service.js");
 
   try {
-    const result = await tasksService.read(normalizeJobText(notification.record_id), session);
+    const result = await tasksService.read(
+      normalizeJobText(notification.record_id),
+      /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    );
     const task = result.task || {};
     return {
       ...baseMetadata,

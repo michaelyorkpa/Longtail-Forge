@@ -60,6 +60,18 @@ function serializeRegressionManifest(manifest) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
+/**
+ * Compare generated text against its working-copy file while tolerating
+ * Windows CRLF checkouts of byte-identical committed content; any other
+ * difference is real drift and must still read as stale.
+ * @param {string} actual
+ * @param {string} expected
+ * @returns {boolean}
+ */
+function generatedContentMatches(actual, expected) {
+  return actual.replaceAll("\r\n", "\n") === expected.replaceAll("\r\n", "\n");
+}
+
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -804,6 +816,7 @@ export {
   collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
   countAssertions,
+  generatedContentMatches,
   serializeRegressionManifest,
   validateRegressionCoverage,
 };

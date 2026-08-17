@@ -115,7 +115,7 @@ async function assertDeleteIsUnsupported(session, fixtures) {
 }
 
 async function assertPermissionsRemainAuthoritative(session, fixtures) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const deniedArchive = await tasksService.bulkUpdate({
     action: "archive",
     task_ids: [fixtures.permissionTarget.task_id],

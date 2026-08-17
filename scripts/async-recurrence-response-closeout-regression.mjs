@@ -71,6 +71,7 @@ async function assertProtectedCompletionResponse(session) {
   }, session)).task;
 
   const completed = await tasksService.complete(task.task_id, session);
+  assert.ok(completed.recurrenceContinuity, "recurring completion should expose continuity");
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "protected completion should not return a synchronously created next task");
@@ -98,6 +99,7 @@ async function assertPublicCompletionResponse(session) {
   }, session)).task;
 
   const completed = await tasksPublicApiService.completeTask(session, task.task_id);
+  assert.ok(completed.recurrenceContinuity, "public recurring completion should expose continuity");
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "public API completion should not return a synchronously created next task");

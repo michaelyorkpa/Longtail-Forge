@@ -1,13 +1,11 @@
+// @ts-check
 import { listsRepository } from "./lists.repo.js";
+import { createCatalogItemsService } from "./catalog-items.service.js";
+import { createListItemsService } from "./list-items.service.js";
 import {
-  CreateListCatalogItemSchema,
-  CreateListItemSchema,
   CreateListLinkSchema,
   CreateListSchema,
   DuplicateListSchema,
-  ReorderListItemsSchema,
-  UpdateListCatalogItemSchema,
-  UpdateListItemSchema,
   UpdateListSchema,
   parseListsEdgePayload,
 } from "./lists.contracts.js";
@@ -36,7 +34,6 @@ import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
 import {
   createVisibleRecordBatch,
-  groupRowsByRecordId,
   mapVisibleRecordBatch,
 } from "../../core/list-enrichment.js";
 import { permissionsService } from "../../core/permissions.js";
@@ -52,14 +49,70 @@ import { tagsService } from "../../services/tags.service.js";
 import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
 import { assertLinkedContextTargetContract } from "../../core/linked-context/provider-contract.js";
 
+/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/lists-catalog-item-contracts.js").ListsCatalogItemRecord} ListsCatalogItemRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsLinkRecord} ListsLinkRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsLinkPersistenceInput} ListsLinkPersistenceInput */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsBrowserLink} ListsBrowserLink */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsBrowserRecord} ListsBrowserRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsNormalizedQuery} ListsNormalizedQuery */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRecord} ListsRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRepositoryFilters} ListsRepositoryFilters */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsServiceQuery} ListsServiceQuery */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsServiceSession} ListsServiceSession */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsSourceContext} ListsSourceContext */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsSourceSummary} ListsSourceSummary */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsVisibleBatch} ListsVisibleBatch */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsItemPersistenceInput} ListsItemPersistenceInput */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemOrder} ListsItemOrder */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemProgressBatch} ListsItemProgressBatch */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemProgressSummary} ListsItemProgressSummary */
+/** @typedef {import("../../types/lists-item-contracts.js").ListsItemRecord} ListsItemRecord */
+/** @typedef {import("../../types/framework-contracts.js").LinkedContextProviderContribution} LinkedContextProviderContribution */
+/** @typedef {Record<string, unknown>} ListsRawQuery */
+/** @typedef {{ includeItems?: boolean, includeDeletedItems?: boolean, includeDeleted?: boolean }} ListsReadOptions */
+/** @typedef {{ action: string, changeType: string, eventName: string, operation: string, options?: ListsReadOptions, patch: (previousList: ListsRecord, now: string) => Partial<ListsRecord> }} ListsTransition */
+/** @typedef {{ module_id: string, target_id: string, target_type: string }} ListsLinkTargetIdentity */
 /** @typedef {ReturnType<typeof assertLinkedContextTargetContract> & { ariaLabel: string, fullLabel: string, title: string }} LinkedTargetSummary */
 /** @typedef {{ label: string, module_id: string, target_id: string, target_type: string, url: string }} LinkedTargetRecord */
+/** @typedef {{ client_id?: string | null, client_name?: string | null, name?: string | null, project_id?: string | null, project_name?: string | null, workspace_id?: string | null }} ListsContextRecord */
+/** @typedef {{ record: ListsContextRecord, projectsById: Map<string, ListsContextRecord>, clientsById: Map<string, ListsContextRecord>, isBusiness: boolean, provider: LinkedContextProviderContribution, workspaceId: string, title: unknown, targetType: string, moduleId: string, recordId: string, statusRank: string, sourceUrl: string }} ContextualListLinkTargetOptions */
+/** @typedef {{ moduleId: string, targetType: string, targetId: string, displayLabel: string, secondaryLabel: string, sortKey: string, sourceUrl: string, clientId: string, projectId: string, workspaceId: string, title: string }} LinkedTargetShapeInput */
 
+/** @type {Set<string>} */
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
+/** @type {Set<string>} */
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
+/** @type {Set<string>} */
 const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
 const LIST_LINK_TARGET_TYPES = new Set(["client", "note", "project", "task"]);
+const catalogItemsService = createCatalogItemsService({
+  assertCanAccessList,
+  assertCanManageCatalog,
+  assertListsReadable,
+  emitCatalogEvent,
+  readClientById: clientsRepository.readById,
+  readListOrThrow,
+  readProjectById: projectsRepository.readById,
+  recordCatalogAudit,
+  repository: listsRepository,
+});
+const listItemsService = createListItemsService({
+  assertCanManageItem,
+  catalogItems: catalogItemsService,
+  emitItemEvent,
+  emitListEvent,
+  nextSortOrder,
+  normalizeItemOrders,
+  normalizeItemPayload,
+  readListOrThrow,
+  recordItemAudit,
+  recordListAudit,
+  repository: listsRepository,
+  syncListSearchIndex,
+});
 
+/** @param {ListsServiceSession} session @param {ListsRawQuery} [query] */
 async function list(session, query = {}) {
   await assertListsReadable(session);
   const normalizedQuery = await normalizeListQuery(session, query);
@@ -91,6 +144,7 @@ async function list(session, query = {}) {
 // IN-query over the record ids, module status from the cached context, and
 // the in-memory permission evaluators feeding the same canAccessList policy
 // the single-list read enforces.
+/** @param {ListsServiceSession} session @param {string[]} [listIds] */
 async function readLifecycleForIds(session, listIds = []) {
   const [listRecords, moduleEnabled, canViewList, canViewAllLists] = await Promise.all([
     listsRepository.readByIds(session.workspace_id, listIds),
@@ -130,6 +184,7 @@ async function readLifecycleForIds(session, listIds = []) {
   return lifecycleByListId;
 }
 
+/** @param {string} listId @param {ListsServiceSession} session @param {ListsReadOptions} [options] */
 async function read(listId, session, options = {}) {
   const listRecord = await readListOrThrow(session, listId, options);
   await assertCanAccessList(session, listRecord, "read");
@@ -147,6 +202,7 @@ async function read(listId, session, options = {}) {
 }
 
 /** @param {unknown} rawPayload */
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function create(rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await permissionsService.assertCanInAnyScope(session, LIST_PERMISSIONS.CREATE, {
@@ -183,6 +239,7 @@ async function create(rawPayload, session) {
 }
 
 /** @param {unknown} rawPayload */
+/** @param {string} listId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function update(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const previousList = await readListOrThrow(session, listId);
@@ -208,6 +265,7 @@ async function update(listId, rawPayload, session) {
   return { list: await shapeListForBrowser(session, listRecord) };
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function complete(listId, session) {
   return transitionList(listId, session, {
     action: "list_completed",
@@ -223,6 +281,7 @@ async function complete(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function finalize(listId, session) {
   return transitionList(listId, session, {
     action: "list_finalized",
@@ -240,6 +299,7 @@ async function finalize(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function reopen(listId, session) {
   return transitionList(listId, session, {
     action: "list_reopened",
@@ -257,6 +317,7 @@ async function reopen(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function markReusable(listId, session) {
   return transitionList(listId, session, {
     action: "list_reusable_marked",
@@ -269,6 +330,7 @@ async function markReusable(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function unmarkReusable(listId, session) {
   return transitionList(listId, session, {
     action: "list_reusable_unmarked",
@@ -282,6 +344,7 @@ async function unmarkReusable(listId, session) {
 }
 
 /** @param {unknown} rawPayload */
+/** @param {string} listId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function duplicate(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const sourceList = await readListOrThrow(session, listId);
@@ -321,7 +384,11 @@ async function duplicate(listId, rawPayload, session) {
 
   const copiedItems = [];
   for (const [index, item] of sourceItems.entries()) {
-    copiedItems.push(await listsRepository.createItem(session.workspace_id, duplicateItemPayload(item, createdList, session, index)));
+    const copiedItem = await listsRepository.createItem(session.workspace_id, duplicateItemPayload(item, createdList, session, index));
+    if (!copiedItem) {
+      throw new AppError("List item duplication did not return a record.", 500);
+    }
+    copiedItems.push(copiedItem);
   }
 
   await recordListAudit(session, "list_duplicated", "create", sourceList, createdList, {
@@ -340,6 +407,7 @@ async function duplicate(listId, rawPayload, session) {
   };
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function archive(listId, session) {
   return transitionList(listId, session, {
     action: "list_archived",
@@ -354,6 +422,7 @@ async function archive(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function restore(listId, session) {
   return transitionList(listId, session, {
     action: "list_restored",
@@ -369,6 +438,7 @@ async function restore(listId, session) {
   });
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session */
 async function softDelete(listId, session) {
   return transitionList(listId, session, {
     action: "list_deleted",
@@ -383,6 +453,7 @@ async function softDelete(listId, session) {
   });
 }
 
+/** @param {string} listId @param {ListsServiceSession} session */
 async function listLinks(listId, session) {
   const listRecord = await readListOrThrow(session, listId, { includeDeleted: true });
   await assertCanAccessList(session, listRecord, "read");
@@ -390,6 +461,7 @@ async function listLinks(listId, session) {
   return { links: await readPermissionSafeLinks(session, listRecord) };
 }
 
+/** @param {WorkspaceRequestSession} session @param {ListsRawQuery} [query] */
 async function listLinkTargets(session, query = {}) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await permissionsService.assertCanInAnyScope(session, LIST_PERMISSIONS.MANAGE_LINKS, {
@@ -406,8 +478,11 @@ async function listLinkTargets(session, query = {}) {
   }
 
   const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
-  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const limit = Math.min(Math.max(Number.parseInt(String(query.limit ?? ""), 10) || 20, 1), 50);
   const provider = activeProviders.find((entry) => entry.targetType === targetType);
+  if (!provider) {
+    throw new AppError("Linked target provider is not available for this list.", 400);
+  }
   const targets = await listLinkTargetsByType(session, targetType, provider);
 
   return {
@@ -427,6 +502,7 @@ async function listLinkTargets(session, query = {}) {
 }
 
 /** @param {unknown} rawPayload */
+/** @param {string} listId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function createLink(listId, rawPayload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
@@ -436,6 +512,9 @@ async function createLink(listId, rawPayload, session) {
   await assertLinkTargetProviderAvailable(session, link);
   const target = await readLinkedTargetSummary(session, link, { requireAccess: true });
   const createdLink = await listsRepository.createLink(session.workspace_id, link);
+  if (!createdLink) {
+    throw new AppError("List link creation did not return a record.", 500);
+  }
   await recordLinkAudit(session, "list_link_created", "create", null, createdLink, listRecord);
   await emitListEvent("lists.link.created", session, null, listRecord, {
     link: sanitizeLinkForAudit(createdLink),
@@ -445,6 +524,7 @@ async function createLink(listId, rawPayload, session) {
   return { link: shapeLinkForBrowser(createdLink, target) };
 }
 
+/** @param {string} listId @param {string} linkId @param {WorkspaceRequestSession} session */
 async function removeLink(listId, linkId, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
@@ -456,6 +536,9 @@ async function removeLink(listId, linkId, session) {
   }
 
   const link = await listsRepository.removeLink(session.workspace_id, listRecord.list_id, previousLink.list_link_id);
+  if (!link) {
+    throw new AppError("List link removal did not return a record.", 500);
+  }
   await recordLinkAudit(session, "list_link_removed", "delete", previousLink, link, listRecord);
   await emitListEvent("lists.link.removed", session, listRecord, listRecord, {
     link: sanitizeLinkForAudit(link),
@@ -465,199 +548,57 @@ async function removeLink(listId, linkId, session) {
   return { link: shapeLinkForBrowser(link, null) };
 }
 
-/** @param {unknown} rawPayload */
+/** @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function createCatalogItem(rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  await assertCanManageCatalog(session);
-  const payload = parseListsEdgePayload(CreateListCatalogItemSchema, rawPayload);
-  return createValidatedCatalogItem(payload, session);
+  return catalogItemsService.createCatalogItem(rawPayload, session);
 }
 
-/** @param {import("zod").output<typeof CreateListCatalogItemSchema> | Record<string, unknown>} payload */
-async function createValidatedCatalogItem(payload, session) {
-  const normalized = await normalizeCatalogPayload(payload, session, {
-    catalog_item_id: payload?.catalog_item_id || payload?.id,
-    created_by_user_id: session.user_id,
-    updated_by_user_id: session.user_id,
-  });
-  const catalogItem = await listsRepository.createCatalogItem(session.workspace_id, normalized);
-  await recordCatalogAudit(session, "list_item_catalog_created", "create", null, catalogItem);
-  await emitCatalogEvent("lists.catalog_item.created", session, null, catalogItem);
-
-  return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
-}
-
-/** @param {unknown} rawPayload */
+/** @param {unknown} catalogItemId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function updateCatalogItem(catalogItemId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  await assertCanManageCatalog(session);
-  const previousItem = await readCatalogItemOrThrow(session, catalogItemId);
-  const payload = parseListsEdgePayload(UpdateListCatalogItemSchema, rawPayload);
-  const normalized = await normalizeCatalogPayload(payload, session, {
-    ...previousItem,
-    updated_by_user_id: session.user_id,
-  });
-  const catalogItem = await listsRepository.updateCatalogItem(session.workspace_id, normalized);
-  await recordCatalogAudit(session, "list_item_catalog_updated", "update", previousItem, catalogItem);
-  await emitCatalogEvent("lists.catalog_item.updated", session, previousItem, catalogItem);
-
-  return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
+  return catalogItemsService.updateCatalogItem(catalogItemId, rawPayload, session);
 }
 
+/** @param {WorkspaceRequestSession} session @param {ListsRawQuery} [query] */
 async function suggestItems(session, query = {}) {
-  await assertListsReadable(session);
-  const listRecord = query.listId || query.list_id
-    ? await readListOrThrow(session, query.listId || query.list_id, { includeDeleted: true })
-    : null;
-
-  if (listRecord) {
-    await assertCanAccessList(session, listRecord, "read");
-  } else {
-    await permissionsService.assertCan(session, LIST_PERMISSIONS.VIEW, listResource({ workspace_id: session.workspace_id }));
-  }
-
-  const suggestions = await listsRepository.listCatalogSuggestions(session.workspace_id, {
-    clientId: normalizeOptionalText(query.clientId || query.client_id || listRecord?.client_id),
-    limit: normalizeSuggestionLimit(query.limit),
-    listType: normalizeOptionalText(query.listType || query.list_type || listRecord?.list_type),
-    projectId: normalizeOptionalText(query.projectId || query.project_id || listRecord?.project_id),
-    query: normalizeCatalogName(query.q || query.query || ""),
-  });
-
-  return { suggestions: suggestions.map(shapeCatalogItemForBrowser) };
+  return catalogItemsService.suggestItems(session, query);
 }
 
-/** @param {unknown} rawPayload */
+/** @param {string} listId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function createItem(listId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const listRecord = await readListOrThrow(session, listId);
-  await assertCanManageItem(session, listRecord, null);
-  const payload = parseListsEdgePayload(CreateListItemSchema, rawPayload);
-  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
-  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
-  const item = normalizeItemPayload(payload, session, listRecord, {
-    ...itemFallback,
-    list_item_id: payload?.list_item_id || payload?.id,
-    purchase_status: LIST_ITEM_PURCHASE_STATUSES.NEEDED,
-    quantity: itemFallback.quantity ?? 1,
-    sort_order: await nextSortOrder(session.workspace_id, listRecord.list_id),
-    assigned_user_id: payload?.assigned_user_id || payload?.assignedUserId || session.user_id,
-    created_by_user_id: session.user_id,
-    updated_by_user_id: session.user_id,
-  });
-
-  if (payload?.save_to_catalog === true || payload?.save_to_catalog === "true" || payload?.saveToCatalog === true || payload?.saveToCatalog === "true") {
-    await assertCanManageCatalog(session);
-    const createdCatalog = await createValidatedCatalogItem({
-      ...item,
-      client_id: listRecord.client_id || "",
-      list_type: listRecord.list_type,
-      project_id: listRecord.project_id || "",
-    }, session);
-    item.catalog_item_id = createdCatalog.catalogItem.catalog_item_id;
-  }
-
-  const storedItem = await listsRepository.createItem(session.workspace_id, item);
-  if (storedItem.catalog_item_id) {
-    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
-  }
-  await recordItemAudit(session, "list_item_created", "create", null, storedItem, listRecord);
-  await emitItemEvent("lists.item.created", session, null, storedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_created");
-
-  return { item: shapeItemForBrowser(storedItem) };
+  return listItemsService.createItem(listId, rawPayload, session);
 }
 
-/** @param {unknown} rawPayload */
+/** @param {string} listId @param {string} itemId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function updateItem(listId, itemId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
-  await assertCanManageItem(session, listRecord, item);
-  const payload = parseListsEdgePayload(UpdateListItemSchema, rawPayload);
-  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
-  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
-  const normalized = normalizeItemPayload(payload, session, listRecord, {
-    ...itemFallback,
-    ...item,
-    catalog_item_id: itemFallback.catalog_item_id || item.catalog_item_id,
-    updated_by_user_id: session.user_id,
-  });
-
-  const storedItem = await listsRepository.updateItem(session.workspace_id, normalized);
-  if (catalogItem && storedItem.catalog_item_id) {
-    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
-  }
-  await recordItemAudit(session, "list_item_updated", "update", item, storedItem, listRecord);
-  await emitItemEvent("lists.item.updated", session, item, storedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_updated");
-
-  return { item: shapeItemForBrowser(storedItem) };
+  return listItemsService.updateItem(listId, itemId, rawPayload, session);
 }
 
-/** @param {unknown} rawPayload */
+/** @param {string} listId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
 async function reorderItems(listId, rawPayload, session) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const listRecord = await readListOrThrow(session, listId);
-  await assertCanManageItem(session, listRecord, null);
-  const payload = parseListsEdgePayload(ReorderListItemsSchema, rawPayload);
-  const itemOrders = normalizeItemOrders(payload?.items || payload?.itemOrders || payload?.item_orders || []);
-  const items = await listsRepository.reorderItems(session.workspace_id, listRecord.list_id, itemOrders, session.user_id);
-  await recordListAudit(session, "list_items_reordered", "update", listRecord, listRecord, {
-    item_orders: itemOrders,
-  });
-  await emitListEvent("lists.item.updated", session, null, listRecord, {
-    item_orders: itemOrders,
-    reason: "reorder",
-  });
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.items_reordered");
-
-  return { items: items.map(shapeItemForBrowser) };
+  return listItemsService.reorderItems(listId, rawPayload, session);
 }
 
+/** @param {string} listId @param {string} itemId @param {WorkspaceRequestSession} session */
 async function checkItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_checked",
-    eventName: "lists.item.checked",
-    patch: (_previousItem, now) => ({
-      checked_at: now,
-      checked_by_user_id: session.user_id,
-    }),
-  });
+  return listItemsService.checkItem(listId, itemId, session);
 }
 
+/** @param {string} listId @param {string} itemId @param {WorkspaceRequestSession} session */
 async function uncheckItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_unchecked",
-    eventName: "lists.item.unchecked",
-    patch: () => ({
-      checked_at: null,
-      checked_by_user_id: null,
-    }),
-  });
+  return listItemsService.uncheckItem(listId, itemId, session);
 }
 
+/** @param {string} listId @param {string} itemId @param {WorkspaceRequestSession} session */
 async function completeItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_completed",
-    eventName: "lists.item.completed",
-    patch: (_previousItem, now) => ({
-      completed_at: now,
-      completed_by_user_id: session.user_id,
-    }),
-  });
+  return listItemsService.completeItem(listId, itemId, session);
 }
 
+/** @param {string} listId @param {string} itemId @param {WorkspaceRequestSession} session */
 async function deleteItem(listId, itemId, session) {
-  return transitionItem(listId, itemId, session, {
-    action: "list_item_deleted",
-    changeType: "delete",
-    eventName: "lists.item.deleted",
-    patch: (_previousItem, now) => ({
-      deleted_at: now,
-    }),
-  });
+  return listItemsService.deleteItem(listId, itemId, session);
 }
 
+/** @param {string} listId @param {WorkspaceRequestSession} session @param {ListsTransition} transition */
 async function transitionList(listId, session, transition) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const previousList = await readListOrThrow(session, listId, transition.options || {});
@@ -671,6 +612,7 @@ async function transitionList(listId, session, transition) {
     ...transition.patch(previousList, now),
     updated_by_user_id: session.user_id,
   });
+  if (!listRecord) throw new AppError("List transition did not return a record.", 500);
 
   await recordListAudit(session, transition.action, transition.changeType, previousList, listRecord);
   await emitListEvent(transition.eventName, session, previousList, listRecord);
@@ -678,23 +620,7 @@ async function transitionList(listId, session, transition) {
   return { list: await shapeListForBrowser(session, listRecord) };
 }
 
-async function transitionItem(listId, itemId, session, transition) {
-  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
-  const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
-  await assertCanManageItem(session, listRecord, item);
-  const now = new Date().toISOString();
-  const updatedItem = await listsRepository.updateItem(session.workspace_id, {
-    ...item,
-    ...transition.patch(item, now),
-    updated_by_user_id: session.user_id,
-  });
-
-  await recordItemAudit(session, transition.action, transition.changeType || "update", item, updatedItem, listRecord);
-  await emitItemEvent(transition.eventName, session, item, updatedItem, listRecord);
-  await syncListSearchIndex(session.workspace_id, listRecord.list_id, transition.eventName);
-  return { item: shapeItemForBrowser(updatedItem) };
-}
-
+/** @param {ListsServiceSession} session @param {unknown} listId @param {ListsReadOptions} [options] @returns {Promise<ListsRecord>} */
 async function readListOrThrow(session, listId, options = {}) {
   await assertListsReadable(session);
   const normalizedId = normalizeRequiredText(listId, "List ID");
@@ -707,18 +633,7 @@ async function readListOrThrow(session, listId, options = {}) {
   return listRecord;
 }
 
-async function readItemWithListOrThrow(session, listId, itemId) {
-  const listRecord = await readListOrThrow(session, listId);
-  const normalizedItemId = normalizeRequiredText(itemId, "List item ID");
-  const item = await listsRepository.readItemById(session.workspace_id, listRecord.list_id, normalizedItemId);
-
-  if (!item || item.deleted_at) {
-    throw new AppError("List item not found.", 404);
-  }
-
-  return { item, listRecord };
-}
-
+/** @param {ListsServiceSession} session */
 async function assertListsReadable(session) {
   if (await modulesService.canReadModule(session?.workspace_id, LIST_MODULE_ID)) {
     return;
@@ -727,6 +642,7 @@ async function assertListsReadable(session) {
   throw new AppError("This module is disabled for this workspace.", 403);
 }
 
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord */
 async function canReadList(session, listRecord) {
   if (await permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord))) {
     return true;
@@ -735,6 +651,7 @@ async function canReadList(session, listRecord) {
   return permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
 }
 
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord @param {string} operation */
 async function assertCanAccessList(session, listRecord, operation) {
   const moduleEnabled = await modulesService.canWriteModule(session.workspace_id, LIST_MODULE_ID);
   const permissions = await readRelevantPermissions(session, listRecord);
@@ -777,6 +694,7 @@ async function assertCanAccessList(session, listRecord, operation) {
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {ListsRecord} listRecord @param {ListsItemRecord | null} item */
 async function assertCanManageItem(session, listRecord, item) {
   const moduleEnabled = await modulesService.canWriteModule(session.workspace_id, LIST_MODULE_ID);
   const permissions = await readRelevantPermissions(session, listRecord);
@@ -797,6 +715,7 @@ async function assertCanManageItem(session, listRecord, item) {
   await permissionsService.assertCan(session, LIST_PERMISSIONS.MANAGE_ITEMS, itemResource(listRecord, item || {}));
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function assertCanManageCatalog(session) {
   await permissionsService.assertCan(session, LIST_PERMISSIONS.MANAGE_CATALOG, {
     operation: "manage_catalog",
@@ -804,34 +723,26 @@ async function assertCanManageCatalog(session) {
   });
 }
 
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord @returns {Promise<string[]>} */
 async function readRelevantPermissions(session, listRecord) {
-  const checks = await Promise.all(Object.values(LIST_PERMISSIONS).map(async (permission) => [
+  const checks = await Promise.all(Object.values(LIST_PERMISSIONS).map(async (permission) => /** @type {[string, boolean]} */ ([
     permission,
     await permissionsService.can(session, permission, listResource(listRecord)),
-  ]));
+  ])));
 
   return checks.filter(([, allowed]) => allowed).map(([permission]) => permission);
 }
 
-async function readCatalogItemOrThrow(session, catalogItemId) {
-  const normalizedId = normalizeRequiredText(catalogItemId, "Catalog item ID");
-  const catalogItem = await listsRepository.readCatalogItemById(session.workspace_id, normalizedId);
-
-  if (!catalogItem || catalogItem.archived_at) {
-    throw new AppError("Catalog item not found.", 404);
-  }
-
-  return catalogItem;
-}
-
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord */
 async function readPermissionSafeLinks(session, listRecord) {
   const linksByListId = await readPermissionSafeLinksForLists(session, [listRecord]);
   return linksByListId.get(listRecord.list_id) || [];
 }
 
+/** @param {ListsServiceSession} session @param {ListsRecord[]} [listRecords] */
 async function readPermissionSafeLinksForLists(session, listRecords = []) {
   const batch = createVisibleRecordBatch(listRecords, { idField: "list_id" });
-  const linksByListId = mapVisibleRecordBatch(batch, () => []);
+  const linksByListId = mapVisibleRecordBatch(batch, () => /** @type {ListsBrowserLink[]} */ ([]));
 
   if (batch.isEmpty) {
     return linksByListId;
@@ -856,6 +767,7 @@ async function readPermissionSafeLinksForLists(session, listRecords = []) {
   return linksByListId;
 }
 
+/** @param {ListsServiceSession} session @param {ListsLinkRecord | ListsLinkPersistenceInput} link @param {{requireAccess?: boolean}} [options] */
 async function readLinkedTargetSummary(session, link, options = {}) {
   const target = normalizeTarget(link);
   const summary = await readLinkedTargetRecord(session, target);
@@ -867,12 +779,15 @@ async function readLinkedTargetSummary(session, link, options = {}) {
   return summary;
 }
 
+/** @param {ListsServiceSession} session @param {ListsLinkTargetIdentity} target */
 async function readLinkedTargetRecord(session, target) {
   const summaries = await readLinkedTargetRecordsByType(session, target.target_type, [target.target_id]);
   return summaries.get(target.target_id) || null;
 }
 
+/** @param {ListsServiceSession} session @param {ListsLinkRecord[]} [links] */
 async function readLinkedTargetSummariesForLinks(session, links = []) {
+  /** @type {Map<string, Set<string>>} */
   const targetIdsByType = new Map();
 
   for (const link of links) {
@@ -881,13 +796,12 @@ async function readLinkedTargetSummariesForLinks(session, links = []) {
       continue;
     }
 
-    if (!targetIdsByType.has(target.target_type)) {
-      targetIdsByType.set(target.target_type, new Set());
-    }
-
-    targetIdsByType.get(target.target_type).add(target.target_id);
+    const ids = targetIdsByType.get(target.target_type) || new Set();
+    ids.add(target.target_id);
+    targetIdsByType.set(target.target_type, ids);
   }
 
+  /** @type {Array<Array<[string, LinkedTargetRecord]>>} */
   const summaryEntries = await Promise.all([...targetIdsByType.entries()].map(async ([targetType, ids]) => {
     const summaries = await readLinkedTargetRecordsByType(session, targetType, [...ids]);
     return [...summaries.entries()].map(([targetId, summary]) => [linkedTargetKey({ target_type: targetType, target_id: targetId }), summary]);
@@ -896,6 +810,7 @@ async function readLinkedTargetSummariesForLinks(session, links = []) {
   return new Map(summaryEntries.flat());
 }
 
+/** @param {ListsServiceSession} session @param {string} targetType @param {string[]} [targetIds] */
 async function readLinkedTargetRecordsByType(session, targetType, targetIds = []) {
   const ids = [...new Set((Array.isArray(targetIds) ? targetIds : [])
     .map((targetId) => String(targetId || "").trim())
@@ -957,13 +872,17 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   if (targetType === "task") {
     const tasks = await tasksRepository.readByIds(session.workspace_id, ids);
     for (const task of tasks) {
-      if (!task || !(await permissionsService.can(session, "tasks.view", {
+      if (!task) {
+        continue;
+      }
+      const taskResource = {
         client_id: task.client_id,
         operation: "read",
         project_id: task.project_id,
         task_id: task.task_id,
         workspace_id: session.workspace_id,
-      }))) {
+      };
+      if (!(await permissionsService.can(session, "tasks.view", taskResource))) {
         continue;
       }
 
@@ -1004,6 +923,7 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   return summaries;
 }
 
+/** @param {ListsServiceSession} session @param {string} targetType @param {LinkedContextProviderContribution} provider */
 async function listLinkTargetsByType(session, targetType, provider) {
   if (targetType === "client") {
     const clients = await permissionsService.filterReadableClients(
@@ -1060,13 +980,14 @@ async function listLinkTargetsByType(session, targetType, provider) {
     const tasks = await tasksRepository.readAll(session.workspace_id);
     const readableTasks = [];
     for (const task of tasks) {
-      if (await permissionsService.can(session, "tasks.view", {
+      const taskResource = {
         client_id: task.client_id,
         operation: "read",
         project_id: task.project_id,
         task_id: task.task_id,
         workspace_id: session.workspace_id,
-      })) {
+      };
+      if (await permissionsService.can(session, "tasks.view", taskResource)) {
         readableTasks.push(task);
       }
     }
@@ -1105,9 +1026,10 @@ async function listLinkTargetsByType(session, targetType, provider) {
   }));
 }
 
-function shapeContextualListLinkTarget(options = {}) {
+/** @param {ContextualListLinkTargetOptions} options */
+function shapeContextualListLinkTarget(options) {
   const record = options.record || {};
-  const project = options.projectsById.get(record.project_id) || {};
+  const project = options.projectsById.get(record.project_id || "") || {};
   const clientId = record.client_id || project.client_id || "";
   const clientName = options.clientsById.get(clientId)?.name || project.client_name || "";
   const projectName = project.name || record.project_name || "";
@@ -1133,8 +1055,8 @@ function shapeContextualListLinkTarget(options = {}) {
   }, options.provider);
 }
 
-/** @returns {LinkedTargetSummary} */
-function shapeListLinkTarget(target = {}, provider = {}) {
+/** @param {LinkedTargetShapeInput} target @param {LinkedContextProviderContribution} provider @returns {LinkedTargetSummary} */
+function shapeListLinkTarget(target, provider) {
   const normalized = assertLinkedContextTargetContract({
     ...target,
     isAvailable: true,
@@ -1148,19 +1070,23 @@ function shapeListLinkTarget(target = {}, provider = {}) {
   };
 }
 
+/** @param {unknown} value */
 function compactLinkedTargetTitle(value) {
   const title = normalizeOptionalText(value);
   return title.length > 20 ? `${title.slice(0, 20).trimEnd()}...` : title;
 }
 
+/** @param {unknown} value */
 function sortableTargetText(value) {
   return normalizeOptionalText(value).toLowerCase();
 }
 
+/** @param {Partial<ListsLinkTargetIdentity>} [target] */
 function linkedTargetKey(target = {}) {
   return `${target.target_type || ""}:${target.target_id || ""}`;
 }
 
+/** @param {Record<string, unknown>} payload @param {WorkspaceRequestSession} session @param {Record<string, unknown>} [fallback] @returns {Promise<ListsRecord>} */
 async function normalizeListPayload(payload = {}, session, fallback = {}) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const workspaceType = settings.workspaceType || "business";
@@ -1183,7 +1109,7 @@ async function normalizeListPayload(payload = {}, session, fallback = {}) {
   });
 
   if (!context.ok) {
-    throw new AppError(context.message, 400);
+    throw new AppError(context.message || "List context is invalid.", 400);
   }
 
   if (explicitClientId && !project) {
@@ -1199,7 +1125,7 @@ async function normalizeListPayload(payload = {}, session, fallback = {}) {
   return {
     list_id: normalizeOptionalText(fallback.list_id || payload.list_id || payload.id),
     workspace_id: session.workspace_id,
-    client_id: context.clientId,
+    client_id: context.clientId ?? null,
     project_id: projectId || "",
     title,
     description: normalizeOptionalText(valueOrFallback(payload, "description", fallback.description)),
@@ -1208,10 +1134,10 @@ async function normalizeListPayload(payload = {}, session, fallback = {}) {
     is_reusable: Boolean(valueOrFallback(payload, "is_reusable", fallback.is_reusable)),
     source_list_id: normalizeOptionalText(valueOrFallback(payload, "source_list_id", fallback.source_list_id)),
     duplicated_from_list_id: normalizeOptionalText(valueOrFallback(payload, "duplicated_from_list_id", fallback.duplicated_from_list_id)),
-    created_by_user_id: fallback.created_by_user_id || session.user_id,
+    created_by_user_id: normalizeOptionalText(fallback.created_by_user_id) || session.user_id,
     updated_by_user_id: session.user_id,
     finalized_by_user_id: normalizeOptionalText(valueOrFallback(payload, "finalized_by_user_id", fallback.finalized_by_user_id)),
-    created_at: fallback.created_at || now,
+    created_at: normalizeOptionalText(fallback.created_at) || now,
     updated_at: now,
     completed_at: normalizeOptionalText(valueOrFallback(payload, "completed_at", fallback.completed_at)),
     finalized_at: normalizeOptionalText(valueOrFallback(payload, "finalized_at", fallback.finalized_at)),
@@ -1221,6 +1147,7 @@ async function normalizeListPayload(payload = {}, session, fallback = {}) {
   };
 }
 
+/** @param {Record<string, unknown>} payload @param {WorkspaceRequestSession} session @param {ListsRecord} listRecord @param {Record<string, unknown>} [fallback] @returns {ListsItemPersistenceInput} */
 function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) {
   const context = validateListItemContext({
     itemWorkspaceId: session.workspace_id,
@@ -1228,7 +1155,7 @@ function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) 
   });
 
   if (!context.ok) {
-    throw new AppError(context.message, 400);
+    throw new AppError(context.message || "List item context is invalid.", 400);
   }
 
   const itemName = normalizeRequiredText(valueOrFallback(payload, "item_name", fallback.item_name) || payload.itemName || payload.name, "Item name");
@@ -1251,7 +1178,7 @@ function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) 
     tracking_id: normalizeOptionalText(valueOrFallback(payload, "tracking_id", fallback.tracking_id)),
     notes: normalizeOptionalText(valueOrFallback(payload, "notes", fallback.notes)),
     assigned_user_id: normalizeOptionalText(valueOrFallback(payload, "assigned_user_id", fallback.assigned_user_id)),
-    created_by_user_id: fallback.created_by_user_id || session.user_id,
+    created_by_user_id: normalizeOptionalText(fallback.created_by_user_id) || session.user_id,
     updated_by_user_id: session.user_id,
     checked_at: normalizeOptionalText(valueOrFallback(payload, "checked_at", fallback.checked_at)),
     checked_by_user_id: normalizeOptionalText(valueOrFallback(payload, "checked_by_user_id", fallback.checked_by_user_id)),
@@ -1263,92 +1190,7 @@ function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) 
   };
 }
 
-async function normalizeCatalogPayload(payload = {}, session, fallback = {}) {
-  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
-  const workspaceType = settings.workspaceType || "business";
-  const itemName = normalizeRequiredText(valueOrFallback(payload, "item_name", fallback.item_name) || payload.itemName || payload.name, "Catalog item name");
-  const listType = normalizeOptionalText(valueOrFallback(payload, "list_type", fallback.list_type));
-  const projectId = normalizeOptionalText(valueOrFallback(payload, "project_id", fallback.project_id));
-  const explicitClientId = normalizeOptionalText(valueOrFallback(payload, "client_id", fallback.client_id));
-  const project = projectId ? await projectsRepository.readById(session.workspace_id, projectId) : null;
-
-  if (listType && !LIST_TYPE_SET.has(listType)) {
-    throw new AppError(`List type '${listType}' is not supported.`, 400);
-  }
-
-  if (projectId && !project) {
-    throw new AppError("Project not found.", 404);
-  }
-
-  const context = validateListContext({
-    clientId: explicitClientId,
-    project: project ? { workspace_id: project.workspace_id, client_id: project.client_id || "" } : null,
-    workspaceId: session.workspace_id,
-    workspaceType,
-  });
-
-  if (!context.ok) {
-    throw new AppError(context.message, 400);
-  }
-
-  if (explicitClientId && !project) {
-    const client = await clientsRepository.readById(session.workspace_id, explicitClientId);
-
-    if (!client) {
-      throw new AppError("Client not found.", 404);
-    }
-  }
-
-  const now = new Date().toISOString();
-
-  return {
-    archived_at: normalizeOptionalText(valueOrFallback(payload, "archived_at", fallback.archived_at)),
-    catalog_item_id: normalizeOptionalText(fallback.catalog_item_id || payload.catalog_item_id || payload.catalogItemId || payload.id),
-    client_id: context.clientId,
-    created_at: fallback.created_at || now,
-    created_by_user_id: fallback.created_by_user_id || session.user_id,
-    estimated_cost: normalizeOptionalNonNegativeNumber(valueOrFallback(payload, "estimated_cost", fallback.estimated_cost), "Estimated cost"),
-    item_name: itemName,
-    last_used_at: normalizeOptionalText(valueOrFallback(payload, "last_used_at", fallback.last_used_at)),
-    list_type: listType,
-    metadata_json: normalizeMetadata(valueOrFallback(payload, "metadata_json", fallback.metadata_json)),
-    normalized_name: normalizeCatalogName(itemName),
-    notes: normalizeOptionalText(valueOrFallback(payload, "notes", fallback.notes)),
-    project_id: projectId || "",
-    quantity: normalizeNonNegativeNumber(valueOrFallback(payload, "quantity", fallback.quantity) ?? 1, "Quantity"),
-    unit: normalizeOptionalText(valueOrFallback(payload, "unit", fallback.unit)),
-    updated_at: now,
-    updated_by_user_id: session.user_id,
-    url: normalizeOptionalText(valueOrFallback(payload, "url", fallback.url)),
-    use_count: normalizeInteger(valueOrFallback(payload, "use_count", fallback.use_count) || 0, "Use count"),
-    vendor_name: normalizeOptionalText(valueOrFallback(payload, "vendor_name", fallback.vendor_name)),
-    workspace_id: session.workspace_id,
-  };
-}
-
-async function resolveCatalogItemSnapshot(payload = {}, session) {
-  const catalogItemId = normalizeOptionalText(payload.catalog_item_id || payload.catalogItemId);
-
-  if (!catalogItemId) {
-    return null;
-  }
-
-  return readCatalogItemOrThrow(session, catalogItemId);
-}
-
-function catalogItemToItemFallback(catalogItem = {}) {
-  return {
-    catalog_item_id: catalogItem.catalog_item_id,
-    estimated_cost: catalogItem.estimated_cost,
-    item_name: catalogItem.item_name,
-    notes: catalogItem.notes,
-    quantity: catalogItem.quantity ?? 1,
-    unit: catalogItem.unit,
-    url: catalogItem.url,
-    vendor_name: catalogItem.vendor_name,
-  };
-}
-
+/** @param {ListsItemRecord} item @param {ListsRecord} listRecord @param {WorkspaceRequestSession} session @param {number} index @returns {ListsItemPersistenceInput} */
 function duplicateItemPayload(item, listRecord, session, index) {
   return {
     assigned_user_id: item.assigned_user_id || "",
@@ -1382,11 +1224,13 @@ function duplicateItemPayload(item, listRecord, session, index) {
   };
 }
 
+/** @param {string} workspaceId @param {string} listId @returns {Promise<number>} */
 async function nextSortOrder(workspaceId, listId) {
   const items = await listsRepository.listItems(workspaceId, listId);
   return items.length === 0 ? 0 : Math.max(...items.map((item) => Number(item.sort_order) || 0)) + 10;
 }
 
+/** @param {ListsServiceSession} session @param {ListsRawQuery} [query] @returns {Promise<ListsNormalizedQuery>} */
 async function normalizeListQuery(session, query = {}) {
   const status = normalizeListStatusFilter(query.status || query.status_filter);
   const archiveState = normalizeToken(query.archiveState || query.archive_state || query.archive || query.archivedState || query.archived_state);
@@ -1475,6 +1319,7 @@ async function normalizeListQuery(session, query = {}) {
   };
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeListStatusFilter(value) {
   const status = normalizeToken(value || LIST_STATUSES.ACTIVE);
   if (!status || status === "current") {
@@ -1489,6 +1334,7 @@ function normalizeListStatusFilter(value) {
   return status;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeListTypeFilter(value) {
   const listType = normalizeToken(value || "all");
   if (!listType || listType === "all") {
@@ -1500,6 +1346,7 @@ function normalizeListTypeFilter(value) {
   return listType;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeReusableFilter(value) {
   if (value === true || value === "true" || value === "yes" || value === "reusable") {
     return "yes";
@@ -1513,6 +1360,7 @@ function normalizeReusableFilter(value) {
   throw new AppError(`Reusable filter '${value}' is not supported.`, 400);
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeListSort(value) {
   const sort = normalizeToken(value || "updated_desc");
   const supportedSorts = new Set([
@@ -1532,15 +1380,18 @@ function normalizeListSort(value) {
   return sort;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeToken(value) {
   return normalizeOptionalText(value).toLowerCase();
 }
 
+/** @param {Record<string, unknown>} [query] @param {string[]} [keys] */
 function hasQueryField(query = {}, keys = []) {
   return keys.some((key) => Object.hasOwn(query, key));
 }
 
-function listMatchesCanonicalQuery(listRecord = {}, query = {}, session = {}) {
+/** @param {ListsBrowserRecord} listRecord @param {ListsNormalizedQuery} query @param {ListsServiceSession} session */
+function listMatchesCanonicalQuery(listRecord, query, session) {
   if (query.archiveState === "current" && ["archived", "deleted"].includes(listRecord.status)) {
     return false;
   }
@@ -1568,7 +1419,8 @@ function listMatchesCanonicalQuery(listRecord = {}, query = {}, session = {}) {
   return true;
 }
 
-function matchesListContextFilters(listRecord = {}, query = {}) {
+/** @param {ListsBrowserRecord} listRecord @param {ListsNormalizedQuery} query */
+function matchesListContextFilters(listRecord, query) {
   if (query.hasProjectFilter) {
     if (query.projectFilterMode === "blank") {
       if (String(listRecord.project_id || "").trim()) {
@@ -1606,7 +1458,8 @@ function matchesListContextFilters(listRecord = {}, query = {}) {
     scopedProjectIds.includes(String(listRecord.project_id || "").trim());
 }
 
-function matchesAssigneeFilter(listRecord = {}, assigneeId = "all", currentUserId = "") {
+/** @param {ListsBrowserRecord} listRecord @param {string} [assigneeId] @param {string} [currentUserId] */
+function matchesAssigneeFilter(listRecord, assigneeId = "all", currentUserId = "") {
   if (assigneeId === "all") {
     return true;
   }
@@ -1620,7 +1473,8 @@ function matchesAssigneeFilter(listRecord = {}, assigneeId = "all", currentUserI
   return assignedUserIds.has(assigneeId);
 }
 
-function matchesLinkedRecordFilter(listRecord = {}, query = {}) {
+/** @param {ListsBrowserRecord} listRecord @param {ListsNormalizedQuery} query */
+function matchesLinkedRecordFilter(listRecord, query) {
   return (listRecord.links || []).some((link) => {
     const target = link.target;
     if (!target) {
@@ -1639,7 +1493,8 @@ function matchesLinkedRecordFilter(listRecord = {}, query = {}) {
   });
 }
 
-function sortCanonicalLists(lists = [], query = {}) {
+/** @param {ListsBrowserRecord[]} lists @param {ListsNormalizedQuery} query @returns {ListsBrowserRecord[]} */
+function sortCanonicalLists(lists = [], query) {
   return [...lists].sort((left, right) => {
     const fallback = compareText(left.title, right.title) ||
       compareText(left.list_type, right.list_type) ||
@@ -1671,7 +1526,8 @@ function sortCanonicalLists(lists = [], query = {}) {
   });
 }
 
-function sourceSortLabel(listRecord = {}) {
+/** @param {ListsBrowserRecord} listRecord */
+function sourceSortLabel(listRecord) {
   return [
     listRecord.is_reusable ? "0-reusable" : "1-working",
     listRecord.sourceContext?.sourceList?.title || listRecord.sourceContext?.duplicatedFrom?.title || "",
@@ -1679,18 +1535,22 @@ function sourceSortLabel(listRecord = {}) {
   ].join(" ");
 }
 
+/** @param {unknown} left @param {unknown} right */
 function compareDateAsc(left, right) {
   return String(left || "9999-12-31T23:59:59.999Z").localeCompare(String(right || "9999-12-31T23:59:59.999Z"));
 }
 
+/** @param {unknown} left @param {unknown} right */
 function compareDateDesc(left, right) {
   return String(right || "").localeCompare(String(left || ""));
 }
 
+/** @param {unknown} left @param {unknown} right */
 function compareText(left, right) {
   return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
 }
 
+/** @param {unknown} value @returns {ListsItemOrder[]} */
 function normalizeItemOrders(value) {
   if (!Array.isArray(value)) {
     throw new AppError("Item order payload must be an array.", 400);
@@ -1702,6 +1562,7 @@ function normalizeItemOrders(value) {
   }));
 }
 
+/** @param {Record<string, unknown>} object @param {string} snakeKey @param {unknown} fallbackValue @returns {unknown} */
 function valueOrFallback(object = {}, snakeKey, fallbackValue) {
   const camelKey = snakeKey.replace(/_([a-z])/g, (_match, letter) => letter.toUpperCase());
 
@@ -1716,6 +1577,7 @@ function valueOrFallback(object = {}, snakeKey, fallbackValue) {
   return fallbackValue;
 }
 
+/** @param {unknown} value @param {string} label @returns {string} */
 function normalizeRequiredText(value, label) {
   const text = normalizeOptionalText(value);
 
@@ -1726,6 +1588,7 @@ function normalizeRequiredText(value, label) {
   return text;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeOptionalText(value) {
   if (value === null || value === undefined) {
     return "";
@@ -1734,6 +1597,7 @@ function normalizeOptionalText(value) {
   return String(value).trim();
 }
 
+/** @param {unknown} value @param {Set<string>} allowedValues @param {string} label @returns {string} */
 function normalizeEnum(value, allowedValues, label) {
   const text = normalizeRequiredText(value, label);
 
@@ -1744,6 +1608,7 @@ function normalizeEnum(value, allowedValues, label) {
   return text;
 }
 
+/** @param {unknown} value @param {string} label @returns {string} */
 function normalizeOptionalDate(value, label) {
   const text = normalizeOptionalText(value);
 
@@ -1758,6 +1623,7 @@ function normalizeOptionalDate(value, label) {
   return text;
 }
 
+/** @param {unknown} value @param {string} label @returns {number} */
 function normalizeNonNegativeNumber(value, label) {
   const number = Number(value);
 
@@ -1768,6 +1634,7 @@ function normalizeNonNegativeNumber(value, label) {
   return number;
 }
 
+/** @param {unknown} value @param {string} label @returns {number | null} */
 function normalizeOptionalNonNegativeNumber(value, label) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -1776,6 +1643,7 @@ function normalizeOptionalNonNegativeNumber(value, label) {
   return normalizeNonNegativeNumber(value, label);
 }
 
+/** @param {unknown} value @param {string} label @returns {number} */
 function normalizeInteger(value, label) {
   const number = Number(value);
 
@@ -1786,20 +1654,7 @@ function normalizeInteger(value, label) {
   return number;
 }
 
-function normalizeSuggestionLimit(value) {
-  const number = Number(value || 8);
-
-  if (!Number.isFinite(number)) {
-    return 8;
-  }
-
-  return Math.max(1, Math.min(Math.trunc(number), 20));
-}
-
-function normalizeCatalogName(value) {
-  return normalizeOptionalText(value).toLowerCase().replace(/\s+/g, " ");
-}
-
+/** @param {Record<string, unknown>} payload @param {ListsRecord} listRecord @param {WorkspaceRequestSession} session @returns {ListsLinkPersistenceInput} */
 function normalizeLinkPayload(payload = {}, listRecord, session) {
   const target = normalizeTarget(payload);
 
@@ -1816,6 +1671,7 @@ function normalizeLinkPayload(payload = {}, listRecord, session) {
   };
 }
 
+/** @param {Record<string, unknown>} [payload] @returns {ListsLinkTargetIdentity} */
 function normalizeTarget(payload = {}) {
   const targetType = normalizeRequiredText(payload.targetType || payload.target_type, "Target type");
   const targetId = normalizeRequiredText(payload.targetId || payload.target_id, "Target ID");
@@ -1838,7 +1694,8 @@ function normalizeTarget(payload = {}) {
   };
 }
 
-async function assertLinkTargetProviderAvailable(session, target = {}) {
+/** @param {WorkspaceRequestSession} session @param {ListsLinkTargetIdentity} target */
+async function assertLinkTargetProviderAvailable(session, target) {
   const providers = await modulesService.listActiveLinkedContextProviders(session.workspace_id, session);
   if (!providers.some((provider) => (
     provider.targetType === target.target_type &&
@@ -1849,6 +1706,7 @@ async function assertLinkTargetProviderAvailable(session, target = {}) {
   }
 }
 
+/** @param {string} targetType @returns {string} */
 function moduleIdForTargetType(targetType) {
   return {
     client: "client-projects",
@@ -1858,6 +1716,7 @@ function moduleIdForTargetType(targetType) {
   }[targetType] || "";
 }
 
+/** @param {unknown} value @returns {Record<string, unknown>} */
 function normalizeMetadata(value) {
   if (typeof value === "string") {
     try {
@@ -1867,10 +1726,11 @@ function normalizeMetadata(value) {
     }
   }
 
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? { ...value } : {};
 }
 
-async function shapeListForBrowser(session, listRecord = {}) {
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord @returns {Promise<ListsBrowserRecord>} */
+async function shapeListForBrowser(session, listRecord) {
   const shapedLists = await shapeListsForBrowser(session, [listRecord]);
   return shapedLists[0] || {
     ...listRecord,
@@ -1884,6 +1744,7 @@ async function shapeListForBrowser(session, listRecord = {}) {
   };
 }
 
+/** @param {ListsServiceSession} session @param {ListsRecord[]} [listRecords] @returns {Promise<ListsBrowserRecord[]>} */
 async function shapeListsForBrowser(session, listRecords = []) {
   const batch = createVisibleRecordBatch(listRecords, { idField: "list_id" });
   const [progressByListId, linksByListId, sourceContextByListId] = await Promise.all([
@@ -1908,64 +1769,26 @@ async function shapeListsForBrowser(session, listRecords = []) {
   });
 }
 
-async function readListProgressSummary(session, listRecord = {}) {
-  const items = listRecord.list_id
-    ? await listsRepository.listItems(session.workspace_id, listRecord.list_id, { includeDeleted: false })
-    : [];
-  return listProgressSummaryFromItems(listRecord, items);
+/** @param {ListsServiceSession} session @param {ListsRecord} listRecord @returns {Promise<ListsItemProgressSummary>} */
+async function readListProgressSummary(session, listRecord) {
+  return listItemsService.readProgressSummary(session, /** @type {import("../../types/lists-item-contracts.js").ListsItemListRecord} */ (listRecord));
 }
 
+/** @param {ListsServiceSession} session @param {ListsVisibleBatch} batch @returns {Promise<Map<string, ListsItemProgressSummary>>} */
 async function readListProgressSummaries(session, batch) {
-  const progressByListId = mapVisibleRecordBatch(batch, (listRecord) => listProgressSummaryFromItems(listRecord, []));
-
-  if (batch.isEmpty) {
-    return progressByListId;
-  }
-
-  const items = await listsRepository.listItemsForLists(session.workspace_id, batch.ids, { includeDeleted: false });
-  const itemsByListId = groupRowsByRecordId(items, { idField: "list_id" });
-
-  return mapVisibleRecordBatch(batch, (listRecord) => (
-    listProgressSummaryFromItems(listRecord, itemsByListId.get(listRecord.list_id) || [])
-  ));
+  return listItemsService.readProgressSummaries(session, batch);
 }
 
-function listProgressSummaryFromItems(listRecord = {}, items = []) {
-  const nextUncheckedItem = items
-    .slice()
-    .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
-    .find((item) => !item.checked_at && !item.completed_at);
-  const neededDates = items
-    .map((item) => item.needed_by_date)
-    .filter(Boolean)
-    .sort();
-  const activityCandidates = [
-    listRecord.updated_at,
-    listRecord.created_at,
-    ...items.flatMap((item) => [
-      item.updated_at,
-      item.checked_at,
-      item.completed_at,
-      item.deleted_at,
-      item.created_at,
-    ]),
-  ].filter(Boolean).sort();
-
-  return {
-    assignedUserIds: [...new Set(items.map((item) => item.assigned_user_id).filter(Boolean))].sort(),
-    checkedItemCount: items.filter((item) => Boolean(item.checked_at)).length,
-    completedItemCount: items.filter((item) => Boolean(item.completed_at)).length,
-    earliestNeededByDate: neededDates[0] || null,
-    incompleteItemCount: items.filter((item) => !item.checked_at && !item.completed_at).length,
-    lastActivityAt: activityCandidates.at(-1) || null,
-    neededByDates: [...new Set(neededDates)],
-    nextUncheckedItemLabel: nextUncheckedItem?.item_name || "",
-    totalItemCount: items.length,
-    unassignedItemCount: items.filter((item) => !item.assigned_user_id).length,
-  };
+/** @param {ListsRecord} listRecord @param {ListsItemRecord[]} [items] @returns {ListsItemProgressSummary} */
+function listProgressSummaryFromItems(listRecord, items = []) {
+  return listItemsService.progressSummaryFromItems(
+    /** @type {import("../../types/lists-item-contracts.js").ListsItemListRecord} */ (listRecord),
+    /** @type {import("../../types/lists-item-contracts.js").ListsItemRecord[]} */ (items),
+  );
 }
 
-function buildListResumeContext(listRecord = {}, progress = {}, links = []) {
+/** @param {ListsRecord} listRecord @param {ListsItemProgressSummary} progress @param {ListsBrowserLink[]} [links] @returns {import("../../types/lists-domain-contracts.js").ListsResumeContext} */
+function buildListResumeContext(listRecord, progress, links = []) {
   const sourceUrl = listRecord.list_id ? `lists.html?list=${encodeURIComponent(listRecord.list_id)}` : "lists.html";
 
   return {
@@ -1988,6 +1811,7 @@ function buildListResumeContext(listRecord = {}, progress = {}, links = []) {
   };
 }
 
+/** @param {ListsServiceSession} session @param {ListsVisibleBatch} batch @returns {Promise<Map<string, ListsSourceContext>>} */
 async function readSourceContextsForLists(session, batch) {
   const contexts = mapVisibleRecordBatch(batch, () => ({ duplicatedFrom: null, sourceList: null }));
   const sourceIds = [...new Set((batch.records || [])
@@ -2014,7 +1838,8 @@ async function readSourceContextsForLists(session, batch) {
   }));
 }
 
-function shapeSourceSummary(sourceList = {}) {
+/** @param {ListsRecord} sourceList @returns {ListsSourceSummary} */
+function shapeSourceSummary(sourceList) {
   return {
     finalized_at: sourceList.finalized_at || null,
     is_reusable: Boolean(sourceList.is_reusable),
@@ -2025,22 +1850,16 @@ function shapeSourceSummary(sourceList = {}) {
   };
 }
 
-function shapeItemForBrowser(item = {}) {
+/** @param {ListsItemRecord} item @returns {ListsItemRecord & { id: string }} */
+function shapeItemForBrowser(item) {
   return {
     ...item,
     id: item.list_item_id,
   };
 }
 
-function shapeCatalogItemForBrowser(item = {}) {
-  return {
-    ...item,
-    id: item.catalog_item_id,
-  };
-}
-
-/** @param {Record<string, unknown>} link @param {LinkedTargetRecord | null} target */
-function shapeLinkForBrowser(link = {}, target = null) {
+/** @param {ListsLinkRecord} link @param {LinkedTargetRecord | null} [target] @returns {ListsBrowserLink} */
+function shapeLinkForBrowser(link, target = null) {
   return {
     ...link,
     id: link.list_link_id,
@@ -2049,7 +1868,8 @@ function shapeLinkForBrowser(link = {}, target = null) {
   };
 }
 
-function sanitizeLinkForAudit(link = {}) {
+/** @param {ListsLinkRecord} link @returns {Record<string, unknown>} */
+function sanitizeLinkForAudit(link) {
   return {
     link_role: link.link_role || "",
     list_link_id: link.list_link_id || "",
@@ -2059,6 +1879,7 @@ function sanitizeLinkForAudit(link = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} listId @param {string} reason */
 async function syncListSearchIndex(workspaceId, listId, reason) {
   await searchIndexSyncService.reindexRecord({
     moduleId: LIST_MODULE_ID,
@@ -2069,6 +1890,7 @@ async function syncListSearchIndex(workspaceId, listId, reason) {
   }, { swallowErrors: true });
 }
 
+/** @param {ListsServiceSession} session @param {string} action @param {string} changeType @param {ListsRecord | null} previousValue @param {ListsRecord} newValue @param {Record<string, unknown>} [metadata] */
 async function recordListAudit(session, action, changeType, previousValue, newValue, metadata = {}) {
   await auditService.record({
     session,
@@ -2089,6 +1911,7 @@ async function recordListAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} action @param {string} changeType @param {ListsItemRecord | null} previousValue @param {ListsItemRecord} newValue @param {ListsRecord} listRecord */
 async function recordItemAudit(session, action, changeType, previousValue, newValue, listRecord) {
   await auditService.record({
     session,
@@ -2112,6 +1935,7 @@ async function recordItemAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} action @param {string} changeType @param {ListsLinkRecord | null} previousValue @param {ListsLinkRecord} newValue @param {ListsRecord} listRecord */
 async function recordLinkAudit(session, action, changeType, previousValue, newValue, listRecord) {
   await auditService.record({
     session,
@@ -2136,6 +1960,7 @@ async function recordLinkAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} action @param {string} changeType @param {ListsCatalogItemRecord | null} previousValue @param {ListsCatalogItemRecord} newValue */
 async function recordCatalogAudit(session, action, changeType, previousValue, newValue) {
   await auditService.record({
     session,
@@ -2160,10 +1985,11 @@ async function recordCatalogAudit(session, action, changeType, previousValue, ne
   });
 }
 
+/** @param {string} eventName @param {ListsServiceSession} session @param {ListsRecord | null} previousValue @param {ListsRecord} newValue @param {Record<string, unknown>} [metadata] */
 async function emitListEvent(eventName, session, previousValue, newValue, metadata = {}) {
   const progress = newValue?.list_id
     ? await readListProgressSummary(session, newValue)
-    : {};
+    : listProgressSummaryFromItems(newValue, []);
 
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: session.user_id,
@@ -2185,6 +2011,7 @@ async function emitListEvent(eventName, session, previousValue, newValue, metada
   });
 }
 
+/** @param {string} eventName @param {WorkspaceRequestSession} session @param {ListsCatalogItemRecord | null} previousValue @param {ListsCatalogItemRecord} newValue */
 async function emitCatalogEvent(eventName, session, previousValue, newValue) {
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: session.user_id,
@@ -2207,10 +2034,11 @@ async function emitCatalogEvent(eventName, session, previousValue, newValue) {
   });
 }
 
+/** @param {string} eventName @param {WorkspaceRequestSession} session @param {ListsItemRecord | null} previousValue @param {ListsItemRecord} newValue @param {ListsRecord} listRecord */
 async function emitItemEvent(eventName, session, previousValue, newValue, listRecord) {
   const progress = listRecord?.list_id
     ? await readListProgressSummary(session, listRecord)
-    : {};
+    : listProgressSummaryFromItems(listRecord, []);
 
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: session.user_id,
@@ -2233,7 +2061,8 @@ async function emitItemEvent(eventName, session, previousValue, newValue, listRe
   });
 }
 
-function sanitizeCatalogForAudit(item = {}) {
+/** @param {ListsCatalogItemRecord} item @returns {Record<string, unknown>} */
+function sanitizeCatalogForAudit(item) {
   return {
     archived_at: item.archived_at || "",
     catalog_item_id: item.catalog_item_id || "",
@@ -2252,7 +2081,8 @@ function sanitizeCatalogForAudit(item = {}) {
   };
 }
 
-function safeResumeMetadataForList(listRecord = {}, progress = {}) {
+/** @param {ListsRecord} listRecord @param {ListsItemProgressSummary} progress @returns {Record<string, unknown>} */
+function safeResumeMetadataForList(listRecord, progress) {
   return {
     checked_item_count: progress.checkedItemCount ?? 0,
     client_id: listRecord.client_id || "",

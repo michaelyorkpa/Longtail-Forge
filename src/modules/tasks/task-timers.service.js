@@ -12,12 +12,20 @@ import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { normalizeTimeEntryBillable } from "../../utils/normalizers.js";
 
-/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
-/** @typedef {{ task_id: string, title: string }} TaskTimerSourceTask */
-/** @typedef {{ billable?: unknown }} TaskTimerBillableTask */
-/** @typedef {{ accumulated_elapsed_seconds?: string | number | null, active_timer_id?: string | null, active_task_timer_id?: string | null, last_active_start_time?: import("../../utils/timezones.js").DateTimeInput, timer_status?: string | null }} TaskTimerSavePayload */
-/** @typedef {{ timer_slot?: unknown, timerSlot?: unknown }} TaskTimerLinkPayload */
-/** @typedef {{ finalize: typeof finalize, hasActiveTaskTimers: typeof hasActiveTaskTimers, linkManualTimer: typeof linkManualTimer, list: typeof list, pauseRunningForBlockedTask: typeof pauseRunningForBlockedTask, remove: typeof remove, save: typeof save }} TaskTimersService */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerAuditInput} TaskTimerAuditInput */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerFinalizeResult} TaskTimerFinalizeResult */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerLinkPayload} TaskTimerLinkPayload */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerLinkResult} TaskTimerLinkResult */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRecord} TaskTimerRecord */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRemoveResult} TaskTimerRemoveResult */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerResumeContext} TaskTimerResumeContext */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSavePayload} TaskTimerSavePayload */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSaveResult} TaskTimerSaveResult */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerSourceTask} TaskTimerSourceTask */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerTransition} TaskTimerTransition */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimersService} TaskTimersService */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskWorkflowSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimerRecord */
 
 const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
@@ -34,7 +42,7 @@ async function pauseRunningForBlockedTask(task, session) {
   return activeTimersService.pauseRunningSourced(taskTimerSource(task), session);
 }
 
-/** @param {string} taskId @param {TaskTimerSavePayload} payload @param {WorkspaceRequestSession} session */
+/** @param {string} taskId @param {TaskTimerSavePayload} payload @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerSaveResult>} */
 async function save(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -51,14 +59,14 @@ async function save(taskId, payload, session) {
   try {
     result = await activeTimersService.saveSourced(taskTimerSource(task), {
       active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id,
-      client_id: task.client_id,
-      client_name: task.client_name,
-      project_id: task.project_id,
-      project_name: task.project_name,
+      client_id: String(task.client_id || ""),
+      client_name: String(task.client_name || ""),
+      project_id: String(task.project_id || ""),
+      project_name: String(task.project_name || ""),
       description: task.title,
       billable: taskTimerBillable(task),
       accumulated_elapsed_seconds: elapsedSeconds,
-      last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
+      last_active_start_time: timerStatus === "running" ? normalizeUtcIso(/** @type {import("../../utils/timezones.js").DateTimeInput} */ (payload?.last_active_start_time), session.timezone) : null,
       sourceMetadata: {
         taskTimerStatusTransition: transition,
       },
@@ -82,7 +90,7 @@ async function save(taskId, payload, session) {
   };
 }
 
-/** @param {string} taskId @param {TaskTimerLinkPayload} payload @param {WorkspaceRequestSession} session */
+/** @param {string} taskId @param {TaskTimerLinkPayload} payload @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerLinkResult>} */
 async function linkManualTimer(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -109,11 +117,11 @@ async function linkManualTimer(taskId, payload, session) {
   try {
     result = await activeTimersService.convertManualToSourced(timerSlot, taskTimerSource(task), {
       billable: taskTimerBillable(task),
-      client_id: task.client_id,
-      client_name: task.client_name,
+      client_id: String(task.client_id || ""),
+      client_name: String(task.client_name || ""),
       description: task.title,
-      project_id: task.project_id,
-      project_name: task.project_name,
+      project_id: String(task.project_id || ""),
+      project_name: String(task.project_name || ""),
       sourceMetadata: {
         linkedFromManualTimerSlot: timerSlot,
         taskTimerStatusTransition: transition,
@@ -166,7 +174,7 @@ async function linkManualTimer(taskId, payload, session) {
   };
 }
 
-/** @param {string} taskId @param {WorkspaceRequestSession} session */
+/** @param {string} taskId @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerRemoveResult>} */
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
@@ -183,7 +191,7 @@ async function remove(taskId, session) {
   };
 }
 
-/** @param {string} taskId @param {unknown} payload @param {WorkspaceRequestSession} session */
+/** @param {string} taskId @param {unknown} payload @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerFinalizeResult>} */
 async function finalize(taskId, payload, session) {
   const task = await readEligibleTask(taskId, session);
   await assertTaskTimersEnabled(session);
@@ -237,6 +245,7 @@ async function hasActiveTaskTimers(workspaceId, taskId) {
   return taskTimersRepository.hasActiveForTask(workspaceId, taskId);
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function assertTaskTimersEnabled(session) {
   const [tasksWritable, timeWritable, taskTimersEnabled] = await Promise.all([
     modulesService.canWriteModule(session.workspace_id, TASKS_MODULE_ID),
@@ -257,6 +266,7 @@ async function assertTaskTimersEnabled(session) {
   }
 }
 
+/** @param {string} taskId @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerSourceTask>} */
 async function readEligibleTask(taskId, session) {
   const task = await readTaskOrThrow(taskId, session);
 
@@ -271,6 +281,7 @@ async function readEligibleTask(taskId, session) {
   return task;
 }
 
+/** @param {string} taskId @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerSourceTask>} */
 async function readTaskOrThrow(taskId, session) {
   const task = await tasksRepository.readById(session.workspace_id, decodeURIComponent(taskId || ""));
 
@@ -281,6 +292,7 @@ async function readTaskOrThrow(taskId, session) {
   return task;
 }
 
+/** @param {WorkspaceRequestSession} session @param {TaskTimerSourceTask} task */
 async function assertCanUseTaskTimer(session, task) {
   await permissionsService.assertCan(session, "tasks.view", taskResource(task));
   await permissionsService.assertCan(session, "time_entries.create", {
@@ -291,6 +303,7 @@ async function assertCanUseTaskTimer(session, task) {
   });
 }
 
+/** @param {TaskTimerSourceTask} task @param {TaskTimerRecord | null} existingTimer @param {WorkspaceRequestSession} session @returns {Promise<TaskTimerTransition>} */
 async function transitionTaskToInProgressForTimerStart(task, existingTimer, session) {
   const existingTransition = taskTimerTransitionMetadata(existingTimer);
 
@@ -336,6 +349,7 @@ async function transitionTaskToInProgressForTimerStart(task, existingTimer, sess
   };
 }
 
+/** @param {TaskTimerSourceTask} task @param {TaskTimerRecord | { sourceMetadata?: Record<string, unknown>, source_metadata_json?: string } | null} timer @param {WorkspaceRequestSession} session @param {{ force?: boolean }} [options] */
 async function revertTaskTimerStartTransition(task, timer, session, options = {}) {
   const transition = taskTimerTransitionMetadata(timer);
 
@@ -375,6 +389,7 @@ async function revertTaskTimerStartTransition(task, timer, session, options = {}
   return updatedTask;
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} taskId @param {string} reason */
 async function markTaskWorked(session, taskId, reason) {
   await tasksRepository.markWorkedAt(session.workspace_id, taskId, new Date().toISOString(), session.user_id);
   await searchIndexSyncService.reindexRecord({
@@ -386,9 +401,10 @@ async function markTaskWorked(session, taskId, reason) {
   });
 }
 
+/** @param {TaskTimerRecord | { sourceMetadata?: Record<string, unknown>, source_metadata_json?: string } | null} timer @returns {TaskTimerTransition} */
 function taskTimerTransitionMetadata(timer) {
   const metadata = timer?.sourceMetadata || parseTimerSourceMetadata(timer?.source_metadata_json);
-  const transition = metadata?.taskTimerStatusTransition || {};
+  const transition = /** @type {Partial<TaskTimerTransition>} */ (metadata?.taskTimerStatusTransition || {});
 
   const previousStatus = transition.previousStatus === "blocked" ? "blocked" : transition.previousStatus === "open" ? "open" : "";
   const movedTaskFromOpen = transition.movedTaskFromOpen === true || (
@@ -407,6 +423,7 @@ function taskTimerTransitionMetadata(timer) {
   };
 }
 
+/** @param {unknown} value @returns {Record<string, unknown>} */
 function parseTimerSourceMetadata(value) {
   try {
     const parsed = JSON.parse(String(value || "{}"));
@@ -416,6 +433,7 @@ function parseTimerSourceMetadata(value) {
   }
 }
 
+/** @param {TaskTimerAuditInput} input */
 async function recordTaskTimerStatusAudit({ session, action, previousTask, nextTask, transition }) {
   await auditService.record({
     session,
@@ -439,6 +457,7 @@ async function recordTaskTimerStatusAudit({ session, action, previousTask, nextT
   });
 }
 
+/** @param {TaskTimerSourceTask} task */
 function taskResource(task) {
   return {
     workspace_id: task.workspace_id,
@@ -458,22 +477,47 @@ function taskTimerSource(task) {
   };
 }
 
-/** @param {TaskTimerBillableTask} task @returns {"yes" | "no"} */
+/** @param {TaskTimerSourceTask} task @returns {"yes" | "no"} */
 function taskTimerBillable(task) {
   return normalizeTimeEntryBillable(task?.billable) || "yes";
 }
 
 /**
- * @template {{ active_timer_id: string }} Timer
- * @param {Timer} timer
+ * @param {ActiveTimerRecord & { resumeContext: Record<string, unknown>, resume_context: Record<string, unknown> }} timer
  * @param {TaskTimerSourceTask} task
- * @returns {Timer & { active_task_timer_id: string, task_id: string }}
+ * @returns {TaskTimerRecord}
  */
 function taskTimerFromUnified(timer, task) {
+  /** @type {TaskTimerResumeContext} */
+  const resumeContext = {
+    accumulatedElapsedSeconds: Number(timer.resumeContext.accumulatedElapsedSeconds) || 0,
+    clientId: String(timer.resumeContext.clientId || ""),
+    clientName: String(timer.resumeContext.clientName || ""),
+    lastActiveStartTime: typeof timer.resumeContext.lastActiveStartTime === "string"
+      ? timer.resumeContext.lastActiveStartTime
+      : null,
+    projectId: String(timer.resumeContext.projectId || ""),
+    projectName: String(timer.resumeContext.projectName || ""),
+    sourceId: String(timer.resumeContext.sourceId || task.task_id),
+    sourceLabel: String(timer.resumeContext.sourceLabel || task.title || ""),
+    sourceModuleId: String(timer.resumeContext.sourceModuleId || "tasks"),
+    sourceType: String(timer.resumeContext.sourceType || "task"),
+    sourceUrl: String(timer.resumeContext.sourceUrl || ""),
+    timerStatus: timer.resumeContext.timerStatus === "running" ? "running" : "paused",
+  };
   return {
     ...timer,
     active_task_timer_id: timer.active_timer_id,
     task_id: task.task_id,
+    source_module_id: timer.source_module_id || "tasks",
+    source_type: timer.source_type || "task",
+    source_id: timer.source_id || task.task_id,
+    source_metadata_json: typeof timer.source_metadata_json === "string" ? timer.source_metadata_json : "{}",
+    sourceMetadata: timer.sourceMetadata || {},
+    resumeContext,
+    resume_context: resumeContext,
+    created_at: timer.created_at || "",
+    updated_at: timer.updated_at || "",
   };
 }
 

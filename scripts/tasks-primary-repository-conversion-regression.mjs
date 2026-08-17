@@ -183,6 +183,7 @@ async function assertDueReminderAndRecurrenceReads(session, fixtures) {
 
 async function assertLastWorkedUpdate(session, taskId) {
   const before = await tasksRepository.readById(session.workspace_id, taskId);
+  assert.ok(before, "task should exist before the repository conversion assertion");
   const workedAt = new Date(Date.now() + 1_000).toISOString();
   const after = await tasksRepository.markWorkedAt(session.workspace_id, taskId, workedAt, "");
 

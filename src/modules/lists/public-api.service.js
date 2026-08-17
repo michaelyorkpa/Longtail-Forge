@@ -1,10 +1,13 @@
+// @ts-check
 import { listsService } from "./lists.service.js";
 
+/** @param {ApiSession} context @param {ListsServiceQuery} [query] @returns {Promise<ListsPublicApiListResult>} */
 async function listLists(context, query = {}) {
   const result = await listsService.list(context, query);
   return paged(result.lists.map((list) => withWorkspaceAlias(list, context)), query);
 }
 
+/** @param {ApiSession} context @param {string} listId @param {ListsServiceQuery} [query] @returns {Promise<ListsPublicApiReadResult>} */
 async function readList(context, listId, query = {}) {
   const result = await listsService.read(listId, context, {
     includeDeleted: queryFlag(query.includeDeleted || query.include_deleted),
@@ -18,6 +21,7 @@ async function readList(context, listId, query = {}) {
   };
 }
 
+/** @param {ListsBrowserRecord} record @param {ApiSession} context @returns {ListsBrowserRecord} */
 function withWorkspaceAlias(record, context) {
   if (!record || typeof record !== "object") {
     return record;
@@ -29,6 +33,7 @@ function withWorkspaceAlias(record, context) {
   };
 }
 
+/** @param {ListsBrowserRecord[]} items @param {ListsServiceQuery} query @returns {ListsPublicApiListResult} */
 function paged(items, query) {
   const limit = clampInteger(query.limit, 1, 100, 50);
   const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
@@ -44,12 +49,14 @@ function paged(items, query) {
   };
 }
 
+/** @param {unknown} value */
 function queryFlag(value) {
   return value === true || value === "true";
 }
 
+/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
 function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -62,3 +69,10 @@ export const listsPublicApiService = {
   listLists,
   readList,
 };
+
+/** @typedef {import("../../types/http-contracts.js").ApiSession} ApiSession */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsPublicApiListResult} ListsPublicApiListResult */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsPublicApiReadResult} ListsPublicApiReadResult */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRecord} ListsRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsBrowserRecord} ListsBrowserRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsServiceQuery} ListsServiceQuery */

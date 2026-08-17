@@ -21,7 +21,7 @@ const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
-const filesServiceSource = readText("src/services/files.service.js");
+const filesRepoSource = readText("src/repositories/files.repo.js");
 const usersRepoSource = readText("src/repositories/users.repo.js");
 const workspacesRepoSource = readText("src/repositories/workspaces.repo.js");
 
@@ -52,9 +52,9 @@ function assertStaticBoundary() {
   assert.match(sqliteSearchAdapterSource, /db\.dialect\.introspection\.compileOptions\(\)/, "SQLite search adapter should read compile options through the introspection seam");
   assert.doesNotMatch(sqliteSearchAdapterSource, /PRAGMA compile_options/, "SQLite search adapter should not own raw compile-options PRAGMA SQL");
 
-  const readTableColumnSet = functionBlock(filesServiceSource, "readTableColumnSet");
-  assert.match(readTableColumnSet, /db\.dialect\.introspection\.tableInfo\(tableName\)/, "Files service should consume provider-owned table introspection");
-  assert.doesNotMatch(readTableColumnSet, /\bPRAGMA\b/, "Files service should not own raw PRAGMA table introspection");
+  const readTableColumnSet = functionBlock(filesRepoSource, "readTableColumnSet");
+  assert.match(readTableColumnSet, /db\.dialect\.introspection\.tableInfo\(safeSqlIdentifier\(tableName\)\)/, "Files repository should consume provider-owned table introspection");
+  assert.doesNotMatch(readTableColumnSet, /\bPRAGMA\b/, "Files repository should not own raw PRAGMA table introspection");
 
   assert.match(usersRepoSource, /db\.dialect\.identity\.rowId\(\{ tableAlias: "users" \}\)/, "users repository should consume provider-owned physical identity reads");
   assert.match(usersRepoSource, /db\.dialect\.identity\.rowId\(\{ tableAlias: "user_rows" \}\)/, "users repository should consume provider-owned qualified physical identity reads");

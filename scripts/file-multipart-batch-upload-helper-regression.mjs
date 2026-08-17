@@ -52,6 +52,7 @@ function assertStaticContracts() {
   const roadmap = readText("ROADMAP.md");
   const filesRoutes = readText("src/routes/files.routes.js");
   const filesService = readText("src/services/files.service.js");
+  const filesRepository = readText("src/repositories/files.repo.js");
   const helper = readText("public/js/shared/file-attachments.js");
   const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
   const moduleContract = readText("docs/module-contract.md");
@@ -69,7 +70,8 @@ function assertStaticContracts() {
   assert.match(filesRoutes, /multipartBatchFailureResult\(\{[\s\S]*info[\s\S]*\}\)/, "Multipart batch malformed file parts should preserve their filename when available");
   assert.match(filesService, /assertStoredFileObjectExists\(file,[\s\S]*adapter\.metadata\(file\.storage_key\)/, "metadata() should remain an active storage adapter contract for download and preview pre-checks");
   assert.doesNotMatch(localStorageAdapter, /async quarantine\(/, "Local storage adapter should not expose unused quarantine() surface");
-  assert.match(functionBlock(filesService, "quarantineFile"), /SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
+  assert.match(functionBlock(filesService, "quarantineFile"), /filesRepo\.quarantineFile/, "Quarantine service should delegate only the lifecycle write to the Files repository");
+  assert.match(functionBlock(filesRepository, "quarantineFile"), /SET status = 'quarantined'[\s\S]*quarantine_reason = :quarantineReason/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
 
   assert.match(helper, /FormData/, "Attachment helper should build multipart form uploads");
   assert.match(helper, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Attachment helper should prefer the streamed multipart batch route");

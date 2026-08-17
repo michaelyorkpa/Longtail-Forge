@@ -14,6 +14,7 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Context-Targets-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
@@ -41,9 +42,10 @@ try {
 
 function assertStaticContract() {
 
-  assert.match(filesServiceSource, /from "\.\.\/core\/database\.js"/, "Files service should import database access from the provider-neutral facade");
-  assertFunctionUsesNamedParams("updateAttachmentContext", [
-    /await db\.run\(`/,
+  assert.match(filesServiceSource, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should delegate persistence to the Files repository");
+  assert.match(filesRepositorySource, /from "\.\.\/core\/database\.js"/, "Files repository should import database access from the provider-neutral facade");
+  assertFunctionUsesNamedParams(filesRepositorySource, "updateAttachmentContext", [
+    /db\.run\(`/,
     /SET module_id = :attachmentModuleId/,
     /target_type = :attachmentTargetType/,
     /target_id = :attachmentTargetId/,
@@ -51,41 +53,40 @@ function assertStaticContract() {
     /project_id = :attachmentProjectId/,
     /file_attachment_id = :attachmentId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachableTarget", [
-    /safeSqlIdentifier\(attachableType\.tableName\)/,
-    /safeSqlIdentifier\(attachableType\.idField\)/,
-    /safeSqlIdentifier\(attachableType\.labelField\)/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachableTarget", [
+    /safeSqlIdentifier\(fields\.tableName\)/,
+    /safeSqlIdentifier\(fields\.idField\)/,
+    /safeSqlIdentifier\(fields\.labelField\)/,
     /await db\.get\(`/,
     /WHERE \${workspaceField} = :attachableTargetWorkspaceId/,
     /AND \${idField} = :attachableTargetId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentContextLabels", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentContextLabels", [
     /db\.get\(`/,
-    /workspace_id = :contextWorkspaceId/,
-    /id = :contextClientId/,
-    /id = :contextProjectId/,
+    /workspace_id = :workspaceId/,
+    /id = :recordId/,
   ]);
-  assertFunctionUsesNamedParams("readWorkspaceType", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readWorkspaceType", [
+    /await db\.get\(`/,
     /workspace_id = :workspaceId/,
   ]);
-  assertFunctionUsesNamedParams("readClientLabelMap", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readClientLabels", [
     /await db\.query\(`/,
-    /id IN \(:clientIds\)/,
+    /id IN \(:recordIds\)/,
   ]);
-  assertFunctionUsesNamedParams("readProjectLabelMap", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readProjectLabels", [
     /await db\.query\(`/,
-    /id IN \(:projectIds\)/,
+    /id IN \(:recordIds\)/,
   ]);
-  assertFunctionUsesNamedParams("readAttachableTargetOptionRows", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachableTargetOptionRows", [
     /await readTableColumnSet\(tableName\)/,
     /db\.dialect\.comparison\.likePattern\(filters\.search/,
     /db\.dialect\.comparison\.containsNoCase\(labelExpression, ":attachableTargetSearchPattern"\)/,
     /await db\.query\(`/,
     /LIMIT :attachableTargetLimit/,
   ]);
-  assertFunctionUsesNamedParams("assertNoDuplicateActiveAttachmentContext", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "findDuplicateActiveAttachment", [
+    /db\.get\(`/,
     /workspace_id = :attachmentWorkspaceId/,
     /file_id = :attachmentFileId/,
     /module_id = :attachmentModuleId/,
@@ -95,14 +96,14 @@ function assertStaticContract() {
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesServiceSource, "updateAttachmentContext"),
-    functionBlock(filesServiceSource, "readAttachableTarget"),
-    functionBlock(filesServiceSource, "readAttachmentContextLabels"),
-    functionBlock(filesServiceSource, "readWorkspaceType"),
-    functionBlock(filesServiceSource, "readAttachableTargetOptionRows"),
-    functionBlock(filesServiceSource, "readClientLabelMap"),
-    functionBlock(filesServiceSource, "readProjectLabelMap"),
-    functionBlock(filesServiceSource, "assertNoDuplicateActiveAttachmentContext"),
+    functionBlock(filesRepositorySource, "updateAttachmentContext"),
+    functionBlock(filesRepositorySource, "readAttachableTarget"),
+    functionBlock(filesRepositorySource, "readAttachmentContextLabels"),
+    functionBlock(filesRepositorySource, "readWorkspaceType"),
+    functionBlock(filesRepositorySource, "readAttachableTargetOptionRows"),
+    functionBlock(filesRepositorySource, "readClientLabels"),
+    functionBlock(filesRepositorySource, "readProjectLabels"),
+    functionBlock(filesRepositorySource, "findDuplicateActiveAttachment"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files context/target blocks should not use literal helpers or compatibility query wrappers");
@@ -116,8 +117,9 @@ function assertStaticContract() {
   assert.match(changelog, /## Version 0\.33\.5\.27\.19 - [\s\S]*Files context and attachable targets conversion[\s\S]*687 helper invocations[\s\S]*137 direct interpolated operation sites[\s\S]*214 bound operation sites/, "changelog should record the Files context/targets conversion burndown");
   }
 
-function assertFunctionUsesNamedParams(functionName, patterns) {
-  const block = functionBlock(filesServiceSource, functionName);
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+function assertFunctionUsesNamedParams(source, functionName, patterns) {
+  const block = functionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);

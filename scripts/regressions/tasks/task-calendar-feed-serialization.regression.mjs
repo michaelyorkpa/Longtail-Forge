@@ -469,6 +469,7 @@ VALUES (
       workspaceId,
     }),
   });
+  assert.ok(scopedContent, "scoped private calendar feed should render content");
   assert.match(scopedContent, /X-WR-CALNAME:Scoped project calendar/);
   assert.match(scopedContent, /SUMMARY:Scoped readable feed task/);
   assert.doesNotMatch(scopedContent, /Scoped unreadable feed task/);

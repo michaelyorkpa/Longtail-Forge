@@ -180,6 +180,7 @@ WHERE workspace_id = :workspaceId
   const clientBContent = await render(subscriptions.clientB);
   const visibleProjectContent = await render(subscriptions.visibleProject);
   const siblingProjectContent = await render(subscriptions.siblingProject);
+  assert.ok(clientAContent && clientBContent && visibleProjectContent && siblingProjectContent, "scoped feeds should render content");
 
   assertFeedContains(workspaceContent, [
     "Workspace-only task",

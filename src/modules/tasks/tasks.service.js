@@ -11,13 +11,34 @@ import {
 import { tasksRepository } from "./tasks.repo.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
-import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { tasksSettingsService } from "./tasks-settings.service.js";
 import { taskTimersService } from "./task-timers.service.js";
 import { taskWorkEvidenceService } from "./task-work-evidence.service.js";
 import { taskCalendarRecurrenceInstanceKey } from "./task-calendar.shared.js";
+import {
+  TaskListCursorError,
+  compareTaskDueOrder,
+  compareTaskStableTitle,
+  createTaskListFilterContext,
+  encodeTaskCursor,
+  normalizeTaskListPagination,
+  sortCanonicalTasks,
+  stripTaskListCandidateMetadata,
+  taskMatchesCanonicalQuery,
+  taskMatchesContextFilters,
+  taskMatchesStatusFilter,
+  visibleTaskListCandidates,
+} from "./task-list-engine.js";
+import {
+  childStatusRollupEffect,
+  isIncompleteTask,
+  isTaskTerminalStatus,
+  planParentBlockTransition,
+  planParentRecoveryTransition,
+  shouldPauseRunningTimersForBlockedTask,
+} from "./task-block-recovery-engine.js";
 import {
   queueTaskRecurrenceGeneration,
   queueTaskReminderJobsForTask,
@@ -32,10 +53,7 @@ import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
-import {
-  FILTER_SCOPE_MODES,
-  resolveClientProjectFilterScope,
-} from "../../core/client-project-filter-scope.js";
+import { resolveClientProjectFilterScope } from "../../core/client-project-filter-scope.js";
 import { createVisibleRecordBatch } from "../../core/list-enrichment.js";
 import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
@@ -44,10 +62,28 @@ import { permissionsService } from "../../core/permissions.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 import { workspaceSupportsBillable } from "../../utils/workspaces.js";
 
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} TaskRecord */
+/** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} TaskRecurrenceTemplate */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskDashboardContext} TaskDashboardContext */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskDetail} TaskDetail */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskCompletionResult} TaskCompletionResult */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskChecklistMutationResult} TaskChecklistMutationResult */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskFilterShapeInput} TaskFilterShapeInput */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskQueryResultInput} TaskQueryResultInput */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskProjectCascade} TaskProjectCascade */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskMutationResult} TaskMutationResult */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskRecurrencePlan} TaskRecurrencePlan */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskServerQuery} TaskServerQuery */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskServerSession} TaskServerSession */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskSkipToCurrentResult} TaskSkipToCurrentResult */
+/** @typedef {import("../../types/task-server-contracts.d.ts").TaskWithDetails} TaskWithDetails */
+/** @typedef {import("../../types/task-workflow-contracts.d.ts").TaskChecklistItem} TaskChecklistItem */
+/** @typedef {import("../../types/task-workflow-contracts.d.ts").TaskRelationship} TaskRelationship */
+/** @typedef {import("../../types/task-workflow-contracts.d.ts").TaskTimerRecord} TaskTimerRecord */
+
 const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-const TASK_VIEW_FILTERS = new Set(["my", "all", "unassigned", "overdue", "today", "week", "completed", "archived"]);
 const TASK_LIST_DEFAULT_PAGE_SIZE = 100;
 const TASK_LIST_MAX_PAGE_SIZE = 200;
 const TASK_LIST_BATCH_MULTIPLIER = 5;
@@ -61,10 +97,13 @@ const DASHBOARD_TASK_UPCOMING_LIMIT = 5;
 const DASHBOARD_TASK_PRESSURE_LIMIT = 5;
 const DASHBOARD_WORKBENCH_URL = "workbench.html";
 const DASHBOARD_TASKS_URL = "tasks.html";
-const TASK_SCOPE_QUERY_MARKER = Symbol("taskScopeQuery");
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function list(session, query = {}) {
   const { options, pagination, tasks } = await queryTasks(session, query, { paginate: true });
+  if (!pagination) {
+    throw new Error("Task list pagination invariant failed.");
+  }
 
   return {
     tasks,
@@ -74,6 +113,7 @@ async function list(session, query = {}) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function listAll(session, query = {}) {
   const { options, tasks } = await queryTasks(session, query);
 
@@ -84,11 +124,13 @@ async function listAll(session, query = {}) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query @param {{ paginate?: boolean, includeOptions?: boolean }} options */
 async function queryTasks(session, query = {}, options = {}) {
   const timers = await taskTimersService.list(session);
   const timerByTaskId = new Map((timers.timers || []).map((timer) => [timer.task_id, timer]));
   const pagination = normalizeTaskPagination(query, options);
   const repositoryQuery = await taskListRepositoryQuery(session, query);
+  /** @type {TaskWithDetails[]} */
   const tasks = [];
   let offset = pagination?.offset || 0;
   let hasMoreCandidates = false;
@@ -124,11 +166,12 @@ async function queryTasks(session, query = {}, options = {}) {
     });
 
     for (const task of filteredTasks) {
-      const rawCandidateOffset = Number(task.__candidateOffset);
+      const taskCandidate = /** @type {TaskWithDetails & { __candidateOffset: number }} */ (task);
+      const rawCandidateOffset = Number(taskCandidate.__candidateOffset);
       const candidateOffset = Number.isInteger(rawCandidateOffset) && rawCandidateOffset >= 0
         ? rawCandidateOffset
         : offset;
-      tasks.push(stripTaskListCandidateMetadata(task));
+      tasks.push(/** @type {TaskWithDetails} */ (stripTaskListCandidateMetadata(taskCandidate)));
 
       if (pagination && tasks.length >= pagination.pageSize) {
         const moreCandidatesInBatch = candidateOffset < offset + candidates.length - 1;
@@ -161,14 +204,14 @@ async function queryTasks(session, query = {}, options = {}) {
   });
 }
 
+/** @param {TaskFilterShapeInput} input */
 async function filterAndShapeTaskListCandidates({ candidates, offset, query, resolvedQuery, session, timerByTaskId }) {
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
-  const readableTasks = candidates
-    .map((candidate, index) => ({
-      ...candidate,
-      __candidateOffset: offset + index,
-    }))
-    .filter((task) => canReadTaskRow(taskResource(task)));
+  const readableTasks = visibleTaskListCandidates(
+    candidates,
+    offset,
+    (task) => canReadTaskRow(taskResource(task)),
+  );
 
   const taggedTasks = await tagsService.decorateRecordsForTarget(
     session,
@@ -177,12 +220,10 @@ async function filterAndShapeTaskListCandidates({ candidates, offset, query, res
   );
   const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks, session, { canReadTaskRow });
 
-  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, {
-    ...(query || {}),
-    ...(resolvedQuery || {}),
-  }, session, timerByTaskId));
+  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, resolvedQuery, timerByTaskId));
 }
 
+/** @param {TaskQueryResultInput} input */
 async function queryTasksResult({ includeOptions = true, pagination, query, session, tasks, timers, nextCursor = "" }) {
   return {
     tasks: sortCanonicalTasks(tasks, query),
@@ -198,11 +239,10 @@ async function queryTasksResult({ includeOptions = true, pagination, query, sess
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function taskListRepositoryQuery(session, query = {}) {
   const now = new Date();
   const today = localDateKey(now, session.timezone);
-  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
-  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
   const scope = await resolveClientProjectFilterScope(session, {
     clientId: String(query.clientId || query.client_id || "").trim(),
     hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
@@ -210,112 +250,33 @@ async function taskListRepositoryQuery(session, query = {}) {
     projectId: String(query.projectId || query.project_id || "").trim(),
   });
 
-  const dueWindow = taskListDueWindow(query);
-
-  return {
-    [TASK_SCOPE_QUERY_MARKER]: true,
-    assigneeFilter: normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value),
-    assigneeId: String(query.assigneeId || query.assignee_id || "").trim(),
-    clientFilterMode: scope.clientFilterMode,
-    clientId: scope.clientId,
-    clientIds: scope.clientIds,
-    clientProjectIds: scope.clientProjectIds,
+  return createTaskListFilterContext(query, {
     currentUserId: session.user_id,
     currentWeekEnd: currentWeekEndKey(today),
-    dueFilter: normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter),
     dueSoonCutoff: addDaysKey(today, 7),
-    dueWindowEnd: dueWindow.end,
-    dueWindowStart: dueWindow.start,
-    hasClientFilter: scope.hasClientFilter,
-    hasProjectFilter: scope.hasProjectFilter,
     nowIso: now.toISOString(),
-    omitClientFilterBecauseProjectSelected: scope.omitClientFilterBecauseProjectSelected,
-    projectFilterMode: scope.projectFilterMode,
-    projectId: scope.projectId,
-    projectIds: scope.projectIds,
-    quickFilter,
-    requireNextAction: query.requireNextAction === true || query.require_next_action === true,
-    sort: normalizedTaskSort(query.sort || query.sort_by || query.order),
-    statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
-    taskView,
+    scope,
     today,
-  };
+  });
 }
 
-// Explicit due-window query keys (used by due-oriented focus modes) restrict
-// the repository scan. The window widens one day on each side because the
-// exact match is timezone-sensitive and stays with the in-memory candidate
-// matcher; SQL only needs a superset.
-function taskListDueWindow(query = {}) {
-  const dueOn = normalizeDueDate(query.dueOn || query.due_on);
-  const dueFrom = normalizeDueDate(query.dueFrom || query.due_from);
-  const dueTo = normalizeDueDate(query.dueTo || query.due_to);
-  const dueBefore = normalizeDueDate(query.dueBefore || query.due_before);
-  const startCandidates = [dueFrom, dueOn]
-    .filter(Boolean)
-    .map((dateKey) => addCalendarDaysKey(dateKey, -1));
-  const endCandidates = [
-    dueTo ? addCalendarDaysKey(dueTo, 1) : "",
-    dueOn ? addCalendarDaysKey(dueOn, 1) : "",
-    dueBefore,
-  ].filter(Boolean);
-
-  return {
-    end: endCandidates.length ? endCandidates.reduce((left, right) => (left > right ? left : right)) : "",
-    start: startCandidates.length ? startCandidates.reduce((left, right) => (left < right ? left : right)) : "",
-  };
-}
-
+/** @param {TaskServerQuery} query @param {{ paginate?: boolean }} options */
 function normalizeTaskPagination(query = {}, options = {}) {
-  if (!options.paginate) {
-    return null;
-  }
-
-  const requestedPageSize = Number.parseInt(query.limit || query.page_size || query.pageSize || "", 10);
-  const pageSize = Math.min(
-    TASK_LIST_MAX_PAGE_SIZE,
-    Math.max(1, Number.isInteger(requestedPageSize) && requestedPageSize > 0
-      ? requestedPageSize
-      : TASK_LIST_DEFAULT_PAGE_SIZE),
-  );
-  const cursorOffset = query.cursor ? decodeTaskCursor(query.cursor) : 0;
-  const offset = cursorOffset || normalizeOffset(query.offset);
-
-  return {
-    offset,
-    pageSize,
-  };
-}
-
-function normalizeOffset(value) {
-  const offset = Number.parseInt(value || "", 10);
-  return Number.isInteger(offset) && offset > 0 ? offset : 0;
-}
-
-function encodeTaskCursor(offset) {
-  return Buffer.from(JSON.stringify({ offset: Math.max(0, Number(offset) || 0) })).toString("base64url");
-}
-
-function decodeTaskCursor(cursor) {
   try {
-    const parsed = JSON.parse(Buffer.from(String(cursor || ""), "base64url").toString("utf8"));
-    const offset = Number.parseInt(parsed?.offset, 10);
-
-    if (Number.isInteger(offset) && offset >= 0) {
-      return offset;
+    return normalizeTaskListPagination(query, {
+      defaultPageSize: TASK_LIST_DEFAULT_PAGE_SIZE,
+      maxPageSize: TASK_LIST_MAX_PAGE_SIZE,
+      paginate: options.paginate === true,
+    });
+  } catch (error) {
+    if (error instanceof TaskListCursorError) {
+      throw new AppError(error.message, 400);
     }
-  } catch {
-    // Fall through to the canonical 400 below.
+    throw error;
   }
-
-  throw new AppError("Task list cursor is invalid.", 400);
 }
 
-function stripTaskListCandidateMetadata(task) {
-  const { __candidateOffset, ...publicTask } = task;
-  return publicTask;
-}
-
+/** @param {TaskServerSession} session */
 async function summary(session) {
   const now = new Date();
   const today = localDateKey(now, session.timezone);
@@ -388,6 +349,7 @@ async function summary(session) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function listWorkItems(session, query = {}) {
   const result = await queryTasks(session, {
     limit: TASK_WORK_ITEM_MAX_ITEMS,
@@ -410,6 +372,7 @@ async function listWorkItems(session, query = {}) {
   };
 }
 
+/** @param {Array<Record<string, string | number>>} groups */
 function reduceDashboardCountGroups(groups = []) {
   const counts = {
     active: 0,
@@ -423,7 +386,7 @@ function reduceDashboardCountGroups(groups = []) {
   };
 
   for (const group of groups) {
-    for (const key of Object.keys(counts)) {
+    for (const key of /** @type {Array<keyof typeof counts>} */ (Object.keys(counts))) {
       counts[key] += Number(group[key]) || 0;
     }
   }
@@ -431,6 +394,7 @@ function reduceDashboardCountGroups(groups = []) {
   return counts;
 }
 
+/** @param {TaskServerSession} session */
 async function listOptions(session) {
   return {
     currentUserId: session.user_id,
@@ -438,6 +402,7 @@ async function listOptions(session) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function listWorkbenchItems(session, query = {}) {
   const [moduleStatus, result] = await Promise.all([
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
@@ -450,6 +415,7 @@ async function listWorkbenchItems(session, query = {}) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function calendarWindow(session, query = {}) {
   const today = localDateKey(new Date(), session.timezone);
   const startDate = normalizeDueDate(query.start || query.startDate || query.start_date) || today;
@@ -475,7 +441,7 @@ async function calendarWindow(session, query = {}) {
     modulesService.readModuleStatus(session.workspace_id, TASKS_MODULE_ID),
     tasksRepository.readDueBetween(session.workspace_id, startDate, reminderLookaheadEndDate, { statuses }),
     statuses.includes("open")
-      ? taskRecurrenceRepository.readActiveTemplates(session.workspace_id, {
+      ? taskRecurrenceService.listActiveTemplates(session.workspace_id, {
           fromDate: startDate,
           includeAssignees: false,
           throughDate: endDate,
@@ -485,14 +451,15 @@ async function calendarWindow(session, query = {}) {
   ]);
   const canReadTaskRow = await permissionsService.createPermissionEvaluator(session, "tasks.view");
   const readableTasks = dueTasks.filter((task) => (
-    matchesTaskContextFilters(task, scope) && canReadTaskRow(taskResource(task))
+    taskMatchesContextFilters(task, scope) && canReadTaskRow(taskResource(task))
   ));
   const readableTemplates = activeTemplates.filter((template) => (
-    matchesTaskContextFilters(template, scope) && canReadTaskRow(taskResource(template))
+    taskMatchesContextFilters(template, scope) && canReadTaskRow(taskResource(template))
   ));
   const materializedInstanceKeys = new Set(materializedInstances.map((task) => (
     taskCalendarRecurrenceInstanceKey(task.recurrence_template_id, task.recurrence_instance_date)
   )));
+  /** @type {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow[]} */
   const calendarRows = [
     ...readableTasks
       .filter((task) => task.due_date <= endDate)
@@ -517,6 +484,7 @@ async function calendarWindow(session, query = {}) {
   };
 }
 
+/** @param {unknown} rawPayload @param {TaskServerSession} session @returns {Promise<import("../../types/task-server-contracts.d.ts").TaskMaterializationResult>} */
 async function materializeRecurrenceInstance(rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const payload = parseTasksEdgePayload(TaskRecurrenceMaterializeSchema, rawPayload);
@@ -540,7 +508,7 @@ async function materializeRecurrenceInstance(rawPayload, session) {
     };
   }
 
-  const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, templateId);
+  const template = await taskRecurrenceService.readTemplate(session.workspace_id, templateId);
   const isProjectedOccurrence = template?.template_status === "active"
     && taskRecurrenceService.projectOccurrenceDates(template, instanceDate, instanceDate).includes(instanceDate);
 
@@ -616,6 +584,7 @@ async function materializeRecurrenceInstance(rawPayload, session) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskWithDetails[]} readableTasks @param {string} startDate @param {string} endDate */
 async function calendarReminderMarkers(session, readableTasks, startDate, endDate) {
   const candidates = readableTasks.filter((task) => !["complete", "archived"].includes(task.status));
   const occurrencesByTaskId = await taskRemindersService.computeReminderOccurrencesForTasks(session.workspace_id, candidates);
@@ -645,6 +614,7 @@ async function calendarReminderMarkers(session, readableTasks, startDate, endDat
     || first.task_id.localeCompare(second.task_id));
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @returns {Promise<{ task: TaskDetail, currentUserId: string, options: unknown }>} */
 async function read(taskId, session) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanReadTask(session, task);
@@ -658,6 +628,7 @@ async function read(taskId, session) {
 
 // Lightweight permission-checked read for callers (resume-state read checks)
 // that need only the raw task, without options or detail enrichment.
+/** @param {string} taskId @param {TaskServerSession} session */
 async function readCore(taskId, session) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanReadTask(session, task);
@@ -670,6 +641,7 @@ async function readCore(taskId, session) {
 
 // Batched existence/status/readability check for resume-state scans: one
 // IN-query over the record ids plus the in-memory permission evaluator.
+/** @param {TaskServerSession} session @param {string[]} taskIds */
 async function readLifecycleForIds(session, taskIds = []) {
   const [statusRows, canReadTaskRow] = await Promise.all([
     tasksRepository.readStatusByIds(session.workspace_id, taskIds),
@@ -691,6 +663,7 @@ async function readLifecycleForIds(session, taskIds = []) {
   return lifecycleByTaskId;
 }
 
+/** @param {unknown} rawPayload @param {TaskServerSession} session @returns {Promise<TaskMutationResult>} */
 async function create(rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const payload = parseTasksEdgePayload(CreateTaskSchema, rawPayload);
@@ -768,6 +741,7 @@ async function create(rawPayload, session) {
   return { task: taskWithDetails };
 }
 
+/** @param {string} taskId @param {unknown} rawPayload @param {TaskServerSession} session */
 async function update(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -890,12 +864,11 @@ async function update(taskId, rawPayload, session) {
     reason: "task.updated",
     session,
   });
-  if (previousTask.status !== taskWithDetails.status) {
-    if (isIncompleteBlockingChild(taskWithDetails)) {
-      await blockParentsForIncompleteChild(session, taskWithDetails);
-    } else {
-      await recoverParentsAfterChildStatusChange(session, taskWithDetails);
-    }
+  const parentRollupEffect = childStatusRollupEffect(previousTask.status, taskWithDetails.status);
+  if (parentRollupEffect === "block_parents") {
+    await blockParentsForIncompleteChild(session, taskWithDetails);
+  } else if (parentRollupEffect === "recover_parents") {
+    await recoverParentsAfterChildStatusChange(session, taskWithDetails);
   }
   if (assigneesChanged(previousTask, taskWithDetails)) {
     await emitTaskEvent("task.assigned", {
@@ -938,6 +911,7 @@ async function update(taskId, rawPayload, session) {
   };
 }
 
+/** @param {Record<string, unknown>} payload @param {TaskRecord} previousTask */
 function applyResumeNoteAction(payload, previousTask) {
   const action = String(payload.resume_note_action || "").trim();
 
@@ -976,6 +950,7 @@ function applyResumeNoteAction(payload, previousTask) {
   };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @returns {Promise<TaskCompletionResult>} */
 async function complete(taskId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1021,12 +996,13 @@ async function complete(taskId, session) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskWithDetails} task @param {{ enforcePermissions?: boolean, now?: Date }} options */
 async function recurrenceRecoveryPlan(session, task, { enforcePermissions = false, now = new Date() } = {}) {
   if (!task?.recurrence_template_id || !task?.recurrence_instance_date) {
     return null;
   }
 
-  const template = await taskRecurrenceRepository.readTemplateById(
+  const template = await taskRecurrenceService.readTemplate(
     session.workspace_id,
     task.recurrence_template_id,
   );
@@ -1103,6 +1079,7 @@ async function recurrenceRecoveryPlan(session, task, { enforcePermissions = fals
   };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @param {{ now?: Date }} options @returns {Promise<TaskSkipToCurrentResult>} */
 async function skipToCurrent(taskId, session, options = {}) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const sourceTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1211,10 +1188,12 @@ async function skipToCurrent(taskId, session, options = {}) {
   };
 }
 
+/** @param {TaskRecurrencePlan} plan @param {string} taskId */
 function instancesById(plan, taskId) {
   return plan.instances?.find((task) => task.task_id === taskId) || null;
 }
 
+/** @param {TaskWithDetails} completedTask @param {TaskServerSession} session @param {{ inline?: boolean, source?: string, queueGeneration?: (input: Record<string, unknown>) => Promise<{ queued?: boolean, deduped?: boolean }> }} options @returns {Promise<import("../../types/task-server-contracts.d.ts").TaskRecurrenceHandoffResult>} */
 async function completeRecurrenceHandoff(completedTask, session, options = {}) {
   if (!completedTask?.recurrence_template_id || !completedTask?.recurrence_instance_date) {
     return {
@@ -1284,6 +1263,7 @@ async function completeRecurrenceHandoff(completedTask, session, options = {}) {
   }
 }
 
+/** @param {string} taskId @param {TaskServerSession} session */
 async function readRecurrenceContinuity(taskId, session) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanReadTask(session, task);
@@ -1293,6 +1273,7 @@ async function readRecurrenceContinuity(taskId, session) {
   };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @returns {Promise<TaskMutationResult>} */
 async function reopen(taskId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1332,6 +1313,7 @@ async function reopen(taskId, session) {
   return { task };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @returns {Promise<TaskMutationResult>} */
 async function archive(taskId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1365,6 +1347,7 @@ async function archive(taskId, session) {
   return { task };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session @returns {Promise<TaskMutationResult>} */
 async function restore(taskId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1397,7 +1380,7 @@ async function restore(taskId, session) {
     reason: "task.restored",
     session,
   });
-  if (task.status === "complete") {
+  if (isTaskTerminalStatus(task.status)) {
     await recoverParentsAfterChildStatusChange(session, task);
   } else {
     await blockParentsForIncompleteChild(session, task);
@@ -1406,6 +1389,7 @@ async function restore(taskId, session) {
   return { task };
 }
 
+/** @param {string} taskId @param {TaskServerSession} session */
 async function listRelationships(taskId, session) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanReadTask(session, task);
@@ -1416,11 +1400,12 @@ async function listRelationships(taskId, session) {
   };
 }
 
+/** @param {string} parentTaskId @param {unknown} rawPayload @param {TaskServerSession} session */
 async function addChildTask(parentTaskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const payload = parseTasksEdgePayload(TaskChildRelationshipSchema, rawPayload);
   const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
-  const childTask = await readTaskOrThrow(session.workspace_id, payload?.child_task_id || payload?.childTaskId);
+  const childTask = await readTaskOrThrow(session.workspace_id, String(payload?.child_task_id || payload?.childTaskId || ""));
   await assertCanEditTask(session, parentTask);
   await assertCanReadTask(session, childTask);
   await assertCanRelateTasks(session, parentTask, childTask);
@@ -1439,18 +1424,20 @@ async function addChildTask(parentTaskId, rawPayload, session) {
       created_by_user_id: session.user_id,
       updated_by_user_id: session.user_id,
     });
+  const activeRelationship = /** @type {TaskRelationship} */ (relationship);
 
-  if (relationship.is_blocking && isIncompleteBlockingChild(childTask)) {
+  if (activeRelationship.is_blocking && isIncompleteTask(childTask)) {
     await blockParentForChild(session, parentTask, childTask);
   }
 
   await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.relationship_added");
   await syncTaskSearchIndex(session.workspace_id, childTask.task_id, "task.relationship_added");
-  await emitTaskRelationshipEvent("task.relationship.created", { session, relationship, parentTask, childTask });
+  await emitTaskRelationshipEvent("task.relationship.created", { session, relationship: activeRelationship, parentTask, childTask });
 
   return listRelationships(parentTask.task_id, session);
 }
 
+/** @param {string} parentTaskId @param {string} childTaskId @param {unknown} rawPayload @param {TaskServerSession} session */
 async function updateChildTaskRelationship(parentTaskId, childTaskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const payload = parseTasksEdgePayload(TaskChildRelationshipSchema, rawPayload);
@@ -1464,19 +1451,21 @@ async function updateChildTaskRelationship(parentTaskId, childTaskId, rawPayload
     is_blocking: Boolean(payload?.is_blocking ?? payload?.blocking),
     updated_by_user_id: session.user_id,
   });
+  const updatedRelationship = /** @type {TaskRelationship} */ (updated);
 
-  if (updated.is_blocking && isIncompleteBlockingChild(childTask)) {
+  if (updatedRelationship.is_blocking && isIncompleteTask(childTask)) {
     await blockParentForChild(session, parentTask, childTask);
   } else {
     await recoverParentIfNoBlockingChildren(session, parentTask);
   }
 
   await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.relationship_updated");
-  await emitTaskRelationshipEvent("task.relationship.updated", { session, relationship: updated, parentTask, childTask });
+  await emitTaskRelationshipEvent("task.relationship.updated", { session, relationship: updatedRelationship, parentTask, childTask });
 
   return listRelationships(parentTask.task_id, session);
 }
 
+/** @param {string} parentTaskId @param {string} childTaskId @param {TaskServerSession} session */
 async function removeChildTaskRelationship(parentTaskId, childTaskId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
@@ -1492,6 +1481,7 @@ async function removeChildTaskRelationship(parentTaskId, childTaskId, session) {
   return listRelationships(parentTask.task_id, session);
 }
 
+/** @param {string} taskId @param {TaskServerSession} session */
 async function listChecklistItems(taskId, session) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanReadTask(session, task);
@@ -1503,6 +1493,7 @@ async function listChecklistItems(taskId, session) {
   };
 }
 
+/** @param {string} taskId @param {unknown} rawPayload @param {TaskServerSession} session @returns {Promise<TaskChecklistMutationResult>} */
 async function addChecklistItem(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1515,16 +1506,17 @@ async function addChecklistItem(taskId, rawPayload, session) {
     updated_by_user_id: session.user_id,
   });
 
-  return finalizeChecklistMutation({
+  return /** @type {TaskChecklistMutationResult} */ (await finalizeChecklistMutation({
     session,
     task,
     action: "task_checklist_item_created",
     eventName: "task.checklist_item.created",
     previousItem: null,
     item,
-  });
+  }));
 }
 
+/** @param {string} taskId @param {string} itemId @param {unknown} rawPayload @param {TaskServerSession} session @returns {Promise<TaskChecklistMutationResult>} */
 async function updateChecklistItem(taskId, itemId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1549,24 +1541,27 @@ async function updateChecklistItem(taskId, itemId, rawPayload, session) {
     updated_by_user_id: session.user_id,
   });
 
-  return finalizeChecklistMutation({
+  return /** @type {TaskChecklistMutationResult} */ (await finalizeChecklistMutation({
     session,
     task,
     action: "task_checklist_item_updated",
     eventName: "task.checklist_item.updated",
     previousItem,
     item,
-  });
+  }));
 }
 
+/** @param {string} taskId @param {string} itemId @param {TaskServerSession} session @returns {Promise<TaskChecklistMutationResult>} */
 async function checkChecklistItem(taskId, itemId, session) {
-  return setChecklistItemChecked(taskId, itemId, true, session);
+  return /** @type {TaskChecklistMutationResult} */ (await setChecklistItemChecked(taskId, itemId, true, session));
 }
 
+/** @param {string} taskId @param {string} itemId @param {TaskServerSession} session @returns {Promise<TaskChecklistMutationResult>} */
 async function uncheckChecklistItem(taskId, itemId, session) {
-  return setChecklistItemChecked(taskId, itemId, false, session);
+  return /** @type {TaskChecklistMutationResult} */ (await setChecklistItemChecked(taskId, itemId, false, session));
 }
 
+/** @param {string} taskId @param {unknown} rawPayload @param {TaskServerSession} session */
 async function reorderChecklistItems(taskId, rawPayload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1592,6 +1587,7 @@ async function reorderChecklistItems(taskId, rawPayload, session) {
   });
 }
 
+/** @param {string} taskId @param {string} itemId @param {TaskServerSession} session */
 async function deleteChecklistItem(taskId, itemId, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
@@ -1609,12 +1605,16 @@ async function deleteChecklistItem(taskId, itemId, session) {
   });
 }
 
+/** @param {Record<string, unknown>} payload @param {TaskServerSession} session */
 async function bulkUpdate(payload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const taskIds = normalizeAssigneeIds(payload?.task_ids || payload?.taskIds || []);
   const action = String(payload?.action || "").trim();
+  /** @type {TaskDetail[]} */
   const results = [];
+  /** @type {Array<{ task_id: string, message: string, status: number }>} */
   const errors = [];
+  /** @type {Array<Record<string, unknown> & { task_id: string }>} */
   const recurrenceContinuities = [];
 
   if (["tag_add", "tag_remove", "tag_replace"].includes(action)) {
@@ -1641,18 +1641,22 @@ async function bulkUpdate(payload, session) {
   for (const taskId of taskIds) {
     try {
       const result = await applyBulkAction(taskId, action, payload, session);
-      appendUniqueTasks(results, result.tasks || [result.task]);
-      if (result.recurrenceContinuity) {
+      const resultTasks = "tasks" in result && Array.isArray(result.tasks)
+        ? result.tasks
+        : "task" in result && result.task ? [result.task] : [];
+      appendUniqueTasks(results, /** @type {TaskDetail[]} */ (resultTasks));
+      if ("recurrenceContinuity" in result && result.recurrenceContinuity) {
         recurrenceContinuities.push({
-          task_id: result.task?.task_id || taskId,
+          task_id: ("task" in result ? result.task?.task_id : "") || taskId,
           ...result.recurrenceContinuity,
         });
       }
     } catch (error) {
+      const failure = /** @type {{ message?: string, status?: number, statusCode?: number }} */ (error);
       errors.push({
         task_id: taskId,
-        message: error.message || "Task could not be updated.",
-        status: error.status || error.statusCode || 500,
+        message: failure.message || "Task could not be updated.",
+        status: failure.status || failure.statusCode || 500,
       });
     }
   }
@@ -1660,6 +1664,7 @@ async function bulkUpdate(payload, session) {
   return { tasks: results, errors, recurrenceContinuities };
 }
 
+/** @param {TaskServerSession} session */
 async function readOptions(session) {
   const [settings, users, taskTimersEnabled] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id),
@@ -1686,6 +1691,7 @@ async function readOptions(session) {
   };
 }
 
+/** @param {TaskServerSession} session @param {Record<string, unknown>} settings */
 async function readClientOptionPayload(session, settings) {
   if (settings.workspaceType !== "business") {
     return [];
@@ -1705,6 +1711,7 @@ async function readClientOptionPayload(session, settings) {
   }));
 }
 
+/** @param {TaskServerSession} session */
 async function readProjectOptionPayload(session) {
   const result = await clientsService.listProjects(session, {
     client: "All",
@@ -1721,6 +1728,7 @@ async function readProjectOptionPayload(session) {
   }));
 }
 
+/** @param {TaskServerSession} session @param {TaskServerQuery} query */
 async function readTaskOptionPayload(session, query = {}) {
   const includeCompleted = readBoolean(query.include_completed || query.includeCompleted);
   const includeArchived = readBoolean(query.include_archived || query.includeArchived);
@@ -1742,12 +1750,13 @@ async function readTaskOptionPayload(session, query = {}) {
     permissionsService.createPermissionEvaluator(session, "tasks.view"),
   ]);
   const readable = (result.tasks || []).filter((task) => (
-    canReadTaskRow(taskResource(task)) && matchesStatusFilter(task, status)
+    canReadTaskRow(taskResource(task)) && taskMatchesStatusFilter(task, status)
   ));
 
   return sortCanonicalTasks(readable, { sort: "context" }).map(taskPickerOption);
 }
 
+/** @param {TaskWithDetails} task */
 function taskPickerOption(task) {
   return {
     task_id: task.task_id,
@@ -1766,11 +1775,13 @@ function taskPickerOption(task) {
   };
 }
 
+/** @param {TaskWithDetails} task */
 function taskOptionLabel(task) {
   const context = [task.client_name, task.project_name].filter(Boolean).join(" / ");
   return context ? `${task.title || "Untitled Task"} (${context})` : task.title || "Untitled Task";
 }
 
+/** @param {TaskServerSession} session @param {unknown} projectId */
 async function readProjectTaskDefaults(session, projectId) {
   const normalizedProjectId = String(projectId || "").trim();
 
@@ -1783,7 +1794,7 @@ async function readProjectTaskDefaults(session, projectId) {
   }
 
   const project = await projectsRepository.readById(session.workspace_id, normalizedProjectId);
-  const defaults = project?.taskDefaults || {};
+  const defaults = /** @type {{ priority?: unknown, status?: unknown, sortOrder?: unknown[], defaultAssigneeMode?: unknown }} */ (project?.taskDefaults || {});
 
   return {
     priority: normalizePriority(defaults.priority),
@@ -1793,6 +1804,7 @@ async function readProjectTaskDefaults(session, projectId) {
   };
 }
 
+/** @param {{ payload?: Record<string, unknown>, projectId?: string, session: TaskServerSession, taskDefaults?: Record<string, unknown> }} input */
 async function resolveCreateDefaultAssigneeIds({ payload = {}, projectId = "", session, taskDefaults = {} }) {
   if (hasAssigneePayload(payload)) {
     return normalizeAssigneeIds(
@@ -1818,12 +1830,14 @@ async function resolveCreateDefaultAssigneeIds({ payload = {}, projectId = "", s
   return adminUserId ? [adminUserId] : [];
 }
 
+/** @param {Record<string, unknown>} payload */
 function hasAssigneePayload(payload = {}) {
   return Object.hasOwn(payload, "assignee_ids") ||
     Object.hasOwn(payload, "assigneeIds") ||
     Object.hasOwn(payload, "assignees");
 }
 
+/** @param {TaskServerSession} session @param {string} projectId */
 async function resolveProjectAdminDefaultAssignee(session, projectId) {
   const normalizedProjectId = String(projectId || "").trim();
 
@@ -1874,11 +1888,13 @@ async function resolveProjectAdminDefaultAssignee(session, projectId) {
   return workspaceAdmin?.user_id || "";
 }
 
+/** @param {unknown} value */
 function normalizeProjectDefaultAssigneeMode(value) {
   const mode = String(value || "").trim();
   return ["creator", "project_admin", "unassigned"].includes(mode) ? mode : "creator";
 }
 
+/** @param {string} taskId @param {string} action @param {Record<string, unknown>} payload @param {TaskServerSession} session */
 async function applyBulkAction(taskId, action, payload, session) {
   if (action === "archive") {
     return archive(taskId, session);
@@ -1952,6 +1968,7 @@ async function applyBulkAction(taskId, action, payload, session) {
   throw new AppError("Unsupported bulk task action.", 400);
 }
 
+/** @returns {TaskProjectCascade} */
 function emptyProjectCascade() {
   return {
     allPreviousTasks: [],
@@ -1959,6 +1976,7 @@ function emptyProjectCascade() {
   };
 }
 
+/** @param {TaskServerSession} session @param {string} rootTaskId @param {TaskWithDetails} normalizedRootTask @returns {Promise<TaskProjectCascade>} */
 async function prepareProjectCascade(session, rootTaskId, normalizedRootTask) {
   const descendantTaskIds = await taskRelationshipsRepository.readDescendantTaskIds(
     session.workspace_id,
@@ -1970,7 +1988,8 @@ async function prepareProjectCascade(session, rootTaskId, normalizedRootTask) {
 
   const descendantRows = await tasksRepository.readByIds(session.workspace_id, descendantTaskIds);
   const descendantById = new Map(descendantRows.map((task) => [task.task_id, task]));
-  const allPreviousTasks = descendantTaskIds.map((taskId) => descendantById.get(taskId)).filter(Boolean);
+  const allPreviousTasks = descendantTaskIds.map((taskId) => descendantById.get(taskId)).filter((task) => task !== undefined);
+  /** @type {TaskWithDetails[]} */
   const changedTasks = [];
 
   for (const previousTask of allPreviousTasks) {
@@ -2002,6 +2021,7 @@ async function prepareProjectCascade(session, rootTaskId, normalizedRootTask) {
   return { allPreviousTasks, changedTasks };
 }
 
+/** @param {{ cascade: ReturnType<typeof emptyProjectCascade>, rootTaskId: string, session: TaskServerSession }} input */
 async function finalizeProjectCascadeSideEffects({ cascade, rootTaskId, session }) {
   if (cascade.allPreviousTasks.length === 0) {
     return [];
@@ -2046,6 +2066,7 @@ async function finalizeProjectCascadeSideEffects({ cascade, rootTaskId, session 
   return refreshedTasks;
 }
 
+/** @param {TaskWithDetails[]} target @param {TaskWithDetails[]} tasks */
 function appendUniqueTasks(target, tasks) {
   for (const task of tasks || []) {
     if (task?.task_id && !target.some((candidate) => candidate.task_id === task.task_id)) {
@@ -2054,6 +2075,7 @@ function appendUniqueTasks(target, tasks) {
   }
 }
 
+/** @param {{ payload?: Record<string, unknown>, session: TaskServerSession, fallback: Partial<TaskWithDetails> }} input @returns {Promise<TaskWithDetails>} */
 async function normalizeTaskPayload({ payload = {}, session, fallback }) {
   const scope = await resolveTaskScope({
     session,
@@ -2125,11 +2147,11 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     recurrence_template_id: recurrenceTemplateId,
     recurrence_instance_date: recurrenceTemplateId ? recurrenceInstanceDate || dueDate : "",
     completed_at: preserveCompletedState ? fallback.completed_at || now : "",
-    last_worked_at: valueOrFallback(payload, "last_worked_at", fallback.last_worked_at) || now,
-    created_by_user_id: fallback.created_by_user_id || session.user_id,
+    last_worked_at: String(valueOrFallback(payload, "last_worked_at", fallback.last_worked_at) || now),
+    created_by_user_id: String(fallback.created_by_user_id || session.user_id),
     updated_by_user_id: session.user_id,
-    completed_by_user_id: preserveCompletedState ? fallback.completed_by_user_id || session.user_id : "",
-    archived_by_user_id: status === "archived" ? fallback.archived_by_user_id || session.user_id : "",
+    completed_by_user_id: preserveCompletedState ? String(fallback.completed_by_user_id || session.user_id) : "",
+    archived_by_user_id: status === "archived" ? String(fallback.archived_by_user_id || session.user_id) : "",
     assignee_ids: normalizeAssigneeIds(
       Array.isArray(payload.assignee_ids)
         ? payload.assignee_ids
@@ -2140,6 +2162,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
   };
 }
 
+/** @param {{ session: TaskServerSession, clientId: unknown, projectId: unknown }} input */
 async function resolveTaskScope({ session, clientId, projectId }) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const billableAllowed = workspaceSupportsBillable(settings.workspaceType);
@@ -2201,11 +2224,12 @@ async function resolveTaskScope({ session, clientId, projectId }) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} task */
 async function assertAssigneesEligible(session, task) {
   const users = await usersRepository.readAll(session.workspace_id);
   const activeUserIds = new Set(users.filter((user) => user.userStatus === "active").map((user) => user.user_id));
 
-  for (const userId of task.assignee_ids) {
+  for (const userId of task.assignee_ids || []) {
     if (!activeUserIds.has(userId)) {
       throw new AppError("Task assignees must be active users in this workspace.", 400);
     }
@@ -2221,6 +2245,7 @@ async function assertAssigneesEligible(session, task) {
   }
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readTaskOrThrow(workspaceId, taskId) {
   const decodedTaskId = decodeURIComponent(taskId || "");
   const task = decodedTaskId ? await tasksRepository.readById(workspaceId, decodedTaskId) : null;
@@ -2232,16 +2257,19 @@ async function readTaskOrThrow(workspaceId, taskId) {
   return task;
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord | TaskRecurrenceTemplate} task */
 async function assertCanReadTask(session, task) {
   if (!(await canReadTask(session, task))) {
     throw new AppError("You do not have permission to perform that action.", 403);
   }
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord | TaskRecurrenceTemplate} task */
 async function canReadTask(session, task) {
   return permissionsService.can(session, "tasks.view", taskResource(task));
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord | TaskRecurrenceTemplate} task */
 async function assertCanEditTask(session, task) {
   if (await canEditTask(session, task)) {
     return;
@@ -2250,6 +2278,7 @@ async function assertCanEditTask(session, task) {
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord | TaskRecurrenceTemplate} task */
 async function canEditTask(session, task) {
   if (await permissionsService.can(session, "tasks.edit_all", taskResource(task))) {
     return true;
@@ -2262,6 +2291,7 @@ async function canEditTask(session, task) {
   return false;
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} task */
 async function assertCanCompleteTask(session, task) {
   if (!(await permissionsService.can(session, "tasks.complete", taskResource(task)))) {
     throw new AppError("You do not have permission to perform that action.", 403);
@@ -2274,6 +2304,7 @@ async function assertCanCompleteTask(session, task) {
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} previousTask @param {TaskRecord} nextTask */
 async function assertStatusTransitionAllowed(session, previousTask, nextTask) {
   if (previousTask.status !== "archived" && nextTask.status === "archived") {
     await permissionsService.assertCan(session, "tasks.archive", taskResource(previousTask));
@@ -2292,19 +2323,21 @@ async function assertStatusTransitionAllowed(session, previousTask, nextTask) {
   }
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} task */
 async function assertBlockingChildrenAllowStatus(session, task) {
   if (task.status !== "in_progress") {
     return;
   }
 
   const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, task.task_id);
-  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
+  const incomplete = blockingChildren.filter((relationship) => isIncompleteTask(relationship.child_status));
 
   if (incomplete.length > 0) {
     throw new AppError("Task cannot move to In Progress while blocking child tasks are incomplete.", 400);
   }
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} parentTask @param {TaskRecord} childTask */
 async function assertCanRelateTasks(session, parentTask, childTask) {
   if (parentTask.task_id === childTask.task_id) {
     throw new AppError("A task cannot be its own child.", 400);
@@ -2329,6 +2362,7 @@ async function assertCanRelateTasks(session, parentTask, childTask) {
   }
 }
 
+/** @param {string} workspaceId @param {string} parentTaskId @param {string} childTaskId */
 async function readActiveRelationshipOrThrow(workspaceId, parentTaskId, childTaskId) {
   const relationship = await taskRelationshipsRepository.readActivePair(workspaceId, parentTaskId, childTaskId);
 
@@ -2339,8 +2373,9 @@ async function readActiveRelationshipOrThrow(workspaceId, parentTaskId, childTas
   return relationship;
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} childTask */
 async function blockParentsForIncompleteChild(session, childTask) {
-  if (!isIncompleteBlockingChild(childTask)) {
+  if (!isIncompleteTask(childTask)) {
     return;
   }
 
@@ -2353,45 +2388,49 @@ async function blockParentsForIncompleteChild(session, childTask) {
   }
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} parentTask @param {TaskRecord} childTask */
 async function blockParentForChild(session, parentTask, childTask) {
-  if (isCompleteOrArchivedStatus(parentTask.status)) {
+  const transition = planParentBlockTransition({ parentTask, blockingChild: childTask });
+  if (!transition.effects.persistTask || !transition.taskPatch) {
     return;
   }
 
   const now = new Date().toISOString();
-  const blockedReason = parentTask.blocked_reason ||
-    autoBlockedReason([childTask.title || childTask.task_id]);
   const blockedParent = await tasksRepository.update(session.workspace_id, {
     ...parentTask,
-    status: "blocked",
-    blocked_reason: blockedReason,
+    status: transition.taskPatch.status,
+    blocked_reason: transition.taskPatch.blocked_reason,
     last_worked_at: now,
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
-  await pauseRunningTimersForBlockedTask(blockedParent, session);
+  if (transition.effects.pauseRunningTimers) {
+    await pauseRunningTimersForBlockedTask(blockedParent, session);
+  }
   const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
-  await emitTaskEvent("task.updated", {
-    session,
-    previousValue: parentTask,
-    newValue: updatedTask,
-    metadata: {
-      status_transition_reason: "blocked_by_child",
-      blocking_child_task_id: childTask.task_id,
-      blocking_child_title: childTask.title || "",
-    },
-  });
-  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.blocked_by_child");
+  if (transition.effects.emitTaskUpdated) {
+    await emitTaskEvent("task.updated", {
+      session,
+      previousValue: parentTask,
+      newValue: updatedTask,
+      metadata: transition.eventMetadata || undefined,
+    });
+  }
+  if (transition.effects.reindexSearch) {
+    await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, transition.searchReason);
+  }
 }
 
+/** @param {TaskRecord} task @param {TaskServerSession} session */
 async function pauseRunningTimersForBlockedTask(task, session) {
-  if (task?.status !== "blocked") {
+  if (!shouldPauseRunningTimersForBlockedTask(task)) {
     return;
   }
 
   await taskTimersService.pauseRunningForBlockedTask(task, session);
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} childTask */
 async function recoverParentsAfterChildStatusChange(session, childTask) {
   const relationships = await taskRelationshipsRepository.readParents(session.workspace_id, childTask.task_id);
 
@@ -2403,73 +2442,61 @@ async function recoverParentsAfterChildStatusChange(session, childTask) {
   }
 }
 
+/** @param {TaskServerSession} session @param {TaskRecord} parentTask */
 async function recoverParentIfNoBlockingChildren(session, parentTask) {
-  if (parentTask.status !== "blocked") {
-    return;
-  }
-
   const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, parentTask.task_id);
-  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
-
-  if (incomplete.length > 0) {
-    return;
-  }
-
-  if (parentTask.blocked_reason && !parentTask.blocked_reason.startsWith("Blocked by incomplete child task")) {
+  const transition = planParentRecoveryTransition({
+    parentTask,
+    incompleteBlockingChildCount: blockingChildren.filter((relationship) => isIncompleteTask(relationship.child_status)).length,
+  });
+  if (!transition.effects.persistTask || !transition.taskPatch) {
     return;
   }
 
   const now = new Date().toISOString();
   await tasksRepository.update(session.workspace_id, {
     ...parentTask,
-    status: "open",
-    blocked_reason: "",
+    status: transition.taskPatch.status,
+    blocked_reason: transition.taskPatch.blocked_reason,
     last_worked_at: now,
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
   const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
-  await emitTaskEvent("task.updated", {
-    session,
-    previousValue: parentTask,
-    newValue: updatedTask,
-    metadata: {
-      status_transition_reason: "unblocked_by_child",
-    },
-  });
-  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.unblocked_by_child");
+  if (transition.effects.emitTaskUpdated) {
+    await emitTaskEvent("task.updated", {
+      session,
+      previousValue: parentTask,
+      newValue: updatedTask,
+      metadata: transition.eventMetadata || undefined,
+    });
+  }
+  if (transition.effects.reindexSearch) {
+    await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, transition.searchReason);
+  }
 }
 
-function isIncompleteBlockingChild(task) {
-  return !isCompleteOrArchivedStatus(task.status);
-}
-
-function isCompleteOrArchivedStatus(status) {
-  return status === "complete" || status === "archived";
-}
-
-function autoBlockedReason(childTitles) {
-  const label = childTitles.filter(Boolean).slice(0, 2).join(", ") || "blocking child task";
-  return `Blocked by incomplete child task: ${label}`;
-}
-
+/** @param {TaskServerSession} session @param {TaskRecord | TaskRecurrenceTemplate} task */
 function isOwnTask(session, task) {
   return task.created_by_user_id === session.user_id ||
     (task.assignee_ids || []).includes(session.user_id);
 }
 
+/** @param {{ workspace_id?: string, client_id?: string | null, project_id?: string | null }} task */
 function taskResource(task) {
   return {
-    workspace_id: task.workspace_id,
+    workspace_id: task.workspace_id || "",
     client_id: task.client_id || "",
     project_id: task.project_id || "",
   };
 }
 
+/** @param {Record<string, unknown>} payload @param {string} key @param {unknown} fallback */
 function valueOrFallback(payload, key, fallback) {
   return Object.hasOwn(payload || {}, key) ? payload[key] : fallback;
 }
 
+/** @param {Record<string, unknown>} payload @param {Partial<TaskRecord>} fallback */
 function readReminderOverrideEnabled(payload, fallback) {
   if (Object.hasOwn(payload || {}, "reminderOverrideEnabled")) {
     return Boolean(payload.reminderOverrideEnabled);
@@ -2482,6 +2509,7 @@ function readReminderOverrideEnabled(payload, fallback) {
   return Boolean(fallback.reminder_override_enabled);
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {Record<string, unknown>} payload */
 async function saveTaskReminderOverride(workspaceId, taskId, payload = {}) {
   const hasReminderPayload = Object.hasOwn(payload, "reminderPolicy") ||
     Object.hasOwn(payload, "reminder_policy") ||
@@ -2493,10 +2521,14 @@ async function saveTaskReminderOverride(workspaceId, taskId, payload = {}) {
   }
 
   const overrideEnabled = readReminderOverrideEnabled(payload, {});
-  const policy = payload.reminderPolicy || payload.reminder_policy || {};
+  const rawPolicy = payload.reminderPolicy || payload.reminder_policy;
+  const policy = rawPolicy && typeof rawPolicy === "object" && !Array.isArray(rawPolicy)
+    ? /** @type {import("../../types/task-workflow-contracts.d.ts").TaskReminderPolicyInput} */ (rawPolicy)
+    : {};
   await taskRemindersService.saveTargetPolicy(workspaceId, "task", taskId, policy, !overrideEnabled);
 }
 
+/** @param {TaskServerSession} session @param {string} targetType @param {string} targetId @param {Record<string, unknown>} payload */
 async function saveTargetTags(session, targetType, targetId, payload = {}) {
   if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
     return;
@@ -2509,6 +2541,7 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
   });
 }
 
+/** @param {TaskServerSession} session @param {string} targetType @param {string} targetId @param {string} reason */
 async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
   try {
     await tagsService.refreshPropagatedAssignmentsForTarget(session, {
@@ -2521,6 +2554,7 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
   }
 }
 
+/** @param {{ session: TaskServerSession, sourceTask: TaskWithDetails }} input */
 async function syncRecurringChecklistStructure({ session, sourceTask }) {
   const templateId = sourceTask?.recurrence_template_id || "";
   if (!templateId) {
@@ -2533,7 +2567,7 @@ async function syncRecurringChecklistStructure({ session, sourceTask }) {
   const sourceItems = recurringChecklistStructureItems(
     await taskChecklistsRepository.readForTask(session.workspace_id, sourceTask.task_id),
   );
-  const templateChecklistItems = await taskRecurrenceRepository.replaceTemplateChecklist(
+  const templateChecklistItems = await taskRecurrenceService.replaceTemplateChecklist(
     session.workspace_id,
     templateId,
     sourceItems,
@@ -2580,6 +2614,7 @@ async function syncRecurringChecklistStructure({ session, sourceTask }) {
   };
 }
 
+/** @param {{ session: TaskServerSession, sourceTask: TaskWithDetails }} input */
 async function syncRecurringLinkedNoteStructure({ session, sourceTask }) {
   const templateId = sourceTask?.recurrence_template_id || "";
   if (!templateId) {
@@ -2599,7 +2634,7 @@ async function syncRecurringLinkedNoteStructure({ session, sourceTask }) {
     };
   }
 
-  const templateNoteLinks = await taskRecurrenceRepository.replaceTemplateNoteLinks(
+  const templateNoteLinks = await taskRecurrenceService.replaceTemplateNoteLinks(
     session.workspace_id,
     templateId,
     sourceResult.links,
@@ -2654,6 +2689,7 @@ async function syncRecurringLinkedNoteStructure({ session, sourceTask }) {
   };
 }
 
+/** @param {TaskChecklistItem[]} items */
 function recurringChecklistStructureItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .filter((item) => !item.deleted_at)
@@ -2663,11 +2699,13 @@ function recurringChecklistStructureItems(items = []) {
     }));
 }
 
+/** @param {TaskServerSession} session @param {string} taskId @returns {Promise<TaskDetail>} */
 async function readTaggedTaskWithDetails(session, taskId) {
   const task = await readTaskOrThrow(session.workspace_id, taskId);
   return attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0], session);
 }
 
+/** @param {TaskServerSession} session @param {string} taskId */
 async function readableRelationshipsForTask(session, taskId) {
   const relationships = await taskRelationshipsRepository.readForTask(session.workspace_id, taskId);
   const readable = [];
@@ -2697,6 +2735,7 @@ async function readableRelationshipsForTask(session, taskId) {
   return readable;
 }
 
+/** @param {TaskRecord} task */
 function taskRelationshipTaskSummary(task) {
   return {
     task_id: task.task_id,
@@ -2711,6 +2750,7 @@ function taskRelationshipTaskSummary(task) {
   };
 }
 
+/** @param {string} taskId @param {string} itemId @param {boolean} checked @param {TaskServerSession} session */
 async function setChecklistItemChecked(taskId, itemId, checked, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const task = await readTaskOrThrow(session.workspace_id, taskId);
@@ -2744,6 +2784,7 @@ async function setChecklistItemChecked(taskId, itemId, checked, session) {
   });
 }
 
+/** @param {string} workspaceId @param {string} itemId @param {string} taskId */
 async function readChecklistItemOrThrow(workspaceId, itemId, taskId) {
   const item = await taskChecklistsRepository.readById(workspaceId, decodeURIComponent(itemId || ""));
 
@@ -2754,6 +2795,7 @@ async function readChecklistItemOrThrow(workspaceId, itemId, taskId) {
   return item;
 }
 
+/** @param {{ session: TaskServerSession, task: TaskWithDetails, action: string, checked?: boolean | null, eventName: string, previousItem?: TaskChecklistItem | null, item?: TaskChecklistItem | null, items?: TaskChecklistItem[] | null }} input */
 async function finalizeChecklistMutation({ session, task, action, checked = null, eventName, previousItem, item, items = null }) {
   const workedAt = new Date().toISOString();
   await tasksRepository.markWorkedAt(session.workspace_id, task.task_id, workedAt, session.user_id);
@@ -2813,6 +2855,7 @@ async function finalizeChecklistMutation({ session, task, action, checked = null
   };
 }
 
+/** @param {{ session: TaskServerSession, task: TaskWithDetails, checked: boolean | null, currentItems: TaskChecklistItem[], workedAt: string }} input */
 async function applyChecklistDrivenStatusTransition({ session, task, checked, currentItems, workedAt }) {
   const nextStatus = await checklistDrivenStatus(session.workspace_id, task, checked, currentItems);
 
@@ -2856,6 +2899,7 @@ async function applyChecklistDrivenStatusTransition({ session, task, checked, cu
   return taskWithDetails;
 }
 
+/** @param {string} workspaceId @param {TaskWithDetails} task @param {boolean | null} checked @param {TaskChecklistItem[]} currentItems */
 async function checklistDrivenStatus(workspaceId, task, checked, currentItems = []) {
   if (checked === true && (task.status === "open" || task.status === "blocked")) {
     return "in_progress";
@@ -2873,17 +2917,15 @@ async function checklistDrivenStatus(workspaceId, task, checked, currentItems = 
   return "";
 }
 
+/** @param {TaskWithDetails} task @returns {Promise<TaskWithDetails & { reminderDetails: import("../../types/task-workflow-contracts.d.ts").TaskReminderDetails }>} */
 async function attachReminderDetailsToTask(task) {
-  if (!task) {
-    return null;
-  }
-
   return {
     ...task,
     reminderDetails: await taskRemindersService.readTaskReminderDetails(task),
   };
 }
 
+/** @param {TaskWithDetails[]} tasks @param {TaskServerSession} session @param {{ canReadTaskRow?: ((task: import("../../types/http-contracts.d.ts").PermissionResource) => boolean) | null }} options @returns {Promise<TaskWithDetails[]>} */
 async function attachTaskListProjectionDetails(tasks, session, { canReadTaskRow = null } = {}) {
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return [];
@@ -2914,28 +2956,45 @@ async function attachTaskListProjectionDetails(tasks, session, { canReadTaskRow 
   });
 }
 
+/** @param {TaskWithDetails} task @param {TaskServerSession | null} session @returns {Promise<TaskDetail>} */
 async function attachTaskDetails(task, session = null) {
-  if (!task) {
-    return null;
-  }
-
   const taskWithReminders = await attachReminderDetailsToTask(task);
   const checklistItems = await taskChecklistsRepository.readForTask(task.workspace_id, task.task_id);
   const checklistProgress = taskChecklistProgress(checklistItems);
   const relationshipSummary = await taskRelationshipsRepository.relationshipSummary(task.workspace_id, task.task_id);
   return {
     ...taskWithReminders,
+    archived_at: taskWithReminders.archived_at || "",
+    blocked_reason: taskWithReminders.blocked_reason || "",
     checklistItems,
     checklistProgress,
-    relationshipSummary,
+    client_id: taskWithReminders.client_id || "",
+    client_name: taskWithReminders.client_name || "",
+    completed_at: taskWithReminders.completed_at || "",
     completionMetrics: taskCompletionMetrics(taskWithReminders),
+    created_at: taskWithReminders.created_at || "",
+    description: taskWithReminders.description || "",
+    due_date: taskWithReminders.due_date || "",
+    due_time: taskWithReminders.due_time || "",
+    last_worked_at: taskWithReminders.last_worked_at || "",
+    next_action: taskWithReminders.next_action || "",
+    priority: taskWithReminders.priority || "normal",
+    project_id: taskWithReminders.project_id || "",
+    project_name: taskWithReminders.project_name || "",
+    recurrence_instance_date: taskWithReminders.recurrence_instance_date || "",
+    recurrence_template_id: taskWithReminders.recurrence_template_id || "",
     recurrenceContinuity: await readTaskCompletionContinuity(taskWithReminders),
+    relationshipSummary,
     resumeContext: taskResumeContext({ ...taskWithReminders, checklistProgress, relationshipSummary }),
     recurrenceDetails: await taskRecurrenceService.readTaskRecurrenceDetails(taskWithReminders),
     recurrenceRecovery: session ? publicRecurrenceRecovery(await recurrenceRecoveryPlan(session, taskWithReminders)) : null,
+    resume_note: taskWithReminders.resume_note || "",
+    tags: taskWithReminders.tags || [],
+    updated_at: taskWithReminders.updated_at || "",
   };
 }
 
+/** @param {TaskRecurrencePlan | null} plan @returns {import("../../types/task-server-contracts.d.ts").TaskPublicRecurrenceRecovery | null} */
 function publicRecurrenceRecovery(plan) {
   if (!plan) {
     return null;
@@ -2952,6 +3011,7 @@ function publicRecurrenceRecovery(plan) {
   };
 }
 
+/** @param {TaskServerSession} session @param {TaskWithDetails[]} tasks @param {((task: import("../../types/http-contracts.d.ts").PermissionResource) => boolean) | null} canReadTaskRow */
 async function readPrimaryParentByTaskId(session, tasks = [], canReadTaskRow = null) {
   const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
   const [relationships, resolvedCanReadTaskRow] = await Promise.all([
@@ -2981,6 +3041,7 @@ async function readPrimaryParentByTaskId(session, tasks = [], canReadTaskRow = n
   return parentByTaskId;
 }
 
+/** @param {TaskWithDetails} task */
 async function readTaskCompletionContinuity(task) {
   if (task?.status !== "complete" || !task.recurrence_template_id || !task.recurrence_instance_date) {
     return null;
@@ -2999,16 +3060,19 @@ async function readTaskCompletionContinuity(task) {
   });
 }
 
+/** @param {unknown} value */
 function normalizeStatus(value) {
   const status = String(value || "").trim();
   return STATUSES.has(status) ? status : "open";
 }
 
+/** @param {unknown} value */
 function normalizePriority(value) {
   const priority = String(value || "").trim();
   return PRIORITIES.has(priority) ? priority : "normal";
 }
 
+/** @param {unknown} value */
 function normalizeCalendarStatuses(value) {
   const values = (Array.isArray(value) ? value : [value])
     .flatMap((entry) => String(entry || "").split(","))
@@ -3019,6 +3083,7 @@ function normalizeCalendarStatuses(value) {
   return uniqueValues.length ? uniqueValues : ["open", "in_progress", "blocked"];
 }
 
+/** @param {unknown} value */
 function normalizeTaskEstimateMinutes(value) {
   if (value === null || value === undefined || String(value).trim() === "") {
     return null;
@@ -3032,11 +3097,13 @@ function normalizeTaskEstimateMinutes(value) {
   return minutes;
 }
 
+/** @param {unknown} value */
 function normalizeDueDate(value) {
   const text = String(value || "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
+/** @param {unknown} value */
 function normalizeDueTime(value) {
   const text = String(value || "").trim();
   if (!text) {
@@ -3058,14 +3125,18 @@ function normalizeDueTime(value) {
   return `${match[1]}:${match[2]}`;
 }
 
+/** @param {unknown} assigneeIds */
 function normalizeAssigneeIds(assigneeIds) {
-  return [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
+  const values = Array.isArray(assigneeIds) ? assigneeIds : [];
+  return [...new Set(values.map((id) => String(id || "").trim()).filter(Boolean))];
 }
 
+/** @param {unknown} value */
 function normalizeTaskContextText(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} value */
 function normalizeChecklistLabel(value) {
   const label = String(value || "").trim();
 
@@ -3076,15 +3147,19 @@ function normalizeChecklistLabel(value) {
   return label.slice(0, 240);
 }
 
+/** @param {unknown} value @param {number} index */
 function normalizeChecklistSortOrder(value, index = 0) {
-  const sortOrder = Number.parseInt(value, 10);
+  const sortOrder = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(sortOrder) ? sortOrder : (index + 1) * 1000;
 }
 
+/** @param {unknown} itemIds */
 function normalizeChecklistItemIds(itemIds) {
-  return [...new Set((itemIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
+  const values = Array.isArray(itemIds) ? itemIds : [];
+  return [...new Set(values.map((id) => String(id || "").trim()).filter(Boolean))];
 }
 
+/** @param {unknown} value @param {"yes" | "no"} fallback @returns {"yes" | "no"} */
 function normalizeBillableFlag(value, fallback = "yes") {
   if (value === false || value === "no") {
     return "no";
@@ -3097,6 +3172,7 @@ function normalizeBillableFlag(value, fallback = "yes") {
   return fallback === "no" ? "no" : "yes";
 }
 
+/** @param {TaskWithDetails[]} tasks */
 function sortTaskSummaryRows(tasks) {
   return [...tasks].sort((firstTask, secondTask) =>
     String(firstTask.due_date || "9999-12-31").localeCompare(String(secondTask.due_date || "9999-12-31")) ||
@@ -3105,6 +3181,7 @@ function sortTaskSummaryRows(tasks) {
   );
 }
 
+/** @param {TaskWithDetails[]} activeTasks @param {TaskDashboardContext} context */
 function dashboardAttentionRows(activeTasks, context) {
   const rows = sortDashboardAttentionTasks(
     activeTasks.filter((task) => dashboardTaskReasons(task, context).length > 0),
@@ -3114,6 +3191,7 @@ function dashboardAttentionRows(activeTasks, context) {
   return dedupeDashboardRows(rows).slice(0, DASHBOARD_TASK_ATTENTION_LIMIT);
 }
 
+/** @param {TaskWithDetails[]} activeTasks @param {TaskDashboardContext} context */
 function dashboardUpcomingRows(activeTasks, context) {
   const upcomingTasks = activeTasks.filter((task) =>
     task.status !== "blocked" &&
@@ -3130,16 +3208,18 @@ function dashboardUpcomingRows(activeTasks, context) {
     .slice(0, DASHBOARD_TASK_UPCOMING_LIMIT);
 }
 
+/** @param {TaskWithDetails[]} tasks @param {TaskDashboardContext} context */
 function sortDashboardAttentionTasks(tasks, context) {
   return [...tasks].sort((leftTask, rightTask) =>
     dashboardAttentionRank(leftTask, context) - dashboardAttentionRank(rightTask, context) ||
-    compareByDueAt(leftTask, rightTask) ||
+    compareTaskDueOrder(leftTask, rightTask) ||
     priorityRank(rightTask.priority) - priorityRank(leftTask.priority) ||
     String(rightTask.updated_at || "").localeCompare(String(leftTask.updated_at || "")) ||
-    compareByStableTitle(leftTask, rightTask),
+    compareTaskStableTitle(leftTask, rightTask),
   );
 }
 
+/** @param {TaskWithDetails} task @param {TaskDashboardContext} context */
 function dashboardAttentionRank(task, context) {
   if (isTaskOverdue(task, context.now, context.today)) {
     return 10;
@@ -3165,6 +3245,7 @@ function dashboardAttentionRank(task, context) {
   return 99;
 }
 
+/** @param {TaskWithDetails} task @param {TaskDashboardContext} context */
 function dashboardTaskRow(task, context) {
   const timer = context.timerByTaskId.get(task.task_id);
   const reasons = Array.isArray(context.reasons) ? context.reasons : dashboardTaskReasons(task, context);
@@ -3197,6 +3278,7 @@ function dashboardTaskRow(task, context) {
   };
 }
 
+/** @param {TaskWithDetails} task */
 function dashboardTaskWorkbenchAction(task) {
   // Per-row Workbench handoffs deep-link into Task Focus for that task; the
   // panel-level Open Workbench action stays the generic Workbench entry.
@@ -3206,6 +3288,7 @@ function dashboardTaskWorkbenchAction(task) {
   };
 }
 
+/** @param {TaskWithDetails} task @param {TaskDashboardContext} context */
 function dashboardTaskReasons(task, context) {
   const reasons = [];
   const timer = context.timerByTaskId.get(task.task_id);
@@ -3219,7 +3302,7 @@ function dashboardTaskReasons(task, context) {
   }
 
   if (hasDashboardTaskTimer(timer)) {
-    reasons.push(timer.timer_status === "running" ? "Timer running" : "Timer paused");
+    reasons.push(timer?.timer_status === "running" ? "Timer running" : "Timer paused");
   }
 
   if (isTaskDueSoon(task, context.now, context.today, context.dueSoonCutoff)) {
@@ -3229,6 +3312,7 @@ function dashboardTaskReasons(task, context) {
   return reasons;
 }
 
+/** @param {TaskWithDetails} task @param {string} workspaceType */
 function dashboardTaskContextLabel(task, workspaceType = "business") {
   const clientName = String(task.client_name || "").trim();
   const projectName = String(task.project_name || "").trim();
@@ -3240,6 +3324,7 @@ function dashboardTaskContextLabel(task, workspaceType = "business") {
   return projectName || "Workspace task";
 }
 
+/** @param {TaskWithDetails} task */
 function dashboardTaskDueLabel(task) {
   if (!task.due_date) {
     return "No due date";
@@ -3248,6 +3333,7 @@ function dashboardTaskDueLabel(task) {
   return task.due_time ? `Due ${task.due_date} at ${task.due_time}` : `Due ${task.due_date}`;
 }
 
+/** @param {string} label @param {number} value @param {string} href */
 function dashboardTaskMetric(label, value, href = DASHBOARD_WORKBENCH_URL) {
   return {
     label,
@@ -3269,10 +3355,12 @@ function dashboardTaskActions() {
   };
 }
 
+/** @param {TaskTimerRecord | null | undefined} timer */
 function hasDashboardTaskTimer(timer) {
   return ["running", "paused"].includes(timer?.timer_status || "");
 }
 
+/** @template {{ task_id: string, dedupeKey?: string, id?: string }} Row @param {Row[]} rows */
 function dedupeDashboardRows(rows) {
   const seen = new Set();
   return rows.filter((row) => {
@@ -3285,366 +3373,22 @@ function dedupeDashboardRows(rows) {
   });
 }
 
-function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId = new Map()) {
-  const now = new Date();
-  const today = localDateKey(now, session.timezone);
-  const dueSoonCutoff = addDaysKey(today, 7);
-  const currentWeekEnd = currentWeekEndKey(today);
-  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
-  const statusFilter = normalizedTaskFilter(query.status || query.status_filter || query.filter);
-  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
-  const dueFilter = normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter);
-  const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
-  const assigneeFilter = normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value);
-  const assigneeId = String(query.assigneeId || query.assignee_id || "").trim();
-  const scopeQuery = normalizeTaskScopeQuery(query);
-
-  // An explicit terminal Status filter (or "all") overrides a saved view's implicit active-only
-  // scope, so combinations like "Today + Complete" or "All + All" resolve instead of contradicting.
-  // Safe because the active-scoped views default their Status control to "active"; only an explicit
-  // Status choice surfaces completed/archived work.
-  const statusOverridesActiveScope = ["complete", "archived", "history", "all"].includes(statusFilter);
-
-  if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd, statusOverridesActiveScope)) {
-    return false;
-  }
-
-  if (!matchesStatusFilter(task, statusFilter)) {
-    return false;
-  }
-
-  if (!taskView && !matchesQuickFilter(task, quickFilter, session.user_id)) {
-    return false;
-  }
-
-  if (!matchesDueFilter(task, dueFilter, now, today, dueSoonCutoff)) {
-    return false;
-  }
-
-  if (!matchesTaskContextFilters(task, scopeQuery)) {
-    return false;
-  }
-
-  if (!matchesAdvancedAssigneeFilter(task, assigneeFilter, assigneeId, session.user_id)) {
-    return false;
-  }
-
-  if (timerFilter) {
-    const timer = timerByTaskId.get(task.task_id);
-    if (timerFilter === "has_timer" && !timer) {
-      return false;
-    }
-    if (["running", "paused"].includes(timerFilter) && timer?.timer_status !== timerFilter) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function normalizeTaskScopeQuery(query = {}) {
-  if (query?.[TASK_SCOPE_QUERY_MARKER]) {
-    return query;
-  }
-
-  return {
-    clientFilterMode: hasQueryFilter(query, ["clientId", "client_id"])
-      ? (String(query.clientId || query.client_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
-      : FILTER_SCOPE_MODES.all,
-    clientId: String(query.clientId || query.client_id || "").trim(),
-    clientIds: [],
-    clientProjectIds: [],
-    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
-    omitClientFilterBecauseProjectSelected: false,
-    projectFilterMode: hasQueryFilter(query, ["projectId", "project_id"])
-      ? (String(query.projectId || query.project_id || "").trim() ? FILTER_SCOPE_MODES.ids : FILTER_SCOPE_MODES.blank)
-      : FILTER_SCOPE_MODES.all,
-    projectId: String(query.projectId || query.project_id || "").trim(),
-    projectIds: [],
-    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
-  };
-}
-
-function matchesTaskContextFilters(task = {}, query = {}) {
-  if (query.hasProjectFilter) {
-    if (query.projectFilterMode === FILTER_SCOPE_MODES.blank) {
-      if (String(task.project_id || "").trim()) {
-        return false;
-      }
-    } else if (query.projectFilterMode === FILTER_SCOPE_MODES.ids) {
-      const scopedProjectIds = Array.isArray(query.projectIds) && query.projectIds.length > 0
-        ? query.projectIds
-        : [String(query.projectId || "").trim()].filter(Boolean);
-
-      if (!scopedProjectIds.includes(String(task.project_id || "").trim())) {
-        return false;
-      }
-    }
-  }
-
-  if (!query.hasClientFilter || query.omitClientFilterBecauseProjectSelected) {
-    return true;
-  }
-
-  if (query.clientFilterMode === FILTER_SCOPE_MODES.blank) {
-    return !String(task.client_id || "").trim();
-  }
-
-  if (query.clientFilterMode !== FILTER_SCOPE_MODES.ids) {
-    return true;
-  }
-
-  const scopedClientIds = Array.isArray(query.clientIds) && query.clientIds.length > 0
-    ? query.clientIds
-    : [String(query.clientId || "").trim()].filter(Boolean);
-  const scopedProjectIds = Array.isArray(query.clientProjectIds) ? query.clientProjectIds : [];
-
-  return scopedClientIds.includes(String(task.client_id || "").trim()) ||
-    scopedProjectIds.includes(String(task.project_id || "").trim());
-}
-
-function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false) {
-  const inActiveScope = statusOverridesActiveScope || isActiveTask(task);
-
-  if (taskView === "my") {
-    return inActiveScope && (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (taskView === "all") {
-    return inActiveScope;
-  }
-
-  if (taskView === "unassigned") {
-    return inActiveScope && (task.assignee_ids || []).length === 0;
-  }
-
-  if (taskView === "overdue") {
-    return inActiveScope && Boolean(task.due_date) && task.due_date < today;
-  }
-
-  if (taskView === "today") {
-    return inActiveScope && task.due_date === today;
-  }
-
-  if (taskView === "week") {
-    return inActiveScope && Boolean(task.due_date) && task.due_date >= today && task.due_date <= currentWeekEnd;
-  }
-
-  if (taskView === "completed") {
-    return task.status === "complete";
-  }
-
-  if (taskView === "archived") {
-    return task.status === "archived";
-  }
-
-  return true;
-}
-
-function matchesStatusFilter(task, filter) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (filter === "active") {
-    return !["complete", "archived"].includes(task.status);
-  }
-
-  if (filter === "history") {
-    return ["complete", "archived"].includes(task.status);
-  }
-
-  return task.status === filter;
-}
-
-function matchesQuickFilter(task, filter, currentUserId) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (["my", "assigned_to_me", "assigned"].includes(filter)) {
-    return (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (filter === "unassigned") {
-    return (task.assignee_ids || []).length === 0;
-  }
-
-  if (["in_progress", "blocked"].includes(filter)) {
-    return task.status === filter;
-  }
-
-  if (["overdue", "today", "week", "next_due"].includes(filter)) {
-    return true;
-  }
-
-  return true;
-}
-
-function matchesAdvancedAssigneeFilter(task, filter, assigneeId, currentUserId) {
-  if (filter === "me" || filter === "assigned_to_me") {
-    return (task.assignee_ids || []).includes(currentUserId);
-  }
-
-  if (filter === "unassigned") {
-    return (task.assignee_ids || []).length === 0;
-  }
-
-  if (assigneeId) {
-    return (task.assignee_ids || []).includes(assigneeId);
-  }
-
-  return true;
-}
-
-function quickDueFilter(filter) {
-  return ["overdue", "today", "week", "next_due"].includes(filter) ? filter : "";
-}
-
-function matchesDueFilter(task, filter, now, today, dueSoonCutoff) {
-  if (!filter || filter === "all") {
-    return true;
-  }
-
-  if (filter === "overdue") {
-    return isActiveTask(task) && isTaskOverdue(task, now, today);
-  }
-
-  if (filter === "today") {
-    return isActiveTask(task) && task.due_date === today && !isTaskOverdue(task, now, today);
-  }
-
-  if (filter === "week") {
-    return isActiveTask(task) && isTaskDueSoon(task, now, today, dueSoonCutoff);
-  }
-
-  if (filter === "next_due") {
-    return isActiveTask(task) && Boolean(task.due_date);
-  }
-
-  return true;
-}
-
-function sortCanonicalTasks(tasks, query = {}) {
-  const sort = normalizedTaskSort(query.sort || query.sort_by || query.order);
-
-  return [...tasks].sort((left, right) => compareCanonicalTasks(left, right, sort));
-}
-
-function compareCanonicalTasks(left, right, sort) {
-  if (sort === "priority") {
-    return priorityRank(right.priority) - priorityRank(left.priority) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "status") {
-    return statusRank(left.status) - statusRank(right.status) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "last_worked") {
-    return compareDesc(left.last_worked_at, right.last_worked_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "updated") {
-    return compareDesc(left.updated_at, right.updated_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "context") {
-    return String(left.client_name || "").localeCompare(String(right.client_name || "")) ||
-      String(left.project_name || "").localeCompare(String(right.project_name || "")) ||
-      compareByDueAt(left, right) ||
-      compareByStableTitle(left, right);
-  }
-
-  if (sort === "created") {
-    return compareDesc(left.created_at, right.created_at) || compareByStableTitle(left, right);
-  }
-
-  if (sort === "created_asc") {
-    return String(left.created_at || "").localeCompare(String(right.created_at || "")) || compareByStableTitle(left, right);
-  }
-
-  return compareByDueAt(left, right) || priorityRank(right.priority) - priorityRank(left.priority) || compareByStableTitle(left, right);
-}
-
-function compareByDueAt(left, right) {
-  return String(taskDueSortValue(left)).localeCompare(String(taskDueSortValue(right)));
-}
-
-function compareByStableTitle(left, right) {
-  return String(left.title || "").localeCompare(String(right.title || "")) ||
-    String(left.created_at || "").localeCompare(String(right.created_at || "")) ||
-    String(left.task_id || "").localeCompare(String(right.task_id || ""));
-}
-
-function compareDesc(leftValue, rightValue) {
-  return String(rightValue || "").localeCompare(String(leftValue || ""));
-}
-
-function taskDueSortValue(task) {
-  if (task.due_at_utc) {
-    return task.due_at_utc;
-  }
-
-  return `${task.due_date || "9999-12-31"}T${task.due_time || "23:59"}:00`;
-}
-
-function normalizedTaskFilter(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function normalizedTaskView(value) {
-  const taskView = normalizedTaskFilter(value);
-  const aliases = {
-    assigned: "my",
-    assigned_to_me: "my",
-    complete: "completed",
-    due_today: "today",
-    due_this_week: "week",
-  };
-  const normalized = aliases[taskView] || taskView;
-  return TASK_VIEW_FILTERS.has(normalized) ? normalized : "";
-}
-
+/** @param {unknown} value */
 function readBoolean(value) {
   return value === true || value === "true" || value === "1" || value === 1;
 }
 
+/** @param {TaskServerQuery} query @param {string[]} keys */
 function hasQueryFilter(query, keys) {
   return keys.some((key) => Object.hasOwn(query || {}, key));
 }
 
-function normalizedTaskSort(value) {
-  const sort = String(value || "due_at").trim().toLowerCase();
-  const aliases = {
-    due: "due_at",
-    due_date: "due_at",
-    due_time: "due_at",
-    priority_desc: "priority",
-    last_worked_at: "last_worked",
-    recent: "updated",
-    recently_updated: "updated",
-    project_client: "context",
-    client_project: "context",
-    oldest: "created_asc",
-  };
-
-  return aliases[sort] || sort;
-}
-
-function statusRank(status) {
-  return {
-    blocked: 1,
-    in_progress: 2,
-    open: 3,
-    complete: 4,
-    archived: 5,
-  }[status] || 99;
-}
-
+/** @param {TaskRecord} task */
 function isActiveTask(task) {
   return !["complete", "archived"].includes(task.status || "");
 }
 
+/** @param {TaskRecord} task @param {Date} now @param {string} today */
 function isTaskOverdue(task, now, today) {
   if (!task.due_date) {
     return false;
@@ -3658,6 +3402,7 @@ function isTaskOverdue(task, now, today) {
   return task.due_date < today;
 }
 
+/** @param {TaskRecord} task @param {Date} now @param {string} today @param {string} dueSoonCutoff */
 function isTaskDueSoon(task, now, today, dueSoonCutoff) {
   if (!task.due_date || task.due_date < today || task.due_date > dueSoonCutoff) {
     return false;
@@ -3666,6 +3411,7 @@ function isTaskDueSoon(task, now, today, dueSoonCutoff) {
   return !isTaskOverdue(task, now, today);
 }
 
+/** @param {TaskWithDetails} task @param {string} currentUserId */
 function taskSummaryRow(task, currentUserId = "") {
   return {
     task_id: task.task_id,
@@ -3698,6 +3444,7 @@ function taskSummaryRow(task, currentUserId = "") {
   };
 }
 
+/** @param {TaskWithDetails} task @param {{ currentUserId?: string, timer?: TaskTimerRecord | null }} options */
 function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
   const sourceUrl = taskUrl(task);
   const timerStatus = timer?.timer_status || "";
@@ -3756,8 +3503,12 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
   };
 }
 
+/** @param {unknown} tags */
 function safeTaskTags(tags = []) {
-  return (Array.isArray(tags) ? tags : [])
+  const values = Array.isArray(tags)
+    ? /** @type {Array<{ color?: unknown, name?: unknown, slug?: unknown, tag_id?: unknown }>} */ (tags)
+    : [];
+  return values
     .map((tag) => ({
       color: tag.color || "",
       name: tag.name || tag.slug || "",
@@ -3767,28 +3518,33 @@ function safeTaskTags(tags = []) {
     .filter((tag) => tag.tag_id && tag.name);
 }
 
+/** @param {unknown} description @param {number} maxLength */
 function descriptionExcerpt(description, maxLength = 160) {
   const text = String(description || "").replace(/\s+/g, " ").trim();
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} */
+/** @param {TaskWithDetails} task */
 function taskCalendarRow(task) {
   return {
     task_id: task.task_id,
     id: task.task_id,
     title: task.title,
     status: task.status,
-    priority: task.priority,
-    due_date: task.due_date,
-    due_time: task.due_time,
-    client_name: task.client_name,
-    project_name: task.project_name,
+    priority: String(task.priority || "normal"),
+    due_date: String(task.due_date || ""),
+    due_time: String(task.due_time || ""),
+    client_name: String(task.client_name || ""),
+    project_name: String(task.project_name || ""),
     allDay: !task.due_time,
-    endDate: task.due_date,
-    startDate: task.due_date,
+    endDate: String(task.due_date || ""),
+    startDate: String(task.due_date || ""),
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} */
+/** @param {TaskRecurrenceTemplate} template @param {string} instanceDate */
 function virtualTaskCalendarRow(template, instanceDate) {
   return {
     task_id: "",
@@ -3809,24 +3565,28 @@ function virtualTaskCalendarRow(template, instanceDate) {
   };
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} first @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarRow} second */
 function compareTaskCalendarRows(first, second) {
   return first.due_date.localeCompare(second.due_date)
     || String(first.due_time || "23:59").localeCompare(String(second.due_time || "23:59"));
 }
 
+/** @param {Partial<TaskRecord>} task */
 function taskUrl(task) {
   return `tasks.html?task=${encodeURIComponent(task.task_id || "")}`;
 }
 
+/** @param {unknown} priority */
 function priorityRank(priority) {
   return {
     urgent: 4,
     high: 3,
     normal: 2,
     low: 1,
-  }[priority] || 0;
+  }[String(priority || "")] || 0;
 }
 
+/** @param {Date} date @param {string} timezone */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",
@@ -3838,34 +3598,40 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return localDateKey(date);
 }
 
+/** @param {string} dateKey */
 function currentWeekEndKey(dateKey) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   const daysUntilSaturday = (6 - date.getUTCDay() + 7) % 7;
   return addCalendarDaysKey(dateKey, daysUntilSaturday);
 }
 
+/** @param {string} dateKey @param {number} days */
 function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+/** @param {string} startKey @param {string} endKey */
 function calendarDayCount(startKey, endKey) {
   const start = Date.parse(`${startKey}T00:00:00.000Z`);
   const end = Date.parse(`${endKey}T00:00:00.000Z`);
   return Math.round((end - start) / 86400000) + 1;
 }
 
+/** @param {unknown} status */
 function isActiveStatus(status) {
   return !["inactive", "archived"].includes(String(status || "").trim().toLowerCase());
 }
 
+/** @param {Partial<TaskRecord>} previousTask @param {Partial<TaskRecord>} nextTask */
 function assigneesChanged(previousTask, nextTask) {
   const previous = [...(previousTask.assignee_ids || [])].sort().join(",");
   const next = [...(nextTask.assignee_ids || [])].sort().join(",");
@@ -3873,6 +3639,7 @@ function assigneesChanged(previousTask, nextTask) {
   return previous !== next;
 }
 
+/** @param {{ session: TaskServerSession, action: string, changeType: string, previousValue: TaskRecord | null, newValue: TaskRecord | null, metadata?: object }} input */
 async function recordTaskAudit({ session, action, changeType, previousValue, newValue, metadata = {} }) {
   await auditService.record({
     session,
@@ -3903,8 +3670,9 @@ async function recordTaskAudit({ session, action, changeType, previousValue, new
   });
 }
 
+/** @param {string} eventName @param {{ session: TaskServerSession, previousValue: TaskRecord | null, newValue: TaskRecord | null, metadata?: object }} input */
 async function emitTaskEvent(eventName, { session, previousValue, newValue, metadata = {} }) {
-  const task = newValue || previousValue || {};
+  const task = /** @type {Partial<TaskRecord>} */ (newValue || previousValue || {});
 
   await modulesService.emitInternalEvent(eventName, {
     session,
@@ -3932,6 +3700,7 @@ async function emitTaskEvent(eventName, { session, previousValue, newValue, meta
   });
 }
 
+/** @param {string} eventName @param {{ session: TaskServerSession, relationship: TaskRelationship, parentTask: TaskRecord, childTask: TaskRecord }} input */
 async function emitTaskRelationshipEvent(eventName, { session, relationship, parentTask, childTask }) {
   await modulesService.emitInternalEvent(eventName, {
     session,
@@ -3955,6 +3724,7 @@ async function emitTaskRelationshipEvent(eventName, { session, relationship, par
   });
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {string} reason */
 async function syncTaskSearchIndex(workspaceId, taskId, reason) {
   await searchIndexSyncService.reindexRecord({
     workspaceId,
@@ -3965,6 +3735,7 @@ async function syncTaskSearchIndex(workspaceId, taskId, reason) {
   });
 }
 
+/** @param {{ session: TaskServerSession, action: string, changeType: string, previousValue: TaskRecord | null, newValue: TaskRecord | null }} input */
 async function recordRecurrenceAudit({ session, action, changeType, previousValue, newValue }) {
   const templateId = newValue?.recurrence_template_id || previousValue?.recurrence_template_id || "";
 
@@ -3988,6 +3759,7 @@ async function recordRecurrenceAudit({ session, action, changeType, previousValu
   });
 }
 
+/** @param {{ session: TaskServerSession, previousValue: TaskRecord | null, newValue: TaskRecord | null, sourceTask: TaskRecord, templateId: string }} input */
 async function recordRecurringChecklistPropagation({ session, previousValue, newValue, sourceTask, templateId }) {
   const checklistProgress = newValue?.checklistProgress || emptyChecklistProgress();
 
@@ -4029,6 +3801,7 @@ async function recordRecurringChecklistPropagation({ session, previousValue, new
   });
 }
 
+/** @param {{ session: TaskServerSession, previousValue: TaskRecord | null, newValue: TaskRecord | null, sourceTask: TaskRecord, templateId: string, noteLinkCount?: number, propagationResult?: { createdCount?: number, removedCount?: number } }} input */
 async function recordRecurringLinkedNotePropagation({
   session,
   previousValue,
@@ -4078,20 +3851,25 @@ async function recordRecurringLinkedNotePropagation({
   });
 }
 
+/** @param {Record<string, unknown>} payload @returns {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrencePayload & { hasPayload: boolean, applyTo: "future" | "instance" }} */
 function readRecurrencePayload(payload = {}) {
-  const raw = payload.recurrence || payload.recurrenceDetails || {};
+  const rawValue = payload.recurrence || payload.recurrenceDetails;
+  const raw = rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)
+    ? /** @type {{ enabled?: unknown, applyTo?: unknown, frequency?: unknown, interval?: unknown, endDate?: unknown, end_date?: unknown }} */ (rawValue)
+    : {};
   const hasPayload = Object.hasOwn(payload, "recurrence") || Object.hasOwn(payload, "recurrenceDetails");
 
   return {
     hasPayload,
     enabled: Boolean(raw.enabled),
     applyTo: raw.applyTo === "future" ? "future" : "instance",
-    frequency: raw.frequency,
-    interval: raw.interval,
-    endDate: raw.endDate || raw.end_date || "",
+    frequency: String(raw.frequency || ""),
+    interval: typeof raw.interval === "string" || typeof raw.interval === "number" ? raw.interval : null,
+    endDate: String(raw.endDate || raw.end_date || ""),
   };
 }
 
+/** @param {TaskRecord | null} previousTask @param {TaskRecord | null} nextTask */
 function taskAuditSummary(previousTask, nextTask) {
   if (!previousTask && nextTask) {
     return `Created task "${nextTask.title}"`;
@@ -4144,10 +3922,12 @@ function taskAuditSummary(previousTask, nextTask) {
     : `Updated task "${nextTask?.title || previousTask?.title}"`;
 }
 
+/** @param {unknown} value */
 function formatAuditToken(value) {
   return String(value || "none").replaceAll("_", " ");
 }
 
+/** @param {TaskRecord | null | undefined} task */
 function formatAuditDue(task) {
   if (!task?.due_date) {
     return "none";
@@ -4156,12 +3936,14 @@ function formatAuditDue(task) {
   return task.due_time ? `${task.due_date} ${task.due_time}` : task.due_date;
 }
 
+/** @param {TaskRecord | null | undefined} task */
 function formatAuditEstimate(task) {
   return task?.estimate_minutes === null || task?.estimate_minutes === undefined
     ? "none"
     : `${task.estimate_minutes} minutes`;
 }
 
+/** @param {TaskRecord | null | undefined} task */
 function formatAuditScope(task) {
   if (task?.client_name && task?.project_name) {
     return `${task.client_name} / ${task.project_name}`;
@@ -4170,6 +3952,7 @@ function formatAuditScope(task) {
   return task?.project_name || task?.client_name || "workspace";
 }
 
+/** @param {Partial<TaskWithDetails>} task */
 function taskResumeContext(task = {}) {
   const activeCandidate = !["complete", "archived"].includes(task.status || "");
 
@@ -4197,6 +3980,7 @@ function taskResumeContext(task = {}) {
   };
 }
 
+/** @param {TaskChecklistItem[]} items */
 function taskChecklistProgress(items = []) {
   const activeItems = Array.isArray(items) ? items.filter((item) => !item.deleted_at) : [];
   const completedCount = activeItems.filter((item) => item.is_checked).length;
@@ -4225,6 +4009,7 @@ function emptyRelationshipSummary() {
   };
 }
 
+/** @param {Partial<TaskWithDetails>} task */
 function taskCompletionMetrics(task = {}) {
   const createdAt = task.created_at || "";
   const completedAt = task.completed_at || "";
@@ -4238,9 +4023,10 @@ function taskCompletionMetrics(task = {}) {
   };
 }
 
+/** @param {unknown} start @param {unknown} end */
 function secondsBetweenIso(start, end) {
-  const startTime = Date.parse(start || "");
-  const endTime = Date.parse(end || "");
+  const startTime = Date.parse(String(start || ""));
+  const endTime = Date.parse(String(end || ""));
 
   if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
     return null;
@@ -4249,6 +4035,7 @@ function secondsBetweenIso(start, end) {
   return Math.round((endTime - startTime) / 1000);
 }
 
+/** @param {number} totalSeconds */
 function formatDurationLabel(totalSeconds) {
   const seconds = Math.max(0, Number(totalSeconds) || 0);
   const days = Math.floor(seconds / 86400);

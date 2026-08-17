@@ -35,14 +35,14 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  const session = {
+  const session = /** @type {import("../../../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ ({
     home_workspace_id: user.home_workspace_id,
     ip: "127.0.0.1",
     timezone: user.timezone || "America/New_York",
     user_id: user.user_id,
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  }));
 
   for (let index = 0; index < 30; index += 1) {
     await tasksService.create({

@@ -15,9 +15,13 @@ import {
 } from "./time-tracking.contracts.js";
 
 /** @typedef {import("zod").infer<typeof PublicApiTimeEntryCreateSchema>} PublicApiTimeEntryCreatePayload */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} PublicApiContext */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").PublicApiQuery} PublicApiQuery */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntryRecord */
 
 const MODULE_ID = "time-tracking";
 
+/** @param {PublicApiContext} context @param {PublicApiQuery} query */
 async function listTimeEntries(context, query) {
   const [storedEntries, settings] = await Promise.all([
     timeEntriesRepository.readAll(context.workspace_id),
@@ -29,6 +33,7 @@ async function listTimeEntries(context, query) {
   return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
 }
 
+/** @param {PublicApiContext} context @param {unknown} rawPayload */
 async function createTimeEntry(context, rawPayload) {
   await assertModuleWriteEnabled(context, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(PublicApiTimeEntryCreateSchema, rawPayload);
@@ -111,6 +116,7 @@ function normalizePublicApiDuration(payload) {
   };
 }
 
+/** @template {Record<string, unknown>} RecordType @param {RecordType} record @param {PublicApiContext} context */
 function withWorkspaceAlias(record, context) {
   if (!record || typeof record !== "object") {
     return record;
@@ -122,6 +128,7 @@ function withWorkspaceAlias(record, context) {
   };
 }
 
+/** @template Item @param {Item[]} items @param {PublicApiQuery} query */
 function paged(items, query) {
   const limit = clampInteger(query.limit, 1, 100, 50);
   const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
@@ -137,8 +144,9 @@ function paged(items, query) {
   };
 }
 
+/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
 function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
 
   if (!Number.isFinite(parsed)) {
     return fallback;

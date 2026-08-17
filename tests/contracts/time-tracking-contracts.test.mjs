@@ -86,6 +86,9 @@ describe("browser time-entry contracts", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
+      if (!(error instanceof AppError)) {
+        throw error;
+      }
       expect(error.statusCode).toBe(400);
     }
   });

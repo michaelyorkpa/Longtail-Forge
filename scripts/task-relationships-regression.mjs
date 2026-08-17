@@ -83,7 +83,7 @@ VALUES (${sqlText(otherWorkspaceId)}, 'Relationship Other Workspace', 'Active', 
     assert.equal(task.client_id, destinationProject.client_id, "Business descendant Client should derive from the destination Project");
   }
   assert.equal((await tasksService.read(leaf.task_id, session)).task.project_id, sourceProject.id, "a non-descendant task should not move");
-  assert.equal((await tasksRepository.readById(otherWorkspaceId, crossWorkspaceTask.task_id)).project_id, "", "a cascade must not touch another workspace");
+  assert.equal((await tasksRepository.readById(otherWorkspaceId, crossWorkspaceTask.task_id))?.project_id, "", "a cascade must not touch another workspace");
 
   const childEvent = capturedTaskEvents.find((event) =>
     event.record_id === child.task_id && event.metadata?.project_cascade_root_task_id === parent.task_id,
@@ -100,7 +100,7 @@ ORDER BY created_at DESC
 LIMIT 1;
 `);
   assert.equal(grandchildAudit?.action, "task_updated", "descendant Project changes should retain canonical audit history");
-  assert.equal(JSON.parse(grandchildAudit?.metadata_json || "{}").project_id, destinationProject.id);
+  assert.equal(JSON.parse(String(grandchildAudit?.metadata_json || "{}")).project_id, destinationProject.id);
   const indexedGrandchild = await indexTaskRecord({ workspaceId: session.workspace_id, recordId: grandchild.task_id });
   assert.equal(indexedGrandchild?.project_id, destinationProject.id, "descendant Search documents should refresh to the destination Project");
 

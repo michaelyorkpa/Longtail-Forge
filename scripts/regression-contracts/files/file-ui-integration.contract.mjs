@@ -15,6 +15,11 @@ const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filesRoutes = read("src/routes/files.routes.js");
 const filesService = read("src/services/files.service.js");
+const filesPreviewService = read("src/services/files-preview.service.js");
+const filesStorageAccountingService = read("src/services/files-storage-accounting.service.js");
+const filesRepository = read("src/repositories/files.repo.js");
+const filesRepositoryContracts = read("src/types/files-repository-contracts.d.ts");
+const filesStorageAccountingContracts = read("src/types/files-storage-accounting-contracts.d.ts");
 const appShell = read("src/services/app-shell.service.js");
 const staticService = read("src/services/static.service.js");
 const taskModuleIntegrations = read("src/modules/tasks/module.integrations.js");
@@ -118,14 +123,38 @@ assert.ok(
     filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview"') < filesRoutes.indexOf('"/files/:fileId"'),
   "Files preview descriptor and content endpoints should be registered before the generic file route.",
 );
-assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service should own attachment count queries.");
-assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own attachable target option queries.");
+assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service should own permission-shaped attachment counts.");
+assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own permission-shaped attachable target options.");
 assert.ok(filesService.includes("readAttachmentPreviewDescriptor"), "Files service should own attachment preview descriptors.");
 assert.ok(filesService.includes("readAttachmentPreviewContent"), "Files service should own attachment preview content.");
+assert.match(filesService, /filesPreviewService\.shapeDescriptor/, "Files facade should delegate safe preview projection to the checked Files preview seam.");
+assert.match(filesService, /filesPreviewService\.readContent/, "Files facade should delegate safe preview content shaping to the checked Files preview seam.");
+assert.match(filesPreviewService, /renderMarkdownToHtml/, "Files preview seam should retain the shared safe Markdown renderer.");
+assert.doesNotMatch(filesPreviewService, /storage[_A-Z]?key|protectedPath|signedUrl|sha256|scanner/i, "Files preview seam should not consume protected storage or scanner metadata.");
 assert.ok(filesService.includes("normalizeFileStatusFilter"), "Files service should normalize status filters.");
-assert.ok(filesService.includes("filters.filename"), "Files service should filter browse results by filename.");
+assert.ok(filesRepository.includes("filters.filename"), "Files repository should filter browse results by filename.");
 assert.ok(filesService.includes("filters.clientId"), "Files service should filter browse results by client.");
 assert.ok(filesService.includes("filters.projectId"), "Files service should filter browse results by project.");
+assert.match(filesService, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should consume the checked repository seam.");
+assert.doesNotMatch(filesService, /\bdb\.(?:query|get|run|dialect)\b|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/, "Files service should not own SQL, dialect query construction, or row projections.");
+assert.match(filesService, /db\.transaction\(async \(transaction\)[\s\S]*filesRepo\.createFileReport\(transaction[\s\S]*filesRepo\.markFileReported\(transaction/, "Files service should retain report transaction orchestration while passing scoped capability to repository writes.");
+assert.match(filesService, /filesStorageAccountingService\.refreshStorageAccounting/, "Files facade should delegate accounting reconciliation to the typed Files-owned policy seam.");
+assert.match(filesStorageAccountingService, /db\.transaction\(async \(transaction\)[\s\S]*filesRepo\.replaceInternalStorageAccounting\(transaction/, "Files accounting policy should own reconciliation transaction orchestration while passing scoped capability to repository writes.");
+assert.match(filesStorageAccountingService, /filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should read repository-owned quota usage.");
+assert.match(filesStorageAccountingService, /userBytes: Number\(row\?\.user_bytes[\s\S]*workspaceBytes: Number\(row\?\.workspace_bytes/, "Files accounting policy should derive workspace and user quota state from repository usage.");
+assert.doesNotMatch(filesStorageAccountingService, /storage[_A-Z]?key|protectedPath|scanner/i, "Files accounting policy should not consume protected storage or scanner details.");
+assert.match(filesRepository, /^\/\/ @ts-check[\s\S]*from "\.\.\/core\/database\.js"/, "Files repository should be strict-checked against the provider-neutral database facade.");
+assert.match(filesRepository, /function buildAttachmentReadQuery[\s\S]*applyAttachmentContextScopeFilters[\s\S]*likePattern[\s\S]*containsNoCase/, "Files repository should own bounded dynamic browse filters through dialect seams.");
+assert.match(filesRepository, /function readAttachableTargetOptionRows[\s\S]*safeSqlIdentifier[\s\S]*readTableColumnSet[\s\S]*attachableTargetFilterConditions/, "Files repository should own validated dynamic attachable-target projections.");
+for (const method of ["createAttachment", "createFile", "readAttachmentRows", "readFile", "readStorageAccounting", "saveWorkspaceFileSettings", "updateScanResult"]) {
+  assert.match(filesRepository, new RegExp(`\\b${method}\\b`), `Files repository should expose ${method}.`);
+}
+for (const rowContract of ["AttachmentRow", "AttachableTargetRow", "FileRow", "StorageAccountingRow", "WorkspaceFileSettingsRow"]) {
+  assert.match(filesRepositoryContracts, new RegExp(`interface ${rowContract}\\b`), `Files repository declarations should name ${rowContract}.`);
+}
+for (const policyContract of ["StorageAccountingEntry", "StorageAccountingResult", "StorageAccountingSummary", "StorageQuotaState", "FileUploadLimit"]) {
+  assert.match(filesStorageAccountingContracts, new RegExp(`interface ${policyContract}\\b`), `Files accounting declarations should name ${policyContract}.`);
+}
 
 console.log("File UI integration regression passed.");
 // Consolidated under files.current-static-contracts by 0.33.33.11.

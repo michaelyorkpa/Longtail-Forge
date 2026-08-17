@@ -106,7 +106,7 @@ assert.match(appSource, /app\.use\("\/api\/v1", requirePublicDemoCapability\("ap
 const jobSources = await Promise.all([
   "src/modules/notes/catalog-security.service.js",
   "src/modules/tasks/task-jobs.service.js",
-  "src/services/files.service.js",
+  "src/services/files-scanner-job.service.js",
   "src/services/import-jobs.service.js",
   "src/services/notifications.service.js",
   "src/services/search-index-jobs.service.js",

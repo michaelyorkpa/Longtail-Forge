@@ -6,7 +6,6 @@
 // from outside the module; the module-import-boundaries guardrail rejects new
 // deep imports. Everything exported here is a supported cross-module contract.
 
-export { notesModule } from "./module.js";
 export { notesService } from "./notes.service.js";
 export { notesRepository } from "./notes.repo.js";
 export { catalogSecurityService } from "./catalog-security.service.js";
@@ -22,3 +21,4 @@ export {
   NOTE_STATUSES,
   NOTE_VISIBILITIES,
 } from "./library.js";
+export { notesModule } from "./module.js";

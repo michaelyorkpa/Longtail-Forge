@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.9`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -45,161 +45,24 @@ Release-wide measurable acceptance:
 - [ ] No active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content. Fewer than 40 surviving programs read planning/history documents, and each survivor owns a current live contract.
 - [ ] The static estate uses one shared source reader, one `escapeRegExp`, and one fake-DOM harness. The permission harness is discovered and floor-counted.
 - [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees.
-- [ ] Internal checkpoints normally touch no more than two ceremony files; completed checkpoint plans archive after protected merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
+- [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.18.2 - Extract the Lists list-item aggregate
+### 0.33.33.25.8 - Baseline and ratchet planning-document pinning
 
-**Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
+**Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
 
-- [ ] Extract list-item create, update, delete, reorder, completion, and progress behavior behind a cohesive typed service seam.
-- [ ] Preserve item ordering, list progress, assignment, needed-by, tag, and transaction behavior.
-- [ ] Keep Lists as an operational execution aid and add no new item workflow or generic framework abstraction.
-- [ ] Prove the extracted aggregate through retained Lists service, repository, and permission owners.
+- [ ] Define the acceptance metric for "programs reading planning/history documents" precisely, distinguishing content-pinning assertions, cursor-floor checks, and ceremony/runner tooling, and record the honest current counts under that definition (as of 0.33.33.25.5: 140 scripts reading planning documents, 75 discovered regressions asserting on document content, 39 pinning historical `CHANGELOG.md` text).
+- [ ] Extend the historical-evidence scan beyond the retained closeout owners to every discovered regression with a shrink-only baseline of the known current pinners, so a new pin fails immediately while existing pins await their owning checkpoints.
+- [ ] Do not strip or retire the existing pinned regressions here; stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32.
 
-### 0.33.33.18.3 - Extract the Lists catalog-item aggregate
+### 0.33.33.25.9 - Maintain compiler-ledger metadata
 
-**Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
+**Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.
 
-- [ ] Extract catalog-item suggestion, ranking, usage-count, snapshot, and context behavior behind a cohesive typed service seam.
-- [ ] Preserve archived filtering, stable ordering, context matching, nullable values, and catalog-link lifecycle.
-- [ ] Keep list-item and catalog-item contracts independent except for explicit Lists-owned orchestration.
-- [ ] Prove the extracted aggregate through retained catalog, repository, and permission owners.
-
-### 0.33.33.18.4 - Finish Lists strict typing
-
-**Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
-
-- [ ] Type the remaining Lists service, repository, routes, public API, providers, search indexers, and integrations under full strict.
-- [ ] Consume the typed edge, list-item, and catalog-item seams without broad casts or cross-module deep imports.
-- [ ] Preserve linked-record, reusable-list, filtering, sorting, paging, and operational workflow behavior.
-- [ ] Reduce the Lists server ledger to zero without adding new product behavior.
-
-### 0.33.33.19 - Make the Tasks recurrence service boundary real
-
-**Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
-
-- [ ] Route the three direct recurrence-repository consumers through `taskRecurrenceService` and expose only named service operations.
-- [ ] Type recurrence templates, projections, jobs, feed serialization, completion continuity, and materialization under full strict.
-- [ ] Preserve recurrence, reminder, timezone, feed, job, and permission behavior.
-- [ ] Remove the direct-import baseline entries only with module-boundary and recurrence proof.
-
-### 0.33.33.20 - Extract the Tasks filter and sort engine
-
-**Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
-
-- [ ] Extract the pure filter/sort engine behind a typed contract without moving canonical decisions into browser code.
-- [ ] Cover status, date, hierarchy, visibility, paging, stable ordering, and empty/null normalization with direct unit cases plus retained integration owners.
-- [ ] Preserve query-count and hot-endpoint budgets.
-- [ ] Close full-strict debt in the extracted engine and its callers.
-
-### 0.33.33.21.1 - Extract the Tasks block/recover state machine
-
-**Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.
-
-- [ ] Extract the auto-block/recover transition engine with explicit inputs, outputs, and side-effect boundaries.
-- [ ] Preserve timer pause, blocking-child rollup, manual-block distinctions, completion, and recovery behavior.
-- [ ] Keep persistence, audit, events, search, reminders, and resume-context effects in explicit Tasks-owned orchestrators.
-- [ ] Prove the transition table directly while retaining lifecycle and permission integration owners.
-
-### 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
-
-**Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
-
-- [ ] Type remaining Tasks repositories and ancillary checklist, relationship, reminder, timer, job, calendar, feed, settings, and work-evidence services under full strict.
-- [ ] Reuse the recurrence, filter/sort, and block/recover seams established by the preceding checkpoints.
-- [ ] Preserve transactions, ordering, timezones, queue behavior, private-feed safety, and permission scope.
-- [ ] Expose named contracts to the main Tasks service instead of broad inferred containers or deep imports.
-
-### 0.33.33.21.3 - Finish Tasks strict typing
-
-**Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
-
-- [ ] Type the remaining Tasks service, primary repository surface, routes, contracts, events, public API, providers, and search indexers under full strict.
-- [ ] Preserve completion, recurrence, reminder, timer, checklist, relationship, blocking, and resume-context behavior.
-- [ ] Keep canonical server-side visibility, filtering, sorting, paging, and permission decisions authoritative.
-- [ ] Reduce the Tasks server ledger to zero with existing lifecycle, hot-endpoint, and permission owners.
-
-### 0.33.33.22.1 - Extract the Files repository
-
-**Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
-
-- [ ] Move inline SQL, dynamic `WHERE` composition, and named row projections from `files.service.js` into a Files repository.
-- [ ] Keep service-owned transaction and policy orchestration explicit, passing transaction capability to repository operations only where required.
-- [ ] Preserve paging, lifecycle, attachment, permission, storage-provider, and not-found behavior.
-- [ ] Close full-strict debt for the repository seam with database, Files, and permission proof.
-
-### 0.33.33.22.2 - Extract Files storage accounting and quota policy
-
-**Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.
-
-- [ ] Isolate storage-accounting and quota calculations behind a typed Files-owned service seam.
-- [ ] Preserve transaction ownership, upload admission, workspace and scoped quotas, reconciliation, and provider behavior.
-- [ ] Keep storage keys, paths, scanner internals, and hidden labels out of browser contracts and diagnostics.
-- [ ] Close full-strict debt for the accounting seam with quota, lifecycle, database, Files, and permission proof.
-
-### 0.33.33.23 - Extract the Files scanner job service
-
-**Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
-
-- [ ] Extract scanner-job orchestration from Files policy/read behavior with explicit provider-safe inputs and results.
-- [ ] Preserve fail-closed production posture, quarantine lifecycle, retry/idempotency, worker behavior, and redacted diagnostics.
-- [ ] Do not add a module-owned job path or expose scanner configuration.
-- [ ] Close full-strict debt for the scanner seam with existing Files/job proofs.
-
-### 0.33.33.24 - Extract Files preview and finish Files strict typing
-
-**Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
-
-- [ ] Extract the preview read/projection seam without changing the compact Files listing or modal workflow.
-- [ ] Type remaining Files services, routes, contracts, storage adapters, and attachment helpers under full strict.
-- [ ] Preserve supported image/text/Markdown behavior, download-only unsupported files, safe labels, and protected metadata exclusions.
-- [ ] Reduce the Files server ledger to zero.
-
-### 0.33.33.25.1 - Finish Clients and Projects strict typing
-
-**Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
-
-- [ ] Close full-strict debt across Clients/Projects services, repositories, routes, planners, settings, and search indexers.
-- [ ] Preserve hierarchy, descendant scope, project moves, billing context, permissions, and transaction behavior.
-- [ ] Add named row, result, and update-plan contracts rather than broad casts or speculative framework abstractions.
-- [ ] Keep cross-module consumers on the Clients/Projects public entry.
-
-### 0.33.33.25.2 - Finish Time Tracking strict typing
-
-**Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
-
-- [ ] Close full-strict debt across Time Tracking entries, active timers, billing, dashboards, reporting, routes, public API, settings, and search indexers.
-- [ ] Preserve authoritative duration, timezone, billable-state, source metadata, Task linking, permissions, and transaction behavior.
-- [ ] Add named projections and service contracts without re-parsing trusted internal records or adding deep imports.
-- [ ] Keep cross-module consumers on the Time Tracking public entry.
-
-### 0.33.33.25.3 - Close the Jobs payload registry and strict owners
-
-**Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.
-
-- [ ] Replace the two framework Jobs payload `any` terminals with a typed per-job-type payload registry.
-- [ ] Close remaining full-strict debt across Jobs queue, runner, handlers, worker, lock, and route owners.
-- [ ] Preserve queue dedupe, availability, retry, lease, worker, shutdown, and handler behavior.
-- [ ] Reject speculative generic payloads and keep unknown input narrowed at the registered job boundary.
-
-### 0.33.33.25.4 - Finish small module and framework service owners
-
-**Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.
-
-- [ ] Close full-strict debt for Search, Notifications, Users, Tags, and the developer example as one reviewed small-owner cohort.
-- [ ] Use module public entries instead of adding deep imports and keep framework/module ownership unchanged.
-- [ ] Preserve permission pruning, notification delivery, Search indexing and result shaping, Tags semantics, and example-module isolation.
-- [ ] Add named projections and contracts rather than broad casts or new shared abstractions.
-
-### 0.33.33.25.5 - Close remaining root runtime strict debt
-
-**Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
-
-- [ ] Close full-strict debt in remaining root runtime, configuration, environment, security, and utility owners.
-- [ ] Preserve startup, authentication throttling, password events, cookies, workspace normalization, and safe operational failures.
-- [ ] Remove remaining source-owned server debt without changing `npm start`, runtime delivery, or framework/module ownership.
-- [ ] Leave only test-owned server-program debt in the ledger.
+- [ ] Make the ledger `checkpoint` field maintained on every `typecheck:ledger:write`, or remove the field and its hard assertion if it cannot be kept honest; it currently reads `0.33.33.18.1` seventeen checkpoints after that identifier archived.
+- [ ] Align the `framework.full-strict-governance` assertion with the maintained behavior so the gate cannot pin a stale literal again.
+- [ ] Keep every other shrink-only, suppression-ban, and zone assertion byte-for-byte unchanged.
 
 ### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
@@ -281,7 +144,7 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Mechanical wrapping can break implicit globals and page initialization across many surfaces.
 
-- [ ] IIFE-wrap the fourteen audited bare controllers and explicitly publish only supported `window.LongtailForge.*` surfaces.
+- [ ] IIFE-wrap every remaining bare classic controller and explicitly publish only supported `window.LongtailForge.*` surfaces. The 0.33.33.25-era re-audit counts 27 bare classic scripts, not the originally audited fourteen: the module/page controllers plus thirteen leaf and support scripts (`splash`, `footer`, `login`, `account-recovery`, `module-settings`, and similar); record a wrap-or-justify disposition for each.
 - [ ] Preserve classic-script loading and Workbench dynamic `import()` compatibility without adding modules, bundling, or script-order changes.
 - [ ] Remove real and compiler-visible global lexical collisions, including the `api`/`view`/`state` family.
 - [ ] Prove every affected page through focused view contracts and Playwright before accepting the browser ledger change.
@@ -299,7 +162,7 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Shared declarative view interpretation is security- and behavior-relevant across many pages.
 
-- [ ] Delete the four module-local Notes/Lists/Files/Tasks descriptor fallbacks and use the established null-and-skip contract for unavailable server descriptors.
+- [ ] Delete the five module-local descriptor fallbacks — the Notes/Lists/Files/Tasks view-surface fallbacks and the nested Notes linked-records fallback — and use the established null-and-skip contract for unavailable server descriptors.
 - [ ] Extract descriptor-action permission/route interpolation, search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
 - [ ] Preserve server authority, action visibility, focus return, and current module surface anatomy.
@@ -418,6 +281,7 @@ Release-wide measurable acceptance:
 
 - [ ] Delete the temporary compiler ledger and retire superseded honesty/seam/pragma inventories only after all three direct full-strict programs are green.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
+- [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of 0.33.33.25.5, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
@@ -427,7 +291,7 @@ Release-wide measurable acceptance:
 
 Purpose:
 
-Preserve the August 31, 2026 public-demo launch follow-on for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
+Preserve the October 1, 2026 public-demo launch follow-on (moved from August 31, 2026 to allow additional features and the completed Lean Core branch) for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
 
 Dependencies and planned boundary:
 
@@ -439,7 +303,7 @@ Dependencies and planned boundary:
 
 Acceptance criteria:
 
-- The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+- The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
 ## Version 0.34 - Support Tickets Module
 

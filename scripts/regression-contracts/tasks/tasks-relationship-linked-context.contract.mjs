@@ -10,6 +10,7 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const notesLinkedPanel = readText("public/js/shared/notes-linked-panel.js");
 const viewBuilder = readText("public/js/shared/view-builder.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
+const taskBlockRecoveryEngine = readText("src/modules/tasks/task-block-recovery-engine.js");
 const taskRelationshipsRepo = readText("src/modules/tasks/task-relationships.repo.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
@@ -43,6 +44,8 @@ const removeChild = functionBlock(tasksService, "removeChildTaskRelationship");
 const assertCanRelate = functionBlock(tasksService, "assertCanRelateTasks");
 const blockParent = functionBlock(tasksService, "blockParentForChild");
 const recoverParent = functionBlock(tasksService, "recoverParentIfNoBlockingChildren");
+const planBlockParent = functionBlock(taskBlockRecoveryEngine, "planParentBlockTransition");
+const planRecoverParent = functionBlock(taskBlockRecoveryEngine, "planParentRecoveryTransition");
 
 assert.match(createList, /className:\s*\["view-linked-context-picker-list", options\.className\]/, "Framework should own reusable linked-context read-list anatomy");
 assert.match(createList, /renderLinkedContextRows\(rows,[\s\S]*options\.items \|\| options\.records \|\| options\.linkedItems/, "Linked context read lists should render normalized rows through the shared row helper");
@@ -71,8 +74,10 @@ assert.match(addChild, /assertCanRelateTasks\(session, parentTask, childTask\)[\
 assert.match(updateChild, /taskRelationshipsRepository\.update[\s\S]*blockParentForChild\(session, parentTask, childTask\)[\s\S]*recoverParentIfNoBlockingChildren\(session, parentTask\)/, "Updating child relationships should preserve blocking and recovery side effects");
 assert.match(removeChild, /taskRelationshipsRepository\.remove[\s\S]*recoverParentIfNoBlockingChildren\(session, parentTask\)/, "Removing child relationships should preserve parent recovery behavior");
 assert.match(assertCanRelate, /parentTask\.workspace_id !== childTask\.workspace_id[\s\S]*same workspace[\s\S]*parentTask\.client_id &&[\s\S]*childTask\.client_id &&[\s\S]*parentTask\.client_id !== childTask\.client_id[\s\S]*same client[\s\S]*hasPath/, "Relationship scope rules should stay Tasks-owned");
-assert.match(blockParent, /autoBlockedReason\(\[childTask\.title \|\| childTask\.task_id\]\)[\s\S]*tasksRepository\.update\([\s\S]*status:\s*"blocked"[\s\S]*task\.updated/, "Blocking child relationships should keep Tasks-owned parent block events");
-assert.match(recoverParent, /readBlockingChildren[\s\S]*blocked_reason\.startsWith\("Blocked by incomplete child task"\)[\s\S]*tasksRepository\.update\([\s\S]*status:\s*"open"[\s\S]*task\.updated/, "Cleared blocking child relationships should keep Tasks-owned recovery events");
+assert.match(planBlockParent, /isTaskTerminalStatus\(parentTask\.status\)[\s\S]*isTaskTerminalStatus\(blockingChild\.status\)[\s\S]*blockedReason[\s\S]*pauseRunningTimers: true[\s\S]*status_transition_reason: "blocked_by_child"/, "The checked transition engine should own terminal guards, reason selection, timer-pause intent, and block metadata");
+assert.match(blockParent, /planParentBlockTransition\([\s\S]*transition\.effects\.persistTask[\s\S]*tasksRepository\.update\([\s\S]*transition\.taskPatch\.status[\s\S]*transition\.effects\.pauseRunningTimers[\s\S]*emitTaskEvent\("task\.updated"[\s\S]*syncTaskSearchIndex/, "Blocking child relationships should keep persistence, timer, event, and search side effects in the Tasks orchestrator");
+assert.match(planRecoverParent, /normalizedStatus\(parentTask\.status\) !== "blocked"[\s\S]*incompleteBlockingChildCount[\s\S]*manual_block_preserved[\s\S]*pauseRunningTimers: false[\s\S]*status_transition_reason: "unblocked_by_child"/, "The checked transition engine should distinguish remaining blockers and manual reasons before planning recovery");
+assert.match(recoverParent, /readBlockingChildren[\s\S]*planParentRecoveryTransition\([\s\S]*isIncompleteTask\(relationship\.child_status\)[\s\S]*transition\.effects\.persistTask[\s\S]*tasksRepository\.update\([\s\S]*emitTaskEvent\("task\.updated"[\s\S]*syncTaskSearchIndex/, "Cleared blocking child relationships should keep reads, persistence, events, and search side effects in the Tasks orchestrator");
 assert.match(tasksService, /readableRelationshipsForTask[\s\S]*direction:\s*isParentSide \? "child" : "parent"[\s\S]*related_task_readable[\s\S]*related_task:\s*canReadRelated && relatedTask/, "Relationship read payloads should still expose related readable task data only when permitted");
 assert.match(taskRelationshipsRepo, /readForTask[\s\S]*task_relationships\.workspace_id = :workspaceId[\s\S]*relationshipSummary[\s\S]*incomplete_blocking_child_count/, "Relationship repository should keep relationship reads and summaries Tasks-owned");
 

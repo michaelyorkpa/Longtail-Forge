@@ -135,6 +135,8 @@ async function assertTaskContextFeedsSafeSummaries(session) {
 
   const listResult = await tasksService.list(session);
   const listed = listResult.tasks.find((item) => item.task_id === task.task_id);
+  assert.ok(listed, "the canonical Task list should retain the created Task");
+  assert.ok(listed.resumeContext, "the canonical Task list should retain typed resume context");
   assert.equal(listed.next_action, "Ask finance for the signed agreement.");
   assert.equal(listed.resumeContext.active_candidate, true);
 

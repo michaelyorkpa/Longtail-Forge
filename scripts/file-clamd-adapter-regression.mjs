@@ -56,6 +56,7 @@ function assertStaticContracts() {
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
+  const scannerJobSource = readText("src/services/files-scanner-job.service.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
 
   assert.match(scannerAdapterSource, /function createClamdFileScannerAdapter/, "scanner adapter module should expose clamd");
@@ -66,8 +67,9 @@ function assertStaticContracts() {
   assert.match(scannerAdapterSource, /Scanner timed out\./, "clamd adapter should have timeout behavior");
   assert.match(scannerAdapterSource, /scanner:\s*"clamd"[\s\S]*result/, "clamd metadata should be bounded to safe scanner result fields");
   assert.doesNotMatch(scannerAdapterSource, /storageKey|storage_key|storagePath|protectedPath|socketPath|process\.env|LONGTAIL_CLAMD/i, "clamd adapter should not receive storage keys, paths, sockets, or raw env");
-  assert.match(filesServiceSource, /"clamd", createClamdFileScannerAdapter\(\{ host: config\.scanner\?\.clamdHost, port: config\.scanner\?\.clamdPort \}\)/, "Files service should register clamd from runtime config");
-  assert.match(filesServiceSource, /status === "quarantined"[\s\S]*file\.quarantined/, "scan lifecycle should keep quarantine review behavior service-owned");
+  assert.match(scannerJobSource, /"clamd"[\s\S]*createClamdFileScannerAdapter\(\{ host: config\.scanner\?\.clamdHost, port: config\.scanner\?\.clamdPort \}\)/, "Files scanner job service should register clamd from runtime config");
+  assert.match(scannerJobSource, /disposition\.status === "quarantined"[\s\S]*"file\.quarantined"/, "scan lifecycle should keep quarantine review behavior Files-owned");
+  assert.match(filesServiceSource, /filesScannerJobService\.registerFileScannerAdapter/, "Files facade should preserve scanner adapter registration");
   assert.doesNotMatch(runtimeDiagnosticsSource, /clamdHost|clamdPort|process\.env|storageKey|protectedPath/i, "runtime diagnostics must not expose clamd host/port or storage internals");
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`clamd`[\s\S]*TCP scanner adapter[\s\S]*without exposing hostnames or ports/, "runtime docs should describe clamd adapter redaction");
   assert.match(runtimeDocs, /Unix-socket[\s\S]*deferred/i, "runtime docs should explicitly defer socket support");

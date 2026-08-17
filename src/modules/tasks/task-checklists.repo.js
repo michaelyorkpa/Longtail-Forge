@@ -1,8 +1,16 @@
+// @ts-check
+
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskChecklistItem} TaskChecklistItem */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskChecklistProgress} TaskChecklistProgress */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskChecklistRow} TaskChecklistRow */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskChecklistWrite} TaskChecklistWrite */
+
+/** @param {string} workspaceId @param {string} taskId @returns {Promise<TaskChecklistItem[]>} */
 async function readForTask(workspaceId, taskId) {
-  const rows = await db.query(`
+  const rows = /** @type {TaskChecklistRow[]} */ (await db.query(`
 SELECT
   task_checklist_item_id,
   workspace_id,
@@ -26,15 +34,16 @@ ORDER BY sort_order, created_at;
 `, {
     taskId: textParam(taskId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
   return rows.map(checklistRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {string[]} taskIds @returns {Promise<Map<string, TaskChecklistProgress>>} */
 async function readProgressForTasks(workspaceId, taskIds) {
   const uniqueTaskIds = [...new Set((taskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
   if (uniqueTaskIds.length === 0) return new Map();
 
-  const rows = await db.query(`
+  const rows = /** @type {Array<{ task_id: string, total_count: string | number | null, completed_count: string | number | null, next_incomplete_item_label: string | null }>} */ (await db.query(`
 SELECT
   task_checklist_items.task_id,
   COUNT(*) AS total_count,
@@ -58,19 +67,20 @@ GROUP BY task_checklist_items.task_id;
     checkedValue: db.dialect.boolean.bind(true),
     taskIds: uniqueTaskIds,
     workspaceId: textParam(workspaceId),
-  });
-  return rows.reduce((progressByTaskId, row) => {
+  }));
+  return rows.reduce(/** @param {Map<string, TaskChecklistProgress>} progressByTaskId @param {typeof rows[number]} row */ (progressByTaskId, row) => {
     progressByTaskId.set(row.task_id, {
-      completed_count: Number.parseInt(row.completed_count, 10) || 0,
+      completed_count: Number.parseInt(String(row.completed_count ?? ""), 10) || 0,
       next_incomplete_item_label: row.next_incomplete_item_label || "",
-      total_count: Number.parseInt(row.total_count, 10) || 0,
+      total_count: Number.parseInt(String(row.total_count ?? ""), 10) || 0,
     });
     return progressByTaskId;
   }, new Map());
 }
 
+/** @param {string} workspaceId @param {string} itemId @returns {Promise<TaskChecklistItem | null>} */
 async function readById(workspaceId, itemId) {
-  const row = await db.get(`
+  const row = /** @type {TaskChecklistRow | undefined} */ (await db.get(`
 SELECT
   task_checklist_item_id,
   workspace_id,
@@ -93,10 +103,11 @@ LIMIT 1;
 `, {
     itemId: textParam(itemId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
   return row ? checklistRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {TaskChecklistWrite} item */
 async function create(workspaceId, taskId, item) {
   const now = new Date().toISOString();
   const itemId = item.task_checklist_item_id || createRecordId();
@@ -153,8 +164,10 @@ VALUES (
   return readById(workspaceId, itemId);
 }
 
+/** @param {string} workspaceId @param {TaskChecklistWrite} item */
 async function update(workspaceId, item) {
   const now = new Date().toISOString();
+  const itemId = textParam(item.task_checklist_item_id);
   await db.run(`
 UPDATE task_checklist_items
 SET
@@ -172,16 +185,17 @@ WHERE workspace_id = :workspaceId
     completedAt: nullableTextParam(item.completed_at),
     completedByUserId: nullableTextParam(item.completed_by_user_id),
     isChecked: booleanParam(item.is_checked),
-    itemId: textParam(item.task_checklist_item_id),
+    itemId,
     label: textParam(item.label),
     now,
     sortOrder: integerParam(item.sort_order),
     updatedByUserId: nullableTextParam(item.updated_by_user_id),
     workspaceId: textParam(workspaceId),
   });
-  return readById(workspaceId, item.task_checklist_item_id);
+  return readById(workspaceId, itemId);
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {string[]} itemIds @param {string | null | undefined} updatedByUserId */
 async function reorder(workspaceId, taskId, itemIds, updatedByUserId) {
   const now = new Date().toISOString();
   await db.transaction(async (transaction) => {
@@ -208,6 +222,7 @@ WHERE workspace_id = :workspaceId
   return readForTask(workspaceId, taskId);
 }
 
+/** @param {string} workspaceId @param {string} itemId @param {string | null | undefined} deletedByUserId */
 async function softDelete(workspaceId, itemId, deletedByUserId) {
   const now = new Date().toISOString();
   await db.run(`
@@ -228,17 +243,18 @@ WHERE workspace_id = :workspaceId
   return readById(workspaceId, itemId);
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {TaskChecklistWrite[]} items @param {string | null | undefined} updatedByUserId */
 async function replaceStructureForTask(workspaceId, taskId, items, updatedByUserId) {
   const now = new Date().toISOString();
   const normalizedItems = normalizeChecklistStructureItems(items);
   const existingItems = await readForTask(workspaceId, taskId);
-  const existingByLabel = existingItems.reduce((map, item) => {
+  const existingByLabel = existingItems.reduce(/** @param {Map<string, TaskChecklistItem[]>} map @param {TaskChecklistItem} item */ (map, item) => {
     const key = checklistMatchKey(item.label);
     if (!map.has(key)) {
       map.set(key, []);
     }
 
-    map.get(key).push(item);
+    map.get(key)?.push(item);
     return map;
   }, new Map());
   const retainedItemIds = new Set();
@@ -346,8 +362,9 @@ WHERE workspace_id = :workspaceId
   return readForTask(workspaceId, taskId);
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function nextSortOrder(workspaceId, taskId) {
-  const row = await db.get(`
+  const row = /** @type {{ next_sort_order?: string | number | null } | undefined} */ (await db.get(`
 SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_sort_order
 FROM task_checklist_items
 WHERE workspace_id = :workspaceId
@@ -356,10 +373,11 @@ WHERE workspace_id = :workspaceId
 `, {
     taskId: textParam(taskId),
     workspaceId: textParam(workspaceId),
-  });
-  return Number.parseInt(row?.next_sort_order, 10) || 1000;
+  }));
+  return Number.parseInt(String(row?.next_sort_order ?? ""), 10) || 1000;
 }
 
+/** @param {TaskChecklistRow} row @returns {TaskChecklistItem} */
 function checklistRowToAppValue(row) {
   return {
     completed_at: row.completed_at || "",
@@ -370,7 +388,7 @@ function checklistRowToAppValue(row) {
     deleted_by_user_id: row.deleted_by_user_id || "",
     is_checked: db.dialect.boolean.read(row.is_checked) === true,
     label: row.label || "",
-    sort_order: Number.parseInt(row.sort_order, 10) || 0,
+    sort_order: Number.parseInt(String(row.sort_order ?? ""), 10) || 0,
     task_checklist_item_id: row.task_checklist_item_id,
     task_id: row.task_id,
     updated_at: row.updated_at || "",
@@ -379,15 +397,18 @@ function checklistRowToAppValue(row) {
   };
 }
 
+/** @param {unknown} value */
 function booleanParam(value) {
   return db.dialect.boolean.bind(Boolean(value));
 }
 
+/** @param {unknown} value */
 function integerParam(value) {
-  const integer = Number.parseInt(value, 10);
+  const integer = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(integer) ? integer : 0;
 }
 
+/** @param {TaskChecklistWrite[]} [items] */
 function normalizeChecklistStructureItems(items = []) {
   return (Array.isArray(items) ? items : [])
     .map((item, index) => ({
@@ -398,15 +419,18 @@ function normalizeChecklistStructureItems(items = []) {
     .filter((item) => item.label);
 }
 
+/** @param {unknown} label */
 function checklistMatchKey(label) {
   return String(label || "").trim();
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   const text = String(value ?? "").trim();
   return text ? text : null;
 }
 
+/** @param {unknown} value */
 function textParam(value) {
   return String(value ?? "");
 }

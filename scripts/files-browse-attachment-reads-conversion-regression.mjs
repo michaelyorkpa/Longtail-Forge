@@ -14,6 +14,7 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Browse-Reads-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const roadmap = readText("ROADMAP.md");
@@ -41,45 +42,45 @@ try {
 
 function assertStaticContract() {
 
-  assert.match(filesServiceSource, /from "\.\.\/core\/database\.js"/, "Files service should import database access from the provider-neutral facade");
-  assertFunctionUsesNamedParams("listAttachments", [
+  assert.match(filesServiceSource, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should delegate persistence to the Files repository");
+  assert.match(filesRepositorySource, /from "\.\.\/core\/database\.js"/, "Files repository should import database access from the provider-neutral facade");
+  assertFunctionUsesNamedParams(filesRepositorySource, "buildAttachmentReadQuery", [
     /file_attachments\.workspace_id = :attachmentWorkspaceId/,
     /db\.dialect\.comparison\.likePattern\(filename/,
     /db\.dialect\.comparison\.containsNoCase\("files\.original_filename", ":attachmentFilenamePattern"\)/,
-    /await db\.query\(`/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentCandidateRows", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentRows", [
     /LIMIT :attachmentPageLimit/,
     /OFFSET :attachmentPageOffset/,
     /await db\.query\(`/,
   ]);
-  assertFunctionUsesNamedParams("readFileRow", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readFile", [
     /await db\.get\(`/,
     /workspace_id = :workspaceId/,
     /file_id = :fileId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentById", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentById", [
     /await db\.get\(`/,
     /file_attachment_id = :attachmentId/,
   ]);
-  assertFunctionUsesNamedParams("readActiveAttachmentsForFile", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readActiveAttachmentsForFile", [
     /await db\.query\(`/,
     /file_attachments\.file_id = :fileId/,
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesServiceSource, "listAttachments"),
-    functionBlock(filesServiceSource, "readAttachmentCandidateRows"),
-    functionBlock(filesServiceSource, "readFileRow"),
-    functionBlock(filesServiceSource, "readAttachmentById"),
-    functionBlock(filesServiceSource, "readActiveAttachmentsForFile"),
-    functionBlock(filesServiceSource, "attachmentOrderByClause"),
+    functionBlock(filesRepositorySource, "buildAttachmentReadQuery"),
+    functionBlock(filesRepositorySource, "readAttachmentRows"),
+    functionBlock(filesRepositorySource, "readFile"),
+    functionBlock(filesRepositorySource, "readAttachmentById"),
+    functionBlock(filesRepositorySource, "readActiveAttachmentsForFile"),
+    functionBlock(filesRepositorySource, "attachmentOrderByClause"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files browse/read blocks should not use literal helpers or compatibility query wrappers");
   assert.doesNotMatch(convertedBlocks, /LOWER\(files\.|COLLATE NOCASE/, "converted Files browse/read blocks should route case-insensitive SQL through dialect seams");
-  assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
-  assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
+  assert.match(functionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
+  assert.match(functionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
 
   assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
@@ -89,8 +90,9 @@ function assertStaticContract() {
   assert.match(changelog, /## Version 0\.33\.5\.27\.18 - [\s\S]*Files browse and attachment reads conversion[\s\S]*709 helper invocations[\s\S]*145 direct interpolated operation sites[\s\S]*206 bound operation sites/, "changelog should record the Files browse/read conversion burndown");
   }
 
-function assertFunctionUsesNamedParams(functionName, patterns) {
-  const block = functionBlock(filesServiceSource, functionName);
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+function assertFunctionUsesNamedParams(source, functionName, patterns) {
+  const block = functionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -151,6 +153,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(preview.preview.kind, "markdown", "preview descriptor should preserve preview kind");
 
   const content = await filesService.readAttachmentPreviewContent(session, second.attachment.fileAttachmentId);
+  assert.ok(content.content && content.content.kind === "markdown", "preview content should return the markdown JSON branch");
   assert.equal(content.content.kind, "markdown", "preview content should still use the route-safe markdown response");
   assert.match(content.content.bodyHtml, /<h1>Markdown preview<\/h1>/);
 

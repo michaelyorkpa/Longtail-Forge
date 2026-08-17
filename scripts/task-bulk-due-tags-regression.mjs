@@ -115,6 +115,7 @@ async function assertTagBulkActionsPreserveNonManualTags(session, fixtures) {
   }, session);
   assert.equal(added.errors.length, 0);
   assert.equal(added.tasks.length, 2);
+  assert.ok(added.tasks[0], "bulk tag addition should return changed tasks");
   assert.ok(added.tasks[0].tags.some((tag) => tag.tag_id === fixtures.replacementTag.tag_id));
 
   const removed = await tasksService.bulkUpdate({
@@ -142,7 +143,7 @@ async function assertPartialFailures(session, fixtures) {
   assert.equal(invalidDueTime.errors[0].task_id, fixtures.noDate.task_id);
   assert.match(invalidDueTime.errors[0].message, /due time requires a due date/i);
 
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const denied = await tasksService.bulkUpdate({
     action: "due_date",
     due_date: "2026-06-22",

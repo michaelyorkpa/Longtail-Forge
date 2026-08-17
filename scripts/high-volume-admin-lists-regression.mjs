@@ -21,6 +21,7 @@ const notificationsRepoSource = readText("src/repositories/notifications.repo.js
 const searchRoutesSource = readText("src/routes/search.routes.js");
 const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-search-adapter.js");
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepoSource = readText("src/repositories/files.repo.js");
 const filesScript = readText("public/js/files.js");
 const notificationsScript = readText("public/js/notifications.js");
 const roadmap = readText("ROADMAP.md");
@@ -85,7 +86,7 @@ function assertStaticContract() {
   assert.match(sqliteSearchAdapterSource, /si\.search_index_id ASC/, "Search backend ordering should include a stable tie-breaker");
 
   assert.match(filesServiceSource, /async function readVisibleAttachmentPage/, "Files browse should page through bounded visible attachment batches");
-  assert.match(filesServiceSource, /function attachmentOrderByClause/, "Files browse should keep stable SQL ordering per sort mode");
+  assert.match(filesRepoSource, /function attachmentOrderByClause/, "Files repository should keep stable SQL ordering per sort mode");
   assert.match(filesServiceSource, /MAX_ATTACHMENT_LIMIT = 200/, "Files browse should expose an explicit maximum page size");
   assert.match(filesScript, /FILES_PAGE_SIZE = 50/, "Files browser should request bounded pages");
   assert.match(filesScript, /data-file-load-more/, "Files browser should expose a load-more control for additional pages");

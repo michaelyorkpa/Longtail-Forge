@@ -4,6 +4,21 @@ import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { appVersion, normalizeReleaseBranch, qualifyAppVersion } from "./core/version.js";
 
+/** @typedef {NodeJS.ProcessEnv} RuntimeEnvironment */
+/** @typedef {{ min?: number, max?: number }} IntegerReadOptions */
+/**
+ * @typedef {Object} PublicDemoConfiguration
+ * @property {boolean} demoEnabled
+ * @property {string} environment
+ * @property {string} publicUrl
+ * @property {string} deploymentMode
+ * @property {string} releaseSourceBranch
+ * @property {string} releaseCommit
+ * @property {string} releaseArtifactSha256
+ * @property {string} workspaceInstallMode
+ * @property {boolean} supportViewEnabled
+ */
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(root, "package.json"), "utf8"),
@@ -137,6 +152,7 @@ const UNSAFE_SECRET_VALUES = new Set([
   "superadmin",
 ]);
 
+/** @param {unknown} packageName @returns {string} */
 function toDisplayName(packageName) {
   return String(packageName)
     .split("-")
@@ -145,6 +161,7 @@ function toDisplayName(packageName) {
     .join(" ");
 }
 
+/** @param {RuntimeEnvironment} [env] */
 function createConfig(env = process.env) {
   const environment = readEnum(env, "LONGTAIL_ENV", DEFAULT_ENVIRONMENT, ENVIRONMENTS);
   const deploymentMode = readEnum(env, "LONGTAIL_DEPLOYMENT_MODE", DEFAULT_DEPLOYMENT_MODE, DEPLOYMENT_MODES);
@@ -543,6 +560,7 @@ function createConfig(env = process.env) {
   };
 }
 
+/** @param {RuntimeEnvironment} env @param {boolean} demoEnabled */
 function assertPublicDemoOnlySettings(env, demoEnabled) {
   if (demoEnabled) {
     return;
@@ -556,6 +574,7 @@ function assertPublicDemoOnlySettings(env, demoEnabled) {
   }
 }
 
+/** @param {RuntimeEnvironment} env @param {boolean} demoEnabled */
 function assertPublicDemoEnvironmentAllowlist(env, demoEnabled) {
   if (!demoEnabled) {
     return;
@@ -573,6 +592,7 @@ function assertPublicDemoEnvironmentAllowlist(env, demoEnabled) {
   }
 }
 
+/** @param {PublicDemoConfiguration} options */
 function assertPublicDemoConfiguration(options) {
   if (!options.demoEnabled) {
     return;
@@ -602,6 +622,7 @@ function assertPublicDemoConfiguration(options) {
   }
 }
 
+/** @param {string} secret @param {string} key @param {number} minimumLength */
 function assertProductionSecret(secret, key, minimumLength) {
   if (!secret) {
     throw new Error(`${key} is required when LONGTAIL_ENV=production.`);
@@ -612,6 +633,7 @@ function assertProductionSecret(secret, key, minimumLength) {
   }
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @param {number} length @returns {string} */
 function readOptionalHex(env, key, length) {
   const value = readText(env, key, "").toLowerCase();
   if (value && !new RegExp(`^[a-f0-9]{${length}}$`).test(value)) {
@@ -620,6 +642,7 @@ function readOptionalHex(env, key, length) {
   return value;
 }
 
+/** @param {string} runtimePath @param {string} key @param {string} publicDir */
 function assertPathIsNotPublic(runtimePath, key, publicDir) {
   const relative = path.relative(publicDir, runtimePath);
   if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
@@ -627,6 +650,7 @@ function assertPathIsNotPublic(runtimePath, key, publicDir) {
   }
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @param {string} fallback @returns {string} */
 function readText(env, key, fallback) {
   const raw = env[key];
   if (raw === undefined || raw === null) {
@@ -637,10 +661,12 @@ function readText(env, key, fallback) {
   return text || fallback;
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @returns {boolean} */
 function hasEnvText(env, key) {
   return Boolean(String(env[key] ?? "").trim());
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @param {string} fallback @param {Set<string>} allowedValues @returns {string} */
 function readEnum(env, key, fallback, allowedValues) {
   const value = readText(env, key, fallback);
 
@@ -651,6 +677,7 @@ function readEnum(env, key, fallback, allowedValues) {
   return value;
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @param {number} fallback @param {IntegerReadOptions} [options] @returns {number} */
 function readInteger(env, key, fallback, options = {}) {
   const raw = env[key];
   const value = raw === undefined || raw === null || String(raw).trim() === ""
@@ -672,6 +699,7 @@ function readInteger(env, key, fallback, options = {}) {
   return value;
 }
 
+/** @param {RuntimeEnvironment} env @param {string} key @param {boolean} fallback @returns {boolean} */
 function readBoolean(env, key, fallback) {
   const raw = env[key];
 
@@ -692,6 +720,7 @@ function readBoolean(env, key, fallback) {
   throw new Error(`${key} must be true or false.`);
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readSessionSameSite(env) {
   const raw = readText(env, "LONGTAIL_SESSION_COOKIE_SAMESITE", DEFAULT_SESSION_COOKIE_SAMESITE);
   const normalized = raw.toLowerCase() === "none"
@@ -709,6 +738,7 @@ function readSessionSameSite(env) {
   return normalized;
 }
 
+/** @param {RuntimeEnvironment} env @returns {string[]} */
 function readTrustedProxies(env) {
   const raw = String(env.TRUST_PROXY ?? "").trim();
 
@@ -729,6 +759,7 @@ function readTrustedProxies(env) {
   return entries;
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readPublicUrl(env) {
   const value = readText(env, "LONGTAIL_PUBLIC_URL", "");
 
@@ -754,6 +785,7 @@ function readPublicUrl(env) {
   return value;
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readCorrespondingSourceUrlTemplate(env) {
   const value = readText(
     env,
@@ -779,6 +811,7 @@ function readCorrespondingSourceUrlTemplate(env) {
   return value;
 }
 
+/** @param {unknown} value @returns {boolean} */
 function isIpOrCidr(value) {
   const [address, prefix, ...extra] = String(value).split("/");
   const family = net.isIP(address);
@@ -799,6 +832,7 @@ function isIpOrCidr(value) {
   return bits >= 0 && bits <= (family === 4 ? 32 : 128);
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readSqliteJournalMode(env) {
   const value = readText(env, "LONGTAIL_SQLITE_JOURNAL_MODE", DEFAULT_SQLITE_JOURNAL_MODE).toLowerCase();
 
@@ -809,6 +843,7 @@ function readSqliteJournalMode(env) {
   return value;
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readSqliteSynchronousMode(env) {
   const value = readText(env, "LONGTAIL_SQLITE_SYNCHRONOUS", DEFAULT_SQLITE_SYNCHRONOUS).toLowerCase();
 
@@ -819,6 +854,7 @@ function readSqliteSynchronousMode(env) {
   return value;
 }
 
+/** @param {RuntimeEnvironment} env @returns {string} */
 function readSqliteTempStore(env) {
   const value = readText(env, "LONGTAIL_SQLITE_TEMP_STORE", DEFAULT_SQLITE_TEMP_STORE).toLowerCase();
 
@@ -829,15 +865,18 @@ function readSqliteTempStore(env) {
   return value;
 }
 
+/** @param {unknown} value @returns {string} */
 function resolveRuntimePath(value) {
   const text = String(value || "").trim();
   return path.isAbsolute(text) ? path.normalize(text) : path.resolve(root, text);
 }
 
+/** @param {string} key @param {RuntimeEnvironment} [env] @returns {string} */
 function readRuntimeSecret(key, env = process.env) {
   return String(env[key] || "").trim();
 }
 
+/** @param {(message: string) => void} [logger] */
 function logRuntimeConfigWarnings(logger = console.warn) {
   for (const warning of config.runtimeWarnings) {
     logger(`[runtime-config] ${warning}`);

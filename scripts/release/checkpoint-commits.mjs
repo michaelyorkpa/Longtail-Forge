@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const CHECKPOINT_SERIES = "0.33.33";
 const CLOSEOUT_CHECKPOINT = `${CHECKPOINT_SERIES}.48`;
+const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
+const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
   checkpoint: "LTF-Checkpoint",
   docs: "LTF-Docs",
@@ -195,8 +197,42 @@ function runGit(args, cwd = process.cwd()) {
   return String(completed.stdout || "");
 }
 
+/**
+ * @param {{
+ *   args?: string[],
+ *   cwd?: string,
+ *   environment?: Record<string, string | undefined>,
+ *   head?: string,
+ *   runGitCommand?: (args: string[], cwd?: string) => string,
+ * }} options
+ */
+function resolveCheckpointBaseSha({
+  args = [],
+  cwd = process.cwd(),
+  environment = process.env,
+  head = "HEAD",
+  runGitCommand = runGit,
+} = {}) {
+  const normalizedArgs = args.map((argument) => String(argument || "").trim());
+  if (normalizedArgs.length === 0) {
+    const baseSha = String(environment.LTF_CHECKPOINT_BASE_SHA || "").trim();
+    if (!FULL_SHA_PATTERN.test(baseSha)) {
+      throw new Error("LTF_CHECKPOINT_BASE_SHA must be a full 40-character commit SHA.");
+    }
+    return baseSha;
+  }
+  if (normalizedArgs.length === 2 && normalizedArgs[0] === "--base-ref" && normalizedArgs[1] && !normalizedArgs[1].startsWith("-")) {
+    const baseSha = runGitCommand(["merge-base", normalizedArgs[1], head], cwd).trim();
+    if (!FULL_SHA_PATTERN.test(baseSha)) {
+      throw new Error(`git merge-base ${normalizedArgs[1]} ${head} did not return a full 40-character commit SHA.`);
+    }
+    return baseSha;
+  }
+  throw new Error(CHECKPOINT_USAGE);
+}
+
 function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", roadmapArchiveSource, roadmapSource } = {}) {
-  if (!/^[a-f0-9]{40}$/i.test(String(baseSha || ""))) {
+  if (!FULL_SHA_PATTERN.test(String(baseSha || ""))) {
     throw new Error("LTF_CHECKPOINT_BASE_SHA must be a full 40-character commit SHA.");
   }
   const roadmap = roadmapSource ?? readFileSync(path.join(cwd, "ROADMAP.md"), "utf8");
@@ -231,8 +267,8 @@ function formatCheckpointRange(results) {
 }
 
 async function main() {
-  if (process.argv.length > 2) throw new Error("Usage: node scripts/release/checkpoint-commits.mjs");
-  const results = inspectCheckpointRange({ baseSha: process.env.LTF_CHECKPOINT_BASE_SHA });
+  const baseSha = resolveCheckpointBaseSha({ args: process.argv.slice(2) });
+  const results = inspectCheckpointRange({ baseSha });
   console.log(formatCheckpointRange(results));
   if (results.some(({ validation }) => validation.errors.length > 0)) process.exitCode = 1;
 }
@@ -250,5 +286,6 @@ export {
   isDocumentationPath,
   isGeneratedDocumentationPath,
   parseCheckpointTrailers,
+  resolveCheckpointBaseSha,
   validateCheckpointCommit,
 };

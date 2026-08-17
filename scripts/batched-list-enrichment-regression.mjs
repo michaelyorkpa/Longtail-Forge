@@ -185,6 +185,7 @@ function resetCounters(counters) {
   }
 }
 
+/** @returns {Promise<import("../src/types/http-contracts.js").ServiceAuthorizationSession & { timezone: string }>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -196,10 +197,11 @@ LIMIT 1;
 `);
 
   return {
+    authorization_source: "notification",
     timezone: "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
+    user_id: String(rows[0].user_id),
+    username: String(rows[0].username),
+    workspace_id: String(rows[0].workspace_id),
   };
 }
 

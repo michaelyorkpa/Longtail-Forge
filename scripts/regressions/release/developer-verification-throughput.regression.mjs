@@ -13,10 +13,12 @@ import { spawnSync } from "node:child_process";
 import { createChangedRegressionPlan } from "../../lib/changed-regression-runner.mjs";
 import { isApplicationVersionOnlyChange, suggestRegressionsForPaths } from "../../lib/regression-change-routing.mjs";
 import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceVerificationSummary } from "../../lib/slice-verification-plan.mjs";
+import { validateShrinkOnly } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
   TRAILER_NAMES,
   parseCheckpointTrailers,
+  resolveCheckpointBaseSha,
   validateCheckpointCommit,
 } from "../../release/checkpoint-commits.mjs";
 
@@ -46,10 +48,13 @@ for (const path of [
 const focused = createChangedRegressionPlan(["src/modules/tasks/tasks.service.js"]);
 const focusedSlice = createSliceVerificationPlan(focused);
 assert.equal(focusedSlice.stages.find(({ id }) => id === "fast-checks").included, false);
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").included, true, "focused routing must never skip the strict-ledger typecheck gate");
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").command, "npm run typecheck");
 assert.equal(focusedSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions:tasks");
 assert.equal(focusedSlice.permissionHarnessIncluded, false);
 const fullSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/db/schema/current.sql"]));
 assert.equal(fullSlice.stages.find(({ id }) => id === "fast-checks").included, true);
+assert.equal(fullSlice.stages.find((item) => item.id === "strict-ledger").included, false, "the full typecheck/unit/lint stage already runs the ledger gate once");
 assert.equal(fullSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions");
 assert.equal(fullSlice.permissionHarnessIncluded, true, "the discovered harness should run once inside every full registry");
 assert.equal(fullSlice.commands.filter((command) => command === "npm run test:regressions").length, 1);
@@ -57,9 +62,36 @@ assert.ok(!fullSlice.commands.includes("npm run test:permissions"), "slice verif
 const permissionSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/routes/permissions.routes.js"]));
 assert.equal(permissionSlice.permissionHarnessIncluded, true);
 assert.deepEqual(permissionSlice.commands.filter((command) => /permission/.test(command)), [], "permission routing should reach the harness through the one full registry command");
+for (const narrowPaths of [[], ["CHANGELOG.md"], ["src/modules/tasks/tasks.service.js"], ["src/db/schema/current.sql"]]) {
+  const routedSlice = createSliceVerificationPlan(createChangedRegressionPlan(narrowPaths));
+  const ledgerCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
+  assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ") || "empty"})`);
+}
+const syntheticLedgerSource = JSON.stringify({
+  schemaVersion: 1,
+  checkpoint: "0.33.33.18.1",
+  programs: { scripts: { config: "tsconfig.scripts.json", files: ["scripts/synthetic-owner.mjs"], errorCount: 1, diagnostics: { "scripts/synthetic-owner.mjs": [{ code: 7006, count: 1 }] } } },
+  totals: { files: 1, errors: 1, explicitAny: 0 },
+  explicitAnyByFile: {},
+  expectedErrorDirectives: [],
+  declarationProbe: { config: "tsconfig.declarations.json", firstPartyFiles: 0, errors: 0 },
+});
+const baselineLedgerState = JSON.parse(syntheticLedgerSource);
+const seededIncrease = JSON.parse(syntheticLedgerSource);
+seededIncrease.programs.scripts.diagnostics["scripts/synthetic-owner.mjs"][0].count = 2;
+assert.throws(() => validateShrinkOnly(baselineLedgerState, seededIncrease), /increased 1 -> 2/, "a seeded per-file ledger regression must fail the strict gate");
+const seededNewFile = JSON.parse(syntheticLedgerSource);
+seededNewFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
+seededNewFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 2322, count: 1 }];
+assert.throws(() => validateShrinkOnly(baselineLedgerState, seededNewFile), /new file has 1 strict diagnostic/, "a seeded new file with diagnostics must fail the strict gate");
+const seededLedgerRun = executeSliceVerificationPlan(focusedSlice, {
+  contextSeconds: 0,
+  runCommand: (/** @type {string} */ command) => ({ status: command === "npm run typecheck" ? 1 : 0 }),
+});
+assert.equal(seededLedgerRun.status, 1, "a failing strict-ledger gate must fail the focused slice run");
 const executed = executeSliceVerificationPlan(focusedSlice, { contextSeconds: 0.25, runCommand: () => ({ status: 0 }) });
 const summary = formatSliceVerificationSummary(focusedSlice, executed);
-for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Regression buckets", "Browser checks", "Packaging"]) {
+for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Strict-ledger typecheck", "Regression buckets", "Browser checks", "Packaging"]) {
   assert.match(summary, new RegExp(label.replace("/", "\\/")), `${label} timing/status must stay visible`);
 }
 assert.match(summary, /\[SKIPPED\]/);
@@ -94,6 +126,7 @@ const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6"
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const versioning = readFileSync("docs/versioning.md", "utf8");
+const packageSource = JSON.parse(readFileSync("package.json", "utf8"));
 const firstCheckpointMessage = checkpointMessage({
   checkpoint: "0.33.33.1",
   docs: "Docs updated: AGENTS.md, docs/versioning.md.",
@@ -176,6 +209,14 @@ assert.equal(parsedTrailers.values.get(TRAILER_NAMES.docs), "Docs updated: AGENT
 
 const missingTrailers = validateCheckpointCommit({ message: "Implement work without trailers", paths: ["src/core/app.js"], roadmapSource });
 assert.match(missingTrailers.errors.join("\n"), /missing required LTF-Checkpoint trailer/);
+const separatedTrailers = validateCheckpointCommit({
+  message: "Complete work\n\nLTF-Checkpoint: 0.33.33.1\n\nLTF-Summary: Separate trailers incorrectly\n\nLTF-Docs: No docs change needed: synthetic separated trailer proof.",
+  paths: ["src/core/app.js"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.match(separatedTrailers.errors.join("\n"), /missing required LTF-Checkpoint trailer/);
+assert.match(separatedTrailers.errors.join("\n"), /missing required LTF-Summary trailer/);
 const planningCommit = validateCheckpointCommit({ message: "Plan the branch", paths: ["ROADMAP.md"], roadmapSource });
 assert.equal(planningCommit.kind, "planning", "a roadmap-only umbrella planning commit may precede checkpoint enforcement");
 assert.deepEqual(planningCommit.errors, []);
@@ -236,6 +277,17 @@ const docsMismatch = validateCheckpointCommit({
   roadmapSource,
 });
 assert.match(docsMismatch.errors.join("\n"), /paths must exactly match changed documentation/);
+const roadmapDocsMismatch = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.1",
+    docs: "Docs updated: ROADMAP-ARCHIVE.md, ROADMAP.md.",
+    summary: "Misclassify roadmap bookkeeping as durable documentation",
+  }),
+  paths: ["ROADMAP.md", "ROADMAP-ARCHIVE.md"],
+  roadmapArchiveSource,
+  roadmapSource,
+});
+assert.match(roadmapDocsMismatch.errors.join("\n"), /must use "No docs change needed:/);
 const ceremonyOverflow = validateCheckpointCommit({
   message: firstCheckpointMessage,
   paths: ["AGENTS.md", "docs/versioning.md", "ROADMAP.md"],
@@ -259,8 +311,28 @@ assert.match(workflowSource, /node scripts\/release\/checkpoint-commits\.mjs/);
 assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
 assert.match(agentGuide, /LTF-Summary: <single-line outcome>/);
 assert.match(agentGuide, /LTF-Docs: <documentation disposition>/);
+assert.match(agentGuide, /final bookkeeping commit in the same protected pull request/);
+assert.match(agentGuide, /ceremony\/bookkeeping paths, not documentation paths/);
+assert.match(agentGuide, /npm run checkpoint:validate/);
 assert.match(versioning, /Version-wide Internal Checkpoints/);
-assert.match(versioning, /Completed numbered checkpoints move from `ROADMAP\.md` to `ROADMAP-ARCHIVE\.md` after their protected merge/);
+assert.match(versioning, /final bookkeeping commit in the same protected pull request/);
+assert.match(versioning, /becomes authoritative only when that pull request merges/);
+assert.match(versioning, /npm run checkpoint:validate/);
+assert.equal(packageSource.scripts["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
+
+const syntheticBaseSha = "a".repeat(40);
+assert.equal(resolveCheckpointBaseSha({ environment: { LTF_CHECKPOINT_BASE_SHA: syntheticBaseSha } }), syntheticBaseSha);
+let mergeBaseArgs;
+assert.equal(resolveCheckpointBaseSha({
+  args: ["--base-ref", "origin/nightly"],
+  cwd: "synthetic-cwd",
+  runGitCommand: (args, cwd) => {
+    mergeBaseArgs = { args, cwd };
+    return `${syntheticBaseSha}\n`;
+  },
+}), syntheticBaseSha);
+assert.deepEqual(mergeBaseArgs, { args: ["merge-base", "origin/nightly", "HEAD"], cwd: "synthetic-cwd" });
+assert.throws(() => resolveCheckpointBaseSha({ args: ["--unknown"] }), /Usage: node scripts\/release\/checkpoint-commits\.mjs/);
 
 console.log("Developer verification throughput regression passed.");
 

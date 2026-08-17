@@ -166,10 +166,12 @@ async function assertCanonicalIndexQueries(session, fixtures) {
     targetType: "task",
   });
   assert.deepEqual(linked.lists.map((list) => list.list_id), [fixtures.active.list_id]);
+  assert.ok(linked.lists[0]?.links[0]?.target);
   assert.equal(linked.lists[0].links[0].target.label, "Linked Query Task");
 
   const tagged = await listsService.list(session, { tagIds: [fixtures.tag.tag_id] });
   assert.deepEqual(tagged.lists.map((list) => list.list_id), [fixtures.active.list_id]);
+  assert.ok(tagged.lists[0]?.tags?.[0]);
   assert.equal(tagged.lists[0].tags[0].tag_id, fixtures.tag.tag_id);
 
   const noTags = await listsService.list(session, { tags: "__no_tags__" });

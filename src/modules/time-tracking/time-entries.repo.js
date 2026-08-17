@@ -4,9 +4,14 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 
 /** @typedef {import("../../utils/normalizers.js").TimeEntry} TimeEntry */
 /** @typedef {{ total: number | string }} CountRow */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").DashboardEffortReadOptions} DashboardEffortReadOptions */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ProjectScopeUpdate} ProjectScopeUpdate */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRow} TimeEntryRow */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryWriteParameters} TimeEntryWriteParameters */
 
+/** @param {string} workspaceId */
 async function readAll(workspaceId) {
-  const rows = await db.query(`
+  const rows = /** @type {TimeEntryRow[]} */ (await db.query(`
 SELECT
   entry_id,
   workspace_id,
@@ -28,11 +33,12 @@ SELECT
 FROM time_entries
 WHERE workspace_id = :workspaceId
 ORDER BY end_time;
-`, { workspaceId: textParam(workspaceId) });
+`, { workspaceId: textParam(workspaceId) }));
 
   return rows.map(timeEntryRowToAppValue);
 }
 
+/** @param {string} workspaceId @param {DashboardEffortReadOptions} [options] */
 async function readDashboardEffortSummary(workspaceId, options = {}) {
   const limit = normalizeDashboardRowLimit(options.limit);
   const visibility = options.visibility || {};
@@ -47,7 +53,7 @@ async function readDashboardEffortSummary(workspaceId, options = {}) {
     windowStart: textParam(options.windowStart),
     workspaceId: textParam(workspaceId),
   };
-  const [summary, rows] = await Promise.all([
+  const [summary, rawRows] = await Promise.all([
     db.get(`
 SELECT
   COUNT(*) AS entries_count,
@@ -113,6 +119,7 @@ ORDER BY end_time DESC, entry_id DESC
 LIMIT :limit;
 `, { ...params, limit }),
   ]);
+  const rows = /** @type {TimeEntryRow[]} */ (rawRows);
 
   return {
     entries: rows.map(timeEntryRowToAppValue),
@@ -122,8 +129,9 @@ LIMIT :limit;
   };
 }
 
+/** @param {string} workspaceId @param {string} entryId */
 async function readById(workspaceId, entryId) {
-  const row = await db.get(`
+  const row = /** @type {TimeEntryRow | null} */ (await db.get(`
 SELECT
   entry_id,
   workspace_id,
@@ -149,13 +157,14 @@ LIMIT 1;
 `, {
     entryId: textParam(entryId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return row ? timeEntryRowToAppValue(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} projectId */
 async function readByProjectId(workspaceId, projectId) {
-  const rows = await db.query(`
+  const rows = /** @type {TimeEntryRow[]} */ (await db.query(`
 SELECT
   entry_id,
   workspace_id,
@@ -181,7 +190,7 @@ ORDER BY end_time;
 `, {
     projectId: textParam(projectId),
     workspaceId: textParam(workspaceId),
-  });
+  }));
 
   return rows.map(timeEntryRowToAppValue);
 }
@@ -257,6 +266,7 @@ WHERE workspace_id = :workspaceId
 `, timeEntryWriteParams(entry, now));
 }
 
+/** @param {string} workspaceId @param {string} projectId */
 async function countByProjectId(workspaceId, projectId) {
   const row = /** @type {CountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS total
@@ -271,6 +281,7 @@ WHERE workspace_id = :workspaceId
   return Number.parseInt(String(row?.total ?? ""), 10) || 0;
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasForTask(workspaceId, taskId) {
   const row = await db.get(`
 SELECT 1 AS has_entry
@@ -286,6 +297,7 @@ LIMIT 1;
   return Boolean(row?.has_entry);
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {ProjectScopeUpdate} scope */
 async function updateProjectScope(workspaceId, projectId, scope) {
   const now = new Date().toISOString();
 
@@ -308,6 +320,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId @param {string} entryId */
 async function remove(workspaceId, entryId) {
   await db.run(`
 DELETE FROM time_entries
@@ -319,6 +332,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {TimeEntryRow} row */
 function timeEntryRowToAppValue(row) {
   return normalizeTimeEntry({
     entry_id: row.entry_id,
@@ -347,6 +361,7 @@ function timeEntryRowToAppValue(row) {
  * @param {{ includeCreatedAt?: boolean }} [options]
  */
 function timeEntryWriteParams(entry, now, options = {}) {
+  /** @type {TimeEntryWriteParameters} */
   const params = {
     billable: textParam(entry.billable),
     clientId: nullableTextParam(entry.client_id),
@@ -373,32 +388,38 @@ function timeEntryWriteParams(entry, now, options = {}) {
   return params;
 }
 
+/** @param {unknown} value */
 function textParam(value) {
   return String(value ?? "");
 }
 
+/** @param {unknown} value */
 function nullableTextParam(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value */
 function integerParam(value) {
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+/** @param {unknown} value */
 function normalizeDashboardRowLimit(value) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 10) : 3;
 }
 
+/** @param {unknown} values @returns {string[]} */
 function normalizeIdList(values = []) {
   return [...new Set((Array.isArray(values) ? values : [])
     .map((value) => textParam(value).trim())
     .filter(Boolean))];
 }
 
+/** @param {unknown} values @returns {string[]} */
 function nonEmptyIdList(values = []) {
   const normalized = normalizeIdList(values);
   return normalized.length > 0 ? normalized : [""];

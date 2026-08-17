@@ -243,5 +243,5 @@ LIMIT 1;
 `);
   assert.ok(rows[0]?.task_id, `expected recurrence instance for ${instanceDate}`);
 
-  return (await tasksService.read(rows[0].task_id, session)).task;
+  return (await tasksService.read(String(rows[0].task_id), session)).task;
 }

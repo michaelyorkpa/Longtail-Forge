@@ -108,10 +108,9 @@ async function assertRecurrenceTemplateRepository(session) {
     updated_by_user_id: session.user_id,
   });
   assert.deepEqual(reassigned.assignee_ids, [session.user_id], "template assignee replacement should insert active assignees");
-  assert.equal(
-    (await taskRecurrenceRepository.readTemplateById(session.workspace_id, created.recurrence_template_id)).rrule,
-    "FREQ=DAILY;INTERVAL=2",
-  );
+  const reread = await taskRecurrenceRepository.readTemplateById(session.workspace_id, created.recurrence_template_id);
+  assert.ok(reread, "updated recurrence template should remain readable");
+  assert.equal(reread.rrule, "FREQ=DAILY;INTERVAL=2");
 }
 
 async function assertReminderOffsetRepository(session) {
@@ -145,11 +144,11 @@ async function assertReminderOffsetRepository(session) {
     { targetId: randomUUID(), targetType: "unknown" },
   ]);
   assert.deepEqual(
-    offsetsByTarget.get(taskRemindersRepository.reminderKey("task", taskTargetId)).map((offset) => offset.offset_minutes),
+    offsetsByTarget.get(taskRemindersRepository.reminderKey("task", taskTargetId))?.map((offset) => offset.offset_minutes),
     [1440, 5],
   );
   assert.deepEqual(
-    offsetsByTarget.get(taskRemindersRepository.reminderKey("project", projectTargetId)).map((offset) => offset.offset_minutes),
+    offsetsByTarget.get(taskRemindersRepository.reminderKey("project", projectTargetId))?.map((offset) => offset.offset_minutes),
     [15],
   );
 

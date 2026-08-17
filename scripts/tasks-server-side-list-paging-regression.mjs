@@ -90,7 +90,7 @@ async function assertPagedList(session, taskCount) {
   assert.equal(firstPage.pagination.hasMore, true, "seeded task set should expose a next page");
   assert.ok(firstPage.pagination.nextCursor, "pagination should return an opaque cursor");
   assert.ok(firstPage.tasks.length < taskCount, "normal list reads should not return the whole task table");
-  assert.ok(firstPage.tasks.every((task) => !["complete", "archived"].includes(task.status)), "All view should stay active-only");
+  assert.ok(firstPage.tasks.every((task) => !["complete", "archived"].includes(String(task.status || ""))), "All view should stay active-only");
 
   const secondPage = await tasksService.list(session, {
     task_view: "all",
@@ -107,7 +107,7 @@ async function assertPagedList(session, taskCount) {
 }
 
 async function assertPermissionPruning(session) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const result = await tasksService.list(noRoleSession, {
     task_view: "all",
     status: "all",

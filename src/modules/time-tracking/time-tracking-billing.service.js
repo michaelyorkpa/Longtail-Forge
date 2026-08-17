@@ -13,8 +13,28 @@ import {
 import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
 
-/** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
-/** @typedef {{ endDate?: unknown, end_date?: unknown, period?: unknown, projectIds?: unknown, project_ids?: unknown, scopeId?: unknown, scope_id?: unknown, startDate?: unknown, start_date?: unknown, tagIds?: unknown, tag_ids?: unknown, tags?: unknown, taskId?: unknown, task_id?: unknown, taskIds?: unknown, task_ids?: unknown }} BillingReportQuery */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeTrackingSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingReportQuery} BillingReportQuery */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingSettings} BillingSettings */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingClientProjectData} BillingClientProjectData */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingScopeInput} BillingScopeInput */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingProjectInput} BillingProjectInput */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingScope} BillingScope */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingProject} BillingProject */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingEntry} BillingEntry */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingDateRange} BillingDateRange */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingProjectRow} BillingProjectRow */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingScopeSummary} BillingScopeSummary */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingTreeOptions} BillingTreeOptions */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingScopeOptions} BillingScopeOptions */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingPeriod} BillingPeriod */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingPeriodInput} BillingPeriodInput */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingRounding} BillingRounding */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingRoundingInput} BillingRoundingInput */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingRoundingIncrement} BillingRoundingIncrement */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntryRecord */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").BillingTimeEntryInput} BillingTimeEntryInput */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeTrackingModuleDefinition} TimeTrackingModuleDefinition */
 /** @typedef {{ readDashboardBillingSummary: typeof readDashboardBillingSummary, readProjectSummary: typeof readProjectSummary, readReportingBootstrap: typeof readReportingBootstrap, runProjectTimeBillingReport: typeof runProjectTimeBillingReport }} TimeTrackingBillingService */
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
@@ -123,6 +143,7 @@ async function runProjectTimeBillingReport({ filters, session }) {
 }
 
 /** @param {WorkspaceRequestSession} session */
+/** @param {WorkspaceRequestSession} session @param {BillingScopeOptions} [options] */
 async function readProjectTimeBillingContext(session, options = {}) {
   await permissionsService.assertCanInAnyScope(session, "reporting.view", {
     workspace_id: session.workspace_id,
@@ -154,11 +175,11 @@ async function readBillingSettings(session) {
     clientProjectSettingsService.read(session),
     timeTrackingSettingsService.read(session),
   ]);
-  return {
+  return /** @type {BillingSettings} */ ({
     ...workspaceSettings,
     ...clientProjectSettings,
     ...timeTrackingSettings,
-  };
+  });
 }
 
 /**
@@ -171,6 +192,7 @@ function normalizeBillingSessionTimezone(session) {
   return normalizeTimezone(session?.timezone);
 }
 
+/** @param {BillingClientProjectData} data @param {BillingSettings} settings @param {BillingScopeOptions} [options] @returns {BillingScope[]} */
 function buildBillingScopes(data, settings, options = {}) {
   const includeInactive = Boolean(options.includeInactive);
   const workspaceProjects = Array.isArray(data.workspaceProjects)
@@ -199,6 +221,7 @@ function buildBillingScopes(data, settings, options = {}) {
   return [...workspaceScope, ...sortScopeTree(attachDescendantClientProjects(decorateScopeDepths(clientScopes)))];
 }
 
+/** @param {BillingScope[]} scopes @returns {BillingScope[]} */
 function attachDescendantClientProjects(scopes) {
   return scopes.map((scope) => {
     const descendantProjects = scopes
@@ -213,6 +236,7 @@ function attachDescendantClientProjects(scopes) {
   });
 }
 
+/** @param {BillingScopeInput} client @param {BillingSettings} settings @returns {BillingScope} */
 function normalizeScope(client, settings) {
   const billable = normalizeBillableFlag(client.billable);
   const billingRate = parseOptionalMoney(client.billing_rate);
@@ -242,6 +266,7 @@ function normalizeScope(client, settings) {
   };
 }
 
+/** @param {BillingProjectInput} project @param {import("../../types/time-tracking-contracts.d.ts").BillableFlag} [fallbackBillable] @param {{ rate?: number, period?: BillingPeriod, rounding?: BillingRounding }} [inheritedBilling] @returns {BillingProject} */
 function normalizeProject(project, fallbackBillable = "yes", inheritedBilling = {}) {
   const billingRate = parseOptionalMoney(project.billing_rate);
   const billingPeriod = normalizeOptionalBillingPeriod(project.billing_period);
@@ -259,18 +284,20 @@ function normalizeProject(project, fallbackBillable = "yes", inheritedBilling = 
     effectiveBillingRate: billingRate ?? inheritedBilling.rate ?? 0,
     effectiveBillingPeriod: billingPeriod || inheritedBilling.period || normalizeBillingPeriod(null),
     effectiveBillingRounding: billingRounding || inheritedBilling.rounding || normalizeBillingRounding(null),
+    childProjectIds: [],
   };
 }
 
+/** @param {BillingTimeEntryInput[]} entries @returns {BillingEntry[]} */
 function normalizeTimeEntries(entries) {
   return Array.isArray(entries)
     ? entries.map((entry) => ({
-        clientId: entry.client_id,
-        clientName: entry.client_name,
-        projectId: entry.project_id,
-        projectName: entry.project_name,
-        taskId: entry.task_id,
-        endTime: new Date(entry.end_time),
+        clientId: String(entry.client_id || ""),
+        clientName: String(entry.client_name || ""),
+        projectId: String(entry.project_id || ""),
+        projectName: String(entry.project_name || ""),
+        taskId: String(entry.task_id || ""),
+        endTime: new Date(String(entry.end_time || "")),
         durationSeconds: Number(entry.duration_seconds) || 0,
         billable: entry.billable === "no" ? "no" : "yes",
         tags: Array.isArray(entry.tags) ? entry.tags : [],
@@ -278,10 +305,12 @@ function normalizeTimeEntries(entries) {
     : [];
 }
 
+/** @param {BillingSettings} settings @param {BillingScope[]} scopes @param {BillingEntry[]} entries @param {BillingDateRange} range @returns {BillingScopeSummary[]} */
 function summarizeBillingScopesForRange(settings, scopes, entries, range) {
   return sortScopeTree(scopes).map((scope) => summarizeBillingScopeForRange(settings, scope, entries, range));
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingEntry[]} entries @param {BillingDateRange} range @returns {BillingScopeSummary} */
 function summarizeBillingScopeForRange(settings, scope, entries, range) {
   const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants: true }));
   const projectSummaries = filterRollupProjects(scope.projects, { includeDescendants: true })
@@ -289,7 +318,7 @@ function summarizeBillingScopeForRange(settings, scope, entries, range) {
       includeDescendants: true,
       range,
     }))
-    .filter(Boolean);
+    .filter(isBillingProjectRow);
   const totals = projectSummaries.reduce((summary, projectSummary) => ({
     amount: summary.amount + projectSummary.amount,
     billableSeconds: summary.billableSeconds + projectSummary.billableSeconds,
@@ -309,6 +338,7 @@ function summarizeBillingScopeForRange(settings, scope, entries, range) {
   };
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject[]} selectedProjects @param {BillingEntry[]} entries @param {BillingReportQuery} [query] @param {BillingTreeOptions} [options] */
 function summarizeProjectBillingRows(settings, scope, selectedProjects, entries, query = {}, options = {}) {
   const includeDescendants = Boolean(options.includeDescendants);
   const rows = filterRollupProjects(selectedProjects, { includeDescendants })
@@ -318,7 +348,7 @@ function summarizeProjectBillingRows(settings, scope, selectedProjects, entries,
       today: options.today,
       timezone: options.timezone,
     }))
-    .filter(Boolean);
+    .filter(isBillingProjectRow);
   const totals = rows.reduce((summary, row) => ({
     amount: summary.amount + row.amount,
     seconds: summary.seconds + row.displaySeconds,
@@ -327,6 +357,7 @@ function summarizeProjectBillingRows(settings, scope, selectedProjects, entries,
   return { rows, totals };
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project @param {BillingProject[]} projects @param {BillingEntry[]} entries @param {BillingTreeOptions} [options] @returns {BillingProjectRow | null} */
 function summarizeBillingProjectTree(settings, scope, project, projects, entries, options = {}) {
   const includeDescendants = Boolean(options.includeDescendants);
   const range = options.range || readSelectedDateRange(
@@ -353,6 +384,7 @@ function summarizeBillingProjectTree(settings, scope, project, projects, entries
             preserveEmpty: true,
           },
         ))
+        .filter(isBillingProjectRow)
     : [];
   const branch = [direct || emptyProjectRow(settings, scope, project), ...childRows]
     .reduce((summary, row) => ({
@@ -382,6 +414,12 @@ function summarizeBillingProjectTree(settings, scope, project, projects, entries
   };
 }
 
+/** @param {BillingProjectRow | null} row @returns {row is BillingProjectRow} */
+function isBillingProjectRow(row) {
+  return row !== null;
+}
+
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project @param {BillingEntry[]} entries @param {BillingDateRange} range @returns {BillingProjectRow | null} */
 function summarizeDirectBillingProject(settings, scope, project, entries, range) {
   const projectEntries = entries.filter((entry) => (
     matchesProject(entry, project) && isEntryInRange(entry, range)
@@ -412,6 +450,7 @@ function summarizeDirectBillingProject(settings, scope, project, entries, range)
   };
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project @returns {BillingProjectRow} */
 function emptyProjectRow(settings, scope, project) {
   return {
     amount: 0,
@@ -424,6 +463,7 @@ function emptyProjectRow(settings, scope, project) {
   };
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project @param {BillingReportQuery} [query] @param {Date} [today] @param {string} [timezone] @returns {BillingDateRange} */
 function readSelectedDateRange(
   settings,
   scope,
@@ -448,6 +488,7 @@ function readSelectedDateRange(
   );
 }
 
+/** @param {unknown} startValue @param {unknown} endValue @param {string} [timezone] @returns {BillingDateRange} */
 function getCustomDateRange(startValue, endValue, timezone = DEFAULT_TIMEZONE) {
   const startDateKey = parseDateInput(startValue);
   const endDateKey = parseDateInput(endValue);
@@ -459,6 +500,7 @@ function getCustomDateRange(startValue, endValue, timezone = DEFAULT_TIMEZONE) {
   return dateKeyRange(startDateKey, addLocalDateDays(endDateKey, 1), timezone);
 }
 
+/** @param {unknown} value @returns {string | null} */
 function parseDateInput(value) {
   const [year, month, day] = String(value || "").split("-").map(Number);
 
@@ -472,6 +514,7 @@ function parseDateInput(value) {
     : null;
 }
 
+/** @param {BillingPeriodInput | BillingPeriod | null | undefined} period @param {"current" | "last"} mode @param {Date} [today] @param {string} [timezone] @returns {BillingDateRange} */
 function getBillingPeriodRange(period, mode, today = new Date(), timezone = DEFAULT_TIMEZONE) {
   const normalizedPeriod = normalizeBillingPeriod(period);
   const todayKey = localDateKey(today, timezone);
@@ -486,6 +529,7 @@ function getBillingPeriodRange(period, mode, today = new Date(), timezone = DEFA
   return dateKeyRange(startKey, addMonthsKey(startKey, 1), timezone);
 }
 
+/** @param {string} dateKey @param {number} startDay */
 function getCurrentCustomPeriodStart(dateKey, startDay) {
   const currentMonthStart = `${dateKey.slice(0, 8)}${String(startDay).padStart(2, "0")}`;
 
@@ -494,16 +538,19 @@ function getCurrentCustomPeriodStart(dateKey, startDay) {
     : addMonthsKey(currentMonthStart, -1);
 }
 
+/** @param {string} dateKey @param {number} monthCount */
 function addMonthsKey(dateKey, monthCount) {
   const [year, month, day] = dateKey.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1 + monthCount, day)).toISOString().slice(0, 10);
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {BillingDateRange} */
 function getMonthRange(date, timezone = DEFAULT_TIMEZONE) {
   const startKey = monthStartKey(localDateKey(date, timezone));
   return dateKeyRange(startKey, addMonthsKey(startKey, 1), timezone);
 }
 
+/** @param {number} monthsBack @param {Date} [today] @param {string} [timezone] @returns {Date[]} */
 function getTrailingMonthStarts(monthsBack, today = new Date(), timezone = DEFAULT_TIMEZONE) {
   const months = [];
   const currentMonthStart = monthStartKey(localDateKey(today, timezone));
@@ -515,10 +562,12 @@ function getTrailingMonthStarts(monthsBack, today = new Date(), timezone = DEFAU
   return months;
 }
 
+/** @param {string} dateKey */
 function monthStartKey(dateKey) {
   return `${dateKey.slice(0, 7)}-01`;
 }
 
+/** @param {string} startKey @param {string} endKey @param {string} timezone @returns {BillingDateRange} */
 function dateKeyRange(startKey, endKey, timezone) {
   return {
     start: new Date(localDateBoundToUtcIso(startKey, timezone)),
@@ -526,6 +575,7 @@ function dateKeyRange(startKey, endKey, timezone) {
   };
 }
 
+/** @param {BillingEntry} entry @param {BillingDateRange} range */
 function isEntryInRange(entry, range) {
   return Boolean(
     range &&
@@ -535,6 +585,7 @@ function isEntryInRange(entry, range) {
   );
 }
 
+/** @param {BillingEntry} entry @param {BillingScope} scope @param {{ includeDescendants?: boolean }} [options] */
 function matchesScope(entry, scope, options = {}) {
   if (scope.isWorkspaceScope) {
     return !normalizeKey(entry.clientId) && !normalizeKey(entry.clientName);
@@ -548,6 +599,7 @@ function matchesScope(entry, scope, options = {}) {
     normalizeKey(entry.clientName) === normalizeKey(scope.name);
 }
 
+/** @param {BillingEntry} entry @param {BillingProject} project @param {{ includeDescendants?: boolean }} [options] */
 function matchesProject(entry, project, options = {}) {
   if (options.includeDescendants && project.childProjectIds.includes(entry.projectId)) {
     return true;
@@ -557,8 +609,9 @@ function matchesProject(entry, project, options = {}) {
     normalizeKey(entry.projectName) === normalizeKey(project.name);
 }
 
+/** @param {BillingProject[]} projects @returns {BillingProject[]} */
 function decorateProjectDescendants(projects) {
-  const descendantsByProjectId = new Map(projects.map((project) => [project.id, []]));
+  const descendantsByProjectId = new Map(projects.map((project) => [project.id, /** @type {string[]} */ ([])]));
 
   projects.forEach((project) => {
     let parentId = project.parentProjectId;
@@ -580,6 +633,7 @@ function decorateProjectDescendants(projects) {
   }));
 }
 
+/** @param {BillingProject[]} projects @param {{ includeDescendants?: boolean }} [options] @returns {BillingProject[]} */
 function filterRollupProjects(projects, options = {}) {
   if (!options.includeDescendants) {
     return projects;
@@ -590,6 +644,7 @@ function filterRollupProjects(projects, options = {}) {
   return projects.filter((project) => !hasSelectedProjectAncestor(project, projects, selectedIds));
 }
 
+/** @param {BillingScopeSummary[]} summaries @returns {BillingScopeSummary[]} */
 function filterRollupScopeSummaries(summaries) {
   const includedScopeIds = new Set(summaries.map((summary) => summary.scope.id));
 
@@ -598,6 +653,7 @@ function filterRollupScopeSummaries(summaries) {
   ));
 }
 
+/** @param {BillingProject} project @param {BillingProject[]} projects @param {Set<string>} selectedIds */
 function hasSelectedProjectAncestor(project, projects, selectedIds) {
   let parentId = project.parentProjectId;
   const visited = new Set();
@@ -615,6 +671,7 @@ function hasSelectedProjectAncestor(project, projects, selectedIds) {
   return false;
 }
 
+/** @param {BillingScope[]} scopes @returns {BillingScope[]} */
 function decorateScopeDepths(scopes) {
   return scopes.map((scope) => ({
     ...scope,
@@ -622,6 +679,7 @@ function decorateScopeDepths(scopes) {
   }));
 }
 
+/** @param {BillingScope} scope @param {BillingScope[]} scopes @param {Set<string>} [visited] @returns {number} */
 function getScopeDepth(scope, scopes, visited = new Set()) {
   if (!scope?.parentScopeId || visited.has(scope.id)) {
     return 0;
@@ -632,6 +690,7 @@ function getScopeDepth(scope, scopes, visited = new Set()) {
   return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
 }
 
+/** @param {BillingScope[]} scopes @returns {BillingScope[]} */
 function sortScopeTree(scopes) {
   return [...scopes].sort((left, right) =>
     getScopeTreeSortKey(left, scopes).localeCompare(getScopeTreeSortKey(right, scopes), undefined, {
@@ -640,8 +699,11 @@ function sortScopeTree(scopes) {
   );
 }
 
+/** @param {BillingProject[]} projects @returns {BillingProject[]} */
 function sortProjectTree(projects) {
+  /** @type {Map<string, BillingProject[]>} */
   const projectsByParentId = new Map();
+  /** @type {BillingProject[]} */
   const sortedProjects = [];
   const visited = new Set();
 
@@ -652,6 +714,7 @@ function sortProjectTree(projects) {
     projectsByParentId.set(parentId, siblings);
   });
 
+  /** @param {string} parentId */
   const appendBranch = (parentId) => {
     const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
       String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
@@ -681,24 +744,29 @@ function sortProjectTree(projects) {
   return sortedProjects;
 }
 
+/** @param {BillingScope} scope @param {BillingScope[]} scopes */
 function getScopeTreeSortKey(scope, scopes) {
   if (scope.isWorkspaceScope) {
     return "";
   }
 
   const names = [];
+  /** @type {BillingScope | undefined} */
   let currentScope = scope;
   const visited = new Set();
 
   while (currentScope && !visited.has(currentScope.id)) {
     visited.add(currentScope.id);
     names.unshift(currentScope.name || "");
-    currentScope = scopes.find((item) => item.id === currentScope.parentScopeId);
+    /** @type {string} */
+    const parentScopeId = currentScope.parentScopeId;
+    currentScope = scopes.find((item) => item.id === parentScopeId);
   }
 
   return names.join("/");
 }
 
+/** @param {unknown} value */
 function normalizeKey(value) {
   return String(value || "")
     .trim()
@@ -706,6 +774,7 @@ function normalizeKey(value) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+/** @param {unknown} value @returns {string[]} */
 function parseSelectedIds(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -717,6 +786,7 @@ function parseSelectedIds(value) {
     .filter(Boolean);
 }
 
+/** @param {BillingReportQuery} [query] */
 function parseIncludeDescendants(query = {}) {
   const rawValue = query.includeDescendants ?? query.include_descendants;
 
@@ -727,6 +797,7 @@ function parseIncludeDescendants(query = {}) {
   return rawValue === true || rawValue === "true" || rawValue === "1" || rawValue === 1;
 }
 
+/** @param {unknown} value @param {import("../../types/time-tracking-contracts.d.ts").BillableFlag} [fallback] @returns {import("../../types/time-tracking-contracts.d.ts").BillableFlag} */
 function normalizeBillableFlag(value, fallback = "yes") {
   if (value === false || value === "no") {
     return "no";
@@ -739,6 +810,7 @@ function normalizeBillableFlag(value, fallback = "yes") {
   return fallback === "no" ? "no" : "yes";
 }
 
+/** @param {unknown} value */
 function parseOptionalMoney(value) {
   const text = String(value ?? "").trim();
 
@@ -750,14 +822,16 @@ function parseOptionalMoney(value) {
   return Number.isFinite(amount) ? amount : null;
 }
 
+/** @param {unknown} value */
 function parseMoney(value) {
   const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
   return Number.isFinite(amount) ? amount : 0;
 }
 
+/** @param {BillingPeriodInput | BillingPeriod | null | undefined} period @returns {BillingPeriod} */
 function normalizeBillingPeriod(period) {
   const type = period?.type === "custom" ? "custom" : "calendarMonth";
-  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
+  const startDay = Math.min(28, Math.max(1, Number.parseInt(String(period?.startDay ?? ""), 10) || 1));
 
   return {
     type,
@@ -765,9 +839,12 @@ function normalizeBillingPeriod(period) {
   };
 }
 
+/** @param {BillingRoundingInput | BillingRounding | null | undefined} rounding @returns {BillingRounding} */
 function normalizeBillingRounding(rounding) {
   const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-  const increment = increments.includes(rounding?.increment) ? rounding.increment : "nearestQuarterHour";
+  const increment = increments.includes(String(rounding?.increment || ""))
+    ? /** @type {BillingRoundingIncrement} */ (rounding?.increment)
+    : "nearestQuarterHour";
 
   return {
     enabled: Boolean(rounding?.enabled),
@@ -775,6 +852,7 @@ function normalizeBillingRounding(rounding) {
   };
 }
 
+/** @param {BillingPeriodInput | null | undefined} period @returns {BillingPeriod | null} */
 function normalizeOptionalBillingPeriod(period) {
   if (!period || period.type === "inherit") {
     return null;
@@ -782,10 +860,11 @@ function normalizeOptionalBillingPeriod(period) {
 
   return {
     type: period.type === "custom" ? "custom" : "calendarMonth",
-    startDay: Math.min(28, Math.max(1, Number.parseInt(period.startDay, 10) || 1)),
+    startDay: Math.min(28, Math.max(1, Number.parseInt(String(period.startDay ?? ""), 10) || 1)),
   };
 }
 
+/** @param {BillingRoundingInput | null | undefined} rounding @returns {BillingRounding | null} */
 function normalizeOptionalBillingRounding(rounding) {
   if (!rounding || rounding.type === "inherit") {
     return null;
@@ -794,6 +873,7 @@ function normalizeOptionalBillingRounding(rounding) {
   return normalizeBillingRounding(rounding);
 }
 
+/** @param {number} seconds @param {BillingRoundingInput | BillingRounding | null | undefined} rounding */
 function roundSeconds(seconds, rounding) {
   const normalizedRounding = normalizeBillingRounding(rounding);
 
@@ -810,26 +890,32 @@ function roundSeconds(seconds, rounding) {
   return Math.round(seconds / incrementSeconds) * incrementSeconds;
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project */
 function getProjectBillingRate(settings, scope, project) {
   return project.effectiveBillingRate ?? project.billingRate ?? scope.billingRate ?? parseMoney(settings.defaultBillingRate);
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope */
 function getEffectiveScopeBillingPeriod(settings, scope) {
   return scope.billingPeriod || settings.billingPeriod;
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project */
 function getEffectiveProjectBillingPeriod(settings, scope, project) {
   return project.effectiveBillingPeriod || project.billingPeriod || getEffectiveScopeBillingPeriod(settings, scope);
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope */
 function getEffectiveScopeBillingRounding(settings, scope) {
   return scope.billingRounding || settings.billingRounding;
 }
 
+/** @param {BillingSettings} settings @param {BillingScope} scope @param {BillingProject} project */
 function getEffectiveProjectBillingRounding(settings, scope, project) {
   return project.effectiveBillingRounding || project.billingRounding || getEffectiveScopeBillingRounding(settings, scope);
 }
 
+/** @param {BillingScopeSummary} row */
 function toDashboardBillableRow(row) {
   return {
     amount: row.amount,
@@ -843,6 +929,7 @@ function toDashboardBillableRow(row) {
   };
 }
 
+/** @param {BillingScope} scope @param {string[]} [taskFilter] */
 function emptyProjectSummary(scope, taskFilter = []) {
   return {
     scope,
@@ -852,6 +939,7 @@ function emptyProjectSummary(scope, taskFilter = []) {
   };
 }
 
+/** @param {TimeTrackingModuleDefinition[]} modules @param {string} panelGroup */
 function readModulePanels(modules, panelGroup) {
   return modules
     .filter((moduleDefinition) => moduleDefinition.status === "enabled" || moduleDefinition.historicalReadAccess === true)
@@ -866,6 +954,7 @@ function readModulePanels(modules, panelGroup) {
     ));
 }
 
+/** @param {WorkspaceRequestSession} session @param {BillingSettings} settings */
 function workspaceSummary(session, settings) {
   return {
     id: session.workspace_id,

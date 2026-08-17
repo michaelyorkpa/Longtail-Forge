@@ -4,6 +4,35 @@ import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 
+const [
+  accessPolicySource,
+  catalogItemsServiceSource,
+  catalogItemsTypesSource,
+  listItemsServiceSource,
+  listItemsTypesSource,
+  listsDomainTypesSource,
+  listsRepositorySource,
+  listsRoutesSource,
+  listsServiceSource,
+  publicApiRoutesSource,
+  publicApiServiceSource,
+  searchIndexersSource,
+  storageContractSource,
+] = await Promise.all([
+  fs.readFile(new URL("../src/modules/lists/access-policy.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/catalog-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-catalog-item-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/list-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-item-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-domain-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.repo.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.routes.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/public-api.routes.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/public-api.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/search-indexers.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/storage-contract.js", import.meta.url), "utf8"),
+]);
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-service.db");
 process.env.SUPER_ADMIN_PASSWORD = "Lists-Service-Test-123!";
@@ -37,6 +66,42 @@ try {
 }
 
 async function assertManifestContracts() {
+  for (const source of [
+    accessPolicySource,
+    catalogItemsServiceSource,
+    listItemsServiceSource,
+    listsRepositorySource,
+    listsRoutesSource,
+    listsServiceSource,
+    publicApiRoutesSource,
+    publicApiServiceSource,
+    searchIndexersSource,
+    storageContractSource,
+  ]) {
+    assert.match(source, /^\/\/ @ts-check/m, "every Lists server owner should remain explicitly checked");
+  }
+  assert.match(listsDomainTypesSource, /interface ListsNormalizedQuery[\s\S]*repositoryFilters: ListsRepositoryFilters/, "Lists should retain a precise normalized query contract");
+  assert.match(listsDomainTypesSource, /interface ListsRepository[\s\S]*createItem\(workspaceId: string, item: ListsItemPersistenceInput\)/, "Lists should retain precise repository and persistence contracts");
+  assert.match(listsRoutesSource, /function workspaceSession\(request\)[\s\S]*Workspace session is required/, "browser routes should narrow the authenticated workspace session at the HTTP edge");
+  assert.match(publicApiServiceSource, /@param \{ApiSession\} context[\s\S]*@returns \{Promise<ListsPublicApiListResult>\}/, "the public API should retain its typed ApiSession boundary");
+  assert.match(searchIndexersSource, /@returns \{Promise<ListsSearchDocument>\}/, "search indexing should consume the typed Lists search document seam");
+  assert.match(catalogItemsServiceSource, /^\/\/ @ts-check/m, "the extracted catalog-item aggregate should remain checked");
+  assert.match(catalogItemsServiceSource, /function createCatalogItemsService\(dependencies\)/, "Lists should expose one typed catalog aggregate factory");
+  assert.match(catalogItemsServiceSource, /listCatalogSuggestions[\s\S]*normalizeSuggestionLimit[\s\S]*normalizeCatalogName/, "catalog ranking should remain repository-owned behind normalized suggestion inputs");
+  assert.match(catalogItemsServiceSource, /readCatalogItemOrThrow[\s\S]*archived_at[\s\S]*Catalog item not found/, "catalog snapshots should reject archived rows");
+  assert.match(catalogItemsTypesSource, /interface ListsCatalogAggregateService[\s\S]*createFromListItem[\s\S]*readSnapshot[\s\S]*recordUsage[\s\S]*suggestItems/, "the catalog seam should declare explicit list-item orchestration and suggestion contracts");
+  assert.match(listItemsServiceSource, /^\/\/ @ts-check/m, "the extracted list-item aggregate should remain checked");
+  assert.match(listItemsServiceSource, /function createListItemsService\(dependencies\)/, "Lists should expose one typed item aggregate factory");
+  assert.match(listItemsServiceSource, /repository\.reorderItems[\s\S]*recordListAudit[\s\S]*emitListEvent/, "item reordering should retain repository transaction, audit, and event owners");
+  assert.match(listItemsServiceSource, /assertCanManageItem[\s\S]*repository\.updateItem[\s\S]*recordItemAudit[\s\S]*emitItemEvent/, "item lifecycle transitions should retain permission, repository, audit, and event owners");
+  assert.match(listItemsServiceSource, /readProgressSummaries[\s\S]*listItemsForLists/, "item progress should retain one batched repository read");
+  assert.match(listItemsTypesSource, /interface ListsItemAggregateService[\s\S]*createItem[\s\S]*readProgressSummaries[\s\S]*reorderItems/, "the aggregate seam should declare mutation and progress contracts");
+  assert.match(listItemsServiceSource, /catalogItems\.recordUsage[\s\S]*catalogItems\.readSnapshot/, "the list-item aggregate should consume catalog snapshots and usage only through explicit Lists orchestration");
+  assert.doesNotMatch(listItemsServiceSource, /repository\.incrementCatalogUsage|readCatalogItemById|listCatalogSuggestions/, "the list-item aggregate should not reach through the catalog repository boundary");
+  assert.match(listsServiceSource, /const catalogItemsService = createCatalogItemsService\([\s\S]*repository: listsRepository[\s\S]*catalogItems: catalogItemsService/, "the route-facing Lists service should compose independent catalog and item aggregates");
+  assert.match(listsServiceSource, /const listItemsService = createListItemsService\([\s\S]*repository: listsRepository/, "the route-facing Lists service should compose the extracted aggregate with the established repository");
+  assert.match(listsServiceSource, /function createItem\([\s\S]*listItemsService\.createItem[\s\S]*function updateItem\([\s\S]*listItemsService\.updateItem/, "the public Lists facade should delegate item writes without changing its API");
+
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
@@ -312,6 +377,8 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     assert.equal(duplicated.list.is_reusable, false);
     assert.equal(duplicated.list.source_list_id, created.list.list_id);
     assert.equal(duplicated.list.duplicated_from_list_id, created.list.list_id);
+    assert.ok(duplicated.list.sourceContext.duplicatedFrom);
+    assert.ok(duplicated.list.sourceContext.sourceList);
     assert.equal(duplicated.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
     assert.equal(duplicated.list.sourceContext.sourceList.title, "R&D Procurement Updated");
     assert.equal(duplicated.items.length, 3);
@@ -329,6 +396,7 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     const duplicatedRead = await listsService.read(duplicated.list.list_id, session);
     assert.equal(duplicatedRead.items[0].item_name, "Aluminum extrusion");
     assert.equal(duplicatedRead.items[0].quantity, 4);
+    assert.ok(duplicatedRead.list.sourceContext.duplicatedFrom);
     assert.equal(duplicatedRead.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
 
     const normalAgain = await listsService.unmarkReusable(created.list.list_id, session);
@@ -353,6 +421,7 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     const duplicatedBom = await listsService.duplicate(bom.list.list_id, {}, session);
     assert.equal(duplicatedBom.list.status, "active");
     assert.equal(duplicatedBom.list.list_type, "bill_of_materials");
+    assert.ok(duplicatedBom.list.sourceContext.duplicatedFrom);
     assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.title, "Prototype BOM");
     assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.status, "finalized");
     assert.equal(duplicatedBom.items[0].actual_cost, null);

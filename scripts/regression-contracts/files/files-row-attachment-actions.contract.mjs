@@ -9,6 +9,7 @@ const attachmentHelper = readText("public/js/shared/file-attachments.js");
 const appShellService = readText("src/services/app-shell.service.js");
 const filesRoutes = readText("src/routes/files.routes.js");
 const filesService = readText("src/services/files.service.js");
+const filesRepository = readText("src/repositories/files.repo.js");
 const filesHtml = readText("views/protected/files.html");
 const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
@@ -85,8 +86,10 @@ assert.doesNotMatch(attachmentHelper, /openFileEditor|preview\/content|Inspector
 assert.match(functionBlock(appShellService, "readPermissionHints"), /files\.manage_quarantine[\s\S]*filesManageQuarantine: canManageFileQuarantine/, "App shell should expose a narrow quarantine permission hint");
 assert.match(filesRoutes, /post\("\/files\/:fileId\/report"/, "Files report route should remain the browser mutation route");
 assert.match(filesRoutes, /post\("\/files\/:fileId\/quarantine"/, "Files quarantine route should remain the browser mutation route");
-assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Report service should keep read checks, allowed reasons, and quarantine lifecycle behavior through bound params");
-assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*SET status = :fileStatus[\s\S]*fileStatus: "quarantined"/, "Quarantine service should keep server-side permission authority through bound params");
+assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*db\.transaction[\s\S]*filesRepo\.createFileReport[\s\S]*filesRepo\.markFileReported/, "Report service should keep read checks, allowed reasons, and explicit transaction orchestration");
+assert.match(functionBlock(filesRepository, "markFileReported"), /SET status = 'quarantined'[\s\S]*quarantine_reason = :quarantineReason/, "Files repository should own the bound report quarantine write");
+assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*filesRepo\.quarantineFile/, "Quarantine service should keep server-side permission authority");
+assert.match(functionBlock(filesRepository, "quarantineFile"), /SET status = 'quarantined'[\s\S]*quarantine_reason = :quarantineReason/, "Files repository should own the bound quarantine write");
 
 assert.match(filesHtml, /js\/shared\/icons\.js/, "Files page should reference the shared row-action icons");
 assert.match(filesHtml, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should load shared preview and reference the Files action wiring");

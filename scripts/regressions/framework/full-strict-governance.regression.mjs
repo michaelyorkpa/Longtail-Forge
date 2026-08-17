@@ -39,6 +39,12 @@ const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sor
 const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
 const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
+const jobContractsSource = fs.readFileSync("src/types/job-contracts.d.ts", "utf8");
+const frameworkContractsSource = fs.readFileSync("src/types/framework-contracts.d.ts", "utf8");
+const frameworkJobsSeam = frameworkContractsSource.split("// Jobs seam")[1].split("export type NormalizeInferredEmptyArray")[0];
+const usersModuleSource = fs.readFileSync("src/modules/users/module.js", "utf8");
+const developerExampleRouteSource = fs.readFileSync("src/modules/developer-example/routes.js", "utf8");
+const developerExamplePublicApiRouteSource = fs.readFileSync("src/modules/developer-example/public-api.routes.js", "utf8");
 
 assert.equal(ledger.schemaVersion, 1);
 assert.equal(ledger.checkpoint, "0.33.33.18.1");
@@ -53,14 +59,24 @@ assert.deepEqual(ledger.explicitAnyByFile, sourcePolicy.explicitAnyByFile);
 assert.deepEqual(ledger.expectedErrorDirectives, sourcePolicy.expectedErrorDirectives);
 assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/browser-database-boundary.fixture.mjs:3",
+  "tests/typecheck/client-project-contracts.fixture.mjs:27",
+  "tests/typecheck/client-project-contracts.fixture.mjs:30",
   "tests/typecheck/database-contracts.fixture.mjs:15",
   "tests/typecheck/database-contracts.fixture.mjs:8",
+  "tests/typecheck/job-payload-contracts.fixture.mjs:24",
+  "tests/typecheck/job-payload-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
   "tests/typecheck/precise-service-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs:28",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs:31",
+  "tests/typecheck/task-server-contracts.fixture.mjs:26",
+  "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
+  "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
+  "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 15, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 31, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -126,6 +142,178 @@ assert.deepEqual(notesOwnerDiagnostics, [], `Notes server owners must stay stric
 const notesOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/notes/"));
 assert.deepEqual(notesOwnerExplicitAny, [], `Notes server owners must stay free of explicit any after checkpoint 0.33.33.17.3`);
+const listsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+  .filter((filePath) => filePath.startsWith("src/modules/lists/"));
+assert.deepEqual(listsOwnerDiagnostics, [], `Lists server owners must stay strict-clean after checkpoint 0.33.33.18.4`);
+const listsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+  .filter((filePath) => filePath.startsWith("src/modules/lists/"));
+assert.deepEqual(listsOwnerExplicitAny, [], `Lists server owners must stay free of explicit any after checkpoint 0.33.33.18.4`);
+const tasksOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+  .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
+assert.deepEqual(tasksOwnerDiagnostics, [], `Tasks server owners must stay strict-clean after checkpoint 0.33.33.21.3`);
+const tasksOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+  .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
+assert.deepEqual(tasksOwnerExplicitAny, [], `Tasks server owners must stay free of explicit any after checkpoint 0.33.33.21.3`);
+/** @param {string} filePath */
+const clientProjectsOwnerPaths = (filePath) => (
+  filePath.startsWith("src/modules/client-projects/") ||
+  filePath === "src/types/client-project-contracts.d.ts" ||
+  filePath === "tests/typecheck/client-project-contracts.fixture.mjs"
+);
+const clientProjectsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(clientProjectsOwnerPaths);
+assert.deepEqual(clientProjectsOwnerDiagnostics, [], "Clients/Projects server owners must stay strict-clean after checkpoint 0.33.33.25.1");
+const clientProjectsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(clientProjectsOwnerPaths);
+assert.deepEqual(clientProjectsOwnerExplicitAny, [], "Clients/Projects server owners must stay free of explicit any after checkpoint 0.33.33.25.1");
+/** @param {string} filePath */
+const timeTrackingOwnerPaths = (filePath) => (
+  filePath.startsWith("src/modules/time-tracking/") ||
+  filePath === "src/types/time-tracking-contracts.d.ts" ||
+  filePath.startsWith("tests/typecheck/time-tracking-")
+);
+const timeTrackingOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(timeTrackingOwnerPaths);
+assert.deepEqual(timeTrackingOwnerDiagnostics, [], "Time Tracking server owners must stay strict-clean after checkpoint 0.33.33.25.2");
+const timeTrackingOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(timeTrackingOwnerPaths);
+assert.deepEqual(timeTrackingOwnerExplicitAny, [], "Time Tracking server owners must stay free of explicit any after checkpoint 0.33.33.25.2");
+for (const strictCleanPath of [
+  "worker.js",
+  "src/core/jobs/index.js",
+  "src/core/jobs/job-handlers.js",
+  "src/core/jobs/job-queue.js",
+  "src/core/jobs/job-runner.js",
+  "src/core/jobs/job-types.js",
+  "src/core/jobs/worker-cli.js",
+  "src/core/jobs/worker-process-lock.js",
+  "src/routes/jobs.routes.js",
+  "src/services/jobs.service.js",
+  "src/types/job-contracts.d.ts",
+  "tests/typecheck/job-payload-contracts.fixture.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.25.3`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.25.3`);
+}
+assert.doesNotMatch(frameworkJobsSeam, /\bany\b/, "the framework Jobs seam must not restore generic any payloads");
+assert.match(jobContractsSource, /export interface JobPayloadRegistry/);
+assert.match(jobContractsSource, /"file\.scan": FileScanJobPayload/);
+assert.match(jobContractsSource, /"workspace\.purge": WorkspacePurgeJobPayload/);
+assert.doesNotMatch(jobContractsSource, /\[key:\s*string\]/, "registered job payloads must not fall back to a speculative catch-all bag");
+/** @param {string} filePath */
+const smallOwnerPaths = (filePath) => (
+  filePath.startsWith("src/core/search/") ||
+  filePath.startsWith("src/services/search") ||
+  filePath.startsWith("src/routes/search") ||
+  filePath === "src/types/search-rebuild-contracts.d.ts" ||
+  filePath.startsWith("src/repositories/notifications") ||
+  filePath.startsWith("src/services/notifications") ||
+  filePath.startsWith("src/routes/notifications") ||
+  filePath.startsWith("src/modules/users/") ||
+  filePath.startsWith("src/repositories/users") ||
+  filePath.startsWith("src/services/users") ||
+  filePath.startsWith("src/routes/users") ||
+  filePath === "src/types/users-service-contracts.d.ts" ||
+  filePath.startsWith("src/modules/tags/") ||
+  filePath.startsWith("src/repositories/tags") ||
+  filePath.startsWith("src/services/tags") ||
+  filePath.startsWith("src/routes/tags") ||
+  filePath.startsWith("src/modules/developer-example/")
+);
+const smallOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(smallOwnerPaths);
+assert.deepEqual(smallOwnerDiagnostics, [], "Search, Notifications, Users, Tags, and developer-example owners must stay strict-clean after checkpoint 0.33.33.25.4");
+const smallOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(smallOwnerPaths);
+assert.deepEqual(smallOwnerExplicitAny, [], "Search, Notifications, Users, Tags, and developer-example owners must stay free of explicit any after checkpoint 0.33.33.25.4");
+assert.match(usersModuleSource, /function moduleDisabledNotificationBody\(\{ event \}\)/, "Users event summaries should use the named resolver-context projection");
+assert.match(developerExampleRouteSource, /workspaceAsyncRoute\(async \(request, response\)/, "the example browser route should use the workspace request contract");
+assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(request, response\)/, "the example public route should use the API-key request contract");
+const remainingServerDiagnosticPaths = Object.keys(ledger.programs["server-tests"].diagnostics);
+assert.ok(
+  remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/")),
+  "only test-owned files may retain server-program diagnostics after checkpoint 0.33.33.25.5",
+);
+for (const rootRuntimeOwnerPath of [
+  "src/config.js",
+  "src/core/request-context.js",
+  "src/runtime-env.js",
+  "src/security/auth-throttle.js",
+  "src/security/cookies.js",
+  "src/security/current-password-verification.js",
+  "src/security/password-events.js",
+  "src/security/security-events.js",
+  "src/utils/normalizers.js",
+  "src/utils/workspaces.js",
+]) {
+  assert.equal(ledger.explicitAnyByFile[rootRuntimeOwnerPath], undefined, `${rootRuntimeOwnerPath} must stay free of explicit any after checkpoint 0.33.33.25.5`);
+}
+for (const strictCleanPath of [
+  "src/modules/tasks/task-block-recovery-engine.js",
+  "src/modules/tasks/task-list-engine.js",
+  "src/types/task-block-recovery-contracts.d.ts",
+  "src/types/task-list-engine-contracts.d.ts",
+  "tests/unit/task-block-recovery-engine.test.mjs",
+  "tests/unit/task-list-engine.test.mjs",
+  "src/modules/tasks/task-calendar-feed.scope.js",
+  "src/modules/tasks/task-calendar-feed.service.js",
+  "src/modules/tasks/task-calendar.shared.js",
+  "src/modules/tasks/task-jobs.service.js",
+  "src/modules/tasks/task-recurrence.repo.js",
+  "src/modules/tasks/task-recurrence.service.js",
+  "src/types/task-recurrence-contracts.d.ts",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.19`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.19`);
+}
+for (const strictCleanPath of [
+  "src/modules/tasks/private-calendar-feed.provider.js",
+  "src/modules/tasks/task-checklists.repo.js",
+  "src/modules/tasks/task-relationships.repo.js",
+  "src/modules/tasks/task-reminders.repo.js",
+  "src/modules/tasks/task-reminders.service.js",
+  "src/modules/tasks/tasks-settings.service.js",
+  "src/modules/tasks/task-timers.repo.js",
+  "src/modules/tasks/task-timers.service.js",
+  "src/modules/tasks/task-work-evidence.service.js",
+  "src/types/task-workflow-contracts.d.ts",
+  "tests/typecheck/task-workflow-contracts.fixture.mjs",
+  "src/types/task-server-contracts.d.ts",
+  "src/types/task-status-contracts.d.ts",
+  "tests/typecheck/task-server-contracts.fixture.mjs",
+  "src/repositories/files.repo.js",
+  "src/services/files-storage-accounting.service.js",
+  "src/types/files-repository-contracts.d.ts",
+  "src/types/files-storage-accounting-contracts.d.ts",
+  "tests/unit/files-storage-accounting.service.test.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);
+}
+for (const strictCleanPath of [
+  "src/services/files-scanner-job.service.js",
+  "src/types/files-scanner-job-contracts.d.ts",
+  "tests/unit/files-scanner-job.service.test.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.23`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.23`);
+}
+for (const strictCleanPath of [
+  "src/services/files-preview.service.js",
+  "src/types/files-preview-contracts.d.ts",
+  "tests/unit/files-preview.service.test.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.24`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.24`);
+}
+/** @param {string} filePath */
+const filesServerOwnerPaths = (filePath) => (
+  filePath.startsWith("src/core/files/") ||
+  filePath === "src/repositories/files.repo.js" ||
+  filePath === "src/routes/files.routes.js" ||
+  filePath.startsWith("src/services/files") ||
+  filePath.startsWith("src/types/files-") ||
+  filePath === "tests/contracts/files-contracts.test.mjs" ||
+  filePath.startsWith("tests/unit/files-")
+);
+const filesServerOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(filesServerOwnerPaths);
+assert.deepEqual(filesServerOwnerDiagnostics, [], "Files server owners must stay strict-clean after checkpoint 0.33.33.24");
+const filesServerOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(filesServerOwnerPaths);
+assert.deepEqual(filesServerOwnerExplicitAny, [], "Files server owners must stay free of explicit any after checkpoint 0.33.33.24");
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
   filePath.startsWith("src/core/") ||
   filePath.startsWith("src/services/") ||
@@ -151,8 +339,13 @@ assert.match(governanceSource, /Full-strict diagnostics exactly match/);
 assert.match(governanceSource, /tsconfig\.declarations\.json/);
 assert.doesNotThrow(() => validateShrinkOnly(cloneLedger(), cloneLedger()));
 const increasedDiagnostic = cloneLedger();
-increasedDiagnostic.programs["server-tests"].diagnostics["src/config.js"][0].count += 1;
-assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /2339 increased/);
+const existingDiagnostic = Object.entries(increasedDiagnostic.programs["server-tests"].diagnostics)
+  .find(([, diagnostics]) => diagnostics.length > 0);
+if (!existingDiagnostic) throw new Error("The shrink-only mutation proof requires one retained server/test diagnostic until program closeout.");
+const [existingDiagnosticPath, existingDiagnosticCounts] = existingDiagnostic;
+const existingDiagnosticCode = existingDiagnosticCounts[0].code;
+increasedDiagnostic.programs["server-tests"].diagnostics[existingDiagnosticPath][0].count += 1;
+assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), new RegExp(`${existingDiagnosticCode} increased`));
 const increasedAny = cloneLedger();
 increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);

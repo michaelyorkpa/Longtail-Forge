@@ -131,7 +131,7 @@ WHERE workspace_id = :workspaceId
 LIMIT 1;
 `, {
     taskId: task.task_id,
-    workspaceId: session.workspace_id,
+    workspaceId: String(session.workspace_id),
   });
   assert.equal(remainingTimer, null, "finalized Task Timers must still remove their active sourced row");
 
@@ -144,6 +144,7 @@ LIMIT 1;
   await fixture.cleanup();
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = createRecordId();
@@ -197,6 +198,7 @@ VALUES (
   return projectId;
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await db.run(`
 UPDATE workspaces
@@ -208,6 +210,7 @@ WHERE workspace_id = :workspaceId;
   });
 }
 
+/** @returns {Promise<import("../../../src/types/time-tracking-contracts.d.ts").TimeTrackingSession>} */
 async function readProtectedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -217,13 +220,16 @@ ORDER BY users.user_id
 LIMIT 1;
 `);
   assert.ok(user?.user_id, "protected user fixture is required");
+  const workspaceId = String(user.active_workspace_id || user.home_workspace_id || "");
   return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    active_workspace_id: workspaceId,
+    home_workspace_id: String(user.home_workspace_id || workspaceId),
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: String(user.timezone || "America/New_York"),
+    user_id: String(user.user_id),
+    username: String(user.username || ""),
+    workspace_id: workspaceId,
   };
 }

@@ -17,6 +17,7 @@ import {
   collectCoverageFloorDriftErrors,
   collectRegressionCoverageErrors,
   countAssertions,
+  generatedContentMatches,
   serializeRegressionManifest,
 } from "../../lib/regression-manifest.mjs";
 import {
@@ -47,6 +48,10 @@ const policyRetirements = policy.retiredScripts;
 
 assert.match(generatorSource, /Regression coverage manifest is stale/);
 assert.match(generatorSource, /--ratchet-floors/);
+assert.equal(generatedContentMatches("{\n  \"a\": 1\n}\n", "{\r\n  \"a\": 1\r\n}\r\n"), true, "a CRLF working copy of byte-identical generated content must not read as stale");
+assert.equal(generatedContentMatches("{\n  \"a\": 1\n}\n", "{\n  \"a\": 2\n}\n"), false, "real generated-content drift must still read as stale");
+assert.match(generatorSource, /generatedContentMatches\(/, "the manifest staleness gate must use the shared line-ending-tolerant comparison");
+assert.match(readFileSync("scripts/generate-regression-doc-inventory.mjs", "utf8"), /generatedContentMatches\(/, "the doc-inventory staleness gate must use the shared line-ending-tolerant comparison");
 assert.equal(policy.schemaVersion, 2);
 assert.equal(manifest.schemaVersion, 5);
 assert.equal(policy.maximumActiveScripts, REGRESSION_ENTRIES.length, "active-script ceiling should be armed to current discovery");

@@ -6,6 +6,7 @@ const { readText } = createProjectTextReader();
 const filesHtml = readText("views/protected/files.html");
 const filesScript = readText("public/js/files.js");
 const filesService = readText("src/services/files.service.js");
+const filesRepository = readText("src/repositories/files.repo.js");
 const styles = readText("public/css/longtail-forge.css");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
@@ -22,7 +23,7 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
   assert.match(frameworkSurfaceSource, pattern, `Files descriptor may keep safe detail field binding ${pattern}`);
 });
 
-assert.match(filesService, /files\.created_at AS file_created_at[\s\S]*files\.updated_at AS file_updated_at[\s\S]*files\.uploaded_by_user_id AS file_uploaded_by_user_id/, "Files attachment reads should keep safe uploaded detail metadata available for later route-backed modals");
+assert.match(filesRepository, /files\.created_at AS file_created_at[\s\S]*files\.updated_at AS file_updated_at[\s\S]*files\.uploaded_by_user_id AS file_uploaded_by_user_id/, "Files repository projections should keep safe uploaded detail metadata available for later route-backed modals");
 assert.match(filesService, /uploadedByLabelForSession\(session, attachment\.file_uploaded_by_user_id\)/, "Files attachment reads should keep safe uploader labels on the read model");
 assert.doesNotMatch(functionBlock(filesService, "shapeAttachment"), /uploadedByUserId|uploaded_by_user_id|storage_key|sha256Hash|storageProvider/, "Attachment read model should not expose uploader IDs, storage keys, hashes, or storage providers to the browse UI");
 

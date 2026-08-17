@@ -23,6 +23,8 @@ import {
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolverContext} ResumeStateReadResolverContext */
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 /**
  * @typedef {Object} SafeNoteLifecycleRow
  * @property {string} note_id
@@ -165,11 +167,17 @@ function registerTimerProducer() {
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function taskBatchReadResolver({ recordIds, session }) {
-  return tasksService.readLifecycleForIds(session, recordIds);
+  return tasksService.readLifecycleForIds(
+    /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    recordIds,
+  );
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function listBatchReadResolver({ recordIds, session }) {
+  if (!hasWorkspaceSession(session)) {
+    return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
+  }
   return listsService.readLifecycleForIds(session, recordIds);
 }
 
@@ -236,7 +244,10 @@ WHERE workspace_id = :workspaceId
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function taskReadResolver({ recordId, session }) {
   try {
-    const result = await tasksService.readCore(recordId, session);
+    const result = await tasksService.readCore(
+      recordId,
+      /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
+    );
     const task = result.task || {};
     return {
       archived: task.status === "archived",
@@ -252,6 +263,9 @@ async function taskReadResolver({ recordId, session }) {
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
 async function listReadResolver({ recordId, session }) {
   try {
+    if (!hasWorkspaceSession(session)) {
+      return { readable: false };
+    }
     const result = await listsService.read(recordId, session, { includeDeleted: true });
     const list = result.list || {};
     return {
@@ -579,6 +593,11 @@ WHERE workspace_id = :workspaceId
  */
 function textParam(value) {
   return String(value ?? "");
+}
+
+/** @param {RequestSession} session @returns {session is WorkspaceRequestSession} */
+function hasWorkspaceSession(session) {
+  return Boolean(session.workspace_id);
 }
 
 export {

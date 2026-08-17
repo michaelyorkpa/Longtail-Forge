@@ -14,8 +14,8 @@ const WORKSPACE_PURGE_JOB_PRIORITY = 1000;
 const WORKSPACE_PURGE_MAX_ATTEMPTS = 10;
 let workspacePurgeHandlerRegistered = false;
 
-/** @typedef {import("../types/framework-contracts.js").JobHandlerContext} JobHandlerContext */
-/** @typedef {{ job: Pick<import("../types/framework-contracts.js").JobExecutionRecord, "jobId" | "workspaceId"> & Partial<import("../types/framework-contracts.js").JobExecutionRecord>, payload?: Record<string, unknown> }} WorkspacePurgeJobContext */
+/** @typedef {import("../types/framework-contracts.js").JobHandlerContext<"workspace.purge">} JobHandlerContext */
+/** @typedef {{ job: Pick<import("../types/framework-contracts.js").JobExecutionRecord<"workspace.purge">, "jobId" | "workspaceId"> & Partial<import("../types/framework-contracts.js").JobExecutionRecord<"workspace.purge">>, payload?: import("../types/job-contracts.js").WorkspacePurgeJobPayload }} WorkspacePurgeJobContext */
 /** @typedef {import("../repositories/workspace-purge.repo.js").WorkspacePurgeTombstone} WorkspacePurgeTombstone */
 /** @typedef {{ replace?: boolean }} WorkspacePurgeRegistrationOptions */
 /** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, now?: unknown, source?: unknown }} QueueWorkspacePurgeOptions */

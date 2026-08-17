@@ -4,6 +4,7 @@ import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntryRecord */
 
 const TIME_ENTRIES_SEARCH_INDEXER_ID = "time-tracking.time-entries";
 
@@ -33,6 +34,7 @@ async function indexTimeEntryRecord({ workspaceId, recordId }) {
   return timeEntryToSearchDocument(entry);
 }
 
+/** @param {TimeEntryRecord} entry */
 async function timeEntryToSearchDocument(entry) {
   const tagsText = await readSearchTagsText({
     workspaceId: entry.workspace_id,

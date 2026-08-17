@@ -189,6 +189,7 @@ async function assertBusinessUseCases(session) {
   assert.equal(reusable.list.is_reusable, true);
   const workingCopy = await listsService.duplicate(procurement.list.list_id, {}, session);
   assert.equal(workingCopy.list.status, "active");
+  assert.ok(workingCopy.list.sourceContext.sourceList);
   assert.equal(workingCopy.list.sourceContext.sourceList.title, "Closeout Project Parts List");
   assert.ok(workingCopy.items.every((item) => item.checked_at === null && item.completed_at === null));
 
@@ -206,6 +207,7 @@ async function assertBusinessUseCases(session) {
   assert.equal(finalized.list.status, "finalized");
   const duplicatedBom = await listsService.duplicate(bom.list.list_id, {}, session);
   assert.equal(duplicatedBom.list.status, "active");
+  assert.ok(duplicatedBom.list.sourceContext.duplicatedFrom);
   assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.status, "finalized");
 }
 

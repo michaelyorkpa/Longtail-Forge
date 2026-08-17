@@ -1,5 +1,179 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.7 - Restore protected nightly checkpoint integration
+
+**Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
+
+- [x] Published the accumulated topic-branch checkpoints through one catch-up pull request into protected `nightly` with the five named checks (Development gate, Browser smoke and accessibility, Complete maintenance release rehearsal, Dependency review, CodeQL JavaScript analysis) required to pass before merge.
+- [x] Resumed per-checkpoint protected pull requests into `nightly` for every later checkpoint; a merge into any `agent/*` branch remains integration staging, not checkpoint completion.
+- [x] Confirmed the governing-instruction corrections that make the `nightly` base explicit (landed 2026-08-17 under the `0.33.33.1` policy trailer alongside `0.33.33.25.6`) hold for the restored flow.
+- [x] Committed to triaging any check failures the catch-up surfaces as named follow-up items rather than merging red, with the push-triggered Nightly workflow run on the merged revision supplying the current-integrated-state proof.
+- [x] Made the regression-manifest and documentation-inventory staleness checks line-ending tolerant through one shared `generatedContentMatches` comparison, proved both `--check` gates live against CRLF-converted copies of the byte-identical current artifacts, and kept real content drift failing through the manifest owner's accept/reject and adoption assertions.
+
+## Version 0.33.33.25.6 - Make slice verification enforce the strict ledger unconditionally
+
+**Model: High Effort** - Slice verification is the only per-checkpoint gate until protected integration is restored, so a routing hole can hide type-debt regressions.
+
+- [x] Added the dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — schedules the shrink-only ledger gate exactly once.
+- [x] Proved through the routing owner that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance` rather than duplicated.
+- [x] Measured the standalone stage at about five seconds, kept regression, browser, and packaging routing unchanged, and typed the `runCommand` execution seam by its consumed status contract, shrinking combined strict debt from 20,590 to 20,587 with explicit `any` held at 7.
+- [x] Updated the verification-plan owner contracts (unit and release regression) to state the unconditional gate with the `verify:slice` package-script string unchanged, and raised effective regression assertions to 18,953 across 347 scripts.
+
+## Version 0.33.33.25.5 - Close remaining root runtime strict debt
+
+**Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
+
+- [x] Closed all 206 remaining production diagnostics across root configuration and environment loading, request context and cookies, authentication throttling and current-password admission, password/security events, canonical normalizers, and workspace capabilities with named owner-local JSDoc contracts and no checker suppressions or explicit `any`.
+- [x] Preserved runtime defaults, fail-closed production/public-demo validation, secret handling, unchanged `npm start` delivery, durable throttle and verification-admission semantics, generic authentication failures, cookie security, workspace normalization, security-event redaction, and safe non-blocking persistence failures through retained focused coverage.
+- [x] Aligned the request-context field projection and nullable calendar-view bootstrap contract with existing runtime values, narrowed Users and Clients/Projects caller projections, and kept framework/module ownership, routes, permissions, configuration keys, and deployment behavior unchanged.
+- [x] Left only 308 diagnostics across 39 test-owned files in the server/test ledger, reduced combined strict debt from 20,818 to 20,590 diagnostics while holding explicit `any` at 7, retained the 1,034-file/31-declaration compiler universe, raised effective regression assertions to 18,946 across 347 scripts, and advanced the active checkpoint to `0.33.33.26.1`.
+
+## Version 0.33.33.25.4 - Finish small module and framework service owners
+
+**Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.
+
+- [x] Closed full-strict debt for Search, Notifications, Users, Tags, and the developer example as one 26-file small-owner cohort; Search, Notifications, and Tags retained zero-diagnostic baselines while the final three diagnostics were removed from Users and the example routes.
+- [x] Added a named Users event-summary resolver and reused the framework's existing workspace and API-key route adapters instead of introducing broad casts, new shared abstractions, or module deep imports.
+- [x] Kept framework/module ownership unchanged and preserved Search permission pruning, indexing and result shaping, notification delivery and preferences, Tags semantics, Users module events, and disabled example-module isolation through retained focused coverage.
+- [x] Pinned the complete cohort at zero diagnostics and zero explicit `any`, reduced combined strict debt from 20,821 to 20,818 diagnostics while holding explicit `any` at 7, retained the 1,034-file/31-declaration compiler universe, raised effective regression assertions to 18,944 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.5`.
+
+## Version 0.33.33.25.3 - Close the Jobs payload registry and strict owners
+
+**Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.
+
+- [x] Replaced the two framework Jobs payload `any` terminals with a literal-keyed `JobPayloadRegistry` that correlates every registered enqueue type, execution record, and handler context without a generic catch-all.
+- [x] Kept persisted JSON as `unknown` until the runner proves a non-array object at the registered handler boundary, added positive/negative compile fixtures, and proved malformed object shape cannot reach a handler.
+- [x] Pinned Jobs queue, runner, handlers, worker CLI, process lock, root worker, route, service, declaration, and fixture owners at zero strict diagnostics and zero explicit `any` while preserving capability registration and extensible test handlers.
+- [x] Preserved queue dedupe, availability, claim leases, retry/dead-letter transitions, worker modes, shutdown, and registered handler behavior through retained Jobs coverage and focused worker proof.
+- [x] Held combined strict debt at 20,821 diagnostics while reducing explicit `any` from 10 to 7, expanded the compiler universe to 1,034 files and 31 declarations, raised effective regression assertions to 18,939 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.4`.
+
+## Version 0.33.33.25.2 - Finish Time Tracking strict typing
+
+**Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
+
+- [x] Closed full-strict debt across Time Tracking entries, active timers, billing, dashboards, reporting, routes, public API, settings, Search indexers, and their focused contract tests without adding checker suppressions or explicit `any`.
+- [x] Added `time-tracking-contracts.d.ts` named timer and time-entry rows, request/API sessions, billing scopes/projects/ranges, report filters, paging, and dashboard projections plus a positive/negative public-entry fixture.
+- [x] Preserved authoritative duration, timezone bounds, billable inheritance and rounding, source metadata redaction, Task linking and status recovery, permissions, audit/Search synchronization, repository normalization, and transaction behavior through retained focused regressions.
+- [x] Moved Workbench, Tasks, Clients/Projects, and shared work-candidate consumers to the Time Tracking public entry and shrank the cross-module deep-import baseline from 13 to 10 entries.
+- [x] Reduced combined strict debt from 21,225 to 20,821 diagnostics while holding explicit `any` at 10, expanded the compiler universe to 1,033 files and 30 declarations, raised effective regression assertions to 18,930 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.3`.
+
+## Version 0.33.33.25.1 - Finish Clients and Projects strict typing
+
+**Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
+
+- [x] Closed full-strict debt across every Clients/Projects service, repository, route, hierarchy planner, settings owner, Search indexer, link-target provider, and public entry without adding checker suppressions or explicit `any`.
+- [x] Added the named `client-project-contracts.d.ts` database-row, read/write record, hierarchy-shape, request, service-result, reminder, audit, and project-update-plan contracts plus a positive/negative public-entry fixture.
+- [x] Preserved hierarchy and descendant scope, parent-before-child reads, project moves and downstream maintenance, billing context, permissions, repository normalization, transactions, tags, reminders, audit events, Search synchronization, and public module ownership through the retained focused regressions and coupled consumer checks.
+- [x] Reduced combined strict debt from 21,577 to 21,225 diagnostics while holding explicit `any` at 10, expanded the compiler universe to 1,032 files and 29 declarations, raised effective regression assertions to 18,927 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.2`.
+
+## Version 0.33.33.24 - Extract Files preview and finish Files strict typing
+
+**Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
+
+- [x] Extracted preview availability, protected-field-free descriptor projection, authenticated image headers, capped text/Markdown reads, and shared-service Markdown rendering behind the checked `files-preview.service.js` seam and named declaration contracts.
+- [x] Kept attachment target access, context-scoped download/review permissions, storage metadata preflight, provider reads, and the public Files API in the facade, so protected storage/scanner details do not cross the preview contract.
+- [x] Preserved image, text, Markdown, download-only, too-large, unavailable, in-review, unauthorized, safe-label, and compact listing/modal behavior through direct unit coverage, the retained 32-script Files area, and the permission harness.
+- [x] Reduced the complete Files server cohort to zero strict diagnostics and zero explicit `any`, expanded the compiler universe to 1,031 files and 28 declarations, lowered combined debt from 21,585 to 21,577 diagnostics, raised effective regression assertions to 18,921 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.1`.
+
+## Version 0.33.33.23 - Extract the Files scanner job service
+
+**Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
+
+- [x] Extracted configured scanner registration and readiness, durable `file.scan` enqueue and handler registration, pending-state idempotency, fail-closed disposition, quarantine lifecycle, and worker audit orchestration behind the checked `files-scanner-job.service.js` seam and named declaration contracts.
+- [x] Preserved production scanner readiness, queue dedupe and retry inputs, inline/separate worker behavior, clean/infected/unavailable dispositions, quarantine review, download/preview availability, lifecycle events, and permission enforcement through the retained Files, Jobs, worker, scanner, and permission owners.
+- [x] Kept storage-provider access, upload policy, lifecycle/audit delivery, and the public Files API in the facade; the scanner seam receives a provider-safe projection with an opaque read callback and returns bounded results without storage keys, paths, scanner configuration, or raw scanner output.
+- [x] Added direct fail-closed and redaction coverage, expanded the compiler universe to 1,029 files and 27 declarations with 21,585 diagnostics and 10 explicit-`any` nodes, raised effective regression assertions to 18,911 across 347 scripts, and advanced the active checkpoint to `0.33.33.24`.
+
+## Version 0.33.33.22.2 - Extract Files storage accounting and quota policy
+
+**Model: High Effort** - Storage accounting and quota admission guard persistent Files data and provider capacity.
+
+- [x] Isolated internal accounting reconciliation, external-accounting identity, safe projection and totals, actual-usage quota state, exact-limit admission, scope-specific rejection, and streamed-upload limits behind the checked `files-storage-accounting.service.js` seam and its named declaration contracts.
+- [x] Preserved the scoped reconciliation transaction, repository-only SQL, buffered and streamed upload admission, workspace and per-user quotas, provider writes and rejected-upload cleanup, accounting refresh, and external-provider behavior.
+- [x] Kept permissions, payload normalization, workspace settings, lifecycle/audit effects, storage-provider writes, and the public Files facade outside the policy seam; its typed inputs and responses expose no storage keys, paths, scanner internals, or hidden labels.
+- [x] Added direct policy coverage and retained the 32-script Files area plus database and permission proof, expanded the compiler universe to 1,027 files and 26 declarations with 21,585 diagnostics and 10 explicit-`any` nodes, and closed the final `0.33.33.22` numeric child and parent rollup; `0.33.33.23` is next.
+
+## Version 0.33.33.22.1 - Extract the Files repository
+
+**Model: High Effort** - Files SQL, dynamic filters, row projections, and lifecycle writes are framework-owned data and security boundaries.
+
+- [x] Moved Files SQL, dynamic `WHERE` composition, dialect-specific comparisons and conflict handling, lifecycle writes, and named row projections from `files.service.js` into the checked `files.repo.js` boundary.
+- [x] Kept permission and policy orchestration, lifecycle events, storage-provider and scanner behavior, response shaping, and explicit transaction ownership in the Files service, passing transaction capability only to report and storage-accounting repository operations that require it.
+- [x] Preserved paging, attachment reads and target resolution, lifecycle transitions, reporting, storage-provider behavior, quotas, duplicate detection, safe not-found behavior, and permission enforcement through the retained 32-script Files area and permission harness.
+- [x] Added named repository row contracts, pinned the repository seam strict-clean and free of explicit `any`, expanded the compiler universe to 1,025 files and 25 declarations, and lowered combined strict debt from 21,591 to 21,585 diagnostics; `0.33.33.22.2` remains next.
+
+## Version 0.33.33.21.3 - Finish Tasks strict typing
+
+**Model: High Effort** - The main Tasks service and adapters join every lifecycle, permission, and continuity contract.
+
+- [x] Typed the remaining Tasks service, primary repository, routes, contracts, events, public API, link-target provider, reminder adapter, and Search indexer surfaces under full strict through precise server, status, workflow, recurrence, and list-engine contracts.
+- [x] Preserved completion, recurrence, reminder, timer, checklist, relationship, blocking, resume-context, canonical server-side query, and permission behavior through the retained Tasks, Workbench, Time Tracking, calendar-feed, lifecycle, hot-endpoint, and permission owners.
+- [x] Added positive and negative compiler fixtures, pinned every `src/modules/tasks/` server owner strict-clean and free of explicit `any`, expanded the compiler universe to 1,024 files and 24 declarations, and lowered combined strict debt from 22,328 to 21,591 diagnostics.
+- [x] Closed the final `0.33.33.21` numeric child and its parent rollup; `0.33.33.22.1` is now the active implementation checkpoint.
+
+## Version 0.33.33.21.2 - Type Tasks repositories and ancillary workflow services
+
+**Model: High Effort** - Checklist, relationship, reminder, timer, job, feed, and evidence contracts share stateful Task identity.
+
+- [x] Typed the checklist, relationship, reminder, and timer repositories plus the remaining reminder, timer, settings, work-evidence, and private-calendar-feed owners under full strict; the recurrence calendar and job owners remain strict-clean behind their checkpoint 0.33.33.19 contracts.
+- [x] Reused the recurrence, filter/sort, and block/recover seams through one named `task-workflow-contracts.d.ts` boundary exposed by the imported repositories and services to the main Tasks orchestrator without new deep imports.
+- [x] Preserved checklist and relationship transactions and ordering, reminder inheritance and timezone occurrence calculation, timer lifecycle and evidence rules, queue behavior, private-feed authorization scope, and existing permission boundaries through the retained 34-script Tasks area.
+- [x] Expanded the compiler universe to 1,023 files and 22 declarations, pinned eleven new owners strict-clean and free of explicit `any`, and lowered combined strict debt from 22,511 to 22,328 diagnostics; `0.33.33.21.3` remains next.
+
+## Version 0.33.33.21.1 - Extract the Tasks block/recover state machine
+
+**Model: High Effort** - Blocking and recovery transitions can silently corrupt parent, child, timer, and completion state.
+
+- [x] Extracted parent block, parent recovery, child status rollup, automatic-reason classification, terminal-state guards, and timer-pause intent into one checked Tasks-owned transition engine with a precise declaration contract.
+- [x] Preserved incomplete-child rollup, manual Blocked reasons, automatic recovery only after every blocker clears, completion/archival terminal behavior, and running Task Timer pause delegation through the existing Tasks orchestrators.
+- [x] Kept relationship reads, permissions, persistence, audit/events, Search synchronization, reminders, and resume-context shaping outside the pure engine and behind their established Tasks-owned boundaries.
+- [x] Proved the transition table through 14 direct unit cases while retaining relationship, timer-status, blocked-recovery browser, consolidated Tasks, and permission owners; combined strict debt falls from 22,514 to 22,511 diagnostics, regression coverage rises to 18,856 assertions across 347 scripts, and `0.33.33.21.2` remains next.
+
+## Version 0.33.33.20 - Extract the Tasks filter and sort engine
+
+**Model: High Effort** - Canonical server-side visibility, filtering, sorting, and paging must remain authoritative.
+
+- [x] Extracted canonical query normalization, resolved hierarchy filtering, permission-visible candidate offsets, cursor paging, and stable ordering into a checked Tasks-owned engine with a precise declaration contract.
+- [x] Covered status, timed/date boundaries, hierarchy scopes, visibility, paging, stable tie-breakers, and empty/null normalization through the Tasks narrow Vitest owner while retaining stateful list, permission, and paging integration proof.
+- [x] Preserved repository pushdown, query-count budgets, workbench payload budgets, server-side authority, and browser behavior; the service retains async scope, permission, tag, and enrichment orchestration.
+- [x] Lowered combined strict debt from 22,658 to 22,514 diagnostics, kept the engine/declaration/unit owner strict-clean, and raised retained regression coverage to 18,854 assertions across 347 scripts; `0.33.33.21.1` remains next.
+
+## Version 0.33.33.19 - Make the Tasks recurrence service boundary real
+
+**Model: High Effort** - Recurrence generation and continuity are high-risk stateful workflows.
+
+- [x] Routed the calendar-feed serializer, Tasks job owner, and main Tasks orchestrator through named `taskRecurrenceService` operations so only the recurrence service imports the recurrence repository.
+- [x] Typed recurrence templates, repository projections, occurrence projection and materialization, completion continuity, calendar-feed scope and serialization, reminder/recurrence jobs, and their selected Tasks adapters under full strict.
+- [x] Preserved recurrence, reminder, timezone, calendar-feed, durable job, completion, materialization, and permission behavior through focused recurrence, feed, reminder, module-boundary, compiler-governance, and permission owners.
+- [x] Converted the touched Notes dependency to its public module entry, removed that resolved deep import from the baseline, lowered combined strict debt from 23,092 to 22,658 diagnostics, and raised retained regression coverage to 18,848 assertions across 347 scripts; `0.33.33.20` remains next.
+
+## Version 0.33.33.18.4 - Finish Lists strict typing
+
+**Model: High Effort** - The final Lists pass joins the typed edges and aggregates across the module's public adapters.
+
+- [x] Typed the remaining Lists service, repository, browser routes, public API, storage and access policies, search indexers, and resume-state integration under full strict with one declaration-owned domain contract.
+- [x] Consumed the established edge, list-item, and catalog-item seams through precise stored-record, persistence-input, browser-read-model, normalized-query, linked-target, and search-document contracts without broad casts or cross-module deep imports.
+- [x] Preserved linked-record access pruning, reusable-list duplication, canonical filtering and sorting, public API paging, repository coercion compatibility, operational item workflows, audit/events, Search, and resume-state behavior.
+- [x] Reduced every `src/modules/lists/` server diagnostic to zero, lowered the combined full-strict ledger from 23,947 to 23,092 diagnostics, reduced explicit-`any` inventory to 10, and raised retained regression coverage to 18,832 assertions across 347 scripts; as the final numeric child, this checkpoint closes the `0.33.33.18` parent and leaves `0.33.33.19` next.
+
+## Version 0.33.33.18.3 - Extract the Lists catalog-item aggregate
+
+**Model: High Effort** - Catalog ranking, usage, snapshots, and context matching form a distinct persistence aggregate.
+
+- [x] Extracted catalog-item create/update lifecycle, normalized context, deterministic suggestion inputs, archived-safe snapshot reads, and usage recording behind the checked `createCatalogItemsService(...)` aggregate and declaration-owned contracts.
+- [x] Preserved repository-owned archived filtering and stable ranking, Business client/project context validation, nullable persistence values, snapshot immutability, safe audit/events, and catalog-link usage lifecycle through the unchanged route-facing Lists API.
+- [x] Kept catalog-item contracts independent from the list-item aggregate; the item seam now consumes only explicit Lists-owned create-from-item, read-snapshot, and record-usage orchestration instead of catalog repository operations.
+- [x] Proved the extraction through retained Lists service, catalog/repository, full-strict, and 409-check permission owners; the combined strict ledger falls from 24,018 to 23,947 diagnostics, regression coverage rises to 18,816 assertions across 347 scripts, and `0.33.33.18.4` remains next.
+
+## Version 0.33.33.18.2 - Extract the Lists list-item aggregate
+
+**Model: High Effort** - Item execution, ordering, progress, and lifecycle share transaction-sensitive state.
+
+- [x] Extracted list-item create, update, delete, reorder, check, uncheck, completion, and batched progress behavior behind the checked `createListItemsService(...)` aggregate and its declaration-owned contracts.
+- [x] Preserved item ordering, assignment, needed-by dates, catalog snapshots, progress summaries, audit/events, search synchronization, and repository-owned reorder transactions through the existing route-facing Lists facade.
+- [x] Kept Lists as an operational execution aid, added no workflow or generic framework abstraction, and narrowed untyped persistence results once at the new module-owned aggregate boundary.
+- [x] Proved the seam through the retained Lists contract, service lifecycle, repository, access-policy, full-strict, and permission owners; the combined strict ledger falls from 24,094 to 24,018 diagnostics and `0.33.33.18.3` remains next.
+
 ## Version 0.33.33.18.1 - Add Lists edge schemas
 
 **Model: High Effort** - Lists payload validation must preserve established operational workflow acceptance and error behavior.

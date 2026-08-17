@@ -93,10 +93,10 @@ assert.match(closeUtilities, /fields\.tagToggle\?\.setAttribute\("aria-expanded"
 assert.match(copyTaskLink, /new global\.URL\("tasks\.html", global\.location\.href\)[\s\S]*url\.searchParams\.set\("task", task\.task_id\)[\s\S]*navigator\.clipboard\.writeText\(url\.toString\(\)\)[\s\S]*setStatus\("Task link copied\."\)/, "Copy task link should preserve task URL and clipboard behavior");
 
 const routeSource = tasksRoutes;
-assert.match(routeSource, /tasksRoutes\.get\("\/tasks\/timers"[\s\S]*taskTimersService\.list\(request\.session\)/, "Task timer list route should remain Tasks-owned");
-assert.match(routeSource, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save\(request\.params\.taskId, payload, request\.session\)/, "Task timer start/pause route should remain Tasks-owned");
-assert.match(routeSource, /tasksRoutes\.post\("\/tasks\/:taskId\/timer\/finalize"[\s\S]*taskTimersService\.finalize\(request\.params\.taskId, payload, request\.session\)/, "Task timer finalize route should remain Tasks-owned");
-assert.match(routeSource, /tasksRoutes\.delete\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.remove\(request\.params\.taskId, request\.session\)/, "Task timer reset route should remain Tasks-owned");
+assert.match(routeSource, /tasksRoutes\.get\("\/tasks\/timers"[\s\S]*taskTimersService\.list\(readTaskSession\(request\)\)/, "Task timer list route should remain Tasks-owned behind the checked session boundary");
+assert.match(routeSource, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save\(request\.params\.taskId,[^;]*readTaskSession\(request\)\)/, "Task timer start/pause route should remain Tasks-owned behind the checked session boundary");
+assert.match(routeSource, /tasksRoutes\.post\("\/tasks\/:taskId\/timer\/finalize"[\s\S]*taskTimersService\.finalize\(request\.params\.taskId, payload, readTaskSession\(request\)\)/, "Task timer finalize route should remain Tasks-owned behind the checked session boundary");
+assert.match(routeSource, /tasksRoutes\.delete\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.remove\(request\.params\.taskId, readTaskSession\(request\)\)/, "Task timer reset route should remain Tasks-owned behind the checked session boundary");
 
 const serviceSave = functionBlock(taskTimerService, "save");
 const serviceRemove = functionBlock(taskTimerService, "remove");

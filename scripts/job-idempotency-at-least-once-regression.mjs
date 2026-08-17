@@ -18,7 +18,7 @@ const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
 const notificationsSource = readText("src/services/notifications.service.js");
 const notificationsRepoSource = readText("src/repositories/notifications.repo.js");
 const searchJobsSource = readText("src/services/search-index-jobs.service.js");
-const filesSource = readText("src/services/files.service.js");
+const fileScannerJobsSource = readText("src/services/files-scanner-job.service.js");
 const importJobsSource = readText("src/services/import-jobs.service.js");
 
 const {
@@ -63,7 +63,7 @@ function assertStaticContract() {
   assert.match(searchJobsSource, /dedupeKey\(OPERATION_REINDEX/, "search reindex jobs should retain active dedupe keys");
   assert.match(searchJobsSource, /removeSearchDocument/, "search remove jobs should be idempotent canonical deletes");
   assert.match(taskJobsSource, /readByRecurrenceInstance/, "recurrence jobs should keep existing-instance idempotency checks");
-  assert.match(filesSource, /file\.status !== "pending" \|\| file\.scan_status !== "pending"/, "file scan jobs should skip already scanned rows");
+  assert.match(fileScannerJobsSource, /file\.status !== "pending" \|\| file\.scanStatus !== "pending"/, "file scan jobs should skip already scanned rows");
   assert.match(importJobsSource, /reserved:\s*true[\s\S]*skipped:\s*true/, "future imports should remain a reserved no-op handler");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*notification_delivery_key[\s\S]*at-least-once/, "database docs should document durable idempotency behavior");

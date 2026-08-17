@@ -234,7 +234,9 @@ async function createRepositoryTask(session, options = {}) {
     dateTime: options.offsets || [5],
   }, false);
 
-  return tasksRepository.readById(session.workspace_id, task.task_id);
+  const storedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
+  assert.ok(storedTask, "repository-created reminder task should remain readable");
+  return storedTask;
 }
 
 async function reminderFireJobCount(workspaceId, taskId) {

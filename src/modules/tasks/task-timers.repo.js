@@ -1,28 +1,39 @@
-import { activeTimersRepository } from "../time-tracking/active-timers.repo.js";
+// @ts-check
+
+import { activeTimersRepository } from "../time-tracking/index.js";
+
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRecord} TaskTimerRecord */
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerResumeContext} TaskTimerResumeContext */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimer */
 
 const TASK_SOURCE = {
   sourceModuleId: "tasks",
   sourceType: "task",
 };
 
+/** @param {string} workspaceId @param {string} userId @returns {Promise<TaskTimerRecord[]>} */
 async function readAllForUser(workspaceId, userId) {
   const timers = await activeTimersRepository.readAllBySource(workspaceId, userId, TASK_SOURCE);
   return timers.map(timerToTaskTimer);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId */
 async function readByTask(workspaceId, userId, taskId) {
   const timer = await activeTimersRepository.readBySource(workspaceId, userId, sourceForTask(taskId));
   return timer ? timerToTaskTimer(timer) : null;
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function hasActiveForTask(workspaceId, taskId) {
   return activeTimersRepository.hasSource(workspaceId, sourceForTask(taskId));
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId */
 async function remove(workspaceId, userId, taskId) {
   await activeTimersRepository.removeBySource(workspaceId, userId, sourceForTask(taskId));
 }
 
+/** @param {string} taskId */
 function sourceForTask(taskId) {
   return {
     ...TASK_SOURCE,
@@ -30,7 +41,9 @@ function sourceForTask(taskId) {
   };
 }
 
+/** @param {ActiveTimer} timer @returns {TaskTimerRecord} */
 function timerToTaskTimer(timer) {
+  /** @type {TaskTimerResumeContext} */
   const resumeContext = {
     accumulatedElapsedSeconds: Number(timer.accumulated_elapsed_seconds) || 0,
     clientId: timer.client_id || "",
@@ -51,7 +64,7 @@ function timerToTaskTimer(timer) {
     active_timer_id: timer.active_timer_id,
     workspace_id: timer.workspace_id,
     user_id: timer.user_id,
-    task_id: timer.source_id,
+    task_id: timer.source_id || "",
     client_id: timer.client_id || "",
     client_name: timer.client_name || "",
     project_id: timer.project_id || "",
@@ -66,12 +79,12 @@ function timerToTaskTimer(timer) {
     source_id: timer.source_id || "",
     source_label: timer.source_label || timer.description || "",
     source_url: timer.source_url || "",
-    source_metadata_json: timer.source_metadata_json || "{}",
+    source_metadata_json: typeof timer.source_metadata_json === "string" ? timer.source_metadata_json : "{}",
     sourceMetadata: timer.sourceMetadata || {},
     resumeContext,
     resume_context: resumeContext,
-    created_at: timer.created_at,
-    updated_at: timer.updated_at,
+    created_at: timer.created_at || "",
+    updated_at: timer.updated_at || "",
   };
 }
 
