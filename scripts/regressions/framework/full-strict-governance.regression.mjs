@@ -42,6 +42,9 @@ const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "
 const jobContractsSource = fs.readFileSync("src/types/job-contracts.d.ts", "utf8");
 const frameworkContractsSource = fs.readFileSync("src/types/framework-contracts.d.ts", "utf8");
 const frameworkJobsSeam = frameworkContractsSource.split("// Jobs seam")[1].split("export type NormalizeInferredEmptyArray")[0];
+const usersModuleSource = fs.readFileSync("src/modules/users/module.js", "utf8");
+const developerExampleRouteSource = fs.readFileSync("src/modules/developer-example/routes.js", "utf8");
+const developerExamplePublicApiRouteSource = fs.readFileSync("src/modules/developer-example/public-api.routes.js", "utf8");
 
 assert.equal(ledger.schemaVersion, 1);
 assert.equal(ledger.checkpoint, "0.33.33.18.1");
@@ -193,6 +196,33 @@ assert.match(jobContractsSource, /export interface JobPayloadRegistry/);
 assert.match(jobContractsSource, /"file\.scan": FileScanJobPayload/);
 assert.match(jobContractsSource, /"workspace\.purge": WorkspacePurgeJobPayload/);
 assert.doesNotMatch(jobContractsSource, /\[key:\s*string\]/, "registered job payloads must not fall back to a speculative catch-all bag");
+/** @param {string} filePath */
+const smallOwnerPaths = (filePath) => (
+  filePath.startsWith("src/core/search/") ||
+  filePath.startsWith("src/services/search") ||
+  filePath.startsWith("src/routes/search") ||
+  filePath === "src/types/search-rebuild-contracts.d.ts" ||
+  filePath.startsWith("src/repositories/notifications") ||
+  filePath.startsWith("src/services/notifications") ||
+  filePath.startsWith("src/routes/notifications") ||
+  filePath.startsWith("src/modules/users/") ||
+  filePath.startsWith("src/repositories/users") ||
+  filePath.startsWith("src/services/users") ||
+  filePath.startsWith("src/routes/users") ||
+  filePath === "src/types/users-service-contracts.d.ts" ||
+  filePath.startsWith("src/modules/tags/") ||
+  filePath.startsWith("src/repositories/tags") ||
+  filePath.startsWith("src/services/tags") ||
+  filePath.startsWith("src/routes/tags") ||
+  filePath.startsWith("src/modules/developer-example/")
+);
+const smallOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(smallOwnerPaths);
+assert.deepEqual(smallOwnerDiagnostics, [], "Search, Notifications, Users, Tags, and developer-example owners must stay strict-clean after checkpoint 0.33.33.25.4");
+const smallOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(smallOwnerPaths);
+assert.deepEqual(smallOwnerExplicitAny, [], "Search, Notifications, Users, Tags, and developer-example owners must stay free of explicit any after checkpoint 0.33.33.25.4");
+assert.match(usersModuleSource, /function moduleDisabledNotificationBody\(\{ event \}\)/, "Users event summaries should use the named resolver-context projection");
+assert.match(developerExampleRouteSource, /workspaceAsyncRoute\(async \(request, response\)/, "the example browser route should use the workspace request contract");
+assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(request, response\)/, "the example public route should use the API-key request contract");
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",

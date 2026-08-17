@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.4. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.4, Search, Notifications, Users, Tags, and the developer example are strict-clean as one small-owner cohort. Search, Notifications, and Tags retained their zero-diagnostic baselines; the remaining three diagnostics were removed with a named Users event-summary resolver and the framework's existing workspace and API-key route adapters for the example module. The 26 owner files are pinned at zero diagnostics and zero explicit `any` without new module deep imports or shared abstractions. Existing coverage continues to own Search permission pruning, indexing and result shaping, notification delivery and preferences, Tags semantics, Users module events, and disabled example-module isolation. The compiler universe remains 1,034 files and 31 declarations, combined strict debt falls from 20,821 to 20,818 diagnostics, explicit `any` remains 7, and effective regression assertions advance to 18,944 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable module and framework-service documentation remains deferred to the version-wide branch closeout because this checkpoint tightens existing internal contracts without changing supported workflows, routes, permissions, runtime configuration, or deployment behavior.
 
 As of 0.33.33.25.3, framework Jobs use the literal-keyed `JobPayloadRegistry` for every production and retained regression job type. Enqueue calls correlate each stable job type with its exact persisted payload shape, registered handlers receive that same mapped contract, and parsed database JSON remains `unknown` until the runner proves it is a non-array object at the handler boundary. There is no generic payload catch-all. Queue dedupe and availability, claim leases, retry/dead-letter transitions, worker modes and shutdown, handler capability enforcement, and existing payload normalizers remain unchanged. `job-payload-contracts.fixture.mjs` proves accepted Search and Files registrations while rejecting cross-job payloads and undeclared enqueue types; `worker-runner-regression.mjs` proves non-object payloads cannot reach handlers; and `framework.full-strict-governance` pins Jobs queue, runner, handlers, worker, lock, route, service, declaration, and fixture owners at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,034 files and 31 declarations, combined strict debt remains 20,821 diagnostics, explicit `any` falls from 10 to 7, and effective regression assertions advance to 18,939 across 347 scripts.
 
@@ -329,11 +335,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18270 |
+| Active regression assertions | 18275 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18939 |
+| Effective assertion floor | 18944 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
