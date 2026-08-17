@@ -3,10 +3,10 @@ import { config } from "../../config.js";
 import { getPublicDemoCapability } from "../public-demo-capabilities.js";
 import { assertPublicDemoCapabilityAllowed } from "../public-demo-enforcement.js";
 
-/** @typedef {import("../../types/framework-contracts.js").JobHandler} JobHandler */
+/** @typedef {import("../../types/framework-contracts.js").UnknownJobHandler} UnknownJobHandler */
 /** @typedef {import("../../types/framework-contracts.js").JobHandlerOptions} JobHandlerOptions */
 
-/** @type {Map<string, JobHandler>} */
+/** @type {Map<string, UnknownJobHandler>} */
 const handlersByType = new Map();
 /** @type {Map<string, string | null>} */
 const publicDemoCapabilitiesByType = new Map();
@@ -23,9 +23,25 @@ function normalizeJobType(jobType) {
 }
 
 /**
- * @param {unknown} jobType
- * @param {JobHandler} handler
+ * @template {import("../../types/job-contracts.js").RegisteredJobType} JobType
+ * @overload
+ * @param {JobType} jobType
+ * @param {import("../../types/framework-contracts.js").JobHandler<JobType>} handler
  * @param {JobHandlerOptions} [options]
+ * @returns {() => void}
+ */
+/**
+ * @overload
+ * @param {string} jobType
+ * @param {UnknownJobHandler} handler
+ * @param {JobHandlerOptions} [options]
+ * @returns {() => void}
+ */
+/**
+ * @param {unknown} jobType
+ * @param {UnknownJobHandler} handler
+ * @param {JobHandlerOptions} [options]
+ * @returns {() => void}
  */
 function registerJobHandler(jobType, handler, options = {}) {
   const normalizedJobType = normalizeJobType(jobType);

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18261,
+    "activeAssertionCount": 18270,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18930,
+    "effectiveAssertionCount": 18939,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -3547,11 +3547,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 70,
+      "assertionCount": 77,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 70,
+      "entryPointAssertionCount": 77,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7228,11 +7228,11 @@
     },
     {
       "area": "jobs",
-      "assertionCount": 72,
+      "assertionCount": 74,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy worker runner contract.",
-      "entryPointAssertionCount": 72,
+      "entryPointAssertionCount": 74,
       "id": "legacy.worker.runner",
       "legacy": true,
       "path": "scripts/worker-runner-regression.mjs",

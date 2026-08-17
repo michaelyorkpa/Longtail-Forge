@@ -17,8 +17,8 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 /** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
-/** @typedef {import("../types/framework-contracts.js").JobExecutionRecord} JobExecutionRecord */
-/** @typedef {import("../types/framework-contracts.js").JobHandlerContext} JobHandlerContext */
+/** @typedef {import("../types/framework-contracts.js").JobExecutionRecord<"notification.event">} JobExecutionRecord */
+/** @typedef {import("../types/framework-contracts.js").JobHandlerContext<"notification.event">} JobHandlerContext */
 /** @typedef {import("../types/framework-contracts.js").NotificationEventContribution} NotificationEventContribution */
 /** @typedef {import("../types/framework-contracts.js").NotificationEventPayload} NotificationEventPayload */
 /** @typedef {import("../types/framework-contracts.js").NotificationTemplateContribution} NotificationTemplateContribution */

@@ -1,4 +1,6 @@
 import type { RequestSession } from "./http-contracts.js";
+import type { JobPayload, RegisteredJobType } from "./job-contracts.js";
+export type { JobPayload, JobPayloadRegistry, RegisteredJobType } from "./job-contracts.js";
 
 /**
  * Framework contract shapes (type-only).
@@ -1223,16 +1225,16 @@ export interface PublicApiErrorEnvelope extends ApiErrorEnvelope {
 // ---------------------------------------------------------------------------
 
 /** Dual-cased on purpose: enqueue accepts either casing today. */
-export interface JobEnqueueOptions {
+export interface JobEnqueueOptions<JobType extends RegisteredJobType = RegisteredJobType> {
   workspaceId?: string;
   workspace_id?: string;
-  jobType?: string;
-  job_type?: string;
+  jobType?: JobType;
+  job_type?: JobType;
   jobId?: string;
   job_id?: string;
   dedupeKey?: string | null;
   dedupe_key?: string | null;
-  payload?: Record<string, unknown>;
+  payload?: JobPayload<NoInfer<JobType>>;
   priority?: number;
   maxAttempts?: number;
   max_attempts?: number;
@@ -1261,25 +1263,38 @@ export interface JobRecord {
   [key: string]: unknown;
 }
 
-export interface JobExecutionRecord {
+export interface JobExecutionRecord<JobType extends RegisteredJobType = RegisteredJobType> {
   attemptCount: number;
   dedupeKey: string | null;
   id: string;
   jobId: string;
-  jobType: string;
+  jobType: JobType;
   maxAttempts: number;
-  payload: Record<string, any>;
+  payload: JobPayload<JobType>;
   priority: number;
-  type: string;
+  type: JobType;
   workspaceId: string;
 }
 
-export interface JobHandlerContext {
-  job: JobExecutionRecord;
-  payload: Record<string, any>;
+export interface JobHandlerContext<JobType extends RegisteredJobType = RegisteredJobType> {
+  job: JobExecutionRecord<JobType>;
+  payload: JobPayload<JobType>;
 }
 
-export type JobHandler = (context: JobHandlerContext) => Promise<unknown> | unknown;
+export type JobHandler<JobType extends RegisteredJobType = RegisteredJobType> = (context: JobHandlerContext<JobType>) => Promise<unknown> | unknown;
+
+export interface UnknownJobExecutionRecord extends Omit<JobExecutionRecord, "jobType" | "payload" | "type"> {
+  jobType: string;
+  payload: Record<string, unknown>;
+  type: string;
+}
+
+export interface UnknownJobHandlerContext {
+  job: UnknownJobExecutionRecord;
+  payload: Record<string, unknown>;
+}
+
+export type UnknownJobHandler = (context: UnknownJobHandlerContext) => Promise<unknown> | unknown;
 
 export interface JobHandlerOptions {
   publicDemoCapability?: string;
