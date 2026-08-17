@@ -381,7 +381,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 308,
+      "errorCount": 306,
       "diagnostics": {
         "tests/contracts/tasks-contracts.test.mjs": [
           {
@@ -814,10 +814,6 @@
           }
         ],
         "tests/unit/slice-verification-plan.test.mjs": [
-          {
-            "code": 2322,
-            "count": 2
-          },
           {
             "code": 7005,
             "count": 1
@@ -3479,7 +3475,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9148,
+      "errorCount": 9147,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -8285,10 +8281,6 @@
         ],
         "scripts/regressions/release/developer-verification-throughput.regression.mjs": [
           {
-            "code": 2322,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 1
           },
@@ -10406,7 +10398,7 @@
   },
   "totals": {
     "files": 1034,
-    "errors": 20590,
+    "errors": 20587,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

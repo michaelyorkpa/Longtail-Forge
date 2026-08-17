@@ -3,6 +3,7 @@ import { runNpmCommand } from "./changed-regression-runner.mjs";
 
 const CLOSEOUT_COMMAND = "npm run closeout";
 const FAST_CHECK_COMMAND = "npm run check:fast";
+const TYPECHECK_COMMAND = "npm run typecheck";
 const FULL_CHECK_COMMAND = "npm run check";
 const FULL_REGRESSION_COMMAND = "npm run test:regressions";
 const PERMISSION_REGRESSION_COMMAND = "npm run test:regressions:permissions";
@@ -23,6 +24,7 @@ function createSliceVerificationPlan(changedRegressionPlan) {
     stage("context", "Context/setup", null, true, "changed paths and routing plan collected"),
     stage("closeout", "Closeout gates", CLOSEOUT_COMMAND, true),
     stage("fast-checks", "Typecheck/unit/lint", FAST_CHECK_COMMAND, fullCheckIncluded, "not required by focused routing"),
+    stage("strict-ledger", "Strict-ledger typecheck", TYPECHECK_COMMAND, !fullCheckIncluded, "covered by the full typecheck/unit/lint stage"),
     ...regressionCommands.map((command, index) => stage(`regressions-${index + 1}`, "Regression buckets", command, true)),
     ...(regressionCommands.length === 0 ? [stage("regressions", "Regression buckets", null, false, "no changed files selected")] : []),
     stage("browser", "Browser checks", null, false, "separate rendered gate"),
@@ -41,7 +43,7 @@ function createSliceVerificationPlan(changedRegressionPlan) {
   });
 }
 
-function executeSliceVerificationPlan(plan, { contextSeconds = 0, runCommand = runNpmCommand } = {}) {
+function executeSliceVerificationPlan(plan, /** @type {{ contextSeconds?: number, runCommand?: (command: string) => { status?: number | null } }} */ { contextSeconds = 0, runCommand = runNpmCommand } = {}) {
   const results = [];
   let failed = false;
   let failureStatus = 0;
@@ -113,6 +115,7 @@ export {
   FULL_CHECK_COMMAND,
   FULL_REGRESSION_COMMAND,
   PERMISSION_REGRESSION_COMMAND,
+  TYPECHECK_COMMAND,
   createSliceVerificationPlan,
   executeSliceVerificationPlan,
   formatSliceVerificationPlan,

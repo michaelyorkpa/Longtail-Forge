@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.5. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.6. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.6, slice verification enforces the shrink-only strict typecheck ledger unconditionally. The verification plan schedules a dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — runs the ledger gate exactly once; the measured standalone stage cost is about five seconds. The `runCommand` execution seam is now typed by the status contract the executor actually consumes, which removed the three stub-assignability diagnostics and shrank combined strict debt from 20,590 to 20,587 with explicit `any` unchanged at 7. The routing owner proves that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance`. The `verify:slice` package-script string is unchanged, regression/browser/packaging routing is unchanged, and effective regression assertions advance to 18,953 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable developer-workflow documentation remains deferred to the version-wide branch closeout because this checkpoint strengthens internal verification scheduling only and changes no supported configuration, route, permission, startup, or deployment contract.
 
 As of 0.33.33.25.5, every production owner in the server/test program is strict-clean; the remaining 308 diagnostics across 39 files are test-owned. Root configuration and `.env` loading, request context and cookies, authentication throttling and current-password admission, password/security events, canonical user/client/project/settings normalization, and workspace capabilities use named owner-local JSDoc contracts with `unknown` narrowed at their existing boundaries. The nullable calendar-view bootstrap contract and the request-context field projection now match shipped runtime values without changing APIs. Existing defaults, fail-closed production/demo validation, secret handling, startup delivery, throttle persistence and admission, generic authentication failures, cookie security, workspace normalization, security-event redaction, and safe persistence failures remain unchanged. Server/test debt falls from 514 to 308 diagnostics and precise exported signatures remove another 22 script diagnostics, reducing combined strict debt from 20,818 to 20,590 while explicit `any` remains 7. The compiler universe remains 1,034 files and 31 declarations, and effective regression assertions advance to 18,946 across 347 scripts.
 
@@ -341,11 +347,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18277 |
+| Active regression assertions | 18284 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18946 |
+| Effective assertion floor | 18953 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
