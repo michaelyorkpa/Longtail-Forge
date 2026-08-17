@@ -5,6 +5,8 @@ import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/client-project-contracts.js").ClientRecord} ClientRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectRecord} ProjectRecord */
 
 const CLIENTS_SEARCH_INDEXER_ID = "client-projects.clients";
 const PROJECTS_SEARCH_INDEXER_ID = "client-projects.projects";
@@ -41,6 +43,7 @@ async function indexClientRecord({ workspaceId, recordId }) {
   return clientToSearchDocument(client);
 }
 
+/** @param {ClientRecord} client */
 async function clientToSearchDocument(client) {
   const tagsText = await readSearchTagsText({
     workspaceId: client.workspace_id,
@@ -94,6 +97,7 @@ async function indexProjectRecord({ workspaceId, recordId }) {
   return projectToSearchDocument(project);
 }
 
+/** @param {ProjectRecord} project */
 async function projectToSearchDocument(project) {
   const tagsText = await readSearchTagsText({
     workspaceId: project.workspace_id,
@@ -123,6 +127,7 @@ async function projectToSearchDocument(project) {
   };
 }
 
+/** @param {unknown} status @returns {"active" | "archived" | "completed"} */
 function normalizeClientProjectStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
 

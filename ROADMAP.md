@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.1 - Finish Clients and Projects strict typing
-
-**Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
-
-- [ ] Close full-strict debt across Clients/Projects services, repositories, routes, planners, settings, and search indexers.
-- [ ] Preserve hierarchy, descendant scope, project moves, billing context, permissions, and transaction behavior.
-- [ ] Add named row, result, and update-plan contracts rather than broad casts or speculative framework abstractions.
-- [ ] Keep cross-module consumers on the Clients/Projects public entry.
-
 ### 0.33.33.25.2 - Finish Time Tracking strict typing
 
 **Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.

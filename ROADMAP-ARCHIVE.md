@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.1 - Finish Clients and Projects strict typing
+
+**Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
+
+- [x] Closed full-strict debt across every Clients/Projects service, repository, route, hierarchy planner, settings owner, Search indexer, link-target provider, and public entry without adding checker suppressions or explicit `any`.
+- [x] Added the named `client-project-contracts.d.ts` database-row, read/write record, hierarchy-shape, request, service-result, reminder, audit, and project-update-plan contracts plus a positive/negative public-entry fixture.
+- [x] Preserved hierarchy and descendant scope, parent-before-child reads, project moves and downstream maintenance, billing context, permissions, repository normalization, transactions, tags, reminders, audit events, Search synchronization, and public module ownership through the retained focused regressions and coupled consumer checks.
+- [x] Reduced combined strict debt from 21,577 to 21,225 diagnostics while holding explicit `any` at 10, expanded the compiler universe to 1,032 files and 29 declarations, raised effective regression assertions to 18,927 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.2`.
+
 ## Version 0.33.33.24 - Extract Files preview and finish Files strict typing
 
 **Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.

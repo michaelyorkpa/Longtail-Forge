@@ -11,7 +11,7 @@ import {
   targetSourceUrl,
 } from "../../core/linked-context/link-target-shape.js";
 
-/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetSession} LinkTargetSession */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessState} LinkTargetAccessState */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTargetCandidate */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetDirectoryContext} LinkTargetDirectoryContext */
@@ -26,7 +26,7 @@ import {
 const targetTypes = Object.freeze(["client", "project"]);
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {LinkTargetSession} session
  * @returns {Promise<LinkTargetDirectoryContext>}
  */
 async function readContext(session) {
@@ -65,7 +65,7 @@ async function readContext(session) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {LinkTargetSession} session
  * @param {LinkTargetType} targetType
  * @param {LinkTargetProviderOptions} options
  * @returns {Promise<LinkTargetCandidate[]>}
@@ -96,7 +96,7 @@ async function list(session, targetType, options) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {LinkTargetSession} session
  * @param {LinkTargetType} targetType
  * @param {string} targetId
  * @param {LinkTargetProviderOptions} options
@@ -122,7 +122,7 @@ async function read(session, targetType, targetId, options) {
 }
 
 /**
- * @param {WorkspaceRequestSession} session
+ * @param {LinkTargetSession} session
  * @param {LinkTargetType} targetType
  * @param {readonly string[]} targetIds
  * @returns {Promise<Map<string, LinkTargetAccessState>>}
@@ -203,7 +203,7 @@ function projectCandidate(project, context, omitBusinessContext) {
   };
 }
 
-/** @param {WorkspaceRequestSession} session @param {ClientTargetRow} client */
+/** @param {LinkTargetSession} session @param {ClientTargetRow} client */
 async function canReadClient(session, client) {
   return permissionsService.can(session, "clients.manage", {
     workspace_id: session.workspace_id,
@@ -212,7 +212,7 @@ async function canReadClient(session, client) {
   });
 }
 
-/** @param {WorkspaceRequestSession} session @param {ProjectTargetRow} project */
+/** @param {LinkTargetSession} session @param {ProjectTargetRow} project */
 async function canReadProject(session, project) {
   return permissionsService.can(session, "projects.manage", {
     workspace_id: session.workspace_id,

@@ -7,6 +7,16 @@ import {
   normalizeProjectTaskDefaults,
 } from "../../utils/normalizers.js";
 
+/** @typedef {import("../../types/client-project-contracts.js").ProjectNameScopeParameters} ProjectNameScopeParameters */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectRecord} ProjectRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectRow} ProjectRow */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectsRepository} ProjectsRepository */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectWriteContext} ProjectWriteContext */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectWriteParameters} ProjectWriteParameters */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectWriteRecord} ProjectWriteRecord */
+/** @typedef {import("../../types/client-project-contracts.js").RepositoryReadOptions} RepositoryReadOptions */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
+
 const PROJECT_COLUMNS = [
   "id",
   "workspace_id",
@@ -54,21 +64,23 @@ VALUES (
 );
 `;
 
+/** @param {string} workspaceId @param {RepositoryReadOptions} [options] @returns {Promise<ProjectRecord[]>} */
 async function readAll(workspaceId, options = {}) {
   const statusSql = options.activeOnly === true ? "\n  AND projects.status != 'Inactive'" : "";
-  const rows = await db.query(`
+  const rows = /** @type {ProjectRow[]} */ (await db.query(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
 WHERE projects.workspace_id = :workspaceId${statusSql}
 ORDER BY ${db.dialect.comparison.orderByNoCase("projects.name", "ASC")};
-`, { workspaceId: text(workspaceId) });
+`, { workspaceId: text(workspaceId) }));
 
   return rows.map(projectRowToAppProject);
 }
 
+/** @param {string} workspaceId @param {unknown} projectId @returns {Promise<ProjectRecord | null>} */
 async function readById(workspaceId, projectId) {
-  const row = await db.get(`
+  const row = /** @type {ProjectRow | null} */ (await db.get(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
@@ -78,11 +90,12 @@ LIMIT 1;
 `, {
     projectId: text(projectId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? projectRowToAppProject(row) : null;
 }
 
+/** @param {string} workspaceId @param {unknown[]} [projectIds] @returns {Promise<ProjectRecord[]>} */
 async function readByIds(workspaceId, projectIds = []) {
   const ids = normalizeIdList(projectIds);
 
@@ -90,7 +103,7 @@ async function readByIds(workspaceId, projectIds = []) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ProjectRow[]} */ (await db.query(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
@@ -100,13 +113,14 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("projects.name", "ASC")};
 `, {
     projectIds: ids,
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(projectRowToAppProject);
 }
 
+/** @param {string} workspaceId @param {unknown} clientId @returns {Promise<ProjectRecord[]>} */
 async function readByClientId(workspaceId, clientId) {
-  const rows = await db.query(`
+  const rows = /** @type {ProjectRow[]} */ (await db.query(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
@@ -116,14 +130,16 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("projects.name", "ASC")};
 `, {
     clientId: text(clientId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(projectRowToAppProject);
 }
 
+/** @param {string} workspaceId @param {unknown} clientId @param {unknown} projectName @param {unknown} [excludeProjectId] @returns {Promise<ProjectRecord | null>} */
 async function readByNameInScope(workspaceId, clientId, projectName, excludeProjectId = "") {
   const normalizedClientId = text(clientId).trim();
   const normalizedExcludeProjectId = text(excludeProjectId).trim();
+  /** @type {ProjectNameScopeParameters} */
   const params = {
     projectName: text(projectName),
     workspaceId: text(workspaceId),
@@ -142,7 +158,7 @@ async function readByNameInScope(workspaceId, clientId, projectName, excludeProj
     params.excludeProjectId = normalizedExcludeProjectId;
   }
 
-  const row = await db.get(`
+  const row = /** @type {ProjectRow | null} */ (await db.get(`
 SELECT
   ${projectSelectColumnsSql()}
 FROM ${projectSelectFromSql()}
@@ -151,11 +167,12 @@ WHERE projects.workspace_id = :workspaceId
   AND ${db.dialect.comparison.equalsNoCase("trim(projects.name)", "trim(:projectName)")}
   ${excludeSql}
 LIMIT 1;
-`, params);
+`, params));
 
   return row ? projectRowToAppProject(row) : null;
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {ProjectWriteRecord} project */
 async function create(workspaceId, clientId, project) {
   const now = new Date().toISOString();
 
@@ -168,6 +185,7 @@ async function create(workspaceId, clientId, project) {
   }));
 }
 
+/** @param {string} workspaceId @param {ProjectWriteRecord} project */
 async function update(workspaceId, project) {
   const now = new Date().toISOString();
 
@@ -193,13 +211,14 @@ SET
 WHERE workspace_id = :workspaceId
   AND id = :projectId;
 `, projectWriteParams({
-    clientId: project.client_id,
+    clientId: project.client_id || "",
     project,
     updatedAt: now,
     workspaceId,
   }));
 }
 
+/** @param {string} workspaceId @param {unknown} projectId */
 async function archive(workspaceId, projectId) {
   const now = new Date().toISOString();
 
@@ -216,6 +235,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {TransactionClient} databaseClient @param {string} workspaceId @param {string} clientId @param {ProjectWriteRecord} project @param {string} now */
 async function insertProject(databaseClient, workspaceId, clientId, project, now) {
   await databaseClient.run(PROJECT_INSERT_SQL, projectWriteParams({
     clientId,
@@ -226,6 +246,7 @@ async function insertProject(databaseClient, workspaceId, clientId, project, now
   }));
 }
 
+/** @param {ProjectRow} row @returns {ProjectRecord} */
 function projectRowToAppProject(row) {
   return {
     id: row.id,
@@ -286,7 +307,9 @@ function projectSelectColumnsSql() {
   projects.updated_at`.trim();
 }
 
+/** @param {ProjectWriteContext} context @returns {ProjectWriteParameters} */
 function projectWriteParams({ clientId, createdAt = undefined, project, updatedAt, workspaceId }) {
+  /** @type {ProjectWriteParameters} */
   const params = {
     billable: text(project.billable),
     billingPeriodStartDay: nullableInteger(project.billing_period?.startDay),
@@ -314,6 +337,7 @@ function projectWriteParams({ clientId, createdAt = undefined, project, updatedA
   return params;
 }
 
+/** @param {ProjectRow} row */
 function billingPeriodRowToAppValue(row) {
   if (!row.billing_period_type) {
     return null;
@@ -325,6 +349,7 @@ function billingPeriodRowToAppValue(row) {
   });
 }
 
+/** @param {ProjectRow} row */
 function billingRoundingRowToAppValue(row) {
   if (row.billing_rounding_enabled === null || row.billing_rounding_enabled === undefined) {
     return null;
@@ -336,35 +361,41 @@ function billingRoundingRowToAppValue(row) {
   });
 }
 
+/** @param {unknown} value @param {unknown} owner */
 function bindNullableBoolean(value, owner) {
   return owner ? db.dialect.boolean.bind(value === true) : null;
 }
 
+/** @param {unknown[]} ids @returns {string[]} */
 function normalizeIdList(ids) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => text(id).trim())
     .filter(Boolean))];
 }
 
+/** @param {unknown} value @returns {number | null} */
 function nullableInteger(value) {
   if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value), 10);
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
+/** @param {unknown} value @returns {string | null} */
 function nullableText(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value @returns {string} */
 function text(value) {
   return String(value ?? "");
 }
 
+/** @type {ProjectsRepository} */
 export const projectsRepository = {
   archive,
   create,

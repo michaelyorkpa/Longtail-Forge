@@ -53,6 +53,8 @@ assert.deepEqual(ledger.explicitAnyByFile, sourcePolicy.explicitAnyByFile);
 assert.deepEqual(ledger.expectedErrorDirectives, sourcePolicy.expectedErrorDirectives);
 assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/browser-database-boundary.fixture.mjs:3",
+  "tests/typecheck/client-project-contracts.fixture.mjs:27",
+  "tests/typecheck/client-project-contracts.fixture.mjs:30",
   "tests/typecheck/database-contracts.fixture.mjs:15",
   "tests/typecheck/database-contracts.fixture.mjs:8",
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
@@ -64,7 +66,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 28, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 29, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -142,6 +144,16 @@ assert.deepEqual(tasksOwnerDiagnostics, [], `Tasks server owners must stay stric
 const tasksOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
 assert.deepEqual(tasksOwnerExplicitAny, [], `Tasks server owners must stay free of explicit any after checkpoint 0.33.33.21.3`);
+/** @param {string} filePath */
+const clientProjectsOwnerPaths = (filePath) => (
+  filePath.startsWith("src/modules/client-projects/") ||
+  filePath === "src/types/client-project-contracts.d.ts" ||
+  filePath === "tests/typecheck/client-project-contracts.fixture.mjs"
+);
+const clientProjectsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(clientProjectsOwnerPaths);
+assert.deepEqual(clientProjectsOwnerDiagnostics, [], "Clients/Projects server owners must stay strict-clean after checkpoint 0.33.33.25.1");
+const clientProjectsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(clientProjectsOwnerPaths);
+assert.deepEqual(clientProjectsOwnerExplicitAny, [], "Clients/Projects server owners must stay free of explicit any after checkpoint 0.33.33.25.1");
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
   "src/modules/tasks/task-list-engine.js",

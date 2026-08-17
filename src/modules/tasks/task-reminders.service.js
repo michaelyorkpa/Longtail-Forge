@@ -240,11 +240,11 @@ async function readPolicyChain(task) {
   ];
 
   if (settings.workspaceType === "business" && (client?.id || task.client_id)) {
-    targets.push({ targetType: "client", targetId: client?.id || task.client_id });
+    targets.push({ targetType: "client", targetId: String(client?.id || task.client_id) });
   }
 
   if (project?.id || task.project_id) {
-    targets.push({ targetType: "project", targetId: project?.id || task.project_id });
+    targets.push({ targetType: "project", targetId: String(project?.id || task.project_id) });
   }
 
   if (task.reminder_override_enabled) {

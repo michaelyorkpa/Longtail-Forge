@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.24. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.1, every Clients/Projects server owner is strict-clean. The service, repositories, routes, hierarchy planner, settings owner, Search indexers, link-target provider, and public module entry consume `client-project-contracts.d.ts` for named database rows, read and write records, hierarchy shapes, service inputs, and project-update plans. Repository-bound normalization, client descendant scope, parent-before-child ordering, reparent and project-move safety, billing context, permission checks, transaction ownership, reminders, tags, audit events, Search synchronization, and the public module boundary remain unchanged. `client-project-contracts.fixture.mjs` proves public entry calls and rejected malformed repository/session inputs, while `framework.full-strict-governance` pins the complete owner cohort at zero diagnostics and zero explicit `any`. The compiler universe expands to 1,032 files and 29 declarations, combined strict debt falls from 21,577 to 21,225 diagnostics, explicit `any` remains 10, and effective regression assertions advance to 18,927 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: existing Clients/Projects hierarchy, routes, responses, permissions, billing, transaction, Search, Help, schema, runtime, and deployment behavior are unchanged; the two narrow coupled consumer fixes only preserve already-defined identifier contracts.
 
 As of 0.33.33.24, the checked `files-preview.service.js` seam owns preview availability classification, protected-field-free descriptor projection, authenticated image response headers, the independent 512 KiB text/Markdown stream cap, and shared-service Markdown rendering. The main Files facade retains attachment target access, context-scoped download/review permissions, storage metadata preflight, provider reads, and the unchanged public service API, so storage keys, protected paths, signed URLs, hashes, and scanner internals never cross the preview contract. `files-preview-contracts.d.ts` names availability, descriptor, content, and service shapes; direct unit coverage pins supported, download-only, size-capped, in-review, redacted, streamed-image, safe-Markdown, unauthorized, and stale-metadata behavior. The complete Files server owner cohort now has zero strict diagnostics and zero explicit `any`, while the retained 32-script Files area and permission harness preserve route, provider, lifecycle, and authorization behavior. This checkpoint expands the compiler universe to 1,031 files and 28 declarations, lowers combined strict debt from 21,585 to 21,577 diagnostics, keeps explicit `any` at 10, and advances effective regression assertions to 18,921 across 347 scripts.
 
@@ -311,11 +317,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18252 |
+| Active regression assertions | 18258 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18921 |
+| Effective assertion floor | 18927 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

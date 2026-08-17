@@ -230,6 +230,7 @@ async function readAdminSession() {
   return toSession(user, user.active_workspace_id || user.home_workspace_id);
 }
 
+/** @param {string} workspaceId @param {{ clientId?: string | null, label: string, projectId?: string | null, roleId: string, scopeId: string, scopeType: string }} scope */
 async function createScopedSession(workspaceId, {
   clientId = null,
   label,
