@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { readActiveRoadmapCursor } from "./lib/roadmap-cursor.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ledgerPath = path.join(rootDir, "scripts", "typecheck-debt-ledger.json");
@@ -26,6 +27,21 @@ const PROGRAMS = Object.freeze([
 /** @param {string} filePath */
 function toRepoPath(filePath) {
   return path.relative(rootDir, path.resolve(filePath)).split(path.sep).join("/");
+}
+
+/**
+ * The checkpoint stamp is write-derived: it records the first open numbered
+ * checkpoint heading in the live roadmap at the moment the ledger is written,
+ * falling back to the roadmap's active version cursor once every numbered
+ * checkpoint has archived. Verification compares against the stored stamp, so
+ * the recorded value always means "checkpoint active at the last reviewed
+ * ledger write" and can never silently go stale.
+ * @returns {string}
+ */
+function activeRoadmapCheckpoint() {
+  const roadmapSource = fs.readFileSync(path.join(rootDir, "ROADMAP.md"), "utf8");
+  const heading = roadmapSource.match(/^### ([0-9]+(?:\.[0-9]+)+)(?: -|$)/m);
+  return heading ? heading[1] : readActiveRoadmapCursor({ roadmapSource });
 }
 
 /** @param {string} filePath @param {ProgramDefinition} definition */
@@ -163,7 +179,7 @@ function collectGovernanceState() {
   const explicitAny = Object.values(policy.explicitAnyByFile).reduce((total, count) => total + count, 0);
   return {
     schemaVersion: 1,
-    checkpoint: "0.33.33.18.1",
+    checkpoint: activeRoadmapCheckpoint(),
     programs,
     totals: { files: trackedFiles.length, errors, explicitAny },
     explicitAnyByFile: policy.explicitAnyByFile,
@@ -231,7 +247,8 @@ function writeLedger(state) {
 function verifyLedger(state) {
   if (!fs.existsSync(ledgerPath)) throw new Error("Missing scripts/typecheck-debt-ledger.json; run npm run typecheck:ledger:write for the reviewed bootstrap.");
   const expected = /** @type {GovernanceState} */ (JSON.parse(fs.readFileSync(ledgerPath, "utf8")));
-  if (JSON.stringify(state) !== JSON.stringify(expected)) {
+  const comparable = { ...state, checkpoint: expected.checkpoint };
+  if (JSON.stringify(comparable) !== JSON.stringify(expected)) {
     validateShrinkOnly(expected, state);
     throw new Error("Full-strict diagnostics changed. Run npm run typecheck:ledger:write to record a reviewed shrink-only update.");
   }
