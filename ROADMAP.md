@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.9`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -55,6 +55,7 @@ Release-wide measurable acceptance:
 - [ ] Define the acceptance metric for "programs reading planning/history documents" precisely, distinguishing content-pinning assertions, cursor-floor checks, and ceremony/runner tooling, and record the honest current counts under that definition (as of 0.33.33.25.5: 140 scripts reading planning documents, 75 discovered regressions asserting on document content, 39 pinning historical `CHANGELOG.md` text).
 - [ ] Extend the historical-evidence scan beyond the retained closeout owners to every discovered regression with a shrink-only baseline of the known current pinners, so a new pin fails immediately while existing pins await their owning checkpoints.
 - [ ] Do not strip or retire the existing pinned regressions here; stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32.
+- [ ] Guard the two flagged work-candidate rank-bucket sinks with a local `Array.isArray` check so the dismissed CodeQL type-confusion alerts close as fixed on the next protected scan, preserving the existing empty-list no-filtering semantics and the file's strict-clean ratchet zone.
 
 ### 0.33.33.25.9 - Maintain compiler-ledger metadata
 
@@ -63,6 +64,16 @@ Release-wide measurable acceptance:
 - [ ] Make the ledger `checkpoint` field maintained on every `typecheck:ledger:write`, or remove the field and its hard assertion if it cannot be kept honest; it currently reads `0.33.33.18.1` seventeen checkpoints after that identifier archived.
 - [ ] Align the `framework.full-strict-governance` assertion with the maintained behavior so the gate cannot pin a stale literal again.
 - [ ] Keep every other shrink-only, suppression-ban, and zone assertion byte-for-byte unchanged.
+
+### 0.33.33.25.10 - Add the work-candidate query edge schema
+
+**Model: High Effort** - The work-candidate query boundary parses untrusted browser input shared by Workbench, Tasks, and focus-mode consumers.
+
+- [ ] Add a module-owned Zod edge schema for the work-candidate/focus query following the settled Notes (0.33.33.16.1) and Lists (0.33.33.18.1) pattern, parsing untrusted input once at the owning service entry with list fields normalized to typed string arrays and comma-split preprocessing preserved.
+- [ ] Cover rank buckets, status and exclude-status filters, client/project/record id lists, date bounds, sort, limit, timezone, and boolean flags without changing accepted inputs, defaults, or rejection behavior for currently valid requests, proven by focused regressions against today's normalized query output.
+- [ ] Keep the existing normalize helpers' semantics authoritative during the migration; do not fork a second normalization path.
+- [ ] Remove the sink-local `Array.isArray` guard only if the schema provably severs the tainted path on the protected CodeQL scan; otherwise retain it and record why.
+- [ ] Reduce this boundary's CodeQL type-confusion alert class to zero without weakening Workbench, focus-mode, or Tasks behavior.
 
 ### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
