@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.26.1 - Type unit, contract, and shared test helpers
+
+**Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.
+
+- [x] Typed the unit, contract, and non-e2e shared test cohort with explicit fixture, sandbox-window, option, tuple-table, and assertion shapes, closing all 57 diagnostics across the ten remaining files.
+- [x] Preserved every behavioral case, expected failure, and table row: the ten touched files run 125 passing tests unchanged, negative cases narrow errors at unknown boundaries instead of weakening assertions, and null-returning reads now fail loudly through `assert.ok` before use.
+- [x] Replaced repeated implicit containers with named test-local contracts (sandbox client/project option shapes, invalid-configuration tuple tables, typed fixture factories); the only production edits narrow two JSDoc projections to what their functions actually read (`CorrespondingSourceIdentity` for `correspondingSourceUrl`/`trackedSourceUrl` and `LegalContentConfiguration` for `createLegalContentService`), following the established caller-projection pattern with both files strict-clean and runtime behavior untouched.
+- [x] Reduced the non-e2e test cohort to zero and pinned it: `framework.full-strict-governance` now asserts only `tests/e2e/` files may retain server-program diagnostics, leaving 249 diagnostics across 29 e2e-owned files for 0.33.33.26.2; combined strict debt falls from 20,587 to 20,530 with explicit `any` at 7 and effective regression assertions advancing to 18,962 across 347 scripts.
+
 ## Version 0.33.33.25.10 - Add the work-candidate query edge schema
 
 **Model: High Effort** - The work-candidate query boundary parses untrusted browser input shared by Workbench, Tasks, and focus-mode consumers.
