@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.3 - Close the Jobs payload registry and strict owners
+
+**Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.
+
+- [x] Replaced the two framework Jobs payload `any` terminals with a literal-keyed `JobPayloadRegistry` that correlates every registered enqueue type, execution record, and handler context without a generic catch-all.
+- [x] Kept persisted JSON as `unknown` until the runner proves a non-array object at the registered handler boundary, added positive/negative compile fixtures, and proved malformed object shape cannot reach a handler.
+- [x] Pinned Jobs queue, runner, handlers, worker CLI, process lock, root worker, route, service, declaration, and fixture owners at zero strict diagnostics and zero explicit `any` while preserving capability registration and extensible test handlers.
+- [x] Preserved queue dedupe, availability, claim leases, retry/dead-letter transitions, worker modes, shutdown, and registered handler behavior through retained Jobs coverage and focused worker proof.
+- [x] Held combined strict debt at 20,821 diagnostics while reducing explicit `any` from 10 to 7, expanded the compiler universe to 1,034 files and 31 declarations, raised effective regression assertions to 18,939 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.4`.
+
 ## Version 0.33.33.25.2 - Finish Time Tracking strict typing
 
 **Model: High Effort** - Timer, entry, billing, timezone, reporting, and Task-linked flows carry financial and duration-integrity risk.
