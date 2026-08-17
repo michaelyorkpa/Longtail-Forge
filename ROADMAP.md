@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.24 - Extract Files preview and finish Files strict typing
-
-**Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
-
-- [ ] Extract the preview read/projection seam without changing the compact Files listing or modal workflow.
-- [ ] Type remaining Files services, routes, contracts, storage adapters, and attachment helpers under full strict.
-- [ ] Preserve supported image/text/Markdown behavior, download-only unsupported files, safe labels, and protected metadata exclusions.
-- [ ] Reduce the Files server ledger to zero.
-
 ### 0.33.33.25.1 - Finish Clients and Projects strict typing
 
 **Model: High Effort** - Client/project hierarchy, scoped permissions, and cascading context updates carry cross-record integrity risk.
