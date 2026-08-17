@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.8 - Baseline and ratchet planning-document pinning
-
-**Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
-
-- [ ] Define the acceptance metric for "programs reading planning/history documents" precisely, distinguishing content-pinning assertions, cursor-floor checks, and ceremony/runner tooling, and record the honest current counts under that definition (as of 0.33.33.25.5: 140 scripts reading planning documents, 75 discovered regressions asserting on document content, 39 pinning historical `CHANGELOG.md` text).
-- [ ] Extend the historical-evidence scan beyond the retained closeout owners to every discovered regression with a shrink-only baseline of the known current pinners, so a new pin fails immediately while existing pins await their owning checkpoints.
-- [ ] Do not strip or retire the existing pinned regressions here; stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32.
-- [ ] Guard the two flagged work-candidate rank-bucket sinks with a local `Array.isArray` check so the dismissed CodeQL type-confusion alerts close as fixed on the next protected scan, preserving the existing empty-list no-filtering semantics and the file's strict-clean ratchet zone.
-
 ### 0.33.33.25.9 - Maintain compiler-ledger metadata
 
 **Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.

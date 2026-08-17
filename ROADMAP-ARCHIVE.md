@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.8 - Baseline and ratchet planning-document pinning
+
+**Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
+
+- [x] Defined the acceptance metric precisely in `scripts/planning-document-pin-baseline.json`: discovered manifest entries (entry source plus folded contract modules) referencing `ROADMAP-ARCHIVE.md`/`CHANGELOG.md` are historical content pinners and any planning-document reference marks a planning-document reader, with the scanning owner and non-discovered ceremony tooling excluded by construction; recorded the honest mention-based counts of 59 historical pinners and 100 planning readers against the audit's narrower 39/75 content-assertion counts.
+- [x] Extended `release.historical-evidence-retirement` beyond the retained closeout owners to every discovered regression with exact shrink-only set comparison, proven to fail on both a seeded new pin and an unrecorded strip.
+- [x] Stripped and retired nothing; stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32.
+- [x] Guarded the two flagged work-candidate rank-bucket sinks with a local `Array.isArray` check preserving empty-list no-filtering semantics and the file's strict-clean ratchet zone, so the dismissed CodeQL type-confusion alerts close as fixed on the protected scan; combined strict debt held at 20,587 with explicit `any` at 7 and effective regression assertions advancing to 18,961 across 347 scripts.
+
 ## Version 0.33.33.25.7 - Restore protected nightly checkpoint integration
 
 **Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
