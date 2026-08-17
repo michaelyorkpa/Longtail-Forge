@@ -48,14 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.9 - Maintain compiler-ledger metadata
-
-**Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.
-
-- [ ] Make the ledger `checkpoint` field maintained on every `typecheck:ledger:write`, or remove the field and its hard assertion if it cannot be kept honest; it currently reads `0.33.33.18.1` seventeen checkpoints after that identifier archived.
-- [ ] Align the `framework.full-strict-governance` assertion with the maintained behavior so the gate cannot pin a stale literal again.
-- [ ] Keep every other shrink-only, suppression-ban, and zone assertion byte-for-byte unchanged.
-
 ### 0.33.33.25.10 - Add the work-candidate query edge schema
 
 **Model: High Effort** - The work-candidate query boundary parses untrusted browser input shared by Workbench, Tasks, and focus-mode consumers.

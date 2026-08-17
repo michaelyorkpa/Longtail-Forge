@@ -16,6 +16,7 @@ import {
   isFirstPartyDirectoryName,
   validateShrinkOnly,
 } from "../../typecheck-governance.mjs";
+import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
 
 /** @typedef {{ code: number, count: number }} DiagnosticCount */
 /** @typedef {{ config: string, environment: string, files: string[], errorCount: number, diagnostics: Record<string, DiagnosticCount[]> }} ProgramState */
@@ -47,7 +48,10 @@ const developerExampleRouteSource = fs.readFileSync("src/modules/developer-examp
 const developerExamplePublicApiRouteSource = fs.readFileSync("src/modules/developer-example/public-api.routes.js", "utf8");
 
 assert.equal(ledger.schemaVersion, 1);
-assert.equal(ledger.checkpoint, "0.33.33.18.1");
+assert.ok(
+  compareDottedVersions(ledger.checkpoint, "0.33.33.25.9") >= 0,
+  `ledger checkpoint stamp ${ledger.checkpoint} must stay at or beyond 0.33.33.25.9, the checkpoint that made the stamp write-derived; exact stamp pins are prohibited`,
+);
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
 assert.deepEqual(ledgerFiles, liveFiles);
