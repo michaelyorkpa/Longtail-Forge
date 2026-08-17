@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.23. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.24. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.24, the checked `files-preview.service.js` seam owns preview availability classification, protected-field-free descriptor projection, authenticated image response headers, the independent 512 KiB text/Markdown stream cap, and shared-service Markdown rendering. The main Files facade retains attachment target access, context-scoped download/review permissions, storage metadata preflight, provider reads, and the unchanged public service API, so storage keys, protected paths, signed URLs, hashes, and scanner internals never cross the preview contract. `files-preview-contracts.d.ts` names availability, descriptor, content, and service shapes; direct unit coverage pins supported, download-only, size-capped, in-review, redacted, streamed-image, safe-Markdown, unauthorized, and stale-metadata behavior. The complete Files server owner cohort now has zero strict diagnostics and zero explicit `any`, while the retained 32-script Files area and permission harness preserve route, provider, lifecycle, and authorization behavior. This checkpoint expands the compiler universe to 1,031 files and 28 declarations, lowers combined strict debt from 21,585 to 21,577 diagnostics, keeps explicit `any` at 10, and advances effective regression assertions to 18,921 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: existing Files routes, responses, permissions, storage/scanner setup, compact listing and modal workflows, user-facing Help, schema/migrations, runtime configuration, and deployment behavior are unchanged.
 
 As of 0.33.33.23, the checked `files-scanner-job.service.js` seam owns configured scanner registration and readiness, durable `file.scan` enqueue and handler registration, pending-state idempotency, fail-closed adapter disposition, quarantine lifecycle orchestration, bounded scanner metadata, and worker audit results. The main Files facade retains upload policy, storage-provider ownership, lifecycle/audit delivery, and the unchanged public service API; it supplies the scanner job seam a provider-safe file projection with an opaque read callback, so storage keys, paths, scanner configuration, and raw scanner output do not cross the new contract. `files-scanner-job-contracts.d.ts` names the adapter, job, dependency, disposition, and safe file shapes; a direct unit owner covers provider-safe context, fail-closed status, metadata redaction, and worker session identity. The retained 32-script Files area, Jobs/idempotency owners, and permission harness preserve queue, worker, clean/infected/unavailable scanner, quarantine, download/preview, and authorization behavior. This checkpoint expands the compiler universe to 1,029 files and 27 declarations while holding combined strict debt at 21,585 diagnostics and explicit `any` at 10; effective regression assertions advance to 18,911 across 347 scripts.
 
@@ -305,11 +311,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18242 |
+| Active regression assertions | 18252 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18911 |
+| Effective assertion floor | 18921 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

@@ -153,6 +153,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(preview.preview.kind, "markdown", "preview descriptor should preserve preview kind");
 
   const content = await filesService.readAttachmentPreviewContent(session, second.attachment.fileAttachmentId);
+  assert.ok(content.content && content.content.kind === "markdown", "preview content should return the markdown JSON branch");
   assert.equal(content.content.kind, "markdown", "preview content should still use the route-safe markdown response");
   assert.match(content.content.bodyHtml, /<h1>Markdown preview<\/h1>/);
 

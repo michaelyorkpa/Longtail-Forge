@@ -262,6 +262,7 @@
         "src/services/auth.service.js",
         "src/services/billing.service.js",
         "src/services/dashboard.service.js",
+        "src/services/files-preview.service.js",
         "src/services/files-scanner-job.service.js",
         "src/services/files-storage-accounting.service.js",
         "src/services/files.service.js",
@@ -357,6 +358,7 @@
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/client-project-options.test.mjs",
+        "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
@@ -376,7 +378,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 1236,
+      "errorCount": 1231,
       "diagnostics": {
         "src/config.js": [
           {
@@ -747,16 +749,6 @@
           },
           {
             "code": 7053,
-            "count": 1
-          }
-        ],
-        "tests/contracts/files-contracts.test.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 18048,
             "count": 1
           }
         ],
@@ -3868,7 +3860,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9215,
+      "errorCount": 9212,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5062,12 +5054,8 @@
             "count": 9
           },
           {
-            "code": 18048,
-            "count": 2
-          },
-          {
             "code": 2345,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7006,
@@ -10824,8 +10812,8 @@
     }
   },
   "totals": {
-    "files": 1029,
-    "errors": 21585,
+    "files": 1031,
+    "errors": 21577,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -10850,7 +10838,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 27,
+    "firstPartyFiles": 28,
     "errors": 0
   }
 }

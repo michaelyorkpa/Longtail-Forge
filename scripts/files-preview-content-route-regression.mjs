@@ -487,13 +487,16 @@ function assertNoUnsafeStorageLeak(values) {
 
 async function assertPreviewSourceBoundary() {
   const serviceSource = await fs.readFile(path.join(process.cwd(), "src/services/files.service.js"), "utf8");
+  const previewServiceSource = await fs.readFile(path.join(process.cwd(), "src/services/files-preview.service.js"), "utf8");
   const descriptorBlock = functionBlock(serviceSource, "readAttachmentPreviewDescriptor");
   const contentBlock = functionBlock(serviceSource, "readAttachmentPreviewContent");
+  const previewContentBlock = functionBlock(previewServiceSource, "readAttachmentPreviewContent");
 
   assert.doesNotMatch(descriptorBlock, /recordFileAudit|emitFileLifecycleEvent|getFileStorageAdapter|\.read\(/, "Preview descriptors should not read content, audit, or emit lifecycle events");
   assert.match(contentBlock, /assertStoredFileObjectExists\([\s\S]*\.read\(/, "Preview content should precheck storage metadata before reading through the Files storage adapter");
-  assert.match(contentBlock, /renderMarkdownToHtml/, "Markdown preview content should use the shared Markdown service");
-  assert.doesNotMatch(contentBlock, /MarkdownIt|marked|showdown|recordFileAudit|emitFileLifecycleEvent/, "Preview content should not add another Markdown parser or preview audit/lifecycle event in this slice");
+  assert.match(contentBlock, /filesPreviewService\.assertContentAvailable\([\s\S]*assertStoredFileObjectExists\([\s\S]*filesPreviewService\.readContent\(/, "Files facade should reject unavailable content before provider reads and delegate safe shaping to the preview seam");
+  assert.match(previewContentBlock, /renderMarkdownToHtml/, "Markdown preview content should use the shared Markdown service");
+  assert.doesNotMatch(`${contentBlock}\n${previewContentBlock}`, /MarkdownIt|marked|showdown|recordFileAudit|emitFileLifecycleEvent/, "Preview content should not add another Markdown parser or preview audit/lifecycle event in this slice");
 }
 
 function functionBlock(source, name) {

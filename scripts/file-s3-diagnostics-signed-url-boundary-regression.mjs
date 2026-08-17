@@ -125,6 +125,7 @@ async function assertStaticContracts() {
     moduleContract,
     moduleDevelopment,
     filesServiceSource,
+    filesPreviewServiceSource,
     filesRoutesSource,
     runtimeDiagnosticsSource,
     workspaceSettingsScript,
@@ -139,6 +140,7 @@ async function assertStaticContracts() {
     readText("docs/module-contract.md"),
     readText("docs/module-development.md"),
     readText("src/services/files.service.js"),
+    readText("src/services/files-preview.service.js"),
     readText("src/routes/files.routes.js"),
     readText("src/services/runtime-diagnostics.service.js"),
     readText("public/js/workspace-settings.js"),
@@ -160,8 +162,8 @@ async function assertStaticContracts() {
   assert.doesNotMatch(workspaceSettingsScript, /LONGTAIL_S3|S3_BUCKET|S3_ENDPOINT|accessKey|secretAccessKey|signedUrl|presigned/i, "Workspace Settings should not expose S3 internals or signed URLs");
 
   assert.match(filesServiceSource, /permissionsService\.assertCan\(session, "files\.download"/, "downloads should keep the existing Files permission boundary");
-  assert.match(filesServiceSource, /previewContentUrlForAttachment[\s\S]*\/api\/files\/attachments/, "preview descriptors should use Longtail Forge routes");
-  assert.doesNotMatch(filesServiceSource + filesRoutesSource, /signedUrl|presigned|preSigned|createPresigned|directUpload|directDownload/i, "Files service/routes should not add signed URL behavior in this slice");
+  assert.match(filesPreviewServiceSource, /previewContentUrlForAttachment[\s\S]*\/api\/files\/attachments/, "preview descriptors should use Longtail Forge routes");
+  assert.doesNotMatch(filesServiceSource + filesPreviewServiceSource + filesRoutesSource, /signedUrl|presigned|preSigned|createPresigned|directUpload|directDownload/i, "Files service/routes should not add signed URL behavior in this slice");
   assert.doesNotMatch(runtimeDocs + sqliteDocs + moduleContract + moduleDevelopment, /private-diagnostics-bucket|private-diagnostics-access-key|private-diagnostics-secret-key|objects\.diagnostics\.private\.invalid/i, "docs should not leak regression S3 config values");
 }
 

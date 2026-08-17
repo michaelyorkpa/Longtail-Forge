@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.24 - Extract Files preview and finish Files strict typing
+
+**Model: High Effort** - Preview shaping crosses attachment permissions, content safety, Markdown, and download-only fallbacks.
+
+- [x] Extracted preview availability, protected-field-free descriptor projection, authenticated image headers, capped text/Markdown reads, and shared-service Markdown rendering behind the checked `files-preview.service.js` seam and named declaration contracts.
+- [x] Kept attachment target access, context-scoped download/review permissions, storage metadata preflight, provider reads, and the public Files API in the facade, so protected storage/scanner details do not cross the preview contract.
+- [x] Preserved image, text, Markdown, download-only, too-large, unavailable, in-review, unauthorized, safe-label, and compact listing/modal behavior through direct unit coverage, the retained 32-script Files area, and the permission harness.
+- [x] Reduced the complete Files server cohort to zero strict diagnostics and zero explicit `any`, expanded the compiler universe to 1,031 files and 28 declarations, lowered combined debt from 21,585 to 21,577 diagnostics, raised effective regression assertions to 18,921 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.1`.
+
 ## Version 0.33.33.23 - Extract the Files scanner job service
 
 **Model: High Effort** - Scanner state, durable jobs, quarantine, and failure handling are security-sensitive.
