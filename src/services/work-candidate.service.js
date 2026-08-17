@@ -886,15 +886,16 @@ function matchesDueDateFilters(candidate, query) {
 
 /** @param {CandidateShape} candidate @param {CandidateQuery} query */
 function matchesRankBucketFilters(candidate, query) {
-  if (!query.rankBuckets.length) {
+  const rankBuckets = Array.isArray(query.rankBuckets) ? query.rankBuckets : [];
+  if (!rankBuckets.length) {
     return true;
   }
 
-  if (query.rankBuckets.includes(resolveWorkCandidateRankBucket(candidate, query))) {
+  if (rankBuckets.includes(resolveWorkCandidateRankBucket(candidate, query))) {
     return true;
   }
 
-  return query.rankBuckets.includes(WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched) &&
+  return rankBuckets.includes(WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched) &&
     isNearDueRecurringCreatedCandidate(candidate, rankContext(query));
 }
 

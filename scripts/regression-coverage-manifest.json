@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18288,
+    "activeAssertionCount": 18292,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18957,
+    "effectiveAssertionCount": 18961,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -4777,11 +4777,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 19,
+      "assertionCount": 23,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves historical closeout retirements have credited dispositions while live cursor, manifest, version, and command owners remain active.",
-      "entryPointAssertionCount": 19,
+      "entryPointAssertionCount": 23,
       "id": "release.historical-evidence-retirement",
       "legacy": false,
       "path": "scripts/regressions/release/historical-evidence-retirement.regression.mjs",

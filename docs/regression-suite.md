@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.8. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.8, the planning-document pin metric is defined and ratcheted. `scripts/planning-document-pin-baseline.json` records the shrink-only baseline — 59 historical `ROADMAP-ARCHIVE.md`/`CHANGELOG.md` pinners and 100 planning-document readers among discovered entries, scanning each entry source plus its folded contract modules with the scanning owner excluded as tooling — and `release.historical-evidence-retirement` now fails any new pin or unrecorded strip across the whole discovered estate rather than the retained closeout owners alone. Stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32, and the mention-based counts deliberately exceed the 2026-08-17 audit's 39/75 content-assertion counts so ceremony-string references also shrink or are consciously retained. The two work-candidate rank-bucket sinks guard with a local `Array.isArray` check that preserves empty-list no-filtering semantics, closing the dismissed CodeQL type-confusion alerts as fixed on the protected scan. Combined strict debt remains 20,587 with explicit `any` at 7, and effective regression assertions advance to 18,961 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable planning-document policy lives in the baseline's recorded definition and the roadmap, and this checkpoint otherwise changes verification tooling and one internal filter guard only, with no supported configuration, route, permission, startup, or deployment contract affected. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.25.7, protected nightly checkpoint integration is restored and the generated-artifact staleness gates are line-ending tolerant. The accumulated topic-branch checkpoints publish through one catch-up pull request into protected `nightly` under the five named checks, per-checkpoint protected pull requests into `nightly` resume for every later checkpoint, and a merge into any `agent/*` branch remains integration staging rather than checkpoint completion, matching the governing instructions corrected under the `0.33.33.1` policy trailer. The regression-manifest and documentation-inventory staleness checks now compare through one shared `generatedContentMatches` helper that tolerates a CRLF Windows working copy of byte-identical committed content while real content drift still fails; both `--check` gates were proven live against CRLF-converted copies of the current artifacts, and the manifest owner proves the helper's accept and reject cases plus both generators' adoption. Combined strict debt remains 20,587 with explicit `any` at 7, and effective regression assertions advance to 18,957 across 347 scripts.
 
@@ -353,11 +359,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18288 |
+| Active regression assertions | 18292 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18957 |
+| Effective assertion floor | 18961 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
