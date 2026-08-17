@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 import { createChangedRegressionPlan } from "../../lib/changed-regression-runner.mjs";
 import { isApplicationVersionOnlyChange, suggestRegressionsForPaths } from "../../lib/regression-change-routing.mjs";
 import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceVerificationSummary } from "../../lib/slice-verification-plan.mjs";
+import { validateShrinkOnly } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
   TRAILER_NAMES,
@@ -47,10 +48,13 @@ for (const path of [
 const focused = createChangedRegressionPlan(["src/modules/tasks/tasks.service.js"]);
 const focusedSlice = createSliceVerificationPlan(focused);
 assert.equal(focusedSlice.stages.find(({ id }) => id === "fast-checks").included, false);
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").included, true, "focused routing must never skip the strict-ledger typecheck gate");
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").command, "npm run typecheck");
 assert.equal(focusedSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions:tasks");
 assert.equal(focusedSlice.permissionHarnessIncluded, false);
 const fullSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/db/schema/current.sql"]));
 assert.equal(fullSlice.stages.find(({ id }) => id === "fast-checks").included, true);
+assert.equal(fullSlice.stages.find((item) => item.id === "strict-ledger").included, false, "the full typecheck/unit/lint stage already runs the ledger gate once");
 assert.equal(fullSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions");
 assert.equal(fullSlice.permissionHarnessIncluded, true, "the discovered harness should run once inside every full registry");
 assert.equal(fullSlice.commands.filter((command) => command === "npm run test:regressions").length, 1);
@@ -58,9 +62,36 @@ assert.ok(!fullSlice.commands.includes("npm run test:permissions"), "slice verif
 const permissionSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/routes/permissions.routes.js"]));
 assert.equal(permissionSlice.permissionHarnessIncluded, true);
 assert.deepEqual(permissionSlice.commands.filter((command) => /permission/.test(command)), [], "permission routing should reach the harness through the one full registry command");
+for (const narrowPaths of [[], ["CHANGELOG.md"], ["src/modules/tasks/tasks.service.js"], ["src/db/schema/current.sql"]]) {
+  const routedSlice = createSliceVerificationPlan(createChangedRegressionPlan(narrowPaths));
+  const ledgerCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
+  assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ") || "empty"})`);
+}
+const syntheticLedgerSource = JSON.stringify({
+  schemaVersion: 1,
+  checkpoint: "0.33.33.18.1",
+  programs: { scripts: { config: "tsconfig.scripts.json", files: ["scripts/synthetic-owner.mjs"], errorCount: 1, diagnostics: { "scripts/synthetic-owner.mjs": [{ code: 7006, count: 1 }] } } },
+  totals: { files: 1, errors: 1, explicitAny: 0 },
+  explicitAnyByFile: {},
+  expectedErrorDirectives: [],
+  declarationProbe: { config: "tsconfig.declarations.json", firstPartyFiles: 0, errors: 0 },
+});
+const baselineLedgerState = JSON.parse(syntheticLedgerSource);
+const seededIncrease = JSON.parse(syntheticLedgerSource);
+seededIncrease.programs.scripts.diagnostics["scripts/synthetic-owner.mjs"][0].count = 2;
+assert.throws(() => validateShrinkOnly(baselineLedgerState, seededIncrease), /increased 1 -> 2/, "a seeded per-file ledger regression must fail the strict gate");
+const seededNewFile = JSON.parse(syntheticLedgerSource);
+seededNewFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
+seededNewFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 2322, count: 1 }];
+assert.throws(() => validateShrinkOnly(baselineLedgerState, seededNewFile), /new file has 1 strict diagnostic/, "a seeded new file with diagnostics must fail the strict gate");
+const seededLedgerRun = executeSliceVerificationPlan(focusedSlice, {
+  contextSeconds: 0,
+  runCommand: (/** @type {string} */ command) => ({ status: command === "npm run typecheck" ? 1 : 0 }),
+});
+assert.equal(seededLedgerRun.status, 1, "a failing strict-ledger gate must fail the focused slice run");
 const executed = executeSliceVerificationPlan(focusedSlice, { contextSeconds: 0.25, runCommand: () => ({ status: 0 }) });
 const summary = formatSliceVerificationSummary(focusedSlice, executed);
-for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Regression buckets", "Browser checks", "Packaging"]) {
+for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Strict-ledger typecheck", "Regression buckets", "Browser checks", "Packaging"]) {
   assert.match(summary, new RegExp(label.replace("/", "\\/")), `${label} timing/status must stay visible`);
 }
 assert.match(summary, /\[SKIPPED\]/);

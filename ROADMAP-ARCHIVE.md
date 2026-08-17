@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.6 - Make slice verification enforce the strict ledger unconditionally
+
+**Model: High Effort** - Slice verification is the only per-checkpoint gate until protected integration is restored, so a routing hole can hide type-debt regressions.
+
+- [x] Added the dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — schedules the shrink-only ledger gate exactly once.
+- [x] Proved through the routing owner that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance` rather than duplicated.
+- [x] Measured the standalone stage at about five seconds, kept regression, browser, and packaging routing unchanged, and typed the `runCommand` execution seam by its consumed status contract, shrinking combined strict debt from 20,590 to 20,587 with explicit `any` held at 7.
+- [x] Updated the verification-plan owner contracts (unit and release regression) to state the unconditional gate with the `verify:slice` package-script string unchanged, and raised effective regression assertions to 18,953 across 347 scripts.
+
 ## Version 0.33.33.25.5 - Close remaining root runtime strict debt
 
 **Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.

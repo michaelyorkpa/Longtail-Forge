@@ -16,6 +16,7 @@ describe("slice verification planning", () => {
 
     expect(plan.commands).toEqual([
       "npm run closeout",
+      "npm run typecheck",
       "npm run test:regressions:tasks",
     ]);
     expect(plan.fullCheckIncluded).toBe(false);
@@ -25,7 +26,7 @@ describe("slice verification planning", () => {
   it("keeps changelog bookkeeping on its focused release owner", () => {
     const plan = planFor(["CHANGELOG.md"]);
 
-    expect(plan.commands).toEqual(["npm run closeout", "npm run test:regressions:release"]);
+    expect(plan.commands).toEqual(["npm run closeout", "npm run typecheck", "npm run test:regressions:release"]);
     expect(plan.fullCheckIncluded).toBe(false);
   });
 
@@ -34,6 +35,39 @@ describe("slice verification planning", () => {
 
     expect(plan.commands).toEqual(["npm run closeout", "npm run check:fast", "npm run test:regressions"]);
     expect(plan.fullCheckIncluded).toBe(true);
+    expect(plan.commands).not.toContain("npm run typecheck");
+  });
+
+  it("enforces the strict ledger exactly once in every plan", () => {
+    for (const paths of [
+      [],
+      ["CHANGELOG.md"],
+      ["src/modules/tasks/tasks.service.js"],
+      ["src/core/shared-context.js"],
+    ]) {
+      const plan = planFor(paths);
+      const ledgerCommands = plan.commands.filter((command) => (
+        command === "npm run typecheck" || command === "npm run check:fast"
+      ));
+
+      expect(ledgerCommands).toHaveLength(1);
+    }
+  });
+
+  it("fails a focused slice when the unconditional strict-ledger gate fails", () => {
+    const plan = planFor(["src/modules/tasks/tasks.service.js"]);
+    /** @type {string[]} */
+    const invocations = [];
+    const result = executeSliceVerificationPlan(plan, {
+      /** @param {string} command */
+      runCommand(command) {
+        invocations.push(command);
+        return { status: command === "npm run typecheck" ? 5 : 0 };
+      },
+    });
+
+    expect(result.status).toBe(5);
+    expect(invocations).toEqual(["npm run closeout", "npm run typecheck"]);
   });
 
   it("fully escalates permission changes and discovers the permission harness exactly once", () => {
@@ -74,11 +108,11 @@ describe("slice verification planning", () => {
     expect(invocations).toEqual(["npm run closeout"]);
   });
 
-  it("runs closeout without inventing an expensive regression for an empty change set", () => {
+  it("runs closeout and the strict ledger without inventing an expensive regression for an empty change set", () => {
     const plan = planFor([]);
 
     expect(plan.mode).toBe("empty");
-    expect(plan.commands).toEqual(["npm run closeout"]);
+    expect(plan.commands).toEqual(["npm run closeout", "npm run typecheck"]);
     expect(plan.fullCheckIncluded).toBe(false);
     expect(plan.permissionHarnessIncluded).toBe(false);
   });
