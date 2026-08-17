@@ -143,6 +143,7 @@ const SAFE_PUBLIC_DEMO_ENV = Object.freeze({
   LONGTAIL_RELEASE_COMMIT: "a".repeat(40),
 });
 
+/** @type {ReadonlyArray<[Record<string, string>, RegExp]>} */
 const INVALID_CASES = Object.freeze([
   [{ PORT: "not-a-number" }, /PORT must be an integer/],
   [{ PORT: "70000" }, /PORT must be at most 65535/],
@@ -205,6 +206,7 @@ const INVALID_CASES = Object.freeze([
   [{ WORKSPACE_TYPE_LIMIT: "personal" }, /WORKSPACE_TYPE_LIMIT must be business/],
 ]);
 
+/** @type {ReadonlyArray<[Record<string, string>, RegExp]>} */
 const INVALID_PUBLIC_DEMO_CASES = Object.freeze([
   [{ LONGTAIL_ENV: "development" }, /DEMO_MODE=true requires LONGTAIL_ENV=production/],
   [{ LONGTAIL_PUBLIC_URL: "https://preview.longtailforge.com" }, /exact public demo origin/],
@@ -400,6 +402,10 @@ function readPureConfig(env = {}) {
   };
 }
 
+/**
+ * @param {Record<string, unknown>} value
+ * @param {Record<string, unknown>} expectations
+ */
 function pick(value, expectations) {
   return Object.fromEntries(Object.keys(expectations).map((key) => [key, value[key]]));
 }

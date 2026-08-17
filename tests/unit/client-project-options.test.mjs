@@ -3,7 +3,15 @@ import vm from "node:vm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const helperSource = readFileSync("public/js/shared/client-project-options.js", "utf8");
+
+/** @typedef {{ id: string, name: string, parent_project_id?: string, optionLabel?: string }} SandboxProjectOption */
+/** @typedef {{ id: string, name: string, parent_client_id?: string, optionLabel?: string, projects: SandboxProjectOption[] }} SandboxClientOption */
+/** @typedef {{ normalizeClients: (input: { clients: Array<Record<string, unknown>>, workspaceProjects: Array<Record<string, unknown>> }) => SandboxClientOption[] }} SandboxClientProjectOptions */
+/** @typedef {{ LongtailForge: { getWorkspaceProjectsLabel: () => string, clientProjectOptions?: SandboxClientProjectOptions }, window?: SandboxWindow }} SandboxWindow */
+
+/** @type {SandboxClientProjectOptions} */
 let clientProjectOptions;
+/** @type {SandboxWindow} */
 let sandboxWindow;
 
 beforeEach(() => {
@@ -15,7 +23,11 @@ beforeEach(() => {
   sandboxWindow.window = sandboxWindow;
   const context = vm.createContext({ window: sandboxWindow });
   vm.runInContext(helperSource, context);
-  clientProjectOptions = sandboxWindow.LongtailForge.clientProjectOptions;
+  const published = sandboxWindow.LongtailForge.clientProjectOptions;
+  if (!published) {
+    throw new Error("client-project-options helper did not publish its sandbox surface");
+  }
+  clientProjectOptions = published;
 });
 
 describe("client-project option hierarchy", () => {
@@ -67,7 +79,7 @@ describe("client-project option hierarchy", () => {
       "  - Workspace Child Project",
       "Zulu Workspace Project",
     ]);
-    expect(plain(clients.find((client) => client.id === "beta").projects.map((project) => project.optionLabel))).toEqual([
+    expect(plain((clients.find((client) => client.id === "beta")?.projects ?? []).map((project) => project.optionLabel))).toEqual([
       "Beta Project",
       "  - Beta Project Child",
       "Beta Project Z",
@@ -98,6 +110,7 @@ describe("client-project option hierarchy", () => {
   });
 });
 
+/** @param {unknown} value */
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }

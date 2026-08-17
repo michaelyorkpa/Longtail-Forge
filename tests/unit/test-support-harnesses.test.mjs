@@ -69,8 +69,9 @@ describe("fake-DOM test support", () => {
   it("dispatches ordered and once-only events with cancellation", () => {
     const { document } = createFakeBrowserContext();
     const dialog = document.createElement("dialog");
+    /** @type {string[]} */
     const calls = [];
-    dialog.addEventListener("cancel", (event) => {
+    dialog.addEventListener("cancel", (/** @type {ReturnType<typeof createFakeEvent>} */ event) => {
       calls.push("persistent");
       event.preventDefault();
     });

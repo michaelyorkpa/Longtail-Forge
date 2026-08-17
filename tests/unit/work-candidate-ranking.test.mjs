@@ -18,6 +18,7 @@ const candidate = (overrides = {}) => ({
   ...overrides,
 });
 
+/** @param {Record<string, unknown>} [overrides] */
 const normalized = (overrides = {}) => normalizeWorkCandidate(candidate({
   sourceUrl: `tasks.html?task=${overrides.recordId || "r1"}`,
   ...overrides,
@@ -114,8 +115,8 @@ describe("candidateFromTimer", () => {
     expect(shaped.recordType).toBe("task");
     expect(shaped.recordId).toBe("task-1");
     expect(shaped.status).toBe("in_progress");
-    expect(shaped.metadata.timer_status).toBe("running");
-    expect(shaped.primaryAction.href).toBe("tasks.html?task=task-1");
+    expect(shaped.metadata?.timer_status).toBe("running");
+    expect(shaped.primaryAction?.href).toBe("tasks.html?task=task-1");
   });
 });
 
@@ -147,9 +148,9 @@ describe("complete deterministic work-candidate matrices", () => {
     });
 
     expect(normalizedCandidate.sourceUrl).toBe("");
-    expect(normalizedCandidate.primaryAction.route).toBe("");
-    expect(normalizedCandidate.primaryAction.method).toBe("GET");
-    expect(normalizedCandidate.primaryAction.payload).toEqual({ safe: "kept" });
+    expect(normalizedCandidate.primaryAction?.route).toBe("");
+    expect(normalizedCandidate.primaryAction?.method).toBe("GET");
+    expect(normalizedCandidate.primaryAction?.payload).toEqual({ safe: "kept" });
     expect(normalizedCandidate.metadata).toEqual({ nested: { safe: "kept" }, safe_context: "visible" });
     expect(normalizedCandidate.title).toBe("Candidate Task");
     expect(normalizedCandidate.contextLabel).toBe("Client Alpha / Project Roadrunner");
@@ -201,6 +202,7 @@ describe("complete deterministic work-candidate matrices", () => {
   });
 
   it("excludes far-future generated instances but keeps near-due instances recently touched", () => {
+    /** @param {string} dueAt @param {string} suffix */
     const recurringCandidate = (dueAt, suffix) => normalized({
       dueAt,
       lastActionLabel: "Task Created",

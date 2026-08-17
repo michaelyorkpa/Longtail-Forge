@@ -15,7 +15,13 @@ const DOCUMENT_CONFIG = Object.freeze({
 
 /** @typedef {keyof typeof DOCUMENT_CONFIG} LegalDocumentId */
 
-/** @param {typeof config} [runtimeConfig] */
+/**
+ * The exact legal-content projection this service reads; callers may pass the
+ * full runtime configuration or any structurally matching subset.
+ * @typedef {{ legal: { termsContentPath: string, privacyContentPath: string } }} LegalContentConfiguration
+ */
+
+/** @param {LegalContentConfiguration} [runtimeConfig] */
 function createLegalContentService(runtimeConfig = config) {
   /**
    * @param {string} documentId

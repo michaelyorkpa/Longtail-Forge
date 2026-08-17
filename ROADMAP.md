@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.26.1 - Type unit, contract, and shared test helpers
-
-**Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.
-
-- [ ] Type unit, contract, and non-e2e shared test helpers with explicit fixture, session, request, response, and assertion shapes.
-- [ ] Preserve every behavioral case, expected failure, table row, and test-owner boundary.
-- [ ] Replace repeated implicit containers with named test-local contracts rather than production casts or weakened assertions.
-- [ ] Reduce the non-e2e test cohort to zero before the final program closeout.
-
 ### 0.33.33.26.2 - Type e2e tests and close the server/test program
 
 **Model: High Effort** - Playwright helpers, negative compile fixtures, and the final compiler-policy switch are repository-wide proof boundaries.

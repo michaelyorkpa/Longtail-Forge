@@ -6,6 +6,7 @@ import { afterEach, describe, it } from "vitest";
 import { correspondingSourceUrl, trackedSourceUrl } from "../../src/core/corresponding-source.js";
 import { createLegalContentService } from "../../src/services/legal-content.service.js";
 
+/** @type {string[]} */
 const temporaryDirectories = [];
 
 afterEach(async () => {
@@ -29,6 +30,8 @@ describe("public legal content", () => {
     const terms = await service.read("terms");
     const privacy = await service.read("privacy");
 
+    assert.ok(terms, "terms content must render");
+    assert.ok(privacy, "privacy content must render");
     assert.match(terms.bodyHtml, /<h1[^>]*>Example Terms<\/h1>/);
     assert.match(terms.bodyHtml, /Operator supplied/);
     assert.match(privacy.bodyHtml, /Example Privacy/);
