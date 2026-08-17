@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.7 - Restore protected nightly checkpoint integration
+
+**Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
+
+- [x] Published the accumulated topic-branch checkpoints through one catch-up pull request into protected `nightly` with the five named checks (Development gate, Browser smoke and accessibility, Complete maintenance release rehearsal, Dependency review, CodeQL JavaScript analysis) required to pass before merge.
+- [x] Resumed per-checkpoint protected pull requests into `nightly` for every later checkpoint; a merge into any `agent/*` branch remains integration staging, not checkpoint completion.
+- [x] Confirmed the governing-instruction corrections that make the `nightly` base explicit (landed 2026-08-17 under the `0.33.33.1` policy trailer alongside `0.33.33.25.6`) hold for the restored flow.
+- [x] Committed to triaging any check failures the catch-up surfaces as named follow-up items rather than merging red, with the push-triggered Nightly workflow run on the merged revision supplying the current-integrated-state proof.
+- [x] Made the regression-manifest and documentation-inventory staleness checks line-ending tolerant through one shared `generatedContentMatches` comparison, proved both `--check` gates live against CRLF-converted copies of the byte-identical current artifacts, and kept real content drift failing through the manifest owner's accept/reject and adoption assertions.
+
 ## Version 0.33.33.25.6 - Make slice verification enforce the strict ledger unconditionally
 
 **Model: High Effort** - Slice verification is the only per-checkpoint gate until protected integration is restored, so a routing hole can hide type-debt regressions.

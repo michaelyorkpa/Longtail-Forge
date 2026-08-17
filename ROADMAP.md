@@ -48,16 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.7 - Restore protected nightly checkpoint integration
-
-**Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
-
-- [ ] Publish the accumulated topic-branch checkpoints through one catch-up pull request into protected `nightly` and require the five named checks (Development gate, Browser smoke and accessibility, Complete maintenance release rehearsal, Dependency review, CodeQL JavaScript analysis) to pass.
-- [ ] Resume per-checkpoint protected pull requests into `nightly` for every later checkpoint; a merge into any `agent/*` branch is integration staging, not checkpoint completion.
-- [ ] Confirm the governing-instruction corrections that make the `nightly` base explicit (landed 2026-08-17 under the `0.33.33.1` policy trailer alongside `0.33.33.25.6`) hold for the restored flow.
-- [ ] Triage any check failures the catch-up surfaces as named follow-up items rather than merging red, and confirm the scheduled Nightly workflow operates on current integrated state afterward.
-- [ ] Make the regression-manifest and documentation-inventory staleness checks line-ending tolerant: a CRLF working copy of the byte-identical committed artifact (a fresh Windows checkout) must pass the hard closeout gates, while real content drift must still fail them.
-
 ### 0.33.33.25.8 - Baseline and ratchet planning-document pinning
 
 **Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
