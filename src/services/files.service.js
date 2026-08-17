@@ -29,10 +29,10 @@ import { filesRepo } from "../repositories/files.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { FILE_SCAN_JOB_TYPE, filesScannerJobService } from "./files-scanner-job.service.js";
+import { filesPreviewService } from "./files-preview.service.js";
 import { filesStorageAccountingService } from "./files-storage-accounting.service.js";
 import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
-import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { registerFrameworkSettingDefinition } from "../core/settings/framework-settings-registry.js";
 import { registerPersistenceHandler } from "../core/settings/settings-behavior-registry.js";
@@ -63,8 +63,8 @@ import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforceme
 /** @typedef {PreparedUpload & {buffer: Buffer}} BufferedPreparedUpload */
 /** @typedef {ReturnType<typeof normalizeAttachmentListOptions>} AttachmentListOptions */
 /** @typedef {Record<string, string>} FileResponseHeaders */
-/** @typedef {{headers: FileResponseHeaders, kind: string, preview: LooseRecord, stream: NodeJS.ReadableStream, content?: undefined}} FilePreviewStreamResponse */
-/** @typedef {{content: LooseRecord, preview: LooseRecord, headers?: undefined, stream?: undefined}} FilePreviewTextResponse */
+/** @typedef {import("../types/files-preview-contracts.js").FilePreviewAvailability} FilePreviewAvailability */
+/** @typedef {import("../types/files-preview-contracts.js").FilePreviewContentResponse} FilePreviewContentResponse */
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -73,12 +73,8 @@ const MAX_ATTACHMENT_LIMIT = 200;
 const ATTACHMENT_SCAN_BATCH_MULTIPLIER = 4;
 const DEFAULT_ATTACHABLE_TARGET_LIMIT = 50;
 const MAX_ATTACHABLE_TARGET_LIMIT = 100;
-const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
 const ATTACHMENT_SORT_MODES = new Set(["newest", "oldest", "filename", "size", "status"]);
 const FILE_TYPE_POLICY_MODES = new Set(["safe_default", "allowlist", "blocklist"]);
-const IMAGE_PREVIEW_EXTENSIONS = new Set([".gif", ".jpg", ".jpeg", ".png"]);
-const MARKDOWN_PREVIEW_EXTENSIONS = new Set([".md"]);
-const TEXT_PREVIEW_EXTENSIONS = new Set([".txt"]);
 const STREAM_SAMPLE_LIMIT_BYTES = 1024;
 const STREAM_SIGNATURE_SAMPLE_BYTES = new Map([
   [".docx", 2],
@@ -935,11 +931,11 @@ async function readAttachmentPreviewDescriptor(session, attachmentId) {
   const { attachment, availability } = await readAttachmentPreviewAccess(session, previewRequest.fileAttachmentId);
 
   return {
-    preview: shapeAttachmentPreviewDescriptor(attachment, availability),
+    preview: filesPreviewService.shapeDescriptor(attachment, availability),
   };
 }
 
-/** @param {FileSession} session @param {unknown} attachmentId @returns {Promise<FilePreviewStreamResponse | FilePreviewTextResponse>} */
+/** @param {FileSession} session @param {unknown} attachmentId @returns {Promise<FilePreviewContentResponse>} */
 async function readAttachmentPreviewContent(session, attachmentId) {
   const previewRequest = parseFilesEdgePayload(
     FilePreviewRequestSchema,
@@ -947,11 +943,7 @@ async function readAttachmentPreviewContent(session, attachmentId) {
     { status: 404 },
   );
   const { attachment, availability } = await readAttachmentPreviewAccess(session, previewRequest.fileAttachmentId);
-  const preview = shapeAttachmentPreviewDescriptor(attachment, availability);
-
-  if (availability.state !== "previewable") {
-    throw new AppError(previewContentUnavailableMessage(availability.state), availability.state === "unauthorized" ? 403 : 409);
-  }
+  filesPreviewService.assertContentAvailable(availability);
 
   const file = await readFileRow(session.workspace_id, attachment.file_id);
 
@@ -961,46 +953,14 @@ async function readAttachmentPreviewContent(session, attachmentId) {
 
   const storageAdapter = await assertStoredFileObjectExists(file, "preview");
   const stream = await storageAdapter.read(file.storage_key);
-
-  if (availability.kind === "image") {
-    return {
-      headers: buildPreviewImageHeaders(attachment),
-      kind: "image",
-      preview,
-      stream,
-    };
-  }
-
-  const text = await readPreviewTextContent(stream);
-
-  if (availability.kind === "markdown") {
-    return {
-      content: {
-        bodyFormat: "markdown",
-        bodyHtml: renderMarkdownToHtml(text),
-        bodyHtmlFormat: "html",
-        bodyMarkdown: text,
-        kind: "markdown",
-      },
-      preview,
-    };
-  }
-
-  return {
-    content: {
-      encoding: "utf-8",
-      kind: "text",
-      text,
-    },
-    preview,
-  };
+  return filesPreviewService.readContent(attachment, availability, stream);
 }
 
 /**
  * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
  * @param {string} attachmentId
  */
-/** @param {FileSession} session @param {unknown} attachmentId */
+/** @param {FileSession} session @param {unknown} attachmentId @returns {Promise<{attachment: AttachmentRow, availability: FilePreviewAvailability}>} */
 async function readAttachmentPreviewAccess(session, attachmentId) {
   const attachment = await readAttachmentById(session.workspace_id, attachmentId);
 
@@ -1027,7 +987,7 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
     return {
       attachment,
       availability: {
-        kind: previewKindForAttachment(attachment),
+        kind: filesPreviewService.kindForAttachment(attachment),
         reason: "files_download_permission_required",
         state: "unauthorized",
       },
@@ -1043,7 +1003,7 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
 
   return {
     attachment,
-    availability: previewAvailabilityForAttachment(attachment, { canPreviewInReview }),
+    availability: filesPreviewService.availabilityForAttachment(attachment, { canPreviewInReview }),
   };
 }
 
@@ -2335,118 +2295,6 @@ function buildDownloadHeaders(file) {
 /**
  * @param {import("../types/database-contracts.js").DatabaseRow} attachment
  */
-/** @param {AttachmentRow} attachment @returns {FileResponseHeaders} */
-function buildPreviewImageHeaders(attachment) {
-  const filename = sanitizeFilename(attachment.original_filename || attachment.display_name || "preview");
-  const extensionRule = ALLOWED_EXTENSIONS.get(String(attachment.extension || "").toLowerCase());
-
-  return {
-    "Cache-Control": "no-store",
-    "Content-Disposition": `inline; filename="${filename.replaceAll("\"", "")}"`,
-    "Content-Length": String(attachment.file_size_bytes || 0),
-    "Content-Security-Policy": "sandbox",
-    "Content-Type": extensionRule?.mime || attachment.mime_type_detected || "application/octet-stream",
-    "X-Content-Type-Options": "nosniff",
-  };
-}
-
-/**
- * @param {string} state
- */
-/** @param {unknown} state */
-function previewContentUnavailableMessage(state) {
-  if (state === "unauthorized") {
-    return "You do not have permission to preview that file.";
-  }
-
-  return "Preview content is not available for that file.";
-}
-
-/**
- * @param {import("node:fs").ReadStream} stream
- */
-/** @param {import("node:stream").Readable} stream */
-async function readPreviewTextContent(stream) {
-  const chunks = [];
-  let totalBytes = 0;
-
-  for await (const chunk of stream) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    totalBytes += buffer.length;
-
-    if (totalBytes > MAX_TEXT_PREVIEW_BYTES) {
-      stream.destroy?.();
-      throw new AppError("Preview content is too large.", 413);
-    }
-
-    chunks.push(buffer);
-  }
-
-  return Buffer.concat(chunks).toString("utf8");
-}
-
-/**
- * @param {import("../types/database-contracts.js").DatabaseRow} attachment
- */
-/** @param {AttachmentRow} attachment @param {LooseRecord} [options] */
-function previewAvailabilityForAttachment(attachment, options = {}) {
-  const kind = previewKindForAttachment(attachment);
-  const fileStatus = String(attachment.file_status || "").trim();
-  const scanStatus = String(attachment.scan_status || "").trim();
-  const reviewPreviewAllowed = fileStatus === "quarantined" && options.canPreviewInReview === true;
-
-  if ((fileStatus !== "available" && !reviewPreviewAllowed) || !["not_required", "passed"].includes(scanStatus)) {
-    return {
-      kind,
-      reason: fileStatus !== "available" && !reviewPreviewAllowed
-        ? `file_${fileStatus || "unavailable"}`
-        : `scan_${scanStatus || "unavailable"}`,
-      state: "unavailable",
-    };
-  }
-
-  if (kind === "unsupported") {
-    return {
-      kind,
-      reason: "unsupported_file_type",
-      state: "download_only",
-    };
-  }
-
-  if ((kind === "text" || kind === "markdown") && Number(attachment.file_size_bytes || 0) > MAX_TEXT_PREVIEW_BYTES) {
-    return {
-      kind,
-      reason: "too_large_for_preview",
-      state: "too_large_for_preview",
-    };
-  }
-
-  return {
-    kind,
-    reason: "",
-    state: "previewable",
-  };
-}
-
-/**
- * @param {import("../types/database-contracts.js").DatabaseRow} attachment
- */
-/** @param {AttachmentRow} attachment */
-function previewKindForAttachment(attachment) {
-  const extension = String(attachment.extension || "").toLowerCase();
-
-  if (IMAGE_PREVIEW_EXTENSIONS.has(extension)) {
-    return "image";
-  }
-  if (MARKDOWN_PREVIEW_EXTENSIONS.has(extension)) {
-    return "markdown";
-  }
-  if (TEXT_PREVIEW_EXTENSIONS.has(extension)) {
-    return "text";
-  }
-  return "unsupported";
-}
-
 /**
  * @param {string} workspaceId
  * @param {unknown} fileId
@@ -2745,80 +2593,6 @@ function shapeAttachment(attachment) {
       deleted_at: attachment.file_deleted_at || null,
     },
   };
-}
-
-/**
- * @param {import("../types/database-contracts.js").DatabaseRow} attachment
- */
-/** @param {AttachmentRow} attachment @param {LooseRecord} [availability] */
-function shapeAttachmentPreviewDescriptor(attachment, availability = {}) {
-  const extension = String(attachment.extension || "").trim();
-  const filename = attachment.display_name || attachment.original_filename || "File";
-  const state = availability.state || "unavailable";
-  const kind = availability.kind || previewKindForAttachment(attachment);
-  const contentAvailable = state === "previewable";
-  const contentUrl = previewContentUrlForAttachment(attachment);
-
-  /** @type {LooseRecord} */
-  const descriptor = {
-    fileAttachmentId: attachment.file_attachment_id,
-    file_attachment_id: attachment.file_attachment_id,
-    fileId: attachment.file_id,
-    file_id: attachment.file_id,
-    moduleId: attachment.module_id,
-    module_id: attachment.module_id,
-    targetType: attachment.target_type,
-    target_type: attachment.target_type,
-    targetId: attachment.target_id,
-    target_id: attachment.target_id,
-    state,
-    previewState: state,
-    preview_state: state,
-    kind,
-    previewKind: kind,
-    preview_kind: kind,
-    reason: availability.reason || "",
-    filename,
-    fileName: filename,
-    file_name: filename,
-    fileType: fileTypeLabel(extension, attachment.mime_type_detected),
-    file_type: fileTypeLabel(extension, attachment.mime_type_detected),
-    extension,
-    mimeType: attachment.mime_type_detected || "",
-    mime_type: attachment.mime_type_detected || "",
-    fileSizeBytes: Number(attachment.file_size_bytes || 0),
-    file_size_bytes: Number(attachment.file_size_bytes || 0),
-    status: attachment.file_status,
-    scanStatus: attachment.scan_status,
-    scan_status: attachment.scan_status,
-    contentAvailable,
-    content_available: contentAvailable,
-  };
-
-  if (contentAvailable) {
-    descriptor.contentUrl = contentUrl;
-    descriptor.content_url = contentUrl;
-  }
-
-  return descriptor;
-}
-
-/**
- * @param {{ file_attachment_id: string | number | boolean; }} attachment
- */
-/** @param {AttachmentRow} attachment */
-function previewContentUrlForAttachment(attachment) {
-  return `/api/files/attachments/${encodeURIComponent(attachment.file_attachment_id)}/preview/content`;
-}
-
-/**
- * @param {string} extension
- */
-/** @param {unknown} extension @param {unknown} [mimeType] */
-function fileTypeLabel(extension, mimeType = "") {
-  const normalizedExtension = String(extension || "").replace(/^\./, "").trim();
-
-  return normalizedExtension ? normalizedExtension.toUpperCase() : String(mimeType || "file").trim();
 }
 
 /**

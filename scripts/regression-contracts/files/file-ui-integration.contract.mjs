@@ -15,6 +15,7 @@ const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filesRoutes = read("src/routes/files.routes.js");
 const filesService = read("src/services/files.service.js");
+const filesPreviewService = read("src/services/files-preview.service.js");
 const filesStorageAccountingService = read("src/services/files-storage-accounting.service.js");
 const filesRepository = read("src/repositories/files.repo.js");
 const filesRepositoryContracts = read("src/types/files-repository-contracts.d.ts");
@@ -126,6 +127,10 @@ assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service sh
 assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own permission-shaped attachable target options.");
 assert.ok(filesService.includes("readAttachmentPreviewDescriptor"), "Files service should own attachment preview descriptors.");
 assert.ok(filesService.includes("readAttachmentPreviewContent"), "Files service should own attachment preview content.");
+assert.match(filesService, /filesPreviewService\.shapeDescriptor/, "Files facade should delegate safe preview projection to the checked Files preview seam.");
+assert.match(filesService, /filesPreviewService\.readContent/, "Files facade should delegate safe preview content shaping to the checked Files preview seam.");
+assert.match(filesPreviewService, /renderMarkdownToHtml/, "Files preview seam should retain the shared safe Markdown renderer.");
+assert.doesNotMatch(filesPreviewService, /storage[_A-Z]?key|protectedPath|signedUrl|sha256|scanner/i, "Files preview seam should not consume protected storage or scanner metadata.");
 assert.ok(filesService.includes("normalizeFileStatusFilter"), "Files service should normalize status filters.");
 assert.ok(filesRepository.includes("filters.filename"), "Files repository should filter browse results by filename.");
 assert.ok(filesService.includes("filters.clientId"), "Files service should filter browse results by client.");

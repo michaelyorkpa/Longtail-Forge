@@ -64,7 +64,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/task-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-edge-contracts.fixture.mjs:16",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 27, errors: 0 });
+assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 28, errors: 0 });
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -192,6 +192,28 @@ for (const strictCleanPath of [
   assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.23`);
   assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.23`);
 }
+for (const strictCleanPath of [
+  "src/services/files-preview.service.js",
+  "src/types/files-preview-contracts.d.ts",
+  "tests/unit/files-preview.service.test.mjs",
+]) {
+  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.24`);
+  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.24`);
+}
+/** @param {string} filePath */
+const filesServerOwnerPaths = (filePath) => (
+  filePath.startsWith("src/core/files/") ||
+  filePath === "src/repositories/files.repo.js" ||
+  filePath === "src/routes/files.routes.js" ||
+  filePath.startsWith("src/services/files") ||
+  filePath.startsWith("src/types/files-") ||
+  filePath === "tests/contracts/files-contracts.test.mjs" ||
+  filePath.startsWith("tests/unit/files-")
+);
+const filesServerOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(filesServerOwnerPaths);
+assert.deepEqual(filesServerOwnerDiagnostics, [], "Files server owners must stay strict-clean after checkpoint 0.33.33.24");
+const filesServerOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(filesServerOwnerPaths);
+assert.deepEqual(filesServerOwnerExplicitAny, [], "Files server owners must stay free of explicit any after checkpoint 0.33.33.24");
 const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
   filePath.startsWith("src/core/") ||
   filePath.startsWith("src/services/") ||
