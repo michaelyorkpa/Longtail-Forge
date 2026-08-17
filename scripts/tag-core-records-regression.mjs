@@ -44,6 +44,7 @@ try {
     tagIds: [tag.tag_id],
   }, session)).entry;
 
+  if (!client.tags || !project.tags) throw new Error("Client and project tag snapshots are required.");
   assert.deepEqual(client.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(project.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(task.tags.map((item) => item.tag_id), [tag.tag_id]);

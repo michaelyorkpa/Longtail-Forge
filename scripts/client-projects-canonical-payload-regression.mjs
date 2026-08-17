@@ -124,6 +124,7 @@ async function assertCanonicalClientLists(session, fixtures) {
     status: "All",
   })).clients;
   const alphaNode = treeClients.find((client) => client.id === fixtures.alpha.id);
+  if (!alphaNode?.children) throw new Error("Expected Alpha client hierarchy node.");
   assert.equal(alphaNode.children.length, 1);
   assert.equal(alphaNode.children[0].id, fixtures.alphaChild.id);
 }
@@ -203,7 +204,7 @@ async function assertPermissionSafeClientProjects(session, fixtures) {
     "client-project tree should include only clients needed for readable projects",
   );
   assert.deepEqual(
-    clientProjects.clients[0].projects.map((project) => project.id),
+    (clientProjects.clients[0]?.projects || []).map((project) => project.id),
     [fixtures.betaProject.id],
     "client-project tree should hide unreadable sibling projects",
   );

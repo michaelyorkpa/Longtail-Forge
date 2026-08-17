@@ -350,6 +350,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
+        "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
         "tests/typecheck/task-server-contracts.fixture.mjs",
@@ -378,7 +379,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 1231,
+      "errorCount": 890,
       "diagnostics": {
         "src/config.js": [
           {
@@ -388,124 +389,6 @@
           {
             "code": 7006,
             "count": 40
-          }
-        ],
-        "src/modules/client-projects/client-project-settings.service.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/clients.repo.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 26
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "src/modules/client-projects/clients.routes.js": [
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/clients.service.js": [
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 45
-          },
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 147
-          },
-          {
-            "code": 7031,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 4
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/project-update-planner.js": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "src/modules/client-projects/projects.repo.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "src/modules/client-projects/search-indexers.js": [
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "src/modules/developer-example/public-api.routes.js": [
@@ -3860,7 +3743,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 9212,
+      "errorCount": 9201,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4185,7 +4068,7 @@
         "scripts/client-projects-canonical-payload-regression.mjs": [
           {
             "code": 7006,
-            "count": 11
+            "count": 10
           }
         ],
         "scripts/client-projects-repositories-conversion-regression.mjs": [
@@ -7657,7 +7540,7 @@
           },
           {
             "code": 7006,
-            "count": 9
+            "count": 6
           }
         ],
         "scripts/regressions/framework/csrf-protection.regression.mjs": [
@@ -8047,7 +7930,7 @@
           },
           {
             "code": 7006,
-            "count": 20
+            "count": 19
           },
           {
             "code": 7016,
@@ -8059,7 +7942,7 @@
           },
           {
             "code": 7031,
-            "count": 7
+            "count": 3
           },
           {
             "code": 7034,
@@ -9849,7 +9732,7 @@
           },
           {
             "code": 7006,
-            "count": 3
+            "count": 1
           }
         ],
         "scripts/tag-propagation-contract-regression.mjs": [
@@ -10812,8 +10695,8 @@
     }
   },
   "totals": {
-    "files": 1031,
-    "errors": 21577,
+    "files": 1032,
+    "errors": 21225,
     "explicitAny": 10
   },
   "explicitAnyByFile": {
@@ -10825,6 +10708,8 @@
   },
   "expectedErrorDirectives": [
     "tests/typecheck/browser-database-boundary.fixture.mjs:3",
+    "tests/typecheck/client-project-contracts.fixture.mjs:27",
+    "tests/typecheck/client-project-contracts.fixture.mjs:30",
     "tests/typecheck/database-contracts.fixture.mjs:15",
     "tests/typecheck/database-contracts.fixture.mjs:8",
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
@@ -10838,7 +10723,7 @@
   ],
   "declarationProbe": {
     "config": "tsconfig.declarations.json",
-    "firstPartyFiles": 28,
+    "firstPartyFiles": 29,
     "errors": 0
   }
 }

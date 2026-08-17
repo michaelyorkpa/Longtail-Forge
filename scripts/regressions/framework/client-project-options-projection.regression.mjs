@@ -94,6 +94,7 @@ try {
   // only behind the include flag.
   const managementPayload = await clientsService.readClientProjects(session, { includeReminderPolicies: true });
   const managementParent = managementPayload.clients.find((client) => client.id === parentClient.id);
+  assert.ok(managementParent, "management payload should retain the parent client");
   assert.ok(managementParent.taskReminderPolicy, "management payload should carry client reminder policies behind the flag");
   assert.equal(managementParent.taskReminderPolicy.inherited, false);
   assert.ok(
@@ -101,11 +102,13 @@ try {
     "management payload keeps the full billing contact shape",
   );
   const managementWorkspaceProject = managementPayload.workspaceProjects.find((project) => project.id === workspaceProject.id);
+  assert.ok(managementWorkspaceProject, "management payload should retain the workspace project");
   assert.ok(managementWorkspaceProject.taskReminderPolicy, "management payload should carry project reminder policies behind the flag");
   assert.ok(managementPayload.clients.some((client) => client.id === inactiveClient.id), "management payload keeps inactive records");
 
   const ungatedPayload = await clientsService.readClientProjects(session);
   const ungatedParent = ungatedPayload.clients.find((client) => client.id === parentClient.id);
+  assert.ok(ungatedParent, "ungated payload should retain the parent client");
   assert.equal(Object.hasOwn(ungatedParent, "taskReminderPolicy"), false, "reminder policies must be gated behind the include flag");
 
   // The slim projection carries only option fields, filters inactive rows in

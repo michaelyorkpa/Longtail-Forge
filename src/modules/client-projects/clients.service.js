@@ -13,6 +13,30 @@ import { planProjectUpdate } from "./project-update-planner.js";
 import { timeEntriesRepository } from "../time-tracking/time-entries.repo.js";
 import { taskRemindersService } from "../tasks/task-reminders.service.js";
 
+/** @typedef {import("../../types/client-project-contracts.js").ClientAggregateRecord} ClientAggregateRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectAuditEvent} ClientProjectAuditEvent */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectData} ClientProjectData */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectPayload} ClientProjectPayload */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectQuery} ClientProjectQuery */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectReadOptions} ClientProjectReadOptions */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectSession} ClientProjectSession */
+/** @typedef {import("../../types/client-project-contracts.js").ClientRecord} ClientRecord */
+/** @typedef {import("../../types/client-project-contracts.js").HierarchyRecord} HierarchyRecord */
+/** @typedef {import("../../types/client-project-contracts.js").PermissionEvaluator} PermissionEvaluator */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectClientFilter} ProjectClientFilter */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectMaintenanceInput} ProjectMaintenanceInput */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectRecord} ProjectRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ProjectUpdatePlan} ProjectUpdatePlan */
+/** @typedef {import("../../types/client-project-contracts.js").ShapeContext} ShapeContext */
+/** @typedef {import("../../types/client-project-contracts.js").ShapeOptions} ShapeOptions */
+/** @typedef {import("../../types/client-project-contracts.js").TagSummaryRecord} TagSummaryRecord */
+
+/** @typedef {ClientRecord | ProjectRecord} ClientProjectRecord */
+/** @typedef {Map<string, { inherited: boolean, source: import("../../types/task-workflow-contracts.js").TaskReminderTargetType, offsets: import("../../types/task-workflow-contracts.js").TaskReminderPolicy }> | null} ReminderPolicyMap */
+
+/** @overload @param {ClientProjectSession} session @param {ClientProjectReadOptions} [options] @returns {Promise<{ capabilities: Record<string, boolean>, clients: ClientRecord[], workspaceProjects: ProjectRecord[] }>} */
+/** @overload @param {object | null | undefined} session @param {ClientProjectReadOptions} [options] @returns {Promise<{ capabilities: Record<string, boolean>, clients: ClientRecord[], workspaceProjects: ProjectRecord[] }>} */
+/** @param {ClientProjectSession} session @param {ClientProjectReadOptions} [options] */
 async function readClientProjects(session, options = {}) {
   const includeReminderPolicies = options.includeReminderPolicies === true;
   const data = await readClientProjectData(session.workspace_id);
@@ -33,6 +57,7 @@ async function readClientProjects(session, options = {}) {
   const visibleWorkspaceProjects = (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id));
   // One decoration per record set: workspace projects decorate here and are
   // excluded from the client-project decoration below.
+  /** @type {[ProjectRecord[], ClientAggregateRecord[], ProjectRecord[], boolean, PermissionEvaluator, boolean, boolean, PermissionEvaluator, PermissionEvaluator]} */
   const [
     decoratedWorkspaceProjects,
     decoratedClients,
@@ -130,7 +155,7 @@ async function readClientProjects(session, options = {}) {
     clients: shapedClients
       .map((client) => ({
         ...client,
-        projects: buildProjectShape(client.projects.filter((project) => (
+        projects: buildProjectShape((client.projects || []).filter((project) => (
           readableClientIds.has(client.id) || readableProjectIds.has(project.id)
         )).map((project) => projectsById.get(project.id) || project), {
           shape: "flat",
@@ -143,6 +168,9 @@ async function readClientProjects(session, options = {}) {
 // Slim projection for dropdown consumers: only the fields
 // public/js/shared/client-project-options.js reads, active records only by
 // default (inactive rows filtered in SQL), no tags, and no reminder policies.
+/** @overload @param {ClientProjectSession} session @param {ClientProjectReadOptions} [options] @returns {Promise<{ view: string, clients: Record<string, unknown>[], workspaceProjects: Record<string, unknown>[] }>} */
+/** @overload @param {object | null | undefined} session @param {ClientProjectReadOptions} [options] @returns {Promise<{ view: string, clients: Record<string, unknown>[], workspaceProjects: Record<string, unknown>[] }>} */
+/** @param {ClientProjectSession} session @param {ClientProjectReadOptions} [options] */
 async function readClientProjectOptions(session, options = {}) {
   const includeInactive = options.includeInactive === true;
   const data = await readClientProjectData(session.workspace_id, { activeOnly: !includeInactive });
@@ -176,6 +204,7 @@ async function readClientProjectOptions(session, options = {}) {
   };
 }
 
+/** @param {ClientRecord} client */
 function clientOptionFields(client) {
   return {
     id: client.id,
@@ -189,6 +218,7 @@ function clientOptionFields(client) {
   };
 }
 
+/** @param {ProjectRecord} project */
 function projectOptionFields(project) {
   return {
     id: project.id,
@@ -209,15 +239,17 @@ async function saveClientProjects() {
   );
 }
 
+/** @param {string} workspaceId @param {import("../../types/client-project-contracts.js").RepositoryReadOptions} [options] @returns {Promise<ClientProjectData>} */
 async function readClientProjectData(workspaceId, options = {}) {
   const activeOnly = options.activeOnly === true;
   const clients = await clientsRepository.readAll(workspaceId, { activeOnly });
   const projects = await projectsRepository.readAll(workspaceId, { activeOnly });
   const descendantClientIdsByClient = buildDescendantIdMap(clients, "parent_client_id");
+  /** @type {ProjectRecord[]} */
   const workspaceProjects = [];
+  /** @type {Map<string, ProjectRecord[]>} */
   const projectsByClientId = projects.reduce((projectsByClient, project) => {
-    const projectValue = { ...project };
-    delete projectValue.client_id;
+    const { client_id: _clientId, ...projectValue } = project;
 
     if (!project.client_id) {
       workspaceProjects.push(project);
@@ -233,24 +265,33 @@ async function readClientProjectData(workspaceId, options = {}) {
   }, new Map());
 
   return {
-    ...normalizeClientProjectData({
+    .../** @type {{ clients: ClientAggregateRecord[] }} */ (normalizeClientProjectData({
     clients: clients.map((client) => ({
       ...client,
       childScopeIds: [...(descendantClientIdsByClient.get(client.id) || [])],
       projects: projectsByClientId.get(client.id) || [],
     })),
-    }),
+    })),
     workspaceProjects,
   };
 }
 
+/**
+ * @template {HierarchyRecord} RecordType
+ * @param {RecordType[]} records
+ * @param {keyof RecordType} parentField
+ * @returns {Map<string, Set<string>>}
+ */
 function buildDescendantIdMap(records, parentField) {
-  return records.reduce((descendantsById, record) => {
-    descendantsById.set(record.id, collectDescendantIds(records, record.id, parentField));
-    return descendantsById;
-  }, new Map());
+  /** @type {Map<string, Set<string>>} */
+  const descendantsById = new Map();
+  return records.reduce((map, record) => {
+    map.set(record.id, collectDescendantIds(records, record.id, parentField));
+    return map;
+  }, descendantsById);
 }
 
+/** @param {ClientRecord[]} clients @param {ShapeOptions} [options] @returns {ClientRecord[]} */
 function buildClientShape(clients, options = {}) {
   const includeDepth = options.includeDepth === true;
   const shape = options.shape === "tree" ? "tree" : "flat";
@@ -271,6 +312,7 @@ function buildClientShape(clients, options = {}) {
   return orderedClients;
 }
 
+/** @param {ProjectRecord[]} projects @param {ShapeOptions} [options] @returns {ProjectRecord[]} */
 function buildProjectShape(projects, options = {}) {
   const includeDepth = options.includeDepth === true;
   const shape = options.shape === "tree" ? "tree" : "flat";
@@ -288,6 +330,7 @@ function buildProjectShape(projects, options = {}) {
   return orderedProjects;
 }
 
+/** @param {ProjectRecord[]} projects @param {ClientRecord[]} clients @param {ShapeOptions} [options] @returns {ProjectRecord[]} */
 function buildProjectReadShape(projects, clients, options = {}) {
   const includeDepth = options.includeDepth === true;
   const shape = options.shape === "tree" ? "tree" : "flat";
@@ -306,8 +349,11 @@ function buildProjectReadShape(projects, clients, options = {}) {
   return orderedProjects;
 }
 
+/** @param {ProjectRecord[]} projects @param {ClientRecord[]} clients @returns {ProjectRecord[][]} */
 function projectReadGroups(projects, clients) {
+  /** @type {ProjectRecord[]} */
   const workspaceProjects = [];
+  /** @type {Map<string, ProjectRecord[]>} */
   const projectsByClientId = projects.reduce((map, project) => {
     const clientId = String(project.client_id || "").trim();
 
@@ -329,6 +375,7 @@ function projectReadGroups(projects, clients) {
     labelField: "name",
   }).map(({ record }) => record);
   const groupedClientIds = new Set();
+  /** @type {ProjectRecord[][]} */
   const groups = [];
 
   if (workspaceProjects.length > 0) {
@@ -355,6 +402,7 @@ function projectReadGroups(projects, clients) {
   return groups;
 }
 
+/** @param {ProjectRecord[]} projects */
 function sortProjectHierarchy(projects) {
   return sortHierarchy(projects, {
     idField: "id",
@@ -363,14 +411,22 @@ function sortProjectHierarchy(projects) {
   });
 }
 
+/** @param {ProjectRecord[]} leftProjects @param {ProjectRecord[]} rightProjects @returns {number} */
 function compareProjectClientGroups(leftProjects, rightProjects) {
-  const leftProject = leftProjects[0] || {};
-  const rightProject = rightProjects[0] || {};
+  const leftProject = leftProjects[0];
+  const rightProject = rightProjects[0];
   return compareLabels(leftProject.client_name, rightProject.client_name) ||
     compareLabels(leftProject.client_id, rightProject.client_id);
 }
 
+/**
+ * @template {HierarchyRecord} RecordType
+ * @param {RecordType[]} records
+ * @param {import("../../types/client-project-contracts.js").HierarchySortOptions<RecordType>} options
+ * @returns {{ record: RecordType, depth: number, path: string[] }[]}
+ */
 function sortHierarchy(records, { idField, parentField, labelField }) {
+  /** @type {Map<string, RecordType[]>} */
   const byParentId = records.reduce((map, record) => {
     const parentId = String(record[parentField] || "").trim();
 
@@ -381,8 +437,11 @@ function sortHierarchy(records, { idField, parentField, labelField }) {
     map.get(parentId).push(record);
     return map;
   }, new Map());
+  /** @type {{ record: RecordType, depth: number, path: string[] }[]} */
   const sorted = [];
+  /** @type {Set<string>} */
   const visited = new Set();
+  /** @param {string} parentId @param {number} depth @param {string[]} path */
   const visit = (parentId, depth, path) => {
     const children = [...(byParentId.get(parentId) || [])].sort((left, right) => (
       compareLabels(left[labelField], right[labelField]) || compareLabels(left[idField], right[idField])
@@ -426,14 +485,23 @@ function sortHierarchy(records, { idField, parentField, labelField }) {
   return sorted;
 }
 
+/** @param {unknown} left @param {unknown} right @returns {number} */
 function compareLabels(left, right) {
   return String(left || "").localeCompare(String(right || ""), undefined, {
     sensitivity: "base",
   });
 }
 
+/**
+ * @template {HierarchyRecord} RecordType
+ * @param {RecordType[]} flatRecords
+ * @param {import("../../types/client-project-contracts.js").NestedTreeOptions<RecordType>} options
+ * @returns {RecordType[]}
+ */
 function buildNestedTree(flatRecords, { idField, parentField, childrenField }) {
+  /** @type {Map<unknown, RecordType & Record<string, unknown>>} */
   const nodesById = new Map(flatRecords.map((record) => [record[idField], { ...record, [childrenField]: [] }]));
+  /** @type {RecordType[]} */
   const roots = [];
 
   flatRecords.forEach((record) => {
@@ -442,15 +510,17 @@ function buildNestedTree(flatRecords, { idField, parentField, childrenField }) {
     const parentNode = parentId ? nodesById.get(parentId) : null;
 
     if (parentNode && parentNode !== node) {
-      parentNode[childrenField].push(node);
+      const children = parentNode[childrenField];
+      if (Array.isArray(children) && node) children.push(node);
     } else {
-      roots.push(node);
+      if (node) roots.push(node);
     }
   });
 
   return roots;
 }
 
+/** @param {ClientRecord} client @param {ShapeContext} context */
 function decorateClientShape(client, { depth, includeDepth, path, sortOrder }) {
   return {
     ...client,
@@ -465,6 +535,7 @@ function decorateClientShape(client, { depth, includeDepth, path, sortOrder }) {
   };
 }
 
+/** @param {ProjectRecord} project @param {ShapeContext} context */
 function decorateProjectShape(project, { depth, includeDepth, path }) {
   return {
     ...project,
@@ -490,6 +561,7 @@ function formatHierarchySortKey(sortOrder) {
   return String(Number(sortOrder) || 0).padStart(6, "0");
 }
 
+/** @param {ClientProjectRecord} record @returns {string} */
 function formatBillingDisplay(record) {
   if (String(record?.billable || "").toLowerCase() === "no") {
     return "Non-billable";
@@ -503,12 +575,14 @@ function formatBillingDisplay(record) {
   return "Billable";
 }
 
+/** @param {TagSummaryRecord[]} [tags] @returns {string} */
 function formatTagSummary(tags = []) {
   return Array.isArray(tags)
     ? tags.map((tag) => tag?.name || tag?.slug || "").filter(Boolean).join(", ")
     : "";
 }
 
+/** @param {ClientProjectQuery} [query] @returns {ShapeOptions} */
 function normalizeClientShapeOptions(query = {}) {
   return {
     includeDepth: readBoolean(query.include_depth || query.includeDepth),
@@ -517,6 +591,7 @@ function normalizeClientShapeOptions(query = {}) {
   };
 }
 
+/** @param {ClientProjectQuery} [query] @returns {ShapeOptions} */
 function normalizeProjectShapeOptions(query = {}) {
   return {
     includeDepth: readBoolean(query.include_depth || query.includeDepth),
@@ -558,6 +633,7 @@ function normalizeProjectStatusFilter(status) {
   return "Active";
 }
 
+/** @param {unknown} clientFilter @returns {ProjectClientFilter} */
 function normalizeProjectClientFilter(clientFilter) {
   const value = String(clientFilter || "All").trim();
 
@@ -572,6 +648,7 @@ function normalizeProjectClientFilter(clientFilter) {
   return { type: "client", value };
 }
 
+/** @param {ProjectRecord[]} projects @param {ProjectClientFilter} clientFilter @returns {ProjectRecord[]} */
 function filterProjectsByClient(projects, clientFilter) {
   if (clientFilter.type === "workspace") {
     return projects.filter((project) => !project.client_id);
@@ -589,12 +666,13 @@ function readBoolean(value) {
   return value === true || value === "true" || value === "1" || value === 1;
 }
 
+/** @param {ProjectRecord} project @returns {ProjectRecord} */
 function stripProjectClientIdForNestedPayload(project) {
-  const nextProject = { ...project };
-  delete nextProject.client_id;
-  return nextProject;
+  const { client_id: _clientId, ...nextProject } = project;
+  return /** @type {ProjectRecord} */ (nextProject);
 }
 
+/** @param {ProjectRecord} project @returns {ProjectRecord} */
 function stripProjectClientIdForWorkspacePayload(project) {
   return {
     ...project,
@@ -602,6 +680,9 @@ function stripProjectClientIdForWorkspacePayload(project) {
   };
 }
 
+/** @overload @param {ClientProjectSession} session @param {ClientProjectQuery} [query] @returns {Promise<{ clients: ClientRecord[] }>} */
+/** @overload @param {object | null | undefined} session @param {ClientProjectQuery} [query] @returns {Promise<{ clients: ClientRecord[] }>} */
+/** @param {ClientProjectSession} session @param {ClientProjectQuery} [query] */
 async function listClients(session, query = {}) {
   await assertBusinessWorkspace(session);
   const clients = await clientsRepository.readAll(session.workspace_id);
@@ -646,6 +727,9 @@ async function listClients(session, query = {}) {
   };
 }
 
+/** @overload @param {string} clientId @param {ClientProjectSession} session @returns {Promise<{ client: ClientRecord }>} */
+/** @overload @param {string} clientId @param {object | null | undefined} session @returns {Promise<{ client: ClientRecord }>} */
+/** @param {string} clientId @param {ClientProjectSession} session */
 async function readClient(clientId, session) {
   await assertBusinessWorkspace(session);
   const decodedClientId = decodeURIComponent(clientId || "");
@@ -664,9 +748,12 @@ async function readClient(clientId, session) {
   return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
+/** @overload @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ client: ClientRecord }>} */
+/** @overload @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ client: ClientRecord }>} */
+/** @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function createClient(payload, session) {
   await assertBusinessWorkspace(session);
-  const client = normalizeClientPayload(payload, { id: payload?.id || createRecordId() });
+  const client = normalizeClientPayload(payload, { id: String(payload?.id || createRecordId()) });
   let parentClient = null;
 
   if (client.parent_client_id) {
@@ -715,6 +802,9 @@ async function createClient(payload, session) {
   return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ client: ClientRecord }>} */
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ client: ClientRecord }>} */
+/** @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function updateClient(clientId, payload, session) {
   await assertBusinessWorkspace(session);
   const decodedClientId = decodeURIComponent(clientId || "");
@@ -784,6 +874,9 @@ async function updateClient(clientId, payload, session) {
   return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ archived: boolean, client_id: string }>} */
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ archived: boolean, client_id: string }>} */
+/** @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function archiveClient(clientId, payload, session) {
   await assertBusinessWorkspace(session);
   const decodedClientId = decodeURIComponent(clientId || "");
@@ -829,6 +922,9 @@ async function archiveClient(clientId, payload, session) {
   return { client_id: decodedClientId, archived: true };
 }
 
+/** @overload @param {ClientProjectSession} session @param {ClientProjectQuery} [query] @returns {Promise<{ capabilities: Record<string, boolean>, projects: ProjectRecord[] }>} */
+/** @overload @param {object | null | undefined} session @param {ClientProjectQuery} [query] @returns {Promise<{ capabilities: Record<string, boolean>, projects: ProjectRecord[] }>} */
+/** @param {ClientProjectSession} session @param {ClientProjectQuery} [query] */
 async function listProjects(session, query = {}) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
   const clientsEnabled = workspaceSettings.workspaceType === "business";
@@ -847,6 +943,7 @@ async function listProjects(session, query = {}) {
     readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)
   ));
   const status = normalizeProjectStatusFilter(query.status);
+  /** @type {ProjectClientFilter} */
   const clientFilter = clientsEnabled
     ? normalizeProjectClientFilter(query.client || query.client_id || query.clientId)
     : { type: "all", value: "" };
@@ -891,6 +988,9 @@ async function listProjects(session, query = {}) {
   };
 }
 
+/** @overload @param {string} clientId @param {ClientProjectSession} session @returns {Promise<{ client: ClientRecord, projects: ProjectRecord[] }>} */
+/** @overload @param {string} clientId @param {object | null | undefined} session @returns {Promise<{ client: ClientRecord, projects: ProjectRecord[] }>} */
+/** @param {string} clientId @param {ClientProjectSession} session */
 async function listClientProjects(clientId, session) {
   await assertBusinessWorkspace(session);
   const decodedClientId = decodeURIComponent(clientId || "");
@@ -916,6 +1016,9 @@ async function listClientProjects(clientId, session) {
   };
 }
 
+/** @overload @param {string} projectId @param {ClientProjectSession} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @overload @param {string} projectId @param {object | null | undefined} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @param {string} projectId @param {ClientProjectSession} session */
 async function readProject(projectId, session) {
   const decodedProjectId = decodeURIComponent(projectId || "");
   const project = await projectsRepository.readById(session.workspace_id, decodedProjectId);
@@ -939,15 +1042,18 @@ async function readProject(projectId, session) {
   return { project: (await tagsService.decorateRecordsForTarget(session, "project", [readableProject]))[0] };
 }
 
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @overload @param {string} clientId @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @param {string} clientId @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function createProject(clientId, payload, session) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
   assertProjectClientAssignmentAllowed(workspaceSettings.workspaceType, clientId, payload);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
-  const projectId = normalizedPayload?.id || createRecordId();
+  const projectId = String(normalizedPayload?.id || createRecordId());
   const decodedClientId = usesProjectRoundingOnly
     ? ""
-    : decodeURIComponent(clientId || normalizedPayload?.client_id || "");
+    : decodeURIComponent(String(clientId || normalizedPayload?.client_id || ""));
   const client = decodedClientId
     ? await readClientScope(session.workspace_id, decodedClientId, {
         archivedMessage: "Archived clients cannot receive new projects.",
@@ -957,7 +1063,7 @@ async function createProject(clientId, payload, session) {
   const parentProject = await validateProjectParent(
     session.workspace_id,
     projectId,
-    normalizedPayload?.parent_project_id || normalizedPayload?.parentProjectId || "",
+    String(normalizedPayload?.parent_project_id || normalizedPayload?.parentProjectId || ""),
     decodedClientId,
   );
 
@@ -1008,6 +1114,7 @@ async function createProject(clientId, payload, session) {
   return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
 
+/** @param {ClientProjectSession} session */
 async function assertBusinessWorkspace(session) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
@@ -1018,6 +1125,9 @@ async function assertBusinessWorkspace(session) {
   throw new AppError("Clients are only available in Business workspaces.", 403);
 }
 
+/** @overload @param {string} projectId @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @overload @param {string} projectId @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ project: ProjectRecord }>} */
+/** @param {string} projectId @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function updateProject(projectId, payload, session) {
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
@@ -1138,6 +1248,7 @@ async function updateProject(projectId, payload, session) {
   return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
 
+/** @param {ProjectMaintenanceInput} input */
 async function assertProjectRecordMaintenanceConfirmed({
   workspaceId,
   project,
@@ -1152,6 +1263,7 @@ async function assertProjectRecordMaintenanceConfirmed({
   }
 }
 
+/** @param {ProjectMaintenanceInput} input */
 async function applyConfirmedProjectRecordMaintenance({
   workspaceId,
   project,
@@ -1184,6 +1296,7 @@ async function applyConfirmedProjectRecordMaintenance({
   };
 }
 
+/** @param {ClientProjectSession} session @param {"client" | "project"} targetType @param {string} targetId @param {ClientProjectPayload} [payload] */
 async function saveTargetTags(session, targetType, targetId, payload = {}) {
   if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
     return;
@@ -1196,6 +1309,7 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
   });
 }
 
+/** @param {ClientProjectSession} session @param {"client" | "project"} targetType @param {string} targetId @param {string} reason */
 async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
   try {
     await tagsService.refreshPropagatedAssignmentsForTarget(session, {
@@ -1208,6 +1322,9 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
   }
 }
 
+/** @overload @param {string} projectId @param {ClientProjectPayload} payload @param {ClientProjectSession} session @returns {Promise<{ archived: boolean, project_id: string }>} */
+/** @overload @param {string} projectId @param {ClientProjectPayload} payload @param {object | null | undefined} session @returns {Promise<{ archived: boolean, project_id: string }>} */
+/** @param {string} projectId @param {ClientProjectPayload} payload @param {ClientProjectSession} session */
 async function archiveProject(projectId, payload, session) {
   const decodedProjectId = decodeURIComponent(projectId || "");
   const previousProject = await projectsRepository.readById(session.workspace_id, decodedProjectId);
@@ -1256,6 +1373,7 @@ async function archiveProject(projectId, payload, session) {
   return { project_id: decodedProjectId, archived: true };
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} reason */
 async function syncClientSearchIndex(workspaceId, clientId, reason) {
   await searchIndexSyncService.reindexRecord({
     workspaceId,
@@ -1266,6 +1384,7 @@ async function syncClientSearchIndex(workspaceId, clientId, reason) {
   });
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} reason */
 async function syncProjectSearchIndex(workspaceId, projectId, reason) {
   await searchIndexSyncService.reindexRecord({
     workspaceId,
@@ -1276,6 +1395,7 @@ async function syncProjectSearchIndex(workspaceId, projectId, reason) {
   });
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} reason */
 async function syncProjectSearchIndexForClient(workspaceId, clientId, reason) {
   const projects = await projectsRepository.readByClientId(workspaceId, clientId);
   await searchIndexSyncService.reindexRecords(projects.map((project) => ({
@@ -1287,6 +1407,7 @@ async function syncProjectSearchIndexForClient(workspaceId, clientId, reason) {
   })));
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} reason */
 async function syncTimeEntrySearchIndexForProject(workspaceId, projectId, reason) {
   const entries = await timeEntriesRepository.readByProjectId(workspaceId, projectId);
   await searchIndexSyncService.reindexRecords(entries.map((entry) => ({
@@ -1298,14 +1419,15 @@ async function syncTimeEntrySearchIndexForProject(workspaceId, projectId, reason
   })));
 }
 
+/** @param {ClientProjectPayload} payload @param {Partial<ClientRecord>} [fallback] @returns {ClientRecord} */
 function normalizeClientPayload(payload, fallback = {}) {
-  const normalized = normalizeClientProjectData({
+  const normalized = /** @type {{ clients: ClientAggregateRecord[] }} */ (normalizeClientProjectData({
     clients: [{
       ...fallback,
       ...payload,
       projects: [],
     }],
-  }).clients[0];
+  })).clients[0];
 
   if (!normalized.id || !normalized.name) {
     throw new AppError("Client id and name are required", 400);
@@ -1314,8 +1436,9 @@ function normalizeClientPayload(payload, fallback = {}) {
   return normalized;
 }
 
+/** @param {ClientProjectPayload} payload @param {Partial<ProjectRecord>} [fallback] @param {string} [fallbackBillable] @returns {ProjectRecord} */
 function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes") {
-  const normalizedData = normalizeClientProjectData({
+  const normalizedData = /** @type {{ clients: ClientAggregateRecord[] }} */ (normalizeClientProjectData({
     clients: [{
       id: "client",
       name: "Client",
@@ -1325,7 +1448,7 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
         ...payload,
       }],
     }],
-  });
+  }));
   const project = normalizedData.clients[0].projects[0];
 
   if (!project.id || !project.name) {
@@ -1345,6 +1468,7 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
   };
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} parentClientId @returns {Promise<ClientRecord | null>} */
 async function validateClientParent(workspaceId, clientId, parentClientId) {
   const normalizedClientId = String(clientId || "").trim();
   const normalizedParentId = String(parentClientId || "").trim();
@@ -1376,6 +1500,7 @@ async function validateClientParent(workspaceId, clientId, parentClientId) {
   return parentClient;
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} parentProjectId @param {string} clientId @returns {Promise<ProjectRecord | null>} */
 async function validateProjectParent(workspaceId, projectId, parentProjectId, clientId) {
   const normalizedProjectId = String(projectId || "").trim();
   const normalizedParentId = String(parentProjectId || "").trim();
@@ -1412,7 +1537,15 @@ async function validateProjectParent(workspaceId, projectId, parentProjectId, cl
   return parentProject;
 }
 
+/**
+ * @template {HierarchyRecord} RecordType
+ * @param {RecordType[]} records
+ * @param {string} recordId
+ * @param {keyof RecordType} parentField
+ * @returns {Set<string>}
+ */
 function collectDescendantIds(records, recordId, parentField) {
+  /** @type {Set<string>} */
   const descendants = new Set();
   const pending = [recordId];
 
@@ -1431,6 +1564,7 @@ function collectDescendantIds(records, recordId, parentField) {
   return descendants;
 }
 
+/** @param {string} workspaceId @param {string} clientId @returns {Promise<string>} */
 async function readClientName(workspaceId, clientId) {
   if (!clientId) {
     return "";
@@ -1439,6 +1573,7 @@ async function readClientName(workspaceId, clientId) {
   return (await clientsRepository.readById(workspaceId, clientId))?.name || "";
 }
 
+/** @param {string} workspaceId @param {string} projectId @returns {Promise<string>} */
 async function readProjectName(workspaceId, projectId) {
   if (!projectId) {
     return "";
@@ -1447,6 +1582,7 @@ async function readProjectName(workspaceId, projectId) {
   return (await projectsRepository.readById(workspaceId, projectId))?.name || "";
 }
 
+/** @param {ClientProjectPayload} [payload] @param {boolean} [usesProjectRoundingOnly] @returns {ClientProjectPayload} */
 function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOnly = false) {
   if (!usesProjectRoundingOnly) {
     return payload;
@@ -1462,6 +1598,7 @@ function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOn
   };
 }
 
+/** @param {string} workspaceType @param {string} routeClientId @param {ClientProjectPayload} [payload] */
 function assertProjectClientAssignmentAllowed(workspaceType, routeClientId, payload = {}) {
   if (workspaceType === "business") {
     return;
@@ -1473,6 +1610,7 @@ function assertProjectClientAssignmentAllowed(workspaceType, routeClientId, payl
   }
 }
 
+/** @param {ProjectRecord} project @returns {ProjectRecord} */
 function stripProjectClientContext(project) {
   return {
     ...project,
@@ -1481,10 +1619,12 @@ function stripProjectClientContext(project) {
   };
 }
 
+/** @param {string} workspaceType @returns {boolean} */
 function workspaceUsesProjectRoundingOnly(workspaceType) {
   return workspaceType === "personal" || workspaceType === "family";
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} projectName @param {string} [excludeProjectId] */
 async function assertUniqueProjectNameInScope(workspaceId, clientId, projectName, excludeProjectId = "") {
   const existingProject = await projectsRepository.readByNameInScope(
     workspaceId,
@@ -1498,11 +1638,15 @@ async function assertUniqueProjectNameInScope(workspaceId, clientId, projectName
   }
 }
 
+/** @param {unknown} providedAction @param {ClientProjectAuditEvent} auditEvent */
 async function recordAudit(providedAction, auditEvent) {
   const canonicalProvidedAction = canonicalizeProvidedAction(providedAction, auditEvent);
+  const canonicalAction = canonicalProvidedAction && typeof canonicalProvidedAction === "object" && !Array.isArray(canonicalProvidedAction)
+    ? /** @type {Record<string, unknown>} */ (canonicalProvidedAction).action
+    : undefined;
   await auditService.record({
     ...auditEvent,
-    action: canonicalProvidedAction?.action || auditEvent.action,
+    action: typeof canonicalAction === "string" ? canonicalAction : auditEvent.action,
     metadata: {
       ...(auditEvent.metadata || {}),
       provided_action: canonicalProvidedAction || null,
@@ -1510,12 +1654,14 @@ async function recordAudit(providedAction, auditEvent) {
   });
 }
 
+/** @param {unknown} providedAction @param {ClientProjectAuditEvent} auditEvent */
 function canonicalizeProvidedAction(providedAction, auditEvent) {
   if (!providedAction || typeof providedAction !== "object" || Array.isArray(providedAction)) {
     return providedAction;
   }
 
   const metadata = auditEvent.metadata || {};
+  /** @type {Record<string, unknown>} */
   const canonical = {};
   for (const field of [
     "client_id",
@@ -1543,17 +1689,21 @@ function canonicalizeProvidedAction(providedAction, auditEvent) {
 
 // One batched offsets read covers every permission-filtered client and
 // project, replacing the former per-record readTargetPolicy queries.
+/** @param {string} workspaceId @param {{ clients?: ClientAggregateRecord[], projects?: ProjectRecord[] }} records */
 async function readReminderPoliciesForVisibleRecords(workspaceId, { clients = [], projects = [] }) {
-  return taskRemindersService.readTargetPoliciesForTargets(workspaceId, [
-    ...clients.map((client) => ({ targetId: client.id, targetType: "client" })),
+  /** @type {import("../../types/task-workflow-contracts.js").TaskReminderTarget[]} */
+  const targets = [
+    ...clients.map((client) => ({ targetId: client.id, targetType: /** @type {const} */ ("client") })),
     ...clients.flatMap((client) => (client.projects || []).map((project) => ({
       targetId: project.id,
-      targetType: "project",
+      targetType: /** @type {const} */ ("project"),
     }))),
-    ...projects.map((project) => ({ targetId: project.id, targetType: "project" })),
-  ]);
+    ...projects.map((project) => ({ targetId: project.id, targetType: /** @type {const} */ ("project") })),
+  ];
+  return taskRemindersService.readTargetPoliciesForTargets(workspaceId, targets);
 }
 
+/** @template {ClientProjectRecord} RecordType @param {RecordType} record @param {"client" | "project"} targetType @param {ReminderPolicyMap} policiesByTarget @returns {RecordType} */
 function attachTargetReminderPolicy(record, targetType, policiesByTarget) {
   if (!policiesByTarget) {
     return record;
@@ -1577,44 +1727,53 @@ function attachTargetReminderPolicy(record, targetType, policiesByTarget) {
   return attached;
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {ClientProjectPayload} [payload] */
 async function saveClientReminderPolicy(workspaceId, clientId, payload = {}) {
   if (!hasTaskReminderPolicyPayload(payload)) {
     return;
   }
+  const policy = payload.taskReminderPolicy || payload.task_reminder_policy;
+  if (!policy) return;
 
   await taskRemindersService.saveTargetPolicy(
     workspaceId,
     "client",
     clientId,
-    payload.taskReminderPolicy || payload.task_reminder_policy,
+    policy,
     readReminderPolicyInherited(payload),
   );
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {ClientProjectPayload} [payload] */
 async function saveProjectReminderPolicy(workspaceId, projectId, payload = {}) {
   if (!hasTaskReminderPolicyPayload(payload)) {
     return;
   }
+  const policy = payload.taskReminderPolicy || payload.task_reminder_policy;
+  if (!policy) return;
 
   await taskRemindersService.saveTargetPolicy(
     workspaceId,
     "project",
     projectId,
-    payload.taskReminderPolicy || payload.task_reminder_policy,
+    policy,
     readReminderPolicyInherited(payload),
   );
 }
 
+/** @param {ClientProjectPayload} payload @returns {boolean} */
 function hasTaskReminderPolicyPayload(payload) {
   return Object.hasOwn(payload || {}, "taskReminderPolicy") ||
     Object.hasOwn(payload || {}, "task_reminder_policy");
 }
 
+/** @param {ClientProjectPayload} payload @returns {boolean} */
 function readReminderPolicyInherited(payload) {
   const policy = payload.taskReminderPolicy || payload.task_reminder_policy || {};
   return policy.inherited !== false;
 }
 
+/** @param {ClientRecord} client @param {ClientRecord | null} [parentClient] */
 function clientMetadata(client, parentClient = null) {
   return {
     client_id: client.id,
@@ -1627,6 +1786,7 @@ function clientMetadata(client, parentClient = null) {
   };
 }
 
+/** @param {ClientRecord | null} client @param {ProjectRecord} project @param {ProjectRecord | null} [parentProject] */
 function projectMetadata(client, project, parentProject = null) {
   return {
     client_id: client?.id || "",
@@ -1641,6 +1801,7 @@ function projectMetadata(client, project, parentProject = null) {
   };
 }
 
+/** @param {ClientProjectRecord} previousRecord @param {ClientProjectPayload} [payload] @returns {boolean} */
 function billingDetailsChanged(previousRecord, payload = {}) {
   const billingFields = [
     "billable",

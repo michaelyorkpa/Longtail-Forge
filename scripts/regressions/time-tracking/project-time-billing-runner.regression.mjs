@@ -168,6 +168,7 @@ async function assertRecursiveHierarchyBilling(session) {
 
   const hierarchy = await clientsService.readClientProjects(session);
   const hierarchyParent = hierarchy.clients.find((client) => client.id === parentClient.id);
+  assert.ok(hierarchyParent, "Clients/Projects provider must retain the hierarchy parent");
   assert.deepEqual(hierarchyParent.childScopeIds, [childClient.id], "Clients/Projects provider must expose descendant client IDs");
 
   const execution = await reportingService.runReport(session, REPORT_KEY, {
