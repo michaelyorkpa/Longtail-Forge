@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.4 - Finish small module and framework service owners
+
+**Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.
+
+- [x] Closed full-strict debt for Search, Notifications, Users, Tags, and the developer example as one 26-file small-owner cohort; Search, Notifications, and Tags retained zero-diagnostic baselines while the final three diagnostics were removed from Users and the example routes.
+- [x] Added a named Users event-summary resolver and reused the framework's existing workspace and API-key route adapters instead of introducing broad casts, new shared abstractions, or module deep imports.
+- [x] Kept framework/module ownership unchanged and preserved Search permission pruning, indexing and result shaping, notification delivery and preferences, Tags semantics, Users module events, and disabled example-module isolation through retained focused coverage.
+- [x] Pinned the complete cohort at zero diagnostics and zero explicit `any`, reduced combined strict debt from 20,821 to 20,818 diagnostics while holding explicit `any` at 7, retained the 1,034-file/31-declaration compiler universe, raised effective regression assertions to 18,944 across 347 scripts, and advanced the active checkpoint to `0.33.33.25.5`.
+
 ## Version 0.33.33.25.3 - Close the Jobs payload registry and strict owners
 
 **Model: High Effort** - Per-job payload typing affects queue admission, retries, workers, and every registered handler.

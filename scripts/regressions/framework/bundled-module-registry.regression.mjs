@@ -20,7 +20,7 @@ const { readText: read } = createProjectTextReader();
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "481fa207b3ca33c73e088bf2f77a63c0f89d92b3fb95eaf6d5c377786bb61c8d";
+const EXPECTED_INVENTORY_SHA256 = "1c50a1ef61673e9b462ad41a6c4cd9f15f515d73ef88a8261a6161b3e4d85c63";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");

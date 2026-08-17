@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.4 - Finish small module and framework service owners
-
-**Model: High Effort** - A broad mechanical cohort still crosses permission, event, search, notification, and module-entry boundaries.
-
-- [ ] Close full-strict debt for Search, Notifications, Users, Tags, and the developer example as one reviewed small-owner cohort.
-- [ ] Use module public entries instead of adding deep imports and keep framework/module ownership unchanged.
-- [ ] Preserve permission pruning, notification delivery, Search indexing and result shaping, Tags semantics, and example-module isolation.
-- [ ] Add named projections and contracts rather than broad casts or new shared abstractions.
-
 ### 0.33.33.25.5 - Close remaining root runtime strict debt
 
 **Model: High Effort** - Root configuration, security, normalization, and startup utilities feed high-fan-in runtime behavior.
