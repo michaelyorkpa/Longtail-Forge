@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.9`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -47,6 +47,41 @@ Release-wide measurable acceptance:
 - [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees.
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
+
+### 0.33.33.25.6 - Make slice verification enforce the strict ledger unconditionally
+
+**Model: High Effort** - Slice verification is the only per-checkpoint gate until protected integration is restored, so a routing hole can hide type-debt regressions.
+
+- [ ] Make the `npm run typecheck` ledger gate an unconditional stage of every `npm run verify:slice` run; focused routing may still narrow regression buckets but must never skip the strict ledger.
+- [ ] Prove with a routing fixture that a slice touching only a narrow area still fails on a seeded ledger regression and a seeded new file with diagnostics, and confirm the forbidden-suppression throw remains owned by the full-strict governance owner rather than duplicating it.
+- [ ] Record the measured wall-clock cost of the unconditional stage and keep focused routing unchanged for regression, browser, and packaging stages.
+- [ ] Update the verification-plan owner contracts (unit and release regression) to state the unconditional gate; the `verify:slice` package-script string is unchanged.
+
+### 0.33.33.25.7 - Restore protected nightly checkpoint integration
+
+**Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
+
+- [ ] Publish the accumulated topic-branch checkpoints through one catch-up pull request into protected `nightly` and require the five named checks (Development gate, Browser smoke and accessibility, Complete maintenance release rehearsal, Dependency review, CodeQL JavaScript analysis) to pass.
+- [ ] Resume per-checkpoint protected pull requests into `nightly` for every later checkpoint; a merge into any `agent/*` branch is integration staging, not checkpoint completion.
+- [ ] Confirm the governing-instruction corrections that make the `nightly` base explicit (landed 2026-08-17 under the `0.33.33.1` policy trailer alongside `0.33.33.25.6`) hold for the restored flow.
+- [ ] Triage any check failures the catch-up surfaces as named follow-up items rather than merging red, and confirm the scheduled Nightly workflow operates on current integrated state afterward.
+- [ ] Make the regression-manifest and documentation-inventory staleness checks line-ending tolerant: a CRLF working copy of the byte-identical committed artifact (a fresh Windows checkout) must pass the hard closeout gates, while real content drift must still fail them.
+
+### 0.33.33.25.8 - Baseline and ratchet planning-document pinning
+
+**Model: High Effort** - The historical-pin acceptance is measured three different ways today, and reintroductions outside the closeout owners are invisible to the current scan.
+
+- [ ] Define the acceptance metric for "programs reading planning/history documents" precisely, distinguishing content-pinning assertions, cursor-floor checks, and ceremony/runner tooling, and record the honest current counts under that definition (as of 0.33.33.25.5: 140 scripts reading planning documents, 75 discovered regressions asserting on document content, 39 pinning historical `CHANGELOG.md` text).
+- [ ] Extend the historical-evidence scan beyond the retained closeout owners to every discovered regression with a shrink-only baseline of the known current pinners, so a new pin fails immediately while existing pins await their owning checkpoints.
+- [ ] Do not strip or retire the existing pinned regressions here; stripping remains owned by checkpoints 0.33.33.29 through 0.33.33.32.
+
+### 0.33.33.25.9 - Maintain compiler-ledger metadata
+
+**Model: High Effort** - Stale frozen metadata inside an enforced ledger misstates branch evidence at closeout.
+
+- [ ] Make the ledger `checkpoint` field maintained on every `typecheck:ledger:write`, or remove the field and its hard assertion if it cannot be kept honest; it currently reads `0.33.33.18.1` seventeen checkpoints after that identifier archived.
+- [ ] Align the `framework.full-strict-governance` assertion with the maintained behavior so the gate cannot pin a stale literal again.
+- [ ] Keep every other shrink-only, suppression-ban, and zone assertion byte-for-byte unchanged.
 
 ### 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
@@ -128,7 +163,7 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Mechanical wrapping can break implicit globals and page initialization across many surfaces.
 
-- [ ] IIFE-wrap the fourteen audited bare controllers and explicitly publish only supported `window.LongtailForge.*` surfaces.
+- [ ] IIFE-wrap every remaining bare classic controller and explicitly publish only supported `window.LongtailForge.*` surfaces. The 0.33.33.25-era re-audit counts 27 bare classic scripts, not the originally audited fourteen: the module/page controllers plus thirteen leaf and support scripts (`splash`, `footer`, `login`, `account-recovery`, `module-settings`, and similar); record a wrap-or-justify disposition for each.
 - [ ] Preserve classic-script loading and Workbench dynamic `import()` compatibility without adding modules, bundling, or script-order changes.
 - [ ] Remove real and compiler-visible global lexical collisions, including the `api`/`view`/`state` family.
 - [ ] Prove every affected page through focused view contracts and Playwright before accepting the browser ledger change.
@@ -146,7 +181,7 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Shared declarative view interpretation is security- and behavior-relevant across many pages.
 
-- [ ] Delete the four module-local Notes/Lists/Files/Tasks descriptor fallbacks and use the established null-and-skip contract for unavailable server descriptors.
+- [ ] Delete the five module-local descriptor fallbacks — the Notes/Lists/Files/Tasks view-surface fallbacks and the nested Notes linked-records fallback — and use the established null-and-skip contract for unavailable server descriptors.
 - [ ] Extract descriptor-action permission/route interpolation, search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
 - [ ] Preserve server authority, action visibility, focus return, and current module surface anatomy.
@@ -265,6 +300,7 @@ Release-wide measurable acceptance:
 
 - [ ] Delete the temporary compiler ledger and retire superseded honesty/seam/pragma inventories only after all three direct full-strict programs are green.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
+- [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of 0.33.33.25.5, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
@@ -274,7 +310,7 @@ Release-wide measurable acceptance:
 
 Purpose:
 
-Preserve the August 31, 2026 public-demo launch follow-on for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
+Preserve the October 1, 2026 public-demo launch follow-on (moved from August 31, 2026 to allow additional features and the completed Lean Core branch) for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
 
 Dependencies and planned boundary:
 
@@ -286,7 +322,7 @@ Dependencies and planned boundary:
 
 Acceptance criteria:
 
-- The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+- The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
 ## Version 0.34 - Support Tickets Module
 
