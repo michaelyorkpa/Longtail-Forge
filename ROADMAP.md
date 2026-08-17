@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.25.6 - Make slice verification enforce the strict ledger unconditionally
-
-**Model: High Effort** - Slice verification is the only per-checkpoint gate until protected integration is restored, so a routing hole can hide type-debt regressions.
-
-- [ ] Make the `npm run typecheck` ledger gate an unconditional stage of every `npm run verify:slice` run; focused routing may still narrow regression buckets but must never skip the strict ledger.
-- [ ] Prove with a routing fixture that a slice touching only a narrow area still fails on a seeded ledger regression and a seeded new file with diagnostics, and confirm the forbidden-suppression throw remains owned by the full-strict governance owner rather than duplicating it.
-- [ ] Record the measured wall-clock cost of the unconditional stage and keep focused routing unchanged for regression, browser, and packaging stages.
-- [ ] Update the verification-plan owner contracts (unit and release regression) to state the unconditional gate; the `verify:slice` package-script string is unchanged.
-
 ### 0.33.33.25.7 - Restore protected nightly checkpoint integration
 
 **Model: High Effort** - Checkpoints 0.33.33.18.2 through 0.33.33.25.5 merged into the version-wide topic branch without any protected CI, concentrating unverified integration risk.
