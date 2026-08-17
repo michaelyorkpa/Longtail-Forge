@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.6. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.25.7. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.25.7, protected nightly checkpoint integration is restored and the generated-artifact staleness gates are line-ending tolerant. The accumulated topic-branch checkpoints publish through one catch-up pull request into protected `nightly` under the five named checks, per-checkpoint protected pull requests into `nightly` resume for every later checkpoint, and a merge into any `agent/*` branch remains integration staging rather than checkpoint completion, matching the governing instructions corrected under the `0.33.33.1` policy trailer. The regression-manifest and documentation-inventory staleness checks now compare through one shared `generatedContentMatches` helper that tolerates a CRLF Windows working copy of byte-identical committed content while real content drift still fails; both `--check` gates were proven live against CRLF-converted copies of the current artifacts, and the manifest owner proves the helper's accept and reject cases plus both generators' adoption. Combined strict debt remains 20,587 with explicit `any` at 7, and effective regression assertions advance to 18,957 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable branch-workflow documentation landed separately under the 0.33.33.1 policy trailer, and this checkpoint otherwise changes verification tooling only, with no supported configuration, route, permission, startup, or deployment contract affected.
 
 As of 0.33.33.25.6, slice verification enforces the shrink-only strict typecheck ledger unconditionally. The verification plan schedules a dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — runs the ledger gate exactly once; the measured standalone stage cost is about five seconds. The `runCommand` execution seam is now typed by the status contract the executor actually consumes, which removed the three stub-assignability diagnostics and shrank combined strict debt from 20,590 to 20,587 with explicit `any` unchanged at 7. The routing owner proves that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance`. The `verify:slice` package-script string is unchanged, regression/browser/packaging routing is unchanged, and effective regression assertions advance to 18,953 across 347 scripts.
 
@@ -347,11 +353,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18284 |
+| Active regression assertions | 18288 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18953 |
+| Effective assertion floor | 18957 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

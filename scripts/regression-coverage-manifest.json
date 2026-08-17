@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18284,
+    "activeAssertionCount": 18288,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18953,
+    "effectiveAssertionCount": 18957,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -5063,11 +5063,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 65,
+      "assertionCount": 69,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves shrink-only script ceilings and generated assertion ownership prevent silent coverage loss while allowing reviewed consolidation.",
-      "entryPointAssertionCount": 65,
+      "entryPointAssertionCount": 69,
       "id": "release.regression-manifest-generation",
       "legacy": false,
       "path": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
