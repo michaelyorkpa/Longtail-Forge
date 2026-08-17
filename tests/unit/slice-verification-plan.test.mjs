@@ -6,6 +6,7 @@ import {
   formatSliceVerificationSummary,
 } from "../../scripts/lib/slice-verification-plan.mjs";
 
+/** @param {string[]} paths */
 function planFor(paths) {
   return createSliceVerificationPlan(createChangedRegressionPlan(paths));
 }
@@ -96,8 +97,10 @@ describe("slice verification planning", () => {
 
   it("stops after a hard closeout failure", () => {
     const plan = planFor(["CHANGELOG.md"]);
+    /** @type {string[]} */
     const invocations = [];
     const result = executeSliceVerificationPlan(plan, {
+      /** @param {string} command */
       runCommand(command) {
         invocations.push(command);
         return { status: command === "npm run closeout" ? 7 : 0 };

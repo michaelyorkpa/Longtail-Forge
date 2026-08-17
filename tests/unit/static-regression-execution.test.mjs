@@ -4,8 +4,10 @@ import {
   createStaticRegressionExecutionPlan,
 } from "../../scripts/lib/static-regression-execution.mjs";
 
+// The environment value is a free-text resource classification; widen it past
+// the literal so tests can seed unsafe classifications against the plan.
 const safeResources = Object.freeze({
-  environment: "none",
+  environment: /** @type {string} */ ("none"),
   globalState: "worker-local",
   timers: "none",
   listeners: "none",

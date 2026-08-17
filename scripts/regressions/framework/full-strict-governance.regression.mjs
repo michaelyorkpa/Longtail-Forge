@@ -232,6 +232,10 @@ assert.ok(
   remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/")),
   "only test-owned files may retain server-program diagnostics after checkpoint 0.33.33.25.5",
 );
+assert.ok(
+  remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/e2e/")),
+  "only e2e-owned files may retain server-program diagnostics after checkpoint 0.33.33.26.1; the unit, contract, and shared test-helper cohort is strict-clean",
+);
 for (const rootRuntimeOwnerPath of [
   "src/config.js",
   "src/core/request-context.js",

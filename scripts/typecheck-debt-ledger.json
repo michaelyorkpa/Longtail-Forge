@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.25.10",
+  "checkpoint": "0.33.33.26.1",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -383,18 +383,8 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "worker.js"
       ],
-      "errorCount": 306,
+      "errorCount": 249,
       "diagnostics": {
-        "tests/contracts/tasks-contracts.test.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18049,
-            "count": 1
-          }
-        ],
         "tests/e2e/a11y-keyboard.spec.mjs": [
           {
             "code": 18048,
@@ -739,132 +729,6 @@
           {
             "code": 18047,
             "count": 3
-          }
-        ],
-        "tests/unit/client-project-options.test.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
-        "tests/unit/legal-content.test.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2739,
-            "count": 1
-          },
-          {
-            "code": 2740,
-            "count": 2
-          },
-          {
-            "code": 2741,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "tests/unit/notes-effective-security.test.mjs": [
-          {
-            "code": 2345,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7019,
-            "count": 1
-          }
-        ],
-        "tests/unit/public-demo-enforcement.test.mjs": [
-          {
-            "code": 18046,
-            "count": 3
-          }
-        ],
-        "tests/unit/runtime-configuration.test.mjs": [
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "tests/unit/slice-verification-plan.test.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "tests/unit/static-regression-execution.test.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          }
-        ],
-        "tests/unit/test-support-harnesses.test.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "tests/unit/work-candidate-ranking.test.mjs": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 18049,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
           }
         ]
       }
@@ -10400,7 +10264,7 @@
   },
   "totals": {
     "files": 1036,
-    "errors": 20587,
+    "errors": 20530,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.25.10. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.26.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.26.1, the unit, contract, and shared test-helper cohort is strict-clean: all 57 non-e2e test diagnostics across ten files are closed with named test-local contracts (sandbox window/option shapes, tuple-typed invalid-configuration tables, typed fixture factories, and narrowed unknown-error boundaries) while every behavioral case, expected failure, and table row is preserved — the ten touched files run 125 passing tests unchanged. Two production JSDoc projections were narrowed to what their functions actually read, following the established caller-projection pattern: `correspondingSourceUrl`/`trackedSourceUrl` take a named runtime-identity projection and `createLegalContentService` takes a named legal-content projection, with both files remaining strict-clean and runtime behavior untouched. `framework.full-strict-governance` now pins the tightened zone — only `tests/e2e/` files may retain server-program diagnostics — leaving 249 diagnostics across 29 e2e-owned files for 0.33.33.26.2. Combined strict debt falls from 20,587 to 20,530 with explicit `any` at 7, the write-derived ledger stamp advanced to `0.33.33.26.1`, and effective regression assertions advance to 18,962 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable runtime and module documentation remains deferred to the version-wide branch closeout because this checkpoint types test-owned code and narrows two internal JSDoc projections without changing supported configuration, routes, permissions, startup, or deployment contracts.
 
 As of 0.33.33.25.10, the work-candidate query boundary parses untrusted input once through a module-owned Zod edge contract. `src/services/work-candidate.contracts.js` follows the settled Notes/Lists calibration: Zod owns only the shape boundary at the single list-query normalization entry, every known field survives in both naming conventions and every retained alias (rank buckets, status and exclude-status filters, client/project/record id lists, date bounds, sort, limit, timezone, today, boolean flags, and the nested focus-context variants), unknown fields are stripped, and list fields always leave the edge as typed string arrays with comma-split preprocessing preserved. The schema is total by construction, so accepted inputs, defaults, and rejection behavior are unchanged; `tests/unit/work-candidate-query-edge.test.mjs` freezes nine pre-schema normalized-query captures and proves byte-identical outputs, marker passthrough identity, typed-array emission, and unknown-key stripping. The service's normalize helpers remain the single authoritative normalization path, and the sink-local `Array.isArray` guard from 0.33.33.25.8 is retained because protected-scan evidence that the schema alone severs the tainted path cannot precede the merge that carries the schema. The compiler universe grows to 1,036 files with combined strict debt unchanged at 20,587 and explicit `any` at 7; the write-derived ledger stamp advanced itself to `0.33.33.25.10` on the reviewed write, and effective regression assertions remain 18,961 across 347 scripts.
 
@@ -371,11 +377,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18292 |
+| Active regression assertions | 18293 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18961 |
+| Effective assertion floor | 18962 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
