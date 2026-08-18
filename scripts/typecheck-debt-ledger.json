@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 7409,
+      "errorCount": 7295,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3021,12 +3021,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "scripts/adapter-microbenchmark.mjs": [
-          {
-            "code": 7006,
-            "count": 7
           }
         ],
         "scripts/admin-job-observability-regression.mjs": [
@@ -3128,12 +3122,6 @@
         "scripts/better-sqlite3-helper-core-regression.mjs": [
           {
             "code": 2345,
-            "count": 1
-          }
-        ],
-        "scripts/better-sqlite3-install-smoke.mjs": [
-          {
-            "code": 2339,
             "count": 1
           }
         ],
@@ -4591,32 +4579,6 @@
             "count": 1
           }
         ],
-        "scripts/measure-dashboard-performance.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "scripts/migration-compatibility-regression.mjs": [
           {
             "code": 18047,
@@ -5105,24 +5067,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "scripts/public-demo-perimeter-load-smoke.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7034,
-            "count": 2
           }
         ],
         "scripts/quick-action-capture-regression.mjs": [
@@ -7879,24 +7823,6 @@
             "count": 1
           }
         ],
-        "scripts/sqlite-small-office-performance.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 46
-          },
-          {
-            "code": 7031,
-            "count": 12
-          }
-        ],
         "scripts/startup-maintenance-compatibility-regression.mjs": [
           {
             "code": 18047,
@@ -8634,7 +8560,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18543,
+    "errors": 18429,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

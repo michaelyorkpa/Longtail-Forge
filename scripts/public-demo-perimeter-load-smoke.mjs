@@ -5,6 +5,14 @@ import express from "express";
 import { createPublicDemoPerimeterMiddlewares } from "../src/core/public-demo-perimeter.js";
 import { attachRequestContext, configureTrustedProxy } from "../src/core/request-context.js";
 
+/** @typedef {import("node:http").Server} HttpServer */
+/** @typedef {(origin: string, pathName: string, options?: PerimeterRequestOptions) => Promise<PerimeterResponse>} SendRequest */
+/** @typedef {(origin: string, send: SendRequest) => Promise<void>} PerimeterScenario */
+/** @typedef {Record<string, string | number>} PerimeterHeaderMap */
+/** @typedef {string | number} PerimeterBody */
+/** @typedef {{ body?: PerimeterBody, headers?: PerimeterHeaderMap, method?: string }} PerimeterRequestOptions */
+/** @typedef {{ status: number | undefined }} PerimeterResponse */
+
 const settings = Object.freeze({
   clientRequestLimit: 600,
   globalRequestLimit: 2400,
@@ -13,6 +21,7 @@ const settings = Object.freeze({
   searchLimit: 60,
   windowSeconds: 60,
 });
+/** @type {Array<{ name: string, p95Milliseconds: number, requests: number, status: "passed" }>} */
 const results = [];
 
 await runScenario("client_request", async (origin, send) => {
@@ -72,6 +81,13 @@ console.log(JSON.stringify({
   settings,
 }, null, 2));
 
+/**
+ * @param {SendRequest} send
+ * @param {string} origin
+ * @param {string} pathName
+ * @param {number} limit
+ * @param {PerimeterRequestOptions} options
+ */
 async function assertBoundary(send, origin, pathName, limit, options) {
   for (let index = 0; index < limit; index += 1) {
     assert.equal((await send(origin, pathName, options)).status, 200);
@@ -79,6 +95,10 @@ async function assertBoundary(send, origin, pathName, limit, options) {
   assert.equal((await send(origin, pathName, options)).status, 429);
 }
 
+/**
+ * @param {string} name
+ * @param {PerimeterScenario} probe
+ */
 async function runScenario(name, probe) {
   const app = express();
   configureTrustedProxy(app, ["127.0.0.1/32", "::1/128"]);
@@ -89,39 +109,59 @@ async function runScenario(name, probe) {
     recordSecurityEvent: async () => null,
     settings,
   }));
-  app.all("/api/*splat", (_request, response) => response.status(200).json({ ok: true }));
-  const server = await new Promise((resolve) => {
-    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
-  });
+  app.all(
+    "/api/*splat",
+    (
+      /** @type {import("express").Request} */ _request,
+      /** @type {import("express").Response} */ response,
+    ) => {
+      response.status(200).json({ ok: true });
+    },
+  );
+  const server = await createPerimeterServer(app);
   const agent = new http.Agent({ keepAlive: true, maxSockets: 24 });
-  const latencies = [];
-  /** @type {(origin: string, pathName: string, options?: { body?: unknown, headers?: Record<string, string | number>, method?: string }) => Promise<{ status: number | undefined }>} */
-  const send = async (...args) => {
+  const latencies = /** @type {number[]} */ ([]);
+  /** @type {SendRequest} */
+  const send = async (origin, pathName, options = {}) => {
     const started = performance.now();
-    const response = await request(agent, ...args);
+    const response = await request(agent, origin, pathName, options);
     latencies.push(performance.now() - started);
     return response;
   };
   try {
-    await probe(`http://127.0.0.1:${server.address().port}`, send);
+    await probe(`http://127.0.0.1:${resolveListenerPort(server)}`, send);
     latencies.sort((left, right) => left - right);
+    const p95Index = Math.max(0, Math.ceil(latencies.length * 0.95) - 1);
     results.push({
       name,
       requests: latencies.length,
-      p95Milliseconds: Number(latencies[Math.max(0, Math.ceil(latencies.length * 0.95) - 1)].toFixed(2)),
+      p95Milliseconds: Number((latencies[p95Index] ?? 0).toFixed(2)),
       status: "passed",
     });
   } finally {
     agent.destroy();
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await closePerimeterServer(server);
   }
+}
+
+/**
+ * @param {import("node:http").Server} server
+ * @returns {number}
+ */
+function resolveListenerPort(server) {
+  const address = server.address();
+  if (typeof address === "string" || address === null) {
+    throw new Error("Expected an address object with port.");
+  }
+  return address.port;
 }
 
 /**
  * @param {import("node:http").Agent} agent
  * @param {string} origin
  * @param {string} pathName
- * @param {{ body?: unknown, headers?: Record<string, string | number>, method?: string }} [options]
+ * @param {PerimeterRequestOptions} [options]
+ * @returns {Promise<PerimeterResponse>}
  */
 function request(agent, origin, pathName, options = {}) {
   return new Promise((resolve, reject) => {
@@ -136,8 +176,37 @@ function request(agent, origin, pathName, options = {}) {
       response.resume();
       response.on("end", () => resolve({ status: response.statusCode }));
     });
-    outgoing.on("error", reject);
+    outgoing.on("error", (error) => reject(/** @type {unknown} */ (error)));
     if (body !== null) outgoing.write(body);
     outgoing.end();
+  });
+}
+
+/**
+ * @param {import("express").Application} app
+ * @returns {Promise<HttpServer>}
+ */
+function createPerimeterServer(app) {
+  return new Promise((resolve) => {
+    const listener = app.listen(0, "127.0.0.1", () => {
+      resolve(listener);
+    });
+  });
+}
+
+/**
+ * @param {HttpServer} server
+ * @returns {Promise<void>}
+ */
+function closePerimeterServer(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
   });
 }
