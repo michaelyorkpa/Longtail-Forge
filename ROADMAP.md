@@ -60,15 +60,6 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 378 diagnostics across seven files — roughly 2.6 times the 120-145 range that completed comfortably in one session at `0.33.33.28.1`, `.28.2`, and `.28.4`, and the highest operator-risk cohort in the `0.33.33.28` family. It splits at the seam between what is built and published and how that artifact reaches and is served by a host; both children measure inside the proven single-session range. These requirements apply to both: type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses; and preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
 
-### 0.33.33.28.5.1 - Type artifact and container image build and publication
-
-**Model: High Effort** - Image publication binds immutable digests, native execution proof, and registry attestations that deployment later trusts.
-
-- [ ] Close the ~233 diagnostics in `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, and `release/published-container-image.mjs`.
-- [ ] Type artifact manifests and checksums, image index and platform-manifest digests, SBOM/provenance attestation records, and container probe results with named contracts.
-- [ ] Preserve immutable-digest rejection rules, `latest`/tag-only/non-`main` publication refusals, native `better-sqlite3` execution proof, and schema-2 release metadata binding exactly.
-- [ ] Prove through the runtime-artifact boundary and container-deployment owners without changing any published artifact or image shape.
-
 ### 0.33.33.28.5.2 - Type deployment transfer and the reference proxy boundary
 
 **Model: High Effort** - Deployment transfer and the reference proxy are the live host boundary between a verified artifact and served traffic.

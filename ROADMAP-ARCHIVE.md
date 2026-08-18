@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.5.1 - Type artifact and container image build and publication
+
+**Model: High Effort** - Image publication binds immutable digests, native execution proof, and registry attestations that deployment later trusts.
+
+- [x] Closed all 233 diagnostics in `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, and `release/published-container-image.mjs`.
+- [x] Typed artifact manifests and checksums, image index and platform-manifest digests, SBOM and SLSA provenance attestation records, docker inspect and buildx metadata boundaries, container probe responses, and CLI options with named contracts; the published release metadata reuses the excess-property-checked contract from 0.33.33.28.2 through a type-only import rather than a divergent redeclaration, so both describe one schema.
+- [x] Preserved immutable-digest rejection rules, publication refusals, native execution proof, and schema-2 metadata binding exactly: every edit is a JSDoc block or a cast wrapping an existing expression, audited pair by pair against the raw diff, with emitted object literals byte-identical so image-index and metadata key order is unchanged, no fallback operator introduced, and every throw site untouched.
+- [x] Proved through the runtime-artifact boundary regression building a real artifact, the release bucket, and direct exercise of the refusal paths — unknown options, missing flag values, out-of-context artifacts, and malformed artifact filenames all reproduce identical messages and exit codes — without changing any published artifact or image shape; `framework.full-strict-governance` pins the five owners strict-clean, the scripts program falls from 7,150 to 6,916 diagnostics, combined debt from 18,284 to 18,050 with explicit `any` at 7, and effective regression assertions advance to 18,972 across 347 scripts.
+
 ## Version 0.33.33.28.4 - Type demo lifecycle, role journey, and workspace cleanup tooling
 
 **Model: High Effort** - Demo reset and cleanup tooling deletes real workspace state behind operator confirmation.
