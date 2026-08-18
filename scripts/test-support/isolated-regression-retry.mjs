@@ -2,8 +2,34 @@ import { runLimitedItems } from "./regression-runner-scheduler.mjs";
 
 const ISOLATED_RETRY_LIMIT = 1;
 
+/**
+ * @typedef {{ attemptNumber: number, exitCode: number | null, retry: boolean, seconds: number }} AttemptSummary
+ * @typedef {{ attemptNumber?: number, exitCode: number | null, retry?: boolean, seconds?: number }} IsolatedAttemptResult
+ * @typedef {{ attemptNumber: number, retry: boolean }} IsolatedAttemptContext
+ */
+
+/**
+ * @template TItem
+ * @typedef {{ item: TItem, originalItemIndex: number }} PendingIsolatedItem
+ */
+
+/**
+ * @template {IsolatedAttemptResult} TResult
+ * @typedef {TResult & { attemptCount: number, attempts: readonly AttemptSummary[], flakyRecovered: boolean, itemIndex: number, retrySerial: boolean }} RetriedIsolatedResult
+ */
+
+/**
+ * @template TItem
+ * @template {IsolatedAttemptResult} TResult
+ * @param {readonly TItem[]} items
+ * @param {number} concurrency
+ * @param {(item: TItem, originalItemIndex: number, attemptContext: IsolatedAttemptContext) => Promise<TResult>} runItem
+ * @param {{ onRetry?: (item: TItem, originalItemIndex: number, context: IsolatedAttemptContext) => void }} [options]
+ * @returns {Promise<RetriedIsolatedResult<TResult>[]>}
+ */
 async function runIsolatedItemsWithRetry(items, concurrency, runItem, { onRetry = () => {} } = {}) {
   let pending = items.map((item, originalItemIndex) => ({ item, originalItemIndex }));
+  /** @type {Map<number, RetriedIsolatedResult<TResult>>} */
   const finalResults = new Map();
 
   while (pending.length > 0) {
@@ -24,7 +50,7 @@ async function runIsolatedItemsWithRetry(items, concurrency, runItem, { onRetry 
     if (failures.length > 0) {
       const retryResults = [];
       for (const failure of failures) {
-        const pendingItem = pending.find((entry) => entry.originalItemIndex === failure.originalItemIndex);
+        const pendingItem = /** @type {PendingIsolatedItem<TItem>} */ (pending.find((entry) => entry.originalItemIndex === failure.originalItemIndex));
         const attemptNumber = ISOLATED_RETRY_LIMIT + 1;
         onRetry(pendingItem.item, pendingItem.originalItemIndex, { attemptNumber, retry: true });
         const retry = await runItem(pendingItem.item, pendingItem.originalItemIndex, {
@@ -50,6 +76,11 @@ async function runIsolatedItemsWithRetry(items, concurrency, runItem, { onRetry 
     .map(([, result]) => result);
 }
 
+/**
+ * @template {IsolatedAttemptResult} TResult
+ * @param {TResult & { itemIndex?: number, originalItemIndex: number }} result
+ * @returns {RetriedIsolatedResult<TResult>}
+ */
 function singleAttemptResult(result) {
   return {
     ...withoutSchedulerIndexes(result),
@@ -61,6 +92,12 @@ function singleAttemptResult(result) {
   };
 }
 
+/**
+ * @template {IsolatedAttemptResult} TResult
+ * @param {TResult & { itemIndex?: number, originalItemIndex: number }} initial
+ * @param {TResult} retry
+ * @returns {RetriedIsolatedResult<TResult>}
+ */
 function combineAttemptResults(initial, retry) {
   return {
     ...withoutSchedulerIndexes(retry),
@@ -73,6 +110,10 @@ function combineAttemptResults(initial, retry) {
   };
 }
 
+/**
+ * @param {IsolatedAttemptResult} result
+ * @returns {AttemptSummary}
+ */
 function attemptSummary(result) {
   return Object.freeze({
     attemptNumber: result.attemptNumber || 1,
@@ -82,6 +123,11 @@ function attemptSummary(result) {
   });
 }
 
+/**
+ * @template T
+ * @param {T & { itemIndex?: number, originalItemIndex?: number }} result
+ * @returns {T}
+ */
 function withoutSchedulerIndexes(result) {
   const normalized = { ...result };
   delete normalized.itemIndex;

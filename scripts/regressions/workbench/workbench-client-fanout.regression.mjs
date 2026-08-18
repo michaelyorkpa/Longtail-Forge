@@ -139,7 +139,7 @@ try {
   const { closeSqlite, initializeDatabase } = await import("../../../src/db/index.js");
   await initializeDatabase();
   const server = await new Promise((resolve) => {
-    const instance = http.createServer(createApp());
+    const instance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (createApp())));
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
 

@@ -1,7 +1,15 @@
+/** @typedef {import("./regression-manifest.mjs").CoveragePolicy} CoveragePolicy */
+/** @typedef {import("./regression-manifest.mjs").RegressionManifest} RegressionManifest */
+/** @typedef {import("./regression-manifest.mjs").RetiredScript} RetiredScript */
+
 const INVENTORY_START = "<!-- GENERATED REGRESSION INVENTORY START -->";
 const INVENTORY_END = "<!-- GENERATED REGRESSION INVENTORY END -->";
 const INVENTORY_GENERATOR = "node scripts/generate-regression-doc-inventory.mjs";
 
+/**
+ * @param {{ manifest: RegressionManifest, policy: CoveragePolicy }} options
+ * @returns {string}
+ */
 function buildRegressionDocInventory({ manifest, policy }) {
   const credited = manifest.retiredRegressions.filter((entry) => entry.floorCredit === true);
   const activeAreaCounts = manifest.summary.areaCounts;
@@ -74,6 +82,11 @@ function buildRegressionDocInventory({ manifest, policy }) {
   ].join("\n");
 }
 
+/**
+ * @param {string} source
+ * @param {string} block
+ * @returns {string}
+ */
 function replaceRegressionDocInventory(source, block) {
   const startIndex = source.indexOf(INVENTORY_START);
   const endIndex = source.indexOf(INVENTORY_END);
@@ -87,11 +100,22 @@ function replaceRegressionDocInventory(source, block) {
   return `${source.slice(0, startIndex)}${block}${source.slice(endIndex + INVENTORY_END.length)}`;
 }
 
+/**
+ * @param {readonly (string | number)[]} values
+ * @returns {string}
+ */
 function tableRow(values) {
   return `| ${values.join(" | ")} |`;
 }
 
+/**
+ * @template T
+ * @param {readonly T[]} values
+ * @param {(value: T) => string} getKey
+ * @returns {Record<string, number>}
+ */
 function countBy(values, getKey) {
+  /** @type {Record<string, number>} */
   const counts = {};
   for (const value of values) {
     const key = getKey(value);
@@ -100,6 +124,10 @@ function countBy(values, getKey) {
   return counts;
 }
 
+/**
+ * @param {RetiredScript} entry
+ * @returns {readonly string[]}
+ */
 function retirementTags(entry) {
   if (Array.isArray(entry.tags)) {
     return entry.tags;

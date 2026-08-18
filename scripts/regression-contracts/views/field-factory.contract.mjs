@@ -28,9 +28,29 @@ const settingsViews = [
   readText("views/protected/time-tracking-settings.html"),
 ];
 
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * Framework-owned `viewParts` slots the field factory exposes to callers.
+ * @typedef {{ control: FieldNode, controls: FieldNode[], label: FieldNode, message: FieldNode, setMessage: (message: string, options?: { invalid?: boolean }) => void, collectValues: () => Record<string, unknown> }} FieldViewParts
+ */
+/**
+ * A node built by the published field factory: fake-DOM anatomy plus the
+ * factory's `viewParts` slots and validity expandos this contract writes.
+ * @typedef {FakeNode & { viewParts: FieldViewParts, checkValidity?: () => boolean, validationMessage?: string }} FieldNode
+ */
+/**
+ * The published `LongtailForge.view` field-factory catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => FieldNode>} FieldFactorySurface
+ */
+/** @typedef {{ mount: (host: FakeNode) => void }} SettingsHostSurface */
+/**
+ * The published `LongtailForge.settingsRenderer` surface under test.
+ * @typedef {{ renderSection: (host: FakeNode, section: object) => FieldNode, collectPayload: (host: FakeNode) => Record<string, Record<string, unknown>>, showValidationErrors: (host: FakeNode, error: object) => number, clearValidationErrors: (host: FakeNode) => void, validate: (host: FakeNode) => boolean }} SettingsRendererSurface
+ */
+
 const context = createFakeBrowserContext({ globals: { Date, Object, Set, String } });
 vm.runInNewContext(builderSource, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {FieldFactorySurface} */ (context.window.LongtailForge.view);
 
 assert(Object.isFrozen(view), "LongtailForge.view should remain a frozen primitive catalog");
 assert.equal(typeof view.createField, "function", "the field factory should be exported");
@@ -62,7 +82,7 @@ numberField.viewParts.setMessage("Estimate is required.", { invalid: true });
 assert.equal(numberField.viewParts.message.hidden, false);
 assert.equal(numberField.viewParts.message.textContent, "Estimate is required.");
 assert.equal(numberControl.getAttribute("aria-invalid"), "true");
-assert.match(numberControl.getAttribute("aria-describedby"), /-message$/);
+assert.match(/** @type {string} */ (numberControl.getAttribute("aria-describedby")), /-message$/);
 numberField.viewParts.setMessage("");
 assert.equal(numberField.viewParts.message.hidden, true);
 assert.equal(numberControl.getAttribute("aria-invalid"), "false");
@@ -206,14 +226,14 @@ vm.runInNewContext(settingsRendererSource, context, { filename: "settings-render
 vm.runInNewContext(settingsHostSource, context, { filename: "settings-host.js" });
 const workspaceHost = context.document.createElement("main");
 workspaceHost.dataset.settingsHost = "workspace";
-context.window.LongtailForge.settingsHost.mount(workspaceHost);
+/** @type {SettingsHostSurface} */ (context.window.LongtailForge.settingsHost).mount(workspaceHost);
 assert.equal(workspaceHost.querySelectorAll("[data-workspace-settings-form]").length, 1);
 assert.equal(workspaceHost.querySelectorAll("[data-settings-attachment]").length, 1);
 assert.equal(workspaceHost.querySelectorAll("[data-runtime-diagnostics-fieldset]").length, 1);
 assert.equal(workspaceHost.querySelectorAll("[data-job-observability-fieldset]").length, 1);
 const userHost = context.document.createElement("main");
 userHost.dataset.settingsHost = "user";
-context.window.LongtailForge.settingsHost.mount(userHost);
+/** @type {SettingsHostSurface} */ (context.window.LongtailForge.settingsHost).mount(userHost);
 assert.equal(userHost.querySelectorAll("[data-user-theme-form]").length, 1);
 assert.equal(userHost.querySelectorAll("[data-workspace-create-form]").length, 1);
 assert.equal(userHost.querySelectorAll("[data-settings-attachment]").length, 2);
@@ -221,11 +241,11 @@ const moduleHost = context.document.createElement("main");
 moduleHost.dataset.settingsHost = "module";
 moduleHost.dataset.settingsModuleId = "tasks";
 moduleHost.dataset.settingsTitle = "Tasks Settings";
-context.window.LongtailForge.settingsHost.mount(moduleHost);
+/** @type {SettingsHostSurface} */ (context.window.LongtailForge.settingsHost).mount(moduleHost);
 assert.equal(moduleHost.querySelectorAll("[data-module-settings-form]").length, 1);
 assert.equal(moduleHost.querySelectorAll("[data-settings-attachment]").length, 1);
 const settingsContainer = context.document.createElement("div");
-const settingsSection = context.window.LongtailForge.settingsRenderer.renderSection(settingsContainer, {
+const settingsSection = /** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).renderSection(settingsContainer, {
   moduleId: "tasks",
   displayName: "Tasks",
   settings: [
@@ -244,13 +264,13 @@ assert.equal(settingsSection.children[0].tagName, "LEGEND");
 assert.equal(settingsSection.children[0].textContent, "Tasks");
 assert.equal(settingsSection.querySelectorAll("[data-settings-save]").length, 0, "Settings sections should defer saving to the universal page actions");
 const settingFields = settingsSection.querySelectorAll("[data-setting-field]");
-const advancedField = settingFields.find((field) => field.dataset.settingField === "advanced");
-const detailField = settingFields.find((field) => field.dataset.settingField === "detail");
-const limitField = settingFields.find((field) => field.dataset.settingField === "limit");
+const advancedField = /** @type {FieldNode} */ (settingFields.find((field) => field.dataset.settingField === "advanced"));
+const detailField = /** @type {FieldNode} */ (settingFields.find((field) => field.dataset.settingField === "detail"));
+const limitField = /** @type {FieldNode} */ (settingFields.find((field) => field.dataset.settingField === "limit"));
 assert.equal(detailField.hidden, true, "visibleWhen should hide a dependent field when its condition is false");
 assert.equal(detailField.viewParts.control.disabled, true, "hidden dependent fields should be omitted from collection");
 assert.deepEqual(JSON.parse(JSON.stringify(
-  context.window.LongtailForge.settingsRenderer.collectPayload(settingsContainer),
+  /** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).collectPayload(settingsContainer),
 )), {
   tasks: {
     enabled: false,
@@ -263,19 +283,19 @@ advancedField.viewParts.control.checked = true;
 advancedField.viewParts.control.dispatchEvent({ type: "change" });
 assert.equal(detailField.hidden, false, "visibleWhen should reveal a dependent field after the controller changes");
 assert.equal(detailField.viewParts.control.disabled, false);
-assert.equal(context.window.LongtailForge.settingsRenderer.collectPayload(settingsContainer).tasks.detail, "retained");
+assert.equal(/** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).collectPayload(settingsContainer).tasks.detail, "retained");
 
-const surfaced = context.window.LongtailForge.settingsRenderer.showValidationErrors(settingsContainer, {
+const surfaced = /** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).showValidationErrors(settingsContainer, {
   message: "Setting 'tasks.limit' must be a number.",
 });
 assert.equal(surfaced, 1);
 assert.equal(limitField.viewParts.message.textContent, "Setting 'tasks.limit' must be a number.");
 assert.equal(limitField.viewParts.control.getAttribute("aria-invalid"), "true");
-context.window.LongtailForge.settingsRenderer.clearValidationErrors(settingsContainer);
+/** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).clearValidationErrors(settingsContainer);
 assert.equal(limitField.viewParts.control.getAttribute("aria-invalid"), "false");
 limitField.viewParts.control.checkValidity = () => false;
 limitField.viewParts.control.validationMessage = "Choose a valid limit.";
-assert.equal(context.window.LongtailForge.settingsRenderer.validate(settingsContainer), false);
+assert.equal(/** @type {SettingsRendererSurface} */ (context.window.LongtailForge.settingsRenderer).validate(settingsContainer), false);
 assert.equal(limitField.viewParts.message.textContent, "Choose a valid limit.");
 
 console.log("View field factory regression passed.");

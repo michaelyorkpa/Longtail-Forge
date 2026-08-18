@@ -110,7 +110,7 @@ check("Tasks and Notes compose substantial concerns through one canonical entry 
       const concernPath = `src/modules/${moduleId}/${fileName}`;
       const concernSource = read(concernPath);
       assert.match(entrySource, new RegExp(`import \\{ ${bindingName} \\} from "\\./${fileName.replaceAll(".", "\\.")}";`));
-      assert.ok(concernSource.split(/\r?\n/).length >= minimumLines, `${concernPath} should own substantial content`);
+      assert.ok(concernSource.split(/\r?\n/).length >= /** @type {number} */ (minimumLines), `${concernPath} should own substantial content`);
       assert.match(concernSource, new RegExp(`export \\{ ${bindingName} \\};`));
       assert.doesNotMatch(concernSource, /createModuleEntry|moduleEntry/, `${concernPath} must not become another registry entry`);
     }

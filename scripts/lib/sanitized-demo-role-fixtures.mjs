@@ -16,6 +16,64 @@ export const RT_LTF_DEMO_ROLE_FIXTURE_BINDING = Object.freeze({
   target: "rt-ltf-demo",
 });
 
+/**
+ * One shipped sanitized-demo role-test identity (without its password).
+ * @typedef {object} SanitizedDemoRoleFixture
+ * @property {string} displayName
+ * @property {boolean} publicVisitor
+ * @property {string} roleId
+ * @property {string} scopeKey
+ * @property {string} scopeType
+ * @property {string} username
+ */
+
+/**
+ * A role fixture joined with its resolved seed password.
+ * @typedef {SanitizedDemoRoleFixture & { password: string }} CredentialedSanitizedDemoRoleFixture
+ */
+
+/**
+ * Exact named-demo credential binding.
+ * @typedef {object} RoleFixtureCredentialBinding
+ * @property {string} publicUrl
+ * @property {string} target
+ */
+
+/**
+ * The resolved seed-target subset the role fixtures inspect.
+ * @typedef {object} RoleFixtureSeedTarget
+ * @property {string} profile
+ */
+
+/**
+ * Candidate list probed with possibly-absent lookup values.
+ * @typedef {readonly (string | null | undefined)[]} OptionalStringList
+ */
+
+/**
+ * Credential lookup keyed by role id; get() is used only with shipped ids.
+ * @typedef {{ get(roleId: string): Readonly<CredentialedSanitizedDemoRoleFixture> } & Map<string, Readonly<CredentialedSanitizedDemoRoleFixture>>} SanitizedDemoRoleCredentialMap
+ */
+
+/**
+ * Bootstrap-credential source (the loaded fixture set or a compatible stub).
+ * @typedef {object} SanitizedDemoBootstrapSource
+ * @property {SanitizedDemoRoleCredentialMap} [credentials]
+ */
+
+/**
+ * Validated role credential document shape.
+ * @typedef {object} RoleCredentialDocument
+ * @property {number} version
+ * @property {Record<string, string>} passwords
+ * @property {{ publicUrl: string, target: string }} [binding]
+ */
+
+/**
+ * A role id with a published public-demo visitor password.
+ * @typedef {keyof typeof PUBLIC_DEMO_VISITOR_PASSWORDS} PublicDemoVisitorRoleId
+ */
+
 export const SANITIZED_DEMO_ROLE_FIXTURES = Object.freeze([
   roleFixture("super_admin", "Role Fixture Super Administrator", "role-super-admin@example.test", "all", "all", false),
   roleFixture("workspace_admin", "Role Fixture Workspace Administrator", "role-workspace-admin@example.test", "workspace", "northwind", true),
@@ -30,6 +88,10 @@ const EXPECTED_ROLE_IDS = Object.freeze(SANITIZED_DEMO_ROLE_FIXTURES.map((fixtur
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PLACEHOLDER_PATTERN = /(?:<[^>]+>|change.?me|default|example.?password|replace.?me|shared.?password|longtail.?forge|super.?admin)/i;
 
+/**
+ * Load and validate the local role-test credential set for a seed target.
+ * @param {{ cwd?: string, credentialBinding?: RoleFixtureCredentialBinding | null, env?: NodeJS.ProcessEnv, mode?: string | null, target?: RoleFixtureSeedTarget | null }} [options]
+ */
 export async function loadSanitizedDemoRoleFixtures({
   cwd = process.cwd(),
   credentialBinding = null,
@@ -39,15 +101,15 @@ export async function loadSanitizedDemoRoleFixtures({
 } = {}) {
   const credentialFileConfigured = Boolean(String(env[ROLE_CREDENTIALS_FILE_ENV] || "").trim());
 
-  if (![DEVELOPMENT_PROFILE, DEMO_PROFILE].includes(target?.profile)) {
+  if (!/** @type {OptionalStringList} */ ([DEVELOPMENT_PROFILE, DEMO_PROFILE]).includes(target?.profile)) {
     if (mode || credentialFileConfigured) {
       throw new Error("Role-test identities are available only for the explicit pretty development/demo profiles.");
     }
     return null;
   }
 
-  if (![LOCAL_ROLE_FIXTURE_MODE, PUBLIC_DEMO_ROLE_FIXTURE_MODE].includes(mode)) {
-    throw new Error(`${target.profile} seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} or ${PUBLIC_DEMO_ROLE_FIXTURE_MODE}.`);
+  if (!/** @type {OptionalStringList} */ ([LOCAL_ROLE_FIXTURE_MODE, PUBLIC_DEMO_ROLE_FIXTURE_MODE]).includes(mode)) {
+    throw new Error(`${/** @type {RoleFixtureSeedTarget} */ (target).profile} seeding requires --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} or ${PUBLIC_DEMO_ROLE_FIXTURE_MODE}.`);
   }
 
   assertLocalOnlyEnvironment(env);
@@ -67,13 +129,14 @@ export async function loadSanitizedDemoRoleFixtures({
     usesPublicDemoProfile ? credentialBinding : null,
     usesPublicDemoProfile,
   );
-  const credentials = new Map();
+  const credentials = /** @type {SanitizedDemoRoleCredentialMap} */ (new Map());
+  /** @type {Set<string>} */
   const normalizedPasswords = new Set();
 
   for (const fixture of SANITIZED_DEMO_ROLE_FIXTURES) {
     const password = String(
       usesPublicDemoProfile && fixture.publicVisitor
-        ? PUBLIC_DEMO_VISITOR_PASSWORDS[fixture.roleId]
+        ? PUBLIC_DEMO_VISITOR_PASSWORDS[/** @type {PublicDemoVisitorRoleId} */ (fixture.roleId)]
         : parsed.passwords[fixture.roleId] || "",
     );
     assertStrongUniquePassword(password, fixture, normalizedPasswords);
@@ -90,10 +153,15 @@ export async function loadSanitizedDemoRoleFixtures({
     credentialBinding: credentialBinding ? Object.freeze({ ...credentialBinding }) : null,
     fixtures: SANITIZED_DEMO_ROLE_FIXTURES,
     mode,
-    usesBootstrapSuperAdmin: target.profile === DEMO_PROFILE,
+    usesBootstrapSuperAdmin: /** @type {RoleFixtureSeedTarget} */ (target).profile === DEMO_PROFILE,
   });
 }
 
+/**
+ * Export the sanitized-demo Super Administrator bootstrap credentials.
+ * @param {SanitizedDemoBootstrapSource | null | undefined} roleFixtures
+ * @param {NodeJS.ProcessEnv} [env]
+ */
 export function configureSanitizedDemoBootstrap(roleFixtures, env = process.env) {
   const superAdmin = roleFixtures?.credentials?.get("super_admin");
   if (!superAdmin) {
@@ -104,10 +172,27 @@ export function configureSanitizedDemoBootstrap(roleFixtures, env = process.env)
   env.SUPER_ADMIN_PASSWORD = superAdmin.password;
 }
 
+/**
+ * Build one frozen role fixture.
+ * @param {string} roleId
+ * @param {string} displayName
+ * @param {string} username
+ * @param {string} scopeType
+ * @param {string} scopeKey
+ * @param {boolean} publicVisitor
+ * @returns {Readonly<SanitizedDemoRoleFixture>}
+ */
 function roleFixture(roleId, displayName, username, scopeType, scopeKey, publicVisitor) {
   return Object.freeze({ displayName, publicVisitor, roleId, scopeKey, scopeType, username });
 }
 
+/**
+ * Parse and strictly validate the role credential document.
+ * @param {string} source
+ * @param {RoleFixtureCredentialBinding | null} credentialBinding
+ * @param {boolean} usesPublicDemoProfile
+ * @returns {RoleCredentialDocument}
+ */
 function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfile) {
   let parsed;
   try {
@@ -160,6 +245,11 @@ function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfil
   return parsed;
 }
 
+/**
+ * Require the exact bound rt-ltf-demo profile for public-demo credentials.
+ * @param {RoleFixtureSeedTarget | null | undefined} target
+ * @param {RoleFixtureCredentialBinding | null | undefined} credentialBinding
+ */
 function assertExactPublicDemoBinding(target, credentialBinding) {
   if (
     target?.profile !== DEMO_PROFILE
@@ -171,6 +261,10 @@ function assertExactPublicDemoBinding(target, credentialBinding) {
   }
 }
 
+/**
+ * Refuse role-test identities outside a local development environment.
+ * @param {NodeJS.ProcessEnv} env
+ */
 function assertLocalOnlyEnvironment(env) {
   if (String(env.LONGTAIL_ENV || "development").trim().toLowerCase() !== "development") {
     throw new Error("Sanitized-demo role-test identities require LONGTAIL_ENV=development.");
@@ -193,6 +287,10 @@ function assertLocalOnlyEnvironment(env) {
   }
 }
 
+/**
+ * Require a real, untracked, ignore-covered local credential file.
+ * @param {string} credentialsFile absolute credential file path
+ */
 async function assertProtectedLocalCredentialFile(credentialsFile) {
   const fileInfo = await fs.lstat(credentialsFile).catch((error) => {
     if (error?.code === "ENOENT") {
@@ -236,6 +334,12 @@ async function assertProtectedLocalCredentialFile(credentialsFile) {
   }
 }
 
+/**
+ * Enforce the strong, unique, non-placeholder role password policy.
+ * @param {string} password
+ * @param {SanitizedDemoRoleFixture} fixture
+ * @param {ReadonlySet<string>} normalizedPasswords passwords already accepted
+ */
 function assertStrongUniquePassword(password, fixture, normalizedPasswords) {
   if (password.length < 16) {
     throw new Error(`Password for ${fixture.roleId} must contain at least 16 characters.`);
@@ -252,6 +356,11 @@ function assertStrongUniquePassword(password, fixture, normalizedPasswords) {
   }
 }
 
+/**
+ * Repository-relative display form of the credential path.
+ * @param {string} credentialsFile
+ * @returns {string}
+ */
 function displayCredentialPath(credentialsFile) {
   const relative = path.relative(REPOSITORY_ROOT, credentialsFile);
   if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {

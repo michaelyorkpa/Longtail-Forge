@@ -35,12 +35,20 @@ for (const helperName of [
   assert.match(renderer, new RegExp(`view\\.${helperName}`), `Renderer should use LongtailForge.view.${helperName}`);
 }
 
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeLongtailForgeGlobal} FakeLongtailForgeGlobal */
+/**
+ * The published `LongtailForge.view` renderer catalog under test; every helper
+ * exercised here builds fake-DOM shell anatomy.
+ * @typedef {Record<string, (...args: unknown[]) => FakeNode>} RendererViewSurface
+ */
+
 const context = createFakeBrowserContext();
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
-const { view } = context.window.LongtailForge;
+const { view } = /** @type {FakeLongtailForgeGlobal & { view: RendererViewSurface }} */ (context.window.LongtailForge);
 assert.equal(typeof view.renderSurface, "function", "LongtailForge.view.renderSurface should be exposed");
 assert.equal(typeof view.createSlideOutSidebarController, "function", "LongtailForge.view should expose the shared slide-out lifecycle controller");
 view.registerBehavior("sample.library", ({ container }) => {

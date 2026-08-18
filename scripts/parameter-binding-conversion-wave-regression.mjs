@@ -75,11 +75,11 @@ function assertConvertedSourceShape() {
     assert.match(source, /\bdb\.(?:query|get|run|transaction)\b/, `${label} should use the adapter db path`);
   }
 
-  assert.match(convertedSources.get("users.repo"), /USER_REMOVAL_STATEMENTS[\s\S]*transaction\.run/, "user cleanup should be transaction-backed bound statements");
-  assert.match(convertedSources.get("workspaces.repo"), /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use adapter transactions");
-  assert.match(convertedSources.get("permissions.repo"), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
-  assert.match(convertedSources.get("settings.repo"), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
-  assert.match(convertedSources.get("app-settings.repo"), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("users.repo")), /USER_REMOVAL_STATEMENTS[\s\S]*transaction\.run/, "user cleanup should be transaction-backed bound statements");
+  assert.match(/** @type {string} */ (convertedSources.get("workspaces.repo")), /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("permissions.repo")), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("settings.repo")), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("app-settings.repo")), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
 }
 
 async function assertConvertedRepositoriesRuntime() {

@@ -14,6 +14,49 @@ const ALLOWED_LICENSES = new Set([
 ]);
 const LICENSE_FILE_PATTERN = /^(?:licen[sc]e|copying|notice)(?:\..*)?$/i;
 
+/**
+ * Result of checking THIRD_PARTY_NOTICES.md against the generated inventory.
+ * @typedef {object} ThirdPartyNoticeStatus
+ * @property {number} componentCount
+ * @property {boolean} current
+ * @property {string} message
+ */
+
+/**
+ * One reviewed shipped component or bundled asset.
+ * @typedef {object} ThirdPartyNoticeRecord
+ * @property {string} copyright
+ * @property {string} license
+ * @property {string} licenseHash
+ * @property {string} licenseText
+ * @property {string} name
+ * @property {string} version
+ */
+
+/**
+ * Hand-reviewed metadata override for one package@version.
+ * @typedef {object} ReviewedLicenseOverride
+ * @property {string} [copyright]
+ * @property {string} [license]
+ * @property {string} [licenseText]
+ * @property {string} [licenseTextFrom]
+ */
+
+/**
+ * Components sharing one exact license text.
+ * @typedef {object} LicenseTextGroup
+ * @property {string[]} components
+ * @property {string} hash
+ * @property {string} text
+ */
+
+/**
+ * The package-lock subset the notice generator reads.
+ * @typedef {object} PackageLockDocument
+ * @property {Record<string, { dev?: boolean, license?: string }>} [packages]
+ */
+
+/** @type {Readonly<Record<string, ReviewedLicenseOverride>>} */
 const REVIEWED_OVERRIDES = Object.freeze({
   "argparse@2.0.1": Object.freeze({
     copyright: "Python Software Foundation and contributors",
@@ -39,6 +82,11 @@ const REVIEWED_OVERRIDES = Object.freeze({
   }),
 });
 
+/**
+ * Check the checked-in notices file against the generated inventory.
+ * @param {{ rootDir?: string }} [options]
+ * @returns {ThirdPartyNoticeStatus}
+ */
 function inspectThirdPartyNotices({ rootDir = process.cwd() } = {}) {
   try {
     const expected = generateThirdPartyNotices({ rootDir });
@@ -67,17 +115,25 @@ function inspectThirdPartyNotices({ rootDir = process.cwd() } = {}) {
     return Object.freeze({
       componentCount: 0,
       current: false,
-      message: `Third-party notice inventory could not be verified: ${error.message}`,
+      message: `Third-party notice inventory could not be verified: ${/** @type {Error} */ (error).message}`,
     });
   }
 }
 
+/**
+ * Regenerate and write THIRD_PARTY_NOTICES.md.
+ * @param {{ rootDir?: string }} [options]
+ */
 function writeThirdPartyNotices({ rootDir = process.cwd() } = {}) {
   const result = generateThirdPartyNotices({ rootDir });
   writeFileSync(path.join(rootDir, NOTICES_PATH), result.content, "utf8");
   return result;
 }
 
+/**
+ * Generate the full notices document from the production dependency closure.
+ * @param {{ rootDir?: string }} [options]
+ */
 function generateThirdPartyNotices({ rootDir = process.cwd() } = {}) {
   const lock = JSON.parse(readFileSync(path.join(rootDir, LOCK_PATH), "utf8"));
   const packageRecords = productionPackageRecords(lock, rootDir);
@@ -107,7 +163,7 @@ function generateThirdPartyNotices({ rootDir = process.cwd() } = {}) {
     "| Component | Version | License | Copyright holder(s) | License text |",
     "| --- | --- | --- | --- | --- |",
     ...records.map((record) => {
-      const reference = textReferenceByHash.get(record.licenseHash);
+      const reference = /** @type {string} */ (textReferenceByHash.get(record.licenseHash));
       return `| ${escapeTable(record.name)} | ${escapeTable(record.version)} | ${escapeTable(record.license)} | ${escapeTable(record.copyright)} | [${reference}](#${reference.toLowerCase()}) |`;
     }),
     "",
@@ -146,7 +202,14 @@ function generateThirdPartyNotices({ rootDir = process.cwd() } = {}) {
   });
 }
 
+/**
+ * Build reviewed records for every shipped production package.
+ * @param {PackageLockDocument} lock
+ * @param {string} rootDir
+ * @returns {ThirdPartyNoticeRecord[]}
+ */
 function productionPackageRecords(lock, rootDir) {
+  /** @type {Map<string, ThirdPartyNoticeRecord>} */
   const byComponent = new Map();
   for (const [packagePath, lockMetadata] of Object.entries(lock.packages || {})) {
     if (!packagePath || lockMetadata?.dev === true) {
@@ -158,6 +221,7 @@ function productionPackageRecords(lock, rootDir) {
     if (byComponent.has(key)) {
       continue;
     }
+    /** @type {ReviewedLicenseOverride} */
     const override = REVIEWED_OVERRIDES[key] || {};
     const license = override.license || normalizeLicense(packageJson.license || lockMetadata.license);
     if (!ALLOWED_LICENSES.has(license)) {
@@ -179,6 +243,11 @@ function productionPackageRecords(lock, rootDir) {
   return [...byComponent.values()];
 }
 
+/**
+ * Resolve the reviewed license text for one package.
+ * @param {{ key: string, override: ReviewedLicenseOverride, packageDir: string, rootDir: string }} input
+ * @returns {string}
+ */
 function resolveLicenseText({ key, override, packageDir, rootDir }) {
   if (override.licenseText) {
     return override.licenseText;
@@ -193,6 +262,11 @@ function resolveLicenseText({ key, override, packageDir, rootDir }) {
   return readLicenseText(path.join(packageDir, licenseFile));
 }
 
+/**
+ * Record for the bundled Lucide-derived inline SVG subset.
+ * @param {string} rootDir
+ * @returns {ThirdPartyNoticeRecord}
+ */
 function lucideRecord(rootDir) {
   const source = normalizeNewlines(readFileSync(path.join(rootDir, LUCIDE_NOTICE_PATH), "utf8"));
   const marker = "## License text\n\n";
@@ -209,6 +283,11 @@ function lucideRecord(rootDir) {
   });
 }
 
+/**
+ * Build one normalized, hashed inventory record.
+ * @param {{ copyright: string, license: string, licenseText: string, name: string, version: string }} input
+ * @returns {ThirdPartyNoticeRecord}
+ */
 function createRecord({ copyright, license, licenseText, name, version }) {
   const text = normalizeNewlines(licenseText)
     .split("\n")
@@ -225,7 +304,13 @@ function createRecord({ copyright, license, licenseText, name, version }) {
   });
 }
 
+/**
+ * Group records by identical license text, ordered by first component.
+ * @param {readonly ThirdPartyNoticeRecord[]} records
+ * @returns {LicenseTextGroup[]}
+ */
 function groupLicenseTexts(records) {
+  /** @type {Map<string, LicenseTextGroup>} */
   const groups = new Map();
   for (const record of records) {
     if (!groups.has(record.licenseHash)) {
@@ -235,7 +320,7 @@ function groupLicenseTexts(records) {
         text: record.licenseText,
       });
     }
-    groups.get(record.licenseHash).components.push(`${record.name}@${record.version}`);
+    /** @type {LicenseTextGroup} */ (groups.get(record.licenseHash)).components.push(`${record.name}@${record.version}`);
   }
   return [...groups.values()]
     .map((group) => ({
@@ -245,6 +330,11 @@ function groupLicenseTexts(records) {
     .sort((left, right) => left.components[0].localeCompare(right.components[0]));
 }
 
+/**
+ * Collect the unique copyright lines from a license text.
+ * @param {string} text
+ * @returns {string}
+ */
 function extractCopyright(text) {
   const lines = text
     .split("\n")
@@ -254,10 +344,20 @@ function extractCopyright(text) {
   return [...new Set(lines)].join("; ");
 }
 
+/**
+ * Read and normalize a license text file.
+ * @param {string} filePath
+ * @returns {string}
+ */
 function readLicenseText(filePath) {
   return normalizeNewlines(readFileSync(filePath, "utf8")).replace(/^\uFEFF/, "").trim();
 }
 
+/**
+ * Normalize a raw license identifier, unwrapping single-expression parens.
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeLicense(value) {
   if (typeof value === "string") {
     return value.replace(/^\((.*)\)$/, "$1");
@@ -265,14 +365,30 @@ function normalizeLicense(value) {
   return "";
 }
 
+/**
+ * Convert all newline forms to bare LF.
+ * @param {string} value
+ * @returns {string}
+ */
 function normalizeNewlines(value) {
   return String(value).replace(/\r\n?/g, "\n");
 }
 
+/**
+ * Order records by name@version.
+ * @param {ThirdPartyNoticeRecord} left
+ * @param {ThirdPartyNoticeRecord} right
+ * @returns {number}
+ */
 function compareRecords(left, right) {
   return `${left.name}@${left.version}`.localeCompare(`${right.name}@${right.version}`);
 }
 
+/**
+ * Escape a value for a one-line Markdown table cell.
+ * @param {string} value
+ * @returns {string}
+ */
 function escapeTable(value) {
   return String(value)
     .replace(/\\/g, "\\\\")
@@ -283,6 +399,11 @@ function escapeTable(value) {
     .replace(/\r?\n/g, " ");
 }
 
+/**
+ * The standard MIT license text for one copyright holder.
+ * @param {string} holder
+ * @returns {string}
+ */
 function standardMitLicense(holder) {
   return `MIT License
 

@@ -11,6 +11,18 @@ const DOCUMENTATION_TREE_CONFIGURATION_PATTERNS = Object.freeze([
 ]);
 const CHANGE_COMPARISONS = new Set(["merge-base", "range"]);
 
+/**
+ * One parsed `git diff --name-status -z` entry.
+ * @typedef {object} GitHubChangeEntry
+ * @property {readonly string[]} paths
+ * @property {string} status
+ */
+
+/**
+ * Normalize a git-reported path to forward slashes without a leading "./".
+ * @param {string} filePath
+ * @returns {string}
+ */
 function normalizeGitHubChangePath(filePath) {
   return String(filePath || "")
     .trim()
@@ -18,6 +30,11 @@ function normalizeGitHubChangePath(filePath) {
     .replace(/^\.\//, "");
 }
 
+/**
+ * Whether the path belongs to the runtime deployment artifact.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isRuntimeArtifactPath(filePath) {
   const normalized = normalizeGitHubChangePath(filePath);
   return RUNTIME_PATHS.some((runtimePath) => (
@@ -25,11 +42,21 @@ function isRuntimeArtifactPath(filePath) {
   ));
 }
 
+/**
+ * Whether the path is part of the runtime Help content tree.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isRuntimeHelpPath(filePath) {
   const normalized = normalizeGitHubChangePath(filePath);
   return normalized === "help" || normalized.startsWith("help/");
 }
 
+/**
+ * Whether the path is GitHub-only documentation with no runtime effect.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isGitHubOnlyDocumentationPath(filePath) {
   const normalized = normalizeGitHubChangePath(filePath);
   if (
@@ -48,10 +75,16 @@ function isGitHubOnlyDocumentationPath(filePath) {
     || ordinaryDocumentationTreePath;
 }
 
+/**
+ * Parse NUL-delimited `git diff --name-status -z` output into entries.
+ * @param {string} [output]
+ * @returns {readonly GitHubChangeEntry[]}
+ */
 function parseNameStatusDiff(output = "") {
   const tokens = String(output).split("\0");
   if (tokens.at(-1) === "") tokens.pop();
 
+  /** @type {GitHubChangeEntry[]} */
   const entries = [];
   for (let index = 0; index < tokens.length;) {
     const status = tokens[index++];
@@ -76,6 +109,10 @@ function parseNameStatusDiff(output = "") {
   return Object.freeze(entries);
 }
 
+/**
+ * Classify parsed diff entries into the change-routing summary.
+ * @param {ReadonlyArray<{ paths?: readonly string[], status?: string }>} [entries]
+ */
 function classifyGitHubChanges(entries = []) {
   const normalizedEntries = entries.map((entry) => Object.freeze({
     paths: Object.freeze((entry.paths || []).map(normalizeGitHubChangePath)),
@@ -103,6 +140,10 @@ function classifyGitHubChanges(entries = []) {
   });
 }
 
+/**
+ * Diff the requested range and classify the complete change set.
+ * @param {{ baseSha?: string, comparison?: string, cwd?: string, headRef?: string }} [options]
+ */
 function collectGitHubChangeClassification({
   baseSha = process.env.LTF_CHANGE_BASE_SHA || process.env.LTF_REGRESSION_BASE_SHA,
   comparison = process.env.LTF_CHANGE_COMPARISON || "merge-base",

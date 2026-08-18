@@ -71,9 +71,9 @@ describe("fake-DOM test support", () => {
     const dialog = document.createElement("dialog");
     /** @type {string[]} */
     const calls = [];
-    dialog.addEventListener("cancel", (/** @type {ReturnType<typeof createFakeEvent>} */ event) => {
+    dialog.addEventListener("cancel", (/** @type {import("../../scripts/test-support/fake-dom.mjs").FakeDomEvent} */ event) => {
       calls.push("persistent");
-      event.preventDefault();
+      event.preventDefault?.();
     });
     dialog.addEventListener("cancel", () => calls.push("once"), { once: true });
 

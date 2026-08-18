@@ -238,6 +238,27 @@ assert.equal(
   0,
   "the server/test program's ledger section is retired at zero and may never regain debt",
 );
+const scriptInfrastructureDebt = Object.keys(ledger.programs.scripts.diagnostics)
+  .filter((filePath) => filePath.startsWith("scripts/lib/") || filePath.startsWith("scripts/test-support/"));
+assert.deepEqual(
+  scriptInfrastructureDebt,
+  [],
+  "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
+);
+for (const runnerOwnerPath of [
+  "scripts/agent-brief.mjs",
+  "scripts/generate-regression-doc-inventory.mjs",
+  "scripts/generate-regression-manifest.mjs",
+  "scripts/regression-suite.mjs",
+  "scripts/run-changed-regressions.mjs",
+  "scripts/run-closeout.mjs",
+  "scripts/run-playwright-e2e.mjs",
+  "scripts/run-regressions.mjs",
+  "scripts/run-slice-verification.mjs",
+  "scripts/run-timed-stage.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[runnerOwnerPath], undefined, `${runnerOwnerPath} must stay strict-clean after checkpoint 0.33.33.27`);
+}
 for (const rootRuntimeOwnerPath of [
   "src/config.js",
   "src/core/request-context.js",

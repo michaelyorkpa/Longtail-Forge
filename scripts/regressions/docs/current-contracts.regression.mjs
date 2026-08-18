@@ -58,8 +58,8 @@ const contracts = [
 ];
 
 for (const contract of contracts) {
-  for (const pattern of contract.matches || []) assert.match(contract.source, pattern);
-  for (const pattern of contract.excludes || []) assert.doesNotMatch(contract.source, pattern);
+  for (const pattern of contract.matches || []) assert.match(/** @type {string} */ (contract.source), pattern);
+  for (const pattern of contract.excludes || []) assert.doesNotMatch(/** @type {string} */ (contract.source), pattern);
 }
 
 console.log("Current documentation static contracts passed.");

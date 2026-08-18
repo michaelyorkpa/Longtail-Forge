@@ -311,7 +311,7 @@ function readWorkspaceNames(targetDatabase) {
 function readForeignKeyViolations(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
-    return database.pragma("foreign_key_check");
+    return /** @type {unknown[]} */ (database.pragma("foreign_key_check"));
   } finally {
     database.close();
   }

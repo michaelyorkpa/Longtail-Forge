@@ -52,7 +52,7 @@ context.window.location = {
   href: "http://longtail.test/tasks.html",
   origin: "http://longtail.test",
   replace(path) {
-    context.replacedLocations.push(path);
+    /** @type {string[]} */ (context.replacedLocations).push(path);
   },
 };
 context.window.fetch = async () => ({ status: context.responseStatus });
@@ -72,7 +72,12 @@ editor.dataset.moduleEditor = "";
 editor.showModal();
 context.document.body.appendChild(editor);
 
-context.sessionAuthContract.installSessionAuthWarningGuard();
+/**
+ * The extracted navigation.js session-warning contract installed on the vm
+ * context by the executable source above.
+ * @typedef {{ installSessionAuthWarningGuard: () => void, showSessionAuthWarning: Function }} SessionAuthContract
+ */
+/** @type {SessionAuthContract} */ (context.sessionAuthContract).installSessionAuthWarningGuard();
 const firstRequest = context.window.fetch("/api/tasks/one", { method: "PATCH" });
 await settleMicrotasks();
 
@@ -80,7 +85,7 @@ let warnings = context.document.body.children.filter((child) => child.dataset.fr
 assert.equal(warnings.length, 1, "A protected API 401 should open one session warning.");
 assert.equal(warnings[0].open, true, "The session warning should be open in the top layer.");
 assert.equal(editor.open, true, "Opening the warning should preserve the module editor beneath it.");
-assert.equal(context.document.activeElement.textContent, "Sign in", "The warning should focus its clear recovery action.");
+assert.equal(context.document.activeElement?.textContent, "Sign in", "The warning should focus its clear recovery action.");
 
 const secondRequest = context.window.fetch("/api/notes/two", { method: "PUT" });
 await settleMicrotasks();

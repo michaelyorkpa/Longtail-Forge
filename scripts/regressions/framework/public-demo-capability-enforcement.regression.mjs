@@ -47,7 +47,7 @@ const outboundCapabilityIds = [
 for (const capabilityId of outboundCapabilityIds) {
   assert.ok(PUBLIC_DEMO_ABSENT_CAPABILITY_IDS.includes(capabilityId));
   let outboundDenial = null;
-  requirePublicDemoCapability(capabilityId, { demoEnabled: true })({}, {}, (error) => {
+  requirePublicDemoCapability(capabilityId, { demoEnabled: true })(/** @type {import("express").Request} */ (/** @type {unknown} */ ({})), {}, (error) => {
     outboundDenial = error;
   });
   assert.equal(outboundDenial?.code, PUBLIC_DEMO_DENIAL_CODE);
@@ -122,7 +122,7 @@ assert.match(runnerSource, /assertRegisteredJobPublicDemoCapabilityAllowed\(job\
 
 let denialError = null;
 requirePublicDemoCapability("administration.accounts", { demoEnabled: true })(
-  {},
+  /** @type {import("express").Request} */ (/** @type {unknown} */ ({})),
   {},
   (error) => {
     denialError = error;

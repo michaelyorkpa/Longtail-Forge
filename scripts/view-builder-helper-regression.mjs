@@ -15,9 +15,24 @@ assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorag
 assert.match(helper, /global\.LongtailForge = root/, "view builder should expose the shared namespace");
 assert.match(helper, /root\.view = Object\.freeze/, "view builder namespace should be frozen");
 
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * Framework-owned `viewParts` slots the published helpers expose to callers.
+ * @typedef {{ body: ViewBuilderNode, footer: ViewBuilderNode, status: ViewBuilderNode }} ViewBuilderParts
+ */
+/**
+ * A node built by the published `LongtailForge.view` helpers: fake-DOM anatomy
+ * plus the framework-owned `viewParts` slots.
+ * @typedef {FakeNode & { viewParts: ViewBuilderParts }} ViewBuilderNode
+ */
+/**
+ * The published `LongtailForge.view` helper catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => ViewBuilderNode>} ViewBuilderHelpers
+ */
+
 const context = createFakeBrowserContext();
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {ViewBuilderHelpers} */ (context.window.LongtailForge.view);
 
 for (const helperName of [
   "collectFieldValues",

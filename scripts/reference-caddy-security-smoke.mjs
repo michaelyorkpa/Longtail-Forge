@@ -888,14 +888,14 @@ function assertProductionJsonLogs(chunks, secrets) {
 function readLatestLoginSecurityEvent(dbFile) {
   const database = new Database(dbFile, { readonly: true });
   try {
-    return database.prepare(`
+    return /** @type {{ action: string, ip_address: string }} */ (database.prepare(`
 SELECT action, ip_address
 FROM audit_logs
 WHERE change_type = 'security'
   AND action = 'security.authentication.login_succeeded'
 ORDER BY rowid DESC
 LIMIT 1;
-`).get();
+`).get());
   } finally {
     database.close();
   }

@@ -134,6 +134,6 @@ function assertHostScripts(path, patterns) {
   for (const pattern of patterns) {
     const match = html.slice(cursor).match(pattern);
     assert.ok(match, `${path} should load ${pattern} after prior required scripts`);
-    cursor += match.index + match[0].length;
+    cursor += /** @type {number} */ (match.index) + match[0].length;
   }
 }

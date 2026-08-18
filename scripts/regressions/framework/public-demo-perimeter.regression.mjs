@@ -218,11 +218,16 @@ async function withServer(options, run) {
   }
 }
 
+/**
+ * @param {string} origin
+ * @param {string} pathName
+ * @param {{ body?: unknown, headers?: Record<string, string | number>, method?: string }} [options]
+ */
 function request(origin, pathName, options = {}) {
   return new Promise((resolve, reject) => {
     const target = new URL(pathName, origin);
     const body = options.body === undefined ? null : String(options.body);
-    const headers = { ...(options.headers || {}) };
+    const headers = /** @type {Record<string, string | number>} */ ({ ...(options.headers || {}) });
     if (body !== null && !Object.hasOwn(headers, "content-length")) {
       headers["content-length"] = Buffer.byteLength(body);
     }

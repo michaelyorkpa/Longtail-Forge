@@ -23,6 +23,22 @@ import { filterRegressionBuckets, parseRegressionCliArgs } from "./lib/regressio
 import { loadStaticRegressionExecutionPlan } from "./lib/static-regression-execution.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
+/**
+ * @typedef {import("./lib/regression-runner-options.mjs").RegressionBucket} RegressionBucket
+ * @typedef {import("./lib/regression-runner-options.mjs").RegressionEntry} RegressionEntry
+ * @typedef {import("./lib/regression-runner-options.mjs").RegressionCliOptions} RegressionCliOptions
+ * @typedef {import("./lib/static-regression-execution.mjs").StaticRegressionExecutionPlan} StaticExecutionPlan
+ * @typedef {import("./test-support/isolated-regression-retry.mjs").AttemptSummary} AttemptSummary
+ * @typedef {Awaited<ReturnType<typeof prepareRegressionBaselineDatabase>>} RegressionBaseline
+ * @typedef {{ code?: string, message?: string, stack?: string }} ErrorLike
+ * @typedef {{ attemptNumber?: number, repeatCount: number, retry?: boolean, runIndex: number }} RunContext
+ * @typedef {{ env: NodeJS.ProcessEnv, verifiedBaselineHandshake: unknown }} ScriptLaunch
+ * @typedef {{ attemptNumber: number, bucketName: string, executionMode?: string, exitCode: number | null, retry: boolean, runIndex: number, runLabel: string, script: string, seconds: number, stderr: string, stdout: string }} ScriptResult
+ * @typedef {ScriptResult & { attemptCount?: number, attempts?: readonly AttemptSummary[], flakyRecovered?: boolean, itemIndex?: number, retrySerial?: boolean }} CompletedScriptResult
+ * @typedef {Error & { results?: CompletedScriptResult[] }} BucketFailureError
+ * @typedef {RegressionCliOptions & { bucketFilter: string, buckets: readonly RegressionBucket[], repeatCount: number }} RegressionRunOptions
+ */
+
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
 const ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions";
 const STATIC_BUCKET_NAME = "static/source regressions";
@@ -33,11 +49,16 @@ const MAX_REGRESSION_REPEAT_COUNT = 5;
 
 const totalStart = performance.now();
 const canonicalWorkspaceInventoryBefore = captureCanonicalWorkspaceInventory();
+/** @type {CompletedScriptResult[]} */
 const completedResults = [];
+/** @type {RegressionBaseline | null} */
 let regressionBaseline = null;
+/** @type {Promise<RegressionBaseline> | null} */
 let regressionBaselinePromise = null;
+/** @type {string | null} */
 let nodeCompileCacheDirectory = null;
 let scheduledScriptRuns = REGRESSION_SCRIPTS.length;
+/** @type {StaticExecutionPlan | null} */
 let staticExecutionPlan = null;
 let staticSequentialWorkerTail = Promise.resolve();
 
@@ -104,7 +125,7 @@ try {
   }
 } catch (error) {
   printSummary(completedResults);
-  console.error(error?.message || error);
+  console.error(/** @type {ErrorLike} */ (error)?.message || error);
   process.exitCode = 1;
 } finally {
   await writeTimingReport(completedResults);
@@ -117,11 +138,16 @@ try {
       canonicalWorkspaceInventoryAfter,
     );
   } catch (error) {
-    console.error(error?.message || error);
+    console.error(/** @type {ErrorLike} */ (error)?.message || error);
     process.exitCode = 1;
   }
 }
 
+/**
+ * @param {RegressionBucket} bucket
+ * @param {RunContext} runContext
+ * @returns {Promise<CompletedScriptResult[]>}
+ */
 async function runBucket(bucket, runContext) {
   const bucketStarted = performance.now();
   const parallelismResolution = bucket.name === STATIC_BUCKET_NAME
@@ -140,6 +166,7 @@ async function runBucket(bucket, runContext) {
   const bucketLabel = formatBucketLabel(bucket.name, runContext);
 
   console.log(`\n[${bucketLabel}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}${concurrencySource}`);
+  /** @type {CompletedScriptResult[]} */
   const results = bucket.name === ISOLATED_BUCKET_NAME
     ? await runIsolatedWithRetry(bucket, effectiveConcurrency, runContext, bucketLabel)
     : await runLimited(bucket, effectiveConcurrency, runContext);
@@ -149,13 +176,19 @@ async function runBucket(bucket, runContext) {
 
   if (failures.length > 0) {
     const failure = new Error(`${bucketLabel} failed at ${failures.map((result) => result.script).join(", ")}`);
-    failure.results = results;
+    /** @type {BucketFailureError} */ (failure).results = results;
     throw failure;
   }
 
   return results;
 }
 
+/**
+ * @param {RegressionBucket} bucket
+ * @param {number} concurrency
+ * @param {RunContext} runContext
+ * @returns {Promise<CompletedScriptResult[]>}
+ */
 async function runLimited(bucket, concurrency, runContext) {
   return runLimitedItems(
     bucket.entries,
@@ -164,6 +197,13 @@ async function runLimited(bucket, concurrency, runContext) {
   );
 }
 
+/**
+ * @param {RegressionBucket} bucket
+ * @param {number} concurrency
+ * @param {RunContext} runContext
+ * @param {string} bucketLabel
+ * @returns {Promise<CompletedScriptResult[]>}
+ */
 async function runIsolatedWithRetry(bucket, concurrency, runContext, bucketLabel) {
   return runIsolatedItemsWithRetry(
     bucket.entries,
@@ -180,9 +220,16 @@ async function runIsolatedWithRetry(bucket, concurrency, runContext, bucketLabel
   );
 }
 
+/**
+ * @param {RegressionEntry} entry
+ * @param {RegressionBucket} bucket
+ * @param {number} scriptIndex
+ * @param {RunContext} runContext
+ * @returns {Promise<ScriptResult>}
+ */
 async function runScript(entry, bucket, scriptIndex, runContext) {
   const staticDecision = bucket.name === STATIC_BUCKET_NAME
-    ? staticExecutionPlan.decisions.get(entry.path)
+    ? /** @type {StaticExecutionPlan} */ (staticExecutionPlan).decisions.get(entry.path)
     : null;
   if (staticDecision?.decision === "worker-parallel") {
     return runScriptWorker(entry, bucket, runContext);
@@ -196,6 +243,13 @@ async function runScript(entry, bucket, scriptIndex, runContext) {
   return runScriptChild(entry, bucket, scriptIndex, runContext);
 }
 
+/**
+ * @param {RegressionEntry} entry
+ * @param {RegressionBucket} bucket
+ * @param {number} scriptIndex
+ * @param {RunContext} runContext
+ * @returns {Promise<ScriptResult>}
+ */
 async function runScriptChild(entry, bucket, scriptIndex, runContext) {
   const script = entry.path;
   const started = performance.now();
@@ -215,18 +269,18 @@ async function runScriptChild(entry, bucket, scriptIndex, runContext) {
     });
 
     if (launch.verifiedBaselineHandshake) {
-      child.stdio[3].on("error", (error) => {
-        if (error.code !== "EPIPE") stderr += `${error.stack || error.message || error}\n`;
+      /** @type {import("node:stream").Writable} */ (child.stdio[3]).on("error", (error) => {
+        if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EPIPE") stderr += `${error.stack || error.message || error}\n`;
       });
-      child.stdio[3].end(`${JSON.stringify(launch.verifiedBaselineHandshake)}\n`);
+      /** @type {import("node:stream").Writable} */ (child.stdio[3]).end(`${JSON.stringify(launch.verifiedBaselineHandshake)}\n`);
     }
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
+    /** @type {import("node:stream").Readable} */ (child.stdout).setEncoding("utf8");
+    /** @type {import("node:stream").Readable} */ (child.stderr).setEncoding("utf8");
+    /** @type {import("node:stream").Readable} */ (child.stdout).on("data", (chunk) => {
       stdout += chunk;
     });
-    child.stderr.on("data", (chunk) => {
+    /** @type {import("node:stream").Readable} */ (child.stderr).on("data", (chunk) => {
       stderr += chunk;
     });
     child.on("error", (error) => {
@@ -252,6 +306,12 @@ async function runScriptChild(entry, bucket, scriptIndex, runContext) {
   });
 }
 
+/**
+ * @param {RegressionEntry} entry
+ * @param {RegressionBucket} bucket
+ * @param {RunContext} runContext
+ * @returns {Promise<ScriptResult>}
+ */
 async function runScriptWorker(entry, bucket, runContext) {
   const script = entry.path;
   const started = performance.now();
@@ -270,7 +330,7 @@ async function runScriptWorker(entry, bucket, runContext) {
         workerData: { script },
       });
     } catch (error) {
-      stderr = `${error?.stack || error?.message || error}\n`;
+      stderr = `${/** @type {ErrorLike} */ (error)?.stack || /** @type {ErrorLike} */ (error)?.message || error}\n`;
       finish(1);
       return;
     }
@@ -284,10 +344,11 @@ async function runScriptWorker(entry, bucket, runContext) {
       stderr += chunk;
     });
     worker.on("error", (error) => {
-      stderr += `${error?.stack || error?.message || error}\n`;
+      stderr += `${/** @type {ErrorLike} */ (error)?.stack || /** @type {ErrorLike} */ (error)?.message || error}\n`;
     });
     worker.on("exit", finish);
 
+    /** @param {number | null} exitCode */
     function finish(exitCode) {
       if (settled) return;
       settled = true;
@@ -310,6 +371,13 @@ async function runScriptWorker(entry, bucket, runContext) {
   });
 }
 
+/**
+ * @param {RegressionEntry} entry
+ * @param {RegressionBucket} bucket
+ * @param {number} scriptIndex
+ * @param {RunContext} runContext
+ * @returns {Promise<ScriptLaunch>}
+ */
 async function createScriptLaunch(entry, bucket, scriptIndex, runContext) {
   if (bucket.name === STATIC_BUCKET_NAME && !entry.tags.includes("baseline-fixture")) {
     return { env: createChildProcessEnv(), verifiedBaselineHandshake: null };
@@ -326,13 +394,18 @@ async function createScriptLaunch(entry, bucket, scriptIndex, runContext) {
   };
 }
 
+/**
+ * @param {NodeJS.ProcessEnv} [baseEnv]
+ * @returns {NodeJS.ProcessEnv}
+ */
 function createChildProcessEnv(baseEnv = process.env) {
-  return {
+  return /** @type {NodeJS.ProcessEnv} */ ({
     ...baseEnv,
     NODE_COMPILE_CACHE: nodeCompileCacheDirectory,
-  };
+  });
 }
 
+/** @returns {Promise<RegressionBaseline>} */
 async function getRegressionBaseline() {
   if (regressionBaseline) {
     return regressionBaseline;
@@ -380,6 +453,7 @@ async function cleanupRegressionRuntimeResources() {
   }
 }
 
+/** @param {ScriptResult} result */
 function printResult(result) {
   const status = result.retry
     ? result.exitCode === 0 ? "flaky-recovered" : `retry failed ${result.exitCode}`
@@ -396,6 +470,7 @@ function printResult(result) {
   }
 }
 
+/** @param {readonly CompletedScriptResult[]} results */
 function printSummary(results) {
   if (results.length === 0) {
     return;
@@ -415,6 +490,7 @@ function printSummary(results) {
   printFlakyRecoveries(results);
 }
 
+/** @param {readonly CompletedScriptResult[]} results */
 async function writeTimingReport(results) {
   const outputPath = process.env.LTF_REGRESSION_TIMING_JSON;
 
@@ -448,6 +524,11 @@ async function writeTimingReport(results) {
   await fs.writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+/**
+ * @param {string} bucketName
+ * @param {readonly CompletedScriptResult[]} results
+ * @param {number} wallSeconds
+ */
 function printBucketSummary(bucketName, results, wallSeconds) {
   if (results.length === 0) {
     return;
@@ -464,6 +545,7 @@ function printBucketSummary(bucketName, results, wallSeconds) {
   console.log(`[stage:regression bucket:${bucketName}] ${status}; ${results.length} completed${recoveryStatus}; ${formatSeconds(wallSeconds)} wall time; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(longestScriptSeconds)} longest script.`);
 }
 
+/** @param {readonly CompletedScriptResult[]} results */
 function printFlakyRecoveries(results) {
   const recoveries = results.filter((result) => result.flakyRecovered);
   if (recoveries.length === 0) {
@@ -475,10 +557,15 @@ function printFlakyRecoveries(results) {
   }
 }
 
+/** @param {number} seconds */
 function formatSeconds(seconds) {
   return `${seconds.toFixed(2)}s`;
 }
 
+/**
+ * @param {string} bucketName
+ * @param {RunContext} runContext
+ */
 function formatBucketLabel(bucketName, runContext) {
   if (runContext.repeatCount <= 1) {
     return bucketName;
@@ -487,15 +574,21 @@ function formatBucketLabel(bucketName, runContext) {
   return `${bucketName} ${formatRunLabel(runContext)}`;
 }
 
+/** @param {RunContext} runContext */
 function formatRunLabel(runContext) {
   return `pass-${String(runContext.runIndex + 1).padStart(3, "0")}`;
 }
 
+/**
+ * @param {RegressionBucket} bucket
+ * @param {RunContext} runContext
+ */
 function scriptEnvNamespace(bucket, runContext) {
   const attemptSuffix = runContext.retry ? `-retry-${String(runContext.attemptNumber).padStart(3, "0")}` : "";
   return `${formatRunLabel(runContext)}-${bucket.name}${attemptSuffix}`;
 }
 
+/** @param {readonly RegressionBucket[]} buckets */
 function printRegressionList(buckets) {
   const entries = buckets.flatMap((bucket) => bucket.entries);
   console.log(`Discovered ${entries.length} regression script(s).`);
@@ -505,6 +598,7 @@ function printRegressionList(buckets) {
   }
 }
 
+/** @param {RegressionRunOptions} runOptions */
 function printDryRun(runOptions) {
   console.log(`Dry run: ${countScheduledScriptRuns(runOptions)} regression script run(s) selected.`);
   for (const bucket of runOptions.buckets) {
@@ -516,6 +610,12 @@ function printDryRun(runOptions) {
   console.log("No regression scripts executed.");
 }
 
+/**
+ * @param {readonly RegressionBucket[]} buckets
+ * @param {NodeJS.ProcessEnv} env
+ * @param {readonly string[]} [args]
+ * @returns {RegressionRunOptions}
+ */
 function resolveRunOptions(buckets, env, args = []) {
   const bucketFilter = String(env.LTF_REGRESSION_BUCKET || "").trim();
   const repeatCount = parseRepeatCount(env.LTF_REGRESSION_REPEAT);
@@ -540,16 +640,18 @@ function resolveRunOptions(buckets, env, args = []) {
   };
 }
 
+/** @param {RegressionRunOptions} runOptions */
 function countScheduledScriptRuns(runOptions) {
   const scriptsPerPass = runOptions.buckets.reduce((sum, bucket) => sum + bucket.scripts.length, 0);
   return scriptsPerPass * runOptions.repeatCount;
 }
 
+/** @param {readonly RegressionBucket[]} buckets */
 function summarizeSelectedStaticExecution(buckets) {
   const staticEntries = buckets.find((bucket) => bucket.name === STATIC_BUCKET_NAME)?.entries || [];
   let workerCount = 0;
   for (const entry of staticEntries) {
-    if (staticExecutionPlan.decisions.get(entry.path)?.decision.startsWith("worker-")) {
+    if (/** @type {StaticExecutionPlan} */ (staticExecutionPlan).decisions.get(entry.path)?.decision.startsWith("worker-")) {
       workerCount += 1;
     }
   }
@@ -559,9 +661,14 @@ function summarizeSelectedStaticExecution(buckets) {
   };
 }
 
+/**
+ * @param {readonly RegressionBucket[]} buckets
+ * @param {string} bucketFilter
+ * @returns {readonly RegressionBucket[]}
+ */
 function filterBuckets(buckets, bucketFilter) {
   const normalizedFilter = normalizeBucketFilter(bucketFilter);
-  const aliases = new Map([
+  const aliases = new Map(/** @type {readonly (readonly [string, string | readonly string[]])[]} */ ([
     ["default", "default database regressions"],
     ["default-database", "default database regressions"],
     ["files", ["file storage regressions", ISOLATED_FILES_BUCKET_NAME]],
@@ -572,7 +679,7 @@ function filterBuckets(buckets, bucketFilter) {
     ["isolated-database", [ISOLATED_BUCKET_NAME]],
     ["static", [STATIC_BUCKET_NAME]],
     ["source", [STATIC_BUCKET_NAME]],
-  ]);
+  ]));
   const expectedNames = aliases.get(normalizedFilter) || [bucketFilter];
   const selectedBuckets = buckets.filter((bucket) => (
     expectedNames.includes(bucket.name) ||
@@ -586,10 +693,12 @@ function filterBuckets(buckets, bucketFilter) {
   return selectedBuckets;
 }
 
+/** @param {string} value */
 function normalizeBucketFilter(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+/** @param {string | undefined} value */
 function parseRepeatCount(value) {
   const raw = String(value || "").trim();
 

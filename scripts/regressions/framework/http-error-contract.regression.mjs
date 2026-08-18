@@ -362,6 +362,9 @@ function closeServer(serverInstance) {
   });
 }
 
+/**
+ * @param {{ body?: string, headers?: Record<string, string | number>, method?: string }} [options]
+ */
 function request(serverInstance, requestPath, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body || "";

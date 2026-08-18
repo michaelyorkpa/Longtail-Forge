@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 
+/** @typedef {{ areas: readonly string[], fullCheck: boolean, patterns: readonly RegExp[], reason: string }} RouteRule */
+/** @typedef {{ areas: readonly string[], fullCheck: boolean, path: string, reason: string }} RoutingMatch */
+/** @typedef {{ paths: readonly string[], status: string }} ChangedPathEntry */
+/** @typedef {{ regressions?: readonly { area: string, path: string }[] }} RegisteredRegressionManifest */
+
+/** @type {Readonly<Record<string, string>>} */
 const AREA_COMMANDS = Object.freeze({
   framework: "npm run test:regressions:framework",
   views: "npm run test:regressions:views",
@@ -165,6 +171,13 @@ const ROUTE_RULES = Object.freeze([
   ], ["docs"], "documentation-owned path", { fullCheck: false }),
 ]);
 
+/**
+ * @param {readonly RegExp[]} patterns
+ * @param {readonly string[]} areas
+ * @param {string} reason
+ * @param {{ fullCheck?: boolean }} [options]
+ * @returns {Readonly<RouteRule>}
+ */
 function route(patterns, areas, reason, { fullCheck } = {}) {
   return Object.freeze({
     areas: Object.freeze(areas),
@@ -174,6 +187,10 @@ function route(patterns, areas, reason, { fullCheck } = {}) {
   });
 }
 
+/**
+ * @param {unknown} filePath
+ * @returns {string}
+ */
 function normalizeChangedPath(filePath) {
   return String(filePath || "")
     .trim()
@@ -181,10 +198,17 @@ function normalizeChangedPath(filePath) {
     .replace(/^\.\//, "");
 }
 
+/**
+ * @param {{ cwd?: string }} [options]
+ * @returns {readonly string[]}
+ */
 function collectChangedPaths({ cwd = process.cwd() } = {}) {
   return collectChangedChangeSet({ cwd }).paths;
 }
 
+/**
+ * @param {{ cwd?: string }} [options]
+ */
 function collectChangedChangeSet({ cwd = process.cwd() } = {}) {
   const baseSha = String(process.env.LTF_REGRESSION_BASE_SHA || "").trim();
   if (baseSha && !/^[a-f0-9]{40}$/i.test(baseSha)) {
@@ -200,14 +224,22 @@ function collectChangedChangeSet({ cwd = process.cwd() } = {}) {
   return Object.freeze({ entries: trackedEntries, paths, versionBookkeepingPaths });
 }
 
+/**
+ * @returns {Map<string, string>}
+ */
 function loadRegisteredRegressionAreas() {
-  const manifest = JSON.parse(readFileSync(new URL("../regression-coverage-manifest.json", import.meta.url), "utf8"));
+  const manifest = /** @type {RegisteredRegressionManifest} */ (JSON.parse(readFileSync(new URL("../regression-coverage-manifest.json", import.meta.url), "utf8")));
   return new Map((manifest.regressions || []).map(({ area, path }) => [normalizeChangedPath(path), area]));
 }
 
+/**
+ * @param {string} [output]
+ * @returns {readonly Readonly<ChangedPathEntry>[]}
+ */
 function parseNameStatusDiff(output = "") {
   const tokens = String(output).split("\0");
   if (tokens.at(-1) === "") tokens.pop();
+  /** @type {Readonly<ChangedPathEntry>[]} */
   const entries = [];
 
   for (let index = 0; index < tokens.length;) {
@@ -227,6 +259,11 @@ function parseNameStatusDiff(output = "") {
   return Object.freeze(entries);
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ * @returns {string[]}
+ */
 function runGit(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -235,10 +272,16 @@ function runGit(args, cwd) {
   return String(result.stdout || "").split(/\r?\n/).filter(Boolean);
 }
 
+/**
+ * @param {readonly unknown[]} [filePaths]
+ * @param {{ versionBookkeepingPaths?: readonly string[] }} [options]
+ */
 function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = [] } = {}) {
   const paths = [...new Set(filePaths.map(normalizeChangedPath).filter(Boolean))].sort();
   const versionBookkeeping = new Set(versionBookkeepingPaths.map(normalizeChangedPath));
+  /** @type {Set<string>} */
   const areas = new Set();
+  /** @type {Readonly<RoutingMatch>[]} */
   const matches = [];
 
   for (const filePath of paths) {
@@ -305,6 +348,10 @@ function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = 
   });
 }
 
+/**
+ * @param {{ baseSha: string, cwd: string, paths: readonly string[], untracked: readonly string[] }} options
+ * @returns {readonly string[]}
+ */
 function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
   const packagePaths = ["package.json", "package-lock.json"];
   if (!packagePaths.every((filePath) => paths.includes(filePath)) || packagePaths.some((filePath) => untracked.includes(filePath))) {
@@ -323,6 +370,12 @@ function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
   }
 }
 
+/**
+ * @param {unknown} before
+ * @param {unknown} after
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isApplicationVersionOnlyChange(before, after, filePath) {
   const normalizedBefore = JSON.parse(JSON.stringify(before));
   const normalizedAfter = JSON.parse(JSON.stringify(after));
@@ -340,6 +393,11 @@ function isApplicationVersionOnlyChange(before, after, filePath) {
   return isDeepStrictEqual(normalizedBefore, normalizedAfter);
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ * @returns {string}
+ */
 function runGitText(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout).trim());

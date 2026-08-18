@@ -39,7 +39,7 @@ async function runWorkflowModuleStaticOwner(ownerMeta) {
     assert.equal(activeIds.has(id), true, `${id} must retain Notifications behavior`);
   }
   for (const contract of contracts) {
-    assert.equal(activePaths.has(contract.sourcePath), false, `${contract.sourcePath} must leave active discovery`);
+    assert.equal(activePaths.has(/** @type {string} */ (contract.sourcePath)), false, `${contract.sourcePath} must leave active discovery`);
     assert.equal(existsSync(contract.modulePath), true, `${contract.modulePath} must retain the assertion body`);
     const retirement = retirements.get(contract.sourcePath);
     assert.equal(retirement?.retiredInVersion, consolidation.version);

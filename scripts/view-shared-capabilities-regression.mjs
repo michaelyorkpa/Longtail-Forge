@@ -67,7 +67,17 @@ vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
-const view = context.window.LongtailForge.view;
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered capability surface: fake-DOM anatomy plus the renderer-owned
+ * refresh path and live view state this regression drives.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown>, viewState: { filterValues: Record<string, unknown> } }} CapabilitySurface
+ */
+/**
+ * The published `LongtailForge.view` capability entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => CapabilitySurface }} CapabilityViewSurface
+ */
+const view = /** @type {CapabilityViewSurface} */ (context.window.LongtailForge.view);
 let mountedWith = null;
 view.registerBehavior("caps.mount", (ctx) => {
   mountedWith = ctx;
@@ -122,11 +132,11 @@ vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surfa
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
-regionOnlyContext.window.LongtailForge.view.registerBehavior("caps.regionOnly", (ctx) => {
+/** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).registerBehavior("caps.regionOnly", (ctx) => {
   ctx.container.appendChild(regionOnlyContext.document.createElement("p")).textContent = "REGION_ONLY_MOUNT";
 });
 const regionOnlyHost = regionOnlyContext.document.createElement("main");
-const regionOnlySurface = regionOnlyContext.window.LongtailForge.view.renderSurface({
+const regionOnlySurface = /** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).renderSurface({
   id: "region-only-detail",
   layout: "single-column",
   detail: {
@@ -143,7 +153,7 @@ vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, missingContext, { filename: "view-renderer.js" });
 const missingHost = missingContext.document.createElement("main");
-const missingSurface = missingContext.window.LongtailForge.view.renderSurface({
+const missingSurface = /** @type {CapabilityViewSurface} */ (missingContext.window.LongtailForge.view).renderSurface({
   id: "missing-region",
   layout: "single-column",
   regions: [{ id: "side", behavior: "not.registered" }],
