@@ -54,15 +54,6 @@ Release-wide measurable acceptance:
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
 
-### 0.33.33.28.1 - Type backup, restore, and workspace maintenance tooling
-
-**Model: High Effort** - Backup-first and destructive-confirmation contracts guard real operator data.
-
-- [ ] Close the ~120 diagnostics in `backup.mjs`, `backup-restore-drill.mjs`, `workspace-backup.mjs`, `workspace-backup-drill.mjs`, `workspace-purge.mjs`, `schema-snapshot.mjs`, `search-index-rebuild.mjs`, and `module-sanity-check.mjs`.
-- [ ] Type archive descriptors, restore plans, database handles, temporary paths, and cleanup states with named contracts.
-- [ ] Preserve backup-first ordering, dry-run behavior, destructive confirmation prompts, and fail-closed restore validation exactly.
-- [ ] Prove through the backup/restore drill regressions and the workspace-backup owners without changing operator command surfaces.
-
 ### 0.33.33.28.2 - Type release ceremony, versioning, and packaging metadata tooling
 
 **Model: High Effort** - Release metadata binds exact revisions, checksums, and attestations that later gates trust.
