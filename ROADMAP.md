@@ -54,14 +54,6 @@ Release-wide measurable acceptance:
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
 
-### 0.33.33.28.4 - Type demo lifecycle, role journey, and workspace cleanup tooling
-
-**Model: High Effort** - Demo reset and cleanup tooling deletes real workspace state behind operator confirmation.
-
-- [ ] Close the ~145 diagnostics in `cleanup-development-workspaces.mjs`, `sanitized-demo-role-journey.mjs`, and `demo-data-host.mjs`.
-- [ ] Type workspace inventories, role fixtures, session journeys, and deletion plans with named contracts.
-- [ ] Preserve operator-password admission, dry-run inventory reporting, destructive confirmation, and sanitized-fixture redaction exactly.
-
 ### 0.33.33.28.5 - Type artifact, container, and deployment tooling
 
 **Model: High Effort** - Artifact and image publication carry immutable-digest and pinned-host deployment contracts.
