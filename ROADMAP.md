@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.27 - Type script libraries, test support, and the regression runner
-
-**Model: High Effort** - Shared script APIs and runner control flow affect every verification owner.
-
-- [ ] Type `scripts/lib/`, `scripts/test-support/`, discovery, routing, manifests, closeout, and runner orchestration under full strict.
-- [ ] Add the shared assertion-helper signature that removes the repeated implicit-`this` error family.
-- [ ] Preserve spawn isolation, bucket order, retries, timing, cleanup, and independently runnable package commands.
-- [ ] Reduce shared script infrastructure debt to zero before typing its consumers.
-
 ### 0.33.33.28 - Type operational, backup, deployment, and release scripts
 
 **Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
