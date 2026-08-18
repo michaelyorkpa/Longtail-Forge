@@ -9,6 +9,30 @@ import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 
+/** @typedef {import("node:http").Server} HttpServer */
+/** @typedef {(fixtures: PerformanceFixtures) => string} RoutePathBuilder */
+/** @typedef {(body: unknown) => number | null} RouteCounter */
+/** @typedef {"app-shell-bootstrap" | "tasks-list" | "task-detail" | "notes-list" | "note-detail" | "files-browse" | "search" | "notifications" | "workbench-bootstrap"} RouteId */
+/** @typedef {{ id: RouteId, label: string, path: string | RoutePathBuilder, targetMs: number, warnMs: number, count: RouteCounter, session?: "notification" }} RouteTarget */
+/** @typedef {({ user_id: string, username: string, timezone: string | null, home_workspace_id: string, active_workspace_id: string | null })} SeedUser */
+/** @typedef {readonly SeedUser[]} ProtectedUserRows */
+/** @typedef {({ count: string | number })} CountRow */
+/** @typedef {{ user_id: string, username: string, timezone: string | null, home_workspace_id: string, active_workspace_id: string | null, notification_count: string | number }} NotificationUser */
+/** @typedef {{ sessionId: string }} SessionRecord */
+/** @typedef {{ user_id: string, username: string, timezone: string | null, home_workspace_id: string, active_workspace_id: string | null, ip_address: string }} SeedSessionUser */
+/** @typedef {{ appSession: SessionRecord, notificationSession: SessionRecord, noteId: string, taskId: string }} PerformanceFixtures */
+/** @typedef {{ database?: string, failOnWarn?: boolean, help?: boolean, iterations?: number, json?: boolean, keepDatabase?: boolean, profile?: string, provider?: string, warmups?: number }} ScriptOptions */
+/** @typedef {"ok" | "warn" | "exceeds"} RouteStatus */
+/** @typedef {{ body?: unknown, cookie?: string }} ApiRequestOptions */
+/** @typedef {{ body: unknown, bytes: number, status: number }} ApiResponse */
+/** @typedef {{ get: (url: string, options?: ApiRequestOptions) => Promise<ApiResponse> }} ApiClient */
+/** @typedef {{ api: ApiClient, fixtures: PerformanceFixtures, iterations: number, warmups: number }} MeasureRoutesParams */
+/** @typedef {{ database: string, options: Required<ScriptOptions>, runtimeDir: string }} ScaleSeedArguments */
+/** @typedef {{ id: "app-shell-bootstrap" | "tasks-list" | "task-detail" | "notes-list" | "note-detail" | "files-browse" | "search" | "notifications" | "workbench-bootstrap", label: string, path: string, method?: string, targetMs: number, warnMs: number, status: "ok" | "warn" | "exceeds", statusCode: number, returned: number | null, bytes: number, samplesMs: number[], avgMs: number, maxMs: number, minMs: number, p95Ms: number }} RouteMeasurement */
+/** @typedef {typeof import("../src/db/index.js")} DatabaseModule */
+/** @typedef {typeof import("../src/security/sessions.js")} SessionModule */
+/** @typedef {{ profile: string, generatedAt: string, database: string, provider: string, iterations: number, warmups: number, targetNote: string, routes: RouteMeasurement[], exceededWarnCount: number }} BenchmarkReport */
+
 const DEFAULT_PROFILE = "sqlite-small-office-50";
 const DEFAULT_PROVIDER = "sqlite";
 const DEFAULT_ITERATIONS = 3;
@@ -16,6 +40,7 @@ const DEFAULT_WARMUPS = 1;
 const DEFAULT_PASSWORD = "Scale-Seed-Password-123!";
 const TARGET_NOTE = "Local development hardware sanity targets; see docs/sqlite-small-office-mode.md.";
 
+/** @type {ReadonlyArray<RouteTarget>} */
 const ROUTE_TARGETS = Object.freeze([
   Object.freeze({
     id: "app-shell-bootstrap",
@@ -23,7 +48,7 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/app-shell/bootstrap",
     targetMs: 750,
     warnMs: 1500,
-    count: (body) => countArray(body?.navigation),
+    count: countNavigation,
   }),
   Object.freeze({
     id: "tasks-list",
@@ -31,15 +56,15 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/tasks?limit=50",
     targetMs: 900,
     warnMs: 1800,
-    count: (body) => countArray(body?.tasks),
+    count: countTasks,
   }),
   Object.freeze({
     id: "task-detail",
     label: "Task detail",
-    path: ({ taskId }) => `/api/tasks/${encodeURIComponent(taskId)}`,
+    path: /** @type {RoutePathBuilder} */ ((fixtures) => `/api/tasks/${encodeURIComponent(fixtures.taskId)}`),
     targetMs: 450,
     warnMs: 900,
-    count: (body) => countObject(body?.task),
+    count: countTaskDetail,
   }),
   Object.freeze({
     id: "notes-list",
@@ -47,15 +72,15 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/notes?limit=50",
     targetMs: 900,
     warnMs: 1800,
-    count: (body) => countArray(body?.notes),
+    count: countNotes,
   }),
   Object.freeze({
     id: "note-detail",
     label: "Note detail",
-    path: ({ noteId }) => `/api/notes/${encodeURIComponent(noteId)}`,
+    path: /** @type {RoutePathBuilder} */ ((fixtures) => `/api/notes/${encodeURIComponent(fixtures.noteId)}`),
     targetMs: 450,
     warnMs: 900,
-    count: (body) => countObject(body?.note),
+    count: countNoteDetail,
   }),
   Object.freeze({
     id: "files-browse",
@@ -63,7 +88,7 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/files/attachments?status=all&limit=50",
     targetMs: 1200,
     warnMs: 2400,
-    count: (body) => countArray(body?.attachments),
+    count: countAttachments,
   }),
   Object.freeze({
     id: "search",
@@ -71,7 +96,7 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/search?recordType=task&limit=25",
     targetMs: 1200,
     warnMs: 2400,
-    count: (body) => countArray(body?.results),
+    count: countSearch,
   }),
   Object.freeze({
     id: "notifications",
@@ -79,7 +104,7 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/notifications?limit=50",
     targetMs: 750,
     warnMs: 1500,
-    count: (body) => countArray(body?.notifications),
+    count: countNotifications,
     session: "notification",
   }),
   Object.freeze({
@@ -88,11 +113,13 @@ const ROUTE_TARGETS = Object.freeze([
     path: "/api/workbench/bootstrap",
     targetMs: 1000,
     warnMs: 2000,
-    count: (body) => countArray(body?.registry?.workbenchCards),
+    count: countWorkbenchCards,
   }),
 ]);
 
+/** @type {(() => Promise<void>) | null} */
 let closeSqlite = null;
+/** @type {HttpServer | null} */
 let server = null;
 let tempDir = "";
 let shouldRemoveTempDir = false;
@@ -125,8 +152,7 @@ try {
   await db.initializeDatabase();
   const fixtures = await readFixtures(db, sessions);
   server = await listen(appModule.createApp());
-
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${listenerPort(server)}`);
   const results = await measureRoutes({
     api,
     fixtures,
@@ -155,7 +181,8 @@ try {
     throw new Error(`${report.exceededWarnCount} route(s) exceeded warning thresholds.`);
   }
 } catch (error) {
-  console.error(error?.stack || error?.message || error);
+  const failure = /** @type {{ stack?: string, message?: string }} */ (error);
+  console.error(failure.stack || failure.message || error);
   process.exitCode = 1;
 } finally {
   if (server) {
@@ -171,7 +198,12 @@ try {
   }
 }
 
+/**
+ * @param {string[]} argv
+ * @returns {Required<ScriptOptions>}
+ */
 function parseArgs(argv) {
+  /** @type {Required<ScriptOptions>} */
   const options = {
     database: "",
     failOnWarn: false,
@@ -243,6 +275,12 @@ function parseArgs(argv) {
   return options;
 }
 
+/**
+ * @param {string[]} argv
+ * @param {number} index
+ * @param {string} arg
+ * @returns {string}
+ */
 function requireValue(argv, index, arg) {
   const value = argv[index + 1];
 
@@ -253,6 +291,10 @@ function requireValue(argv, index, arg) {
   return value;
 }
 
+/**
+ * @param {Required<ScriptOptions>} options
+ * @returns {void}
+ */
 function validateOptions(options) {
   if (options.provider !== "sqlite") {
     throw new Error("SQLite small-office performance runs currently require --provider sqlite.");
@@ -267,7 +309,13 @@ function validateOptions(options) {
   }
 }
 
-function runScaleSeed({ database, options, runtimeDir }) {
+/**
+ * @param {{ database: string, options: Required<ScriptOptions>, runtimeDir: string }} args
+ * @returns {void}
+ */
+function runScaleSeed(args) {
+  /** @type {ScaleSeedArguments} */
+  const { database, options, runtimeDir } = args;
   const result = spawnSync(process.execPath, [
     "scripts/seed-scale.mjs",
     "--profile",
@@ -292,7 +340,13 @@ function runScaleSeed({ database, options, runtimeDir }) {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 }
 
-function configureRuntime({ database, options, runtimeDir }) {
+/**
+ * @param {ScaleSeedArguments} args
+ * @returns {void}
+ */
+function configureRuntime(args) {
+  /** @type {ScaleSeedArguments} */
+  const { database, options, runtimeDir } = args;
   process.env.LONGTAIL_DATABASE_FILE = database;
   process.env.LONGTAIL_DATABASE_PROVIDER = options.provider;
   process.env.LONGTAIL_DATA_DIR = runtimeDir;
@@ -300,48 +354,65 @@ function configureRuntime({ database, options, runtimeDir }) {
   process.env.SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || DEFAULT_PASSWORD;
 }
 
+/**
+ * @param {DatabaseModule} db
+ * @param {SessionModule} sessions
+ * @returns {Promise<PerformanceFixtures>}
+ */
 async function readFixtures(db, sessions) {
-  const protectedUser = await db.getSql(`
+  const protectedUsers = /** @type {ProtectedUserRows} */ (
+    /** @type {unknown} */ (await db.querySql(`
 SELECT user_id, username, timezone, home_workspace_id, active_workspace_id
 FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
-`);
+`))
+  );
+  const protectedUser = protectedUsers[0];
 
   assert.ok(protectedUser, "seeded database should include a protected user");
 
   const workspaceId = protectedUser.active_workspace_id || protectedUser.home_workspace_id;
-  const task = await db.getSql(`
+  const taskRows = /** @type {{ task_id: string }[]} */ (
+    /** @type {unknown} */ (await db.querySql(`
 SELECT task_id
 FROM tasks
 WHERE workspace_id = ${db.sqlText(workspaceId)}
 ORDER BY task_id ASC
 LIMIT 1;
-`);
-  const note = await db.getSql(`
+`))
+  );
+  const noteRows = /** @type {{ note_id: string }[]} */ (
+    /** @type {unknown} */ (await db.querySql(`
 SELECT note_id
 FROM notes
 WHERE workspace_id = ${db.sqlText(workspaceId)}
   AND security_mode = 'normal'
 ORDER BY note_id ASC
 LIMIT 1;
-`);
+`))
+  );
 
-  assert.ok(task, "seeded database should include a task detail fixture");
-  assert.ok(note, "seeded database should include a normal note detail fixture");
+  assert.ok(taskRows[0], "seeded database should include a task detail fixture");
+  assert.ok(noteRows[0], "seeded database should include a normal note detail fixture");
 
   const notificationUser = await readNotificationUser(db);
 
   return {
     appSession: await createSeedSession(sessions, protectedUser),
     notificationSession: await createSeedSession(sessions, notificationUser || protectedUser),
-    noteId: note.note_id,
-    taskId: task.task_id,
+    noteId: noteRows[0].note_id,
+    taskId: taskRows[0].task_id,
   };
 }
 
+/**
+ * @param {DatabaseModule} db
+ * @returns {Promise<NotificationUser | null>}
+ */
 async function readNotificationUser(db) {
-  const rows = await db.querySql(`
+  const rows = /** @type {NotificationUser[]} */ (
+    /** @type {unknown} */ (await db.querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id, COUNT(*) AS notification_count
 FROM notifications
 INNER JOIN users
@@ -350,11 +421,17 @@ GROUP BY users.user_id, users.username, users.timezone, users.home_workspace_id,
 HAVING COUNT(*) > 0
 ORDER BY COUNT(*) DESC, users.username
 LIMIT 1;
-`);
+`))
+  );
 
   return rows[0] || null;
 }
 
+/**
+ * @param {SessionModule} sessions
+ * @param {SeedUser} user
+ * @returns {Promise<SessionRecord>}
+ */
 async function createSeedSession(sessions, user) {
   return sessions.createSession({
     active_workspace_id: user.active_workspace_id || user.home_workspace_id,
@@ -366,7 +443,12 @@ async function createSeedSession(sessions, user) {
   });
 }
 
-async function measureRoutes({ api, fixtures, iterations, warmups }) {
+/**
+ * @param {MeasureRoutesParams} params
+ */
+async function measureRoutes(params) {
+  const { api, fixtures, iterations, warmups } = /** @type {MeasureRoutesParams} */ (params);
+  /** @type {RouteMeasurement[]} */
   const results = [];
 
   for (const route of ROUTE_TARGETS) {
@@ -381,6 +463,7 @@ async function measureRoutes({ api, fixtures, iterations, warmups }) {
     }
 
     const samples = [];
+    /** @type {ApiResponse | null} */
     let lastResponse = null;
 
     for (let iteration = 0; iteration < iterations; iteration += 1) {
@@ -413,6 +496,10 @@ async function measureRoutes({ api, fixtures, iterations, warmups }) {
   return results;
 }
 
+/**
+ * @param {number[]} samples
+ * @returns {{ avgMs: number, maxMs: number, minMs: number, p95Ms: number }}
+ */
 function summarizeSamples(samples) {
   const sorted = [...samples].sort((left, right) => left - right);
   const total = samples.reduce((sum, sample) => sum + sample, 0);
@@ -426,6 +513,12 @@ function summarizeSamples(samples) {
   };
 }
 
+/**
+ * @param {number} p95Ms
+ * @param {number} targetMs
+ * @param {number} warnMs
+ * @returns {RouteStatus}
+ */
 function routeStatus(p95Ms, targetMs, warnMs) {
   if (p95Ms > warnMs) {
     return "exceeds";
@@ -438,12 +531,23 @@ function routeStatus(p95Ms, targetMs, warnMs) {
   return "ok";
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{ get: (url: string, options?: ApiRequestOptions) => Promise<ApiResponse> }}
+ */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {"GET"} method
+ * @param {string} url
+ * @param {ApiRequestOptions} options
+ * @returns {Promise<ApiResponse>}
+ */
 async function request(baseUrl, method, url, options = {}) {
   const headers = {};
 
@@ -472,13 +576,31 @@ async function request(baseUrl, method, url, options = {}) {
   };
 }
 
+/**
+ * @param {unknown} app
+ * @returns {Promise<HttpServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const appServer = http.createServer(app);
+    const appServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     appServer.listen(0, "127.0.0.1", () => resolve(appServer));
   });
 }
 
+/**
+ * @param {HttpServer} appServer
+ * @returns {number}
+ */
+function listenerPort(appServer) {
+  const address = appServer.address();
+  assert.ok(typeof address === "object" && address !== null, "Performance server should return an address object.");
+  return address.port;
+}
+
+/**
+ * @param {HttpServer} appServer
+ * @returns {Promise<void>}
+ */
 function closeServer(appServer) {
   return new Promise((resolve, reject) => {
     appServer.close((error) => {
@@ -492,29 +614,136 @@ function closeServer(appServer) {
   });
 }
 
+/**
+ * @param {Record<string, string | undefined>} overrides
+ * @returns {NodeJS.ProcessEnv}
+ */
 function cleanEnv(overrides = {}) {
+  /** @type {NodeJS.ProcessEnv} */
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;
   return env;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function countArray(value) {
   return Array.isArray(value) ? value.length : null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
 function countObject(value) {
   return value && typeof value === "object" ? 1 : null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function bodyRecord(value) {
+  return typeof value === "object" && value !== null
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countNavigation(body) {
+  return countArray(bodyRecord(body).navigation);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countTasks(body) {
+  return countArray(bodyRecord(body).tasks);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countTaskDetail(body) {
+  return countObject(bodyRecord(body).task);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countNotes(body) {
+  return countArray(bodyRecord(body).notes);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countNoteDetail(body) {
+  return countObject(bodyRecord(body).note);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countAttachments(body) {
+  return countArray(bodyRecord(body).attachments);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countSearch(body) {
+  return countArray(bodyRecord(body).results);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countNotifications(body) {
+  return countArray(bodyRecord(body).notifications);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function countWorkbenchCards(body) {
+  const registry = bodyRecord(body).registry;
+  return countArray(registry && typeof registry === "object" ? bodyRecord(registry).workbenchCards : undefined);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {string}
+ */
 function previewBody(body) {
   const text = typeof body === "string" ? body : JSON.stringify(body);
   return text?.slice(0, 400) || "";
 }
 
+/**
+ * @param {number} value
+ * @returns {number}
+ */
 function roundMs(value) {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * @param {BenchmarkReport} report
+ */
 function printReport(report) {
   console.log(`SQLite small-office performance (${report.profile})`);
   console.log(`Database: ${report.database}`);
@@ -529,6 +758,10 @@ function printReport(report) {
   }
 }
 
+/**
+ * @param {RouteMeasurement[]} rows
+ * @returns {string}
+ */
 function formatTable(rows) {
   const headers = ["route", "p95", "avg", "target", "warn", "status", "rows", "bytes"];
   const body = rows.map((row) => [
@@ -554,6 +787,11 @@ function formatTable(rows) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string[]} columns
+ * @param {number[]} widths
+ * @returns {string}
+ */
 function formatTableRow(columns, widths) {
   return columns
     .map((column, index) => column.padEnd(widths[index]))

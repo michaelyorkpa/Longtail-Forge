@@ -6,6 +6,8 @@ import path from "node:path";
 import vm from "node:vm";
 import Database from "better-sqlite3";
 
+/** @typedef {{ glibcVersionRuntime?: string }} ReportHeader */
+
 const root = process.cwd();
 const require = createRequire(import.meta.url);
 const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
@@ -121,7 +123,15 @@ RETURNING id, label;
 
 function resolveSelectedPlatformTarget() {
   if (process.platform === "linux") {
-    const isMusl = !process.report.getReport().header.glibcVersionRuntime;
+    const report = /** @type {unknown} */ (process.report.getReport());
+    const isMusl = !(
+      typeof report === "object" &&
+      report !== null &&
+      "header" in report &&
+      typeof (report.header) === "object" &&
+      report.header !== null &&
+      typeof (/** @type {{ glibcVersionRuntime?: unknown }} */ (report.header)).glibcVersionRuntime === "string"
+    );
     return `${isMusl ? "linuxmusl" : "linux"}-${process.arch}`;
   }
 
