@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, and `.28` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, and `.28.5` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -58,10 +58,24 @@ Planning rollup only; its numbered children below are the protected implementati
 
 **Model: High Effort** - Artifact and image publication carry immutable-digest and pinned-host deployment contracts.
 
-- [ ] Close the ~378 diagnostics in `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, `release/published-container-image.mjs`, `release/deploy-via-ssh.mjs`, and `reference-caddy-security-smoke.mjs`.
-- [ ] Type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses.
-- [ ] Preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
-- [ ] Reslice further at planning time if a measured probe shows this child exceeds one session.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 378 diagnostics across seven files — roughly 2.6 times the 120-145 range that completed comfortably in one session at `0.33.33.28.1`, `.28.2`, and `.28.4`, and the highest operator-risk cohort in the `0.33.33.28` family. It splits at the seam between what is built and published and how that artifact reaches and is served by a host; both children measure inside the proven single-session range. These requirements apply to both: type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses; and preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
+
+### 0.33.33.28.5.1 - Type artifact and container image build and publication
+
+**Model: High Effort** - Image publication binds immutable digests, native execution proof, and registry attestations that deployment later trusts.
+
+- [ ] Close the ~233 diagnostics in `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, and `release/published-container-image.mjs`.
+- [ ] Type artifact manifests and checksums, image index and platform-manifest digests, SBOM/provenance attestation records, and container probe results with named contracts.
+- [ ] Preserve immutable-digest rejection rules, `latest`/tag-only/non-`main` publication refusals, native `better-sqlite3` execution proof, and schema-2 release metadata binding exactly.
+- [ ] Prove through the runtime-artifact boundary and container-deployment owners without changing any published artifact or image shape.
+
+### 0.33.33.28.5.2 - Type deployment transfer and the reference proxy boundary
+
+**Model: High Effort** - Deployment transfer and the reference proxy are the live host boundary between a verified artifact and served traffic.
+
+- [ ] Close the ~145 diagnostics in `release/deploy-via-ssh.mjs` and `reference-caddy-security-smoke.mjs`.
+- [ ] Type pinned-host batch SSH invocations and results, transferred metadata, and proxy probe request/response records with named contracts.
+- [ ] Preserve pinned-host batch SSH boundaries, the root-owned Compose helper handoff, maintenance-marker fallbacks, and every asserted security-header and diagnostic-status expectation.
 
 ### 0.33.33.28.6 - Type development seed and scale tooling
 
