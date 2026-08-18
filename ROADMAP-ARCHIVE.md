@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.5.2 - Type deployment transfer and the reference proxy boundary
+
+**Model: High Effort** - Deployment transfer and the reference proxy are the live host boundary between a verified artifact and served traffic.
+
+- [x] Closed all 145 diagnostics in `release/deploy-via-ssh.mjs` and `reference-caddy-security-smoke.mjs`, completing the `0.33.33.28.5` pair and the `0.33.33.28` operational-tooling family.
+- [x] Typed deploy options and validated SSH configuration, compose-helper results, proxy probe request and response records, expected-header maps, maintenance-curtain expectations, redacted edge access logs, and process/fixture descriptors with named contracts; deployment transfer now consumes the canonical published release-metadata contract from `0.33.33.28.5.1` through a type-only import, so that schema keeps one definition from creation through publication to deployment.
+- [x] Preserved pinned-host batch SSH boundaries, the root-owned Compose helper handoff, safe-absolute-path and clean-HTTPS-origin validation, maintenance-marker fallbacks, and every asserted security-header and diagnostic-status expectation. Equivalence was proven mechanically rather than by inspection: a normalizer stripping every cast back to its wrapped expression renders the proxy owner byte-identical across 948 normalized lines, and the assertion inventory holds at 111 `assert` calls with identical per-method, header-name, and status-code histograms.
+- [x] Ran the reference smoke end to end against a live Caddy 2.11.4 fixture, with real HTTPS probes reporting TLS, health, readiness, login session, forged-client-IP rejection, request-ID correlation, maintenance curtain, marker recovery without reload, and upstream-outage recovery all passing; `framework.full-strict-governance` pins both owners strict-clean, the scripts program falls from 6,916 to 6,771 diagnostics, combined debt from 18,050 to 17,905 with explicit `any` at 7, and effective regression assertions advance to 18,973 across 347 scripts.
+
 ## Version 0.33.33.28.5.1 - Type artifact and container image build and publication
 
 **Model: High Effort** - Image publication binds immutable digests, native execution proof, and registry attestations that deployment later trusts.

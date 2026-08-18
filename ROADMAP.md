@@ -60,14 +60,6 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 378 diagnostics across seven files — roughly 2.6 times the 120-145 range that completed comfortably in one session at `0.33.33.28.1`, `.28.2`, and `.28.4`, and the highest operator-risk cohort in the `0.33.33.28` family. It splits at the seam between what is built and published and how that artifact reaches and is served by a host; both children measure inside the proven single-session range. These requirements apply to both: type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses; and preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
 
-### 0.33.33.28.5.2 - Type deployment transfer and the reference proxy boundary
-
-**Model: High Effort** - Deployment transfer and the reference proxy are the live host boundary between a verified artifact and served traffic.
-
-- [ ] Close the ~145 diagnostics in `release/deploy-via-ssh.mjs` and `reference-caddy-security-smoke.mjs`.
-- [ ] Type pinned-host batch SSH invocations and results, transferred metadata, and proxy probe request/response records with named contracts.
-- [ ] Preserve pinned-host batch SSH boundaries, the root-owned Compose helper handoff, maintenance-marker fallbacks, and every asserted security-header and diagnostic-status expectation.
-
 ### 0.33.33.28.6 - Type development seed and scale tooling
 
 **Model: High Effort** - Seed tooling writes large volumes of workspace data through the real service layer.
