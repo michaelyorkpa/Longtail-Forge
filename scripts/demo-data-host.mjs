@@ -11,6 +11,10 @@ const invokedScriptPath = process.argv[1]
   : "";
 
 if (invokedScriptPath === scriptPath) {
+  /**
+   * Literal secrets and host paths stripped from every surfaced failure.
+   * @type {string[]}
+   */
   let redactions = [];
   try {
     const args = parseDemoDataArgs(process.argv.slice(2));
