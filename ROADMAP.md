@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, and `.26` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, and `.28` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -52,10 +52,59 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
 
-- [ ] Close full-strict debt in backup/restore, migration, demo reset, artifact, container, release, deployment, audit, and maintenance tooling.
-- [ ] Type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly.
-- [ ] Preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts.
-- [ ] Keep operational scripts directly executable without transpilation.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
+
+### 0.33.33.28.1 - Type backup, restore, and workspace maintenance tooling
+
+**Model: High Effort** - Backup-first and destructive-confirmation contracts guard real operator data.
+
+- [ ] Close the ~120 diagnostics in `backup.mjs`, `backup-restore-drill.mjs`, `workspace-backup.mjs`, `workspace-backup-drill.mjs`, `workspace-purge.mjs`, `schema-snapshot.mjs`, `search-index-rebuild.mjs`, and `module-sanity-check.mjs`.
+- [ ] Type archive descriptors, restore plans, database handles, temporary paths, and cleanup states with named contracts.
+- [ ] Preserve backup-first ordering, dry-run behavior, destructive confirmation prompts, and fail-closed restore validation exactly.
+- [ ] Prove through the backup/restore drill regressions and the workspace-backup owners without changing operator command surfaces.
+
+### 0.33.33.28.2 - Type release ceremony, versioning, and packaging metadata tooling
+
+**Model: High Effort** - Release metadata binds exact revisions, checksums, and attestations that later gates trust.
+
+- [ ] Close the ~129 diagnostics across `scripts/release/` ceremony entries plus `bump-version.mjs`, `generate-bundled-module-catalog.mjs`, and `suggest-docs-for-changes.mjs`.
+- [ ] Type release metadata records, git command results, GitHub API payloads, and checkpoint trailer parsing with named contracts.
+- [ ] Preserve exact-SHA proof, immutable-digest binding, schema-versioned metadata, and checkpoint trailer validation semantics.
+- [ ] Prove through the developer-verification-throughput and release-area owners without changing any published artifact shape.
+
+### 0.33.33.28.3 - Type performance, load, and installation diagnostic tooling
+
+**Model: High Effort** - Measurement tooling must not silently change what it measures.
+
+- [ ] Close the ~114 diagnostics in `sqlite-small-office-performance.mjs`, `public-demo-perimeter-load-smoke.mjs`, `measure-dashboard-performance.mjs`, `adapter-microbenchmark.mjs`, and `better-sqlite3-install-smoke.mjs`.
+- [ ] Type timing samples, budget comparisons, HTTP probe results, and native-module inspection output explicitly.
+- [ ] Preserve measured budgets, sample counts, warm-up behavior, and pass/fail thresholds without altering workloads.
+
+### 0.33.33.28.4 - Type demo lifecycle, role journey, and workspace cleanup tooling
+
+**Model: High Effort** - Demo reset and cleanup tooling deletes real workspace state behind operator confirmation.
+
+- [ ] Close the ~145 diagnostics in `cleanup-development-workspaces.mjs`, `sanitized-demo-role-journey.mjs`, and `demo-data-host.mjs`.
+- [ ] Type workspace inventories, role fixtures, session journeys, and deletion plans with named contracts.
+- [ ] Preserve operator-password admission, dry-run inventory reporting, destructive confirmation, and sanitized-fixture redaction exactly.
+
+### 0.33.33.28.5 - Type artifact, container, and deployment tooling
+
+**Model: High Effort** - Artifact and image publication carry immutable-digest and pinned-host deployment contracts.
+
+- [ ] Close the ~378 diagnostics in `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, `release/published-container-image.mjs`, `release/deploy-via-ssh.mjs`, and `reference-caddy-security-smoke.mjs`.
+- [ ] Type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses.
+- [ ] Preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
+- [ ] Reslice further at planning time if a measured probe shows this child exceeds one session.
+
+### 0.33.33.28.6 - Type development seed and scale tooling
+
+**Model: High Effort** - Seed tooling writes large volumes of workspace data through the real service layer.
+
+- [ ] Close the ~401 diagnostics in `development-data.mjs` and `seed-scale.mjs`.
+- [ ] Type seed scenario descriptors, generated record shapes, service call boundaries, and scale counters with named contracts.
+- [ ] Preserve deterministic seed scenarios, operator-safety guards, volume parameters, and idempotent reseed behavior.
+- [ ] Reslice further at planning time if a measured probe shows this child exceeds one session.
 
 ### 0.33.33.29 - Type release, docs, and consolidated static regression owners
 
