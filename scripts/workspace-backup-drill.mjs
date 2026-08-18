@@ -10,6 +10,20 @@ import { createOpaqueId, createRecordId } from "../src/core/identifiers.js";
 import { createWorkspaceBackupPackage, inspectWorkspaceBackupPackage, restoreWorkspaceBackupPackage } from "../src/services/workspace-backup-package.js";
 import { resolveStoragePath } from "../src/core/files/local-storage-adapter.js";
 
+/**
+ * An open better-sqlite3 handle on a drill database.
+ * @typedef {InstanceType<typeof Database>} DatabaseHandle
+ */
+
+/**
+ * The provider-neutral Files object read request the workspace backup package
+ * hands to its reader for every internal Files row it stages.
+ * @typedef {object} FileObjectReadRequest
+ * @property {string} fileId
+ * @property {string} providerId
+ * @property {string} storageKey
+ */
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-backup-drill-"));
 const sourceDatabase = path.join(tempDir, "source.db");
@@ -36,7 +50,7 @@ try {
     appVersion: packageJson.version,
     databaseFile: sourceDatabase,
     outputPath: archivePath,
-    readFileObject: ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
+    readFileObject: /** @param {FileObjectReadRequest} request */ ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
     workspaceId: targetWorkspaceId,
   });
   assertUuidVersion(created.backupId, 4, "workspace backup package identity");
@@ -96,6 +110,11 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} expectedVersion
+ * @param {string} label
+ */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
@@ -166,11 +185,25 @@ VALUES (?, ?, 'Encrypted recovery note', '', 'general', 'reference', 'derived', 
   }
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} workspaceId
+ * @param {string} name
+ * @param {string} ownerUserId
+ * @param {string} now
+ */
 function insertWorkspace(database, workspaceId, name, ownerUserId, now) {
   database.prepare("INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at) VALUES (?, ?, 'Active', 'business', ?, ?, ?);")
     .run(workspaceId, name, ownerUserId, now, now);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} userId
+ * @param {string} username
+ * @param {string} displayName
+ * @param {string} workspaceId
+ */
 function insertUser(database, userId, username, displayName, workspaceId) {
   database.prepare(`
 INSERT INTO users (user_id, home_workspace_id, username, display_name, alt_email, timezone, password, theme_mode, user_status, protected_user, active_workspace_id, open_external_links_new_tab, theme_auto_source, password_change_required, preferred_login_landing, preferred_workspace_switch_landing)
@@ -178,11 +211,27 @@ VALUES (?, ?, ?, ?, 'private-alt@example.test', 'America/New_York', 'source-pass
 `).run(userId, workspaceId, username, displayName, workspaceId);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} id
+ * @param {string} userId
+ * @param {string} workspaceId
+ * @param {string} now
+ */
 function insertMembership(database, id, userId, workspaceId, now) {
   database.prepare("INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?);")
     .run(id, userId, workspaceId, now, now);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} fileId
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} storageKey
+ * @param {Buffer} content
+ * @param {string} now
+ */
 function insertFile(database, fileId, workspaceId, userId, storageKey, content, now) {
   const sha256 = createHash("sha256").update(content).digest("hex");
   database.prepare(`
@@ -216,6 +265,7 @@ function verifyRestoredDatabase() {
   }
 }
 
+/** @param {DatabaseHandle} database */
 function assertIdentifierSnapshot(database) {
   assert.deepEqual(database.prepare("SELECT workspace_id FROM workspaces WHERE workspace_id = ?").get(targetWorkspaceId), { workspace_id: targetWorkspaceId });
   assert.deepEqual(database.prepare("SELECT id, workspace_id FROM clients WHERE id = ?").get(targetClientId), { id: targetClientId, workspace_id: targetWorkspaceId });

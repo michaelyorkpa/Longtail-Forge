@@ -245,6 +245,18 @@ assert.deepEqual(
   [],
   "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
 );
+for (const backupMaintenanceOwnerPath of [
+  "scripts/backup.mjs",
+  "scripts/backup-restore-drill.mjs",
+  "scripts/module-sanity-check.mjs",
+  "scripts/schema-snapshot.mjs",
+  "scripts/search-index-rebuild.mjs",
+  "scripts/workspace-backup.mjs",
+  "scripts/workspace-backup-drill.mjs",
+  "scripts/workspace-purge.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[backupMaintenanceOwnerPath], undefined, `${backupMaintenanceOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.1`);
+}
 for (const runnerOwnerPath of [
   "scripts/agent-brief.mjs",
   "scripts/generate-regression-doc-inventory.mjs",

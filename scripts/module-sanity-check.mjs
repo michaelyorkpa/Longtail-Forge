@@ -16,11 +16,13 @@ const KNOWN_FRAMEWORK_DEPENDENCIES = new Set([
 const modules = modulesService.listModules();
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
 }
 
+/** @param {string} name @param {ReadonlyArray<string | null | undefined>} values */
 function assertUnique(name, values) {
   const seen = new Set();
   const duplicates = new Set();
@@ -57,7 +59,7 @@ check("registered public routes are unique where inspectable", () => {
   assertUnique(
     "registered public route",
     modulesService.listModuleRouteEntries("public").flatMap((entry) => (
-      inspectRouterRoutes(entry.router).map((route) => `${route.method} ${route.path}`)
+      inspectRouterRoutes(/** @type {InspectableRouter} */ (entry.router)).map((route) => `${route.method} ${route.path}`)
     )),
   );
 });
@@ -66,7 +68,7 @@ check("registered browser routes are unique where inspectable", () => {
   assertUnique(
     "registered browser route",
     modulesService.listModuleRouteEntries("browser").flatMap((entry) => (
-      inspectRouterRoutes(entry.router).map((route) => `${route.method} ${route.path}`)
+      inspectRouterRoutes(/** @type {InspectableRouter} */ (entry.router)).map((route) => `${route.method} ${route.path}`)
     )),
   );
 });
@@ -302,17 +304,22 @@ check("workspace terminology changes display labels without changing IDs", () =>
   );
 });
 
+/** @typedef {{ route?: { methods?: Record<string, boolean>, path?: string } }} InspectableRouterLayer */
+/** @typedef {{ stack?: readonly InspectableRouterLayer[] }} InspectableRouter */
+
+/** @param {InspectableRouter | null | undefined} router */
 function inspectRouterRoutes(router) {
   return (router?.stack || [])
     .filter((layer) => layer.route?.path)
     .flatMap((layer) => (
-      Object.keys(layer.route.methods || {}).map((method) => ({
+      Object.keys(layer.route?.methods || {}).map((method) => ({
         method: method.toUpperCase(),
-        path: normalizePath(layer.route.path),
+        path: normalizePath(layer.route?.path),
       }))
     ));
 }
 
+/** @param {unknown} value */
 function normalizePath(value) {
   const path = String(value || "").trim();
   return path.startsWith("/") ? path : `/${path}`;

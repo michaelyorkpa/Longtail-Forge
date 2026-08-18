@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.27",
+  "checkpoint": "0.33.33.28",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 7659,
+      "errorCount": 7539,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3109,50 +3109,6 @@
           {
             "code": 7053,
             "count": 1
-          }
-        ],
-        "scripts/backup-restore-drill.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
-        "scripts/backup.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 21
-          },
-          {
-            "code": 2538,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 5
           }
         ],
         "scripts/batched-list-enrichment-regression.mjs": [
@@ -4717,12 +4673,6 @@
           {
             "code": 7024,
             "count": 1
-          }
-        ],
-        "scripts/module-sanity-check.mjs": [
-          {
-            "code": 7006,
-            "count": 10
           }
         ],
         "scripts/notes-access-contract-regression.mjs": [
@@ -7821,12 +7771,6 @@
             "count": 2
           }
         ],
-        "scripts/schema-snapshot.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/search-adapter-rebuild-service-conversion-regression.mjs": [
           {
             "code": 7006,
@@ -7913,12 +7857,6 @@
           {
             "code": 7006,
             "count": 13
-          }
-        ],
-        "scripts/search-index-rebuild.mjs": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "scripts/search-index-sync-regression.mjs": [
@@ -8809,40 +8747,6 @@
             "count": 1
           }
         ],
-        "scripts/workspace-backup-drill.mjs": [
-          {
-            "code": 7006,
-            "count": 26
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "scripts/workspace-backup.mjs": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 2538,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/workspace-purge.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/workspace-storage-regression.mjs": [
           {
             "code": 2322,
@@ -8862,7 +8766,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18793,
+    "errors": 18673,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

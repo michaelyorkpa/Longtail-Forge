@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.27. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.28.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.28.1, backup, restore, and workspace maintenance tooling is strict-clean. `backup.mjs`, `backup-restore-drill.mjs`, `workspace-backup.mjs`, `workspace-backup-drill.mjs`, `workspace-purge.mjs`, `schema-snapshot.mjs`, `search-index-rebuild.mjs`, and `module-sanity-check.mjs` close their 120 diagnostics with named archive-descriptor, restore-plan, option-key-union, database-handle, and router-inspection contracts, reusing the shared `backup-archive` types from 0.33.33.27 through type-only imports rather than divergent redeclarations. Backup-first ordering, dry-run behavior, destructive confirmation prompts, fail-closed restore validation, and every CLI guard message and exit code are unchanged — proven by a diff audit showing no added statements, by both drills running directly, by all four CLI guard paths returning identical messages and exit code 1, and by the 42-entry database bucket. Operator command surfaces and direct executability without transpilation are unchanged. `framework.full-strict-governance` pins the eight owners strict-clean; the scripts program falls from 7,659 to 7,539 diagnostics, combined strict debt from 18,793 to 18,673 with explicit `any` at 7, and effective regression assertions advance to 18,968 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable operator and backup documentation remains deferred to the version-wide branch closeout because this checkpoint types operator tooling without changing any command surface, prompt, exit code, configuration, or deployment contract. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.27, the shared script infrastructure is strict-clean: all 44 `scripts/lib/` and `scripts/test-support/` files plus every runner, discovery, manifest, closeout, and orchestration entry (including the canonical Playwright runner) sit at zero diagnostics under named typedef families for coverage policy, manifest, discovery, routing, fake-DOM, source-scan, spawn, and operational-record shapes, with spawn isolation, bucket order, retries, timing, cleanup, and independently runnable package commands byte-for-byte preserved and proven through the real runner, closeout gates, and 42/42 database plus 8/8 views bucket runs. Typing the infrastructure exposed roughly 200 latent errors in consumer regressions — following the 0.33.33.16.2 precedent those callers were corrected in the same checkpoint (typed row casts, named fixture surfaces, unknown-narrowing at vm and fake-DOM boundaries, and two omitted-API corrections to the hand-rolled better-sqlite3/Express ambient declarations), landing the whole scripts program at a net shrink from 9,147 to 7,659 diagnostics. The audit-era implicit-`this` assertion-helper plan is recorded as moot: zero TS2683 diagnostics remain anywhere in the program, so no helper was added. `framework.full-strict-governance` pins the new zone — `scripts/lib/`, `scripts/test-support/`, and the ten runner entries must stay strict-clean. Combined strict debt falls from 20,281 to 18,793 with explicit `any` at 7, the write-derived stamp advanced to `0.33.33.27`, and effective regression assertions advance to 18,967 across 347 scripts.
 
@@ -389,11 +395,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18298 |
+| Active regression assertions | 18299 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18967 |
+| Effective assertion floor | 18968 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

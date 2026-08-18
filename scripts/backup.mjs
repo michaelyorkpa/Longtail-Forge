@@ -11,17 +11,49 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(scriptPath), "..");
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+const packageJson = /** @type {{ version: string }} */ (JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
+
+/**
+ * A thrown value that may carry an operator-facing message.
+ * @typedef {import("./lib/backup-archive.mjs").MessageCarrier} MessageCarrier
+ */
+
+/**
+ * Boolean operator flags accepted by the whole-instance backup CLI.
+ * @typedef {"allowAnyAppVersion" | "confirmStopped"} BackupBooleanOptionKey
+ */
+
+/**
+ * Value-carrying operator flags accepted by the whole-instance backup CLI.
+ * @typedef {"archive" | "auditLog" | "confirmDestructive" | "database" | "filesRoot" | "output" | "preRestoreBackup" | "secureNotesKeyBackup"} BackupValueOptionKey
+ */
+
+/**
+ * Operator options parsed from one whole-instance backup invocation. Every flag
+ * is optional here; required-flag enforcement stays in parseCli.
+ * @typedef {Partial<Record<BackupBooleanOptionKey, boolean> & Record<BackupValueOptionKey, string>>} BackupCliOptions
+ */
+
+/**
+ * One parsed whole-instance backup CLI invocation.
+ * @typedef {{ command: string, options: BackupCliOptions }} BackupCliInvocation
+ */
+
+/**
+ * The live SQLite database file and Files storage root a command operates on.
+ * @typedef {{ databaseFile: string, filesRoot: string }} RuntimePaths
+ */
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
-    console.error(error.message);
+    console.error(/** @type {MessageCarrier} */ (error).message);
     process.exitCode = 1;
   }
 }
 
+/** @param {string[]} args */
 async function main(args) {
   const { command, options } = parseCli(args);
   const paths = resolveRuntimePaths(options);
@@ -97,12 +129,16 @@ async function main(args) {
   }
 }
 
+/**
+ * @param {string[]} args
+ * @returns {BackupCliInvocation}
+ */
 function parseCli(args) {
-  const command = args.shift();
+  const command = /** @type {string} */ (args.shift());
   if (!new Set(["create", "export", "inspect", "restore"]).has(command)) {
     throw new Error("Usage: node scripts/backup.mjs <create|inspect|export|restore> [options]");
   }
-  const options = {};
+  const options = /** @type {BackupCliOptions} */ ({});
   const booleanFlags = new Map([
     ["--confirm-stopped", "confirmStopped"],
     ["--allow-any-app-version", "allowAnyAppVersion"],
@@ -120,7 +156,7 @@ function parseCli(args) {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (booleanFlags.has(argument)) {
-      options[booleanFlags.get(argument)] = true;
+      options[/** @type {BackupBooleanOptionKey} */ (booleanFlags.get(argument))] = true;
       continue;
     }
     if (valueFlags.has(argument)) {
@@ -128,7 +164,7 @@ function parseCli(args) {
       if (!value || value.startsWith("--")) {
         throw new Error(`${argument} requires a value.`);
       }
-      options[valueFlags.get(argument)] = value;
+      options[/** @type {BackupValueOptionKey} */ (valueFlags.get(argument))] = value;
       continue;
     }
     throw new Error(`Unknown backup option: ${argument}`);
@@ -145,6 +181,10 @@ function parseCli(args) {
   return { command, options };
 }
 
+/**
+ * @param {BackupCliOptions} options
+ * @returns {RuntimePaths}
+ */
 function resolveRuntimePaths(options) {
   const dataDir = path.resolve(process.env.LONGTAIL_DATA_DIR || path.join(root, "data"));
   return {
@@ -163,11 +203,13 @@ function runtimeInventory() {
   };
 }
 
+/** @param {string} version */
 function defaultBackupPath(version) {
   const timestamp = new Date().toISOString().replaceAll(":", "-");
   return path.join(root, "backups", `longtail-forge-${version}-${timestamp}.ltfbackup.tgz`);
 }
 
+/** @param {unknown} value */
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
 }
