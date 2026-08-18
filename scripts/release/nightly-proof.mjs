@@ -14,6 +14,156 @@ const REQUIRED_JOBS = Object.freeze([
 const WORKFLOW_PATH = ".github/workflows/nightly.yml";
 const scriptPath = fileURLToPath(import.meta.url);
 
+/**
+ * Options parsed from the nightly proof command line. Every value except the
+ * age bound arrives as a `--flag value` string, so absent flags are typed as
+ * present strings: the existing runtime checks still throw when a command
+ * needs a flag that was not supplied.
+ * @typedef {object} NightlyProofOptions
+ * @property {number} maxAgeHours
+ * @property {string} commit
+ * @property {string} createdAt
+ * @property {string} directory
+ * @property {string} output
+ * @property {string} proof
+ * @property {string} repository
+ * @property {string | number} runId
+ * @property {string} token
+ * @property {string} workflowRef
+ */
+
+/**
+ * The subset of options `createNightlyProof` reads.
+ * @typedef {object} NightlyProofCreateOptions
+ * @property {string} commit
+ * @property {string} directory
+ * @property {string} output
+ * @property {string} repository
+ * @property {string | number} runId
+ * @property {string} workflowRef
+ * @property {string} [createdAt]
+ */
+
+/**
+ * The subset of options `verifyNightlyProof` reads.
+ * @typedef {object} NightlyProofVerifyOptions
+ * @property {string} commit
+ * @property {string} directory
+ * @property {number} maxAgeHours
+ * @property {string} proof
+ * @property {string} repository
+ * @property {string | number} runId
+ * @property {string} workflowRef
+ */
+
+/**
+ * The subset of options `selectNightlyProof` reads.
+ * @typedef {object} NightlyProofSelectOptions
+ * @property {string} commit
+ * @property {number} maxAgeHours
+ * @property {string} output
+ * @property {string} repository
+ * @property {string} token
+ */
+
+/**
+ * The schema-versioned release metadata record written beside a runtime artifact.
+ * @typedef {object} ReleaseMetadata
+ * @property {number} schemaVersion
+ * @property {string} application
+ * @property {string} version
+ * @property {string} commitSha
+ * @property {string} channel
+ * @property {string} sourceBranch
+ * @property {{ filename: string, sha256: string }} artifact
+ * @property {string} createdAt
+ */
+
+/**
+ * A verified runtime artifact bundle: the artifact, its digest, and its metadata.
+ * @typedef {object} NightlyBundle
+ * @property {string} artifactPath
+ * @property {string} artifactSha256
+ * @property {ReleaseMetadata} metadata
+ */
+
+/**
+ * The artifact descriptor embedded in a nightly proof.
+ * @typedef {object} NightlyProofArtifact
+ * @property {string} filename
+ * @property {string} sha256
+ * @property {string} checksumFilename
+ * @property {string} metadataFilename
+ * @property {string} metadataSha256
+ */
+
+/**
+ * The schema-versioned nightly proof document.
+ * @typedef {object} NightlyProof
+ * @property {number} schemaVersion
+ * @property {string} policyVersion
+ * @property {string} repository
+ * @property {string} workflowRef
+ * @property {string} workflowPath
+ * @property {string} workflowSha256
+ * @property {number} runId
+ * @property {string} commitSha
+ * @property {string} createdAt
+ * @property {Record<string, string>} requiredJobs
+ * @property {NightlyProofArtifact} artifact
+ */
+
+/**
+ * The selected nightly run and its two artifact names.
+ * @typedef {object} NightlyProofSelection
+ * @property {string} proofArtifactName
+ * @property {number} runId
+ * @property {string} runtimeArtifactName
+ */
+
+/**
+ * The repository fields read from a GitHub workflow run payload.
+ * @typedef {object} GitHubRepositoryRef
+ * @property {string} full_name
+ */
+
+/**
+ * The workflow-run fields read from the GitHub Actions API.
+ * @typedef {object} GitHubWorkflowRun
+ * @property {number} id
+ * @property {string} conclusion
+ * @property {string} event
+ * @property {string} head_branch
+ * @property {string} head_sha
+ * @property {string} path
+ * @property {string} created_at
+ * @property {GitHubRepositoryRef} [head_repository]
+ */
+
+/** @typedef {{ workflow_runs?: GitHubWorkflowRun[] }} GitHubWorkflowRunsResponse */
+
+/**
+ * The check-run fields read from the GitHub Actions API.
+ * @typedef {object} GitHubWorkflowJob
+ * @property {string} name
+ * @property {string} conclusion
+ */
+
+/** @typedef {{ jobs?: GitHubWorkflowJob[] }} GitHubWorkflowJobsResponse */
+
+/**
+ * The artifact fields read from the GitHub Actions API.
+ * @typedef {object} GitHubWorkflowArtifact
+ * @property {string} name
+ * @property {boolean} expired
+ */
+
+/** @typedef {{ artifacts?: GitHubWorkflowArtifact[] }} GitHubWorkflowArtifactsResponse */
+
+/**
+ * @param {NightlyProofCreateOptions} options
+ * @returns {Promise<NightlyProof>}
+ */
 async function createNightlyProof(options) {
   const bundle = await inspectBundle(options.directory);
   assertEqual(bundle.metadata.commitSha, options.commit, "release metadata commit");
@@ -46,8 +196,12 @@ async function createNightlyProof(options) {
   return proof;
 }
 
+/**
+ * @param {NightlyProofVerifyOptions} options
+ * @returns {Promise<{ bundle: NightlyBundle, proof: NightlyProof }>}
+ */
 async function verifyNightlyProof(options) {
-  const proof = JSON.parse(await fs.readFile(options.proof, "utf8"));
+  const proof = /** @type {NightlyProof} */ (JSON.parse(await fs.readFile(options.proof, "utf8")));
   const bundle = await inspectBundle(options.directory);
   assertEqual(proof.schemaVersion, 1, "proof schema version");
   assertEqual(proof.policyVersion, POLICY_VERSION, "proof policy version");
@@ -70,6 +224,10 @@ async function verifyNightlyProof(options) {
   return { bundle, proof };
 }
 
+/**
+ * @param {NightlyProofSelectOptions} options
+ * @returns {Promise<NightlyProofSelection>}
+ */
 async function selectNightlyProof(options) {
   const apiRoot = `https://api.github.com/repos/${options.repository}`;
   const query = new URL(`${apiRoot}/actions/workflows/nightly.yml/runs`);
@@ -78,7 +236,7 @@ async function selectNightlyProof(options) {
   query.searchParams.set("status", "completed");
   query.searchParams.set("head_sha", options.commit);
   query.searchParams.set("per_page", "20");
-  const runs = (await githubJson(query, options.token)).workflow_runs || [];
+  const runs = /** @type {GitHubWorkflowRunsResponse} */ (await githubJson(query, options.token)).workflow_runs || [];
   const eligible = runs.filter((run) => (
     run.conclusion === "success"
     && run.event === "push"
@@ -92,12 +250,12 @@ async function selectNightlyProof(options) {
     throw new Error(`Expected exactly one unexpired successful exact-SHA nightly run; found ${eligible.length}.`);
   }
   const run = eligible[0];
-  const jobs = (await githubJson(`${apiRoot}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`, options.token)).jobs || [];
+  const jobs = /** @type {GitHubWorkflowJobsResponse} */ (await githubJson(`${apiRoot}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`, options.token)).jobs || [];
   for (const requiredName of REQUIRED_JOBS) {
     const matches = jobs.filter(({ name, conclusion }) => name === requiredName && conclusion === "success");
     if (matches.length !== 1) throw new Error(`Nightly run ${run.id} does not have one successful ${requiredName} job.`);
   }
-  const artifacts = (await githubJson(`${apiRoot}/actions/runs/${run.id}/artifacts?per_page=100`, options.token)).artifacts || [];
+  const artifacts = /** @type {GitHubWorkflowArtifactsResponse} */ (await githubJson(`${apiRoot}/actions/runs/${run.id}/artifacts?per_page=100`, options.token)).artifacts || [];
   const runtimeArtifactName = `nightly-${options.commit}`;
   const proofArtifactName = `nightly-proof-${options.commit}`;
   for (const name of [runtimeArtifactName, proofArtifactName]) {
@@ -109,9 +267,13 @@ async function selectNightlyProof(options) {
   return selection;
 }
 
+/**
+ * @param {string} directory
+ * @returns {Promise<NightlyBundle>}
+ */
 async function inspectBundle(directory) {
   const metadataPath = path.join(directory, "release-metadata.json");
-  const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  const metadata = /** @type {ReleaseMetadata} */ (JSON.parse(await fs.readFile(metadataPath, "utf8")));
   const artifactPath = path.join(directory, metadata.artifact?.filename || "");
   const artifactSha256 = await sha256File(artifactPath);
   const checksum = String(await fs.readFile(`${artifactPath}.sha256`, "utf8")).trim();
@@ -129,6 +291,13 @@ async function inspectBundle(directory) {
   return { artifactPath, artifactSha256, metadata };
 }
 
+/**
+ * Fetch one GitHub REST payload; callers cast the result to the named payload
+ * typedef describing the fields they read.
+ * @param {URL | string} url
+ * @param {string} token
+ * @returns {Promise<unknown>}
+ */
 async function githubJson(url, token) {
   const response = await globalThis.fetch(url, {
     headers: {
@@ -142,33 +311,57 @@ async function githubJson(url, token) {
   return response.json();
 }
 
+/**
+ * @param {string} value
+ * @param {number} maxAgeHours
+ * @returns {void}
+ */
 function assertFreshTimestamp(value, maxAgeHours) {
   if (!isFresh(value, maxAgeHours)) throw new Error(`Proof timestamp is invalid, future-dated, or older than ${maxAgeHours} hours.`);
 }
 
+/**
+ * @param {string} value
+ * @param {number} maxAgeHours
+ * @returns {boolean}
+ */
 function isFresh(value, maxAgeHours) {
   const timestamp = Date.parse(value);
   const age = Date.now() - timestamp;
   return Number.isFinite(timestamp) && age >= 0 && age <= maxAgeHours * 60 * 60 * 1000;
 }
 
+/**
+ * @param {unknown} actual
+ * @param {unknown} expected
+ * @param {string} label
+ * @returns {void}
+ */
 function assertEqual(actual, expected, label) {
   if (actual !== expected) throw new Error(`${label} mismatch: expected ${expected}, received ${actual}.`);
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<string>}
+ */
 async function sha256File(filePath) {
   return createHash("sha256").update(await fs.readFile(filePath)).digest("hex");
 }
 
+/**
+ * @param {string[]} args
+ * @returns {{ command: string, options: NightlyProofOptions }}
+ */
 function parseArgs(args) {
-  const command = args.shift();
-  const options = { maxAgeHours: MAX_PROOF_AGE_HOURS };
+  const command = /** @type {string} */ (args.shift());
+  const options = /** @type {NightlyProofOptions} */ ({ maxAgeHours: MAX_PROOF_AGE_HOURS });
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
     if (!key.startsWith("--")) throw new Error(`Unknown nightly proof argument: ${key}`);
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`${key} requires a value.`);
-    options[key.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+    /** @type {Record<string, string | number>} */ (options)[key.slice(2).replace(/-([a-z])/g, (/** @type {string} */ _, /** @type {string} */ letter) => letter.toUpperCase())] = value;
   }
   options.maxAgeHours = Number(options.maxAgeHours);
   if (!/^[a-f0-9]{40}$/i.test(options.commit || "")) throw new Error("--commit must be a full 40-character SHA.");
@@ -193,7 +386,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     else throw new Error("Expected create, verify, or select.");
     console.log(JSON.stringify({ ok: true, command, ...("runId" in result ? { runId: result.runId } : {}) }));
   } catch (error) {
-    console.error(error.message);
+    console.error(/** @type {Error} */ (error).message);
     process.exitCode = 1;
   }
 }

@@ -1,6 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 
+/**
+ * Parsed maintenance rehearsal options.
+ * @typedef {object} MaintenanceRehearsalOptions
+ * @property {boolean} plan
+ * @property {string} caddy
+ * @property {string} nginx
+ * @property {string} openssl
+ */
+
 const options = parseOptions(process.argv.slice(2));
 
 const stages = [
@@ -75,6 +84,10 @@ console.log(
   "\nMaintenance release rehearsal passed: marker toggles, direct and bounded proxy ownership, deploy recovery, rollback, and stale-state recovery all completed without proxy reload.",
 );
 
+/**
+ * @param {readonly string[]} args
+ * @returns {MaintenanceRehearsalOptions}
+ */
 function parseOptions(args) {
   const parsed = {
     plan: false,
@@ -88,11 +101,11 @@ function parseOptions(args) {
       parsed.plan = true;
       continue;
     }
-    const key = {
+    const key = /** @type {Record<string, "caddy" | "nginx" | "openssl" | undefined>} */ ({
       "--caddy": "caddy",
       "--nginx": "nginx",
       "--openssl": "openssl",
-    }[argument];
+    })[argument];
     if (!key) {
       throw new Error(
         "Usage: node scripts/release/rehearse-maintenance-boundary.mjs [--plan] [--caddy <path>] [--nginx <path>] [--openssl <path>]",

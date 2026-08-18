@@ -2,6 +2,37 @@
 
 import { spawnSync } from "node:child_process";
 
+/**
+ * Parsed command-line options.
+ * @typedef {object} ConfigureOptions
+ * @property {boolean} apply
+ * @property {string} repo
+ */
+
+/**
+ * One labelled repository configuration step.
+ * @typedef {object} ReleaseOperation
+ * @property {string} label
+ * @property {() => void} run
+ */
+
+/**
+ * The deployment branch policy fields read from the GitHub environments API.
+ * @typedef {object} DeploymentBranchPolicy
+ * @property {string} name
+ * @property {string} type
+ */
+
+/** @typedef {{ branch_policies?: DeploymentBranchPolicy[] }} DeploymentBranchPolicyList */
+
+/**
+ * The environment variable fields read from the GitHub environments API.
+ * @typedef {object} EnvironmentVariable
+ * @property {string} name
+ */
+
+/** @typedef {{ variables?: EnvironmentVariable[] }} EnvironmentVariableList */
+
 const options = parseArgs(process.argv.slice(2));
 const plan = buildPlan(options.repo);
 
@@ -16,6 +47,10 @@ for (const operation of plan) {
 }
 console.log(JSON.stringify({ ok: true, mode: "apply", repository: options.repo, operations: plan.length }));
 
+/**
+ * @param {string} repo
+ * @returns {ReleaseOperation[]}
+ */
 function buildPlan(repo) {
   return [
     operation("repository merge and security settings", () => {
@@ -46,6 +81,13 @@ function buildPlan(repo) {
   ];
 }
 
+/**
+ * @param {string} repo
+ * @param {string} environment
+ * @param {string} branch
+ * @param {string} transport
+ * @returns {void}
+ */
 function configureEnvironment(repo, environment, branch, transport) {
   const encoded = encodeURIComponent(environment);
   api("PUT", `/repos/${repo}/environments/${encoded}`, {
@@ -54,7 +96,7 @@ function configureEnvironment(repo, environment, branch, transport) {
     reviewers: [],
     deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
   });
-  const policies = api("GET", `/repos/${repo}/environments/${encoded}/deployment-branch-policies`);
+  const policies = /** @type {DeploymentBranchPolicyList} */ (api("GET", `/repos/${repo}/environments/${encoded}/deployment-branch-policies`));
   if (!policies.branch_policies?.some((policy) => policy.name === branch && policy.type === "branch")) {
     api("POST", `/repos/${repo}/environments/${encoded}/deployment-branch-policies`, { name: branch, type: "branch" });
   }
@@ -66,8 +108,15 @@ function configureEnvironment(repo, environment, branch, transport) {
   }
 }
 
+/**
+ * @param {string} repo
+ * @param {string} encodedEnvironment
+ * @param {string} name
+ * @param {string} value
+ * @returns {void}
+ */
 function upsertEnvironmentVariable(repo, encodedEnvironment, name, value) {
-  const existing = api("GET", `/repos/${repo}/environments/${encodedEnvironment}/variables`);
+  const existing = /** @type {EnvironmentVariableList} */ (api("GET", `/repos/${repo}/environments/${encodedEnvironment}/variables`));
   if (existing.variables?.some((variable) => variable.name === name)) {
     api("PATCH", `/repos/${repo}/environments/${encodedEnvironment}/variables/${name}`, { name, value });
   } else {
@@ -75,6 +124,12 @@ function upsertEnvironmentVariable(repo, encodedEnvironment, name, value) {
   }
 }
 
+/**
+ * @param {string} repo
+ * @param {string} branch
+ * @param {readonly string[]} contexts
+ * @returns {void}
+ */
 function protectBranch(repo, branch, contexts) {
   api("PUT", `/repos/${repo}/branches/${encodeURIComponent(branch)}/protection`, {
     required_status_checks: { strict: true, contexts },
@@ -96,20 +151,38 @@ function protectBranch(repo, branch, contexts) {
   });
 }
 
+/**
+ * Run one authenticated `gh api` call; callers cast the parsed payload to the
+ * named typedef describing the fields they read.
+ * @param {string} method
+ * @param {string} endpoint
+ * @param {unknown} [body]
+ * @returns {unknown}
+ */
 function api(method, endpoint, body) {
   const args = ["api", "--method", method, endpoint];
   const input = body === undefined ? undefined : JSON.stringify(body);
   if (input !== undefined) args.push("--input", "-");
+  /** @type {import("node:child_process").SpawnSyncReturns<string>} */
   const result = spawnSync("gh", args, { encoding: "utf8", input });
   if (result.status !== 0) throw new Error(`GitHub API ${method} ${endpoint} failed: ${String(result.stderr || result.stdout).trim()}`);
   const output = String(result.stdout || "").trim();
   return output ? JSON.parse(output) : {};
 }
 
+/**
+ * @param {string} label
+ * @param {() => void} run
+ * @returns {ReleaseOperation}
+ */
 function operation(label, run) {
   return { label, run };
 }
 
+/**
+ * @param {readonly string[]} args
+ * @returns {ConfigureOptions}
+ */
 function parseArgs(args) {
   const options = { apply: false, repo: "michaelyorkpa/Longtail-Forge" };
   for (let index = 0; index < args.length; index += 1) {

@@ -9,6 +9,7 @@ const result = suggestDocsForPaths(collectChangedPaths(), { note: options.note }
 
 console.log(formatDocsSuggestion(result, { check: options.check }));
 
+/** @param {string[]} args */
 function parseOptions(args) {
   let check = false;
   let note = "";

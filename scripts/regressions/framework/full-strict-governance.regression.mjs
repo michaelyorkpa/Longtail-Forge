@@ -245,6 +245,20 @@ assert.deepEqual(
   [],
   "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
 );
+for (const releaseCeremonyOwnerPath of [
+  "scripts/bump-version.mjs",
+  "scripts/generate-bundled-module-catalog.mjs",
+  "scripts/release/checkpoint-commits.mjs",
+  "scripts/release/configure-github-release-operations.mjs",
+  "scripts/release/create-release-metadata.mjs",
+  "scripts/release/nightly-proof.mjs",
+  "scripts/release/public-demo-release-candidate-smoke.mjs",
+  "scripts/release/rehearse-maintenance-boundary.mjs",
+  "scripts/release/validate-release-revision.mjs",
+  "scripts/suggest-docs-for-changes.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[releaseCeremonyOwnerPath], undefined, `${releaseCeremonyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.2`);
+}
 for (const backupMaintenanceOwnerPath of [
   "scripts/backup.mjs",
   "scripts/backup-restore-drill.mjs",

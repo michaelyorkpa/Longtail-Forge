@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 7539,
+      "errorCount": 7409,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3177,20 +3177,6 @@
           {
             "code": 7023,
             "count": 1
-          }
-        ],
-        "scripts/bump-version.mjs": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
           }
         ],
         "scripts/cleanup-development-workspaces.mjs": [
@@ -4209,16 +4195,6 @@
           {
             "code": 7006,
             "count": 7
-          }
-        ],
-        "scripts/generate-bundled-module-catalog.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 5
           }
         ],
         "scripts/help-center-surface-regression.mjs": [
@@ -7023,10 +6999,6 @@
         ],
         "scripts/regressions/release/developer-verification-throughput.regression.mjs": [
           {
-            "code": 7006,
-            "count": 1
-          },
-          {
             "code": 7031,
             "count": 3
           }
@@ -7509,44 +7481,6 @@
             "count": 3
           }
         ],
-        "scripts/release/checkpoint-commits.mjs": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "scripts/release/configure-github-release-operations.mjs": [
-          {
-            "code": 7006,
-            "count": 20
-          }
-        ],
-        "scripts/release/create-release-metadata.mjs": [
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
         "scripts/release/deploy-via-ssh.mjs": [
           {
             "code": 2339,
@@ -7559,42 +7493,6 @@
           {
             "code": 7053,
             "count": 2
-          }
-        ],
-        "scripts/release/nightly-proof.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/release/public-demo-release-candidate-smoke.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "scripts/release/published-container-image.mjs": [
@@ -7617,30 +7515,6 @@
           {
             "code": 7031,
             "count": 7
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "scripts/release/rehearse-maintenance-boundary.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "scripts/release/validate-release-revision.mjs": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 4
           },
           {
             "code": 7053,
@@ -8039,12 +7913,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/suggest-docs-for-changes.mjs": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "scripts/tag-bulk-assignment-regression.mjs": [
@@ -8766,7 +8634,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18673,
+    "errors": 18543,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

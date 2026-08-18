@@ -2,6 +2,20 @@
 
 import { spawnSync } from "node:child_process";
 
+/**
+ * Options parsed from the release revision command line. Every value arrives as
+ * a `--flag value` string; the required-flag loop below still throws when one is
+ * missing, so consumers may read them as present strings.
+ * @typedef {object} ReleaseRevisionOptions
+ * @property {string} mainRef
+ * @property {string} revision
+ * @property {string} operation
+ * @property {string} confirmation
+ * @property {string} requiredConfirmation
+ */
+
+/** @typedef {{ version: string }} PackageManifest */
+
 const options = parseArgs(process.argv.slice(2));
 if (options.confirmation !== options.requiredConfirmation) {
   throw new Error(`Confirmation must exactly match "${options.requiredConfirmation}".`);
@@ -18,17 +32,22 @@ if (ancestry.status !== 0) {
 }
 
 const packageSource = git(["show", `${resolvedRevision}:package.json`]);
-const version = JSON.parse(packageSource).version;
+const version = /** @type {PackageManifest} */ (JSON.parse(packageSource)).version;
 console.log(JSON.stringify({ ok: true, operation: options.operation, revision: resolvedRevision, mainRef: options.mainRef, version }));
 
+/**
+ * @param {readonly string[]} args
+ * @returns {ReleaseRevisionOptions}
+ */
 function parseArgs(args) {
+  /** @type {Record<string, string>} */
   const options = { mainRef: "origin/main" };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (["--revision", "--main-ref", "--operation", "--confirmation", "--required-confirmation"].includes(arg)) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
-      options[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+      options[arg.slice(2).replace(/-([a-z])/g, (/** @type {string} */ _, /** @type {string} */ letter) => letter.toUpperCase())] = value;
       index += 1;
       continue;
     }
@@ -39,10 +58,15 @@ function parseArgs(args) {
   }
   if (!/^[a-f0-9]{40}$/i.test(options.revision)) throw new Error("--revision must be a full 40-character commit SHA.");
   if (!/^(deploy|rollback)$/.test(options.operation)) throw new Error("--operation must be deploy or rollback.");
-  return options;
+  return /** @type {ReleaseRevisionOptions} */ (options);
 }
 
+/**
+ * @param {readonly string[]} args
+ * @returns {string}
+ */
 function git(args) {
+  /** @type {import("node:child_process").SpawnSyncReturns<string>} */
   const result = spawnSync("git", args, { encoding: "utf8" });
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout || "git command failed").trim());
   return String(result.stdout).trim();
