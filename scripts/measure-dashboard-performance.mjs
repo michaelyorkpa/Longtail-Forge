@@ -59,7 +59,9 @@ LIMIT 1;
   const workspaceCount = readCount(
     /** @type {ReadonlyArray<CountRow>} */ (/** @type {unknown} */ (await querySql("SELECT COUNT(*) AS count FROM workspaces;"))),
   );
-  const today = localDateKey(new Date(), user.timezone || "UTC");
+  // The measured user's timezone is passed through unchanged: a null value
+  // must still reach Intl and fail loudly rather than silently measuring UTC.
+  const today = localDateKey(new Date(), /** @type {string} */ (user.timezone));
   const calendarRange = dashboardCalendarRange(today);
   const endpoints = {
     ...DASHBOARD_ENDPOINTS,
