@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.28.4. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.28.5.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.28.5.1, artifact and container image build and publication tooling is strict-clean. `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, and `release/published-container-image.mjs` close their 233 diagnostics with named contracts for artifact manifests and checksums, image index and platform-manifest digests, SBOM and SLSA provenance attestation records, docker inspect and buildx metadata boundaries, container probe responses, and CLI options. The published release metadata reuses the excess-property-checked contract introduced at 0.33.33.28.2 through a type-only import rather than a divergent redeclaration, so both describe one schema. Every edit is a JSDoc block or a cast wrapping an existing expression, audited pair by pair against the raw diff: emitted object literals are byte-identical so image-index and metadata key order is unchanged, no fallback operator was introduced, and every throw site is untouched so each rejection still rejects. Immutable-digest rules, artifact filename and build-context validation, unknown-option refusals, and schema-2 metadata binding were exercised directly and reproduce identical messages and exit codes; the runtime-artifact boundary regression builds a real artifact and passes. `framework.full-strict-governance` pins the five owners strict-clean. The scripts program falls from 7,150 to 6,916 diagnostics, combined strict debt from 18,284 to 18,050 with explicit `any` at 7, and effective regression assertions advance to 18,972 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable packaging and deployment documentation remains deferred to the version-wide branch closeout because this checkpoint types build and publication tooling without changing any emitted artifact shape, image binding, command surface, or rejection outcome. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.28.4, demo lifecycle, role journey, and workspace cleanup tooling is strict-clean. `cleanup-development-workspaces.mjs`, `sanitized-demo-role-journey.mjs`, and `demo-data-host.mjs` close their 145 diagnostics with named contracts for workspace inventory rows, deletion plans, orphan-user projections, schema column/foreign-key maps, role fixtures, role catalog entries, and session journeys. Every change is a JSDoc block or a cast wrapping an existing expression, audited line by line: no function became an arrow, nothing was extracted or inlined, no declaration changed scope, no fallback operator was introduced, and every presence cast still dereferences exactly as before so a missing value throws rather than skipping a deletion guard or redaction step. Operator-password admission, dry-run inventory reporting, destructive confirmation, verified-backup ordering, and sanitized-fixture redaction are unchanged — proven by the workspace-cleanup isolation regression driving the dry-run report, `--apply` refusals, and authorized retained-role repair, and by the sanitized-demo-role-journey regression spawning the script end to end and asserting no fixture password reaches stdout or stderr.
 
@@ -409,11 +415,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18302 |
+| Active regression assertions | 18303 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18971 |
+| Effective assertion floor | 18972 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

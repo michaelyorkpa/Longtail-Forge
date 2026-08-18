@@ -13,6 +13,190 @@ import {
   supportedPlatform,
 } from "./build-container-image.mjs";
 
+/**
+ * The parsed container deployment smoke CLI options.
+ * @typedef {object} ContainerSmokeArgs
+ * @property {string | undefined} artifact
+ * @property {string | undefined} previousArtifact
+ * @property {boolean} pull
+ * @property {string | undefined} releaseMetadata
+ */
+
+/**
+ * The temporary Compose fixture this smoke drives its deployment lifecycle through.
+ * @typedef {object} ComposeFixture
+ * @property {string} appEnvironmentPath
+ * @property {string} assetRoot
+ * @property {string} backupRoot
+ * @property {string} caddyfilePath
+ * @property {string} composeEnvironmentPath
+ * @property {string} composeOverridePath
+ * @property {string} deploymentRoot
+ * @property {string} maintenanceRoot
+ * @property {string} operatorMarker
+ * @property {string} root
+ */
+
+/**
+ * The document roots the generated Caddyfile serves maintenance evidence from.
+ * @typedef {object} CaddyDocumentRoots
+ * @property {string} assetRoot
+ * @property {string} maintenanceRoot
+ */
+
+/**
+ * The reverse proxy fixture process, with piped stdout and stderr.
+ * @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, import("node:stream").Readable>} CaddyProcess
+ */
+
+/**
+ * Options forwarded to one `docker compose` invocation.
+ * @typedef {import("./build-container-image.mjs").DockerCommandOptions} DockerCommandOptions
+ */
+
+/**
+ * Options for resolving the Compose service container.
+ * @typedef {object} ComposeContainerOptions
+ * @property {boolean} [allowStopped]
+ */
+
+/**
+ * The maintenance curtain expectation for one verification pass.
+ * @typedef {object} MaintenanceCurtainExpectation
+ * @property {boolean} [diagnosticsAvailable]
+ * @property {string} [version]
+ */
+
+/**
+ * One `docker inspect` mount record this smoke reads.
+ * @typedef {object} ContainerMountRecord
+ * @property {string} Destination
+ * @property {string} Name
+ */
+
+/**
+ * One `docker inspect` container state record this smoke reads.
+ * @typedef {object} ContainerStateRecord
+ * @property {number} ExitCode
+ * @property {boolean} Restarting
+ */
+
+/**
+ * The in-container proof that native better-sqlite3 runs from the published image.
+ * @typedef {object} RuntimeProofRecord
+ * @property {boolean} compiler
+ * @property {boolean} database
+ * @property {string} driver
+ * @property {boolean} eslint
+ * @property {boolean} make
+ * @property {string} nativeBinding
+ * @property {boolean} python
+ * @property {boolean} shm
+ * @property {boolean} typescript
+ * @property {boolean} vitest
+ * @property {boolean} wal
+ */
+
+/**
+ * The in-container SQLite integrity report.
+ * @typedef {object} DatabaseIntegrityRecord
+ * @property {unknown[]} foreignKeys
+ * @property {string[]} integrity
+ * @property {{ checksum: string, version: string }[]} migrations
+ */
+
+/**
+ * The JSON document a containerized backup command prints.
+ * @typedef {object} BackupCommandResult
+ * @property {string} archiveSha256
+ * @property {{ appVersion: string, storage: { localObjectCount: number } }} manifest
+ * @property {boolean} restorable
+ * @property {string} restoredAppVersion
+ * @property {string} status
+ */
+
+/**
+ * One probe body returned by the health, readiness, or app-info endpoints.
+ * @typedef {object} ContainerProbeBody
+ * @property {string} status
+ * @property {string} version
+ */
+
+/**
+ * One HTTP response captured through the public reverse proxy boundary.
+ * @typedef {object} BoundaryHttpResponse
+ * @property {Buffer} body
+ * @property {import("node:http").IncomingHttpHeaders} headers
+ * @property {ContainerProbeBody} json
+ * @property {number | undefined} status
+ * @property {string} text
+ */
+
+/**
+ * Options for one JSON API request through the public boundary.
+ * @typedef {object} ApiRequestOptions
+ * @property {unknown} [body]
+ * @property {string} [cookie]
+ * @property {string} [method]
+ */
+
+/**
+ * The JSON API response body fields this smoke reads.
+ * @typedef {object} ContainerApiBody
+ * @property {{ fileId: string, scanStatus: string, status: string }} file
+ * @property {{ list_id: string, title: string }} list
+ * @property {{ username: string, workspace_id: string }} user
+ */
+
+/**
+ * One JSON API response.
+ * @typedef {object} ContainerApiResponse
+ * @property {ContainerApiBody} body
+ * @property {import("node:http").IncomingHttpHeaders} headers
+ * @property {number | undefined} status
+ */
+
+/**
+ * One binary download response.
+ * @typedef {object} ContainerBufferResponse
+ * @property {Buffer} body
+ * @property {import("node:http").IncomingHttpHeaders} headers
+ * @property {number | undefined} status
+ */
+
+/**
+ * The upload response body fields this smoke reads.
+ * @typedef {object} UploadResponseBody
+ * @property {{ fileAttachmentId: string }} attachment
+ * @property {{ fileId: string }} file
+ */
+
+/**
+ * The uploaded Files evidence identifiers.
+ * @typedef {object} UploadedFileEvidence
+ * @property {string} attachmentId
+ * @property {string} fileId
+ */
+
+/**
+ * A representative list created through the public boundary.
+ * @typedef {object} RepresentativeList
+ * @property {string} cookie
+ * @property {string} listId
+ * @property {string} title
+ */
+
+/**
+ * The end-to-end workflow evidence carried across upgrade and rollback.
+ * @typedef {object} WorkflowEvidence
+ * @property {string} attachmentId
+ * @property {string} cookie
+ * @property {string} fileId
+ * @property {string} fileText
+ * @property {string} listId
+ * @property {string} title
+ */
+
 const token = `${process.pid}-${Date.now()}`;
 const projectName = `ltf-smoke-${token}`;
 const dataVolume = `ltf-smoke-data-${token}`;
@@ -34,6 +218,7 @@ const directHostPort = await reserveHostPort();
 const caddyHostPort = await reserveHostPort();
 const fixture = createFixture();
 const caddyOutput = [];
+/** @type {CaddyProcess | undefined} */
 let caddyProcess;
 
 assertDockerAvailable();
@@ -168,6 +353,9 @@ function assertNativePlatform() {
   );
 }
 
+/**
+ * @returns {ComposeFixture}
+ */
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-compose-lifecycle-"));
   const assetRoot = path.join(root, "asset");
@@ -238,6 +426,10 @@ volumes:
 `;
 }
 
+/**
+ * @param {CaddyDocumentRoots} documentRoots
+ * @returns {string}
+ */
 function caddyConfiguration({ assetRoot, maintenanceRoot }) {
   return `{
   admin off
@@ -311,6 +503,11 @@ function caddyConfiguration({ assetRoot, maintenanceRoot }) {
 `;
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ * @param {string} scannerHost
+ */
 function writeComposeEnvironment(image, volume, scannerHost) {
   const subnetOctet = 32 + (process.pid % 180);
   fs.writeFileSync(fixture.composeEnvironmentPath, [
@@ -343,6 +540,11 @@ function createSmokeNetwork() {
   ]);
 }
 
+/**
+ * @param {string[]} composeArgs
+ * @param {DockerCommandOptions} [options]
+ * @returns {string}
+ */
 function compose(composeArgs, options = {}) {
   return runDocker([
     "compose",
@@ -354,6 +556,11 @@ function compose(composeArgs, options = {}) {
   ], options);
 }
 
+/**
+ * @param {string} image
+ * @param {string} imageDigest
+ * @param {string} volume
+ */
 function assertComposeConfiguration(image, imageDigest, volume) {
   assert.equal(inspectImageDigest(image), imageDigest, "the generated local tag must resolve to the reviewed image ID");
   compose(["config", "--quiet"]);
@@ -373,6 +580,9 @@ function assertComposeConfiguration(image, imageDigest, volume) {
   assert.doesNotMatch(rendered, /published:\s*8001/, "Compose must not publish Node on every host interface");
 }
 
+/**
+ * @param {string} image
+ */
 function startScannerFixture(image) {
   const scannerScript = `const net=require('node:net');net.createServer((socket)=>{let buffer=Buffer.alloc(0);let scanning=false;socket.on('data',(chunk)=>{buffer=Buffer.concat([buffer,chunk]);if(!scanning&&buffer.subarray(0,6).toString()==='zPING\\0'){socket.end('PONG\\0');return;}if(!scanning&&buffer.length>=10&&buffer.subarray(0,10).toString()==='zINSTREAM\\0'){scanning=true;buffer=buffer.subarray(10);}if(scanning){while(buffer.length>=4){const size=buffer.readUInt32BE(0);if(size===0){socket.end('stream: OK\\0');return;}if(buffer.length<4+size)return;buffer=buffer.subarray(4+size);}}});}).listen(3310,'0.0.0.0');`;
   runDocker([
@@ -389,6 +599,9 @@ function startScannerFixture(image) {
   ]);
 }
 
+/**
+ * @param {string} image
+ */
 function assertScannerFixture(image) {
   const probe = `const net=require('node:net');const socket=net.connect({host:${JSON.stringify(scannerContainer)},port:3310},()=>socket.end('zPING\\0'));let output='';socket.on('data',(chunk)=>output+=chunk);socket.on('end',()=>{if(!output.includes('PONG'))process.exitCode=1;else process.stdout.write(output)});socket.setTimeout(5000,()=>{socket.destroy();process.exitCode=1});`;
   assert.match(runDocker([
@@ -428,12 +641,21 @@ function stopCaddyFixture() {
   }
 }
 
+/**
+ * @param {ComposeContainerOptions} [options]
+ * @returns {string}
+ */
 function composeContainer(options = {}) {
   const container = compose(["ps", "-q", ...(options.allowStopped ? ["--all"] : []), "longtail-forge"]);
   assert.ok(container, "Compose should report the longtail-forge service container");
   return container;
 }
 
+/**
+ * @param {string} name
+ * @param {string} containerPort
+ * @returns {number}
+ */
 function resolveContainerPort(name, containerPort) {
   const portOutput = runDocker(["port", name, containerPort]);
   const match = portOutput.match(/127\.0\.0\.1:(\d+)/);
@@ -443,6 +665,14 @@ function resolveContainerPort(name, containerPort) {
   return Number(match[1]);
 }
 
+/**
+ * @param {string} name
+ * @param {number} port
+ * @param {string} version
+ * @param {string} expectedImageDigest
+ * @param {string} expectedDataVolume
+ * @param {string} expectedBackupVolume
+ */
 async function verifyContainer(name, port, version, expectedImageDigest, expectedDataVolume, expectedBackupVolume) {
   await waitForHealthy(name);
   assert.deepEqual(await waitForJson(port, "/healthz"), { status: "ok" });
@@ -454,17 +684,17 @@ async function verifyContainer(name, port, version, expectedImageDigest, expecte
   assert.equal(runDocker(["inspect", "--format", "{{json .HostConfig.CapDrop}}", name]), '["ALL"]');
   assert.match(runDocker(["inspect", "--format", "{{json .HostConfig.SecurityOpt}}", name]), /no-new-privileges/);
 
-  const mounts = JSON.parse(runDocker(["inspect", "--format", "{{json .Mounts}}", name]));
+  const mounts = /** @type {ContainerMountRecord[]} */ (JSON.parse(runDocker(["inspect", "--format", "{{json .Mounts}}", name])));
   const dataMount = mounts.find((mount) => mount.Destination === "/var/lib/longtail-forge");
   const backupMount = mounts.find((mount) => mount.Destination === "/var/backups/longtail-forge");
   assert.equal(dataMount?.Name, expectedDataVolume);
   assert.equal(backupMount?.Name, expectedBackupVolume);
   assert.notEqual(dataMount?.Name, backupMount?.Name, "backup state must remain separate from live state");
 
-  const runtimeProof = JSON.parse(runDocker([
+  const runtimeProof = /** @type {RuntimeProofRecord} */ (JSON.parse(runDocker([
     "exec", name, "node", "-e",
     `const fs=require("node:fs");const Database=require("better-sqlite3");const database=new Database(":memory:");database.close();const nativeBinding=Object.keys(require.cache).find((key)=>key.endsWith(".node"));process.stdout.write(JSON.stringify({driver:require("better-sqlite3/package.json").version,nativeBinding:nativeBinding?.replaceAll("\\\\","/"),database:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db"),wal:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-wal"),shm:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-shm"),python:fs.existsSync("/usr/bin/python3"),make:fs.existsSync("/usr/bin/make"),compiler:fs.existsSync("/usr/bin/g++"),vitest:fs.existsSync("node_modules/vitest"),typescript:fs.existsSync("node_modules/typescript"),eslint:fs.existsSync("node_modules/eslint")}));`,
-  ]));
+  ])));
   assert.equal(runtimeProof.database, true);
   assert.equal(runtimeProof.wal, true, "the live SQLite WAL should stay inside the durable data volume");
   assert.equal(runtimeProof.shm, true, "the live SQLite SHM should stay inside the durable data volume");
@@ -484,6 +714,10 @@ async function verifyContainer(name, port, version, expectedImageDigest, expecte
   );
 }
 
+/**
+ * @param {number} port
+ * @param {string} version
+ */
 async function verifyPublicBoundary(port, version) {
   const health = await waitForHttp(port, "/healthz");
   const ready = await waitForHttp(port, "/readyz");
@@ -496,6 +730,10 @@ async function verifyPublicBoundary(port, version) {
   assert.equal(appInfo.json.version, version);
 }
 
+/**
+ * @param {number} port
+ * @param {MaintenanceCurtainExpectation} [options]
+ */
 async function verifyMaintenanceCurtain(port, options = {}) {
   const page = await requestHttp(port, "/login");
   assert.equal(page.status, 503);
@@ -526,6 +764,10 @@ function disableMaintenance() {
   fs.rmSync(fixture.operatorMarker, { force: true });
 }
 
+/**
+ * @param {number} port
+ * @returns {Promise<WorkflowEvidence>}
+ */
 async function exerciseWorkflow(port) {
   const cookie = await login(port);
   const session = await requestApi(port, "/api/session", { cookie });
@@ -547,6 +789,12 @@ async function exerciseWorkflow(port) {
   };
 }
 
+/**
+ * @param {number} port
+ * @param {string} title
+ * @param {string} [existingCookie]
+ * @returns {Promise<RepresentativeList>}
+ */
 async function createRepresentativeList(port, title, existingCookie = "") {
   const cookie = existingCookie || await login(port);
   const created = await requestApi(port, "/api/lists", {
@@ -558,6 +806,12 @@ async function createRepresentativeList(port, title, existingCookie = "") {
   return { cookie, listId: created.body.list.list_id, title };
 }
 
+/**
+ * @param {number} port
+ * @param {string} cookie
+ * @param {string} listId
+ * @returns {Promise<UploadedFileEvidence>}
+ */
 async function uploadRepresentativeFile(port, cookie, listId) {
   const form = new FormData();
   form.append("moduleId", "lists");
@@ -571,7 +825,7 @@ async function uploadRepresentativeFile(port, cookie, listId) {
     headers: requestHeaders(cookie),
     method: "POST",
   });
-  const body = await response.json();
+  const body = /** @type {UploadResponseBody} */ (await response.json());
   assert.equal(response.status, 201, JSON.stringify(body));
   return {
     attachmentId: body.attachment.fileAttachmentId,
@@ -579,6 +833,11 @@ async function uploadRepresentativeFile(port, cookie, listId) {
   };
 }
 
+/**
+ * @param {number} port
+ * @param {string} cookie
+ * @param {string} fileId
+ */
 async function waitForFileAvailable(port, cookie, fileId) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
@@ -593,6 +852,10 @@ async function waitForFileAvailable(port, cookie, fileId) {
   throw new Error(`Timed out waiting for uploaded file ${fileId} to pass its scanner lifecycle.`);
 }
 
+/**
+ * @param {number} port
+ * @param {WorkflowEvidence} workflow
+ */
 async function verifyWorkflow(port, workflow) {
   const cookie = await login(port);
   const read = await requestApi(port, `/api/lists/${workflow.listId}`, { cookie });
@@ -606,12 +869,20 @@ async function verifyWorkflow(port, workflow) {
   assert.equal(download.body.toString("utf8"), workflow.fileText);
 }
 
+/**
+ * @param {number} port
+ * @param {string} listId
+ */
 async function assertListMissing(port, listId) {
   const cookie = await login(port);
   const response = await requestApi(port, `/api/lists/${listId}`, { cookie });
   assert.equal(response.status, 404, "restored rollback must not retain post-upgrade database state");
 }
 
+/**
+ * @param {number} port
+ * @returns {Promise<string>}
+ */
 async function login(port) {
   const response = await requestApi(port, "/api/login", {
     body: { password: smokePassword, username: smokeUsername },
@@ -625,6 +896,11 @@ async function login(port) {
   return sessionCookie;
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ * @returns {BackupCommandResult}
+ */
 function createBackup(image, volume) {
   return runBackupCommand(image, volume, [
     "create",
@@ -636,6 +912,12 @@ function createBackup(image, volume) {
   ]);
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ * @param {string} [archive]
+ * @returns {BackupCommandResult}
+ */
 function inspectBackup(image, volume, archive = backupArchive) {
   return runBackupCommand(image, volume, [
     "inspect",
@@ -643,6 +925,11 @@ function inspectBackup(image, volume, archive = backupArchive) {
   ]);
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ * @returns {BackupCommandResult}
+ */
 function restoreBackup(image, volume) {
   return runBackupCommand(image, volume, [
     "restore",
@@ -656,6 +943,12 @@ function restoreBackup(image, volume) {
   ]);
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ * @param {string[]} commandArgs
+ * @returns {BackupCommandResult}
+ */
 function runBackupCommand(image, volume, commandArgs) {
   const output = runDocker([
     "run", "--rm",
@@ -689,9 +982,13 @@ function runBackupCommand(image, volume, commandArgs) {
     "node", "scripts/backup.mjs",
     ...commandArgs,
   ]);
-  return JSON.parse(output);
+  return /** @type {BackupCommandResult} */ (JSON.parse(output));
 }
 
+/**
+ * @param {string} image
+ * @param {string} volume
+ */
 function normalizeRestoredVolumePermissions(image, volume) {
   const output = runDocker([
     "run", "--rm",
@@ -708,17 +1005,23 @@ function normalizeRestoredVolumePermissions(image, volume) {
   assert.deepEqual(JSON.parse(output), { gid: 10001, mode: 0o700, uid: 10001 });
 }
 
+/**
+ * @param {string} container
+ */
 async function verifyDatabaseIntegrity(container) {
-  const result = JSON.parse(runDocker([
+  const result = /** @type {DatabaseIntegrityRecord} */ (JSON.parse(runDocker([
     "exec", container, "node", "-e",
     `const Database=require("better-sqlite3");const db=new Database("/var/lib/longtail-forge/longtail-forge.db",{readonly:true});const integrity=db.pragma("integrity_check").map((row)=>Object.values(row)[0]);const foreignKeys=db.pragma("foreign_key_check");const migrations=db.prepare("SELECT version, checksum FROM schema_migrations ORDER BY version").all();db.close();process.stdout.write(JSON.stringify({integrity,foreignKeys,migrations}));`,
-  ]));
+  ])));
   assert.deepEqual(result.integrity, ["ok"]);
   assert.deepEqual(result.foreignKeys, []);
   assert.ok(result.migrations.length > 0);
   assert.ok(result.migrations.every((migration) => migration.version && migration.checksum));
 }
 
+/**
+ * @param {string} name
+ */
 async function waitForHealthy(name) {
   const deadline = Date.now() + 60000;
   while (Date.now() < deadline) {
@@ -735,10 +1038,13 @@ async function waitForHealthy(name) {
   throw new Error(`Timed out waiting for ${name} to become healthy. State: ${state}. Logs: ${runDocker(["logs", name])}`);
 }
 
+/**
+ * @param {string} name
+ */
 async function waitForFailedCandidate(name) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
-    const state = JSON.parse(runDocker(["inspect", "--format", "{{json .State}}", name]));
+    const state = /** @type {ContainerStateRecord} */ (JSON.parse(runDocker(["inspect", "--format", "{{json .State}}", name])));
     if (state.Restarting === true && state.ExitCode !== 0) return;
     await delay(250);
   }
@@ -746,9 +1052,15 @@ async function waitForFailedCandidate(name) {
   throw new Error(`Timed out waiting for failed candidate ${name} to enter its restart loop. State: ${state}. Logs: ${runDocker(["logs", name])}`);
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @returns {Promise<ContainerProbeBody>}
+ */
 function requestJson(port, pathname) {
   return new Promise((resolve, reject) => {
     const request = httpGet(`http://127.0.0.1:${port}${pathname}`, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -758,7 +1070,7 @@ function requestJson(port, pathname) {
           return;
         }
         try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          resolve(/** @type {ContainerProbeBody} */ (JSON.parse(Buffer.concat(chunks).toString("utf8"))));
         } catch (error) {
           reject(error);
         }
@@ -768,6 +1080,11 @@ function requestJson(port, pathname) {
   });
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @returns {Promise<ContainerProbeBody>}
+ */
 async function waitForJson(port, pathname) {
   const deadline = Date.now() + 30000;
   let lastError;
@@ -779,9 +1096,14 @@ async function waitForJson(port, pathname) {
       await delay(250);
     }
   }
-  throw new Error(`Timed out waiting for ${pathname} on port ${port}: ${lastError?.message || "unknown error"}`);
+  throw new Error(`Timed out waiting for ${pathname} on port ${port}: ${/** @type {Error | undefined} */ (lastError)?.message || "unknown error"}`);
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @returns {Promise<BoundaryHttpResponse>}
+ */
 async function waitForHttp(port, pathname) {
   const deadline = Date.now() + 30000;
   let lastError;
@@ -794,9 +1116,14 @@ async function waitForHttp(port, pathname) {
     }
     await delay(250);
   }
-  throw new Error(`Timed out waiting for ${pathname} on port ${port}: ${lastError?.message || "unknown error"}`);
+  throw new Error(`Timed out waiting for ${pathname} on port ${port}: ${/** @type {Error | undefined} */ (lastError)?.message || "unknown error"}`);
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @returns {Promise<BoundaryHttpResponse>}
+ */
 function requestHttp(port, pathname) {
   return new Promise((resolve, reject) => {
     const request = httpGet({
@@ -805,6 +1132,7 @@ function requestHttp(port, pathname) {
       path: pathname,
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -819,6 +1147,12 @@ function requestHttp(port, pathname) {
   });
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @param {ApiRequestOptions} [options]
+ * @returns {Promise<ContainerApiResponse>}
+ */
 function requestApi(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body === undefined ? null : JSON.stringify(options.body);
@@ -834,6 +1168,7 @@ function requestApi(port, pathname, options = {}) {
       path: pathname,
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -841,7 +1176,7 @@ function requestApi(port, pathname, options = {}) {
         const text = Buffer.concat(chunks).toString("utf8");
         let parsed = null;
         try { parsed = text ? JSON.parse(text) : null; } catch (error) {
-          reject(new Error(`${pathname} returned invalid JSON: ${error.message}`));
+          reject(new Error(`${pathname} returned invalid JSON: ${/** @type {Error} */ (error).message}`));
           return;
         }
         resolve({ body: parsed, headers: response.headers, status: response.statusCode });
@@ -853,6 +1188,12 @@ function requestApi(port, pathname, options = {}) {
   });
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @param {ApiRequestOptions} [options]
+ * @returns {Promise<ContainerBufferResponse>}
+ */
 function requestBuffer(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
     const request = httpRequest({
@@ -862,6 +1203,7 @@ function requestBuffer(port, pathname, options = {}) {
       path: pathname,
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -880,10 +1222,18 @@ function requestHeaders(cookie = "") {
   };
 }
 
+/**
+ * @param {string} image
+ * @returns {string}
+ */
 function inspectImageUser(image) {
   return runDocker(["image", "inspect", "--format", "{{.Config.User}}", image]);
 }
 
+/**
+ * @param {string} image
+ * @returns {string}
+ */
 function inspectImageDigest(image) {
   return runDocker(["image", "inspect", "--format", "{{.Id}}", image]);
 }
@@ -906,6 +1256,9 @@ function cleanupDockerObjects() {
   }
 }
 
+/**
+ * @param {string[]} dockerArgs
+ */
 function tryRunDocker(dockerArgs) {
   try {
     runDocker(dockerArgs);
@@ -914,18 +1267,33 @@ function tryRunDocker(dockerArgs) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
 function quoteCaddyPath(filePath) {
   return JSON.stringify(path.resolve(filePath).replaceAll("\\", "/"));
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function dockerPath(value) {
   return path.resolve(value).replaceAll("\\", "/");
 }
 
+/**
+ * @param {number} milliseconds
+ * @returns {Promise<void>}
+ */
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+/**
+ * @returns {Promise<number>}
+ */
 function reserveHostPort() {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -934,14 +1302,18 @@ function reserveHostPort() {
       const address = server.address();
       server.close((error) => {
         if (error) reject(error);
-        else resolve(address.port);
+        else resolve(/** @type {import("node:net").AddressInfo} */ (address).port);
       });
     });
   });
 }
 
+/**
+ * @param {string[]} cliArgs
+ * @returns {ContainerSmokeArgs}
+ */
 function parseArgs(cliArgs) {
-  const parsed = { artifact: undefined, previousArtifact: undefined, pull: false, releaseMetadata: undefined };
+  const parsed = /** @type {ContainerSmokeArgs} */ ({ artifact: undefined, previousArtifact: undefined, pull: false, releaseMetadata: undefined });
   for (let index = 0; index < cliArgs.length; index += 1) {
     if (["--artifact", "--previous-artifact", "--release-metadata"].includes(cliArgs[index])) {
       const argument = cliArgs[index];

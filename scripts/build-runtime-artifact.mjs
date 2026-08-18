@@ -6,6 +6,92 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeReleaseBranch } from "../src/core/version.js";
 
+/**
+ * Options accepted by the runtime artifact builder. Every value is optional; the
+ * builder falls back to the repository root, `dist`, and the release-branch
+ * environment variable exactly as before.
+ * @typedef {object} RuntimeArtifactOptions
+ * @property {string} [rootDir]
+ * @property {string} [outputDir]
+ * @property {string} [sourceBranch]
+ */
+
+/**
+ * The repository package manifest fields the runtime package is derived from.
+ * @typedef {object} SourcePackageManifest
+ * @property {string} name
+ * @property {string} version
+ * @property {string} license
+ * @property {string} type
+ * @property {Record<string, string>} engines
+ * @property {Record<string, string>} dependencies
+ * @property {Record<string, string>} [scripts]
+ */
+
+/**
+ * One `packages` entry of the npm lockfile, limited to the fields the runtime
+ * shrinkwrap rewrite reads or deletes.
+ * @typedef {object} SourceLockPackage
+ * @property {string} [version]
+ * @property {boolean} [dev]
+ * @property {Record<string, string>} [devDependencies]
+ */
+
+/**
+ * The npm lockfile fields rewritten into the runtime shrinkwrap.
+ * @typedef {object} SourcePackageLock
+ * @property {string} [version]
+ * @property {Record<string, SourceLockPackage>} packages
+ */
+
+/**
+ * The runtime `package.json` emitted into the artifact. `devDependencies` is
+ * declared as never-present so consumers keep proving it was dropped.
+ * @typedef {object} RuntimePackageManifest
+ * @property {string} name
+ * @property {string} version
+ * @property {boolean} private
+ * @property {string} license
+ * @property {string} type
+ * @property {Record<string, string>} engines
+ * @property {Record<string, string>} scripts
+ * @property {Record<string, string>} dependencies
+ * @property {undefined} [devDependencies]
+ */
+
+/**
+ * The `RUNTIME-ARTIFACT.json` manifest packaged beside the runtime payload.
+ * @typedef {object} RuntimeArtifactManifest
+ * @property {number} schemaVersion
+ * @property {string} appVersion
+ * @property {string | null} sourceBranch
+ * @property {string} artifactType
+ * @property {string} installCommand
+ * @property {string} startCommand
+ * @property {string} workerCommand
+ * @property {readonly string[]} runtimePaths
+ * @property {readonly string[]} runtimeDependencies
+ * @property {readonly string[]} excludedCategories
+ */
+
+/**
+ * The single entry `npm pack --json` reports for the packed tarball.
+ * @typedef {object} NpmPackResult
+ * @property {string} filename
+ * @property {readonly { path: string }[]} files
+ */
+
+/**
+ * The built runtime artifact, its checksum sidecar, and its packaged manifest.
+ * @typedef {object} RuntimeArtifactResult
+ * @property {string} artifactPath
+ * @property {string} checksum
+ * @property {string} checksumPath
+ * @property {readonly string[]} files
+ * @property {RuntimeArtifactManifest} manifest
+ * @property {string} version
+ */
+
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRoot = path.resolve(path.dirname(scriptPath), "..");
 const DEFAULT_OUTPUT_DIR = "dist";
@@ -65,13 +151,17 @@ const EXCLUDED_CATEGORIES = Object.freeze([
   "roadmaps, TODOs, decisions, changelog history, and unrelated developer documentation",
 ]);
 
+/**
+ * @param {RuntimeArtifactOptions} [options]
+ * @returns {Promise<Readonly<RuntimeArtifactResult>>}
+ */
 async function buildRuntimeArtifact(options = {}) {
   const rootDir = path.resolve(options.rootDir || defaultRoot);
   const outputDir = path.resolve(rootDir, options.outputDir || DEFAULT_OUTPUT_DIR);
-  const packageJson = await readJson(path.join(rootDir, "package.json"));
-  const packageLock = await readJson(path.join(rootDir, "package-lock.json"));
+  const packageJson = /** @type {SourcePackageManifest} */ (await readJson(path.join(rootDir, "package.json")));
+  const packageLock = /** @type {SourcePackageLock} */ (await readJson(path.join(rootDir, "package-lock.json")));
   assertPackageMetadata(packageJson, packageLock);
-  const sourceBranch = normalizeReleaseBranch(options.sourceBranch || process.env.LONGTAIL_RELEASE_BRANCH);
+  const sourceBranch = normalizeReleaseBranch(/** @type {string} */ (options.sourceBranch || process.env.LONGTAIL_RELEASE_BRANCH));
 
   const stageParent = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-artifact-"));
   const stageDir = path.join(stageParent, "package-source");
@@ -111,6 +201,10 @@ async function buildRuntimeArtifact(options = {}) {
   }
 }
 
+/**
+ * @param {SourcePackageManifest} packageJson
+ * @returns {RuntimePackageManifest}
+ */
 function createRuntimePackage(packageJson) {
   return {
     name: packageJson.name,
@@ -136,8 +230,12 @@ function createRuntimePackage(packageJson) {
   };
 }
 
+/**
+ * @param {SourcePackageLock} packageLock
+ * @returns {SourcePackageLock}
+ */
 function createRuntimeLock(packageLock) {
-  const runtimeLock = JSON.parse(JSON.stringify(packageLock));
+  const runtimeLock = /** @type {SourcePackageLock} */ (JSON.parse(JSON.stringify(packageLock)));
   const rootPackage = runtimeLock.packages?.[""];
   if (!rootPackage) {
     throw new Error("package-lock.json is missing its root package metadata.");
@@ -152,6 +250,11 @@ function createRuntimeLock(packageLock) {
   return runtimeLock;
 }
 
+/**
+ * @param {RuntimePackageManifest} runtimePackage
+ * @param {string} [sourceBranch]
+ * @returns {RuntimeArtifactManifest}
+ */
 function createArtifactManifest(runtimePackage, sourceBranch = "") {
   return {
     schemaVersion: 1,
@@ -167,16 +270,26 @@ function createArtifactManifest(runtimePackage, sourceBranch = "") {
   };
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} stageDir
+ * @param {string} relativePath
+ */
 async function copyRuntimePath(rootDir, stageDir, relativePath) {
   const source = path.join(rootDir, relativePath);
   const destination = path.join(stageDir, relativePath);
   try {
     await fs.cp(source, destination, { recursive: true, force: true });
   } catch (error) {
-    throw new Error(`Unable to stage required runtime path ${relativePath}: ${error.message}`);
+    throw new Error(`Unable to stage required runtime path ${relativePath}: ${/** @type {Error} */ (error).message}`);
   }
 }
 
+/**
+ * @param {string} stageDir
+ * @param {string} outputDir
+ * @returns {NpmPackResult}
+ */
 function runNpmPack(stageDir, outputDir) {
   const args = ["pack", ".", "--json", "--ignore-scripts", "--pack-destination", outputDir];
   const environment = {
@@ -196,11 +309,12 @@ function runNpmPack(stageDir, outputDir) {
     throw new Error(`npm pack failed: ${String(result.stderr || result.stdout || result.error).trim()}`);
   }
 
+  /** @type {NpmPackResult[]} */
   let parsed;
   try {
     parsed = JSON.parse(result.stdout);
   } catch (error) {
-    throw new Error(`npm pack returned invalid JSON: ${error.message}`);
+    throw new Error(`npm pack returned invalid JSON: ${/** @type {Error} */ (error).message}`);
   }
   if (!Array.isArray(parsed) || parsed.length !== 1 || !parsed[0]?.filename) {
     throw new Error("npm pack did not report exactly one runtime artifact.");
@@ -213,6 +327,10 @@ function resolveWindowsNpmCli() {
     || path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
 }
 
+/**
+ * @param {SourcePackageManifest} packageJson
+ * @param {SourcePackageLock} packageLock
+ */
 function assertPackageMetadata(packageJson, packageLock) {
   const versions = [packageJson.version, packageLock.version, packageLock.packages?.[""]?.version];
   if (!versions[0] || versions.some((version) => version !== versions[0])) {
@@ -223,10 +341,18 @@ function assertPackageMetadata(packageJson, packageLock) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<unknown>}
+ */
 async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));
 }
 
+/**
+ * @param {string} filePath
+ * @param {unknown} value
+ */
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -244,7 +370,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     console.log(`Checksum file: ${result.checksumPath}`);
     console.log(`Packaged files: ${result.files.length}`);
   } catch (error) {
-    console.error(error.message);
+    console.error(/** @type {Error} */ (error).message);
     process.exitCode = 1;
   }
 }
