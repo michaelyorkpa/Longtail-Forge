@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.1 - Type backup, restore, and workspace maintenance tooling
+
+**Model: High Effort** - Backup-first and destructive-confirmation contracts guard real operator data.
+
+- [x] Closed all 120 diagnostics in `backup.mjs`, `backup-restore-drill.mjs`, `workspace-backup.mjs`, `workspace-backup-drill.mjs`, `workspace-purge.mjs`, `schema-snapshot.mjs`, `search-index-rebuild.mjs`, and `module-sanity-check.mjs`.
+- [x] Typed archive descriptors, restore plans, database handles, temporary paths, option-key unions, router inspection, and cleanup states with named contracts, reusing the shared `scripts/lib/backup-archive.mjs` types from 0.33.33.27 through type-only imports rather than divergent redeclarations.
+- [x] Preserved backup-first ordering, dry-run behavior, destructive confirmation prompts, and fail-closed restore validation exactly: a diff audit found no added statements and no changed strings, paths, or control flow, and all four CLI guard paths return identical messages and exit code 1.
+- [x] Proved through both drills run directly, the backup/restore foundation regression, the 42-entry database bucket, and the module sanity check's 20 checks without changing operator command surfaces or direct executability; `framework.full-strict-governance` pins the eight owners strict-clean, the scripts program falls from 7,659 to 7,539 diagnostics, combined debt from 18,793 to 18,673 with explicit `any` at 7, and effective regression assertions advance to 18,968 across 347 scripts.
+
 ## Version 0.33.33.27 - Type script libraries, test support, and the regression runner
 
 **Model: High Effort** - Shared script APIs and runner control flow affect every verification owner.
