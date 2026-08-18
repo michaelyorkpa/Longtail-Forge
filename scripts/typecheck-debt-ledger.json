@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 6916,
+      "errorCount": 6771,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4989,36 +4989,6 @@
           {
             "code": 7006,
             "count": 4
-          }
-        ],
-        "scripts/reference-caddy-security-smoke.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 9
-          },
-          {
-            "code": 2741,
-            "count": 26
-          },
-          {
-            "code": 7005,
-            "count": 11
-          },
-          {
-            "code": 7006,
-            "count": 36
-          },
-          {
-            "code": 7031,
-            "count": 36
-          },
-          {
-            "code": 7034,
-            "count": 6
           }
         ],
         "scripts/regression-clean-clone-contract.mjs": [
@@ -7331,20 +7301,6 @@
             "count": 3
           }
         ],
-        "scripts/release/deploy-via-ssh.mjs": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
         "scripts/runtime-configuration-contract-regression.mjs": [
           {
             "code": 7006,
@@ -8376,7 +8332,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18050,
+    "errors": 17905,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

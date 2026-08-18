@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.28.5.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.28.5.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.28.5.2, deployment transfer and the reference proxy boundary are strict-clean, closing the `0.33.33.28.5` pair and the `0.33.33.28` family. `release/deploy-via-ssh.mjs` and `reference-caddy-security-smoke.mjs` close their 145 diagnostics with named contracts for deploy options and validated SSH configuration, compose-helper results, proxy probe request and response records, expected-header maps, maintenance-curtain expectations, redacted edge access logs, and process/fixture descriptors. The deployment transfer now consumes the canonical published release-metadata contract from 0.33.33.28.5.1 through a type-only import instead of a divergent local shape, so the metadata schema keeps one definition from creation through publication to deployment. Equivalence was proven mechanically rather than by inspection: a normalizer stripping every `/** @type {T} */ (expr)` cast back to `expr` renders the proxy owner byte-identical to its previous revision across 948 normalized lines, and the assertion inventory is unchanged at 111 `assert` calls with identical per-method, asserted-header-name, and status-code histograms. Pinned-host batch SSH boundaries, the root-owned Compose helper handoff, safe-absolute-path and clean-HTTPS-origin validation, and every security-header, diagnostic-status, oversized-body, maintenance-marker, and request-correlation expectation are unchanged — the reference smoke ran end to end against a live Caddy 2.11.4 fixture with real HTTPS probes and reported every boundary passing. `framework.full-strict-governance` pins both owners strict-clean. The scripts program falls from 6,916 to 6,771 diagnostics, combined strict debt from 18,050 to 17,905 with explicit `any` at 7, and effective regression assertions advance to 18,973 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable deployment and proxy documentation remains deferred to the version-wide branch closeout because this checkpoint types transfer and probe tooling without changing any host contract, command surface, asserted expectation, or rejection outcome. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.28.5.1, artifact and container image build and publication tooling is strict-clean. `build-runtime-artifact.mjs`, `runtime-artifact-smoke.mjs`, `build-container-image.mjs`, `container-deployment-smoke.mjs`, and `release/published-container-image.mjs` close their 233 diagnostics with named contracts for artifact manifests and checksums, image index and platform-manifest digests, SBOM and SLSA provenance attestation records, docker inspect and buildx metadata boundaries, container probe responses, and CLI options. The published release metadata reuses the excess-property-checked contract introduced at 0.33.33.28.2 through a type-only import rather than a divergent redeclaration, so both describe one schema. Every edit is a JSDoc block or a cast wrapping an existing expression, audited pair by pair against the raw diff: emitted object literals are byte-identical so image-index and metadata key order is unchanged, no fallback operator was introduced, and every throw site is untouched so each rejection still rejects. Immutable-digest rules, artifact filename and build-context validation, unknown-option refusals, and schema-2 metadata binding were exercised directly and reproduce identical messages and exit codes; the runtime-artifact boundary regression builds a real artifact and passes. `framework.full-strict-governance` pins the five owners strict-clean. The scripts program falls from 7,150 to 6,916 diagnostics, combined strict debt from 18,284 to 18,050 with explicit `any` at 7, and effective regression assertions advance to 18,972 across 347 scripts.
 
@@ -415,11 +421,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18303 |
+| Active regression assertions | 18304 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18972 |
+| Effective assertion floor | 18973 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

@@ -9,6 +9,172 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 
+/**
+ * A single probe result captured from a live HTTP/HTTPS request against the
+ * reference proxy perimeter.
+ * @typedef {Object} ProxyProbeResponse
+ * @property {unknown} body Parsed JSON payload, or null when the body is not JSON.
+ * @property {import("node:http").IncomingHttpHeaders} headers Response headers exactly as received.
+ * @property {number} status Response status line code.
+ * @property {string} text Raw response body text.
+ */
+
+/**
+ * Options for a probe sent straight at the application listener.
+ * @typedef {Object} DirectProbeRequestOptions
+ * @property {number} appPort
+ * @property {string} pathName
+ */
+
+/**
+ * Options for a probe sent through the public TLS edge.
+ * @typedef {Object} ProxyProbeRequestOptions
+ * @property {unknown} [body]
+ * @property {Record<string, string>} [headers]
+ * @property {string} [host]
+ * @property {string} [method]
+ * @property {string} pathName
+ * @property {number} proxyPort
+ * @property {string} [servername]
+ */
+
+/**
+ * Request options handed to the underlying node client, including the probe-only
+ * `body` field that this module serializes before dispatch.
+ * @typedef {import("node:https").RequestOptions & { body?: unknown }} ProxyProbeClientRequestOptions
+ */
+
+/**
+ * The subset of the node `http`/`https` modules this module dispatches through.
+ * @typedef {Object} ProxyProbeClient
+ * @property {(options: ProxyProbeClientRequestOptions, callback: (response: import("node:http").IncomingMessage) => void) => import("node:http").ClientRequest} request
+ */
+
+/**
+ * @typedef {Object} MaintenanceCurtainExpectation
+ * @property {boolean} [expectBody]
+ */
+
+/**
+ * @typedef {Object} CsrfTokenBody
+ * @property {string} csrfToken
+ */
+
+/**
+ * @typedef {Object} AuthenticatedUserBody
+ * @property {{ username: string }} user
+ */
+
+/**
+ * @typedef {Object} ApplicationInfoBody
+ * @property {string} name
+ * @property {string} version
+ */
+
+/**
+ * @typedef {Object} DiagnosticStatusBody
+ * @property {string} status
+ */
+
+/**
+ * A `Set-Cookie` entry split into its full attribute string and its name=value pair.
+ * @typedef {Object} ResponseCookieRecord
+ * @property {string} full
+ * @property {string} pair
+ */
+
+/**
+ * A structured JSON log line emitted by the application process.
+ * @typedef {Object} ProcessJsonLogRecord
+ * @property {string} timestamp
+ * @property {string} level
+ * @property {string} event
+ * @property {string} [requestId]
+ */
+
+/**
+ * The redacted request detail carried by a Caddy access log record.
+ * @typedef {Object} EdgeAccessRequestDetail
+ * @property {string} uri
+ * @property {Record<string, string[]>} [headers]
+ */
+
+/**
+ * A JSON record emitted on the edge proxy's stderr stream.
+ * @typedef {Object} EdgeAccessLogRecord
+ * @property {string} [request_id]
+ * @property {EdgeAccessRequestDetail} [request]
+ * @property {number} [status]
+ */
+
+/**
+ * An edge access record that has already been matched to a request ID and therefore
+ * carries its request detail.
+ * @typedef {EdgeAccessLogRecord & { request: EdgeAccessRequestDetail }} CorrelatedEdgeAccessLogRecord
+ */
+
+/**
+ * @typedef {Object} SmokeSecrets
+ * @property {string} password
+ * @property {string} secureNotesKey
+ */
+
+/**
+ * @typedef {Object} AppEnvironmentOptions
+ * @property {number} appPort
+ * @property {string} databaseFile
+ * @property {string} fixtureRoot
+ * @property {string} password
+ * @property {string} publicOrigin
+ * @property {string} secureNotesKey
+ * @property {string} username
+ */
+
+/**
+ * @typedef {AppEnvironmentOptions & { output: string[] }} AppProcessOptions
+ */
+
+/**
+ * @typedef {Object} CaddyfileOptions
+ * @property {number} appPort
+ * @property {string} maintenanceAssetRoot
+ * @property {string} maintenanceStateRoot
+ * @property {number | null} privateProxyPort
+ * @property {number} proxyPort
+ * @property {string} topology
+ */
+
+/**
+ * @typedef {Object} MaintenanceSnippetOptions
+ * @property {string} assetRoot
+ * @property {string} stateRoot
+ */
+
+/**
+ * @typedef {Object} NginxConfigOptions
+ * @property {string} certificatePath
+ * @property {string} edgeAssetRoot
+ * @property {string} keyPath
+ * @property {string} nginxPrefixRoot
+ * @property {number | null} privateProxyPort
+ * @property {number} proxyPort
+ * @property {number | null} redirectPort
+ * @property {string} reference
+ */
+
+/**
+ * @typedef {Object} RunCommandOptions
+ * @property {string} [cwd]
+ * @property {NodeJS.ProcessEnv} [env]
+ */
+
+/**
+ * @typedef {Object} RunCommandResult
+ * @property {number | null} code
+ * @property {string} stderr
+ * @property {string} stdout
+ */
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const caddyPath = readOption("--caddy") || "caddy";
 const nginxPath = readOption("--nginx") || "nginx";
@@ -39,8 +205,11 @@ const maintenanceAssetRoot = path.join(fixtureRoot, "maintenance-assets");
 const edgeAssetRoot = path.join(fixtureRoot, "edge-assets");
 const operatorMarker = path.join(maintenanceStateRoot, "operator", "maintenance.on");
 const deploymentMarker = path.join(maintenanceStateRoot, "deployment", "maintenance.on");
+/** @type {string[]} */
 const appOutput = [];
+/** @type {string[]} */
 const caddyOutput = [];
+/** @type {string[]} */
 const nginxOutput = [];
 let appProcess = null;
 let caddyProcess = null;
@@ -127,7 +296,7 @@ try {
     await waitForResponse(() => sendHttpRequest({ appPort, pathName: "/readyz" }), 200, "direct app readiness");
   } catch (error) {
     const captured = appOutput.join("").trim();
-    throw new Error(`${error.message}${captured ? `\nCaptured app output:\n${captured}` : ""}`, {
+    throw new Error(`${/** @type {Error} */ (error).message}${captured ? `\nCaptured app output:\n${captured}` : ""}`, {
       cause: error,
     });
   }
@@ -165,7 +334,7 @@ try {
   );
   assert.deepEqual(health.body, { status: "ok" });
   assert.equal(health.headers["cache-control"], "no-store");
-  assert.match(health.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+  assert.match(/** @type {string} */ (health.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
   assert.equal(health.headers["strict-transport-security"], "max-age=300");
   assert.equal(health.headers["x-content-type-options"], "nosniff");
 
@@ -184,17 +353,17 @@ try {
   assert.equal(ready.status, 200);
   assert.deepEqual(ready.body, { status: "ready" });
   assert.equal(ready.headers["cache-control"], "no-store");
-  assert.match(ready.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+  assert.match(/** @type {string} */ (ready.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
   assert.notEqual(ready.headers["x-request-id"], health.headers["x-request-id"]);
 
   const loginPage = await sendHttpsRequest({ headers: forgedHeaders, pathName: "/login.html", proxyPort });
   assert.equal(loginPage.status, 200);
   assert.match(loginPage.text, /Longtail Forge/);
-  assert.match(loginPage.headers["content-security-policy"], /default-src 'self'/);
-  assert.match(loginPage.headers["content-security-policy"], /frame-ancestors 'none'/);
+  assert.match(/** @type {string} */ (loginPage.headers["content-security-policy"]), /default-src 'self'/);
+  assert.match(/** @type {string} */ (loginPage.headers["content-security-policy"]), /frame-ancestors 'none'/);
   assert.equal(loginPage.headers["x-frame-options"], "DENY");
   assert.equal(loginPage.headers["referrer-policy"], "strict-origin-when-cross-origin");
-  assert.match(loginPage.headers["permissions-policy"], /camera=\(\)/);
+  assert.match(/** @type {string} */ (loginPage.headers["permissions-policy"]), /camera=\(\)/);
 
   const oversized = await sendHttpsRequest({
     body: { value: "x".repeat(8 * 1024 * 1024) },
@@ -203,11 +372,11 @@ try {
     proxyPort,
   });
   assertMaintenanceCurtain(oversized);
-  assert.match(oversized.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+  assert.match(/** @type {string} */ (oversized.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
 
   const csrf = await sendHttpsRequest({ headers: forgedHeaders, pathName: "/api/csrf-token", proxyPort });
   assert.equal(csrf.status, 200);
-  const csrfToken = csrf.body.csrfToken;
+  const csrfToken = /** @type {CsrfTokenBody} */ (csrf.body).csrfToken;
   const csrfCookie = readCookie(csrf.headers["set-cookie"], "lf_csrf");
   assert.ok(csrfToken);
   assert.match(csrfCookie.full, /; Secure/i);
@@ -226,7 +395,7 @@ try {
     proxyPort,
   });
   assert.equal(login.status, 200, login.text);
-  assert.equal(login.body.user.username, username);
+  assert.equal(/** @type {AuthenticatedUserBody} */ (login.body).user.username, username);
   const sessionCookie = readCookie(login.headers["set-cookie"], "longtail_forge_session");
   assert.match(sessionCookie.full, /; Secure/i);
   assert.match(sessionCookie.full, /; HttpOnly/i);
@@ -238,7 +407,7 @@ try {
     proxyPort,
   });
   assert.equal(session.status, 200);
-  assert.equal(session.body.user.username, username);
+  assert.equal(/** @type {AuthenticatedUserBody} */ (session.body).user.username, username);
 
   const crossOriginLogin = await sendHttpsRequest({
     body: { password: "not-the-real-password", username },
@@ -256,7 +425,7 @@ try {
 
   const appInfo = await sendHttpsRequest({ headers: forgedHeaders, pathName: "/api/app-info", proxyPort });
   assert.equal(appInfo.status, 200);
-  assert.equal(appInfo.body.name, "Longtail Forge");
+  assert.equal(/** @type {ApplicationInfoBody} */ (appInfo.body).name, "Longtail Forge");
   const applicationNotFound = await sendHttpsRequest({
     headers: forgedHeaders,
     pathName: "/api/maintenance-smoke-not-found",
@@ -290,10 +459,10 @@ try {
   });
   assertMaintenanceCurtain(headCurtain, { expectBody: false });
 
-  for (const [pathName, expectedBody] of [
+  for (const [pathName, expectedBody] of /** @type {Array<[string, DiagnosticStatusBody]>} */ ([
     ["/healthz?maintenance=operator", { status: "ok" }],
     ["/readyz?maintenance=operator", { status: "ready" }],
-  ]) {
+  ])) {
     const diagnostic = await sendHttpsRequest({ headers: forgedHeaders, pathName, proxyPort });
     assert.equal(diagnostic.status, 200);
     assert.deepEqual(diagnostic.body, expectedBody);
@@ -305,7 +474,7 @@ try {
     proxyPort,
   });
   assert.equal(markedAppInfo.status, 200);
-  assert.equal(markedAppInfo.body.name, "Longtail Forge");
+  assert.equal(/** @type {ApplicationInfoBody} */ (markedAppInfo.body).name, "Longtail Forge");
 
   for (const pathName of ["/healthz/", "/readyz/extra", "/api/app-info/extra"]) {
     assertMaintenanceCurtain(await sendHttpsRequest({ headers: forgedHeaders, pathName, proxyPort }));
@@ -372,7 +541,7 @@ try {
     assert.equal(diagnostic.status, 503);
     assert.deepEqual(diagnostic.body, { status: "unavailable" });
     assert.equal(diagnostic.headers["cache-control"], "no-store");
-    assert.match(diagnostic.headers["content-type"], /^application\/json/);
+    assert.match(/** @type {string} */ (diagnostic.headers["content-type"]), /^application\/json/);
     assert.doesNotMatch(diagnostic.text, /Longtail Forge|Temporarily unavailable/);
   }
 
@@ -418,7 +587,7 @@ try {
       assert.deepEqual(diagnostic.body, { status: "unavailable" });
       assert.equal(diagnostic.headers["cache-control"], "no-store");
       assert.equal(diagnostic.headers["retry-after"], "60");
-      assert.match(diagnostic.headers["content-type"], /^application\/json/);
+      assert.match(/** @type {string} */ (diagnostic.headers["content-type"]), /^application\/json/);
       assert.doesNotMatch(diagnostic.text, /Connection unavailable|Temporarily unavailable/);
     }
 
@@ -466,7 +635,7 @@ try {
   );
   const caddyAccessRecords = readJsonRecords(caddyOutput)
     .filter((record) => record.request_id && record.request);
-  const healthEdgeRecord = caddyAccessRecords.find((record) => record.request_id === health.headers["x-request-id"]);
+  const healthEdgeRecord = /** @type {CorrelatedEdgeAccessLogRecord} */ (caddyAccessRecords.find((record) => record.request_id === health.headers["x-request-id"]));
   assert.ok(healthEdgeRecord, "the Caddy access record should share the public response request ID");
   assert.equal(healthEdgeRecord.request.uri, "REDACTED", "edge access evidence must omit request paths and query values");
   assert.equal(healthEdgeRecord.request.headers, undefined, "edge access evidence must omit submitted headers and cookies");
@@ -477,10 +646,10 @@ try {
   );
 
   console.log(JSON.stringify({
-    appVersion: appInfo.body.version,
+    appVersion: /** @type {ApplicationInfoBody} */ (appInfo.body).version,
     caddyVersion,
     forgedClientIpRejected: true,
-    health: health.body.status,
+    health: /** @type {DiagnosticStatusBody} */ (health.body).status,
     loginSession: "passed",
     maintenanceCurtain: "passed",
     markerRecoveryWithoutReload: true,
@@ -489,7 +658,7 @@ try {
     nginxVersion,
     observedClientIp: loginSecurityEvent.ip_address,
     productionJsonLogs: logRecords.length,
-    ready: ready.body.status,
+    ready: /** @type {DiagnosticStatusBody} */ (ready.body).status,
     requestIdCorrelated: true,
     testOnlyScannerOverride: true,
     tls: topology === "multi-proxy" ? "nginx-disposable-self-signed" : "caddy-internal-ca",
@@ -503,7 +672,12 @@ try {
   await fs.rm(fixtureRoot, { force: true, recursive: true });
 }
 
+/**
+ * @param {AppEnvironmentOptions} options
+ * @returns {NodeJS.ProcessEnv}
+ */
 function createAppEnvironment({ appPort, databaseFile: dbFile, fixtureRoot: root, password: adminPassword, publicOrigin: origin, secureNotesKey: notesKey, username: adminUsername }) {
+  /** @type {NodeJS.ProcessEnv} */
   const environment = {
     ...process.env,
     HOST: "127.0.0.1",
@@ -538,6 +712,10 @@ function createAppEnvironment({ appPort, databaseFile: dbFile, fixtureRoot: root
   return environment;
 }
 
+/**
+ * @param {NginxConfigOptions} options
+ * @returns {string}
+ */
 function createLocalNginxConfig({
   certificatePath,
   edgeAssetRoot,
@@ -580,10 +758,18 @@ ${fixtureReference}
 `;
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function normalizeNginxPath(value) {
   return String(value).replaceAll("\\", "/");
 }
 
+/**
+ * @param {CaddyfileOptions} options
+ * @returns {string}
+ */
 function createLocalCaddyfile({
   appPort: upstreamPort,
   maintenanceAssetRoot,
@@ -699,6 +885,9 @@ ${perimeterDirectives}
 `;
 }
 
+/**
+ * @returns {string}
+ */
 function createPerimeterDirectives() {
   return `\tlog {
 \t\toutput stderr
@@ -718,6 +907,10 @@ function createPerimeterDirectives() {
 `;
 }
 
+/**
+ * @param {MaintenanceSnippetOptions} options
+ * @returns {string}
+ */
 function createMaintenanceSnippets({ assetRoot, stateRoot }) {
   assert.ok(assetRoot);
   assert.ok(stateRoot);
@@ -753,6 +946,10 @@ function createMaintenanceSnippets({ assetRoot, stateRoot }) {
 }`;
 }
 
+/**
+ * @param {AppProcessOptions} options
+ * @returns {import("node:child_process").ChildProcess}
+ */
 function startAppProcess({
   appPort,
   databaseFile: dbFile,
@@ -781,19 +978,24 @@ function startAppProcess({
   return child;
 }
 
+/**
+ * @param {ProxyProbeResponse} response
+ * @param {MaintenanceCurtainExpectation} [options]
+ * @returns {void}
+ */
 function assertMaintenanceCurtain(response, options = {}) {
   const expectBody = options.expectBody !== false;
   assert.equal(response.status, 503, response.text);
   assert.equal(response.headers["cache-control"], "no-store");
-  assert.match(response.headers["content-type"], /^text\/html/);
+  assert.match(/** @type {string} */ (response.headers["content-type"]), /^text\/html/);
   assert.equal(response.headers["retry-after"], "60");
   assert.equal(response.headers["strict-transport-security"], "max-age=300");
   assert.equal(response.headers["x-content-type-options"], "nosniff");
   assert.equal(response.headers["x-frame-options"], "DENY");
   assert.equal(response.headers["referrer-policy"], "no-referrer");
-  assert.match(response.headers["content-security-policy"], /default-src 'none'/);
-  assert.match(response.headers["content-security-policy"], /style-src 'unsafe-inline'/);
-  assert.match(response.headers["permissions-policy"], /camera=\(\)/);
+  assert.match(/** @type {string} */ (response.headers["content-security-policy"]), /default-src 'none'/);
+  assert.match(/** @type {string} */ (response.headers["content-security-policy"]), /style-src 'unsafe-inline'/);
+  assert.match(/** @type {string} */ (response.headers["permissions-policy"]), /camera=\(\)/);
   if (expectBody) {
     assert.match(response.text, /Longtail Forge is not available right now/);
     assert.match(response.text, /http-equiv="refresh" content="60"/);
@@ -802,33 +1004,47 @@ function assertMaintenanceCurtain(response, options = {}) {
   }
 }
 
+/**
+ * @param {ProxyProbeResponse} response
+ * @returns {void}
+ */
 function assertEdgeFallback(response) {
   assert.equal(response.status, 503, response.text);
   assert.equal(response.headers["cache-control"], "no-store");
-  assert.match(response.headers["content-type"], /^text\/html/);
+  assert.match(/** @type {string} */ (response.headers["content-type"]), /^text\/html/);
   assert.equal(response.headers["retry-after"], "60");
   assert.equal(response.headers["strict-transport-security"], "max-age=300");
   assert.equal(response.headers["x-content-type-options"], "nosniff");
   assert.equal(response.headers["x-frame-options"], "DENY");
   assert.equal(response.headers["referrer-policy"], "no-referrer");
-  assert.match(response.headers["content-security-policy"], /default-src 'none'/);
-  assert.match(response.headers["permissions-policy"], /camera=\(\)/);
+  assert.match(/** @type {string} */ (response.headers["content-security-policy"]), /default-src 'none'/);
+  assert.match(/** @type {string} */ (response.headers["permissions-policy"]), /camera=\(\)/);
   assert.match(response.text, /data-response-owner="public-edge"/);
   assert.match(response.text, /Connection unavailable/);
   assert.doesNotMatch(response.text, /Temporarily unavailable/);
 }
 
+/**
+ * @param {() => Promise<ProxyProbeResponse>} requestFactory
+ * @param {string} message
+ * @returns {Promise<void>}
+ */
 async function assertRequestFails(requestFactory, message) {
   try {
     const response = await requestFactory();
     assert.fail(`${message}; received HTTP ${response?.status ?? "unknown"}`);
   } catch (error) {
-    if (error?.code === "ERR_ASSERTION") {
+    if (/** @type {NodeJS.ErrnoException | null} */ (error)?.code === "ERR_ASSERTION") {
       throw error;
     }
   }
 }
 
+/**
+ * @param {() => Promise<ProxyProbeResponse>} requestFactory
+ * @param {string} message
+ * @returns {Promise<void>}
+ */
 async function assertEdgeRequestRejected(requestFactory, message) {
   try {
     const response = await requestFactory();
@@ -839,23 +1055,36 @@ async function assertEdgeRequestRejected(requestFactory, message) {
     assert.equal(response.headers["x-request-id"], undefined, `${message}; application request ID was present`);
     assert.doesNotMatch(response.text, /Longtail Forge/i, `${message}; application content was present`);
   } catch (error) {
-    if (error?.code === "ERR_ASSERTION") {
+    if (/** @type {NodeJS.ErrnoException | null} */ (error)?.code === "ERR_ASSERTION") {
       throw error;
     }
   }
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function quoteCaddyPath(value) {
   return `"${String(value).replaceAll("\\", "/").replaceAll('"', '\\"')}"`;
 }
 
+/**
+ * @param {import("node:child_process").ChildProcess} child
+ * @param {string[]} target
+ * @returns {void}
+ */
 function captureOutput(child, target) {
-  for (const stream of [child.stdout, child.stderr]) {
+  for (const stream of /** @type {import("node:stream").Readable[]} */ ([child.stdout, child.stderr])) {
     stream.setEncoding("utf8");
     stream.on("data", (chunk) => target.push(chunk));
   }
 }
 
+/**
+ * @param {string[]} chunks
+ * @returns {EdgeAccessLogRecord[]}
+ */
 function readJsonRecords(chunks) {
   return chunks.join("").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
     try {
@@ -866,6 +1095,11 @@ function readJsonRecords(chunks) {
   });
 }
 
+/**
+ * @param {string[]} chunks
+ * @param {SmokeSecrets} secrets
+ * @returns {ProcessJsonLogRecord[]}
+ */
 function assertProductionJsonLogs(chunks, secrets) {
   const lines = chunks.join("").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   assert.ok(lines.length > 0, "production app should emit structured process output");
@@ -885,6 +1119,10 @@ function assertProductionJsonLogs(chunks, secrets) {
   return records;
 }
 
+/**
+ * @param {string} dbFile
+ * @returns {{ action: string, ip_address: string }}
+ */
 function readLatestLoginSecurityEvent(dbFile) {
   const database = new Database(dbFile, { readonly: true });
   try {
@@ -901,6 +1139,12 @@ LIMIT 1;
   }
 }
 
+/**
+ * @param {() => Promise<ProxyProbeResponse>} requestFactory
+ * @param {number} expectedStatus
+ * @param {string} label
+ * @returns {Promise<ProxyProbeResponse>}
+ */
 async function waitForResponse(requestFactory, expectedStatus, label) {
   const deadline = Date.now() + 30_000;
   let lastResult = null;
@@ -918,13 +1162,21 @@ async function waitForResponse(requestFactory, expectedStatus, label) {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
-  throw new Error(`${label} did not reach status ${expectedStatus}; last status=${lastResult?.status || "none"} error=${lastError?.code || "none"}`);
+  throw new Error(`${label} did not reach status ${expectedStatus}; last status=${lastResult?.status || "none"} error=${/** @type {NodeJS.ErrnoException | null} */ (lastError)?.code || "none"}`);
 }
 
+/**
+ * @param {DirectProbeRequestOptions} options
+ * @returns {Promise<ProxyProbeResponse>}
+ */
 function sendHttpRequest({ appPort: port, pathName }) {
   return sendRequest(http, { hostname: "127.0.0.1", path: pathName, port });
 }
 
+/**
+ * @param {ProxyProbeRequestOptions} options
+ * @returns {Promise<ProxyProbeResponse>}
+ */
 function sendHttpsRequest({ body, headers = {}, host = "localhost", method = "GET", pathName, proxyPort: port, servername = "localhost" }) {
   return sendRequest(https, {
     body,
@@ -939,16 +1191,22 @@ function sendHttpsRequest({ body, headers = {}, host = "localhost", method = "GE
   });
 }
 
+/**
+ * @param {ProxyProbeClient} client
+ * @param {ProxyProbeClientRequestOptions} options
+ * @returns {Promise<ProxyProbeResponse>}
+ */
 function sendRequest(client, options) {
   return new Promise((resolve, reject) => {
     const serializedBody = options.body === undefined ? null : JSON.stringify(options.body);
-    const headers = { ...(options.headers || {}) };
+    const headers = /** @type {Record<string, string | number>} */ ({ ...(options.headers || {}) });
     if (serializedBody !== null) {
       headers["content-type"] = "application/json";
       headers["content-length"] = Buffer.byteLength(serializedBody);
     }
 
     const request = client.request({ ...options, body: undefined, headers }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
@@ -959,7 +1217,7 @@ function sendRequest(client, options) {
         } catch {
           body = null;
         }
-        resolve({ body, headers: response.headers, status: response.statusCode, text });
+        resolve({ body, headers: response.headers, status: /** @type {number} */ (response.statusCode), text });
       });
     });
     request.on("error", reject);
@@ -970,24 +1228,38 @@ function sendRequest(client, options) {
   });
 }
 
+/**
+ * @param {string | string[] | undefined} setCookieHeader
+ * @param {string} name
+ * @returns {ResponseCookieRecord}
+ */
 function readCookie(setCookieHeader, name) {
-  const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader].filter(Boolean);
+  const cookies = /** @type {string[]} */ (Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader].filter(Boolean));
   const full = cookies.find((cookie) => cookie.startsWith(`${name}=`));
   assert.ok(full, `${name} cookie should be present`);
   return { full, pair: full.split(";", 1)[0] };
 }
 
+/**
+ * @returns {Promise<number>}
+ */
 function reservePort() {
   return new Promise((resolve, reject) => {
     const server = http.createServer();
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
+      const { port } = /** @type {import("node:net").AddressInfo} */ (server.address());
       server.close((error) => error ? reject(error) : resolve(port));
     });
   });
 }
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ * @param {RunCommandOptions} [options]
+ * @returns {Promise<RunCommandResult>}
+ */
 function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -996,12 +1268,14 @@ function runCommand(command, args, options = {}) {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
+    /** @type {string[]} */
     const stdout = [];
+    /** @type {string[]} */
     const stderr = [];
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    /** @type {import("node:stream").Readable} */ (child.stdout).setEncoding("utf8");
+    /** @type {import("node:stream").Readable} */ (child.stderr).setEncoding("utf8");
+    /** @type {import("node:stream").Readable} */ (child.stdout).on("data", (chunk) => stdout.push(chunk));
+    /** @type {import("node:stream").Readable} */ (child.stderr).on("data", (chunk) => stderr.push(chunk));
     child.once("error", reject);
     child.once("exit", (code) => {
       const result = { code, stderr: stderr.join(""), stdout: stdout.join("") };
@@ -1014,6 +1288,10 @@ function runCommand(command, args, options = {}) {
   });
 }
 
+/**
+ * @param {import("node:child_process").ChildProcess | null} child
+ * @returns {Promise<void>}
+ */
 async function stopProcess(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) {
     return;
@@ -1028,6 +1306,10 @@ async function stopProcess(child) {
   }
 }
 
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function readOption(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : "";
