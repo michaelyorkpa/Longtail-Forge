@@ -24,11 +24,204 @@ const PROVENANCE_PREDICATES = new Set([
   "https://slsa.dev/provenance/v1",
 ]);
 
+/**
+ * The reviewed schema-1 release metadata record, reused from the writer that
+ * emits it so the published record cannot drift from it.
+ * @typedef {import("./create-release-metadata.mjs").ReleaseMetadata} ReleaseMetadata
+ */
+
+/**
+ * The schema-1 record as publication consumes it: the schema version is raised
+ * to 2 here, and `createdAt` is carried through when the writer recorded one.
+ * @typedef {Omit<ReleaseMetadata, "createdAt"> & { createdAt?: string }} PublishedReleaseBase
+ */
+
+/**
+ * One descriptor inside a published image index.
+ * @typedef {object} ImageIndexDescriptor
+ * @property {string} digest
+ * @property {string} [mediaType]
+ * @property {{ os?: string, architecture?: string, variant?: string }} [platform]
+ * @property {Record<string, string>} [annotations]
+ */
+
+/**
+ * The registry image index reported by `buildx imagetools inspect --raw`,
+ * limited to the fields this publication proof reads.
+ * @typedef {object} PublishedImageIndex
+ * @property {string} mediaType
+ * @property {readonly ImageIndexDescriptor[]} manifests
+ */
+
+/**
+ * The attestation manifest fetched for one attestation descriptor.
+ * @typedef {object} AttestationManifest
+ * @property {readonly { annotations?: Record<string, string> }[]} [layers]
+ */
+
+/**
+ * One registry-attached attestation bound into the published release metadata.
+ * @typedef {object} AttestationRecord
+ * @property {string} [manifestDigest]
+ * @property {string | null} [predicateType]
+ */
+
+/**
+ * The SPDX SBOM and SLSA provenance attestations proven on the published digest.
+ * @typedef {object} AttestationEvidence
+ * @property {AttestationRecord | null} provenance
+ * @property {AttestationRecord | null} sbom
+ */
+
+/**
+ * The reviewed platform manifest descriptor bound into release metadata.
+ * @typedef {object} PublishedPlatformDescriptor
+ * @property {string} digest
+ * @property {string} [mediaType]
+ * @property {string} [os]
+ * @property {string} [architecture]
+ */
+
+/**
+ * The `docker image inspect` fields the publication proof reads.
+ * @typedef {object} DockerImageInspection
+ * @property {string} Os
+ * @property {string} Architecture
+ * @property {string} Id
+ * @property {readonly string[]} [RepoDigests]
+ * @property {{ Labels?: Record<string, string> }} [Config]
+ */
+
+/**
+ * The labels and identities a published image must carry.
+ * @typedef {object} PublishedImageExpectations
+ * @property {string} artifactChecksum
+ * @property {string} commitSha
+ * @property {string} sourceUrl
+ * @property {string} version
+ */
+
+/**
+ * The published image runtime identity proven by `docker image inspect`.
+ * @typedef {object} PublishedImageRuntime
+ * @property {string} architecture
+ * @property {string} configDigest
+ * @property {string} os
+ */
+
+/**
+ * The better-sqlite3 execution proof emitted by the published digest itself.
+ * @typedef {object} NativeDependencyProof
+ * @property {string} architecture
+ * @property {string} packageVersion
+ * @property {string} platform
+ * @property {string} returning
+ * @property {string} sqliteVersion
+ */
+
+/**
+ * The native dependency proof bound into the published release metadata.
+ * @typedef {object} PublishedNativeDependency
+ * @property {string} architecture
+ * @property {string} betterSqlite3Version
+ * @property {string} execution
+ * @property {string} platform
+ * @property {string} sqliteVersion
+ */
+
+/**
+ * The platform manifest record written beside the published release metadata.
+ * @typedef {object} PublishedPlatformManifest
+ * @property {number} schemaVersion
+ * @property {string} application
+ * @property {string} repository
+ * @property {string} digest
+ * @property {string} reference
+ * @property {string} platform
+ * @property {PublishedPlatformDescriptor} platformManifest
+ * @property {string} imageConfigDigest
+ * @property {PublishedNativeDependency} nativeDependency
+ * @property {AttestationEvidence} attestations
+ */
+
+/**
+ * The immutable image binding embedded in schema-2 release metadata.
+ * @typedef {object} PublishedImageBinding
+ * @property {string} repository
+ * @property {string} digest
+ * @property {string} reference
+ * @property {string} platform
+ * @property {PublishedPlatformDescriptor} platformManifest
+ * @property {string} imageConfigDigest
+ * @property {PublishedNativeDependency | null} nativeDependency
+ * @property {AttestationEvidence | null} attestations
+ */
+
+/**
+ * Schema-2 published release metadata: the reviewed schema-1 record plus the
+ * immutable image binding.
+ * @typedef {PublishedReleaseBase & { schemaVersion: number, image: PublishedImageBinding }} PublishedReleaseMetadata
+ */
+
+/**
+ * The exact source and image identity a caller may require the published
+ * release metadata to match.
+ * @typedef {object} PublishedReleaseExpectations
+ * @property {string} [expectedCommit]
+ * @property {string} [expectedDigest]
+ */
+
+/**
+ * The `--metadata-file` record buildx writes for a pushed image index.
+ * @typedef {{ "containerimage.digest": string }} BuildxBuildMetadata
+ */
+
+/**
+ * Options for one docker invocation.
+ * @typedef {object} RunDockerOptions
+ * @property {string} [cwd]
+ * @property {import("node:child_process").StdioOptions} [stdio]
+ */
+
+/**
+ * Options parsed from the published image command line. The required-flag loop
+ * still throws when one is missing, so command-specific consumers may read the
+ * flags they require as present strings.
+ * @typedef {object} PublishedImageCliOptions
+ * @property {string} command
+ * @property {string} [artifact]
+ * @property {string} [releaseMetadata]
+ * @property {string} [repository]
+ * @property {string} [outputMetadata]
+ * @property {string} [outputPlatformManifest]
+ * @property {string} [outputBuildMetadata]
+ * @property {string} [metadata]
+ * @property {string} [expectedCommit]
+ * @property {string} [expectedDigest]
+ */
+
+/**
+ * The publish command options, whose flags the CLI parser has already proven.
+ * @typedef {PublishedImageCliOptions & {
+ *   artifact: string,
+ *   releaseMetadata: string,
+ *   repository: string,
+ *   outputMetadata: string,
+ *   outputPlatformManifest: string,
+ *   outputBuildMetadata: string,
+ *   rootDir?: string,
+ *   stdio?: import("node:child_process").StdioOptions,
+ * }} PublishContainerImageOptions
+ */
+
+/**
+ * @param {PublishContainerImageOptions} options
+ */
 async function publishContainerImage(options) {
   const rootDir = path.resolve(options.rootDir || process.cwd());
   const artifact = await inspectRuntimeArtifact(path.resolve(rootDir, options.artifact));
   const baseMetadataPath = path.resolve(rootDir, options.releaseMetadata);
-  const baseMetadata = JSON.parse(await fs.readFile(baseMetadataPath, "utf8"));
+  const baseMetadata = /** @type {ReleaseMetadata} */ (JSON.parse(await fs.readFile(baseMetadataPath, "utf8")));
   const releaseIdentity = await inspectReleaseMetadata(baseMetadataPath, artifact);
   if (releaseIdentity.sourceBranch !== "main" || baseMetadata.channel !== "main") {
     throw new Error("Published release images require exact protected main release metadata.");
@@ -62,10 +255,10 @@ async function publishContainerImage(options) {
   ];
   runDocker(buildArgs, { cwd: rootDir, stdio: options.stdio || "inherit" });
 
-  const buildMetadata = JSON.parse(await fs.readFile(buildMetadataPath, "utf8"));
+  const buildMetadata = /** @type {BuildxBuildMetadata} */ (JSON.parse(await fs.readFile(buildMetadataPath, "utf8")));
   const digest = requireDigest(buildMetadata["containerimage.digest"], "published image index");
   const reference = `${repository}@${digest}`;
-  const index = JSON.parse(runDocker(["buildx", "imagetools", "inspect", "--raw", reference], { cwd: rootDir }));
+  const index = /** @type {PublishedImageIndex} */ (JSON.parse(runDocker(["buildx", "imagetools", "inspect", "--raw", reference], { cwd: rootDir })));
   const descriptors = selectPublishedDescriptors(index);
   const attestationEvidence = inspectAttestationEvidence(repository, descriptors.attestations, rootDir);
 
@@ -108,12 +301,19 @@ async function publishContainerImage(options) {
   });
 }
 
+/**
+ * @param {string} repository
+ * @param {readonly ImageIndexDescriptor[]} attestations
+ * @param {string} rootDir
+ * @returns {Readonly<AttestationEvidence>}
+ */
 function inspectAttestationEvidence(repository, attestations, rootDir) {
+  /** @type {AttestationEvidence} */
   const evidence = { provenance: null, sbom: null };
   for (const descriptor of attestations) {
-    const manifest = JSON.parse(runDocker([
+    const manifest = /** @type {AttestationManifest} */ (JSON.parse(runDocker([
       "buildx", "imagetools", "inspect", "--raw", `${repository}@${descriptor.digest}`,
-    ], { cwd: rootDir }));
+    ], { cwd: rootDir })));
     for (const layer of manifest.layers || []) {
       const predicateType = layer.annotations?.["in-toto.io/predicate-type"] || null;
       if (predicateType === SBOM_PREDICATE) {
@@ -121,7 +321,7 @@ function inspectAttestationEvidence(repository, attestations, rootDir) {
           manifestDigest: descriptor.digest,
           predicateType,
         });
-      } else if (PROVENANCE_PREDICATES.has(predicateType)) {
+      } else if (PROVENANCE_PREDICATES.has(/** @type {string} */ (predicateType))) {
         evidence.provenance = Object.freeze({
           manifestDigest: descriptor.digest,
           predicateType,
@@ -135,6 +335,10 @@ function inspectAttestationEvidence(repository, attestations, rootDir) {
   return Object.freeze(evidence);
 }
 
+/**
+ * @param {PublishedImageIndex} index
+ * @returns {Readonly<{ attestations: readonly Readonly<ImageIndexDescriptor>[], platform: Readonly<ImageIndexDescriptor> }>}
+ */
 function selectPublishedDescriptors(index) {
   if (!IMAGE_INDEX_MEDIA_TYPES.has(index?.mediaType) || !Array.isArray(index.manifests)) {
     throw new Error("Published image must be an OCI/Docker index containing one reviewed platform and its attestations.");
@@ -166,10 +370,16 @@ function selectPublishedDescriptors(index) {
   });
 }
 
+/**
+ * @param {string} reference
+ * @param {PublishedImageExpectations} expected
+ * @param {string} rootDir
+ * @returns {Readonly<PublishedImageRuntime>}
+ */
 function inspectPublishedImage(reference, expected, rootDir) {
-  const inspected = JSON.parse(runDocker(["image", "inspect", reference], { cwd: rootDir }));
+  const inspected = /** @type {readonly DockerImageInspection[]} */ (JSON.parse(runDocker(["image", "inspect", reference], { cwd: rootDir })));
   const image = inspected[0];
-  const labels = image?.Config?.Labels || {};
+  const labels = /** @type {Record<string, string>} */ (image?.Config?.Labels || {});
   if (!image || image.Os !== "linux" || image.Architecture !== "amd64") {
     throw new Error(`Published image runtime must execute natively as ${supportedPlatform}.`);
   }
@@ -192,6 +402,10 @@ function inspectPublishedImage(reference, expected, rootDir) {
   });
 }
 
+/**
+ * @param {string} tag
+ * @param {string} rootDir
+ */
 function ensurePublicationTagAbsent(tag, rootDir) {
   const result = spawnSync("docker", ["buildx", "imagetools", "inspect", tag], {
     cwd: rootDir,
@@ -206,6 +420,11 @@ function ensurePublicationTagAbsent(tag, rootDir) {
   }
 }
 
+/**
+ * @param {string} reference
+ * @param {string} rootDir
+ * @returns {Readonly<PublishedNativeDependency>}
+ */
 function inspectNativeDependency(reference, rootDir) {
   const proofScript = [
     "const Database=require('better-sqlite3');",
@@ -217,10 +436,10 @@ function inspectNativeDependency(reference, rootDir) {
     "db.close();",
     "process.stdout.write(JSON.stringify({architecture:process.arch,packageVersion,platform:process.platform,returning:row.value,sqliteVersion}));",
   ].join("");
-  const result = JSON.parse(runDocker([
+  const result = /** @type {NativeDependencyProof} */ (JSON.parse(runDocker([
     "run", "--rm", "--platform", supportedPlatform,
     "--entrypoint", "node", reference, "-e", proofScript,
-  ], { cwd: rootDir }));
+  ], { cwd: rootDir })));
   if (result.platform !== "linux" || result.architecture !== "x64"
       || result.packageVersion !== "13.0.3" || result.returning !== "ok"
       || !/^\d+\.\d+\.\d+$/.test(result.sqliteVersion || "")) {
@@ -235,6 +454,17 @@ function inspectNativeDependency(reference, rootDir) {
   });
 }
 
+/**
+ * @param {object} input
+ * @param {AttestationEvidence} input.attestationEvidence
+ * @param {string} input.digest
+ * @param {PublishedImageRuntime} input.image
+ * @param {ImageIndexDescriptor} input.platformDescriptor
+ * @param {string} input.reference
+ * @param {string} input.repository
+ * @param {PublishedNativeDependency} input.nativeDependency
+ * @returns {Readonly<PublishedPlatformManifest>}
+ */
 function createPlatformManifest({ attestationEvidence, digest, image, platformDescriptor, reference, repository, nativeDependency }) {
   return Object.freeze({
     schemaVersion: 1,
@@ -255,6 +485,11 @@ function createPlatformManifest({ attestationEvidence, digest, image, platformDe
   });
 }
 
+/**
+ * @param {PublishedReleaseBase} baseMetadata
+ * @param {PublishedImageBinding} platformManifest
+ * @returns {Readonly<PublishedReleaseMetadata>}
+ */
 function createPublishedReleaseMetadata(baseMetadata, platformManifest) {
   return Object.freeze({
     ...baseMetadata,
@@ -272,6 +507,10 @@ function createPublishedReleaseMetadata(baseMetadata, platformManifest) {
   });
 }
 
+/**
+ * @param {PublishedReleaseMetadata} metadata
+ * @param {PublishedReleaseExpectations} [expected]
+ */
 function validatePublishedReleaseMetadata(metadata, expected = {}) {
   if (metadata?.schemaVersion !== 2 || metadata.application !== "longtail-forge") {
     throw new Error("Published release metadata must use Longtail Forge schema version 2.");
@@ -303,7 +542,7 @@ function validatePublishedReleaseMetadata(metadata, expected = {}) {
     throw new Error("Published release metadata is missing the native better-sqlite3 digest proof.");
   }
   if (metadata.image.attestations?.sbom?.predicateType !== SBOM_PREDICATE
-      || !PROVENANCE_PREDICATES.has(metadata.image.attestations?.provenance?.predicateType)
+      || !PROVENANCE_PREDICATES.has(/** @type {string} */ (metadata.image.attestations?.provenance?.predicateType))
       || !DIGEST_PATTERN.test(metadata.image.attestations?.sbom?.manifestDigest || "")
       || !DIGEST_PATTERN.test(metadata.image.attestations?.provenance?.manifestDigest || "")) {
     throw new Error("Published release metadata must bind registry-attached SBOM and provenance attestations.");
@@ -325,6 +564,10 @@ function validatePublishedReleaseMetadata(metadata, expected = {}) {
   });
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeImageRepository(value) {
   const repository = String(value || "").trim().toLowerCase();
   if (!/^ghcr\.io\/[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\/[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/.test(repository)) {
@@ -333,6 +576,11 @@ function normalizeImageRepository(value) {
   return repository;
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} artifactPath
+ * @returns {string}
+ */
 function normalizeBuildContextPath(rootDir, artifactPath) {
   const relativePath = path.relative(rootDir, artifactPath);
   if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
@@ -341,33 +589,52 @@ function normalizeBuildContextPath(rootDir, artifactPath) {
   return relativePath.replaceAll("\\", "/");
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {string}
+ */
 function requireDigest(value, label) {
   const digest = String(value || "").toLowerCase();
   if (!DIGEST_PATTERN.test(digest)) throw new Error(`${label} must be an exact sha256 digest.`);
   return digest;
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {RunDockerOptions} [options]
+ * @returns {string}
+ */
 function runDocker(args, options = {}) {
   const result = spawnSync("docker", args, {
     cwd: options.cwd || process.cwd(),
     encoding: options.stdio === "inherit" ? undefined : "utf8",
     stdio: options.stdio || "pipe",
   });
-  if (result.error?.code === "ENOENT") throw new Error("Docker is required to publish or verify a container image.");
+  if (/** @type {NodeJS.ErrnoException | undefined} */ (result.error)?.code === "ENOENT") throw new Error("Docker is required to publish or verify a container image.");
   if (result.status !== 0) {
     throw new Error(`docker ${args.slice(0, 2).join(" ")} failed: ${String(result.stderr || result.stdout || result.error).trim()}`);
   }
   return String(result.stdout || "").trim();
 }
 
+/**
+ * @param {string} filePath
+ * @param {unknown} value
+ */
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/**
+ * @param {readonly string[]} args
+ * @returns {PublishedImageCliOptions}
+ */
 function parseCliArgs(args) {
   const command = args[0];
   if (!/^(publish|verify)$/.test(command || "")) throw new Error("First argument must be publish or verify.");
+  /** @type {PublishedImageCliOptions} */
   const options = { command };
   const valueOptions = new Set(command === "publish"
     ? ["--artifact", "--release-metadata", "--repository", "--output-metadata", "--output-platform-manifest", "--output-build-metadata"]
@@ -377,9 +644,10 @@ function parseCliArgs(args) {
     if (!valueOptions.has(arg)) throw new Error(`Unknown published-image option: ${arg}`);
     const value = args[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
-    options[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+    /** @type {Record<string, string | undefined>} */ (options)[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
     index += 1;
   }
+  /** @type {readonly (keyof PublishedImageCliOptions)[]} */
   const required = command === "publish"
     ? ["artifact", "releaseMetadata", "repository", "outputMetadata", "outputPlatformManifest", "outputBuildMetadata"]
     : ["metadata"];
@@ -393,10 +661,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     const options = parseCliArgs(process.argv.slice(2));
     if (options.command === "publish") {
-      const result = await publishContainerImage(options);
+      const result = await publishContainerImage(/** @type {PublishContainerImageOptions} */ (options));
       console.log(JSON.stringify({ ok: true, command: "publish", ...result }));
     } else {
-      const metadata = JSON.parse(await fs.readFile(path.resolve(options.metadata), "utf8"));
+      const metadata = /** @type {PublishedReleaseMetadata} */ (JSON.parse(await fs.readFile(path.resolve(/** @type {string} */ (options.metadata)), "utf8")));
       const result = validatePublishedReleaseMetadata(metadata, {
         expectedCommit: options.expectedCommit,
         expectedDigest: options.expectedDigest,
@@ -404,7 +672,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       console.log(JSON.stringify({ ok: true, command: "verify", ...result }));
     }
   } catch (error) {
-    console.error(error.message);
+    console.error(/** @type {Error} */ (error).message);
     process.exitCode = 1;
   }
 }

@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 7150,
+      "errorCount": 6916,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3123,38 +3123,6 @@
           {
             "code": 2345,
             "count": 1
-          }
-        ],
-        "scripts/build-container-image.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 14
-          },
-          {
-            "code": 7006,
-            "count": 11
-          },
-          {
-            "code": 7031,
-            "count": 6
-          }
-        ],
-        "scripts/build-runtime-artifact.mjs": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 14
           }
         ],
         "scripts/bump-version-regression.mjs": [
@@ -3287,36 +3255,6 @@
           {
             "code": 7031,
             "count": 4
-          }
-        ],
-        "scripts/container-deployment-smoke.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 7005,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 72
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 5
           }
         ],
         "scripts/dashboard-workbench-regression.mjs": [
@@ -7055,10 +6993,6 @@
         ],
         "scripts/regressions/release/runtime-artifact-boundary.regression.mjs": [
           {
-            "code": 2551,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 2
           }
@@ -7409,62 +7343,6 @@
           {
             "code": 7053,
             "count": 2
-          }
-        ],
-        "scripts/release/published-container-image.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 15
-          },
-          {
-            "code": 7006,
-            "count": 26
-          },
-          {
-            "code": 7031,
-            "count": 7
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "scripts/runtime-artifact-smoke.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7034,
-            "count": 4
           }
         ],
         "scripts/runtime-configuration-contract-regression.mjs": [
@@ -8498,7 +8376,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18284,
+    "errors": 18050,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

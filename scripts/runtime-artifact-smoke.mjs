@@ -8,6 +8,33 @@ import path from "node:path";
 import { buildRuntimeArtifact } from "./build-runtime-artifact.mjs";
 import { inspectRuntimeArtifact } from "./build-container-image.mjs";
 
+/**
+ * The smoke server is spawned with piped stdout and stderr, so both streams are
+ * always present.
+ * @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, import("node:stream").Readable>} SmokeServerProcess
+ */
+
+/**
+ * Options parsed from the runtime artifact smoke command line.
+ * @typedef {object} RuntimeArtifactSmokeOptions
+ * @property {string | undefined} artifact
+ */
+
+/**
+ * The runtime artifact under smoke: a freshly built artifact reports
+ * `artifactPath`, while an inspected tarball reports `path`.
+ * @typedef {object} SmokeArtifactDescriptor
+ * @property {string} [artifactPath]
+ * @property {string} [path]
+ */
+
+/**
+ * A completed HTTP text response captured by the smoke client.
+ * @typedef {object} SmokeTextResponse
+ * @property {string} body
+ * @property {number | undefined} statusCode
+ */
+
 const options = parseArgs(process.argv.slice(2));
 const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-smoke-"));
 const artifactDir = path.join(workspace, "artifact");
@@ -15,6 +42,7 @@ const installDir = path.join(workspace, "install");
 const dataDir = path.join(workspace, "data");
 const port = await findAvailablePort();
 const smokeSuperAdminPassword = "Runtime-Artifact-Smoke-Password-123!";
+/** @type {SmokeServerProcess | undefined} */
 let server;
 
 try {
@@ -22,7 +50,7 @@ try {
     ? await inspectRuntimeArtifact(path.resolve(options.artifact))
     : await buildRuntimeArtifact({ outputDir: artifactDir });
   await fs.mkdir(installDir, { recursive: true });
-  const artifactPath = artifact.artifactPath || artifact.path;
+  const artifactPath = /** @type {string} */ (/** @type {SmokeArtifactDescriptor} */ (artifact).artifactPath || /** @type {SmokeArtifactDescriptor} */ (artifact).path);
   runCommand("tar", ["-xzf", artifactPath, "--strip-components=1", "-C", installDir], workspace);
   runNpm(["ci", "--omit=dev"], installDir);
 
@@ -69,13 +97,17 @@ try {
   if (server && server.exitCode === null) {
     server.kill("SIGTERM");
     await Promise.race([
-      new Promise((resolve) => server.once("exit", resolve)),
+      new Promise((resolve) => /** @type {SmokeServerProcess} */ (server).once("exit", resolve)),
       new Promise((resolve) => setTimeout(resolve, 5000)),
     ]);
   }
   await fs.rm(workspace, { recursive: true, force: true });
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ */
 function runNpm(args, cwd) {
   const environment = {
     ...process.env,
@@ -89,6 +121,12 @@ function runNpm(args, cwd) {
   runCommand("npm", args, cwd, environment);
 }
 
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ * @param {NodeJS.ProcessEnv} [env]
+ */
 function runCommand(command, args, cwd, env = process.env) {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", env });
   if (result.status !== 0) {
@@ -101,7 +139,12 @@ function resolveWindowsNpmCli() {
     || path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
 }
 
+/**
+ * @param {readonly string[]} cliArgs
+ * @returns {RuntimeArtifactSmokeOptions}
+ */
 function parseArgs(cliArgs) {
+  /** @type {RuntimeArtifactSmokeOptions} */
   const parsed = { artifact: undefined };
   for (let index = 0; index < cliArgs.length; index += 1) {
     if (cliArgs[index] === "--artifact") {
@@ -113,24 +156,38 @@ function parseArgs(cliArgs) {
   return parsed;
 }
 
+/**
+ * @param {string} targetPath
+ */
 async function assertPathMissing(targetPath) {
   try {
     await fs.access(targetPath);
     assert.fail(`${targetPath} should not be installed in the runtime artifact.`);
   } catch (error) {
-    if (error.code !== "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== "ENOENT") {
       throw error;
     }
   }
 }
 
+/**
+ * @param {SmokeServerProcess} child
+ * @returns {() => string}
+ */
 function collectOutput(child) {
+  /** @type {string[]} */
   const chunks = [];
   child.stdout.on("data", (chunk) => chunks.push(String(chunk)));
   child.stderr.on("data", (chunk) => chunks.push(String(chunk)));
   return () => chunks.join("");
 }
 
+/**
+ * @param {string} url
+ * @param {SmokeServerProcess} child
+ * @param {() => string} output
+ * @returns {Promise<Record<string, string>>}
+ */
 async function waitForJson(url, child, output) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
@@ -150,14 +207,19 @@ async function waitForJson(url, child, output) {
   throw new Error(`Timed out waiting for ${url}.\n${output()}`);
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<Record<string, string> | null>}
+ */
 function requestJson(url) {
   return new Promise((resolve, reject) => {
     const request = httpGet(url, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
       response.once("end", () => {
-        if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (/** @type {number} */ (response.statusCode) < 200 || /** @type {number} */ (response.statusCode) >= 300) {
           resolve(null);
           return;
         }
@@ -172,9 +234,14 @@ function requestJson(url) {
   });
 }
 
+/**
+ * @param {string} url
+ * @returns {Promise<SmokeTextResponse>}
+ */
 function requestText(url) {
   return new Promise((resolve, reject) => {
     const request = httpGet(url, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -194,7 +261,7 @@ async function findAvailablePort() {
     listener.once("error", reject);
     listener.listen(0, "127.0.0.1", () => {
       const address = listener.address();
-      listener.close((error) => error ? reject(error) : resolve(address.port));
+      listener.close((error) => error ? reject(error) : resolve(/** @type {import("node:net").AddressInfo} */ (address).port));
     });
   });
 }
