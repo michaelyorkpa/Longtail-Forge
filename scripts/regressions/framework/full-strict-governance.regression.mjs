@@ -245,6 +245,12 @@ assert.deepEqual(
   [],
   "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
 );
+for (const deployProxyOwnerPath of [
+  "scripts/reference-caddy-security-smoke.mjs",
+  "scripts/release/deploy-via-ssh.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[deployProxyOwnerPath], undefined, `${deployProxyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.5.2`);
+}
 for (const artifactContainerOwnerPath of [
   "scripts/build-container-image.mjs",
   "scripts/build-runtime-artifact.mjs",
