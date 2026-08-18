@@ -20,10 +20,16 @@ const DEFERRED_RELEASE_PATHS = new Set([
   "package.json",
 ]);
 
+/** @typedef {{ ceremonyPaths: readonly string[], checkpoint?: string, docsDisposition?: string, errors: readonly string[], kind: string, paths: readonly string[], summary?: string }} CheckpointValidation */
+/** @typedef {{ sha: string, validation: CheckpointValidation }} CheckpointRangeEntry */
+
+/** @param {string | undefined} message */
 function parseCheckpointTrailers(message) {
   const paragraphs = String(message || "").trimEnd().split(/\r?\n\s*\r?\n/);
   const block = paragraphs.at(-1) || "";
+  /** @type {Map<string, string>} */
   const values = new Map();
+  /** @type {Set<string>} */
   const duplicates = new Set();
   for (const line of block.split(/\r?\n/)) {
     const match = line.match(/^([A-Za-z0-9-]+):[ \t]+(.+?)\s*$/);
@@ -76,9 +82,11 @@ function validateCheckpointCommit({
   }
   if (errors.length > 0) return result("invalid", errors, normalizedPaths);
 
-  const checkpoint = trailers.values.get(TRAILER_NAMES.checkpoint);
-  const summary = trailers.values.get(TRAILER_NAMES.summary);
-  const docsDisposition = trailers.values.get(TRAILER_NAMES.docs);
+  // Every required trailer is present here: the loop above returns "invalid"
+  // when any name is missing, so these lookups cannot be undefined.
+  const checkpoint = /** @type {string} */ (trailers.values.get(TRAILER_NAMES.checkpoint));
+  const summary = /** @type {string} */ (trailers.values.get(TRAILER_NAMES.summary));
+  const docsDisposition = /** @type {string} */ (trailers.values.get(TRAILER_NAMES.docs));
   const checkpointPattern = new RegExp(`^${escapeRegExp(series)}(?:\\.[1-9][0-9]*)+$`);
   if (!checkpointPattern.test(checkpoint)) {
     errors.push(`${TRAILER_NAMES.checkpoint} must be a numeric ${series}.#[.#...] slice`);
@@ -125,6 +133,7 @@ function validateCheckpointCommit({
   });
 }
 
+/** @param {string} beforeSource @param {string} afterSource */
 function isScriptOnlyPackageChange(beforeSource, afterSource) {
   if (!beforeSource || !afterSource) return false;
   try {
@@ -142,6 +151,7 @@ function isScriptOnlyPackageChange(beforeSource, afterSource) {
   }
 }
 
+/** @param {string} disposition @param {readonly string[]} documentationPaths @param {string[]} errors */
 function validateDocsDisposition(disposition, documentationPaths, errors) {
   const noDocsMatch = disposition.match(/^No docs change needed: (.{5,})\.$/);
   const updatedMatch = disposition.match(/^Docs updated: (.+)\.$/);
@@ -159,6 +169,7 @@ function validateDocsDisposition(disposition, documentationPaths, errors) {
   }
 }
 
+/** @param {string} filePath */
 function isDocumentationPath(filePath) {
   return filePath === "AGENTS.md"
     || filePath === "README.md"
@@ -167,10 +178,12 @@ function isDocumentationPath(filePath) {
     || filePath.startsWith("help/");
 }
 
+/** @param {string} filePath */
 function isGeneratedDocumentationPath(filePath) {
   return filePath === "docs/regression-suite.md";
 }
 
+/** @param {string} filePath */
 function isCeremonyPath(filePath) {
   return DEFERRED_RELEASE_PATHS.has(filePath)
     || filePath === "ROADMAP.md"
@@ -178,10 +191,12 @@ function isCeremonyPath(filePath) {
     || isDocumentationPath(filePath);
 }
 
+/** @param {unknown} filePath */
 function normalizePath(filePath) {
   return String(filePath || "").trim().replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+/** @param {string} kind @param {string[]} errors @param {string[]} paths */
 function result(kind, errors, paths) {
   return Object.freeze({
     ceremonyPaths: Object.freeze(paths.filter(isCeremonyPath)),
@@ -191,6 +206,7 @@ function result(kind, errors, paths) {
   });
 }
 
+/** @param {readonly string[]} args @param {string} [cwd] */
 function runGit(args, cwd = process.cwd()) {
   const completed = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (completed.status !== 0) throw new Error(String(completed.stderr || completed.stdout).trim());
@@ -231,6 +247,10 @@ function resolveCheckpointBaseSha({
   throw new Error(CHECKPOINT_USAGE);
 }
 
+/**
+ * @param {{ baseSha?: string, cwd?: string, head?: string, roadmapArchiveSource?: string, roadmapSource?: string }} [options]
+ * @returns {readonly CheckpointRangeEntry[]}
+ */
 function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", roadmapArchiveSource, roadmapSource } = {}) {
   if (!FULL_SHA_PATTERN.test(String(baseSha || ""))) {
     throw new Error("LTF_CHECKPOINT_BASE_SHA must be a full 40-character commit SHA.");
@@ -254,6 +274,7 @@ function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", r
   }));
 }
 
+/** @param {readonly CheckpointRangeEntry[]} results */
 function formatCheckpointRange(results) {
   const lines = ["Checkpoint commit validation"];
   for (const { sha, validation } of results) {

@@ -6,6 +6,9 @@ const scriptPath = fileURLToPath(import.meta.url);
 const defaultRoot = path.resolve(path.dirname(scriptPath), "..");
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:\.\d+)*(?:(?:[-+][0-9A-Za-z.-]+)|(?:[A-Za-z][0-9A-Za-z]*))?$/;
 
+/** @typedef {{ version?: string, packages?: Record<string, { version?: string }> }} VersionedPackageJson */
+
+/** @param {string | undefined} targetVersion @param {{ rootDir?: string }} [options] */
 async function bumpVersion(targetVersion, options = {}) {
   const version = normalizeVersion(targetVersion);
   const rootDir = path.resolve(options.rootDir || defaultRoot);
@@ -25,7 +28,8 @@ async function bumpVersion(targetVersion, options = {}) {
 
   packageJson.version = version;
   packageLock.version = version;
-  packageLock.packages[""].version = version;
+  // assertAlignedCurrentVersions above throws unless the lock root entry exists.
+  /** @type {Record<string, { version?: string }>} */ (packageLock.packages)[""].version = version;
 
   await Promise.all([
     fs.writeFile(packagePath, serializeJson(packageJson), "utf8"),
@@ -40,6 +44,7 @@ async function bumpVersion(targetVersion, options = {}) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeVersion(value) {
   const version = String(value || "").trim();
   if (!version) {
@@ -51,6 +56,7 @@ function normalizeVersion(value) {
   return version;
 }
 
+/** @param {VersionedPackageJson} packageJson @param {VersionedPackageJson} packageLock */
 function assertAlignedCurrentVersions(packageJson, packageLock) {
   const packageVersion = String(packageJson.version || "").trim();
   const lockVersion = String(packageLock.version || "").trim();
@@ -66,6 +72,7 @@ function assertAlignedCurrentVersions(packageJson, packageLock) {
   }
 }
 
+/** @param {string} version */
 function formatFollowUpChecklist(version) {
   return [
     "Follow-up release checklist:",
@@ -78,21 +85,23 @@ function formatFollowUpChecklist(version) {
   ].join("\n");
 }
 
+/** @param {string} filePath @param {string} label @returns {Promise<VersionedPackageJson>} */
 async function readJson(filePath, label) {
   let source;
   try {
     source = await fs.readFile(filePath, "utf8");
   } catch (error) {
-    throw new Error(`Unable to read ${label}: ${error.message}`);
+    throw new Error(`Unable to read ${label}: ${error instanceof Error ? error.message : error}`);
   }
 
   try {
     return JSON.parse(source);
   } catch (error) {
-    throw new Error(`Unable to parse ${label}: ${error.message}`);
+    throw new Error(`Unable to parse ${label}: ${error instanceof Error ? error.message : error}`);
   }
 }
 
+/** @param {unknown} value */
 function serializeJson(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -105,7 +114,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     console.log("");
     console.log(result.checklist);
   } catch (error) {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   }
 }
