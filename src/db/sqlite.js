@@ -1,4 +1,3 @@
-// @ts-check
 import Database from "better-sqlite3";
 import { Buffer } from "node:buffer";
 import fs from "node:fs/promises";

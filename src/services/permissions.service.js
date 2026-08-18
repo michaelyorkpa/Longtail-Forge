@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createHmac, randomBytes } from "node:crypto";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { permissionsRepository } from "../repositories/permissions.repo.js";

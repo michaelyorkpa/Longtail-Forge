@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../../types/notes-domain-contracts.js").CollectionEffectiveSecurityResult} CollectionEffectiveSecurityResult */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteEffectiveSecurityProjection} NoteEffectiveSecurityProjection */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteSecurityCollectionMap} NoteSecurityCollectionMap */

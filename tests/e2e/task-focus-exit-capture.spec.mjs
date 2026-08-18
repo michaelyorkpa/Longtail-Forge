@@ -6,6 +6,7 @@ test("basic Task Focus consumes and recaptures context across Change Focus and a
   expect(["desktop", "mobile"]).toContain(testInfo.project.name);
   let resumeNote = "Review the saved pricing context.";
   let taskStatus = "open";
+  /** @type {{ resume_note?: string, resume_note_action?: string }[]} */
   const writes = [];
 
   await page.route(`**/api/tasks/${TASK_ID}`, async (route) => {
@@ -91,6 +92,7 @@ test("basic Task Focus consumes and recaptures context across Change Focus and a
 test("a task that became Blocked changes focus without a resume-note prompt", async ({ page }) => {
   let taskStatus = "open";
   let blockedReason = "";
+  /** @type {{ resume_note?: string, resume_note_action?: string }[]} */
   const writes = [];
 
   await page.route(`**/api/tasks/${TASK_ID}`, async (route) => {
@@ -130,6 +132,11 @@ test("a task that became Blocked changes focus without a resume-note prompt", as
   expect(writes).toEqual([]);
 });
 
+/**
+ * @param {string} resumeNote
+ * @param {string} status
+ * @param {string} [blockedReason]
+ */
 function taskFixture(resumeNote, status, blockedReason = "") {
   return {
     assignees: [],
@@ -145,6 +152,10 @@ function taskFixture(resumeNote, status, blockedReason = "") {
   };
 }
 
+/**
+ * @param {string} resumeNote
+ * @param {string} status
+ */
 function taskCandidate(resumeNote, status) {
   return {
     candidateId: `task-work-item:tasks:task:${TASK_ID}`,

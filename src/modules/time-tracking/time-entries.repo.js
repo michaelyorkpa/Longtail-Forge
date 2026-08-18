@@ -1,4 +1,3 @@
-// @ts-check
 import { db } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 

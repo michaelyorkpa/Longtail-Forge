@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { supportViewService } from "../services/support-view.service.js";

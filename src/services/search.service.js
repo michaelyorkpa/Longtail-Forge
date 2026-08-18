@@ -1,4 +1,3 @@
-// @ts-check
 import { modulesService } from "../core/modules/modules.service.js";
 import {
   getSearchBackendAdapter,

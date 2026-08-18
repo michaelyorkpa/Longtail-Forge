@@ -1,4 +1,3 @@
-// @ts-check
 import { appVersion } from "./version.js";
 import { URLSearchParams } from "node:url";
 

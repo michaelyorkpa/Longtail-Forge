@@ -1,4 +1,3 @@
-// @ts-check
 import { createHash, randomBytes } from "node:crypto";
 
 /** @typedef {{ baselineDatabaseFile: string, baselineSha256: string, baselineSize: number, foreignKeyCheckPassed: true, integrityCheckPassed: true, migrationCount: number, migrationIdentitySha256: string, nonce: string, protocol: string, runnerPid: number }} VerifiedBaselineAttestation */

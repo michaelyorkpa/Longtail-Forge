@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { config } from "../config.js";

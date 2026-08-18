@@ -57,6 +57,9 @@ managedServerTest("administrator can enter, inspect, end, and log out of an unmi
     await expect(endSupportViewButton).toBeVisible();
     const endButtonBounds = await endSupportViewButton.boundingBox();
     expect(endButtonBounds).not.toBeNull();
+    if (!endButtonBounds) {
+      throw new Error("the End Support View button has no bounding box");
+    }
     expect(endButtonBounds.x + endButtonBounds.width).toBeLessThanOrEqual(1920);
     await expectNoWcagViolations(page, testInfo, "support-view-active");
 
@@ -65,7 +68,11 @@ managedServerTest("administrator can enter, inspect, end, and log out of an unmi
       button.type = "button";
       button.textContent = "Save test change";
       button.dataset.e2eSupportMutation = "";
-      globalThis.document.querySelector("main").appendChild(button);
+      const main = globalThis.document.querySelector("main");
+      if (!main) {
+        throw new Error("the support-view page has no main element to receive the test control");
+      }
+      main.appendChild(button);
     });
     await expect(page.locator("[data-e2e-support-mutation]"), "dynamic mutation controls must be disabled").toBeDisabled();
 

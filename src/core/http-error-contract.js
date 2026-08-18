@@ -1,4 +1,3 @@
-// @ts-check
 import { getRequestContext } from "./request-context.js";
 
 /** @typedef {import("../types/http-contracts.js").HttpIdentityRequest & { get?: (name: string) => string | undefined }} HttpErrorRequest */

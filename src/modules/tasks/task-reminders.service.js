@@ -1,5 +1,3 @@
-// @ts-check
-
 import { taskRemindersRepository } from "./task-reminders.repo.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";

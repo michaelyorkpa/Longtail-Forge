@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { createScopedPermissionResource } from "../core/permission-resource.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";

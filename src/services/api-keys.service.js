@@ -1,4 +1,3 @@
-// @ts-check
 import { createHash, randomBytes } from "node:crypto";
 import { apiKeysRepository } from "../repositories/api-keys.repo.js";
 import { auditService } from "./audit.service.js";

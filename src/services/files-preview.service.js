@@ -1,5 +1,3 @@
-// @ts-check
-
 import path from "node:path";
 import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { AppError } from "../utils/app-error.js";

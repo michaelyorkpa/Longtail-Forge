@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -143,7 +144,8 @@ assert.match(filesStorageAccountingService, /db\.transaction\(async \(transactio
 assert.match(filesStorageAccountingService, /filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should read repository-owned quota usage.");
 assert.match(filesStorageAccountingService, /userBytes: Number\(row\?\.user_bytes[\s\S]*workspaceBytes: Number\(row\?\.workspace_bytes/, "Files accounting policy should derive workspace and user quota state from repository usage.");
 assert.doesNotMatch(filesStorageAccountingService, /storage[_A-Z]?key|protectedPath|scanner/i, "Files accounting policy should not consume protected storage or scanner details.");
-assert.match(filesRepository, /^\/\/ @ts-check[\s\S]*from "\.\.\/core\/database\.js"/, "Files repository should be strict-checked against the provider-neutral database facade.");
+assert.deepEqual(strictCleanOwnerState("src/repositories/files.repo.js"), { owned: true, diagnostics: 0 }, "Files repository must remain a strict-clean checked owner.");
+assert.match(filesRepository, /from "\.\.\/core\/database\.js"/, "Files repository should consume the provider-neutral database facade.");
 assert.match(filesRepository, /function buildAttachmentReadQuery[\s\S]*applyAttachmentContextScopeFilters[\s\S]*likePattern[\s\S]*containsNoCase/, "Files repository should own bounded dynamic browse filters through dialect seams.");
 assert.match(filesRepository, /function readAttachableTargetOptionRows[\s\S]*safeSqlIdentifier[\s\S]*readTableColumnSet[\s\S]*attachableTargetFilterConditions/, "Files repository should own validated dynamic attachable-target projections.");
 for (const method of ["createAttachment", "createFile", "readAttachmentRows", "readFile", "readStorageAccounting", "saveWorkspaceFileSettings", "updateScanResult"]) {

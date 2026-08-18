@@ -8,6 +8,9 @@ test("Add Project keeps a nested Clients-owned Add Client flow and framework-ali
   const projectName = `Nested Client Project ${suffix}`;
 
   const response = await page.goto("/projects.html");
+  if (!response) {
+    throw new Error("page.goto(\"/projects.html\") returned no response");
+  }
   expect(response.status()).toBe(200);
   await page.getByRole("button", { name: "Add Project", exact: true }).click();
 
@@ -18,10 +21,13 @@ test("Add Project keeps a nested Clients-owned Add Client flow and framework-ali
 
   const workspaceName = (await page.getByRole("combobox", { name: "Active workspace" })
     .locator("option:checked").textContent())?.trim();
+  if (!workspaceName) {
+    throw new Error("the Active workspace combobox has no checked option text");
+  }
   const clientSelect = projectDialog.locator(".project-add-client-field select");
   const workspaceOption = clientSelect.locator("option").first();
   await expect(workspaceOption).toHaveText(workspaceName);
-  expect(await workspaceOption.evaluate((option) => option.value)).toBe("");
+  expect(await workspaceOption.evaluate((/** @type {HTMLOptionElement} */ option) => option.value)).toBe("");
   await expect(projectDialog.locator(".project-billing-details .billable-option input")).not.toBeChecked();
 
   const addProjectLayout = await projectDialog.evaluate((dialog, isMobile) => {
@@ -93,5 +99,5 @@ test("Add Project keeps a nested Clients-owned Add Client flow and framework-ali
   const projectsResponse = await request.get(`/api/projects?clientId=${encodeURIComponent(createdClientId)}&status=All`);
   expect(projectsResponse.status()).toBe(200);
   const projects = (await projectsResponse.json()).projects;
-  expect(projects.some((project) => project.name === projectName && project.client_id === createdClientId)).toBe(true);
+  expect(projects.some((/** @type {Record<string, unknown>} */ project) => project.name === projectName && project.client_id === createdClientId)).toBe(true);
 });

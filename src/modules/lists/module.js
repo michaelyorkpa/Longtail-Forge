@@ -1,4 +1,3 @@
-// @ts-check
 import {
   LIST_AUDIT_RECORD_TYPES,
   LIST_EVENT_TYPES,

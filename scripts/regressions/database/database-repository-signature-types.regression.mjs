@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const repositoryPaths = [
   "src/repositories/settings.repo.js",
@@ -21,8 +22,8 @@ const [settingsSource, usersSource, workspacesSource] = await Promise.all(
   repositoryPaths.map((filePath) => fs.readFile(filePath, "utf8")),
 );
 
-for (const [index, source] of [settingsSource, usersSource, workspacesSource].entries()) {
-  assert.match(source, /^\/\/ @ts-check/, `${repositoryPaths[index]} must stay opted into checking`);
+for (const repositoryPath of repositoryPaths) {
+  assert.deepEqual(strictCleanOwnerState(repositoryPath), { owned: true, diagnostics: 0 }, `${repositoryPath} must stay strict-clean in its checked program`);
 }
 assert.match(settingsSource, /@returns \{Promise<ModuleSettingRow \| null>\}/);
 assert.match(usersSource, /@returns \{Promise<UserRow \| null>\}/);

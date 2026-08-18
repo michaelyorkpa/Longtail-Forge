@@ -1,4 +1,3 @@
-// @ts-check
 // Request-scoped memoization for repeated context reads (workspace settings,
 // permission assignments, module context) within one request. The cache lives
 // on the session object materialized for a single request, so entries never

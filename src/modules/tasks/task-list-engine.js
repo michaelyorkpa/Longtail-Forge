@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../../types/task-list-engine-contracts.js").TaskListCandidateRow} TaskListCandidateRow */
 /** @typedef {import("../../types/task-list-engine-contracts.js").TaskListFilterContext} TaskListFilterContext */
 /** @typedef {import("../../types/task-list-engine-contracts.js").TaskListFilterContextOptions} TaskListFilterContextOptions */

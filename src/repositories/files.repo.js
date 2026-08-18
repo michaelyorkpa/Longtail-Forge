@@ -1,5 +1,3 @@
-// @ts-check
-
 import { db } from "../core/database.js";
 import { AppError } from "../utils/app-error.js";
 

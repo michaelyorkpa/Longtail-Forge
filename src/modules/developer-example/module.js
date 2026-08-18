@@ -1,4 +1,3 @@
-// @ts-check
 import { developerExampleRoutes } from "./routes.js";
 import { developerExamplePublicApiRoutes } from "./public-api.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";

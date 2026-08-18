@@ -1,4 +1,3 @@
-// @ts-check
 import { getRequestContext } from "../core/request-context.js";
 import { sendApiError, sendBrowserError } from "../core/http-error-contract.js";
 import { operationalLogger } from "../core/operational-logger.js";

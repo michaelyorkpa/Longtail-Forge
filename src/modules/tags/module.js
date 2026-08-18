@@ -1,4 +1,3 @@
-// @ts-check
 import { tagsRoutes } from "../../routes/tags.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 

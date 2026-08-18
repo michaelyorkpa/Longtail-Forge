@@ -11,12 +11,12 @@
 
 import { expect, test } from "@playwright/test";
 import { expectNoWcagViolations } from "./support/axe.mjs";
-import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
+import { SHELL, requireSmokeSurface } from "./support/surfaces.mjs";
 
 const SCANNED_SURFACES = ["Dashboard", "Workbench", "Tasks"];
 
 for (const name of SCANNED_SURFACES) {
-  const surface = SMOKE_SURFACES.find((candidate) => candidate.name === name);
+  const surface = requireSmokeSurface(name);
 
   test(`${surface.name} default state passes the WCAG scan`, async ({ page }, testInfo) => {
     await page.goto(surface.path);

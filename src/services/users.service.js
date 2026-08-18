@@ -1,4 +1,3 @@
-// @ts-check
 import { usersRepository } from "../repositories/users.repo.js";
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";

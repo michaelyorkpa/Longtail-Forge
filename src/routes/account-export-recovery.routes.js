@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { accountExportRecoveryService } from "../services/account-export-recovery.service.js";
 import { authenticatedAsyncRoute as asyncRoute } from "../utils/http.js";

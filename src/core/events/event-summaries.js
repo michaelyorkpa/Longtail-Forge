@@ -1,4 +1,3 @@
-// @ts-check
 import { modulesService } from "../modules/modules.service.js";
 
 /** @typedef {import("../../types/framework-contracts.js").EventSummaryDeclaration} EventSummaryDeclaration */

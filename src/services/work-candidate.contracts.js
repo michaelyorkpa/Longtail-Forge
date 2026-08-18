@@ -1,4 +1,3 @@
-// @ts-check
 // Work-candidate edge-query contract.
 //
 // Workbench, focus-mode, and work-resume routes hand raw HTTP query input to

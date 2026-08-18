@@ -1,4 +1,3 @@
-// @ts-check
 /** @typedef {import("../../types/database-contracts.js").DatabaseDialect} DatabaseDialect */
 /** @typedef {import("../../types/database-contracts.js").DatabaseInsertOptions} DatabaseInsertOptions */
 /** @typedef {import("../../types/database-contracts.js").DatabaseInsertConflictNothingOptions} DatabaseInsertConflictNothingOptions */

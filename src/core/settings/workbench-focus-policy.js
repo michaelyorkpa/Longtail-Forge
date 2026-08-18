@@ -1,4 +1,3 @@
-// @ts-check
 import { registerFrameworkSettingDefinition } from "./framework-settings-registry.js";
 
 const WORKBENCH_FOCUS_SETTING_IDS = Object.freeze({

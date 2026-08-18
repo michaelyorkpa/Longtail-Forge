@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const [
   adapterSource,
@@ -23,10 +24,11 @@ const [
   fs.readFile("src/services/static.service.js", "utf8"),
 ]);
 
+assert.deepEqual(strictCleanOwnerState("src/services/app-shell.service.js"), { owned: true, diagnostics: 0 }, "the producing service must stay strict-clean in its checked program");
 assert.match(
   serviceSource,
-  /^\/\/ @ts-check\r?\n[\s\S]*@returns \{Promise<AppShellBootstrap>\}[\s\S]*async function bootstrap/,
-  "the producing service must stay checked against the shared envelope",
+  /@returns \{Promise<AppShellBootstrap>\}[\s\S]*async function bootstrap/,
+  "the producing service must stay typed against the shared envelope",
 );
 assert.doesNotMatch(
   navigationSource,

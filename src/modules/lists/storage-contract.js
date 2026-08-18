@@ -1,4 +1,3 @@
-// @ts-check
 const LIST_MODULE_ID = "lists";
 
 const LIST_TYPES = Object.freeze({

@@ -1,4 +1,3 @@
-// @ts-check
 import { clientsRepository } from "./clients.repo.js";
 import { clientsService } from "./clients.service.js";
 import { projectsRepository } from "./projects.repo.js";

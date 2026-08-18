@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 
 /** @type {Pick<import("../../types/framework-contracts.js").ModuleManifest, "help">} */

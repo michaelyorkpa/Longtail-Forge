@@ -13,10 +13,12 @@ import { SMOKE_SURFACES } from "./support/surfaces.mjs";
 // Documented allowlist of known-benign console errors. Each entry needs a
 // comment explaining why it is benign. Currently empty: a clean load produces
 // no console errors, and it should stay that way.
+/** @type {RegExp[]} */
 const CONSOLE_ERROR_ALLOWLIST = [];
 
 for (const surface of SMOKE_SURFACES) {
   test(`${surface.name} loads without major console errors`, async ({ page }) => {
+    /** @type {string[]} */
     const violations = [];
 
     page.on("pageerror", (error) => {

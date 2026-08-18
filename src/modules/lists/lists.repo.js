@@ -1,4 +1,3 @@
-// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { db } from "../../core/database.js";
 

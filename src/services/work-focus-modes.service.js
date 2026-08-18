@@ -1,4 +1,3 @@
-// @ts-check
 import { db } from "../core/database.js";
 import { resolveClientProjectFilterScope } from "../core/client-project-filter-scope.js";
 import { AppError } from "../utils/app-error.js";

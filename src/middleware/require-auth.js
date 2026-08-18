@@ -1,4 +1,3 @@
-// @ts-check
 import { getRequestSession } from "../security/sessions.js";
 import { buildExpiredSessionCookie, buildSessionCookie } from "../security/cookies.js";
 import { staticService } from "../services/static.service.js";

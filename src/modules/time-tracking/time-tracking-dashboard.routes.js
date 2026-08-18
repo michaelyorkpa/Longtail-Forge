@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { asyncRoute } from "../../core/http.js";
 import { AppError } from "../../core/errors.js";

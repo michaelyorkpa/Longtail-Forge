@@ -1,4 +1,3 @@
-// @ts-check
 import { usersRoutes } from "../../routes/users.routes.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";

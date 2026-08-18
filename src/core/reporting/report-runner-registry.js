@@ -1,5 +1,3 @@
-// @ts-check
-
 const REPORT_RUNNER_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 
 /** @type {Map<string, import("../../types/framework-contracts.js").ReportRunner>} */

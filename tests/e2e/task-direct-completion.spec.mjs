@@ -1,17 +1,30 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {Record<string, unknown>} data
+ * @param {string} label
+ */
 async function createTask(request, data, label) {
   const response = await request.post("/api/tasks", { data });
   expect(response.status(), `${label} should be created`).toBe(201);
   return (await response.json()).task;
 }
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} taskId
+ */
 async function readTask(request, taskId) {
   const response = await request.get(`/api/tasks/${encodeURIComponent(taskId)}`);
   expect(response.status()).toBe(200);
   return (await response.json()).task;
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} taskId
+ */
 async function openTaskEditor(page, taskId) {
   await page.goto(`/tasks.html?task=${encodeURIComponent(taskId)}`);
   const dialog = page.locator("dialog[data-task-dialog][open]");
@@ -19,7 +32,12 @@ async function openTaskEditor(page, taskId) {
   return dialog;
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} taskId
+ */
 function watchTaskWrites(page, taskId) {
+  /** @type {{ method: string, path: string }[]} */
   const writes = [];
   page.on("request", (request) => {
     const url = new URL(request.url());

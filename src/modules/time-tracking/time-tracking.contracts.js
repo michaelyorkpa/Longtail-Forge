@@ -1,4 +1,3 @@
-// @ts-check
 // Time Tracking edge-payload contracts.
 //
 // Browser time-entry writes, public API time-entry creates, and active timer

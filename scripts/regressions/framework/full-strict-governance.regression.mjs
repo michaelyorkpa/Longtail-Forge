@@ -228,13 +228,15 @@ assert.match(usersModuleSource, /function moduleDisabledNotificationBody\(\{ eve
 assert.match(developerExampleRouteSource, /workspaceAsyncRoute\(async \(request, response\)/, "the example browser route should use the workspace request contract");
 assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(request, response\)/, "the example public route should use the API-key request contract");
 const remainingServerDiagnosticPaths = Object.keys(ledger.programs["server-tests"].diagnostics);
-assert.ok(
-  remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/")),
-  "only test-owned files may retain server-program diagnostics after checkpoint 0.33.33.25.5",
+assert.deepEqual(
+  remainingServerDiagnosticPaths,
+  [],
+  "the server/test program closed at checkpoint 0.33.33.26.2 and must stay at zero strict diagnostics",
 );
-assert.ok(
-  remainingServerDiagnosticPaths.every((filePath) => filePath.startsWith("tests/e2e/")),
-  "only e2e-owned files may retain server-program diagnostics after checkpoint 0.33.33.26.1; the unit, contract, and shared test-helper cohort is strict-clean",
+assert.equal(
+  ledger.programs["server-tests"].errorCount,
+  0,
+  "the server/test program's ledger section is retired at zero and may never regain debt",
 );
 for (const rootRuntimeOwnerPath of [
   "src/config.js",
@@ -347,13 +349,10 @@ assert.match(governanceSource, /Full-strict diagnostics exactly match/);
 assert.match(governanceSource, /tsconfig\.declarations\.json/);
 assert.doesNotThrow(() => validateShrinkOnly(cloneLedger(), cloneLedger()));
 const increasedDiagnostic = cloneLedger();
-const existingDiagnostic = Object.entries(increasedDiagnostic.programs["server-tests"].diagnostics)
-  .find(([, diagnostics]) => diagnostics.length > 0);
-if (!existingDiagnostic) throw new Error("The shrink-only mutation proof requires one retained server/test diagnostic until program closeout.");
-const [existingDiagnosticPath, existingDiagnosticCounts] = existingDiagnostic;
-const existingDiagnosticCode = existingDiagnosticCounts[0].code;
-increasedDiagnostic.programs["server-tests"].diagnostics[existingDiagnosticPath][0].count += 1;
-assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), new RegExp(`${existingDiagnosticCode} increased`));
+const seededDiagnosticPath = increasedDiagnostic.programs["server-tests"].files[0];
+if (!seededDiagnosticPath) throw new Error("The shrink-only mutation proof requires at least one server/test program file.");
+increasedDiagnostic.programs["server-tests"].diagnostics[seededDiagnosticPath] = [{ code: 7006, count: 1 }];
+assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /7006 increased 0 -> 1/, "the closed server/test program must reject any regained diagnostic");
 const increasedAny = cloneLedger();
 increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);

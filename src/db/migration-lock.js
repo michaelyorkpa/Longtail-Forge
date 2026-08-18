@@ -1,4 +1,3 @@
-// @ts-check
 import fs from "node:fs/promises";
 
 /** @typedef {import("node:fs/promises").FileHandle} FileHandle */

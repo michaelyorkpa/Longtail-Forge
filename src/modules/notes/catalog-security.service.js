@@ -1,5 +1,3 @@
-// @ts-check
-
 import { auditService } from "../../core/audit.js";
 import { assertPublicDemoCapabilityAllowed } from "../../core/public-demo-enforcement.js";
 import { AppError } from "../../core/errors.js";

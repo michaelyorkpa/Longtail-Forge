@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../../types/notes-domain-contracts.js").NormalizedNoteLinkContext} NormalizedNoteLinkContext */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkContext} NoteLinkContext */
 /** @typedef {import("../../types/notes-domain-contracts.js").NoteLinkContextEntry} NoteLinkContextEntry */

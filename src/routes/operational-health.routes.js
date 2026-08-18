@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { operationalReadinessService } from "../services/operational-readiness.service.js";
 

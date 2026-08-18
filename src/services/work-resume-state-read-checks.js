@@ -1,4 +1,3 @@
-// @ts-check
 /** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolver} ResumeStateBatchReadResolver */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolver} ResumeStateReadResolver */
 

@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../../config.js";
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
 import { listFrameworkSettingDefinitions } from "../settings/framework-settings-registry.js";

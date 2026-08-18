@@ -48,15 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.26.2 - Type e2e tests and close the server/test program
-
-**Model: High Effort** - Playwright helpers, negative compile fixtures, and the final compiler-policy switch are repository-wide proof boundaries.
-
-- [ ] Type e2e specifications and support helpers with explicit browser, fixture, session, and response shapes without weakening rendered proof.
-- [ ] Preserve deliberate negative compile fixtures as isolated documented cases.
-- [ ] Remove server/test `@ts-check` pragmas, enable direct program-level `checkJs` and `noImplicitAny`, and delete the server ledger section at zero.
-- [ ] Prove `npm run typecheck` and all affected test owners without changing runtime startup.
-
 ### 0.33.33.27 - Type script libraries, test support, and the regression runner
 
 **Model: High Effort** - Shared script APIs and runner control flow affect every verification owner.

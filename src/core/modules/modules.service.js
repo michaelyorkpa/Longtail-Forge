@@ -1,4 +1,3 @@
-// @ts-check
 import {
   getModule as getRegisteredModule,
   listModuleBrowserAssets as listRegisteredModuleBrowserAssets,

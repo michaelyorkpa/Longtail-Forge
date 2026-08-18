@@ -1,4 +1,3 @@
-// @ts-check
 import { tasksRepository } from "./tasks.repo.js";
 import { permissionsService } from "../../core/permissions.js";
 import {

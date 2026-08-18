@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { getRequestContext } from "./request-context.js";
 

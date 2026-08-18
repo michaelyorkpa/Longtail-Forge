@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { getRequestContext } from "../core/request-context.js";

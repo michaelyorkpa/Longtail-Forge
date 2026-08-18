@@ -1,4 +1,3 @@
-// @ts-check
 import { notesService } from "./notes.service.js";
 import { assertNoteConsumerAccess, canExposeNoteToConsumer } from "./consumer-policy.js";
 

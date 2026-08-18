@@ -1,4 +1,3 @@
-// @ts-check
 import { listModuleEntries } from "./registry.js";
 
 /** @typedef {import("../../types/framework-contracts.js").ModuleStartupTask} ModuleStartupTask */

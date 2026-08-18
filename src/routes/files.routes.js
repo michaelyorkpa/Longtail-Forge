@@ -1,5 +1,3 @@
-// @ts-check
-
 import Busboy from "busboy";
 import { Router } from "express";
 import { filesService } from "../services/files.service.js";

@@ -1,5 +1,3 @@
-// @ts-check
-
 import { argon2, pbkdf2, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 

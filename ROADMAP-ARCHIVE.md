@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.26.2 - Type e2e tests and close the server/test program
+
+**Model: High Effort** - Playwright helpers, negative compile fixtures, and the final compiler-policy switch are repository-wide proof boundaries.
+
+- [x] Typed all 29 e2e specifications and the shared support helpers with explicit browser, fixture, session, and response shapes — Playwright `Page`/`TestInfo`/`Locator`/`Request` contracts, typed capture arrays, the fail-loud `requireSmokeSurface` resolver, and nullable-return guards that throw rather than skip — closing all 249 remaining diagnostics with every rendered expectation preserved verbatim and a five-spec sanity run green through the canonical managed-server runner.
+- [x] Preserved the deliberate negative compile fixtures under `tests/typecheck/` as untouched isolated documented cases with their pinned `@ts-expect-error` sites unchanged.
+- [x] Removed the 205 decorative server/test `// @ts-check` pragmas (program-level `checkJs` and `noImplicitAny` have been direct and authoritative since 0.33.33.12), rewrote the twelve regression owners that pinned pragma markers to assert the live contract through the shared `strictCleanOwnerState` probe in `scripts/test-support/typecheck-ledger.mjs`, and retired the server ledger section at zero: the program is pinned empty of diagnostics and the shrink-only mutation proof now seeds a synthetic diagnostic against the closed program so closure can never regress silently.
+- [x] Proved `npm run typecheck` green with the server/test program at zero, all affected test owners passing (125 unit/contract tests, twelve rewritten regression owners, full 347-entry verification), and runtime startup unchanged; combined strict debt falls from 20,530 to 20,281 with explicit `any` at 7 and effective regression assertions advancing to 18,965 across 347 scripts.
+
 ## Version 0.33.33.26.1 - Type unit, contract, and shared test helpers
 
 **Model: High Effort** - Strict fixtures and helpers must preserve positive and negative contract coverage without masking failures.

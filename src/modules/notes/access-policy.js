@@ -1,5 +1,3 @@
-// @ts-check
-
 import {
   NOTE_LIBRARY_BUCKETS,
   NOTE_STATUSES,

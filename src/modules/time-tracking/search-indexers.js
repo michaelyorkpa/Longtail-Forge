@@ -1,4 +1,3 @@
-// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";

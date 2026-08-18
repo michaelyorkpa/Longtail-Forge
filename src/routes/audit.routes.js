@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { createWorkspacePermissionResource } from "../core/permission-resource.js";
 import { auditService } from "../services/audit.service.js";

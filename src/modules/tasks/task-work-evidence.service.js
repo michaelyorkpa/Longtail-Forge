@@ -1,5 +1,3 @@
-// @ts-check
-
 import { timeEntriesService } from "../time-tracking/index.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskTimersRepository } from "./task-timers.repo.js";

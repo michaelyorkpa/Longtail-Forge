@@ -8,9 +8,9 @@
 // moving into the open drawer, and a body scroll lock while it is open.
 
 import { expect, test } from "@playwright/test";
-import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
+import { SHELL, requireSmokeSurface } from "./support/surfaces.mjs";
 
-const dashboard = SMOKE_SURFACES.find((surface) => surface.name === "Dashboard");
+const dashboard = requireSmokeSurface("Dashboard");
 
 test("mobile header keeps search and notifications outside the navigation drawer", { tag: "@mobile" }, async ({ page }) => {
   await page.goto(dashboard.path);
@@ -34,6 +34,9 @@ test("mobile header keeps search and notifications outside the navigation drawer
     notificationBell.boundingBox(),
     navToggle.boundingBox(),
   ]);
+  if (!searchBox || !notificationBox || !toggleBox) {
+    throw new Error("bounding box missing for search toggle, notification bell, or nav toggle");
+  }
   expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(notificationBox.x);
   expect(notificationBox.x + notificationBox.width).toBeLessThanOrEqual(toggleBox.x);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

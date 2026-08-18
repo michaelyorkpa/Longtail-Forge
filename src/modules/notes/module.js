@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";

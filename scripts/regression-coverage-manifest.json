@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18293,
+    "activeAssertionCount": 18296,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18962,
+    "effectiveAssertionCount": 18965,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -3222,8 +3222,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 640,
-      "contractAssertionCount": 639,
+      "assertionCount": 641,
+      "contractAssertionCount": 640,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -3231,7 +3231,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/file-ui-integration.contract.mjs",
-          "assertionCount": 75
+          "assertionCount": 76
         },
         {
           "path": "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
@@ -3318,11 +3318,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 17,
+      "assertionCount": 18,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the checked app-shell producer and unknown-input browser adapter preserve safe defaults, nested fallbacks, and pre-navigation load order.",
-      "entryPointAssertionCount": 17,
+      "entryPointAssertionCount": 18,
       "id": "framework.app-shell-bootstrap-boundary",
       "legacy": false,
       "path": "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
@@ -5451,11 +5451,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 40,
+      "assertionCount": 41,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the typed canonical filter/sort engine boundary, opt-in list options, bounded SQL workbench paging, lean projection serialization, due-window pushdown, and permission filtering through one precomputed evaluator.",
-      "entryPointAssertionCount": 40,
+      "entryPointAssertionCount": 41,
       "id": "tasks.task-list-pipeline-projection",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",

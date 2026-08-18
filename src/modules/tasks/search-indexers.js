@@ -1,4 +1,3 @@
-// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { taskChecklistsRepository } from "./task-checklists.repo.js";

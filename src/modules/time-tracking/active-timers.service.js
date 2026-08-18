@@ -1,4 +1,3 @@
-// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";

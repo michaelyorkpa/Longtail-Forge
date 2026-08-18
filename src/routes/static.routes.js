@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import {
   isBrowserDocumentRequest,

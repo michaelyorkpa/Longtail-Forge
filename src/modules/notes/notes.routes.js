@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { notesService } from "./notes.service.js";
 import { catalogSecurityService } from "./catalog-security.service.js";

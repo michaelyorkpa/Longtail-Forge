@@ -1,4 +1,3 @@
-// @ts-check
 import { clientProjectSettingsService, clientsService } from "../client-projects/index.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";

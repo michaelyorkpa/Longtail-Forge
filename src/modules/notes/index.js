@@ -1,4 +1,3 @@
-// @ts-check
 // Public entry point for the Notes module.
 //
 // Framework/shared code and other modules import Notes capabilities from here.

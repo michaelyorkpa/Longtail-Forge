@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_AUDIT_RECORD_TYPES, NOTE_PERMISSIONS, NOTE_RESOURCE_DEFINITION } from "./access-policy.js";
 
 const NOTE_PERMISSION_DEFINITIONS = [

@@ -1,4 +1,3 @@
-// @ts-check
 import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { normalizeTimezone } from "../utils/normalizers.js";

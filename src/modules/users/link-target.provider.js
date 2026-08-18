@@ -1,4 +1,3 @@
-// @ts-check
 import { usersRepository } from "../../repositories/users.repo.js";
 import { permissionsService } from "../../core/permissions.js";
 import { readableTargetLabel } from "../../core/linked-context/link-target-shape.js";

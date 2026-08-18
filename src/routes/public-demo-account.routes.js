@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { config } from "../config.js";
 import { listPublicDemoVisitorAccounts } from "../core/public-demo-visitor-accounts.js";

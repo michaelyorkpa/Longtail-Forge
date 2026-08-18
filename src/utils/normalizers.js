@@ -1,5 +1,3 @@
-// @ts-check
-
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "./timezones.js";
 import { getWorkspaceCapabilities, normalizeWorkspaceType } from "./workspaces.js";
 

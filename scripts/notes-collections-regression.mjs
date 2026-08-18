@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { strictCleanOwnerState } from "./test-support/typecheck-ledger.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-collections-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-collections.db");
@@ -61,7 +62,7 @@ WHERE type = 'table'
 `);
   assert.deepEqual(tables, [], "0.33.1.5 must extend note_library_collections instead of creating note_collections");
 
-  assert.match(collectionServiceSource, /^\/\/ @ts-check/m, "the extracted collection aggregate must stay in the full-strict program");
+  assert.deepEqual(strictCleanOwnerState("src/modules/notes/notes-collections.service.js"), { owned: true, diagnostics: 0 }, "the extracted collection aggregate must stay strict-clean in the full-strict program");
   assert.match(collectionServiceSource, /function createNotesCollectionsService[\s\S]*listCollections[\s\S]*bulkManageCatalogs[\s\S]*resolveListFilter/);
   assert.match(notesServiceSource, /notesCollectionsService\.listCollections[\s\S]*notesCollectionsService\.createCollection/);
   assert.doesNotMatch(notesServiceSource, /function (buildCollectionTree|collectionDescendants|shapeCatalogSettingsRow|normalizeCollectionPayload)/);

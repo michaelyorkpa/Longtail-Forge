@@ -3,21 +3,21 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { strictCleanOwnerState } from "./test-support/typecheck-ledger.mjs";
 
 const [
-  accessPolicySource,
+  ,
   catalogItemsServiceSource,
   catalogItemsTypesSource,
   listItemsServiceSource,
   listItemsTypesSource,
   listsDomainTypesSource,
-  listsRepositorySource,
+  ,
   listsRoutesSource,
   listsServiceSource,
-  publicApiRoutesSource,
+  ,
   publicApiServiceSource,
   searchIndexersSource,
-  storageContractSource,
 ] = await Promise.all([
   fs.readFile(new URL("../src/modules/lists/access-policy.js", import.meta.url), "utf8"),
   fs.readFile(new URL("../src/modules/lists/catalog-items.service.js", import.meta.url), "utf8"),
@@ -66,31 +66,31 @@ try {
 }
 
 async function assertManifestContracts() {
-  for (const source of [
-    accessPolicySource,
-    catalogItemsServiceSource,
-    listItemsServiceSource,
-    listsRepositorySource,
-    listsRoutesSource,
-    listsServiceSource,
-    publicApiRoutesSource,
-    publicApiServiceSource,
-    searchIndexersSource,
-    storageContractSource,
+  for (const ownerPath of [
+    "src/modules/lists/access-policy.js",
+    "src/modules/lists/catalog-items.service.js",
+    "src/modules/lists/list-items.service.js",
+    "src/modules/lists/lists.repo.js",
+    "src/modules/lists/lists.routes.js",
+    "src/modules/lists/lists.service.js",
+    "src/modules/lists/public-api.routes.js",
+    "src/modules/lists/public-api.service.js",
+    "src/modules/lists/search-indexers.js",
+    "src/modules/lists/storage-contract.js",
   ]) {
-    assert.match(source, /^\/\/ @ts-check/m, "every Lists server owner should remain explicitly checked");
+    assert.deepEqual(strictCleanOwnerState(ownerPath), { owned: true, diagnostics: 0 }, `${ownerPath} must remain a strict-clean checked owner now that program-level checking replaces pragma markers`);
   }
   assert.match(listsDomainTypesSource, /interface ListsNormalizedQuery[\s\S]*repositoryFilters: ListsRepositoryFilters/, "Lists should retain a precise normalized query contract");
   assert.match(listsDomainTypesSource, /interface ListsRepository[\s\S]*createItem\(workspaceId: string, item: ListsItemPersistenceInput\)/, "Lists should retain precise repository and persistence contracts");
   assert.match(listsRoutesSource, /function workspaceSession\(request\)[\s\S]*Workspace session is required/, "browser routes should narrow the authenticated workspace session at the HTTP edge");
   assert.match(publicApiServiceSource, /@param \{ApiSession\} context[\s\S]*@returns \{Promise<ListsPublicApiListResult>\}/, "the public API should retain its typed ApiSession boundary");
   assert.match(searchIndexersSource, /@returns \{Promise<ListsSearchDocument>\}/, "search indexing should consume the typed Lists search document seam");
-  assert.match(catalogItemsServiceSource, /^\/\/ @ts-check/m, "the extracted catalog-item aggregate should remain checked");
+  assert.deepEqual(strictCleanOwnerState("src/modules/lists/catalog-items.service.js"), { owned: true, diagnostics: 0 }, "the extracted catalog-item aggregate should remain strict-clean");
   assert.match(catalogItemsServiceSource, /function createCatalogItemsService\(dependencies\)/, "Lists should expose one typed catalog aggregate factory");
   assert.match(catalogItemsServiceSource, /listCatalogSuggestions[\s\S]*normalizeSuggestionLimit[\s\S]*normalizeCatalogName/, "catalog ranking should remain repository-owned behind normalized suggestion inputs");
   assert.match(catalogItemsServiceSource, /readCatalogItemOrThrow[\s\S]*archived_at[\s\S]*Catalog item not found/, "catalog snapshots should reject archived rows");
   assert.match(catalogItemsTypesSource, /interface ListsCatalogAggregateService[\s\S]*createFromListItem[\s\S]*readSnapshot[\s\S]*recordUsage[\s\S]*suggestItems/, "the catalog seam should declare explicit list-item orchestration and suggestion contracts");
-  assert.match(listItemsServiceSource, /^\/\/ @ts-check/m, "the extracted list-item aggregate should remain checked");
+  assert.deepEqual(strictCleanOwnerState("src/modules/lists/list-items.service.js"), { owned: true, diagnostics: 0 }, "the extracted list-item aggregate should remain strict-clean");
   assert.match(listItemsServiceSource, /function createListItemsService\(dependencies\)/, "Lists should expose one typed item aggregate factory");
   assert.match(listItemsServiceSource, /repository\.reorderItems[\s\S]*recordListAudit[\s\S]*emitListEvent/, "item reordering should retain repository transaction, audit, and event owners");
   assert.match(listItemsServiceSource, /assertCanManageItem[\s\S]*repository\.updateItem[\s\S]*recordItemAudit[\s\S]*emitItemEvent/, "item lifecycle transitions should retain permission, repository, audit, and event owners");
