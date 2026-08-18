@@ -32,9 +32,15 @@ assert.match(viewBuilderJs, /event\.target === dialog && !isTopModal\(dialog\)/,
 assert.match(viewBuilderJs, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\(\)/, "Escape/cancel on non-top dialogs should be guarded");
 assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor modal opening should route through the shared stack helper");
 
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * The published `LongtailForge.view` modal-stack helper catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => FakeNode>} ModalStackSurface
+ */
+
 const context = createFakeBrowserContext({ globals: { WeakMap } });
 vm.runInNewContext(viewBuilderJs, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {ModalStackSurface} */ (context.window.LongtailForge.view);
 
 for (const helperName of ["showModal", "closeModal", "closeChildModals", "isTopModal"]) {
   assert.equal(typeof view[helperName], "function", `LongtailForge.view.${helperName} should be exposed`);

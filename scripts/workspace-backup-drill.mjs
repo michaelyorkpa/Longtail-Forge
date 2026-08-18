@@ -160,7 +160,7 @@ VALUES (?, ?, 'Encrypted recovery note', '', 'general', 'reference', 'derived', 
     database.prepare("INSERT INTO jobs (job_id, workspace_id, job_type, payload_json, status, priority, available_at, attempt_count, max_attempts, created_at, updated_at) VALUES ('target-job', ?, 'test', '{}', 'pending', 0, ?, 0, 3, ?, ?);").run(targetWorkspaceId, now, now, now);
     database.prepare("INSERT INTO search_index (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, visibility, record_status, source, indexed_at) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'workspace', 'active', 'fixture', ?);").run(now);
     database.prepare("INSERT INTO search_index_fts (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, source) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'fixture');").run();
-    assert.equal(database.pragma("foreign_key_check").length, 0);
+    assert.equal(/** @type {unknown[]} */ (database.pragma("foreign_key_check")).length, 0);
   } finally {
     database.close();
   }
@@ -195,21 +195,21 @@ function verifyRestoredDatabase() {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
     assert.deepEqual(database.prepare("SELECT workspace_id, name FROM workspaces").all(), [{ workspace_id: targetWorkspaceId, name: "Recovery Workspace" }]);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Recovery Client'").get().count, 1);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Other Secret Client'").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM api_keys").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sessions").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM jobs").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM app_settings").get().count, 0);
-    const identity = database.prepare("SELECT username, alt_email, password, user_status, protected_user FROM users").get();
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Recovery Client'").get()).count, 1);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Other Secret Client'").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM api_keys").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM sessions").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM jobs").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM app_settings").get()).count, 0);
+    const identity = /** @type {{ username: string, alt_email: string | null, password: string, user_status: string, protected_user: string }} */ (database.prepare("SELECT username, alt_email, password, user_status, protected_user FROM users").get());
     assert.equal(identity.username, "owner@example.test");
     assert.equal(identity.alt_email, null);
     assert.equal(identity.password, "!workspace-backup-retired!");
     assert.equal(identity.user_status, "inactive");
     assert.equal(identity.protected_user, "no");
-    assert.equal(database.prepare("SELECT secure_payload FROM notes WHERE note_id = ?").get(targetNoteId).secure_payload, "ciphertext-only");
+    assert.equal(/** @type {{ secure_payload: string }} */ (database.prepare("SELECT secure_payload FROM notes WHERE note_id = ?").get(targetNoteId)).secure_payload, "ciphertext-only");
     assertIdentifierSnapshot(database);
-    assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
+    assert.equal(/** @type {{ integrity_check: string }[]} */ (database.pragma("integrity_check"))[0].integrity_check, "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
   } finally {
     database.close();

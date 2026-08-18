@@ -7,6 +7,7 @@ declare module "express" {
   export interface Router extends RouterContract {}
 
   export interface Application extends Router {
+    all(path: string | string[], ...handlers: unknown[]): this;
     disable(name: string): this;
     listen(port: number, host: string, callback?: () => void): import("node:http").Server;
     set(name: string, value: unknown): this;
@@ -16,6 +17,7 @@ declare module "express" {
 
   interface ExpressFactory {
     (): Application;
+    json(options?: Record<string, unknown>): AsyncRouteHandler;
     static(root: string): AsyncRouteHandler;
   }
 

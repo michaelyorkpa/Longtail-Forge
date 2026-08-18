@@ -23,6 +23,27 @@ const LICENSING_GATE_PATHS = Object.freeze({
   thirdPartyNotices: "THIRD_PARTY_NOTICES.md",
 });
 
+/**
+ * One future-gate warning raised by the licensing inspection.
+ * @typedef {object} LicensingGateWarning
+ * @property {string} code
+ * @property {string} gate
+ * @property {string} message
+ */
+
+/**
+ * Aggregate licensing/publication gate inspection result.
+ * @typedef {object} LicensingGateResult
+ * @property {Readonly<{ claProcessActive: boolean, claTermsPresent: boolean, contributingPresent: boolean, contributorPolicyPresent: boolean, pullRequestTemplate: string | null, publicLegalAboutPresent: boolean, publicLegalSurfacesPresent: boolean, thirdPartyNoticesPresent: boolean, thirdPartyNoticesCurrent: boolean }>} checks
+ * @property {boolean} warningOnly
+ * @property {readonly LicensingGateWarning[]} warnings
+ */
+
+/**
+ * Inspect the warning-only licensing and public-release process gates.
+ * @param {{ pathExists?: (filePath: string) => boolean, thirdPartyNoticeStatus?: { current: boolean, message: string } }} [options] seams for tests
+ * @returns {LicensingGateResult}
+ */
 function inspectLicensingGates({
   pathExists = existsSync,
   thirdPartyNoticeStatus = inspectThirdPartyNotices(),
@@ -104,6 +125,11 @@ function inspectLicensingGates({
   });
 }
 
+/**
+ * Render the licensing gate inspection as the stable console report.
+ * @param {LicensingGateResult} result
+ * @returns {string}
+ */
 function formatLicensingGateReport(result) {
   const lines = [
     "Licensing and public-release process gates",
@@ -131,6 +157,11 @@ function formatLicensingGateReport(result) {
   return lines.join("\n");
 }
 
+/**
+ * Third-party-notices satisfaction sentence for the report.
+ * @param {LicensingGateResult} result
+ * @returns {string}
+ */
 function noticesStatusMessage(result) {
   return result.checks.thirdPartyNoticesCurrent
     ? `${LICENSING_GATE_PATHS.thirdPartyNotices} matches the reviewed production dependency and bundled-asset inventory.`

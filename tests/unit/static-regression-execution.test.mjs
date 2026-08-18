@@ -48,8 +48,8 @@ describe("static regression execution audit", () => {
     expect(plan.mode).toBe("audited-workers");
     expect(plan.workerCount).toBe(1);
     expect(plan.fallbackCount).toBe(1);
-    expect(plan.decisions.get("scripts/certified-regression.mjs").decision).toBe("worker-parallel");
-    expect(plan.decisions.get("scripts/uncertified-regression.mjs").decision).toBe("child-process");
+    expect(plan.decisions.get("scripts/certified-regression.mjs")?.decision).toBe("worker-parallel");
+    expect(plan.decisions.get("scripts/uncertified-regression.mjs")?.decision).toBe("child-process");
     expect(plan.decisions.has("scripts/database-regression.mjs")).toBe(false);
   });
 
@@ -62,7 +62,7 @@ describe("static regression execution audit", () => {
 
     expect(plan.workerCount).toBe(0);
     expect(plan.fallbackCount).toBe(2);
-    expect(plan.decisions.get("scripts/certified-regression.mjs").source).toBe("forced-fallback");
+    expect(plan.decisions.get("scripts/certified-regression.mjs")?.source).toBe("forced-fallback");
   });
 
   it("rejects incomplete or unsafe certification instead of silently widening worker eligibility", () => {

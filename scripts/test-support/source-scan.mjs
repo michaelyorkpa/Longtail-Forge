@@ -5,6 +5,24 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
+/**
+ * @typedef {object} RuntimeSourceEntry
+ * @property {string} absolutePath
+ * @property {string} file
+ * @property {string} filePath
+ * @property {string} source
+ */
+
+/**
+ * @typedef {object} RuntimeSourceScanOptions
+ * @property {string} [root]
+ * @property {string} [sourceDir]
+ */
+
+/**
+ * @param {RuntimeSourceScanOptions} [options]
+ * @returns {RuntimeSourceEntry[]}
+ */
 export function readRuntimeSourceEntries({ root = process.cwd(), sourceDir = "src" } = {}) {
   return listRuntimeSourceFiles({ root, sourceDir }).map((absolutePath) => {
     const file = normalizeProjectPath(root, absolutePath);
@@ -17,40 +35,60 @@ export function readRuntimeSourceEntries({ root = process.cwd(), sourceDir = "sr
   });
 }
 
+/**
+ * @param {RuntimeSourceScanOptions} [options]
+ * @returns {string[]}
+ */
 export function listRuntimeSourceFiles({ root = process.cwd(), sourceDir = "src" } = {}) {
+  /** @type {string[]} */
   const files = [];
   walk(path.join(root, sourceDir), files);
   return files;
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ * @returns {string}
+ */
 export function normalizeProjectPath(root, filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }
 
+/**
+ * @param {string} source
+ * @param {number} index
+ * @returns {number}
+ */
 export function lineNumber(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
+/** @param {{ root?: string }} [options] */
 export function createProjectTextReader({ root = PROJECT_ROOT } = {}) {
+  /** @type {Map<string, string>} */
   const cache = new Map();
+  /** @type {Map<string, Promise<string>>} */
   const asyncCache = new Map();
+  /** @param {string} relativePath */
   const readText = (relativePath) => {
     const normalizedPath = normalizeReaderPath(relativePath);
     if (!cache.has(normalizedPath)) {
       cache.set(normalizedPath, readFileSync(path.join(root, normalizedPath), "utf8"));
     }
-    return cache.get(normalizedPath);
+    return /** @type {string} */ (cache.get(normalizedPath));
   };
+  /** @param {string} relativePath */
   const readTextAsync = (relativePath) => {
     const normalizedPath = normalizeReaderPath(relativePath);
     if (!asyncCache.has(normalizedPath)) {
       asyncCache.set(normalizedPath, readFile(path.join(root, normalizedPath), "utf8"));
     }
-    return asyncCache.get(normalizedPath);
+    return /** @type {Promise<string>} */ (asyncCache.get(normalizedPath));
   };
   return Object.freeze({
-    readJson: (relativePath) => JSON.parse(readText(relativePath)),
-    readMarkdown: (relativePath) => {
+    readJson: (/** @type {string} */ relativePath) => JSON.parse(readText(relativePath)),
+    readMarkdown: (/** @type {string} */ relativePath) => {
       if (!/\.md$/i.test(relativePath || "")) {
         throw new Error(`Markdown source reads require a .md path: ${relativePath}`);
       }
@@ -61,6 +99,11 @@ export function createProjectTextReader({ root = PROJECT_ROOT } = {}) {
   });
 }
 
+/**
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
 export function extractFunctionBlock(source, functionName) {
   const declaration = new RegExp(`(?:async\\s+)?function\\s+${escapeRegExp(functionName)}\\s*\\(`).exec(source);
   if (!declaration) {
@@ -71,6 +114,11 @@ export function extractFunctionBlock(source, functionName) {
   return source.slice(declaration.index, findBalancedClose(source, openBrace) + 1);
 }
 
+/**
+ * @param {string} source
+ * @param {readonly string[]} snippets
+ * @returns {boolean}
+ */
 export function sourceContainsInOrder(source, snippets) {
   let cursor = 0;
   for (const snippet of snippets) {
@@ -83,6 +131,11 @@ export function sourceContainsInOrder(source, snippets) {
   return true;
 }
 
+/**
+ * @param {string} source
+ * @param {number} startIndex
+ * @returns {string}
+ */
 export function extractCallExpression(source, startIndex) {
   const openIndex = source.indexOf("(", startIndex);
   let depth = 0;
@@ -139,7 +192,12 @@ export function extractCallExpression(source, startIndex) {
   return source.slice(startIndex);
 }
 
+/**
+ * @param {string} source
+ * @returns {string[]}
+ */
 export function splitTopLevelArguments(source) {
+  /** @type {string[]} */
   const args = [];
   let depth = 0;
   let escapeNext = false;
@@ -200,6 +258,10 @@ export function splitTopLevelArguments(source) {
   return args;
 }
 
+/**
+ * @param {string} currentPath
+ * @param {string[]} results
+ */
 function walk(currentPath, results) {
   const stat = statSync(currentPath);
 
@@ -215,6 +277,11 @@ function walk(currentPath, results) {
   }
 }
 
+/**
+ * @param {string} source
+ * @param {number} openIndex
+ * @returns {number}
+ */
 function findBalancedClose(source, openIndex) {
   if (openIndex === -1) {
     throw new Error("Balanced source block should include an opening brace.");
@@ -248,10 +315,18 @@ function findBalancedClose(source, openIndex) {
   throw new Error("Balanced source block is missing its closing brace.");
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 export function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * @param {string} relativePath
+ * @returns {string}
+ */
 function normalizeReaderPath(relativePath) {
   const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
   if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {

@@ -1,6 +1,12 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.26.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.27. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.27, the shared script infrastructure is strict-clean: all 44 `scripts/lib/` and `scripts/test-support/` files plus every runner, discovery, manifest, closeout, and orchestration entry (including the canonical Playwright runner) sit at zero diagnostics under named typedef families for coverage policy, manifest, discovery, routing, fake-DOM, source-scan, spawn, and operational-record shapes, with spawn isolation, bucket order, retries, timing, cleanup, and independently runnable package commands byte-for-byte preserved and proven through the real runner, closeout gates, and 42/42 database plus 8/8 views bucket runs. Typing the infrastructure exposed roughly 200 latent errors in consumer regressions — following the 0.33.33.16.2 precedent those callers were corrected in the same checkpoint (typed row casts, named fixture surfaces, unknown-narrowing at vm and fake-DOM boundaries, and two omitted-API corrections to the hand-rolled better-sqlite3/Express ambient declarations), landing the whole scripts program at a net shrink from 9,147 to 7,659 diagnostics. The audit-era implicit-`this` assertion-helper plan is recorded as moot: zero TS2683 diagnostics remain anywhere in the program, so no helper was added. `framework.full-strict-governance` pins the new zone — `scripts/lib/`, `scripts/test-support/`, and the ten runner entries must stay strict-clean. Combined strict debt falls from 20,281 to 18,793 with explicit `any` at 7, the write-derived stamp advanced to `0.33.33.27`, and effective regression assertions advance to 18,967 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable developer-workflow documentation remains deferred to the version-wide branch closeout because this checkpoint types verification infrastructure and corrects exposed caller types only, with no supported configuration, route, permission, startup, or deployment contract affected. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.26.2, the server/test program is closed at zero strict diagnostics. All 249 e2e diagnostics across 29 spec files and the shared support helpers are typed with explicit browser, fixture, session, and response shapes — Playwright `Page`/`TestInfo`/`Locator`/`Request` contracts, typed capture arrays, tuple tables, a fail-loud `requireSmokeSurface` resolver, and nullable-return guards that throw rather than skip — with every rendered expectation preserved verbatim and a five-spec sanity run green through the canonical managed-server runner. The deliberate negative compile fixtures under `tests/typecheck/` are untouched isolated cases with their pinned `@ts-expect-error` sites unchanged. The 205 decorative `// @ts-check` pragmas are removed from the server/test program (program-level `checkJs` has been authoritative since 0.33.33.12), and the twelve regression owners that pinned pragma markers now assert the live contract through the shared `strictCleanOwnerState` probe in `scripts/test-support/typecheck-ledger.mjs`: the owner file must belong to a checked program and carry zero ledger diagnostics. `framework.full-strict-governance` retires the server ledger section at zero — the program must stay empty of diagnostics, and its shrink-only mutation proof now seeds a synthetic diagnostic against the closed program so closure can never regress silently. Combined strict debt falls from 20,530 to 20,281 with explicit `any` at 7, the write-derived stamp advanced to `0.33.33.26.2`, and effective regression assertions advance to 18,965 across 347 scripts.
 
@@ -383,11 +389,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18296 |
+| Active regression assertions | 18298 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18965 |
+| Effective assertion floor | 18967 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

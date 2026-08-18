@@ -178,7 +178,7 @@ try {
     const recoveryAuditRows = database.prepare("SELECT audit_id FROM audit_logs WHERE action = 'instance_backup_restored';").all();
     assert.ok(recoveryAuditRows.length > 0);
     recoveryAuditRows.forEach((row) => assertUuidVersion(row.audit_id, 7, "recovery-created audit identity"));
-    assert.equal(database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
+    assert.equal(/** @type {{ file_id: string }} */ (database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey)).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
     assertIdentifierSnapshot(database);
   } finally {
     database.close();
@@ -198,7 +198,7 @@ async function seedRepresentativeState() {
   await fs.writeFile(filePath, originalFile, "utf8");
   const database = new Database(databaseFile, { fileMustExist: true });
   try {
-    const workspaceId = database.prepare("SELECT workspace_id AS workspaceId FROM workspaces ORDER BY workspace_id LIMIT 1;").get().workspaceId;
+    const workspaceId = /** @type {{ workspaceId: string }} */ (database.prepare("SELECT workspace_id AS workspaceId FROM workspaces ORDER BY workspace_id LIMIT 1;").get()).workspaceId;
     identifierWorkspaceId = workspaceId;
     assertUuidVersion(identifierWorkspaceId, 7, "fresh backup fixture workspace identity");
     const now = new Date().toISOString();
@@ -273,10 +273,10 @@ async function mutateLiveState() {
 async function assertRestoredState(expectedMarker, expectedFile) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
-    assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
+    assert.equal(/** @type {{ integrity_check: string }[]} */ (database.pragma("integrity_check"))[0].integrity_check, "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
-    assert.equal(database.prepare("SELECT setting_value AS value FROM app_settings WHERE setting_key = ?;").get(markerKey).value, expectedMarker);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count, 1);
+    assert.equal(/** @type {{ value: string }} */ (database.prepare("SELECT setting_value AS value FROM app_settings WHERE setting_key = ?;").get(markerKey)).value, expectedMarker);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get()).count, 1);
     assertIdentifierSnapshot(database);
   } finally {
     database.close();

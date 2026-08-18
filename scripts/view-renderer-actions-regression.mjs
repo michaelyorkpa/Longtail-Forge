@@ -52,7 +52,18 @@ vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
-const { view } = context.window.LongtailForge;
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/** @typedef {import("./test-support/fake-dom.mjs").FakeLongtailForgeGlobal} FakeLongtailForgeGlobal */
+/**
+ * A rendered action surface: fake-DOM anatomy plus the renderer-owned refresh
+ * path this regression awaits.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown> }} ActionSurface
+ */
+/**
+ * The published `LongtailForge.view` action entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => ActionSurface }} ActionsViewSurface
+ */
+const { view } = /** @type {FakeLongtailForgeGlobal & { view: ActionsViewSurface }} */ (context.window.LongtailForge);
 assert.equal(typeof view.registerBehavior, "function", "LongtailForge.view.registerBehavior should be exposed");
 
 const behaviorCalls = [];

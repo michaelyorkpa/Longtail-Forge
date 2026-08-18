@@ -1,5 +1,7 @@
 import path from "node:path";
 
+/** @typedef {{ area: string, description: string, id: string, runMode: string, tags: readonly string[], tier: string }} RegressionMetadata */
+
 const CANONICAL_REGRESSION_AREAS = Object.freeze([
   "framework",
   "views",
@@ -51,6 +53,11 @@ const AREA_SET = new Set(CANONICAL_REGRESSION_AREAS);
 const TIER_SET = new Set(CANONICAL_REGRESSION_TIERS);
 const RUN_MODE_SET = new Set(CANONICAL_REGRESSION_RUN_MODES);
 
+/**
+ * @param {string} source
+ * @param {string} scriptPath
+ * @returns {Readonly<RegressionMetadata> | null}
+ */
 function extractRegressionMeta(source, scriptPath) {
   const declaration = /export\s+const\s+regressionMeta\s*=\s*(?:Object\.freeze\(\s*)?/m.exec(source);
 
@@ -71,12 +78,17 @@ function extractRegressionMeta(source, scriptPath) {
   try {
     parsed = JSON.parse(toStrictJson(literal));
   } catch (error) {
-    throw new Error(`${scriptPath} regressionMeta must use a JSON-compatible object literal: ${error.message}`);
+    throw new Error(`${scriptPath} regressionMeta must use a JSON-compatible object literal: ${/** @type {Error} */ (error).message}`);
   }
 
   return validateRegressionMeta(parsed, { scriptPath });
 }
 
+/**
+ * @param {RegressionMetadata & { [key: string]: unknown }} metadata
+ * @param {{ scriptPath?: string }} [options]
+ * @returns {Readonly<RegressionMetadata>}
+ */
 function validateRegressionMeta(metadata, { scriptPath = "regression" } = {}) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     throw new Error(`${scriptPath} regressionMeta must be an object.`);
@@ -144,6 +156,11 @@ function validateRegressionMeta(metadata, { scriptPath = "regression" } = {}) {
   });
 }
 
+/**
+ * @param {string} scriptPath
+ * @param {string} runMode
+ * @returns {Readonly<RegressionMetadata>}
+ */
 function inferLegacyRegressionMeta(scriptPath, runMode) {
   const slug = path.posix.basename(scriptPath, ".mjs")
     .replace(/(?:-regression|-check|-guardrails)$/, "")
@@ -162,7 +179,12 @@ function inferLegacyRegressionMeta(scriptPath, runMode) {
   }, { scriptPath });
 }
 
+/**
+ * @param {string} slug
+ * @returns {string}
+ */
 function inferLegacyArea(slug) {
+  /** @type {readonly [string, RegExp][]} */
   const rules = [
     ["public-api", /public-api|api-key|api-scope/],
     ["dashboard", /^dashboard/],
@@ -198,8 +220,15 @@ const LEGACY_BASELINE_FIXTURE_SLUGS = new Set([
   "static-contract-closeout",
 ]);
 
+/**
+ * @param {string} slug
+ * @param {string} runMode
+ * @returns {string[]}
+ */
 function inferLegacyTags(slug, runMode) {
+  /** @type {string[]} */
   const tags = [];
+  /** @type {(tag: string, condition: boolean) => void} */
   const add = (tag, condition) => {
     if (condition) {
       tags.push(tag);
@@ -221,6 +250,11 @@ function inferLegacyTags(slug, runMode) {
   return [...new Set(tags)].sort();
 }
 
+/**
+ * @param {string} slug
+ * @param {string} runMode
+ * @returns {string}
+ */
 function inferLegacyTier(slug, runMode) {
   if (/check-js|performance|separate-worker|scanner|clamd|clamscan/.test(slug)) {
     return "slow";
@@ -237,8 +271,15 @@ function inferLegacyTier(slug, runMode) {
   return "focused";
 }
 
+/**
+ * @param {string} source
+ * @param {number} start
+ * @param {string} scriptPath
+ * @returns {number}
+ */
 function findObjectLiteralEnd(source, start, scriptPath) {
   let depth = 0;
+  /** @type {string | null} */
   let quote = null;
   let escaped = false;
 
@@ -271,6 +312,10 @@ function findObjectLiteralEnd(source, start, scriptPath) {
   throw new Error(`${scriptPath} regressionMeta object literal is not closed.`);
 }
 
+/**
+ * @param {string} literal
+ * @returns {string}
+ */
 function toStrictJson(literal) {
   return literal
     .replace(/([{,]\s*)([a-zA-Z][a-zA-Z0-9]*)\s*:/g, '$1"$2":')

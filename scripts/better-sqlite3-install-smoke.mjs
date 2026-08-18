@@ -43,7 +43,7 @@ try {
   );
 
   database = new Database(databaseFile);
-  const sqliteVersion = database.prepare("SELECT sqlite_version() AS sqlite_version;").get().sqlite_version;
+  const sqliteVersion = /** @type {{ sqlite_version: string }} */ (database.prepare("SELECT sqlite_version() AS sqlite_version;").get()).sqlite_version;
   const compileOptions = database.prepare("PRAGMA compile_options;").all()
     .map((row) => row.compile_options);
 

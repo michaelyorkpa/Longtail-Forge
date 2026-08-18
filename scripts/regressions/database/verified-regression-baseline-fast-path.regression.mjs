@@ -38,7 +38,7 @@ try {
   assert.deepEqual(environmentOnly.probe.decision, { fastPathUsed: false, reason: "no-runner-handshake" });
 
   const existingTargetLaunch = await baseline.createScriptLaunch(PROBE, 4);
-  await fs.writeFile(existingTargetLaunch.env.LONGTAIL_DATABASE_FILE, "");
+  await fs.writeFile(/** @type {string} */ (existingTargetLaunch.env.LONGTAIL_DATABASE_FILE), "");
   const existingTarget = await runProbe(existingTargetLaunch);
   assert.equal(existingTarget.status, 0, existingTarget.stderr);
   assert.deepEqual(existingTarget.probe.decision, { fastPathUsed: false, reason: "target-already-materialized" });

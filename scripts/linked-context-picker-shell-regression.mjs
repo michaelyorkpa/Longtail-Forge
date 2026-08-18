@@ -18,9 +18,20 @@ assert.match(helper, /function createLinkedContextList/, "view builder should im
 assert.match(helper, /createLinkedContextPicker,/, "view builder should expose the picker shell on LongtailForge.view");
 assert.match(helper, /createLinkedContextList,/, "view builder should expose the read-list shell on LongtailForge.view");
 
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * Framework-owned update hooks the picker shell exposes through `viewParts`.
+ * @typedef {{ setLinkedItems: (items: object[]) => void, setRecords: (records: object[]) => void, setTargets: (targets: object[]) => void, setReadonly: (readonly: boolean) => void }} PickerParts
+ */
+/** @typedef {FakeNode & { viewParts: PickerParts }} PickerNode */
+/**
+ * The published `LongtailForge.view` picker helper catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => PickerNode>} PickerViewSurface
+ */
+
 const context = createFakeBrowserContext();
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {PickerViewSurface} */ (context.window.LongtailForge.view);
 
 assert.equal(typeof view.createLinkedContextPicker, "function", "LongtailForge.view.createLinkedContextPicker should be exposed");
 assert.equal(typeof view.createLinkedContextList, "function", "LongtailForge.view.createLinkedContextList should be exposed");

@@ -105,10 +105,20 @@ function isDocumentedOutOfOrderRoadmapCloseout(completedVersion, options = {}) {
     && archiveSection.includes(preservedCursorStatement);
 }
 
+/**
+ * Build the anchored live-roadmap heading matcher for one version.
+ * @param {string} version dotted numeric version
+ * @returns {RegExp}
+ */
 function versionHeadingPattern(version) {
   return new RegExp(`^## Version ${escapeRegExp(version)}(?:\\s+-|\\s*$)`, "m");
 }
 
+/**
+ * Parse a dotted numeric version into its numeric segments.
+ * @param {string} value dotted numeric version, for example "0.33.8"
+ * @returns {number[]} the numeric segments
+ */
 function parseDottedVersion(value) {
   const text = String(value || "").trim();
 

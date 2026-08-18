@@ -113,7 +113,7 @@ ORDER BY username;
         "changing SUPER_ADMIN_USERNAME after first install must neither rename the protected identity nor create another user",
       );
       assert.equal(
-        database.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get().count,
+        /** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get()).count,
         1,
         "an environment username change must retain exactly one super-admin assignment",
       );
@@ -187,7 +187,7 @@ VALUES (
         "startup over an existing nonempty installation must not invent a configured administrator",
       );
       assert.equal(
-        verification.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get().count,
+        /** @type {{ count: number }} */ (verification.prepare("SELECT COUNT(*) AS count FROM user_role_assignments WHERE role_id = 'super_admin';").get()).count,
         0,
       );
     } finally {

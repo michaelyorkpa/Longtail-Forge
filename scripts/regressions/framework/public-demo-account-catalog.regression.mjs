@@ -102,7 +102,7 @@ function serve(router) {
   app.use("/api", router);
   app.use(createErrorHandler({ logger: { error() {} } }));
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }

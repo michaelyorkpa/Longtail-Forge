@@ -45,8 +45,8 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
     assert.equal(activeIds.has(id), true, `${id} must remain independently runnable`);
   }
   for (const contract of contracts) {
-    assert.equal(activePaths.has(contract.sourcePath), false, `${contract.sourcePath} must leave active discovery`);
-    assert.equal(existsSync(contract.modulePath), true, `${contract.modulePath} must retain its assertion body`);
+    assert.equal(activePaths.has(/** @type {string} */ (contract.sourcePath)), false, `${contract.sourcePath} must leave active discovery`);
+    assert.equal(existsSync(/** @type {string} */ (contract.modulePath)), true, `${contract.modulePath} must retain its assertion body`);
     const retirement = retirements.get(contract.sourcePath);
     assert.equal(retirement?.retiredInVersion, consolidation.version);
     assert.equal(retirement?.assertionInventory?.sourceAssertionCount, contract.assertionCount);

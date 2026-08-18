@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.27 - Type script libraries, test support, and the regression runner
+
+**Model: High Effort** - Shared script APIs and runner control flow affect every verification owner.
+
+- [x] Typed all 44 `scripts/lib/` and `scripts/test-support/` files plus discovery, routing, manifest, closeout, and runner orchestration (including the canonical Playwright runner, added to the cohort when the sweep found it) to zero diagnostics under named typedef families for coverage policy, manifest, discovery, routing, fake-DOM, source-scan, spawn, and operational-record shapes; typing the infrastructure exposed roughly 200 latent caller errors in consumer regressions, and following the 0.33.33.16.2 precedent those callers were corrected in the same checkpoint, including two omitted-API corrections to the hand-rolled better-sqlite3/Express ambient declarations.
+- [x] Recorded the audit-era implicit-`this` assertion-helper plan as moot: zero TS2683 diagnostics remain anywhere in the scripts program, so no helper was added and no dead scaffolding shipped.
+- [x] Preserved spawn isolation, bucket order, retries, timing, cleanup, and independently runnable package commands byte-for-byte, proven by running the full 347-entry regression suite through the newly typed runner itself plus 42/42 database and 8/8 views bucket runs, the closeout gates, manifest/inventory checks, and the slice-verification unit owners.
+- [x] Reduced shared script infrastructure debt to zero before typing its consumers and pinned it: `framework.full-strict-governance` now asserts `scripts/lib/`, `scripts/test-support/`, and the ten runner entries stay strict-clean; the scripts program fell from 9,147 to 7,659 diagnostics (combined 20,281 to 18,793, explicit `any` at 7) with effective regression assertions advancing to 18,967 across 347 scripts.
+
 ## Version 0.33.33.26.2 - Type e2e tests and close the server/test program
 
 **Model: High Effort** - Playwright helpers, negative compile fixtures, and the final compiler-policy switch are repository-wide proof boundaries.

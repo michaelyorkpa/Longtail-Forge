@@ -57,8 +57,19 @@ vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered data-bound surface: fake-DOM anatomy plus the renderer-owned
+ * refresh path and bound view state this contract inspects.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown>, viewState: { records: Record<string, unknown>[], selectedRecord: unknown } }} DataBoundSurface
+ */
+/**
+ * The published `LongtailForge.view` data-binding entry point under test.
+ * @typedef {{ renderSurface: (descriptor: object, host: FakeNode) => DataBoundSurface }} DataBindingViewSurface
+ */
+
 const host = context.document.createElement("main");
-const surface = context.window.LongtailForge.view.renderSurface(descriptor(), host);
+const surface = /** @type {DataBindingViewSurface} */ (context.window.LongtailForge.view).renderSurface(descriptor(), host);
 assert.equal(typeof surface.refresh, "function", "Rendered surfaces should expose refresh()");
 assert.match(surface.textContent, /Loading records/, "Initial data-bound render should show a loading status");
 
@@ -81,7 +92,7 @@ vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, errorContext, { filename: "view-renderer.js" });
 const errorHost = errorContext.document.createElement("main");
-const errorSurface = errorContext.window.LongtailForge.view.renderSurface(descriptor(), errorHost);
+const errorSurface = /** @type {DataBindingViewSurface} */ (errorContext.window.LongtailForge.view).renderSurface(descriptor(), errorHost);
 await errorSurface.refresh();
 assert.match(errorSurface.textContent, /Data unavailable/, "Renderer should render framework-owned error states");
 
@@ -101,7 +112,7 @@ vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" })
 vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, noSelectionContext, { filename: "view-renderer.js" });
 const noSelectionHost = noSelectionContext.document.createElement("main");
-const noSelectionSurface = noSelectionContext.window.LongtailForge.view.renderSurface(noInitialSelectionDescriptor(), noSelectionHost);
+const noSelectionSurface = /** @type {DataBindingViewSurface} */ (noSelectionContext.window.LongtailForge.view).renderSurface(noInitialSelectionDescriptor(), noSelectionHost);
 await noSelectionSurface.refresh();
 assert.equal(noSelectionSurface.viewState.selectedRecord, null, "Descriptors should be able to start with a blank detail selection");
 assert.match(noSelectionSurface.textContent, /Choose a sample/, "Blank detail surfaces should keep descriptor guidance visible");

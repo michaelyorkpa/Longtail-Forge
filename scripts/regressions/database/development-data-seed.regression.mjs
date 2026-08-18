@@ -109,8 +109,8 @@ try {
 
   const database = new Database(path.join(firstDir, "longtail-forge.db"), { readonly: true });
   try {
-    const earliestWorkspace = database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get();
-    const operator = database.prepare("SELECT home_workspace_id, username FROM users WHERE protected_user = 'yes' LIMIT 1").get();
+    const earliestWorkspace = /** @type {{ workspace_id: string, workspace_type: string }} */ (database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get());
+    const operator = /** @type {{ home_workspace_id: string, username: string }} */ (database.prepare("SELECT home_workspace_id, username FROM users WHERE protected_user = 'yes' LIMIT 1").get());
     assert.equal(earliestWorkspace.workspace_type, "business", "startup must retain the Business bootstrap workspace as the deterministic first workspace");
     assert.equal(operator.home_workspace_id, earliestWorkspace.workspace_id, "startup super-admin lookup must remain anchored to the operator's Business workspace");
     assert.equal(operator.username, operatorUsername, "explicit process configuration must win when the seed CLI loads the root .env");
@@ -121,7 +121,8 @@ try {
     assert.ok(taskStates.some((row) => row.due_date === null));
     assert.ok(taskStates.some((row) => row.recurrence_template_id));
     assert.ok(taskStates.some((row) => row.next_action && row.resume_note));
-    const taskTimers = database.prepare(`
+    /** @typedef {Record<string, unknown> & { timer_status: string, task_title: string, source_metadata_json: string }} SeededTaskTimerRow */
+    const taskTimers = /** @type {SeededTaskTimerRow[]} */ (database.prepare(`
       SELECT
         active_work_timers.*,
         tasks.title AS task_title,
@@ -145,7 +146,7 @@ try {
       WHERE active_work_timers.source_module_id = 'tasks'
         AND active_work_timers.source_type = 'task'
       ORDER BY tasks.title
-    `).all();
+    `).all());
     assert.equal(taskTimers.length, 2, "both seeded timers should join to their Task, user, workspace, and readable context");
     for (const timer of taskTimers) {
       assert.ok(["running", "paused"].includes(timer.timer_status), "seeded Task timers must use canonical status tokens");
@@ -164,7 +165,7 @@ try {
       assert.equal(typeof metadata.taskTimerStatusTransition?.movedTaskToInProgress, "boolean");
       assert.ok(["open", "in_progress"].includes(metadata.taskTimerStatusTransition?.previousStatus));
     }
-    const runningTransition = JSON.parse(taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout").source_metadata_json).taskTimerStatusTransition;
+    const runningTransition = JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout")).source_metadata_json).taskTimerStatusTransition;
     assert.deepEqual(runningTransition, {
       movedTaskToInProgress: true,
       movedTaskFromOpen: true,
@@ -172,7 +173,7 @@ try {
       previousBlockedReason: "",
       previousStatus: "open",
     });
-    const pausedTransition = JSON.parse(taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap").source_metadata_json).taskTimerStatusTransition;
+    const pausedTransition = JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap")).source_metadata_json).taskTimerStatusTransition;
     assert.deepEqual(pausedTransition, {
       movedTaskToInProgress: false,
       movedTaskFromOpen: false,
@@ -180,10 +181,10 @@ try {
       previousBlockedReason: "",
       previousStatus: "in_progress",
     });
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND username NOT LIKE 'role-%@example.test' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND username NOT LIKE 'role-%@example.test' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!")).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get()).count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get()).count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
     assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
     assertSeedIdentifierCompatibility(database, earliestWorkspace, operator);
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
@@ -479,27 +480,27 @@ WHERE user_workspaces.user_id = ?;
     }
 
     assert.equal(
-      database.prepare(`
+      /** @type {{ count: number }} */ (database.prepare(`
 SELECT COUNT(*) AS count
 FROM users
 WHERE protected_user = 'no'
   AND username NOT LIKE 'role-%@example.test'
   AND (user_status != 'inactive' OR password != '!development-persona-login-disabled!');
-`).get().count,
+`).get()).count,
       0,
       "ordinary fictional personas must remain inactive",
     );
     assert.equal(
-      database.prepare("SELECT COUNT(*) AS count FROM users WHERE username LIKE 'role-%@example.test' AND alt_email IS NOT NULL AND alt_email != ''").get().count,
+      /** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM users WHERE username LIKE 'role-%@example.test' AND alt_email IS NOT NULL AND alt_email != ''").get()).count,
       0,
       "active role fixtures must not reuse realistic alternate addresses",
     );
     assert.equal(
-      database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count,
+      /** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get()).count,
       0,
     );
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM files").get().count >= 2);
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0);
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM files").get()).count >= 2);
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get()).count > 0);
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
   } finally {
@@ -556,17 +557,17 @@ ORDER BY tasks.title;
 
     const sessionUser = seededRows[0];
     assert.ok(seededRows.every((row) => row.user_id === sessionUser.user_id && row.workspace_id === sessionUser.workspace_id));
-    const session = {
+    const session = /** @type {import("../../../src/types/task-workflow-contracts.js").TaskWorkflowSession} */ (/** @type {unknown} */ ({
       home_workspace_id: sessionUser.home_workspace_id,
       ip: "127.0.0.1",
       timezone: sessionUser.timezone || "America/New_York",
       user_id: sessionUser.user_id,
       username: sessionUser.username,
       workspace_id: sessionUser.workspace_id,
-    };
+    }));
     const byTitle = new Map(seededRows.map((row) => [row.title, row]));
-    const runningTask = byTitle.get("Validate POS receipt layout");
-    const pausedTask = byTitle.get("Fix mobile checkout overlap");
+    const runningTask = /** @type {{ task_id: string }} */ (byTitle.get("Validate POS receipt layout"));
+    const pausedTask = /** @type {{ task_id: string }} */ (byTitle.get("Fix mobile checkout overlap"));
 
     const started = await taskTimersService.save(runningTask.task_id, {
       accumulated_elapsed_seconds: 780,

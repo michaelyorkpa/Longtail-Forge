@@ -1,5 +1,15 @@
 import { runPackageScript } from "./package-script-runner.mjs";
 
+/**
+ * @typedef {{ command: string, hard: boolean, id: string, label: string, script: string }} CloseoutGateDefinition
+ * @typedef {{ command: string, id: string, label: string, script: string }} CloseoutFixDefinition
+ * @typedef {{ error?: unknown, status?: number | null }} CloseoutCommandResult
+ * @typedef {CloseoutGateDefinition & { exitCode: number, outcome: "pass" | "warn" | "fail" }} CloseoutGateResult
+ * @typedef {CloseoutFixDefinition & { exitCode: number, outcome: "pass" | "fail" }} CloseoutFixResult
+ * @typedef {{ results: readonly CloseoutGateResult[], status: number }} CloseoutGateRunSummary
+ * @typedef {{ results: readonly CloseoutFixResult[], status: number }} CloseoutFixRunSummary
+ */
+
 const CLOSEOUT_GATES = Object.freeze([
   gate("version-guard", "Version literal guard", "version:guard", true),
   gate("regression-manifest", "Regression manifest", "regressions:manifest:check", true),
@@ -18,10 +28,16 @@ const CLOSEOUT_FIXES = Object.freeze([
   fix("database-schema", "Database schema", "db:schema:refresh"),
 ]);
 
+/**
+ * @param {readonly CloseoutGateDefinition[]} [gates]
+ * @param {{ failFast?: boolean, onGateStart?: (gate: CloseoutGateDefinition) => void, runCommand?: (gateDefinition: CloseoutGateDefinition) => CloseoutCommandResult }} [options]
+ * @returns {CloseoutGateRunSummary}
+ */
 function runCloseoutGates(
   gates = CLOSEOUT_GATES,
   { failFast = false, onGateStart, runCommand = runNpmScript } = {},
 ) {
+  /** @type {CloseoutGateResult[]} */
   const results = [];
 
   for (const gateDefinition of gates) {
@@ -32,13 +48,13 @@ function runCloseoutGates(
     } catch (error) {
       commandResult = { error, status: 1 };
     }
-    const exitCode = Number.isInteger(commandResult?.status) ? commandResult.status : 1;
+    const exitCode = Number.isInteger(commandResult?.status) ? /** @type {number} */ (commandResult.status) : 1;
     results.push(Object.freeze({
       ...gateDefinition,
       exitCode,
       outcome: exitCode === 0 ? "pass" : gateDefinition.hard ? "fail" : "warn",
     }));
-    if (failFast && results.at(-1).outcome === "fail") {
+    if (failFast && /** @type {CloseoutGateResult} */ (results.at(-1)).outcome === "fail") {
       break;
     }
   }
@@ -49,6 +65,10 @@ function runCloseoutGates(
   });
 }
 
+/**
+ * @param {CloseoutGateRunSummary} result
+ * @returns {string}
+ */
 function formatCloseoutSummary(result) {
   const lines = ["Closeout gate summary"];
   for (const gateResult of result.results) {
@@ -62,11 +82,21 @@ function formatCloseoutSummary(result) {
   return lines.join("\n");
 }
 
+/**
+ * @param {CloseoutGateDefinition | CloseoutFixDefinition} gateDefinition
+ * @returns {CloseoutCommandResult}
+ */
 function runNpmScript(gateDefinition) {
   return runPackageScript(gateDefinition.script);
 }
 
+/**
+ * @param {readonly CloseoutFixDefinition[]} [fixes]
+ * @param {{ onFixStart?: (fix: CloseoutFixDefinition) => void, runCommand?: (fixDefinition: CloseoutFixDefinition) => CloseoutCommandResult }} [options]
+ * @returns {CloseoutFixRunSummary}
+ */
 function runCloseoutFixes(fixes = CLOSEOUT_FIXES, { onFixStart, runCommand = runNpmScript } = {}) {
+  /** @type {CloseoutFixResult[]} */
   const results = [];
   for (const fixDefinition of fixes) {
     onFixStart?.(fixDefinition);
@@ -76,7 +106,7 @@ function runCloseoutFixes(fixes = CLOSEOUT_FIXES, { onFixStart, runCommand = run
     } catch (error) {
       commandResult = { error, status: 1 };
     }
-    const exitCode = Number.isInteger(commandResult?.status) ? commandResult.status : 1;
+    const exitCode = Number.isInteger(commandResult?.status) ? /** @type {number} */ (commandResult.status) : 1;
     results.push(Object.freeze({ ...fixDefinition, exitCode, outcome: exitCode === 0 ? "pass" : "fail" }));
     if (exitCode !== 0) {
       break;
@@ -88,6 +118,10 @@ function runCloseoutFixes(fixes = CLOSEOUT_FIXES, { onFixStart, runCommand = run
   });
 }
 
+/**
+ * @param {CloseoutFixRunSummary} result
+ * @returns {string}
+ */
 function formatCloseoutFixSummary(result) {
   const lines = ["Closeout deterministic-fix summary"];
   for (const fixResult of result.results) {
@@ -101,10 +135,23 @@ function formatCloseoutFixSummary(result) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string} script
+ * @param {boolean} hard
+ * @returns {CloseoutGateDefinition}
+ */
 function gate(id, label, script, hard) {
   return Object.freeze({ command: `npm run ${script}`, hard, id, label, script });
 }
 
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string} script
+ * @returns {CloseoutFixDefinition}
+ */
 function fix(id, label, script) {
   return Object.freeze({ command: `npm run ${script}`, id, label, script });
 }

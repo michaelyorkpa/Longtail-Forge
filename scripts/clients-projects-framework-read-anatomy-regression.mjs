@@ -99,8 +99,18 @@ vm.runInNewContext(builder, clientsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, clientsContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
 
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered read surface: fake-DOM anatomy plus the renderer-owned refresh
+ * path this regression awaits.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown> }} ReadSurface
+ */
+/**
+ * The published `LongtailForge.view` read-anatomy entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => ReadSurface }} ReadViewSurface
+ */
 const clientActionCalls = [];
-const clientsView = clientsContext.window.LongtailForge.view;
+const clientsView = /** @type {ReadViewSurface} */ (clientsContext.window.LongtailForge.view);
 clientsView.registerBehavior("client-projects.clients.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 clientsView.registerBehavior("client-projects.clients.create", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
 clientsView.registerBehavior("client-projects.clients.edit", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
@@ -147,7 +157,7 @@ vm.runInNewContext(responseRecords, projectsContext, { filename: "view-response-
 vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
 const projectActionCalls = [];
-const projectsView = projectsContext.window.LongtailForge.view;
+const projectsView = /** @type {ReadViewSurface} */ (projectsContext.window.LongtailForge.view);
 projectsView.registerBehavior("client-projects.projects.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 projectsView.registerBehavior("client-projects.projects.clients", () => [{ value: "client-parent", label: "Acme Parent" }]);
 projectsView.registerBehavior("client-projects.projects.create", (context) => projectActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));

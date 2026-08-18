@@ -13,6 +13,6 @@ declare module "better-sqlite3" {
     close(): void;
     exec(sql: string): void;
     prepare(sql: string): Statement;
-    pragma(sql: string): unknown;
+    pragma(sql: string, options?: Readonly<{ simple?: boolean }>): unknown;
   }
 }

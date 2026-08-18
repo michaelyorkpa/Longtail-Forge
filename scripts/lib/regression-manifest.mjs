@@ -12,6 +12,17 @@ const CONTRACT_MODULE_ROOT = "scripts/regression-contracts";
 /** @typedef {{ area: string, description: string, id: string, legacy?: boolean, path: string, runMode: string, tags: readonly string[], tier: string }} RegressionOwner */
 /** @typedef {{ assertionCount: number, path: string }} ContractAssertionModule */
 /** @typedef {(filePath: string, encoding: "utf8") => string} SourceReader */
+/** @typedef {{ id: string, matchTags: readonly string[], minimumActiveScripts: number }} CoverageFamilyPolicy */
+/** @typedef {{ creditedAssertionReduction: number, ownerPaths: readonly string[], sourceAssertionCount: number }} RetirementAssertionInventory */
+/** @typedef {{ [key: string]: unknown, area: string, assertionInventory?: RetirementAssertionInventory, floorCredit: boolean, id: string, integrationCoverageOwners?: readonly string[], retainedCoverageOwners: readonly string[], retirementType: string, script: string, tags?: readonly string[], tier: string, vitestOwner: string }} RetiredScript */
+/** @typedef {{ [key: string]: unknown, assertionCount: number, movedTo: string, movementType: string, retainedIntegrationOwner: string, sourceInventory?: string, sourceRegression: string, verificationPerformed?: readonly string[] }} AssertionMovement */
+/** @typedef {{ maximumScripts: number, rationale: string, snapshotPath: string }} LegacyMetadataException */
+/** @typedef {{ assertionMovements: readonly AssertionMovement[], coverageFamilies: readonly CoverageFamilyPolicy[], legacyMetadataException: LegacyMetadataException, maximumActiveScripts: number, minimumAreaScripts: Record<string, number>, minimumAssertionCount: number, minimumReleaseGateScripts: number, protectedAreas: readonly string[], requiredReleaseGateIds: readonly string[], retiredScripts: readonly RetiredScript[], schemaVersion: number }} CoveragePolicy */
+/** @typedef {{ entries: readonly RegressionOwner[], policy: CoveragePolicy, readSource?: SourceReader }} CoverageComputationOptions */
+/** @typedef {{ contractMovements?: readonly ContractMovement[], entries: readonly RegressionOwner[], policy: CoveragePolicy, readSource?: SourceReader }} AssertionInventoryOptions */
+/** @typedef {{ id: string, minimumActiveScripts: number }} CoverageFamilyFloorTarget */
+/** @typedef {ReturnType<typeof buildOwnedAssertionEntry>} OwnedRegressionEntry */
+/** @typedef {ReturnType<typeof buildRegressionManifest>} RegressionManifest */
 /** @type {SourceReader} */
 const readUtf8Source = (filePath, _encoding) => readFileSync(filePath, "utf8");
 /** @type {readonly ContractMovement[]} */
@@ -25,7 +36,7 @@ const DEFAULT_CONTRACT_MOVEMENTS = Object.freeze([
 })));
 
 /**
- * @param {{ entries: readonly RegressionOwner[], policy: ReturnType<typeof cloneJson>, readSource?: SourceReader }} options
+ * @param {CoverageComputationOptions} options
  */
 function buildRegressionManifest({ entries, policy, readSource = readUtf8Source }) {
   validateUniqueEntryIdentity(entries);
@@ -56,6 +67,10 @@ function buildRegressionManifest({ entries, policy, readSource = readUtf8Source 
   });
 }
 
+/**
+ * @param {unknown} manifest
+ * @returns {string}
+ */
 function serializeRegressionManifest(manifest) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
@@ -72,11 +87,21 @@ function generatedContentMatches(actual, expected) {
   return actual.replaceAll("\r\n", "\n") === expected.replaceAll("\r\n", "\n");
 }
 
+/**
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/**
+ * @param {{ entries: readonly RegressionOwner[], manifest: unknown, packageScripts?: Record<string, string>, policy: CoveragePolicy, readSource?: SourceReader }} options
+ * @returns {string[]}
+ */
 function collectRegressionCoverageErrors({ entries, manifest, packageScripts = readPackageScripts(), policy, readSource = readUtf8Source }) {
+  /** @type {string[]} */
   const errors = [];
   const activeEntries = Array.isArray(entries) ? entries : [];
   const retiredEntries = Array.isArray(policy?.retiredScripts) ? policy.retiredScripts : [];
@@ -136,15 +161,20 @@ function collectRegressionCoverageErrors({ entries, manifest, packageScripts = r
       errors.push(`generated manifest is stale; run ${MANIFEST_GENERATOR}`);
     }
   } catch (error) {
-    errors.push(error.message);
+    errors.push(/** @type {Error} */ (error).message);
   }
 
   return errors;
 }
 
+/**
+ * @param {CoverageComputationOptions} options
+ * @returns {CoveragePolicy}
+ */
 function buildRatchetedCoveragePolicy({ entries, policy, readSource = readUtf8Source }) {
   const nextPolicy = cloneJson(policy);
   const targets = buildCoverageFloorTargets({ entries, policy, readSource });
+  /** @type {string[]} */
   const loweringErrors = [];
 
   rejectCeilingIncrease(loweringErrors, "maximumActiveScripts", policy?.maximumActiveScripts, targets.maximumActiveScripts);
@@ -195,16 +225,21 @@ function buildRatchetedCoveragePolicy({ entries, policy, readSource = readUtf8So
   nextPolicy.minimumReleaseGateScripts = targets.minimumReleaseGateScripts;
   nextPolicy.coverageFamilies = nextPolicy.coverageFamilies.map((family) => ({
     ...family,
-    minimumActiveScripts: targets.coverageFamilies.find((target) => target.id === family.id).minimumActiveScripts,
+    minimumActiveScripts: /** @type {CoverageFamilyFloorTarget} */ (targets.coverageFamilies.find((target) => target.id === family.id)).minimumActiveScripts,
   }));
   return nextPolicy;
 }
 
+/**
+ * @param {CoverageComputationOptions} options
+ * @returns {string[]}
+ */
 function collectCoverageFloorDriftErrors({ entries, policy, readSource = readUtf8Source }) {
   if (!policy || typeof policy !== "object") {
     return [];
   }
   const targets = buildCoverageFloorTargets({ entries, policy, readSource });
+  /** @type {string[]} */
   const errors = [];
   reportCeilingDrift(errors, "maximumActiveScripts", policy.maximumActiveScripts, targets.maximumActiveScripts);
   reportCeilingDrift(
@@ -230,6 +265,9 @@ function collectCoverageFloorDriftErrors({ entries, policy, readSource = readUtf
   return errors;
 }
 
+/**
+ * @param {CoverageComputationOptions} options
+ */
 function buildCoverageFloorTargets({ entries, policy, readSource = readUtf8Source }) {
   const activeEntries = Array.isArray(entries) ? entries : [];
   const creditedRetirements = Array.isArray(policy?.retiredScripts)
@@ -275,38 +313,70 @@ function buildCoverageFloorTargets({ entries, policy, readSource = readUtf8Sourc
   };
 }
 
+/**
+ * @param {string[]} errors
+ * @param {string} label
+ * @param {number | undefined} current
+ * @param {number} target
+ * @returns {void}
+ */
 function rejectCeilingIncrease(errors, label, current, target) {
-  if (Number.isInteger(current) && target > current) {
+  if (Number.isInteger(current) && target > /** @type {number} */ (current)) {
     errors.push(`${label} would increase from ${current} to ${target}`);
   }
 }
 
+/**
+ * @param {string[]} errors
+ * @param {string} label
+ * @param {number | undefined} current
+ * @param {number} target
+ * @returns {void}
+ */
 function rejectFloorLowering(errors, label, current, target) {
-  if (Number.isInteger(current) && target < current) {
+  if (Number.isInteger(current) && target < /** @type {number} */ (current)) {
     errors.push(`${label} would decrease from ${current} to ${target}`);
   }
 }
 
+/**
+ * @param {string[]} errors
+ * @param {string} label
+ * @param {number | undefined} current
+ * @param {number} target
+ * @returns {void}
+ */
 function reportLag(errors, label, current, target) {
-  if (Number.isInteger(current) && current < target) {
+  if (Number.isInteger(current) && /** @type {number} */ (current) < target) {
     errors.push(
       `${label} lags current discovered coverage (${current} < ${target}); run ${MANIFEST_GENERATOR} --ratchet-floors`,
     );
-  } else if (Number.isInteger(current) && current > target) {
+  } else if (Number.isInteger(current) && /** @type {number} */ (current) > target) {
     errors.push(`${label} exceeds current effective coverage (${current} > ${target}); coverage was lost or its retirement evidence is incomplete`);
   }
 }
 
+/**
+ * @param {string[]} errors
+ * @param {string} label
+ * @param {number | undefined} current
+ * @param {number} target
+ * @returns {void}
+ */
 function reportCeilingDrift(errors, label, current, target) {
-  if (Number.isInteger(current) && current > target) {
+  if (Number.isInteger(current) && /** @type {number} */ (current) > target) {
     errors.push(
       `${label} is above current discovered coverage (${current} > ${target}); run ${MANIFEST_GENERATOR} --ratchet-floors`,
     );
-  } else if (Number.isInteger(current) && current < target) {
+  } else if (Number.isInteger(current) && /** @type {number} */ (current) < target) {
     errors.push(`${label} was exceeded by discovered coverage (${current} < ${target}); active entry points may not grow implicitly`);
   }
 }
 
+/**
+ * @param {{ entries: readonly RegressionOwner[], manifest: unknown, policy: CoveragePolicy }} options
+ * @returns {void}
+ */
 function validateRegressionCoverage({ entries, manifest, policy }) {
   const errors = collectRegressionCoverageErrors({ entries, manifest, policy });
   if (errors.length > 0) {
@@ -314,7 +384,10 @@ function validateRegressionCoverage({ entries, manifest, policy }) {
   }
 }
 
-function buildAssertionInventory({ entries, policy, readSource = readUtf8Source } = {}) {
+/**
+ * @param {AssertionInventoryOptions} options
+ */
+function buildAssertionInventory({ entries, policy, readSource = readUtf8Source } = /** @type {AssertionInventoryOptions} */ ({})) {
   const activePaths = new Set(entries.map((entry) => entry.path));
   const contractOwnership = buildContractOwnership({ entries, readSource, contractMovements: DEFAULT_CONTRACT_MOVEMENTS });
   const contractModulePaths = new Set(DEFAULT_CONTRACT_MOVEMENTS.map((entry) => entry.modulePath));
@@ -331,7 +404,9 @@ function buildAssertionInventory({ entries, policy, readSource = readUtf8Source 
       });
     })
     .sort((left, right) => left.path.localeCompare(right.path));
+  /** @type {Set<string>} */
   const vitestPaths = new Set();
+  /** @type {Set<string>} */
   const directOwnerPaths = new Set();
   for (const movement of policy?.assertionMovements || []) {
     if (movement?.movementType === "pure-contract-to-vitest" && typeof movement.movedTo === "string") {
@@ -462,6 +537,11 @@ function listContractModulePaths(root = CONTRACT_MODULE_ROOT) {
   return paths.sort((left, right) => left.localeCompare(right));
 }
 
+/**
+ * @param {ReadonlySet<string>} paths
+ * @param {SourceReader} readSource
+ * @returns {ContractAssertionModule[]}
+ */
 function buildExternalAssertionEntries(paths, readSource) {
   return [...paths]
     .filter((filePath) => existsSync(filePath))
@@ -469,15 +549,26 @@ function buildExternalAssertionEntries(paths, readSource) {
     .sort((left, right) => left.path.localeCompare(right.path));
 }
 
+/**
+ * @param {unknown} source
+ * @returns {number}
+ */
 function countAssertions(source) {
   const matches = String(source || "").match(/\b(?:assert(?:\.[A-Za-z][A-Za-z0-9]*)?|expect)\s*\(/g);
   return matches?.length || 0;
 }
 
+/**
+ * @param {readonly { assertionCount: number }[]} entries
+ * @returns {number}
+ */
 function sumAssertions(entries) {
   return entries.reduce((total, entry) => total + entry.assertionCount, 0);
 }
 
+/**
+ * @param {readonly OwnedRegressionEntry[]} regressions
+ */
 function buildSummary(regressions) {
   return {
     discoveredScripts: regressions.length,
@@ -489,6 +580,11 @@ function buildSummary(regressions) {
   };
 }
 
+/**
+ * @param {readonly OwnedRegressionEntry[]} regressions
+ * @param {readonly RetiredScript[]} retiredRegressions
+ * @param {readonly CoverageFamilyPolicy[]} families
+ */
 function buildCoverageFamilies(regressions, retiredRegressions, families) {
   return families.map((family) => ({
     id: family.id,
@@ -505,6 +601,11 @@ function buildCoverageFamilies(regressions, retiredRegressions, families) {
   }));
 }
 
+/**
+ * @param {string[]} errors
+ * @param {CoveragePolicy} policy
+ * @returns {void}
+ */
 function validatePolicyShape(errors, policy) {
   if (!policy || typeof policy !== "object") {
     errors.push("coverage exceptions policy should be an object");
@@ -542,6 +643,10 @@ function validatePolicyShape(errors, policy) {
   }
 }
 
+/**
+ * @param {{ activePaths: ReadonlySet<string>, errors: string[], movement: AssertionMovement }} options
+ * @returns {void}
+ */
 function validateAssertionMovement({ activePaths, errors, movement }) {
   if (!movement || typeof movement !== "object") {
     errors.push("assertion movement should be an object");
@@ -591,6 +696,10 @@ function validateAssertionMovement({ activePaths, errors, movement }) {
   }
 }
 
+/**
+ * @param {{ activeIds: ReadonlySet<string>, activePaths: ReadonlySet<string>, errors: string[], packageScripts: Record<string, string>, readSource: SourceReader, retiredEntry: RetiredScript }} options
+ * @returns {void}
+ */
 function validateRetirementEntry({ activeIds, activePaths, errors, packageScripts, readSource, retiredEntry }) {
   if (!retiredEntry || typeof retiredEntry !== "object") {
     errors.push("retirement entry should be an object");
@@ -656,6 +765,10 @@ function validateRetirementEntry({ activeIds, activePaths, errors, packageScript
   }
 }
 
+/**
+ * @param {{ activeIds: ReadonlySet<string>, activePaths: ReadonlySet<string>, errors: string[], readSource: SourceReader, retiredEntry: RetiredScript }} options
+ * @returns {void}
+ */
 function validateRetirementAssertionInventory({ activeIds, activePaths, errors, readSource, retiredEntry }) {
   const label = retiredEntry.script;
   const inventory = retiredEntry.assertionInventory;
@@ -691,6 +804,10 @@ function validateRetirementAssertionInventory({ activeIds, activePaths, errors, 
   }
 }
 
+/**
+ * @param {Record<string, string> | undefined} packageScripts
+ * @returns {boolean}
+ */
 function vitestRunsInCheckFast(packageScripts) {
   const checkFast = String(packageScripts?.["check:fast"] || "");
   const unitIndex = checkFast.indexOf("npm run test:unit");
@@ -698,10 +815,17 @@ function vitestRunsInCheckFast(packageScripts) {
   return unitIndex >= 0 && (regressionIndex < 0 || unitIndex < regressionIndex);
 }
 
+/**
+ * @returns {Record<string, string>}
+ */
 function readPackageScripts() {
   return JSON.parse(readFileSync("package.json", "utf8")).scripts || {};
 }
 
+/**
+ * @param {{ activeEntries: readonly RegressionOwner[], creditedRetirements: readonly RetiredScript[], errors: string[], policy: CoveragePolicy }} options
+ * @returns {void}
+ */
 function validateAreaFloors({ activeEntries, creditedRetirements, errors, policy }) {
   const areaCounts = countBy(activeEntries, (entry) => entry.area);
   for (const [area, minimum] of Object.entries(policy?.minimumAreaScripts || {})) {
@@ -721,6 +845,10 @@ function validateAreaFloors({ activeEntries, creditedRetirements, errors, policy
   }
 }
 
+/**
+ * @param {{ activeEntries: readonly RegressionOwner[], creditedRetirements: readonly RetiredScript[], errors: string[], policy: CoveragePolicy }} options
+ * @returns {void}
+ */
 function validateTierAndFamilyFloors({ activeEntries, creditedRetirements, errors, policy }) {
   const releaseGateCount = activeEntries.filter((entry) => entry.tier === "release-gate").length;
   const releaseGateCredits = creditedRetirements.filter((entry) => entry.tier === "release-gate").length;
@@ -743,6 +871,10 @@ function validateTierAndFamilyFloors({ activeEntries, creditedRetirements, error
   }
 }
 
+/**
+ * @param {{ activeIds: ReadonlySet<string>, errors: string[], policy: CoveragePolicy }} options
+ * @returns {void}
+ */
 function validateRequiredReleaseGates({ activeIds, errors, policy }) {
   for (const id of policy?.requiredReleaseGateIds || []) {
     if (!activeIds.has(id)) {
@@ -751,6 +883,10 @@ function validateRequiredReleaseGates({ activeIds, errors, policy }) {
   }
 }
 
+/**
+ * @param {{ activeEntries: readonly RegressionOwner[], errors: string[], policy: CoveragePolicy }} options
+ * @returns {void}
+ */
 function validateLegacyException({ activeEntries, errors, policy }) {
   const exception = policy?.legacyMetadataException;
   if (!exception || typeof exception !== "object") {
@@ -771,6 +907,10 @@ function validateLegacyException({ activeEntries, errors, policy }) {
   }
 }
 
+/**
+ * @param {RetiredScript} entry
+ * @returns {readonly string[]}
+ */
 function retirementTags(entry) {
   if (Array.isArray(entry.tags)) {
     return entry.tags;
@@ -778,6 +918,10 @@ function retirementTags(entry) {
   return /-closeout-regression\.mjs$/.test(entry.script || "") ? ["closeout"] : [];
 }
 
+/**
+ * @param {readonly RegressionOwner[]} entries
+ * @returns {void}
+ */
 function validateUniqueEntryIdentity(entries) {
   const ids = entries.map((entry) => entry.id);
   const paths = entries.map((entry) => entry.path);
@@ -789,6 +933,12 @@ function validateUniqueEntryIdentity(entries) {
   }
 }
 
+/**
+ * @param {string[]} errors
+ * @param {string} label
+ * @param {readonly unknown[]} values
+ * @returns {void}
+ */
 function validateUniqueValues(errors, label, values) {
   const duplicates = values.filter((value, index) => values.indexOf(value) !== index);
   if (duplicates.length > 0) {
@@ -796,7 +946,14 @@ function validateUniqueValues(errors, label, values) {
   }
 }
 
+/**
+ * @template T
+ * @param {readonly T[]} values
+ * @param {(value: T) => string} getKey
+ * @returns {Record<string, number>}
+ */
 function countBy(values, getKey) {
+  /** @type {Record<string, number>} */
   const counts = {};
   for (const value of values) {
     const key = getKey(value);

@@ -18,16 +18,33 @@ const STATIC_EXECUTION_MODES = Object.freeze([
   "child-process",
 ]);
 
+/**
+ * @typedef {{ decision: string, fallback: string, path: string, rationale: string, resources: Record<string, string> }} StaticExecutionAuditEntry
+ * @typedef {{ defaultDecision?: string, defaultResources?: Record<string, string>, entries?: StaticExecutionAuditEntry[], resourceDimensions?: string[], schemaVersion?: number }} StaticExecutionAudit
+ * @typedef {{ execution?: StaticExecutionAudit }} StaticIsolationAudit
+ * @typedef {{ decision: string, fallback: string, resources: Readonly<Record<string, string>>, source: string }} StaticExecutionDecision
+ * @typedef {{ auditedCount: number, decisions: Map<string, StaticExecutionDecision>, fallbackCount: number, mode: string, workerCount: number }} StaticRegressionExecutionPlan
+ * @typedef {{ path: string, runMode: string }} StaticRegressionEntryLike
+ */
+
+/**
+ * @param {{ auditPath?: string, entries?: readonly StaticRegressionEntryLike[], env?: NodeJS.ProcessEnv, rootDir?: string }} [options]
+ * @returns {Promise<StaticRegressionExecutionPlan>}
+ */
 async function loadStaticRegressionExecutionPlan({
   auditPath = DEFAULT_AUDIT_PATH,
   entries,
   env = process.env,
   rootDir = DEFAULT_ROOT_DIR,
 } = {}) {
-  const audit = JSON.parse(await fs.readFile(path.join(rootDir, auditPath), "utf8"));
+  const audit = /** @type {StaticIsolationAudit} */ (JSON.parse(await fs.readFile(path.join(rootDir, auditPath), "utf8")));
   return createStaticRegressionExecutionPlan({ audit, auditPath, entries, env });
 }
 
+/**
+ * @param {{ audit: StaticIsolationAudit, auditPath?: string, entries?: readonly StaticRegressionEntryLike[], env?: NodeJS.ProcessEnv }} options
+ * @returns {StaticRegressionExecutionPlan}
+ */
 function createStaticRegressionExecutionPlan({ audit, auditPath = DEFAULT_AUDIT_PATH, entries, env = process.env }) {
   const staticEntries = (entries || []).filter((entry) => entry.runMode === "static");
   const staticPaths = new Set(staticEntries.map((entry) => entry.path));
@@ -47,6 +64,7 @@ function createStaticRegressionExecutionPlan({ audit, auditPath = DEFAULT_AUDIT_
   }
   assertCompleteResources(executionAudit.defaultResources, executionAudit.resourceDimensions, `${auditPath} execution default`);
 
+  /** @type {Map<string, StaticExecutionDecision>} */
   const audited = new Map();
   for (const entry of executionAudit.entries) {
     const scriptPath = normalizeScriptPath(entry?.path);
@@ -79,6 +97,7 @@ function createStaticRegressionExecutionPlan({ audit, auditPath = DEFAULT_AUDIT_
     throw new Error(`LTF_STATIC_EXECUTION_MODE must be one of: ${STATIC_EXECUTION_MODES.join(", ")}.`);
   }
 
+  /** @type {Map<string, StaticExecutionDecision>} */
   const decisions = new Map();
   for (const entry of staticEntries) {
     const certification = audited.get(entry.path);
@@ -103,6 +122,12 @@ function createStaticRegressionExecutionPlan({ audit, auditPath = DEFAULT_AUDIT_
   });
 }
 
+/**
+ * @param {Record<string, string> | undefined} resources
+ * @param {readonly string[]} dimensions
+ * @param {string} label
+ * @returns {void}
+ */
 function assertCompleteResources(resources, dimensions, label) {
   if (!resources || !sameOrderedValues(Object.keys(resources), dimensions)) {
     throw new Error(`${label} must classify every execution resource dimension in order.`);
@@ -114,6 +139,11 @@ function assertCompleteResources(resources, dimensions, label) {
   }
 }
 
+/**
+ * @param {StaticExecutionAuditEntry} entry
+ * @param {string} auditPath
+ * @returns {void}
+ */
 function assertCertifiedResources(entry, auditPath) {
   const allowed = {
     environment: new Set(["none"]),
@@ -132,10 +162,19 @@ function assertCertifiedResources(entry, auditPath) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function normalizeScriptPath(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+/**
+ * @param {readonly string[]} left
+ * @param {readonly string[]} right
+ * @returns {boolean}
+ */
 function sameOrderedValues(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }

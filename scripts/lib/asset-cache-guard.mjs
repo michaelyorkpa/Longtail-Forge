@@ -5,7 +5,29 @@ import path from "node:path";
 const ACTIVE_SOURCE_ROOTS = Object.freeze(["public/js", "src", "views"]);
 const RAW_ASSET_VERSION_REFERENCE = /[A-Za-z0-9_./-]+\.(?:css|js)\?(?:v|cache)=[A-Za-z0-9._-]+/g;
 
+/**
+ * Raw asset cache-key references found in one source file.
+ * @typedef {object} RawAssetVersionFinding
+ * @property {number} count
+ * @property {readonly string[]} references
+ * @property {string} sha256
+ */
+
+/**
+ * Frozen legacy baseline of reviewed inert raw asset cache keys.
+ * @typedef {object} LegacyAssetBaseline
+ * @property {number} schemaVersion
+ * @property {string} [rationale]
+ * @property {Record<string, { count: number, sha256: string }>} files
+ */
+
+/**
+ * Scan the active source roots for raw versioned asset references.
+ * @param {{ rootDir?: string }} [options]
+ * @returns {Promise<Map<string, RawAssetVersionFinding>>} findings keyed by project-relative path
+ */
 async function collectRawAssetVersionReferences({ rootDir = process.cwd() } = {}) {
+  /** @type {Map<string, RawAssetVersionFinding>} */
   const findings = new Map();
 
   for (const relativeRoot of ACTIVE_SOURCE_ROOTS) {
@@ -29,13 +51,19 @@ async function collectRawAssetVersionReferences({ rootDir = process.cwd() } = {}
   return findings;
 }
 
+/**
+ * Recursively list .html/.js files beneath a root, sorted per directory.
+ * @param {string} rootDir
+ * @returns {Promise<string[]>}
+ */
 async function listSourceFiles(rootDir) {
+  /** @type {string[]} */
   const files = [];
   let entries;
   try {
     entries = await fs.readdir(rootDir, { withFileTypes: true });
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
       return files;
     }
     throw error;
@@ -54,6 +82,11 @@ async function listSourceFiles(rootDir) {
   return files;
 }
 
+/**
+ * Build the serializable legacy baseline document from current findings.
+ * @param {ReadonlyMap<string, RawAssetVersionFinding>} findings
+ * @returns {LegacyAssetBaseline}
+ */
 function buildLegacyAssetBaseline(findings) {
   return {
     schemaVersion: 1,
@@ -65,7 +98,13 @@ function buildLegacyAssetBaseline(findings) {
   };
 }
 
+/**
+ * Compare current findings against the frozen legacy baseline.
+ * @param {{ baseline: LegacyAssetBaseline, findings: ReadonlyMap<string, RawAssetVersionFinding> }} input
+ * @returns {string[]} guard errors; empty when the baseline is exact
+ */
 function collectAssetCacheGuardErrors({ baseline, findings }) {
+  /** @type {string[]} */
   const errors = [];
   if (baseline?.schemaVersion !== 1 || !baseline.files || typeof baseline.files !== "object") {
     return ["asset cache legacy baseline must use schemaVersion 1 and define files"];
@@ -75,7 +114,7 @@ function collectAssetCacheGuardErrors({ baseline, findings }) {
   const approvedFiles = new Set(Object.keys(baseline.files));
 
   for (const filePath of [...currentFiles].sort()) {
-    const finding = findings.get(filePath);
+    const finding = /** @type {RawAssetVersionFinding} */ (findings.get(filePath));
     const approved = baseline.files[filePath];
     if (!approved) {
       errors.push(`${filePath} contains ${finding.count} unapproved raw asset cache key(s)`);
@@ -93,6 +132,11 @@ function collectAssetCacheGuardErrors({ baseline, findings }) {
   return errors;
 }
 
+/**
+ * Stable digest of a sorted reference list.
+ * @param {readonly string[]} references
+ * @returns {string}
+ */
 function hashReferences(references) {
   return crypto.createHash("sha256").update(references.join("\n")).digest("hex");
 }

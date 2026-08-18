@@ -95,6 +95,7 @@ async function runScenario(name, probe) {
   });
   const agent = new http.Agent({ keepAlive: true, maxSockets: 24 });
   const latencies = [];
+  /** @type {(origin: string, pathName: string, options?: { body?: unknown, headers?: Record<string, string | number>, method?: string }) => Promise<{ status: number | undefined }>} */
   const send = async (...args) => {
     const started = performance.now();
     const response = await request(agent, ...args);
@@ -116,10 +117,16 @@ async function runScenario(name, probe) {
   }
 }
 
+/**
+ * @param {import("node:http").Agent} agent
+ * @param {string} origin
+ * @param {string} pathName
+ * @param {{ body?: unknown, headers?: Record<string, string | number>, method?: string }} [options]
+ */
 function request(agent, origin, pathName, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body === undefined ? null : String(options.body);
-    const headers = { ...(options.headers || {}) };
+    const headers = /** @type {Record<string, string | number>} */ ({ ...(options.headers || {}) });
     if (body !== null) headers["content-length"] = Buffer.byteLength(body);
     const outgoing = http.request(new URL(pathName, origin), {
       agent,

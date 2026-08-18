@@ -56,12 +56,370 @@ const LIVE_DATA_ENTRIES = new Set([
   DEMO_DATA_MARKER,
 ]);
 
+/**
+ * One shipped sanitized-demo role fixture identity.
+ * @typedef {import("./sanitized-demo-role-fixtures.mjs").SanitizedDemoRoleFixture} SanitizedDemoRoleFixture
+ */
+
+/**
+ * The non-null resolved role-fixture credential set for the named demo.
+ * @typedef {NonNullable<Awaited<ReturnType<typeof loadSanitizedDemoRoleFixtures>>>} SanitizedRoleFixtures
+ */
+
+/**
+ * A value that may carry an error message, narrowed from an unknown thrown value.
+ * @typedef {{ message?: unknown }} MessageCarrier
+ */
+
+/**
+ * A value that may carry a filesystem error code, narrowed from an unknown thrown value.
+ * @typedef {{ code?: unknown }} ErrnoCarrier
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 statement.
+ * @typedef {object} SqliteStatementLike
+ * @property {(...bindings: unknown[]) => Record<string, unknown>[]} all
+ * @property {(...bindings: unknown[]) => Record<string, unknown> | undefined} get
+ * @property {(...bindings: unknown[]) => unknown} run
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 database handle.
+ * @typedef {object} SqliteDatabaseLike
+ * @property {(sql: string) => SqliteStatementLike} prepare
+ * @property {(sql: string, options?: { simple?: boolean }) => unknown} pragma
+ * @property {() => void} close
+ */
+
+/**
+ * A PRAGMA result treated as an opaque row list.
+ * @typedef {unknown[]} PragmaRowList
+ */
+
+/**
+ * A COUNT(*) aggregate row.
+ * @typedef {{ count: unknown }} CountRow
+ */
+
+/**
+ * The recorded seed-run identity row.
+ * @typedef {object} DemoSeedRunRow
+ * @property {string} contract_version
+ * @property {string} profile
+ * @property {string} anchor_date
+ * @property {string} semantic_fingerprint
+ */
+
+/**
+ * One Files metadata row verified against its storage object.
+ * @typedef {object} DemoFileRow
+ * @property {string} storage_key
+ * @property {string} extension
+ * @property {unknown} file_size_bytes
+ * @property {string} sha256_hash
+ */
+
+/**
+ * The scenario-manifest JSON column of the seed-run row.
+ * @typedef {{ scenario_manifest_json?: string }} DemoSeedManifestRow
+ */
+
+/**
+ * One user identity row verified for the role-fixture contract.
+ * @typedef {object} DemoUserRow
+ * @property {string} password
+ * @property {unknown} password_change_required
+ * @property {string | null} protected_user
+ * @property {string} user_id
+ * @property {string} user_status
+ * @property {string} username
+ */
+
+/**
+ * One role assignment row joined with its scope names.
+ * @typedef {object} DemoAssignmentRow
+ * @property {string | null} client_name
+ * @property {string | null} permission_overrides_json
+ * @property {string | null} project_name
+ * @property {string} role_id
+ * @property {string} scope_id
+ * @property {string} scope_type
+ * @property {string | null} workspace_name
+ */
+
+/**
+ * One workspace membership row.
+ * @typedef {{ name: string, status: string }} DemoMembershipRow
+ */
+
+/**
+ * One identity-domain row.
+ * @typedef {{ username: string, alt_email: string | null }} DemoIdentityRow
+ */
+
+/**
+ * Validated command-line arguments for the demo-data host operation.
+ * @typedef {object} DemoDataArgs
+ * @property {string} action
+ * @property {string} anchorDate
+ * @property {string} confirm
+ * @property {string} target
+ */
+
+/**
+ * Value-flag destination keys accepted on the command line.
+ * @typedef {"anchorDate" | "confirm" | "target"} DemoDataOptionKey
+ */
+
+/**
+ * Validated demo-data helper configuration.
+ * @typedef {object} DemoHelperConfig
+ * @property {string} target
+ * @property {string} hostname
+ * @property {string} publicUrl
+ * @property {string} appService
+ * @property {string} workerService
+ * @property {string} edgeService
+ * @property {string} appAccount
+ * @property {string} appGroup
+ * @property {string} appRoot
+ * @property {string} dataRoot
+ * @property {string} backupRoot
+ * @property {string} appEnvFile
+ * @property {string} roleCredentialsFile
+ * @property {string} secureNotesKeyBackup
+ */
+
+/**
+ * Service and account identity keys validated by pattern.
+ * @typedef {"appService" | "workerService" | "edgeService" | "appAccount" | "appGroup"} DemoServiceIdentityKey
+ */
+
+/**
+ * Helper configuration keys that must hold absolute paths.
+ * @typedef {"appRoot" | "dataRoot" | "backupRoot" | "appEnvFile" | "roleCredentialsFile" | "secureNotesKeyBackup"} DemoHelperPathKey
+ */
+
+/**
+ * Resolved absolute filesystem layout of the demo installation.
+ * @typedef {object} DemoPaths
+ * @property {string} appRoot
+ * @property {string} currentReleaseLink
+ * @property {string} releasesRoot
+ * @property {string} dataRoot
+ * @property {string} databaseFile
+ * @property {string} filesRoot
+ * @property {string} markerFile
+ * @property {string} backupRoot
+ * @property {string} appEnvFile
+ * @property {string} roleCredentialsFile
+ * @property {string} secureNotesKeyBackup
+ */
+
+/**
+ * Any object exposing the runtime data root location.
+ * @typedef {{ dataRoot: string }} DemoDataRootRef
+ */
+
+/**
+ * The parsed demo-data ownership marker (the properties this module reads).
+ * @typedef {object} DemoMarker
+ * @property {unknown} [contract]
+ * @property {unknown} [target]
+ */
+
+/**
+ * Options for protected-file assertions.
+ * @typedef {object} ProtectedFileOptions
+ * @property {number} [expectedMode]
+ * @property {string} [label]
+ * @property {boolean} [requireRoot]
+ */
+
+/**
+ * Options for reading the demo-data ownership marker.
+ * @typedef {{ optional?: boolean }} ReadDemoMarkerOptions
+ */
+
+/**
+ * Host identity requirements shared by the mutation entry points.
+ * @typedef {object} DemoHostIdentityOptions
+ * @property {DemoHelperConfig} config
+ * @property {string} [hostname]
+ * @property {boolean} [requireRoot]
+ */
+
+/**
+ * Options accepted by prepareDemoHostContext.
+ * @typedef {object} PrepareDemoHostContextOptions
+ * @property {string} action
+ * @property {DemoHelperConfig} config
+ * @property {string} [hostname]
+ * @property {DemoPaths} paths
+ * @property {boolean} [requireRoot]
+ * @property {(filePath: string) => Promise<Record<string, string>>} [readApplicationEnvironment]
+ * @property {(credentialsFile: string) => Promise<SanitizedRoleFixtures | null>} [readRoleCredentials]
+ */
+
+/**
+ * The verified host state returned once every safety gate has passed. The
+ * marker value is null at runtime when no ownership marker exists yet.
+ * @typedef {object} DemoHostSafetyResult
+ * @property {string} releaseDir
+ * @property {DemoMarker} marker
+ */
+
+/**
+ * Options accepted by assertDemoHostSafety.
+ * @typedef {object} DemoHostSafetyOptions
+ * @property {string} action
+ * @property {Record<string, string>} appEnvironment
+ * @property {DemoHelperConfig} config
+ * @property {DemoPaths} paths
+ * @property {string} [hostname]
+ * @property {boolean} [requireRoot]
+ * @property {SanitizedRoleFixtures} roleFixtures
+ */
+
+/**
+ * Captured is-active state of the managed services.
+ * @typedef {{ app: boolean, worker: boolean, edge: boolean }} DemoServiceState
+ */
+
+/**
+ * Options for service stop/start calls.
+ * @typedef {{ bestEffort?: boolean, recovery?: boolean }} DemoServiceCallOptions
+ */
+
+/**
+ * Verified public runtime identity of the activated installation.
+ * @typedef {object} DemoRuntimeIdentity
+ * @property {string} canonicalVersion
+ * @property {string} sourceBranch
+ * @property {string} commitSha
+ * @property {string} artifactSha256
+ */
+
+/**
+ * The runtime data locations whose ownership and modes are repaired.
+ * @typedef {object} DemoRuntimeDataPaths
+ * @property {string} dataRoot
+ * @property {string} databaseFile
+ * @property {string} filesRoot
+ * @property {string} [markerFile]
+ */
+
+/**
+ * A staging seed request executed inside the current release.
+ * @typedef {object} DemoSeedRequest
+ * @property {string} anchorDate
+ * @property {Record<string, string>} [appEnvironment]
+ * @property {string} releaseDir
+ * @property {string} roleCredentialsFile
+ * @property {string} seedDataRoot
+ */
+
+/**
+ * The verification summary returned by the staging seed command.
+ * @typedef {object} DemoSeedResult
+ * @property {boolean} ok
+ * @property {string} profile
+ * @property {string} anchorDate
+ * @property {string} semanticFingerprint
+ * @property {{ roleFixtureLoginCount?: number }} [workbench]
+ */
+
+/**
+ * The verified identity of one seeded demo candidate.
+ * @typedef {object} DemoSeedVerification
+ * @property {string} semanticFingerprint
+ * @property {Readonly<Record<string, number>>} counts
+ * @property {readonly string[]} publicVisitorUserIds
+ */
+
+/**
+ * A pre-reset whole-instance backup request.
+ * @typedef {object} DemoBackupRequest
+ * @property {Record<string, string>} appEnvironment
+ * @property {string} appVersion
+ * @property {string} backupPath
+ * @property {DemoPaths} paths
+ */
+
+/**
+ * The backup identity consumed by the operation (subset of the archive result).
+ * @typedef {object} DemoBackupResult
+ * @property {string} archiveSha256
+ * @property {string} backupId
+ * @property {string} outputPath
+ */
+
+/**
+ * A backup inspection request.
+ * @typedef {object} DemoInspectRequest
+ * @property {string} appVersion
+ * @property {string} archivePath
+ * @property {string} secureNotesKeyBackupPath
+ */
+
+/**
+ * The inspection verdict consumed by the operation.
+ * @typedef {object} DemoInspectResult
+ * @property {string} archiveSha256
+ * @property {boolean} restorable
+ */
+
+/**
+ * A runtime verification request for the activated installation.
+ * @typedef {{ appVersion: string, config: DemoHelperConfig }} VerifyRunningRequest
+ */
+
+/**
+ * The injectable host-side effects of the demo-data operation.
+ * @typedef {object} DemoHostDependencies
+ * @property {(config: DemoHelperConfig) => Promise<DemoServiceState>} captureServiceState
+ * @property {(config: DemoHelperConfig, state: DemoServiceState, options?: DemoServiceCallOptions) => Promise<void>} stopServices
+ * @property {(config: DemoHelperConfig, state: DemoServiceState) => Promise<void>} assertServicesStopped
+ * @property {(config: DemoHelperConfig, state: DemoServiceState, options?: DemoServiceCallOptions) => Promise<void>} startServices
+ * @property {(request: VerifyRunningRequest) => Promise<DemoRuntimeIdentity>} verifyRunning
+ * @property {(config: DemoHelperConfig, candidatePaths: DemoRuntimeDataPaths) => Promise<void>} repairDataPermissions
+ * @property {(request: DemoSeedRequest) => Promise<DemoSeedResult>} seedCandidate
+ * @property {(request: DemoBackupRequest) => Promise<DemoBackupResult>} createBackup
+ * @property {(request: DemoInspectRequest) => Promise<DemoInspectResult>} inspectBackup
+ * @property {() => string} [operationId]
+ * @property {() => string} [timestamp]
+ */
+
+/**
+ * An optional supplier of deterministic operation identifiers.
+ * @typedef {{ operationId?: () => string }} DemoOperationIdSource
+ */
+
+/**
+ * Options accepted by runDemoDataOperation.
+ * @typedef {object} RunDemoDataOperationOptions
+ * @property {string} action
+ * @property {string} anchorDate
+ * @property {Record<string, string>} appEnvironment
+ * @property {string} appVersion
+ * @property {string} [confirm]
+ * @property {DemoHelperConfig} config
+ * @property {DemoHostDependencies} [dependencies]
+ * @property {DemoMarker | null} [marker]
+ * @property {DemoPaths} paths
+ * @property {string} releaseDir
+ * @property {string} [roleCredentialsFile]
+ * @property {string} [target]
+ */
+
+/** @param {string[]} args */
 function parseDemoDataArgs(args) {
   const action = args[0];
   if (!new Set(["preflight", "provision", "reset"]).has(action)) {
     throw new Error("Choose preflight, provision, or reset.");
   }
-  const options = { action };
+  const options = /** @type {DemoDataArgs} */ ({ action });
   const valueFlags = new Map([
     ["--anchor-date", "anchorDate"],
     ["--confirm", "confirm"],
@@ -76,7 +434,7 @@ function parseDemoDataArgs(args) {
     if (!value || value.startsWith("--")) {
       throw new Error(`${argument} requires a value.`);
     }
-    options[valueFlags.get(argument)] = value;
+    options[/** @type {DemoDataOptionKey} */ (valueFlags.get(argument))] = value;
   }
   if (options.target !== DEMO_DATA_TARGET) {
     throw new Error(`--target must be exactly ${DEMO_DATA_TARGET}.`);
@@ -99,6 +457,11 @@ function parseDemoDataArgs(args) {
   return Object.freeze(options);
 }
 
+/**
+ * @param {string} text
+ * @param {string} [sourceName]
+ * @returns {Readonly<DemoHelperConfig>}
+ */
 function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
   const parsed = parseRuntimeEnvText(text, sourceName);
   for (const key of Object.keys(parsed)) {
@@ -106,6 +469,7 @@ function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
       throw new Error(`Demo-data helper configuration contains unsupported key: ${key}.`);
     }
   }
+  /** @type {DemoHelperConfig} */
   const config = {
     target: parsed.LTF_DEMO_TARGET,
     hostname: parsed.LTF_DEMO_HOSTNAME,
@@ -125,7 +489,7 @@ function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
   if (config.target !== DEMO_DATA_TARGET || config.hostname !== DEMO_DATA_HOSTNAME || config.publicUrl !== DEMO_DATA_PUBLIC_URL) {
     throw new Error("Demo-data helper identity must match the named demo installation exactly.");
   }
-  for (const key of ["appService", "workerService", "edgeService", "appAccount", "appGroup"]) {
+  for (const key of /** @type {DemoServiceIdentityKey[]} */ (["appService", "workerService", "edgeService", "appAccount", "appGroup"])) {
     if (config[key] && !/^[A-Za-z0-9_.@-]+$/.test(config[key])) {
       throw new Error(`Demo-data helper ${key} is invalid.`);
     }
@@ -133,8 +497,12 @@ function parseDemoHelperConfig(text, sourceName = "demo-data-helper.env") {
   return Object.freeze(config);
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @returns {Readonly<DemoPaths>}
+ */
 function resolveDemoPaths(config) {
-  const absoluteKeys = ["appRoot", "dataRoot", "backupRoot", "appEnvFile", "roleCredentialsFile"];
+  const absoluteKeys = /** @type {DemoHelperPathKey[]} */ (["appRoot", "dataRoot", "backupRoot", "appEnvFile", "roleCredentialsFile"]);
   if (config.secureNotesKeyBackup) absoluteKeys.push("secureNotesKeyBackup");
   for (const key of absoluteKeys) {
     if (!path.isAbsolute(config[key])) {
@@ -172,12 +540,17 @@ function resolveDemoPaths(config) {
   });
 }
 
+/**
+ * @param {string} filePath
+ * @param {ProtectedFileOptions} [options]
+ */
 async function readProtectedEnvironmentFile(filePath, options = {}) {
   await assertProtectedFile(filePath, options);
   const text = await fs.readFile(filePath, "utf8");
   return parseRuntimeEnvText(text, options.label || "protected environment");
 }
 
+/** @param {DemoHostIdentityOptions} identity */
 function assertDemoHostIdentity({
   config,
   hostname = os.hostname(),
@@ -195,6 +568,7 @@ function assertDemoHostIdentity({
   }
 }
 
+/** @param {PrepareDemoHostContextOptions} request */
 async function prepareDemoHostContext({
   action,
   config,
@@ -214,7 +588,7 @@ async function prepareDemoHostContext({
     label: "demo role credential configuration",
     requireRoot,
   });
-  const roleFixtures = await readRoleCredentials(paths.roleCredentialsFile);
+  const roleFixtures = /** @type {SanitizedRoleFixtures} */ (await readRoleCredentials(paths.roleCredentialsFile));
   assertRoleCredentialsDistinctFromApplicationEnvironment(roleFixtures, appEnvironment);
   const safety = await assertDemoHostSafety({
     action,
@@ -232,8 +606,12 @@ async function prepareDemoHostContext({
   });
 }
 
+/**
+ * @param {string} credentialsFile
+ * @returns {Promise<SanitizedRoleFixtures>}
+ */
 async function readDemoRoleFixtures(credentialsFile) {
-  return await loadSanitizedDemoRoleFixtures({
+  return /** @type {SanitizedRoleFixtures} */ (await loadSanitizedDemoRoleFixtures({
     credentialBinding: RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
     env: {
       LONGTAIL_ENV: "development",
@@ -243,9 +621,13 @@ async function readDemoRoleFixtures(credentialsFile) {
     },
     mode: PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     target: { profile: DEMO_PROFILE },
-  });
+  }));
 }
 
+/**
+ * @param {SanitizedRoleFixtures} roleFixtures
+ * @param {Record<string, string>} appEnvironment
+ */
 function assertRoleCredentialsDistinctFromApplicationEnvironment(roleFixtures, appEnvironment) {
   const applicationSecrets = new Set(Object.entries(appEnvironment)
     .filter(([key, value]) => (
@@ -261,6 +643,7 @@ function assertRoleCredentialsDistinctFromApplicationEnvironment(roleFixtures, a
   }
 }
 
+/** @param {DemoHostSafetyOptions} request */
 async function assertDemoHostSafety({
   action,
   appEnvironment,
@@ -311,9 +694,13 @@ async function assertDemoHostSafety({
   await assertNoUnexpectedDataEntries(paths.dataRoot);
   await assertNoPartialDemoState(paths);
   assertDemoMarkerForAction(action, marker);
-  return Object.freeze({ releaseDir, marker });
+  return Object.freeze(/** @type {DemoHostSafetyResult} */ ({ releaseDir, marker }));
 }
 
+/**
+ * @param {string} action
+ * @param {DemoMarker | null | undefined} marker
+ */
 function assertDemoMarkerForAction(action, marker) {
   if (action === "preflight") {
     if (marker && (marker.contract !== DEMO_DATA_CONTRACT || marker.target !== DEMO_DATA_TARGET)) {
@@ -329,6 +716,7 @@ function assertDemoMarkerForAction(action, marker) {
   }
 }
 
+/** @param {RunDemoDataOperationOptions} options */
 async function runDemoDataOperation(options) {
   const {
     action,
@@ -460,9 +848,9 @@ async function runDemoDataOperation(options) {
     });
   } catch (error) {
     if (promoted) {
-      await dependencies.stopServices(config, serviceState, { bestEffort: true });
+      await dependencies.stopServices(config, /** @type {DemoServiceState} */ (serviceState), { bestEffort: true });
       try {
-        await dependencies.assertServicesStopped(config, serviceState);
+        await dependencies.assertServicesStopped(config, /** @type {DemoServiceState} */ (serviceState));
       } catch {
         throw new Error("Demo-data candidate verification failed but services could not be quiesced for prior-state recovery; keep traffic closed and recover from the retained backup.", { cause: error });
       }
@@ -476,7 +864,7 @@ async function runDemoDataOperation(options) {
     }
     if (servicesStopped) {
       try {
-        await dependencies.startServices(config, serviceState, { recovery: true });
+        await dependencies.startServices(config, /** @type {DemoServiceState} */ (serviceState), { recovery: true });
         servicesStopped = false;
       } catch {
         throw new Error("Demo-data operation failed and prior-service recovery also failed; keep traffic closed and recover from the retained backup.", { cause: error });
@@ -498,6 +886,7 @@ async function runDemoDataOperation(options) {
   }
 }
 
+/** @returns {DemoHostDependencies} */
 function createHostDependencies() {
   return Object.freeze({
     captureServiceState,
@@ -529,10 +918,15 @@ function createHostDependencies() {
   });
 }
 
+/** @param {DemoOperationIdSource} [dependencies] */
 function createDemoOperationId(dependencies = {}) {
   return dependencies.operationId ? dependencies.operationId() : createOpaqueId();
 }
 
+/**
+ * @param {DemoSeedRequest} request
+ * @returns {Promise<DemoSeedResult>}
+ */
 async function seedCandidate({
   anchorDate,
   releaseDir,
@@ -568,39 +962,44 @@ async function seedCandidate({
   return parsed;
 }
 
+/**
+ * @param {{ databaseFile: string, filesRoot: string, expectedAnchorDate: string, expectedFingerprint: string }} request
+ * @returns {Promise<DemoSeedVerification>}
+ */
 async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchorDate, expectedFingerprint }) {
-  const database = new Database(databaseFile, { readonly: true, fileMustExist: true });
+  const database = /** @type {SqliteDatabaseLike} */ (/** @type {unknown} */ (new Database(databaseFile, { readonly: true, fileMustExist: true })));
   try {
     if (database.pragma("integrity_check", { simple: true }) !== "ok") {
       throw new Error("Candidate demo database failed SQLite integrity verification.");
     }
-    if (database.pragma("foreign_key_check").length !== 0) {
+    if (/** @type {PragmaRowList} */ (database.pragma("foreign_key_check")).length !== 0) {
       throw new Error("Candidate demo database failed foreign-key verification.");
     }
-    const seedRun = database.prepare("SELECT contract_version, profile, anchor_date, semantic_fingerprint FROM development_data_seed_runs LIMIT 1").get();
+    const seedRun = /** @type {DemoSeedRunRow | undefined} */ (database.prepare("SELECT contract_version, profile, anchor_date, semantic_fingerprint FROM development_data_seed_runs LIMIT 1").get());
     if (!seedRun || seedRun.contract_version !== "development-data-v2" || seedRun.profile !== DEMO_PROFILE
       || seedRun.anchor_date !== expectedAnchorDate || seedRun.semantic_fingerprint !== expectedFingerprint) {
       throw new Error("Candidate demo database seed identity does not match the requested operation.");
     }
+    /** @type {Record<string, number>} */
     const counts = {};
     for (const table of ["workspaces", "users", "tasks", "notes", "lists", "files", "search_index", "sessions"]) {
-      counts[table] = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
+      counts[table] = Number(/** @type {CountRow} */ (database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get()).count);
     }
     if (counts.workspaces !== 5 || counts.users !== 24 || counts.tasks !== 400 || counts.notes !== 200
       || counts.lists !== 24 || counts.files !== 2 || counts.search_index < 600 || counts.sessions !== 0) {
       throw new Error("Candidate demo database does not match the rich fictional scenario counts.");
     }
-    const searchBackendCount = Number(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count);
+    const searchBackendCount = Number(/** @type {CountRow} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get()).count);
     if (searchBackendCount !== counts.search_index) {
       throw new Error("Candidate demo Search backend does not match the canonical search index.");
     }
     const publicVisitorUserIds = verifyDemoRoleFixtureRows(database);
-    const secureNotes = Number(database.prepare(`SELECT COUNT(*) AS count FROM notes
-      WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL`).get().count);
+    const secureNotes = Number(/** @type {CountRow} */ (database.prepare(`SELECT COUNT(*) AS count FROM notes
+      WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL`).get()).count);
     if (secureNotes !== 0) {
       throw new Error("Candidate demo database violates the Secure Notes exclusion.");
     }
-    const fileRows = database.prepare("SELECT storage_key, extension, file_size_bytes, sha256_hash FROM files ORDER BY storage_key").all();
+    const fileRows = /** @type {DemoFileRow[]} */ (database.prepare("SELECT storage_key, extension, file_size_bytes, sha256_hash FROM files ORDER BY storage_key").all());
     for (const row of fileRows) {
       const objectPath = path.resolve(filesRoot, row.storage_key);
       if (!isInside(filesRoot, objectPath)) throw new Error("Candidate demo Files object escaped the Files root.");
@@ -623,6 +1022,10 @@ async function verifyDemoSeedCandidate({ databaseFile, filesRoot, expectedAnchor
   }
 }
 
+/**
+ * @param {string} markerFile
+ * @param {Record<string, unknown>} metadata
+ */
 async function writeDemoMarker(markerFile, metadata) {
   const payload = {
     contract: DEMO_DATA_CONTRACT,
@@ -633,17 +1036,23 @@ async function writeDemoMarker(markerFile, metadata) {
   await fs.writeFile(markerFile, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
 }
 
+/**
+ * @param {string} markerFile
+ * @param {ReadDemoMarkerOptions} [options]
+ * @returns {Promise<DemoMarker | null>}
+ */
 async function readDemoMarker(markerFile, options = {}) {
   try {
     const marker = JSON.parse(await fs.readFile(markerFile, "utf8"));
     return marker;
   } catch (error) {
-    if (options.optional && error?.code === "ENOENT") return null;
-    if (error?.code === "ENOENT") throw new Error("Demo-data ownership marker is missing.");
+    if (options.optional && /** @type {ErrnoCarrier} */ (error)?.code === "ENOENT") return null;
+    if (/** @type {ErrnoCarrier} */ (error)?.code === "ENOENT") throw new Error("Demo-data ownership marker is missing.");
     throw new Error("Demo-data ownership marker is unreadable or invalid.");
   }
 }
 
+/** @param {string} dataRoot */
 async function assertNoUnexpectedDataEntries(dataRoot) {
   const entries = await fs.readdir(dataRoot);
   const unexpected = entries.filter((entry) => !LIVE_DATA_ENTRIES.has(entry));
@@ -652,6 +1061,7 @@ async function assertNoUnexpectedDataEntries(dataRoot) {
   }
 }
 
+/** @param {DemoDataRootRef} paths */
 async function assertNoPartialDemoState(paths) {
   const parent = path.dirname(paths.dataRoot);
   const basename = path.basename(paths.dataRoot);
@@ -661,6 +1071,10 @@ async function assertNoPartialDemoState(paths) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @param {ProtectedFileOptions} [options]
+ */
 async function assertProtectedFile(filePath, options = {}) {
   const label = options.label || "protected file";
   const file = await fs.lstat(filePath);
@@ -682,11 +1096,16 @@ async function assertProtectedFile(filePath, options = {}) {
   }
 }
 
+/**
+ * @param {SqliteDatabaseLike} database
+ * @returns {readonly string[]}
+ */
 function verifyDemoRoleFixtureRows(database) {
+  /** @type {string[]} */
   const publicVisitorUserIds = [];
-  const manifestRow = database.prepare(
+  const manifestRow = /** @type {DemoSeedManifestRow | undefined} */ (database.prepare(
     "SELECT scenario_manifest_json FROM development_data_seed_runs LIMIT 1",
-  ).get();
+  ).get());
   let manifest;
   try {
     manifest = JSON.parse(manifestRow?.scenario_manifest_json || "{}");
@@ -700,12 +1119,12 @@ function verifyDemoRoleFixtureRows(database) {
     throw new Error("Candidate demo role fixture manifest is incomplete.");
   }
 
-  const activeUsers = database.prepare(`
+  const activeUsers = /** @type {DemoUserRow[]} */ (database.prepare(`
 SELECT user_id, username, password, password_change_required, protected_user
 FROM users
 WHERE user_status = 'active'
 ORDER BY username;
-`).all();
+`).all());
   const expectedUsernames = new Set(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture) => fixture.username));
   if (
     activeUsers.length !== SANITIZED_DEMO_ROLE_FIXTURES.length
@@ -725,7 +1144,7 @@ ORDER BY username;
       throw new Error("Candidate demo role identity or password-hash contract is invalid.");
     }
     if (fixture.publicVisitor) publicVisitorUserIds.push(user.user_id);
-    const assignments = database.prepare(`
+    const assignments = /** @type {DemoAssignmentRow[]} */ (database.prepare(`
 SELECT
   assignment.role_id,
   assignment.scope_type,
@@ -744,7 +1163,7 @@ LEFT JOIN projects AS project
  AND project.id = assignment.scope_id
 WHERE assignment.user_id = ?
 ORDER BY assignment.assignment_id;
-`).all(user.user_id);
+`).all(user.user_id));
     if (
       assignments.length !== 1
       || assignments[0].role_id !== fixture.roleId
@@ -755,12 +1174,12 @@ ORDER BY assignment.assignment_id;
       throw new Error("Candidate demo role assignment contains a wrong role, scope, duplicate, or override.");
     }
     if (fixture.roleId !== "super_admin") {
-      const memberships = database.prepare(`
+      const memberships = /** @type {DemoMembershipRow[]} */ (database.prepare(`
 SELECT workspaces.name, user_workspaces.status
 FROM user_workspaces
 JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = ?;
-`).all(user.user_id);
+`).all(user.user_id));
       if (
         memberships.length !== 1
         || memberships[0].name !== "Northwind Studio"
@@ -771,11 +1190,11 @@ WHERE user_workspaces.user_id = ?;
     }
   }
 
-  const inactivePersonas = database.prepare(`
+  const inactivePersonas = /** @type {DemoUserRow[]} */ (database.prepare(`
 SELECT username, password, user_status
 FROM users
 WHERE user_status != 'active';
-`).all();
+`).all());
   if (
     inactivePersonas.length !== 17
     || inactivePersonas.some((user) => (
@@ -787,7 +1206,7 @@ WHERE user_status != 'active';
     throw new Error("Candidate demo database enabled or altered an ordinary fictional persona.");
   }
 
-  const identities = database.prepare("SELECT username, alt_email FROM users").all();
+  const identities = /** @type {DemoIdentityRow[]} */ (database.prepare("SELECT username, alt_email FROM users").all());
   for (const identity of identities) {
     for (const value of [identity.username, identity.alt_email].filter(Boolean)) {
       const domain = String(value).split("@")[1]?.toLowerCase();
@@ -802,6 +1221,10 @@ WHERE user_status != 'active';
   return Object.freeze([...publicVisitorUserIds].sort());
 }
 
+/**
+ * @param {SanitizedDemoRoleFixture} fixture
+ * @param {DemoAssignmentRow} assignment
+ */
 function demoFixtureScopeMatches(fixture, assignment) {
   if (fixture.scopeKey === "all") {
     return assignment.scope_id === "all";
@@ -818,16 +1241,31 @@ function demoFixtureScopeMatches(fixture, assignment) {
   return false;
 }
 
+/**
+ * @param {string} targetPath
+ * @param {string} label
+ */
 async function assertRealDirectory(targetPath, label) {
   const stats = await fs.lstat(targetPath);
   if (!stats.isDirectory() || stats.isSymbolicLink()) throw new Error(`${label} must be a real directory.`);
 }
 
+/**
+ * @param {string} targetPath
+ * @param {string} label
+ */
 async function assertRealFile(targetPath, label) {
   const stats = await fs.lstat(targetPath);
   if (!stats.isFile() || stats.isSymbolicLink()) throw new Error(`${label} must be a real file.`);
 }
 
+/**
+ * @param {string} targetPath
+ * @param {number} expectedUid
+ * @param {number} expectedGid
+ * @param {number} expectedMode
+ * @param {string} label
+ */
 async function assertOwnedMode(targetPath, expectedUid, expectedGid, expectedMode, label) {
   const stats = await fs.stat(targetPath);
   const actualMode = stats.mode & 0o777;
@@ -836,10 +1274,11 @@ async function assertOwnedMode(targetPath, expectedUid, expectedGid, expectedMod
   }
 }
 
+/** @param {string} root */
 async function assertNoLinksInTree(root) {
   const pending = [root];
   while (pending.length) {
-    const current = pending.pop();
+    const current = /** @type {string} */ (pending.pop());
     const stats = await fs.lstat(current);
     if (stats.isSymbolicLink()) throw new Error("Candidate demo data contains a symbolic link.");
     if (!stats.isDirectory()) continue;
@@ -848,6 +1287,10 @@ async function assertNoLinksInTree(root) {
   }
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @returns {Promise<DemoServiceState>}
+ */
 async function captureServiceState(config) {
   return Object.freeze({
     app: serviceIsActive(config.appService),
@@ -856,6 +1299,11 @@ async function captureServiceState(config) {
   });
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @param {DemoServiceState} state
+ * @param {DemoServiceCallOptions} [options]
+ */
 async function stopServices(config, state, options = {}) {
   const stop = options.bestEffort ? runCommandBestEffort : runCommand;
   if (state.edge) stop("systemctl", ["stop", config.edgeService], "Unable to stop the demo edge service.");
@@ -863,6 +1311,10 @@ async function stopServices(config, state, options = {}) {
   if (state.app) stop("systemctl", ["stop", config.appService], "Unable to stop the demo application service.");
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @param {DemoServiceState} state
+ */
 async function assertServicesStopped(config, state) {
   if ((state.edge && serviceIsActive(config.edgeService)) || (state.worker && serviceIsActive(config.workerService))
     || (state.app && serviceIsActive(config.appService))) {
@@ -870,6 +1322,10 @@ async function assertServicesStopped(config, state) {
   }
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @param {DemoServiceState} state
+ */
 async function startServices(config, state) {
   if (state.app) runCommand("systemctl", ["start", config.appService], "Unable to start the demo application service.");
   if (state.worker) runCommand("systemctl", ["start", config.workerService], "Unable to start the demo worker service.");
@@ -878,6 +1334,10 @@ async function startServices(config, state) {
   if (state.edge) runCommand("systemctl", ["start", config.edgeService], "Unable to start the demo edge service.");
 }
 
+/**
+ * @param {VerifyRunningRequest} request
+ * @returns {Promise<DemoRuntimeIdentity>}
+ */
 async function verifyRunning({ appVersion, config }) {
   const health = await fetchJson(`${config.publicUrl}/healthz`);
   const readiness = await fetchJson(`${config.publicUrl}/readyz`);
@@ -894,6 +1354,10 @@ async function verifyRunning({ appVersion, config }) {
   });
 }
 
+/**
+ * @param {DemoHelperConfig} config
+ * @param {DemoRuntimeDataPaths} candidatePaths
+ */
 async function repairDataPermissions(config, candidatePaths) {
   runCommand("chown", ["-R", "-h", `${config.appAccount}:${config.appGroup}`, candidatePaths.dataRoot], "Unable to apply demo data ownership.");
   await fs.chmod(candidatePaths.dataRoot, 0o700);
@@ -906,20 +1370,34 @@ async function repairDataPermissions(config, candidatePaths) {
   }
 }
 
+/** @param {string} service */
 function serviceIsActive(service) {
   const result = spawnSync("systemctl", ["is-active", "--quiet", service], { stdio: "ignore" });
   return result.status === 0;
 }
 
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {string} errorMessage
+ */
 function runCommand(command, args, errorMessage) {
   const result = spawnSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (result.status !== 0) throw new Error(errorMessage);
 }
 
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ */
 function runCommandBestEffort(command, args) {
   spawnSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
+/**
+ * @param {string} name
+ * @param {string} kind
+ */
 function readNumericIdentity(name, kind) {
   const result = kind === "user"
     ? spawnSync("id", ["-u", name], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
@@ -932,6 +1410,10 @@ function readNumericIdentity(name, kind) {
   return value;
 }
 
+/**
+ * @param {string} url
+ * @param {number} attempts
+ */
 async function waitForJson(url, attempts) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -945,13 +1427,16 @@ async function waitForJson(url, attempts) {
   throw new Error("The demo application did not become ready in time.", { cause: lastError });
 }
 
+/** @param {string} url */
 async function fetchJson(url) {
   const response = await globalThis.fetch(url, { redirect: "error" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return await response.json();
 }
 
+/** @param {string} roleCredentialsFile */
 function minimalSeedEnvironment(roleCredentialsFile) {
+  /** @type {Record<string, string>} */
   const environment = {
     LONGTAIL_ENV: "development",
     LONGTAIL_DATABASE_PROVIDER: "sqlite",
@@ -969,6 +1454,7 @@ function minimalSeedEnvironment(roleCredentialsFile) {
   return environment;
 }
 
+/** @param {Record<string, string>} environment */
 function runtimeInventory(environment) {
   return {
     environment: environment.LONGTAIL_ENV,
@@ -979,14 +1465,22 @@ function runtimeInventory(environment) {
   };
 }
 
+/**
+ * @param {unknown} error
+ * @param {readonly unknown[]} [values]
+ */
 function redactDemoError(error, values = []) {
-  let message = String(error?.message || error || "Demo-data operation failed.");
+  let message = String(/** @type {MessageCarrier} */ (error)?.message || error || "Demo-data operation failed.");
   for (const value of values.filter(Boolean).sort((a, b) => String(b).length - String(a).length)) {
     message = message.replaceAll(String(value), "[protected]");
   }
   return message;
 }
 
+/**
+ * @param {string} dataRoot
+ * @param {string} candidate
+ */
 function assertGeneratedSiblingPath(dataRoot, candidate) {
   const parent = path.dirname(path.resolve(dataRoot));
   const resolved = path.resolve(candidate);
@@ -995,11 +1489,16 @@ function assertGeneratedSiblingPath(dataRoot, candidate) {
   }
 }
 
+/**
+ * @param {string} parent
+ * @param {string} child
+ */
 function isInside(parent, child) {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
+/** @param {unknown} value */
 function normalizeOrigin(value) {
   try {
     const parsed = new URL(String(value || ""));
@@ -1010,6 +1509,7 @@ function normalizeOrigin(value) {
   }
 }
 
+/** @param {string} value */
 function isCalendarDate(value) {
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
@@ -1019,16 +1519,18 @@ function compactTimestamp() {
   return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
+/** @param {string} targetPath */
 async function pathExists(targetPath) {
   try {
     await fs.lstat(targetPath);
     return true;
   } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (/** @type {ErrnoCarrier} */ (error)?.code === "ENOENT") return false;
     throw error;
   }
 }
 
+/** @param {Uint8Array} bytes */
 async function sha256(bytes) {
   const { createHash } = await import("node:crypto");
   return createHash("sha256").update(bytes).digest("hex");

@@ -8,6 +8,20 @@ const FULL_CHECK_COMMAND = "npm run check";
 const FULL_REGRESSION_COMMAND = "npm run test:regressions";
 const PERMISSION_REGRESSION_COMMAND = "npm run test:regressions:permissions";
 
+/**
+ * @typedef {import("./changed-regression-runner.mjs").ChangedRegressionPlan} ChangedRegressionPlan
+ * @typedef {import("./changed-regression-runner.mjs").ChangedRegressionMatch} ChangedRegressionMatch
+ * @typedef {{ command: string | null, id: string, included: boolean, label: string, reason: string }} SliceVerificationStage
+ * @typedef {{ find(predicate: (item: SliceVerificationStage, index: number, stages: readonly SliceVerificationStage[]) => boolean): SliceVerificationStage } & readonly SliceVerificationStage[]} SliceVerificationStages
+ * @typedef {{ areas: readonly string[], commands: readonly string[], fullCheckIncluded: boolean, matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], permissionHarnessIncluded: boolean, stages: SliceVerificationStages }} SliceVerificationPlan
+ * @typedef {SliceVerificationStage & { outcome: "passed" | "failed" | "skipped", seconds: number, status?: number }} SliceVerificationStageResult
+ * @typedef {{ executed: readonly { command: string | null, status: number | undefined }[], stages: readonly SliceVerificationStageResult[], status: number }} SliceVerificationResult
+ */
+
+/**
+ * @param {ChangedRegressionPlan} changedRegressionPlan
+ * @returns {SliceVerificationPlan}
+ */
 function createSliceVerificationPlan(changedRegressionPlan) {
   if (!changedRegressionPlan || !Array.isArray(changedRegressionPlan.commands)) {
     throw new TypeError("A changed-regression plan is required.");
@@ -33,17 +47,23 @@ function createSliceVerificationPlan(changedRegressionPlan) {
 
   return Object.freeze({
     areas: changedRegressionPlan.areas,
-    commands: Object.freeze(stages.filter((item) => item.included && item.command).map((item) => item.command)),
+    commands: Object.freeze(stages.filter((item) => item.included && item.command).map((item) => /** @type {string} */ (item.command))),
     fullCheckIncluded,
     matches: changedRegressionPlan.matches,
     mode: changedRegressionPlan.mode,
     paths: changedRegressionPlan.paths,
     permissionHarnessIncluded,
-    stages,
+    stages: /** @type {SliceVerificationStages} */ (stages),
   });
 }
 
-function executeSliceVerificationPlan(plan, /** @type {{ contextSeconds?: number, runCommand?: (command: string) => { status?: number | null } }} */ { contextSeconds = 0, runCommand = runNpmCommand } = {}) {
+/**
+ * @param {SliceVerificationPlan} plan
+ * @param {{ contextSeconds?: number, runCommand?: (command: string) => { status?: number | null } }} [options]
+ * @returns {SliceVerificationResult}
+ */
+function executeSliceVerificationPlan(plan, { contextSeconds = 0, runCommand = runNpmCommand } = {}) {
+  /** @type {SliceVerificationStageResult[]} */
   const results = [];
   let failed = false;
   let failureStatus = 0;
@@ -63,7 +83,7 @@ function executeSliceVerificationPlan(plan, /** @type {{ contextSeconds?: number
     } catch (error) {
       commandResult = { error, status: 1 };
     }
-    const status = Number.isInteger(commandResult?.status) ? commandResult.status : 1;
+    const status = Number.isInteger(commandResult?.status) ? /** @type {number} */ (commandResult.status) : 1;
     const outcome = status === 0 ? "passed" : "failed";
     results.push(Object.freeze({ ...item, outcome, seconds: (performance.now() - started) / 1000, status }));
     failed ||= status !== 0;
@@ -72,6 +92,10 @@ function executeSliceVerificationPlan(plan, /** @type {{ contextSeconds?: number
   return Object.freeze({ executed: Object.freeze(results.filter((item) => item.command && item.outcome !== "skipped").map(({ command, status }) => ({ command, status }))), stages: Object.freeze(results), status: failureStatus });
 }
 
+/**
+ * @param {SliceVerificationPlan} plan
+ * @returns {string}
+ */
 function formatSliceVerificationPlan(plan) {
   const lines = [
     "Slice verification plan",
@@ -88,6 +112,11 @@ function formatSliceVerificationPlan(plan) {
   return lines.join("\n");
 }
 
+/**
+ * @param {SliceVerificationPlan} plan
+ * @param {SliceVerificationResult} result
+ * @returns {string}
+ */
 function formatSliceVerificationSummary(plan, result) {
   const lines = ["Slice verification timing summary", `Changed-regression mode: ${plan.mode}`];
   for (const item of result.stages) {
@@ -105,6 +134,14 @@ function formatSliceVerificationSummary(plan, result) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string | null} command
+ * @param {boolean} included
+ * @param {string} [reason]
+ * @returns {SliceVerificationStage}
+ */
 function stage(id, label, command, included, reason = "") {
   return Object.freeze({ command, id, included, label, reason });
 }

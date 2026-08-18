@@ -3,7 +3,18 @@ import {
   CANONICAL_REGRESSION_TIERS,
 } from "./regression-metadata.mjs";
 
+/**
+ * @typedef {{ area: string, id: string, legacy?: boolean, order?: number, path: string, runMode: string, tags: readonly string[], tier: string }} RegressionEntry
+ * @typedef {{ concurrency: number, entries: readonly RegressionEntry[], mode: string, name: string, runMode: string, scripts: readonly string[] }} RegressionBucket
+ * @typedef {{ area: string | null, dryRun: boolean, list: boolean, tag: string | null, tier: string | null }} RegressionCliOptions
+ */
+
+/**
+ * @param {readonly string[]} [args]
+ * @returns {Readonly<RegressionCliOptions>}
+ */
 function parseRegressionCliArgs(args = []) {
+  /** @type {RegressionCliOptions} */
   const options = {
     area: null,
     dryRun: false,
@@ -23,11 +34,11 @@ function parseRegressionCliArgs(args = []) {
       continue;
     }
 
-    const field = new Map([
+    const field = /** @type {Map<string, "area" | "tag" | "tier">} */ (new Map([
       ["--area", "area"],
       ["--tag", "tag"],
       ["--tier", "tier"],
-    ]).get(argument);
+    ])).get(argument);
 
     if (!field) {
       throw new Error(`Unknown regression runner option: ${argument}.`);
@@ -57,6 +68,11 @@ function parseRegressionCliArgs(args = []) {
   return Object.freeze(options);
 }
 
+/**
+ * @param {readonly RegressionBucket[]} buckets
+ * @param {{ area?: string | null, tag?: string | null, tier?: string | null }} [filters]
+ * @returns {readonly RegressionBucket[]}
+ */
 function filterRegressionBuckets(buckets, { area, tag, tier } = {}) {
   return Object.freeze(buckets.map((bucket) => {
     const entries = bucket.entries.filter((entry) => (

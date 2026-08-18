@@ -12,9 +12,14 @@ const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
 
 // Framework primitive structure and accessibility.
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * The published `LongtailForge.view` index-primitive catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => FakeNode>} IndexViewSurface
+ */
 const context = createFakeBrowserContext({ iconButton: { iconClass: false } });
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {IndexViewSurface} */ (context.window.LongtailForge.view);
 
 assert.equal(typeof view.createIndexList, "function", "LongtailForge.view.createIndexList should be exposed");
 
