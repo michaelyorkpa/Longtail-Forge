@@ -54,15 +54,6 @@ Release-wide measurable acceptance:
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
 
-### 0.33.33.28.2 - Type release ceremony, versioning, and packaging metadata tooling
-
-**Model: High Effort** - Release metadata binds exact revisions, checksums, and attestations that later gates trust.
-
-- [ ] Close the ~129 diagnostics across `scripts/release/` ceremony entries plus `bump-version.mjs`, `generate-bundled-module-catalog.mjs`, and `suggest-docs-for-changes.mjs`.
-- [ ] Type release metadata records, git command results, GitHub API payloads, and checkpoint trailer parsing with named contracts.
-- [ ] Preserve exact-SHA proof, immutable-digest binding, schema-versioned metadata, and checkpoint trailer validation semantics.
-- [ ] Prove through the developer-verification-throughput and release-area owners without changing any published artifact shape.
-
 ### 0.33.33.28.3 - Type performance, load, and installation diagnostic tooling
 
 **Model: High Effort** - Measurement tooling must not silently change what it measures.

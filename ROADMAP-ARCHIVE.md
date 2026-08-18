@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.2 - Type release ceremony, versioning, and packaging metadata tooling
+
+**Model: High Effort** - Release metadata binds exact revisions, checksums, and attestations that later gates trust.
+
+- [x] Closed all 129 diagnostics across the seven `scripts/release/` ceremony entries plus `bump-version.mjs`, `generate-bundled-module-catalog.mjs`, and `suggest-docs-for-changes.mjs`.
+- [x] Typed schema-versioned release metadata records, git command results, GitHub workflow/check/release payloads, artifact digests, checkpoint trailer parsing, and probe responses with named contracts; the release-metadata record now carries an excess-property-checked `@type`, compiler-pinning its emitted shape, and `nightly-proof` received three narrower per-function option contracts rather than one broad shape because its reuse regression legitimately passes partial literals and a numeric `runId`.
+- [x] Preserved exact-SHA proof, immutable-digest binding, schema-versioned metadata, and checkpoint trailer validation semantics: emitted JSON field names and key order are unchanged, CLI plan/list/rehearsal surfaces reproduce identical output, and both full-SHA rejections still throw.
+- [x] Proved through `npm run checkpoint:validate` (validating this checkpoint's own commit range), the developer-verification-throughput and runtime-artifact-boundary regressions, the version-bump regression, the bundled-catalog check, the docs suggester, and the full 347-entry verification without changing any published artifact shape; `framework.full-strict-governance` pins the ten owners strict-clean, the scripts program falls from 7,539 to 7,409 diagnostics, combined debt from 18,673 to 18,543 with explicit `any` at 7, and effective regression assertions advance to 18,969 across 347 scripts.
+
 ## Version 0.33.33.28.1 - Type backup, restore, and workspace maintenance tooling
 
 **Model: High Effort** - Backup-first and destructive-confirmation contracts guard real operator data.
