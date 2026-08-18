@@ -54,14 +54,6 @@ Release-wide measurable acceptance:
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
 
-### 0.33.33.28.3 - Type performance, load, and installation diagnostic tooling
-
-**Model: High Effort** - Measurement tooling must not silently change what it measures.
-
-- [ ] Close the ~114 diagnostics in `sqlite-small-office-performance.mjs`, `public-demo-perimeter-load-smoke.mjs`, `measure-dashboard-performance.mjs`, `adapter-microbenchmark.mjs`, and `better-sqlite3-install-smoke.mjs`.
-- [ ] Type timing samples, budget comparisons, HTTP probe results, and native-module inspection output explicitly.
-- [ ] Preserve measured budgets, sample counts, warm-up behavior, and pass/fail thresholds without altering workloads.
-
 ### 0.33.33.28.4 - Type demo lifecycle, role journey, and workspace cleanup tooling
 
 **Model: High Effort** - Demo reset and cleanup tooling deletes real workspace state behind operator confirmation.

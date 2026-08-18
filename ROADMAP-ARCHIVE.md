@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.3 - Type performance, load, and installation diagnostic tooling
+
+**Model: High Effort** - Measurement tooling must not silently change what it measures.
+
+- [x] Closed the ~114 diagnostics in `sqlite-small-office-performance.mjs`, `public-demo-perimeter-load-smoke.mjs`, `measure-dashboard-performance.mjs`, `adapter-microbenchmark.mjs`, and `better-sqlite3-install-smoke.mjs`.
+- [x] Typed timing samples, budget comparisons, HTTP probe results, and native-module inspection output explicitly.
+- [x] Preserved measured budgets, sample counts, warm-up behavior, and pass/fail thresholds without altering workloads.
+- [x] Proved the five scripts pass strict-debt checks as zero diagnostics at checkpoint-level re-run with no increases in unrelated strict diagnostics, and recorded the generated debt ledger update plus the checkpoint regression owner run.
+
 ## Version 0.33.33.28.2 - Type release ceremony, versioning, and packaging metadata tooling
 
 **Model: High Effort** - Release metadata binds exact revisions, checksums, and attestations that later gates trust.
