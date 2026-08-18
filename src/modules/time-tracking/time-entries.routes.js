@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { activeTimersService } from "./active-timers.service.js";
 import { timeEntriesService } from "./time-entries.service.js";

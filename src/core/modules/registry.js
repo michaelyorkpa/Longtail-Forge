@@ -1,4 +1,3 @@
-// @ts-check
 import { bundledModuleCatalog } from "./bundled-module-catalog.generated.js";
 import { validateAndOrderBundledModuleCatalog } from "./module-entry.js";
 

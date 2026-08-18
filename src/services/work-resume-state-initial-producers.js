@@ -1,4 +1,3 @@
-// @ts-check
 import { db } from "../core/database.js";
 import { listsService } from "../modules/lists/lists.service.js";
 import { LIST_STATUSES } from "../modules/lists/storage-contract.js";

@@ -2,27 +2,32 @@
 
 import { expect, test } from "@playwright/test";
 
+/** @typedef {typeof window & { __dashboardPanelFetchStarts: number[] }} DashboardMeasuredWindow */
+
 test("Dashboard starts panel reads before contributed assets finish and lazy-loads the Task editor", { tag: "@desktop" }, async ({ page }) => {
+  /** @type {string[]} */
   const requestedPaths = [];
   await page.addInitScript(() => {
     const originalFetch = window.fetch;
-    window.__dashboardPanelFetchStarts = [];
+    /** @type {DashboardMeasuredWindow} */ (window).__dashboardPanelFetchStarts = [];
     window.fetch = function measuredDashboardFetch(input, init) {
-      const url = new URL(typeof input === "string" ? input : input.url, window.location.href);
+      const url = new URL(typeof input === "string" ? input : /** @type {Request} */ (input).url, window.location.href);
       if (
         url.pathname === "/api/tasks/dashboard-summary" ||
         url.pathname === "/api/tasks/calendar" ||
         url.pathname === "/api/time-tracking/dashboard/effort-summary"
       ) {
-        window.__dashboardPanelFetchStarts.push(performance.now());
+        /** @type {DashboardMeasuredWindow} */ (window).__dashboardPanelFetchStarts.push(performance.now());
       }
       return originalFetch.call(this, input, init);
     };
   });
+  /** @type {((value?: unknown) => void) | undefined} */
   let releaseTasksAsset;
   const tasksAssetReleased = new Promise((resolve) => {
     releaseTasksAsset = resolve;
   });
+  /** @type {((value?: unknown) => void) | undefined} */
   let markTasksAssetRequested;
   const tasksAssetRequested = new Promise((resolve) => {
     markTasksAssetRequested = resolve;
@@ -32,6 +37,9 @@ test("Dashboard starts panel reads before contributed assets finish and lazy-loa
     requestedPaths.push(new URL(request.url()).pathname);
   });
   await page.route("**/js/tasks-dashboard.js?*", async (route) => {
+    if (!markTasksAssetRequested) {
+      throw new Error("the tasks-asset request marker was not initialized");
+    }
     markTasksAssetRequested();
     await tasksAssetReleased;
     await route.continue();
@@ -69,12 +77,15 @@ test("Dashboard starts panel reads before contributed assets finish and lazy-loa
   ))).size).toBe(3);
   await page.waitForLoadState("load");
   const firstFetchGap = await page.evaluate(() => (
-    Math.min(...window.__dashboardPanelFetchStarts) -
-    performance.getEntriesByType("navigation")[0].loadEventEnd
+    Math.min(...(/** @type {DashboardMeasuredWindow} */ (window).__dashboardPanelFetchStarts)) -
+    /** @type {PerformanceNavigationTiming} */ (performance.getEntriesByType("navigation")[0]).loadEventEnd
   ));
   expect(firstFetchGap).toBeLessThanOrEqual(1000);
   expect(requestedPaths).not.toContain("/js/task-dialog.js");
 
+  if (!releaseTasksAsset) {
+    throw new Error("the tasks-asset release resolver was not initialized");
+  }
   releaseTasksAsset();
   const taskButton = page.getByRole("button", { name: "Open task: Lazy editor proof" });
   await expect(taskButton).toBeVisible();

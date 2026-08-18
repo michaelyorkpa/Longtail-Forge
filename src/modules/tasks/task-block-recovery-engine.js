@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskBlockRecoveryRecord} TaskBlockRecoveryRecord */
 /** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskBlockRecoveryTransition} TaskBlockRecoveryTransition */
 /** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskLifecycleStatus} TaskLifecycleStatus */

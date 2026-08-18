@@ -9,11 +9,12 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const migrationSource = await fs.readFile("src/db/migrations.js", "utf8");
 const typecheckLedger = JSON.parse(await fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"));
 
-assert.match(migrationSource, /^\/\/ @ts-check/);
+assert.deepEqual(strictCleanOwnerState("src/db/migrations.js"), { owned: true, diagnostics: 0 });
 assert.ok(typecheckLedger.programs["server-tests"].files.includes("src/db/migrations.js"));
 assert.equal(typecheckLedger.programs["server-tests"].diagnostics["src/db/migrations.js"], undefined);
 assert.doesNotMatch(migrationSource, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/);

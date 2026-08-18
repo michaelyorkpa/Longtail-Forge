@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { buildSessionCookie } from "../security/cookies.js";
 import { getSessionIdFromRequest } from "../security/sessions.js";

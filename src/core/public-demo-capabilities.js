@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {"permitted" | "read_only" | "disabled" | "hourly_resettable"} PublicDemoCapabilityClassification */
 /** @typedef {{ id: string, classification: PublicDemoCapabilityClassification }} PublicDemoCapabilityDefinition */
 

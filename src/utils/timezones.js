@@ -1,5 +1,3 @@
-// @ts-check
-
 const DEFAULT_TIMEZONE = "America/New_York";
 
 /** @typedef {string | number | null | undefined} DateTimeInput */

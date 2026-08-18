@@ -1,4 +1,3 @@
-// @ts-check
 /** @type {Map<string, import("../../types/framework-contracts.js").SearchIndexer>} */
 const registeredIndexers = new Map();
 

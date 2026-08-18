@@ -22,13 +22,16 @@ test("Appearance keeps Theme mode bounded in every rendered state", async ({ pag
   });
 
   const response = await page.goto("/user-settings.html");
+  if (!response) {
+    throw new Error("page.goto(\"/user-settings.html\") returned no response");
+  }
   expect(response.status()).toBe(200);
 
   const modeField = page.locator('[data-view-field="themeMode"]');
   const modeControl = modeField.locator(":scope > .theme-mode-control");
   const autoField = page.locator('[data-view-field="themeAutoSource"]');
   const autoControl = autoField.locator(":scope > .theme-auto-source-options");
-  const modeInput = (value) => modeField.locator(`input[value="${value}"]`);
+  const modeInput = (/** @type {string} */ value) => modeField.locator(`input[value="${value}"]`);
 
   await expect(modeControl).toBeVisible();
   await expect(modeControl.locator("label.settings-segmented-option")).toHaveCount(3);
@@ -66,6 +69,9 @@ test("Appearance keeps Theme mode bounded in every rendered state", async ({ pag
 
 test("User Settings lays out profile, notifications, workspace lifecycle, and complete timezone choices", async ({ page }) => {
   const response = await page.goto("/user-settings.html");
+  if (!response) {
+    throw new Error("page.goto(\"/user-settings.html\") returned no response");
+  }
   expect(response.status()).toBe(200);
 
   const grid = page.locator(".user-settings-grid");
@@ -127,6 +133,7 @@ test("User Settings lays out profile, notifications, workspace lifecycle, and co
   await expect(dialog.locator(".workspace-membership-warning")).toHaveText(warning);
 });
 
+/** @param {import("@playwright/test").Locator} control */
 async function assertBoundedControl(control) {
   const metrics = await control.evaluate((element) => {
     const style = getComputedStyle(element);

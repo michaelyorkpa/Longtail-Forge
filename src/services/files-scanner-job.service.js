@@ -1,5 +1,3 @@
-// @ts-check
-
 import { FILE_SCAN_STATUS_SET, FILE_STATUS_SET } from "../core/files/file-lifecycle.js";
 import {
   createClamdFileScannerAdapter,

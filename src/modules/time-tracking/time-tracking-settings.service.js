@@ -1,4 +1,3 @@
-// @ts-check
 import { registerOnChangeEffect } from "../../core/settings/settings-behavior-registry.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 

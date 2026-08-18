@@ -1,4 +1,3 @@
-// @ts-check
 // Lists edge-payload contracts.
 //
 // Lists accepts deliberately liberal scalar workflow inputs because browser

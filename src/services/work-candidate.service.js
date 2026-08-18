@@ -1,4 +1,3 @@
-// @ts-check
 import { modulesService } from "../core/modules/modules.service.js";
 import { tasksService } from "../modules/tasks/tasks.service.js";
 import { activeTimersService } from "../modules/time-tracking/index.js";

@@ -48,6 +48,9 @@ managedServerTest("password action stays isolated and changes only the disposabl
     });
 
     const response = await page.goto("/user-settings.html");
+    if (!response) {
+      throw new Error("page.goto(\"/user-settings.html\") returned no response");
+    }
     expect(response.status()).toBe(200);
     const universalSave = page.locator("[data-settings-page-save]").first();
     const universalRevert = page.locator("[data-settings-page-revert]").first();
@@ -98,7 +101,7 @@ managedServerTest("password action stays isolated and changes only the disposabl
 test("User Settings uses universal dirty, revert, and navigation-guard actions", async ({ page }) => {
   let userSettingsSaves = 0;
   let notificationSaves = 0;
-  let userSettingsPayload = null;
+  let userSettingsPayload = /** @type {Record<string, unknown> | null} */ (null);
   await page.route("**/api/user/settings", async (route) => {
     if (route.request().method() !== "PUT") return route.continue();
     userSettingsSaves += 1;
@@ -158,6 +161,9 @@ test("User Settings uses universal dirty, revert, and navigation-guard actions",
   await saves.first().click();
   await expect.poll(() => userSettingsSaves).toBe(1);
   await expect.poll(() => notificationSaves).toBe(1);
+  if (!userSettingsPayload) {
+    throw new Error("the universal save did not capture a user settings payload");
+  }
   expect(userSettingsPayload.preferredLoginLanding).toBe("dashboard");
   expect(userSettingsPayload.preferredWorkspaceSwitchLanding).toBe("dashboard");
   expect(userSettingsPayload.preferredCalendarView).toBe(null);

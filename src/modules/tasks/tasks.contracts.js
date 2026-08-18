@@ -1,4 +1,3 @@
-// @ts-check
 // Tasks edge-payload contracts.
 //
 // Runtime Zod schemas for the Tasks edges: create/update bodies (browser and

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+/** @typedef {{ materialized: boolean, materializationRequests: Array<{ instanceDate: string, templateId: string }> }} MaterializationState */
+
 test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", { tag: "@mobile" }, async ({ page }) => {
+  /** @type {URL[]} */
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -61,6 +64,7 @@ test("scheduled recurring tasks use ordinary Task presentation in Month, Week, a
 });
 
 test("opening a scheduled recurring task materializes it once without changing its presentation", { tag: "@desktop" }, async ({ page }) => {
+  /** @type {MaterializationState} */
   const state = { materialized: false, materializationRequests: [] };
   await stubCalendarPreference(page, "day");
   await stubCalendarReads(page, [], state);
@@ -116,6 +120,7 @@ test("Actions Calendar query view takes precedence over the saved preference", {
 });
 
 test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", { tag: "@desktop" }, async ({ page }) => {
+  /** @type {URL[]} */
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -154,6 +159,10 @@ test("Actions Calendar keeps completed history bounded in Day, Week, and Month w
   await expect(page.getByRole("button", { name: "Open task: Mobile archived proof" })).toBeVisible();
 });
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string | null} preferredCalendarView
+ */
 async function stubCalendarPreference(page, preferredCalendarView) {
   await page.route("**/api/app-shell/bootstrap", async (route) => {
     const response = await route.fetch();
@@ -171,6 +180,11 @@ async function stubCalendarPreference(page, preferredCalendarView) {
   });
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {URL[]} [requests]
+ * @param {Partial<MaterializationState>} [state]
+ */
 async function stubCalendarReads(page, requests = [], state = {}) {
   await page.route("**/api/tasks/calendar?*", async (route) => {
     const requestUrl = new URL(route.request().url());
@@ -233,6 +247,10 @@ async function stubCalendarReads(page, requests = [], state = {}) {
   });
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {MaterializationState} state
+ */
 async function stubOccurrenceMaterialization(page, state) {
   await page.route("**/api/tasks/recurrence-instances/materialize", async (route) => {
     const payload = route.request().postDataJSON();
@@ -265,6 +283,7 @@ async function stubOccurrenceMaterialization(page, state) {
   });
 }
 
+/** @param {string | null} date */
 function materializedCalendarTask(date) {
   return {
     task_id: "mobile-calendar-materialized-task",
@@ -276,6 +295,7 @@ function materializedCalendarTask(date) {
   };
 }
 
+/** @param {string | null} date */
 function materializedTaskDetail(date) {
   return {
     ...materializedCalendarTask(date),
@@ -307,10 +327,12 @@ function materializedTaskDetail(date) {
   };
 }
 
+/** @param {import("@playwright/test").Locator} locator */
 async function selectedValues(locator) {
-  return locator.evaluate((select) => [...select.selectedOptions].map((option) => option.value));
+  return locator.evaluate((select) => [.../** @type {HTMLSelectElement} */ (select).selectedOptions].map((option) => option.value));
 }
 
+/** @param {URL} requestUrl */
 function calendarWindowDays(requestUrl) {
   const start = new Date(`${requestUrl.searchParams.get("start")}T00:00:00.000Z`);
   const end = new Date(`${requestUrl.searchParams.get("end")}T00:00:00.000Z`);

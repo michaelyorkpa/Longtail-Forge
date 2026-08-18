@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} path
+ * @param {Record<string, unknown>} data
+ * @param {string} label
+ */
 async function createRecord(request, path, data, label) {
   const response = await request.post(path, { data });
   expect(response.status(), `${label} should be created`).toBe(201);
@@ -19,6 +25,9 @@ test("Tasks bulk Project assignment derives Business Client context and persists
   }, "the bulk Task")).task;
 
   const response = await page.goto("/tasks.html");
+  if (!response) {
+    throw new Error("page.goto(\"/tasks.html\") returned no response");
+  }
   expect(response.status()).toBe(200);
   await page.getByRole("checkbox", { name: `Select ${task.title}`, exact: true }).check();
 

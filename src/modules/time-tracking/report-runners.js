@@ -1,4 +1,3 @@
-// @ts-check
 import { registerReportRunner } from "../../core/reporting/report-runner-registry.js";
 
 const PROJECT_TIME_BILLING_RUNNER_ID = "time-tracking.project-time-billing";

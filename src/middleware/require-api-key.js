@@ -1,4 +1,3 @@
-// @ts-check
 import { apiKeysService } from "../services/api-keys.service.js";
 import { assertModuleWriteEnabled } from "../core/modules/module-access.js";
 import { modulesService } from "../core/modules/modules.service.js";

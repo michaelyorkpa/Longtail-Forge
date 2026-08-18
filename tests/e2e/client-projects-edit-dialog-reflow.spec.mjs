@@ -2,6 +2,12 @@
 
 import { expect, test } from "@playwright/test";
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} path
+ * @param {Record<string, unknown>} data
+ * @param {string} label
+ */
 async function createRecord(request, path, data, label) {
   const response = await request.post(path, { data });
   expect(response.status(), `${label} should be created`).toBe(201);
@@ -21,6 +27,9 @@ test("Edit Project uses the wide unboxed framework flow while preserving save be
   );
 
   const response = await page.goto("/projects.html");
+  if (!response) {
+    throw new Error("page.goto(\"/projects.html\") returned no response");
+  }
   expect(response.status()).toBe(200);
   const projectRow = page.locator("tbody tr").filter({ hasText: projectName }).first();
   await expect(projectRow).toBeVisible();
@@ -40,7 +49,7 @@ test("Edit Project uses the wide unboxed framework flow while preserving save be
   await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeVisible();
 
   const layout = await editor.evaluate((form) => {
-    const directField = (selector) => form.querySelector(`:scope > ${selector}`);
+    const directField = (/** @type {string} */ selector) => form.querySelector(`:scope > ${selector}`);
     const formRect = form.getBoundingClientRect();
     const status = directField(".project-status-field");
     const clientField = directField(".project-client-field");
@@ -48,6 +57,7 @@ test("Edit Project uses the wide unboxed framework flow while preserving save be
     const tags = directField(".project-edit-tags-field");
     const orderedFields = [status, clientField, parent];
     const fieldRects = orderedFields.map((field) => field?.getBoundingClientRect());
+    const [statusRect, clientRect, parentRect] = fieldRects;
     const tagRect = tags?.getBoundingClientRect();
     const tagPicker = tags?.querySelector(".tag-picker");
     const tagStyle = tagPicker ? getComputedStyle(tagPicker) : null;
@@ -55,9 +65,9 @@ test("Edit Project uses the wide unboxed framework flow while preserving save be
       fullWidthIdentityFields: fieldRects.every((rect) => rect
         && Math.abs(rect.left - formRect.left) <= 2
         && Math.abs(rect.right - formRect.right) <= 2),
-      identityOrder: fieldRects.every(Boolean)
-        && fieldRects[0].top < fieldRects[1].top
-        && fieldRects[1].top < fieldRects[2].top,
+      identityOrder: Boolean(statusRect && clientRect && parentRect
+        && statusRect.top < clientRect.top
+        && clientRect.top < parentRect.top),
       noFormBorder: getComputedStyle(form).borderTopWidth === "0px",
       noHorizontalOverflow: form.scrollWidth <= form.clientWidth + 1,
       tagsFullWidth: Boolean(tagRect

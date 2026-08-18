@@ -1,4 +1,3 @@
-// @ts-check
 import { createOpaqueId } from "./identifiers.js";
 
 /** @typedef {import("express").Application} Application */

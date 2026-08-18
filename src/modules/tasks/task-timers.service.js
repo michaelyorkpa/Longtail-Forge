@@ -1,4 +1,3 @@
-// @ts-check
 import { taskTimersRepository } from "./task-timers.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
 import { activeTimersService } from "../time-tracking/index.js";

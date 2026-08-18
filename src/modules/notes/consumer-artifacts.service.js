@@ -1,5 +1,3 @@
-// @ts-check
-
 import { notificationsService } from "../../services/notifications.service.js";
 import { workResumeStateService } from "../../services/work-resume-state.service.js";
 

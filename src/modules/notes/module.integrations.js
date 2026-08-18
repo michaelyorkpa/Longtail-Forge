@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { NOTES_PROTECTED_CONTENT_CONSUMERS } from "./consumer-policy.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";

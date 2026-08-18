@@ -1,4 +1,3 @@
-// @ts-check
 import { listsRepository } from "./lists.repo.js";
 import { LIST_PERMISSIONS, listResource } from "./access-policy.js";
 import { permissionsService } from "../../core/permissions.js";

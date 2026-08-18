@@ -1,4 +1,3 @@
-// @ts-check
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { modulesService } from "../core/modules/modules.service.js";

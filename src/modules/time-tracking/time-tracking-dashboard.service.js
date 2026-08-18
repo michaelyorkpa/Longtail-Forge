@@ -1,4 +1,3 @@
-// @ts-check
 import { permissionsService } from "../../core/permissions.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import {

@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { db } from "../core/database.js";
 import { readRequestScopedCache } from "../core/request-cache.js";

@@ -1,5 +1,3 @@
-// @ts-check
-
 import { registerPrivateFeedProvider } from "../../core/private-feeds/private-feed-providers.js";
 import { PRIVATE_CALENDAR_PROVIDER_ID } from "../../services/private-feeds.service.js";
 import { permissionsService } from "../../services/permissions.service.js";

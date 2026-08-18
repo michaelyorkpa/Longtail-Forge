@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTarget} LinkTarget */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTargetCandidate */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetType} LinkTargetType */

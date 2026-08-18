@@ -1,5 +1,3 @@
-// @ts-check
-
 import { getSearchIndexer } from "../core/search/indexer-registry.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { db } from "../core/database.js";

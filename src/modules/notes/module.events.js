@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_EVENT_TYPES, NOTE_PERMISSIONS } from "./access-policy.js";
 
 /** @typedef {import("../../types/framework-contracts.js").EventSummaryResolverContext} EventSummaryResolverContext */

@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {{ cause?: unknown, code?: string, expose?: boolean, fields?: unknown[] }} AppErrorOptions */
 
 class AppError extends Error {

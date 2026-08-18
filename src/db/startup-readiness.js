@@ -1,4 +1,3 @@
-// @ts-check
 import { databaseDialect, db, querySql } from "./provider.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseRow & { name: string }} TableColumnRow */

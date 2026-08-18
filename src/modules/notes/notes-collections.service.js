@@ -1,4 +1,3 @@
-// @ts-check
 import { notesRepository } from "./notes.repo.js";
 import {
   CreateNoteCollectionSchema,

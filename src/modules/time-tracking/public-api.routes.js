@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { requireApiKey } from "../../middleware/require-api-key.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";

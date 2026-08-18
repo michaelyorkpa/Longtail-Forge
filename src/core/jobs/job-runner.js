@@ -1,4 +1,3 @@
-// @ts-check
 import { clearInterval, setInterval } from "node:timers";
 import { config } from "../../config.js";
 import { db } from "../database.js";

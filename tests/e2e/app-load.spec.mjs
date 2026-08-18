@@ -3,13 +3,16 @@
 // desktop and mobile projects; `isMobile` selects which affordance to assert.
 
 import { expect, test } from "@playwright/test";
-import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
+import { SHELL, requireSmokeSurface } from "./support/surfaces.mjs";
 
-const dashboard = SMOKE_SURFACES.find((surface) => surface.name === "Dashboard");
+const dashboard = requireSmokeSurface("Dashboard");
 
 test("app shell loads with primary navigation present", async ({ page, isMobile }) => {
   const response = await page.goto(dashboard.path);
 
+  if (!response) {
+    throw new Error("page.goto(dashboard.path) returned no response");
+  }
   expect(response.status(), "the protected Dashboard view must be served to the seeded session").toBe(200);
   // The app shell rewrites the served title to "Dashboard | <workspace> | Longtail Forge"
   // once it loads; accept both so the assertion is not racing the shell script.

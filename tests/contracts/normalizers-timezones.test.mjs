@@ -1,5 +1,3 @@
-// @ts-check
-
 import { describe, expect, it } from "vitest";
 import { normalizeTimeEntry } from "../../src/utils/normalizers.js";
 import {

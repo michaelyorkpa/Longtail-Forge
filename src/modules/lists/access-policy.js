@@ -1,4 +1,3 @@
-// @ts-check
 import {
   LIST_MODULE_ID,
   LIST_STATUSES,

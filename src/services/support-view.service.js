@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { db } from "../core/database.js";

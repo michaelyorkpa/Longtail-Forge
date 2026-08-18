@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { config, readRuntimeSecret } from "../../config.js";
 import { AppError } from "../../core/errors.js";

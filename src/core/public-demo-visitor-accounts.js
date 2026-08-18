@@ -1,5 +1,3 @@
-// @ts-check
-
 const PUBLIC_DEMO_VISITOR_PASSWORDS = Object.freeze({
   workspace_admin: "Explore-Workspace-2026!",
   client_admin: "Explore-ClientAdmin-2026!",

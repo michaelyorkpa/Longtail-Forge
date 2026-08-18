@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createHmac, randomBytes } from "node:crypto";
 import { internalEventBus } from "../core/events/event-bus.js";
 import { assertPublicDemoVisitorIdentityMutable } from "../core/public-demo-identities.js";

@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../../config.js";
 import { getPublicDemoCapability } from "../public-demo-capabilities.js";
 import { assertPublicDemoCapabilityAllowed } from "../public-demo-enforcement.js";

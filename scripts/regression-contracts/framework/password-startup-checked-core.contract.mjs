@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const [passwordSource, appSource, typecheckLedgerSource] = await Promise.all([
   fs.readFile("src/security/passwords.js", "utf8"),
@@ -21,7 +22,7 @@ for (const [filePath, source] of [
   ["src/security/passwords.js", passwordSource],
   ["src/core/app.js", appSource],
 ]) {
-  assert.match(source, /^\/\/ @ts-check/, `${filePath} must stay checked`);
+  assert.deepEqual(strictCleanOwnerState(filePath), { owned: true, diagnostics: 0 }, `${filePath} must stay strict-clean in its checked program`);
   assert.ok(typecheckLedger.programs["server-tests"].files.includes(filePath), `${filePath} must stay in the strict server/tests program`);
   assert.doesNotMatch(source, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/, `${filePath} must not suppress or guess across its checked boundary`);
 }

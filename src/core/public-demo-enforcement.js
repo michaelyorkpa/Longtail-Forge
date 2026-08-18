@@ -1,5 +1,3 @@
-// @ts-check
-
 import { config } from "../config.js";
 import { AppError } from "../utils/app-error.js";
 import { internalEventBus } from "./events/event-bus.js";

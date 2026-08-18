@@ -4,6 +4,9 @@
 // surface load. Selectors are stable framework anatomy hooks, not text or
 // positional selectors.
 
+/** @typedef {{ name: string, path: string, host: string }} SmokeSurface */
+
+/** @type {ReadonlyArray<SmokeSurface>} */
 const SMOKE_SURFACES = [
   {
     name: "Dashboard",
@@ -46,4 +49,19 @@ const SHELL = {
   primaryMenu: "#primary-menu",
 };
 
-export { SHELL, SMOKE_SURFACES };
+/**
+ * Resolve a named smoke surface or fail the calling test loudly; specs use
+ * this instead of an unchecked Array.find so a renamed surface can never
+ * silently skip rendered coverage.
+ * @param {string} name
+ * @returns {SmokeSurface}
+ */
+function requireSmokeSurface(name) {
+  const surface = SMOKE_SURFACES.find((candidate) => candidate.name === name);
+  if (!surface) {
+    throw new Error(`Unknown smoke surface: ${name}`);
+  }
+  return surface;
+}
+
+export { SHELL, SMOKE_SURFACES, requireSmokeSurface };

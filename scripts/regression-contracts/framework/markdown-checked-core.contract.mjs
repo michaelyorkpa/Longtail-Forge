@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const markdownPath = "src/core/markdown/markdown.service.js";
 const [markdownSource, typecheckLedgerSource] = await Promise.all([
@@ -17,7 +18,7 @@ const [markdownSource, typecheckLedgerSource] = await Promise.all([
 ]);
 const typecheckLedger = JSON.parse(typecheckLedgerSource);
 
-assert.match(markdownSource, /^\/\/ @ts-check/, "the Markdown service must stay checked");
+assert.deepEqual(strictCleanOwnerState(markdownPath), { owned: true, diagnostics: 0 }, "the Markdown service must stay strict-clean in its checked program");
 assert.ok(typecheckLedger.programs["server-tests"].files.includes(markdownPath), "the Markdown service must stay in the strict server/tests program");
 assert.equal(typecheckLedger.programs["server-tests"].diagnostics[markdownPath], undefined, "the Markdown service must stay strict-clean");
 assert.doesNotMatch(markdownSource, /@ts-(?:ignore|expect-error)|@(?:type|param|returns?)\s*\{any\}|as unknown as/, "the Markdown service must not suppress or guess across its checked boundary");

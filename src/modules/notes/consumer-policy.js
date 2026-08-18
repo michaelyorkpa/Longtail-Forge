@@ -1,5 +1,3 @@
-// @ts-check
-
 import { AppError } from "../../core/errors.js";
 import { isEffectivelySecureNote } from "./effective-security.js";
 

@@ -86,6 +86,9 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
     if (request.method() === "POST" && pathname.endsWith("/rotate")) {
       const id = pathname.split("/").at(-2);
       const item = subscriptions.find((entry) => entry.subscriptionId === id);
+      if (!item) {
+        throw new Error(`no calendar subscription matched the rotate id ${id}`);
+      }
       item.rotatedAt = "2026-07-25T15:00:00.000Z";
       issueNumber += 1;
       await route.fulfill({
@@ -111,6 +114,9 @@ test("Calendar subscriptions support Workspace, Client, and Project lifecycle", 
   });
 
   const response = await page.goto("/calendar-settings.html");
+  if (!response) {
+    throw new Error("navigating to /calendar-settings.html returned no response");
+  }
   expect(response.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "Calendar", exact: true })).toBeVisible();
   await expect(page.locator('a[href="calendar-settings.html"]')).toHaveCount(1);
@@ -250,6 +256,9 @@ test("Personal and Family Calendar Settings offer Workspace and Project without 
   for (const type of ["personal", "family"]) {
     workspaceType = type;
     const response = await page.goto("/calendar-settings.html");
+    if (!response) {
+      throw new Error("navigating to /calendar-settings.html returned no response");
+    }
     expect(response.status()).toBe(200);
 
     const scope = page.locator("[data-calendar-subscription-scope]");
@@ -275,9 +284,9 @@ test("disabled Tasks keeps Calendar metadata and revocation available", async ({
   await page.route("**/api/app-shell/bootstrap", async (route) => {
     const response = await route.fetch();
     const body = await response.json();
-    body.enabledModules = (body.enabledModules || []).filter((moduleId) => moduleId !== "tasks");
+    body.enabledModules = (body.enabledModules || []).filter((/** @type {string} */ moduleId) => moduleId !== "tasks");
     body.workspaceContext.enabledModules = (body.workspaceContext?.enabledModules || [])
-      .filter((moduleId) => moduleId !== "tasks");
+      .filter((/** @type {string} */ moduleId) => moduleId !== "tasks");
     await route.fulfill({ response, json: body });
   });
   await page.route("**/api/client-projects?view=options", (route) => route.fulfill({
@@ -300,6 +309,9 @@ test("disabled Tasks keeps Calendar metadata and revocation available", async ({
   }));
 
   const response = await page.goto("/calendar-settings.html");
+  if (!response) {
+    throw new Error("navigating to /calendar-settings.html returned no response");
+  }
   expect(response.status()).toBe(200);
   await expect(page.locator("[data-calendar-subscription-availability]")).toContainText("Tasks is disabled");
   await expect(page.getByRole("button", { name: "Create Subscription" })).toBeDisabled();
@@ -309,6 +321,10 @@ test("disabled Tasks keeps Calendar metadata and revocation available", async ({
   await expect(page.locator('a[href="calendar-settings.html"]')).toHaveCount(1);
 });
 
+/**
+ * @param {{ id: string, name: string, owner: string, ownedByCurrentUser: boolean, scope: string, status?: string }} details
+ * @returns {{ createdAt: string, name: string, ownedByCurrentUser: boolean, owner: { displayName: string, username: string }, revokedAt: string | null, rotatedAt: string | null, scope: { label: string, type: string }, status: string, subscriptionId: string, timezone: string }}
+ */
 function subscription({
   id,
   name,

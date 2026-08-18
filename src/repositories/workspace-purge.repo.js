@@ -1,5 +1,3 @@
-// @ts-check
-
 import { db } from "../core/database.js";
 import { accountExportRecoveryRepository } from "./account-export-recovery.repo.js";
 

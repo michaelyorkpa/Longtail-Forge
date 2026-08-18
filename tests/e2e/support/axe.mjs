@@ -16,8 +16,14 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 // Each entry: { rule: "<axe rule id>", target: "<exact axe target selector>",
 // reason: "<why this is safe to defer and what unblocks removing it>" }.
+/** @type {Array<{ rule: string, target: string, reason: string }>} */
 const KNOWN_ISSUE_FINGERPRINTS = [];
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {import("@playwright/test").TestInfo} testInfo
+ * @param {string} label
+ */
 async function expectNoWcagViolations(page, testInfo, label) {
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   const unexpected = [];

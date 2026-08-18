@@ -1,4 +1,3 @@
-// @ts-check
 import { summarizeActivityEvent } from "../core/events/event-summaries.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { workResumeStateService } from "./work-resume-state.service.js";

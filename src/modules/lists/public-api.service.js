@@ -1,4 +1,3 @@
-// @ts-check
 import { listsService } from "./lists.service.js";
 
 /** @param {ApiSession} context @param {ListsServiceQuery} [query] @returns {Promise<ListsPublicApiListResult>} */

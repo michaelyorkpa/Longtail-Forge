@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { config } from "../config.js";
 import { correspondingSourceUrl } from "../core/corresponding-source.js";

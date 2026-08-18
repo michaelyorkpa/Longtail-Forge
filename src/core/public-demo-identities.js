@@ -1,5 +1,3 @@
-// @ts-check
-
 import { AppError } from "../utils/app-error.js";
 import { isPublicDemoVisitorIdentity } from "./public-demo-runtime.js";
 

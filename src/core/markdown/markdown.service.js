@@ -1,5 +1,3 @@
-// @ts-check
-
 import MarkdownIt from "markdown-it";
 
 /** @typedef {import("markdown-it").MarkdownIt} MarkdownParser */

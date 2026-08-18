@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} title
+ */
 async function createTask(request, title) {
   const response = await request.post("/api/tasks", { data: { title } });
   expect(response.status()).toBe(201);

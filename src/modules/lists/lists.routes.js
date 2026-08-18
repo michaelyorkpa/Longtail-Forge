@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { listsService } from "./lists.service.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";

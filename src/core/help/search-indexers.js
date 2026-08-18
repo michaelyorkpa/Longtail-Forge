@@ -1,4 +1,3 @@
-// @ts-check
 import { registerSearchIndexer } from "../search/indexer-registry.js";
 import { helpService, HELP_SEARCH_INDEXER_ID } from "../../services/help.service.js";
 

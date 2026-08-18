@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../types/framework-contracts.js").AppShellBootstrap} AppShellBootstrap */
 /** @typedef {{ href?: string, id: string, items?: AppShellNavigationItem[], label: string, moduleId?: string }} AppShellNavigationItem */
 /** @typedef {{ id: string, items: AppShellNavigationItem[], label: string }} AppShellNavigationMenu */

@@ -1,5 +1,3 @@
-// @ts-check
-
 import { AppError } from "../../core/errors.js";
 import {
   MARKDOWN_RENDER_MODES,

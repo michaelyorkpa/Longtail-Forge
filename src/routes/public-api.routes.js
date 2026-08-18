@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { requireApiKey } from "../middleware/require-api-key.js";
 import { publicApiService } from "../services/public-api.service.js";

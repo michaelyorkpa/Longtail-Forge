@@ -1,5 +1,3 @@
-// @ts-check
-
 import { taskRemindersService } from "./task-reminders.service.js";
 
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskSettingsContext} TaskSettingsContext */

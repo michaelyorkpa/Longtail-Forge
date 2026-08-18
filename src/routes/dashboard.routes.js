@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { dashboardService } from "../services/dashboard.service.js";
 import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";

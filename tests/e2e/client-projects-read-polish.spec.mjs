@@ -4,17 +4,30 @@ import { expect, test } from "@playwright/test";
 
 const FOCUS_CLEARANCE_TOLERANCE_PX = 0.01;
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} path
+ * @param {Record<string, unknown>} data
+ * @param {string} label
+ */
 async function createRecord(request, path, data, label) {
   const response = await request.post(path, { data });
   expect(response.status(), `${label} should be created`).toBe(201);
   return response.json();
 }
 
+/**
+ * @param {import("@playwright/test").Locator} table
+ * @param {string[]} contentHeaders
+ */
 async function expectBlankUtilityHeaders(table, contentHeaders) {
   const headers = await table.locator("thead th").allTextContents();
   expect(headers.map((header) => header.trim())).toEqual(["", ...contentHeaders, ""]);
 }
 
+/**
+ * @param {import("@playwright/test").Locator} control
+ */
 async function expectFocusRingClearance(control) {
   const clearance = await control.evaluate((element) => {
     element.focus({ preventScroll: true });
@@ -40,6 +53,9 @@ async function expectFocusRingClearance(control) {
   });
 
   expect(clearance, "the focused control should be inside the filter drawer body").not.toBeNull();
+  if (!clearance) {
+    throw new Error("the focused control was outside the filter drawer body");
+  }
   expect(clearance.focused, "the filter control should accept focus while its ring clearance is measured").toBe(true);
   expect(clearance.left + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
   expect(clearance.right + FOCUS_CLEARANCE_TOLERANCE_PX).toBeGreaterThanOrEqual(clearance.focusPaint);
@@ -89,6 +105,9 @@ test("Clients and Projects read surfaces preserve hierarchy, workspace filtering
   );
 
   const clientsResponse = await page.goto("/clients.html");
+  if (!clientsResponse) {
+    throw new Error("navigating to /clients.html returned no response");
+  }
   expect(clientsResponse.status()).toBe(200);
   const clientsTable = page.locator(".view-data-table").first();
   await expect(clientsTable).toBeVisible();
@@ -104,7 +123,7 @@ test("Clients and Projects read surfaces preserve hierarchy, workspace filtering
     return {
       chipContained: Boolean(chip && chip.scrollWidth <= chip.clientWidth + 1),
       chipWrap: chip ? getComputedStyle(chip).overflowWrap : "",
-      priorBorder: priorRow ? getComputedStyle(priorRow.lastElementChild).borderBottomWidth : "missing",
+      priorBorder: priorRow ? getComputedStyle(/** @type {Element} */ (priorRow.lastElementChild)).borderBottomWidth : "missing",
     };
   });
   expect(clientTagLayout).toEqual({ chipContained: true, chipWrap: "anywhere", priorBorder: "0px" });
@@ -116,6 +135,9 @@ test("Clients and Projects read surfaces preserve hierarchy, workspace filtering
   await expectFocusRingClearance(clientsDrawer.locator('[data-view-input="tagIds"]'));
 
   const projectsResponse = await page.goto("/projects.html");
+  if (!projectsResponse) {
+    throw new Error("navigating to /projects.html returned no response");
+  }
   expect(projectsResponse.status()).toBe(200);
   const projectsTable = page.locator(".view-data-table").first();
   await expect(projectsTable).toBeVisible();

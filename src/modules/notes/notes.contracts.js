@@ -1,4 +1,3 @@
-// @ts-check
 // Notes edge-payload contracts.
 //
 // Notes accepts a deliberately liberal workflow shape: browser and trusted

@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * @template RecordType
  * @param {RecordType[]} [records]

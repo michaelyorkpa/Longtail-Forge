@@ -1,4 +1,3 @@
-// @ts-check
 import { Buffer } from "node:buffer";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseParams} DatabaseParams */

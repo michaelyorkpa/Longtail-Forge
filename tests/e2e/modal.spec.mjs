@@ -8,11 +8,12 @@
 // action renders (`data-add-task`).
 
 import { expect, test } from "@playwright/test";
-import { SMOKE_SURFACES } from "./support/surfaces.mjs";
+import { requireSmokeSurface } from "./support/surfaces.mjs";
 
-const tasks = SMOKE_SURFACES.find((surface) => surface.name === "Tasks");
+const tasks = requireSmokeSurface("Tasks");
 
 test("the Add Task modal fits the viewport without overflow or console errors", async ({ page }) => {
+  /** @type {string[]} */
   const violations = [];
 
   page.on("pageerror", (error) => {

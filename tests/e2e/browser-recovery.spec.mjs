@@ -121,7 +121,7 @@ test("unhandled conflict and dependency reads select manual recovery without rep
   await page.waitForFunction(() => typeof window.LongtailForge?.api?.getJson === "function");
 
   await page.evaluate(() => {
-    void window.LongtailForge.api.getJson("/api/browser-recovery-dependency-test");
+    void window.LongtailForge?.api?.getJson("/api/browser-recovery-dependency-test");
   });
 
   const surface = page.locator("[data-framework-recovery][data-recovery-kind='dependency-unavailable']");
@@ -146,7 +146,7 @@ test("unhandled conflict and dependency reads select manual recovery without rep
     });
   });
   await page.evaluate(() => {
-    void window.LongtailForge.api.getJson("/api/browser-recovery-conflict-test");
+    void window.LongtailForge?.api?.getJson("/api/browser-recovery-conflict-test");
   });
   await expect(page.locator("[data-framework-recovery][data-recovery-kind='conflict']")).toBeVisible();
   await expect(page.getByRole("link", { name: "Reload page" })).toHaveCount(1);

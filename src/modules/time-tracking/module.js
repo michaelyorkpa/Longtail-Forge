@@ -1,4 +1,3 @@
-// @ts-check
 import { timeEntriesRoutes } from "./time-entries.routes.js";
 import { timeTrackingReportingRoutes } from "./reporting.routes.js";
 import { timeTrackingDashboardRoutes } from "./time-tracking-dashboard.routes.js";

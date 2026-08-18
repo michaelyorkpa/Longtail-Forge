@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { activeTimersService } from "../modules/time-tracking/index.js";
 import { workFocusModesService } from "../services/work-focus-modes.service.js";

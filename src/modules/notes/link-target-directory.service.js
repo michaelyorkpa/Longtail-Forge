@@ -1,4 +1,3 @@
-// @ts-check
 import { clientProjectsLinkTargetProvider } from "../client-projects/index.js";
 import { listsLinkTargetProvider } from "../lists/index.js";
 import { tasksLinkTargetProvider } from "../tasks/index.js";

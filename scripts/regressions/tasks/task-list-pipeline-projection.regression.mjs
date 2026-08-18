@@ -14,6 +14,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-list-pipeline-"));
@@ -48,7 +49,8 @@ try {
   assert.match(resumeProducersSource, /tasksService\.readCore\(\s*recordId,\s*\/\*\* @type \{import\("\.\.\/types\/task-server-contracts\.d\.ts"\)\.TaskServerSession\} \*\/ \(session\),\s*\)/, "the resume-state read check should use the lightweight core read through the named Tasks session boundary");
   assert.match(tasksServiceSource, /createTaskListFilterContext[\s\S]*visibleTaskListCandidates[\s\S]*taskMatchesCanonicalQuery/, "the Tasks orchestrator should consume the typed filter engine boundary");
   assert.doesNotMatch(tasksServiceSource, /function (?:taskMatchesCanonicalQuery|sortCanonicalTasks|normalizeTaskListPagination)\b/, "the Tasks orchestrator must not re-own extracted filter, sort, or paging decisions");
-  assert.match(taskListEngineSource, /\/\/ @ts-check[\s\S]*function createTaskListFilterContext[\s\S]*function taskMatchesCanonicalQuery[\s\S]*function sortCanonicalTasks/, "the checked engine should own normalization, filtering, and stable sorting");
+  assert.deepEqual(strictCleanOwnerState("src/modules/tasks/task-list-engine.js"), { owned: true, diagnostics: 0 }, "the filter engine must remain strict-clean in its checked program");
+  assert.match(taskListEngineSource, /function createTaskListFilterContext[\s\S]*function taskMatchesCanonicalQuery[\s\S]*function sortCanonicalTasks/, "the checked engine should own normalization, filtering, and stable sorting");
   assert.match(tasksRepositorySource, /normalizeTaskListSort[\s\S]*taskStatusFilterOverridesActiveScope/, "the repository SQL projection should consume the engine's canonical sort and active-scope normalization");
 
   await initializeDatabase();

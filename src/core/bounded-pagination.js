@@ -1,4 +1,3 @@
-// @ts-check
 const DEFAULT_MAX_OFFSET = Number.MAX_SAFE_INTEGER;
 
 /** @typedef {{ limit?: unknown, pageSize?: unknown, page_size?: unknown, cursor?: unknown, nextCursor?: unknown, next_cursor?: unknown, offset?: unknown }} BoundedPaginationSource */

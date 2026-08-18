@@ -1,4 +1,3 @@
-// @ts-check
 import { listsRepository } from "./lists.repo.js";
 import { createCatalogItemsService } from "./catalog-items.service.js";
 import { createListItemsService } from "./list-items.service.js";

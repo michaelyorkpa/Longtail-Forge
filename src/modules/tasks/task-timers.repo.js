@@ -1,5 +1,3 @@
-// @ts-check
-
 import { activeTimersRepository } from "../time-tracking/index.js";
 
 /** @typedef {import("../../types/task-workflow-contracts.js").TaskTimerRecord} TaskTimerRecord */

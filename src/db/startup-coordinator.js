@@ -1,4 +1,3 @@
-// @ts-check
 import { performance } from "node:perf_hooks";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseStartupAction} DatabaseStartupAction */

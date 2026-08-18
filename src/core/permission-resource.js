@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
 
 /**

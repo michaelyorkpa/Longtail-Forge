@@ -9,11 +9,14 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test("login shows only the form appropriate to the authentication state", async ({ page }) => {
   const response = await page.goto("/login.html");
 
+  if (!response) {
+    throw new Error("navigating to /login.html returned no response");
+  }
   expect(response.status(), "the public login view must be served without a session").toBe(200);
   await expect(page.locator("[data-login-form]")).toBeVisible();
   await expect(page.locator("[data-required-password-form]")).toBeHidden();
 
-  await page.evaluate(() => globalThis.showRequiredPasswordChange("temporary-password"));
+  await page.evaluate(() => /** @type {typeof globalThis & { showRequiredPasswordChange: (currentPassword: string) => void }} */ (globalThis).showRequiredPasswordChange("temporary-password"));
 
   await expect(page.locator("[data-login-form]")).toBeHidden();
   await expect(page.locator("[data-required-password-form]")).toBeVisible();
@@ -76,6 +79,9 @@ test("remembered-login action row is aligned, operable, and submits an explicit 
   expect(passwordBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
   expect(buttonBox).not.toBeNull();
+  if (!usernameBox || !passwordBox || !labelBox || !buttonBox) {
+    throw new Error("a remembered-login control bounding box was missing");
+  }
   expect(Math.abs(labelBox.x - usernameBox.x), "remembered-login label should share the field's left edge").toBeLessThanOrEqual(1);
   expect(
     Math.abs((buttonBox.x + buttonBox.width) - (passwordBox.x + passwordBox.width)),
@@ -98,6 +104,7 @@ test("remembered-login action row is aligned, operable, and submits an explicit 
 });
 
 test("login follows the safe server-resolved preferred landing page", async ({ page }) => {
+  /** @type {{ password?: string, rememberMe?: boolean, username?: string } | undefined} */
   let loginPayload;
   await page.route("**/api/session", (route) => route.fulfill({
     status: 401,
@@ -129,6 +136,9 @@ test("login follows the safe server-resolved preferred landing page", async ({ p
   await page.locator('[name="password"]').fill("password");
   await page.locator('[data-login-form] button[type="submit"]').click();
   await expect(page).toHaveURL(/\/workbench\.html$/);
+  if (!loginPayload) {
+    throw new Error("the login payload was not captured");
+  }
   expect(loginPayload.rememberMe).toBe(false);
 });
 
