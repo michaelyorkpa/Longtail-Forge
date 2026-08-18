@@ -1,5 +1,14 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.4 - Type demo lifecycle, role journey, and workspace cleanup tooling
+
+**Model: High Effort** - Demo reset and cleanup tooling deletes real workspace state behind operator confirmation.
+
+- [x] Closed all 145 diagnostics in `cleanup-development-workspaces.mjs`, `sanitized-demo-role-journey.mjs`, and `demo-data-host.mjs`.
+- [x] Typed workspace inventory rows, deletion plans, orphan-user projections, schema column and foreign-key maps, role fixtures, role catalog entries, and session journeys with named contracts; every edit is a JSDoc block or a cast wrapping an existing expression, audited line by line with no function converted to an arrow, nothing extracted or inlined, no declaration moved scope, no fallback operator introduced, and every presence cast still dereferencing exactly as before.
+- [x] Preserved operator-password admission, dry-run inventory reporting, destructive confirmation, verified-backup ordering, and sanitized-fixture redaction exactly, proven by the workspace-cleanup isolation regression driving the dry-run report, `--apply` refusals, and authorized retained-role repair, and by the sanitized-demo-role-journey regression spawning the script end to end and asserting no fixture password reaches stdout or stderr.
+- [x] Completed the 0.33.33.28.3 record as part of this checkpoint: that cohort reached zero but shipped without its governance zone pin or suite-contract entry and carried two behavior changes a type-only checkpoint must not make. Both are corrected — the dashboard measurement passes the measured user's timezone through unchanged so a null value still fails loudly at `Intl` rather than silently measuring UTC, and the native-module platform probe restores its truthiness test so an empty `glibcVersionRuntime` still resolves to `linuxmusl`. `framework.full-strict-governance` now pins both the five measurement owners and the three demo-lifecycle owners strict-clean; the scripts program falls from 7,409 to 7,150 diagnostics across the two checkpoints, combined debt from 18,543 to 18,284 with explicit `any` at 7, and effective regression assertions advance to 18,971 across 347 scripts.
+
 ## Version 0.33.33.28.3 - Type performance, load, and installation diagnostic tooling
 
 **Model: High Effort** - Measurement tooling must not silently change what it measures.

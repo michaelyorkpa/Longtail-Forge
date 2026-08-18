@@ -123,15 +123,10 @@ RETURNING id, label;
 
 function resolveSelectedPlatformTarget() {
   if (process.platform === "linux") {
-    const report = /** @type {unknown} */ (process.report.getReport());
-    const isMusl = !(
-      typeof report === "object" &&
-      report !== null &&
-      "header" in report &&
-      typeof (report.header) === "object" &&
-      report.header !== null &&
-      typeof (/** @type {{ glibcVersionRuntime?: unknown }} */ (report.header)).glibcVersionRuntime === "string"
-    );
+    // Keep the original truthiness test: an empty or absent glibc runtime
+    // means musl, and a missing header still throws exactly as before.
+    const report = /** @type {{ header: { glibcVersionRuntime?: string } }} */ (process.report.getReport());
+    const isMusl = !report.header.glibcVersionRuntime;
     return `${isMusl ? "linuxmusl" : "linux"}-${process.arch}`;
   }
 

@@ -12,10 +12,241 @@ const DEFAULT_DATABASE_FILE = path.join(root, "data", "longtail-forge.db");
 const PERSONAL_OWNER_USERNAME = "michaelyork@raymondtec.com";
 const RETAINED_NAMED_WORKSPACES = Object.freeze(["York Family", "York-Lasher", "Raymond Tec"]);
 
+/**
+ * An open better-sqlite3 handle for a development workspace database.
+ * @typedef {InstanceType<typeof Database>} DatabaseHandle
+ */
+
+/**
+ * A prepared statement re-typed for streaming row iteration.
+ * @typedef {ReturnType<DatabaseHandle["prepare"]> & { iterate: (...bindings: unknown[]) => Iterable<Record<string, unknown>> }} IterableStatement
+ */
+
+/**
+ * The mutation summary better-sqlite3 reports for one executed statement.
+ * @typedef {{ changes: number }} StatementRunResult
+ */
+
+/**
+ * Parsed cleanup command-line options.
+ * @typedef {object} CleanupOptions
+ * @property {boolean} apply
+ * @property {string} backupFile
+ * @property {string} databaseFile
+ * @property {boolean} help
+ * @property {boolean} repairDanglingRetainedRoleAssignments
+ */
+
+/**
+ * One workspace inventory record, optionally carrying retained-selector detail.
+ * @typedef {object} WorkspaceInventoryRow
+ * @property {string} workspace_id
+ * @property {string} name
+ * @property {string} status
+ * @property {string} workspace_type
+ * @property {string | null} owner_user_id
+ * @property {string} created_at
+ * @property {string} updated_at
+ * @property {string} [display_name]
+ * @property {string} [member_user_id]
+ * @property {string} [member_username]
+ * @property {string} [membership_id]
+ * @property {string} [membership_status]
+ * @property {string} [resolution]
+ */
+
+/**
+ * One Personal workspace membership row resolved by the confirmed owner username.
+ * @typedef {WorkspaceInventoryRow & { user_workspace_id: string, membership_status: string, member_user_id: string, member_username: string }} PersonalWorkspaceMembershipRow
+ */
+
+/**
+ * A bare workspace identifier row.
+ * @typedef {{ workspace_id: string }} WorkspaceIdRow
+ */
+
+/**
+ * One PRAGMA table_info column row.
+ * @typedef {{ name: string }} TableColumnRow
+ */
+
+/**
+ * One PRAGMA foreign_key_list row.
+ * @typedef {{ from: string, table: string }} TableForeignKeyRow
+ */
+
+/**
+ * One PRAGMA foreign_key_check violation row.
+ * @typedef {{ fkid: number, parent: string, rowid: number, table: string }} ForeignKeyCheckRow
+ */
+
+/**
+ * One PRAGMA integrity_check result row.
+ * @typedef {{ integrity_check?: string }} IntegrityCheckRow
+ */
+
+/**
+ * One user touched by the pending workspace removals.
+ * @typedef {object} AffectedUserRow
+ * @property {string} user_id
+ * @property {string} username
+ * @property {string | null} home_workspace_id
+ * @property {string | null} active_workspace_id
+ * @property {unknown} retained_membership_count
+ */
+
+/**
+ * The redacted affected-user projection printed in the plan.
+ * @typedef {object} PublicAffectedUser
+ * @property {string | null} active_workspace_id
+ * @property {string | null} home_workspace_id
+ * @property {number} retained_membership_count
+ * @property {string} user_id
+ * @property {string} username
+ */
+
+/**
+ * One retained user whose home or active workspace must be re-pointed.
+ * @typedef {object} RehomeUserRecord
+ * @property {string | null} active_workspace_id
+ * @property {string} fallback_workspace_id
+ * @property {string | null} home_workspace_id
+ * @property {string} user_id
+ * @property {string} username
+ */
+
+/**
+ * One user_role_assignments row read while classifying a violation.
+ * @typedef {object} RoleAssignmentViolationRow
+ * @property {string} assignment_id
+ * @property {string} user_id
+ * @property {string} role_id
+ * @property {string} scope_id
+ * @property {string} scope_type
+ */
+
+/**
+ * One classified pre-existing foreign-key violation.
+ * @typedef {object} ForeignKeyViolationRecord
+ * @property {string | undefined} assignmentId
+ * @property {number} foreignKeyId
+ * @property {string} parentTable
+ * @property {boolean} repairableByAuthorizedRoleCleanup
+ * @property {boolean} removableByWorkspaceCleanup
+ * @property {string | undefined} roleId
+ * @property {number} rowid
+ * @property {string | undefined} scopeId
+ * @property {string | undefined} scopeType
+ * @property {string} table
+ * @property {string | undefined} userId
+ * @property {string | null} workspaceId
+ */
+
+/**
+ * The reported identity of one workspace in a plan or result.
+ * @typedef {object} WorkspaceSummary
+ * @property {string} displayName
+ * @property {string | undefined} membershipId
+ * @property {string | null} ownerUserId
+ * @property {string | undefined} resolution
+ * @property {string} status
+ * @property {string} workspaceId
+ * @property {string} workspaceType
+ */
+
+/**
+ * Dependent row counts reported for one workspace scope.
+ * @typedef {object} DependentCountRecord
+ * @property {WorkspaceSummary | { displayName: string, workspaceId: string }} workspace
+ * @property {Record<string, number>} tables
+ * @property {number} usersReferencingWorkspace
+ * @property {number} sessionsReferencingWorkspace
+ */
+
+/**
+ * The reflected schema surface the cleanup plan walks.
+ * @typedef {object} CleanupSchema
+ * @property {Map<string, TableColumnRow[]>} columnsByTable
+ * @property {Map<string, TableForeignKeyRow[]>} foreignKeysByTable
+ * @property {string[]} tables
+ * @property {string[]} workspaceTables
+ */
+
+/**
+ * The complete deletion plan built before the first destructive statement runs.
+ * @typedef {object} CleanupPlan
+ * @property {AffectedUserRow[]} affectedUsers
+ * @property {ForeignKeyViolationRecord[]} authorizedRoleAssignmentRepairs
+ * @property {string} databaseFile
+ * @property {ForeignKeyViolationRecord[]} blockingForeignKeyViolations
+ * @property {DependentCountRecord[]} dependentCounts
+ * @property {ForeignKeyViolationRecord[]} foreignKeyViolations
+ * @property {string[]} orphanUserIds
+ * @property {string} preCleanupInventoryFingerprint
+ * @property {RehomeUserRecord[]} rehomeUsers
+ * @property {string[]} removalWorkspaceIds
+ * @property {WorkspaceInventoryRow[]} removalWorkspaces
+ * @property {string[]} orphanWorkspaceScopes
+ * @property {string} retainedFingerprint
+ * @property {string} retainedFingerprintAfterAuthorizedRepairs
+ * @property {string[]} retainedWorkspaceIds
+ * @property {WorkspaceInventoryRow[]} retainedWorkspaces
+ * @property {CleanupSchema} schema
+ */
+
+/**
+ * The redacted plan projection printed in every report.
+ * @typedef {object} PublicCleanupPlan
+ * @property {PublicAffectedUser[]} affectedUsers
+ * @property {ForeignKeyViolationRecord[]} authorizedRoleAssignmentRepairs
+ * @property {DependentCountRecord[]} dependentCounts
+ * @property {ForeignKeyViolationRecord[]} blockingForeignKeyViolations
+ * @property {ForeignKeyViolationRecord[]} foreignKeyViolations
+ * @property {string[]} orphanUserIds
+ * @property {string[]} orphanWorkspaceScopes
+ * @property {number} removalWorkspaceCount
+ * @property {WorkspaceSummary[]} removalWorkspaces
+ * @property {number} retainedWorkspaceCount
+ * @property {WorkspaceSummary[]} retainedWorkspaces
+ * @property {RehomeUserRecord[]} userRehomes
+ */
+
+/**
+ * The verified pre-cleanup backup record.
+ * @typedef {object} BackupRecord
+ * @property {string} file
+ * @property {string} inventoryFingerprint
+ * @property {number} sizeBytes
+ * @property {boolean} verified
+ */
+
+/**
+ * The applied-cleanup outcome recorded once the transaction commits.
+ * @typedef {object} CleanupResult
+ * @property {Record<string, number>} deletionCounts
+ * @property {string} foreignKeyCheck
+ * @property {string} integrityCheck
+ * @property {number} removedWorkspaceCount
+ * @property {number} repairedDanglingRoleAssignmentCount
+ * @property {WorkspaceSummary[]} remainingWorkspaces
+ * @property {string} retainedFingerprint
+ * @property {number} retainedWorkspaceCount
+ */
+
+/**
+ * The report document printed for both dry-run and apply modes.
+ * @typedef {object} CleanupReport
+ * @property {"apply" | "dry-run"} action
+ * @property {BackupRecord | null} backup
+ * @property {string} databaseFile
+ * @property {PublicCleanupPlan} plan
+ * @property {CleanupResult | null} result
+ */
+
 try {
   await main();
 } catch (error) {
-  console.error(error?.message || error);
+  console.error(/** @type {{ message?: unknown }} */ (error)?.message || error);
   process.exitCode = 1;
 }
 
@@ -51,6 +282,7 @@ async function main() {
     const plan = buildCleanupPlan(database, databaseFile, {
       repairDanglingRetainedRoleAssignments: options.repairDanglingRetainedRoleAssignments,
     });
+    /** @type {CleanupReport} */
     const report = {
       action: options.apply ? "apply" : "dry-run",
       backup: null,
@@ -80,15 +312,22 @@ async function main() {
   }
 }
 
+/**
+ * Build the retained/removal cleanup plan for one database.
+ * @param {DatabaseHandle} database
+ * @param {string} databaseFile
+ * @param {{ repairDanglingRetainedRoleAssignments?: boolean }} [options]
+ * @returns {CleanupPlan}
+ */
 function buildCleanupPlan(database, databaseFile, options = {}) {
   const retainedWorkspaces = resolveRetainedWorkspaces(database);
   const retainedWorkspaceIds = retainedWorkspaces.map((workspace) => workspace.workspace_id);
   const retainedWorkspaceIdSet = new Set(retainedWorkspaceIds);
-  const allWorkspaces = database.prepare(`
+  const allWorkspaces = /** @type {WorkspaceInventoryRow[]} */ (database.prepare(`
 SELECT workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at
 FROM workspaces
 ORDER BY lower(name), workspace_id;
-`).all();
+`).all());
   const removalWorkspaces = allWorkspaces.filter((workspace) => !retainedWorkspaceIdSet.has(workspace.workspace_id));
   const schema = readSchema(database);
   const removalWorkspaceIds = readRemovalWorkspaceScopes(database, schema, retainedWorkspaceIds);
@@ -118,8 +357,8 @@ ORDER BY lower(name), workspace_id;
     .filter((user) =>
       Number(user.retained_membership_count) > 0 &&
       (
-        removalWorkspaceIdSet.has(user.home_workspace_id) ||
-        removalWorkspaceIdSet.has(user.active_workspace_id)
+        removalWorkspaceIdSet.has(/** @type {string} */ (user.home_workspace_id)) ||
+        removalWorkspaceIdSet.has(/** @type {string} */ (user.active_workspace_id))
       ),
     )
     .map((user) => ({
@@ -176,36 +415,49 @@ ORDER BY lower(name), workspace_id;
   };
 }
 
+/**
+ * Collect every workspace scope that is not on the retained list.
+ * @param {DatabaseHandle} database
+ * @param {CleanupSchema} schema
+ * @param {string[]} retainedWorkspaceIds
+ * @returns {string[]}
+ */
 function readRemovalWorkspaceScopes(database, schema, retainedWorkspaceIds) {
   const removalIds = new Set(
-    database.prepare(`
+    /** @type {WorkspaceIdRow[]} */ (database.prepare(`
 SELECT workspace_id
 FROM workspaces
 WHERE workspace_id NOT IN (${placeholders(retainedWorkspaceIds)});
-`).all(...retainedWorkspaceIds).map((row) => row.workspace_id),
+`).all(...retainedWorkspaceIds)).map((row) => row.workspace_id),
   );
 
   for (const table of schema.workspaceTables) {
-    const rows = database.prepare(`
+    const rows = /** @type {WorkspaceIdRow[]} */ (database.prepare(`
 SELECT DISTINCT workspace_id
 FROM ${quoteIdentifier(table)}
 WHERE workspace_id IS NOT NULL
   AND workspace_id NOT IN (${placeholders(retainedWorkspaceIds)});
-`).all(...retainedWorkspaceIds);
+`).all(...retainedWorkspaceIds));
     rows.forEach((row) => removalIds.add(row.workspace_id));
   }
 
   return [...removalIds].sort();
 }
 
+/**
+ * Resolve the four workspaces this cleanup must preserve.
+ * @param {DatabaseHandle} database
+ * @returns {WorkspaceInventoryRow[]}
+ */
 function resolveRetainedWorkspaces(database) {
+  /** @type {WorkspaceInventoryRow[]} */
   const retained = RETAINED_NAMED_WORKSPACES.map((name) => {
-    const matches = database.prepare(`
+    const matches = /** @type {WorkspaceInventoryRow[]} */ (database.prepare(`
 SELECT workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at
 FROM workspaces
 WHERE name = ?
 ORDER BY workspace_id;
-`).all(name);
+`).all(name));
 
     if (matches.length !== 1) {
       throw new Error(`Expected exactly one retained workspace named ${JSON.stringify(name)}; found ${matches.length}.`);
@@ -217,7 +469,7 @@ ORDER BY workspace_id;
       resolution: "exact-workspace-name",
     };
   });
-  const personalMatches = database.prepare(`
+  const personalMatches = /** @type {PersonalWorkspaceMembershipRow[]} */ (database.prepare(`
 SELECT
   w.workspace_id,
   w.name,
@@ -237,7 +489,7 @@ WHERE w.name = 'Personal'
   AND w.workspace_type = 'personal'
   AND lower(u.username) = lower(?)
 ORDER BY w.workspace_id, uw.user_workspace_id;
-`).all(PERSONAL_OWNER_USERNAME);
+`).all(PERSONAL_OWNER_USERNAME));
   const personalWorkspaceIds = [...new Set(personalMatches.map((row) => row.workspace_id))];
 
   if (personalWorkspaceIds.length !== 1 || personalMatches.length !== 1) {
@@ -271,20 +523,27 @@ ORDER BY w.workspace_id, uw.user_workspace_id;
   return retained;
 }
 
+/**
+ * Reflect the table, column, and foreign-key surface the plan walks.
+ * @param {DatabaseHandle} database
+ * @returns {CleanupSchema}
+ */
 function readSchema(database) {
-  const tables = database.prepare(`
+  const tables = /** @type {TableColumnRow[]} */ (database.prepare(`
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
   AND name NOT LIKE 'sqlite_%'
 ORDER BY name;
-`).all().map((row) => row.name);
+`).all()).map((row) => row.name);
+  /** @type {Map<string, TableColumnRow[]>} */
   const columnsByTable = new Map();
+  /** @type {Map<string, TableForeignKeyRow[]>} */
   const foreignKeysByTable = new Map();
 
   for (const table of tables) {
-    columnsByTable.set(table, database.prepare(`PRAGMA table_info(${quoteIdentifier(table)});`).all());
-    foreignKeysByTable.set(table, database.prepare(`PRAGMA foreign_key_list(${quoteIdentifier(table)});`).all());
+    columnsByTable.set(table, /** @type {TableColumnRow[]} */ (database.prepare(`PRAGMA table_info(${quoteIdentifier(table)});`).all()));
+    foreignKeysByTable.set(table, /** @type {TableForeignKeyRow[]} */ (database.prepare(`PRAGMA foreign_key_list(${quoteIdentifier(table)});`).all()));
   }
 
   return {
@@ -293,12 +552,20 @@ ORDER BY name;
     tables,
     workspaceTables: tables.filter((table) =>
       table !== "workspaces" &&
-      columnsByTable.get(table).some((column) => column.name === "workspace_id"),
+      /** @type {TableColumnRow[]} */ (columnsByTable.get(table)).some((column) => column.name === "workspace_id"),
     ),
   };
 }
 
+/**
+ * Count the rows each workspace-scoped table holds for one workspace.
+ * @param {DatabaseHandle} database
+ * @param {string[]} workspaceTables
+ * @param {string} workspaceId
+ * @returns {Record<string, number>}
+ */
 function readDependentCounts(database, workspaceTables, workspaceId) {
+  /** @type {Record<string, number>} */
   const counts = {};
 
   for (const table of workspaceTables) {
@@ -317,6 +584,12 @@ WHERE workspace_id = ?;
   return counts;
 }
 
+/**
+ * Count the user rows still pointing at one workspace.
+ * @param {DatabaseHandle} database
+ * @param {string} workspaceId
+ * @returns {number}
+ */
 function countUsersReferencingWorkspace(database, workspaceId) {
   const row = database.prepare(`
 SELECT COUNT(1) AS count
@@ -327,6 +600,12 @@ WHERE home_workspace_id = ?
   return Number(row?.count) || 0;
 }
 
+/**
+ * Count the session rows still pointing at one workspace.
+ * @param {DatabaseHandle} database
+ * @param {string} workspaceId
+ * @returns {number}
+ */
 function countSessionsReferencingWorkspace(database, workspaceId) {
   const row = database.prepare(`
 SELECT COUNT(1) AS count
@@ -337,12 +616,19 @@ WHERE home_workspace_id = ?
   return Number(row?.count) || 0;
 }
 
+/**
+ * Read every user whose membership or home workspace is being removed.
+ * @param {DatabaseHandle} database
+ * @param {string[]} removalWorkspaceIds
+ * @param {string[]} retainedWorkspaceIds
+ * @returns {AffectedUserRow[]}
+ */
 function readAffectedUsers(database, removalWorkspaceIds, retainedWorkspaceIds) {
   if (removalWorkspaceIds.length === 0) {
     return [];
   }
 
-  return database.prepare(`
+  return /** @type {AffectedUserRow[]} */ (database.prepare(`
 SELECT
   u.user_id,
   u.username,
@@ -363,11 +649,18 @@ WHERE u.home_workspace_id IN (${placeholders(removalWorkspaceIds)})
    )
 GROUP BY u.user_id
 ORDER BY lower(u.username), u.user_id;
-`).all(...retainedWorkspaceIds, ...removalWorkspaceIds, ...removalWorkspaceIds, ...removalWorkspaceIds);
+`).all(...retainedWorkspaceIds, ...removalWorkspaceIds, ...removalWorkspaceIds, ...removalWorkspaceIds));
 }
 
+/**
+ * Resolve the retained workspace one affected user can be re-homed into.
+ * @param {DatabaseHandle} database
+ * @param {string} userId
+ * @param {string[]} retainedWorkspaceIds
+ * @returns {string}
+ */
 function readFallbackRetainedWorkspace(database, userId, retainedWorkspaceIds) {
-  const row = database.prepare(`
+  const row = /** @type {WorkspaceIdRow | undefined} */ (database.prepare(`
 SELECT uw.workspace_id
 FROM user_workspaces uw
 INNER JOIN workspaces w ON w.workspace_id = uw.workspace_id
@@ -375,7 +668,7 @@ WHERE uw.user_id = ?
   AND uw.workspace_id IN (${placeholders(retainedWorkspaceIds)})
 ORDER BY CASE WHEN uw.status = 'active' THEN 0 ELSE 1 END, lower(w.name), uw.workspace_id
 LIMIT 1;
-`).get(userId, ...retainedWorkspaceIds);
+`).get(userId, ...retainedWorkspaceIds));
 
   if (!row?.workspace_id) {
     throw new Error(`Affected retained user ${userId} has no fallback retained workspace membership.`);
@@ -384,6 +677,14 @@ LIMIT 1;
   return row.workspace_id;
 }
 
+/**
+ * Refuse the cleanup when retained rows still reference a removable user.
+ * @param {DatabaseHandle} database
+ * @param {CleanupSchema} schema
+ * @param {string[]} retainedWorkspaceIds
+ * @param {string[]} orphanUserIds
+ * @returns {void}
+ */
 function assertNoRetainedWorkspaceReferencesOrphanUsers(database, schema, retainedWorkspaceIds, orphanUserIds) {
   if (orphanUserIds.length === 0) {
     return;
@@ -392,7 +693,7 @@ function assertNoRetainedWorkspaceReferencesOrphanUsers(database, schema, retain
   for (const table of ["workspaces", ...schema.workspaceTables]) {
     const userColumns = table === "workspaces"
       ? ["owner_user_id"]
-      : schema.foreignKeysByTable.get(table)
+      : /** @type {TableForeignKeyRow[]} */ (schema.foreignKeysByTable.get(table))
         .filter((foreignKey) => foreignKey.table === "users")
         .map((foreignKey) => foreignKey.from);
 
@@ -413,6 +714,14 @@ WHERE workspace_id IN (${placeholders(retainedWorkspaceIds)})
   }
 }
 
+/**
+ * Create and verify the pre-cleanup backup apply mode requires.
+ * @param {DatabaseHandle} database
+ * @param {string} databaseFile
+ * @param {string} backupFile
+ * @param {string} expectedInventoryFingerprint
+ * @returns {Promise<BackupRecord>}
+ */
 async function createAndVerifyBackup(database, databaseFile, backupFile, expectedInventoryFingerprint) {
   if (path.resolve(databaseFile) === path.resolve(backupFile)) {
     throw new Error("Backup path must differ from the source database path.");
@@ -451,6 +760,12 @@ async function createAndVerifyBackup(database, databaseFile, backupFile, expecte
   }
 }
 
+/**
+ * Execute the authorized deletion plan inside one rollback-safe transaction.
+ * @param {DatabaseHandle} database
+ * @param {CleanupPlan} plan
+ * @returns {CleanupResult}
+ */
 function applyCleanup(database, plan) {
   if (plan.blockingForeignKeyViolations.length > 0) {
     throw new Error(
@@ -463,14 +778,15 @@ function applyCleanup(database, plan) {
 
   try {
     database.pragma("defer_foreign_keys = ON");
+    /** @type {Record<string, number>} */
     const deletionCounts = {};
 
     if (plan.authorizedRoleAssignmentRepairs.length > 0) {
       const assignmentIds = plan.authorizedRoleAssignmentRepairs.map((repair) => repair.assignmentId);
-      deletionCounts.authorized_dangling_user_role_assignments = database.prepare(`
+      deletionCounts.authorized_dangling_user_role_assignments = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM user_role_assignments
 WHERE assignment_id IN (${placeholders(assignmentIds)});
-`).run(...assignmentIds).changes;
+`).run(...assignmentIds)).changes;
 
       if (deletionCounts.authorized_dangling_user_role_assignments !== assignmentIds.length) {
         throw new Error("Authorized dangling role-assignment repair count changed before apply; rolling back.");
@@ -478,28 +794,28 @@ WHERE assignment_id IN (${placeholders(assignmentIds)});
     }
 
     if (plan.removalWorkspaceIds.length > 0) {
-      deletionCounts.api_key_scopes = database.prepare(`
+      deletionCounts.api_key_scopes = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM api_key_scopes
 WHERE api_key_id IN (
   SELECT api_key_id
   FROM api_keys
   WHERE workspace_id IN (${placeholders(plan.removalWorkspaceIds)})
 );
-`).run(...plan.removalWorkspaceIds).changes;
+`).run(...plan.removalWorkspaceIds)).changes;
 
       for (const table of orderWorkspaceTablesForDeletion(plan.schema.workspaceTables)) {
-        deletionCounts[table] = database.prepare(`
+        deletionCounts[table] = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM ${quoteIdentifier(table)}
 WHERE workspace_id IN (${placeholders(plan.removalWorkspaceIds)});
-`).run(...plan.removalWorkspaceIds).changes;
+`).run(...plan.removalWorkspaceIds)).changes;
       }
 
-      deletionCounts.sessions = database.prepare(`
+      deletionCounts.sessions = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM sessions
 WHERE home_workspace_id IN (${placeholders(plan.removalWorkspaceIds)})
    OR active_workspace_id IN (${placeholders(plan.removalWorkspaceIds)})
    ${plan.orphanUserIds.length > 0 ? `OR user_id IN (${placeholders(plan.orphanUserIds)})` : ""};
-`).run(...plan.removalWorkspaceIds, ...plan.removalWorkspaceIds, ...plan.orphanUserIds).changes;
+`).run(...plan.removalWorkspaceIds, ...plan.removalWorkspaceIds, ...plan.orphanUserIds)).changes;
 
       for (const user of plan.rehomeUsers) {
         database.prepare(`
@@ -523,20 +839,20 @@ WHERE user_id = ?;
       }
 
       if (plan.orphanUserIds.length > 0) {
-        deletionCounts.user_workspace_creation_permissions = database.prepare(`
+        deletionCounts.user_workspace_creation_permissions = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM user_workspace_creation_permissions
 WHERE user_id IN (${placeholders(plan.orphanUserIds)});
-`).run(...plan.orphanUserIds).changes;
-        deletionCounts.users = database.prepare(`
+`).run(...plan.orphanUserIds)).changes;
+        deletionCounts.users = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM users
 WHERE user_id IN (${placeholders(plan.orphanUserIds)});
-`).run(...plan.orphanUserIds).changes;
+`).run(...plan.orphanUserIds)).changes;
       }
 
-      deletionCounts.workspaces = database.prepare(`
+      deletionCounts.workspaces = /** @type {StatementRunResult} */ (database.prepare(`
 DELETE FROM workspaces
 WHERE workspace_id IN (${placeholders(plan.removalWorkspaceIds)});
-`).run(...plan.removalWorkspaceIds).changes;
+`).run(...plan.removalWorkspaceIds)).changes;
     }
 
     const retainedAfter = resolveRetainedWorkspaces(database);
@@ -578,6 +894,14 @@ WHERE workspace_id IN (${placeholders(plan.removalWorkspaceIds)});
   }
 }
 
+/**
+ * Fingerprint every retained workspace row so cleanup can prove it changed nothing.
+ * @param {DatabaseHandle} database
+ * @param {CleanupSchema} schema
+ * @param {string[]} retainedWorkspaceIds
+ * @param {(string | undefined)[]} [excludedRoleAssignmentIds]
+ * @returns {string}
+ */
 function fingerprintRetainedWorkspaceData(
   database,
   schema,
@@ -590,13 +914,13 @@ function fingerprintRetainedWorkspaceData(
     const exclusionSql = table === "user_role_assignments" && excludedRoleAssignmentIds.length > 0
       ? `AND assignment_id NOT IN (${placeholders(excludedRoleAssignmentIds)})`
       : "";
-    const rows = database.prepare(`
+    const rows = /** @type {IterableStatement} */ (database.prepare(`
 SELECT *
 FROM ${quoteIdentifier(table)}
 WHERE workspace_id IN (${placeholders(retainedWorkspaceIds)})
   ${exclusionSql}
 ORDER BY workspace_id, rowid;
-`).iterate(...retainedWorkspaceIds, ...(
+`)).iterate(...retainedWorkspaceIds, ...(
       table === "user_role_assignments" ? excludedRoleAssignmentIds : []
     ));
 
@@ -606,13 +930,13 @@ ORDER BY workspace_id, rowid;
     }
   }
 
-  const apiKeyScopes = database.prepare(`
+  const apiKeyScopes = /** @type {IterableStatement} */ (database.prepare(`
 SELECT scopes.*
 FROM api_key_scopes scopes
 INNER JOIN api_keys keys ON keys.api_key_id = scopes.api_key_id
 WHERE keys.workspace_id IN (${placeholders(retainedWorkspaceIds)})
 ORDER BY scopes.api_key_id, scopes.scope;
-`).iterate(...retainedWorkspaceIds);
+`)).iterate(...retainedWorkspaceIds);
 
   hash.update("api_key_scopes\n");
   for (const row of apiKeyScopes) {
@@ -622,6 +946,11 @@ ORDER BY scopes.api_key_id, scopes.scope;
   return hash.digest("hex");
 }
 
+/**
+ * Fingerprint the whole workspace and membership inventory.
+ * @param {DatabaseHandle} database
+ * @returns {string}
+ */
 function fingerprintWorkspaceInventory(database) {
   const workspaces = database.prepare(`
 SELECT workspace_id, name, status, workspace_type, owner_user_id
@@ -636,23 +965,40 @@ ORDER BY user_workspace_id;
   return createHash("sha256").update(JSON.stringify([workspaces, memberships])).digest("hex");
 }
 
+/**
+ * Refuse to continue unless PRAGMA integrity_check reports a healthy database.
+ * @param {DatabaseHandle} database
+ * @param {string} label
+ * @returns {void}
+ */
 function assertIntegrity(database, label) {
-  const integrityRows = database.pragma("integrity_check");
+  const integrityRows = /** @type {IntegrityCheckRow[]} */ (database.pragma("integrity_check"));
 
   if (integrityRows.length !== 1 || String(integrityRows[0]?.integrity_check || "").toLowerCase() !== "ok") {
     throw new Error(`${label} failed PRAGMA integrity_check.`);
   }
 }
 
+/**
+ * Refuse to commit unless integrity and foreign-key checks both pass.
+ * @param {DatabaseHandle} database
+ * @param {string} label
+ * @returns {void}
+ */
 function assertHealthyDatabase(database, label) {
   assertIntegrity(database, label);
-  const foreignKeyRows = database.pragma("foreign_key_check");
+  const foreignKeyRows = /** @type {ForeignKeyCheckRow[]} */ (database.pragma("foreign_key_check"));
 
   if (foreignKeyRows.length > 0) {
     throw new Error(`${label} failed PRAGMA foreign_key_check with ${foreignKeyRows.length} violation(s).`);
   }
 }
 
+/**
+ * Project the plan into the shape printed by the dry-run inventory report.
+ * @param {CleanupPlan} plan
+ * @returns {PublicCleanupPlan}
+ */
 function publicPlan(plan) {
   return {
     affectedUsers: plan.affectedUsers.map((user) => ({
@@ -676,24 +1022,32 @@ function publicPlan(plan) {
   };
 }
 
+/**
+ * Classify every pre-existing foreign-key violation as removable, repairable, or blocking.
+ * @param {DatabaseHandle} database
+ * @param {CleanupSchema} schema
+ * @param {Set<string>} removalWorkspaceIds
+ * @param {Set<string>} retainedWorkspaceIds
+ * @returns {ForeignKeyViolationRecord[]}
+ */
 function classifyForeignKeyViolations(database, schema, removalWorkspaceIds, retainedWorkspaceIds) {
-  return database.pragma("foreign_key_check").map((violation) => {
+  return /** @type {ForeignKeyCheckRow[]} */ (database.pragma("foreign_key_check")).map((violation) => {
     const columns = schema.columnsByTable.get(violation.table) || [];
     const hasWorkspaceId = columns.some((column) => column.name === "workspace_id");
     const row = hasWorkspaceId
-      ? database.prepare(`
+      ? /** @type {WorkspaceIdRow | undefined} */ (database.prepare(`
 SELECT workspace_id
 FROM ${quoteIdentifier(violation.table)}
 WHERE rowid = ?;
-`).get(violation.rowid)
+`).get(violation.rowid))
       : null;
     const workspaceId = row?.workspace_id || null;
     const roleAssignment = violation.table === "user_role_assignments"
-      ? database.prepare(`
+      ? /** @type {RoleAssignmentViolationRow | undefined} */ (database.prepare(`
 SELECT assignment_id, workspace_id, user_id, role_id, scope_type, scope_id, client_id, project_id
 FROM user_role_assignments
 WHERE rowid = ?;
-`).get(violation.rowid)
+`).get(violation.rowid))
       : null;
     const referencedUserExists = roleAssignment
       ? Boolean(database.prepare("SELECT 1 FROM users WHERE user_id = ?;").get(roleAssignment.user_id))
@@ -701,7 +1055,7 @@ WHERE rowid = ?;
     const repairableByAuthorizedRoleCleanup = Boolean(
       roleAssignment &&
       violation.parent === "users" &&
-      retainedWorkspaceIds.has(workspaceId) &&
+      retainedWorkspaceIds.has(/** @type {string} */ (workspaceId)) &&
       !referencedUserExists
     );
 
@@ -722,6 +1076,11 @@ WHERE rowid = ?;
   });
 }
 
+/**
+ * Summarize one workspace for the plan and result reports.
+ * @param {WorkspaceInventoryRow} workspace
+ * @returns {WorkspaceSummary}
+ */
 function workspaceSummary(workspace) {
   return {
     displayName: workspace.display_name || workspace.name,
@@ -734,6 +1093,11 @@ function workspaceSummary(workspace) {
   };
 }
 
+/**
+ * Order workspace-scoped tables so dependent search rows are deleted first.
+ * @param {string[]} workspaceTables
+ * @returns {string[]}
+ */
 function orderWorkspaceTablesForDeletion(workspaceTables) {
   return [...workspaceTables].sort((left, right) => {
     if (left === "search_index_fts") {
@@ -746,6 +1110,11 @@ function orderWorkspaceTablesForDeletion(workspaceTables) {
   });
 }
 
+/**
+ * Render a non-empty bound-parameter placeholder list.
+ * @param {unknown[]} values
+ * @returns {string}
+ */
 function placeholders(values) {
   if (!Array.isArray(values) || values.length === 0) {
     throw new Error("A non-empty value list is required for cleanup SQL.");
@@ -753,17 +1122,33 @@ function placeholders(values) {
   return values.map(() => "?").join(", ");
 }
 
+/**
+ * Quote one SQL identifier.
+ * @param {unknown} value
+ * @returns {string}
+ */
 function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+/**
+ * Refuse to run against a missing database file.
+ * @param {string} databaseFile
+ * @returns {void}
+ */
 function assertDatabaseExists(databaseFile) {
   if (!fs.existsSync(databaseFile) || !fs.statSync(databaseFile).isFile()) {
     throw new Error(`Database file does not exist: ${databaseFile}`);
   }
 }
 
+/**
+ * Parse the cleanup command line.
+ * @param {string[]} values
+ * @returns {CleanupOptions}
+ */
 function parseArgs(values) {
+  /** @type {CleanupOptions} */
   const options = {
     apply: false,
     backupFile: "",

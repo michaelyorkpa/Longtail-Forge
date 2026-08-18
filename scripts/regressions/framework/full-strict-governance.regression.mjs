@@ -245,6 +245,22 @@ assert.deepEqual(
   [],
   "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
 );
+for (const demoLifecycleOwnerPath of [
+  "scripts/cleanup-development-workspaces.mjs",
+  "scripts/demo-data-host.mjs",
+  "scripts/sanitized-demo-role-journey.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[demoLifecycleOwnerPath], undefined, `${demoLifecycleOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.4`);
+}
+for (const measurementOwnerPath of [
+  "scripts/adapter-microbenchmark.mjs",
+  "scripts/better-sqlite3-install-smoke.mjs",
+  "scripts/measure-dashboard-performance.mjs",
+  "scripts/public-demo-perimeter-load-smoke.mjs",
+  "scripts/sqlite-small-office-performance.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[measurementOwnerPath], undefined, `${measurementOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.3`);
+}
 for (const releaseCeremonyOwnerPath of [
   "scripts/bump-version.mjs",
   "scripts/generate-bundled-module-catalog.mjs",

@@ -1,6 +1,14 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.28.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.28.4. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.28.4, demo lifecycle, role journey, and workspace cleanup tooling is strict-clean. `cleanup-development-workspaces.mjs`, `sanitized-demo-role-journey.mjs`, and `demo-data-host.mjs` close their 145 diagnostics with named contracts for workspace inventory rows, deletion plans, orphan-user projections, schema column/foreign-key maps, role fixtures, role catalog entries, and session journeys. Every change is a JSDoc block or a cast wrapping an existing expression, audited line by line: no function became an arrow, nothing was extracted or inlined, no declaration changed scope, no fallback operator was introduced, and every presence cast still dereferences exactly as before so a missing value throws rather than skipping a deletion guard or redaction step. Operator-password admission, dry-run inventory reporting, destructive confirmation, verified-backup ordering, and sanitized-fixture redaction are unchanged — proven by the workspace-cleanup isolation regression driving the dry-run report, `--apply` refusals, and authorized retained-role repair, and by the sanitized-demo-role-journey regression spawning the script end to end and asserting no fixture password reaches stdout or stderr.
+
+This checkpoint also completes the 0.33.33.28.3 record, whose measurement cohort (`sqlite-small-office-performance.mjs`, `public-demo-perimeter-load-smoke.mjs`, `measure-dashboard-performance.mjs`, `adapter-microbenchmark.mjs`, `better-sqlite3-install-smoke.mjs`) reached zero but shipped without its governance zone pin or its suite-contract entry, and carried two behavior changes that a type-only checkpoint must not make. Both are corrected here: the dashboard measurement passes the measured user's timezone through unchanged so a null value still fails loudly at `Intl` instead of silently measuring UTC, and the native-module platform probe restores its truthiness test for `glibcVersionRuntime` so an empty value still resolves to `linuxmusl` rather than flipping to `linux`. `framework.full-strict-governance` now pins both cohorts — the five measurement owners and the three demo-lifecycle owners — strict-clean. The scripts program falls from 7,409 to 7,150 diagnostics across the two checkpoints, combined strict debt from 18,543 to 18,284 with explicit `any` at 7, and effective regression assertions advance to 18,971 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable demo-operations and measurement documentation remains deferred to the version-wide branch closeout because these checkpoints type operator tooling without changing any command surface, prompt, threshold, or deployment contract. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.28.2, release ceremony, versioning, and packaging metadata tooling is strict-clean. The seven `scripts/release/` ceremony entries plus `bump-version.mjs`, `generate-bundled-module-catalog.mjs`, and `suggest-docs-for-changes.mjs` close their 129 diagnostics with named contracts for schema-versioned release metadata, git command results, GitHub workflow/check/release payloads, artifact digests, checkpoint trailer parsing, and probe responses. Emitted JSON shapes, field names, and key order are unchanged — the release-metadata record now carries an excess-property-checked `@type`, so its schema-versioned shape is compiler-pinned. Exact-SHA proof, immutable-digest binding, reusable Nightly evidence validity, and every validation rejection are preserved: CLI plan/list/rehearsal surfaces reproduce identical output, both full-SHA rejections still throw, and `npm run checkpoint:validate`, the developer-verification-throughput and runtime-artifact-boundary regressions, the version-bump regression, the bundled-catalog check, and the docs suggester all behave identically. Three narrower option contracts were introduced for `nightly-proof` rather than one broad shape, because its reuse regression legitimately passes partial literals and a numeric `runId`. `framework.full-strict-governance` pins the ten owners strict-clean; the scripts program falls from 7,539 to 7,409 diagnostics, combined strict debt from 18,673 to 18,543 with explicit `any` at 7, and effective regression assertions advance to 18,969 across 347 scripts.
 
@@ -401,11 +409,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18300 |
+| Active regression assertions | 18302 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18969 |
+| Effective assertion floor | 18971 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

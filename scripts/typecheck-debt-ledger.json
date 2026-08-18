@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 7295,
+      "errorCount": 7150,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3165,24 +3165,6 @@
           {
             "code": 7023,
             "count": 1
-          }
-        ],
-        "scripts/cleanup-development-workspaces.mjs": [
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 72
-          },
-          {
-            "code": 7053,
-            "count": 2
           }
         ],
         "scripts/client-project-hierarchy-branch-closeout-regression.mjs": [
@@ -3497,16 +3479,6 @@
           {
             "code": 7006,
             "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/demo-data-host.mjs": [
-          {
-            "code": 7005,
-            "count": 1
           },
           {
             "code": 7034,
@@ -7537,40 +7509,6 @@
             "count": 1
           }
         ],
-        "scripts/sanitized-demo-role-journey.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 39
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 6
-          }
-        ],
         "scripts/scale-seed-framework-regression.mjs": [
           {
             "code": 18047,
@@ -8560,7 +8498,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 18429,
+    "errors": 18284,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

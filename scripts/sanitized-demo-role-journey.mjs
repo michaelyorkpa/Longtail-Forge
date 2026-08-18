@@ -24,12 +24,118 @@ loadRuntimeEnvFile();
 
 const scriptPath = fileURLToPath(import.meta.url);
 
+/**
+ * The public-demo runtime and identity contracts loaded only for demo runs.
+ * @typedef {typeof import("../src/core/public-demo-runtime.js") & typeof import("../src/core/public-demo-identities.js")} PublicDemoContracts
+ */
+
+/**
+ * The database module the journey boots after its disposable seed.
+ * @typedef {typeof import("../src/db/index.js")} DatabaseModule
+ */
+
+/**
+ * The async database facade the journey reads seeded rows through.
+ * @typedef {DatabaseModule["db"]} JourneyDatabase
+ */
+
+/**
+ * The validated sanitized-demo role fixture set, including seed passwords.
+ * @typedef {NonNullable<Awaited<ReturnType<typeof loadSanitizedDemoRoleFixtures>>>} SanitizedDemoRoleFixtureSet
+ */
+
+/**
+ * One shipped sanitized-demo role identity the journey walks.
+ * @typedef {Readonly<import("./lib/sanitized-demo-role-fixtures.mjs").SanitizedDemoRoleFixture>} JourneyRoleFixture
+ */
+
+/**
+ * The job-worker logger surface the journey silences during the run.
+ * @typedef {import("../src/types/framework-contracts.js").JobWorkerLogger} JobWorkerLogger
+ */
+
+/**
+ * The HTTP client the journey drives the running app through.
+ * @typedef {ReturnType<typeof createApi>} JourneyApi
+ */
+
+/**
+ * Per-request options accepted by the journey HTTP client.
+ * @typedef {{ cookie?: string }} JourneyRequestOptions
+ */
+
+/**
+ * The response subset the journey reads its session cookie from.
+ * @typedef {{ headers: { get: (name: string) => string | null } }} JourneySessionResponse
+ */
+
+/**
+ * The HTTP server subset the journey shuts down.
+ * @typedef {{ close: (callback: (error?: Error | null) => void) => void }} ClosableServer
+ */
+
+/**
+ * One navigation entry in an app-shell bootstrap payload.
+ * @typedef {object} NavigationItem
+ * @property {string} [href]
+ * @property {NavigationItem[]} [items]
+ */
+
+/**
+ * One client node in a client-projects tree.
+ * @typedef {object} ClientProjectNode
+ * @property {string} name
+ * @property {boolean} [can_create_child]
+ * @property {ClientProjectNode[]} [children]
+ */
+
+/**
+ * One assignable scope offered alongside a role catalog entry.
+ * @typedef {object} RoleCatalogScope
+ * @property {string} label
+ * @property {string} scopeId
+ */
+
+/**
+ * One role catalog entry returned by /api/roles.
+ * @typedef {object} RoleCatalogEntry
+ * @property {string} role_id
+ * @property {string} role_name
+ * @property {RoleCatalogScope[]} scopes
+ */
+
+/**
+ * One role assignment returned by the role-assignment lookup.
+ * @typedef {object} RoleAssignmentLookupEntry
+ * @property {string} role_id
+ */
+
+/**
+ * The published visitor passwords, probed here for absent operator roles.
+ * @typedef {Readonly<Record<string, string | undefined>>} PublicDemoVisitorPasswordLookup
+ */
+
+/**
+ * The verified outcome one journey run reports.
+ * @typedef {object} RolePermissionJourneyResult
+ * @property {number} checks
+ * @property {boolean} credentialsPrinted
+ * @property {boolean} ok
+ * @property {boolean} publicDemo
+ * @property {string[]} rolesVerified
+ */
+
+/**
+ * Walk every sanitized-demo role through the authenticated permission journey.
+ * @param {{ publicDemo?: boolean }} [options]
+ * @returns {Promise<RolePermissionJourneyResult>}
+ */
 async function runRolePermissionJourney({ publicDemo = false } = {}) {
-  const roleFixtures = await loadSanitizedDemoRoleFixtures({
+  const roleFixtures = /** @type {SanitizedDemoRoleFixtureSet} */ (await loadSanitizedDemoRoleFixtures({
     credentialBinding: publicDemo ? RT_LTF_DEMO_ROLE_FIXTURE_BINDING : null,
     mode: publicDemo ? PUBLIC_DEMO_ROLE_FIXTURE_MODE : LOCAL_ROLE_FIXTURE_MODE,
     target: { profile: "sanitized-demo" },
-  });
+  }));
   const journeyFixtures = publicDemo
     ? SANITIZED_DEMO_ROLE_FIXTURES.filter((fixture) => fixture.publicVisitor)
     : SANITIZED_DEMO_ROLE_FIXTURES;
@@ -62,12 +168,12 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
         dataDir,
         databaseApi.db,
         journeyFixtures,
-        publicDemoContracts,
+        /** @type {PublicDemoContracts} */ (publicDemoContracts),
       );
     }
     const app = createApp();
     await jobsApi.startJobWorker({
-      logger: { error() {}, log() {}, warn() {} },
+      logger: /** @type {JobWorkerLogger} */ ({ error() {}, log() {}, warn() {} }),
       mode: "inline",
       workerId: "public-demo-role-journey",
     });
@@ -197,17 +303,17 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
       checks += 3;
     }
 
-    const expectedRoleCatalogSizes = new Map([
+    const expectedRoleCatalogSizes = new Map(/** @type {[string, number][]} */ ([
       ...(!publicDemo ? [["super_admin", 7]] : []),
       ["workspace_admin", 6],
       ["client_admin", 4],
       ["project_admin", 1],
-    ]);
+    ]));
     for (const [roleId, expectedSize] of expectedRoleCatalogSizes) {
       const roles = await api.get("/api/roles", { cookie: sessions.get(roleId) });
       assert.equal(roles.status, 200);
       assert.equal(roles.body.roles.length, expectedSize);
-      assert.ok(roles.body.roles.every((role) => (
+      assert.ok(/** @type {RoleCatalogEntry[]} */ (roles.body.roles).every((role) => (
         role.role_name
         && Array.isArray(role.scopes)
         && role.scopes.every((scope) => scope.label && scope.scopeId)
@@ -226,15 +332,15 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
       cookie: sessions.get("client_admin"),
     });
     assert.deepEqual(
-      clientAdminRoles.body.roles.map((role) => role.role_id).sort(),
+      /** @type {RoleCatalogEntry[]} */ (clientAdminRoles.body.roles).map((role) => role.role_id).sort(),
       ["client_external_user", "client_user", "project_admin", "project_user"],
     );
     assert.ok(
-      clientAdminRoles.body.roles.flatMap((role) => role.scopes)
+      /** @type {RoleCatalogEntry[]} */ (clientAdminRoles.body.roles).flatMap((role) => role.scopes)
         .some((scope) => scope.label.includes("Cedar & Bloom")),
     );
     assert.equal(
-      clientAdminRoles.body.roles.flatMap((role) => role.scopes)
+      /** @type {RoleCatalogEntry[]} */ (clientAdminRoles.body.roles).flatMap((role) => role.scopes)
         .some((scope) => scope.label.includes("Maple Lane Cafe")),
       false,
     );
@@ -243,9 +349,9 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
     const projectAdminRoles = await api.get("/api/roles", {
       cookie: sessions.get("project_admin"),
     });
-    assert.deepEqual(projectAdminRoles.body.roles.map((role) => role.role_id), ["project_user"]);
+    assert.deepEqual(/** @type {RoleCatalogEntry[]} */ (projectAdminRoles.body.roles).map((role) => role.role_id), ["project_user"]);
     assert.deepEqual(
-      projectAdminRoles.body.roles[0].scopes.map((scope) => scope.label),
+      /** @type {RoleCatalogEntry[]} */ (projectAdminRoles.body.roles)[0].scopes.map((scope) => scope.label),
       ["Cedar & Bloom / Website Refresh"],
     );
     checks += 2;
@@ -253,7 +359,7 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
     if (publicDemo) {
       checks += await assertPublicDemoJourney({
         api,
-        contracts: publicDemoContracts,
+        contracts: /** @type {PublicDemoContracts} */ (publicDemoContracts),
         db: databaseApi.db,
         journeyFixtures,
         roleFixtures,
@@ -266,7 +372,7 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
     }, { cookie: sessions.get("client_admin") });
     assert.equal(clientAdminLookup.status, 200);
     assert.deepEqual(
-      clientAdminLookup.body.match.assignments.map((assignment) => assignment.role_id),
+      /** @type {RoleAssignmentLookupEntry[]} */ (clientAdminLookup.body.match.assignments).map((assignment) => assignment.role_id),
       ["project_user"],
     );
     checks += 2;
@@ -299,13 +405,22 @@ async function runRolePermissionJourney({ publicDemo = false } = {}) {
     };
   } finally {
     if (server) await closeServer(server);
-    if (stopJobWorker) await stopJobWorker({ logger: { error() {}, log() {}, warn() {} } });
+    if (stopJobWorker) await stopJobWorker({ logger: /** @type {JobWorkerLogger} */ ({ error() {}, log() {}, warn() {} }) });
     if (closeDatabase) await closeDatabase();
     await fs.rm(journeyRoot, { force: true, recursive: true });
   }
 }
 
+/**
+ * Write and verify the demo data-ownership marker for the seeded visitors.
+ * @param {string} dataDir
+ * @param {JourneyDatabase} db
+ * @param {readonly JourneyRoleFixture[]} journeyFixtures
+ * @param {PublicDemoContracts} contracts
+ * @returns {Promise<void>}
+ */
 async function activatePublicDemoRuntime(dataDir, db, journeyFixtures, contracts) {
+  /** @type {string[]} */
   const publicVisitorUserIds = [];
   for (const fixture of journeyFixtures) {
     const user = await db.get(
@@ -313,7 +428,7 @@ async function activatePublicDemoRuntime(dataDir, db, journeyFixtures, contracts
       { username: fixture.username },
     );
     assert.ok(user?.user_id, `${fixture.roleId} should have a deterministic seeded identity`);
-    publicVisitorUserIds.push(user.user_id);
+    publicVisitorUserIds.push(/** @type {string} */ (user.user_id));
   }
 
   await fs.writeFile(path.join(dataDir, contracts.PUBLIC_DEMO_DATA_MARKER_FILE), `${JSON.stringify({
@@ -327,6 +442,11 @@ async function activatePublicDemoRuntime(dataDir, db, journeyFixtures, contracts
   );
 }
 
+/**
+ * Assert the public-demo denials, seeded reads, and scoped writes hold for every visitor.
+ * @param {{ api: JourneyApi, contracts: PublicDemoContracts, db: JourneyDatabase, journeyFixtures: readonly JourneyRoleFixture[], roleFixtures: SanitizedDemoRoleFixtureSet, sessions: Map<string, string> }} request
+ * @returns {Promise<number>}
+ */
 async function assertPublicDemoJourney({
   api,
   contracts,
@@ -349,7 +469,7 @@ async function assertPublicDemoJourney({
   assert.ok(outsideProject?.project_id);
   let checks = 3;
 
-  assert.equal(PUBLIC_DEMO_VISITOR_PASSWORDS.super_admin, undefined);
+  assert.equal(/** @type {PublicDemoVisitorPasswordLookup} */ (PUBLIC_DEMO_VISITOR_PASSWORDS).super_admin, undefined);
   assert.ok(
     Object.values(PUBLIC_DEMO_VISITOR_PASSWORDS)
       .every((password) => password !== roleFixtures.credentials.get("super_admin").password),
@@ -361,7 +481,7 @@ async function assertPublicDemoJourney({
   });
   assert.equal(adminCatalog.status, 200);
   assert.equal(
-    adminCatalog.body.roles.some((role) => role.role_id === "super_admin"),
+    /** @type {RoleCatalogEntry[]} */ (adminCatalog.body.roles).some((role) => role.role_id === "super_admin"),
     false,
   );
   checks += 2;
@@ -434,6 +554,12 @@ async function assertPublicDemoJourney({
   return checks;
 }
 
+/**
+ * Seed one disposable sanitized-demo installation for this journey.
+ * @param {string} dataDir
+ * @param {SanitizedDemoRoleFixtureSet} roleFixtures
+ * @returns {void}
+ */
 function seedDisposableSanitizedDemo(dataDir, roleFixtures) {
   const result = spawnSync(process.execPath, [
     "scripts/development-data.mjs",
@@ -447,7 +573,7 @@ function seedDisposableSanitizedDemo(dataDir, roleFixtures) {
     "--anchor-date",
     "2026-07-30",
     "--role-fixtures",
-    roleFixtures.mode,
+    /** @type {string} */ (roleFixtures.mode),
     ...(roleFixtures.mode === PUBLIC_DEMO_ROLE_FIXTURE_MODE
       ? ["--role-fixture-binding", RT_LTF_DEMO_ROLE_FIXTURE_BINDING.target]
       : []),
@@ -467,6 +593,12 @@ function seedDisposableSanitizedDemo(dataDir, roleFixtures) {
   }
 }
 
+/**
+ * Point the runtime environment at the disposable installation.
+ * @param {string} dataDir
+ * @param {SanitizedDemoRoleFixtureSet} roleFixtures
+ * @returns {void}
+ */
 function configureJourneyRuntime(dataDir, roleFixtures) {
   process.env.LONGTAIL_AUTH_THROTTLE_ENABLED = "true";
   process.env.LONGTAIL_DATA_DIR = dataDir;
@@ -481,8 +613,19 @@ function configureJourneyRuntime(dataDir, roleFixtures) {
   process.env.SUPER_ADMIN_USERNAME = roleFixtures.credentials.get("super_admin").username;
 }
 
+/**
+ * Build the HTTP client the journey drives the running app through.
+ * @param {string} baseUrl
+ */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {JourneyRequestOptions} [options]
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (body !== undefined) headers["content-type"] = "application/json";
     if (options.cookie) headers.cookie = `longtail_forge_session=${options.cookie}`;
@@ -502,17 +645,41 @@ function createApi(baseUrl) {
   }
 
   return {
+    /**
+     * @param {string} url
+     * @param {JourneyRequestOptions} [options]
+     */
     get: (url, options) => request("GET", url, undefined, options),
+    /**
+     * @param {string} url
+     * @param {unknown} [body]
+     * @param {JourneyRequestOptions} [options]
+     */
     post: (url, body, options) => request("POST", url, body, options),
+    /**
+     * @param {string} url
+     * @param {unknown} [body]
+     * @param {JourneyRequestOptions} [options]
+     */
     put: (url, body, options) => request("PUT", url, body, options),
   };
 }
 
+/**
+ * Read the session cookie one authenticated login issued.
+ * @param {JourneySessionResponse} response
+ * @returns {string}
+ */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "")
     .match(/(?:^|,\s*)longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * Collect every href reachable from one navigation tree.
+ * @param {NavigationItem[] | null | undefined} items
+ * @returns {Set<string>}
+ */
 function navigationHrefs(items) {
   const hrefs = new Set();
   for (const item of items || []) {
@@ -522,6 +689,11 @@ function navigationHrefs(items) {
   return hrefs;
 }
 
+/**
+ * Flatten one client tree into a single visitable list.
+ * @param {ClientProjectNode[] | null | undefined} clients
+ * @returns {ClientProjectNode[]}
+ */
 function flattenClients(clients) {
   const flattened = [];
   for (const client of clients || []) {
@@ -530,16 +702,25 @@ function flattenClients(clients) {
   return flattened;
 }
 
+/**
+ * Start the journey app on an ephemeral loopback port.
+ * @param {unknown} app
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (app));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/**
+ * Close the journey app server.
+ * @param {unknown} server
+ * @returns {Promise<void>}
+ */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
+    /** @type {ClosableServer} */ (server).close((error) => error ? reject(error) : resolve());
   });
 }
 
@@ -549,7 +730,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       publicDemo: process.argv.includes("--public-demo"),
     }), null, 2));
   } catch (error) {
-    console.error(error?.message || error);
+    console.error(/** @type {{ message?: unknown }} */ (error)?.message || error);
     process.exitCode = 1;
   }
 }
