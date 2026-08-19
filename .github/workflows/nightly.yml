@@ -147,7 +147,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: GitHub-only documentation browser fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
@@ -175,7 +175,7 @@ jobs:
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         name: Install the Playwright browser
-        timeout-minutes: 18
+        timeout-minutes: 23
         run: node scripts/release/install-playwright-browser.mjs
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e

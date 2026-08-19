@@ -74,9 +74,15 @@ function numberFromEnvironment(name, fallback) {
 const installCommand = commandFromEnvironment("LTF_PLAYWRIGHT_INSTALL_COMMAND", DEFAULT_INSTALL_COMMAND);
 const busyProbeCommand = commandFromEnvironment("LTF_PACKAGE_BUSY_PROBE_COMMAND", DEFAULT_BUSY_PROBE_COMMAND);
 const aptLockTimeoutCommand = commandFromEnvironment("LTF_APT_LOCK_TIMEOUT_COMMAND", DEFAULT_APT_LOCK_TIMEOUT_COMMAND);
-const attempts = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPTS", 3);
-const attemptTimeoutMs = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPT_TIMEOUT_MS", 240_000);
-const lockTimeoutMs = numberFromEnvironment("LTF_PACKAGE_LOCK_TIMEOUT_MS", 60_000);
+// Bounds are stall detectors, not deadlines for a healthy install. Four CI runs
+// showed the 0.33.33.29 value of 240s was below the real cost of this step when
+// the azure mirror is unreachable and apt falls back: attempts were killed
+// mid-fetch and mid-unpack while still making progress, and the 60s wait then
+// gave up on an apt that was still installing. Two long attempts beat three
+// short ones once apt itself waits for a contended lock.
+const attempts = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPTS", 2);
+const attemptTimeoutMs = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPT_TIMEOUT_MS", 540_000);
+const lockTimeoutMs = numberFromEnvironment("LTF_PACKAGE_LOCK_TIMEOUT_MS", 180_000);
 
 /**
  * Run one command, terminating the whole process group if it outlives its

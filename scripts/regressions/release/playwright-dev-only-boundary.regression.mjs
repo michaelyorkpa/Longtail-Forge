@@ -142,15 +142,15 @@ for (const workflowPath of [
     false,
     `${workflowPath} must not reintroduce an inline install no test can reach`,
   );
-  // Worst case is 3 attempts x 240s plus 2 retries waiting on 2 locks x 60s,
-  // or 960s. The 0.33.33.29 ceilings assumed retries were instant, which was
-  // the defect, so they could not contain a retry that actually waits.
+  // Worst case is 2 attempts x 540s plus one 180s wait, or 1320s. Four CI runs
+  // showed the earlier 240s attempt bound killed installs that were still making
+  // progress, so the bounds detect a stall rather than deadline a slow install.
   const beforeInstall = workflow.slice(0, workflow.indexOf("name: Install the Playwright browser"));
   const jobBounds = [...beforeInstall.matchAll(/^ {4}timeout-minutes: (\d+)\r?$/gm)];
   assert.ok(jobBounds.length > 0, `${workflowPath} must bound the job that installs the browser`);
-  assert.equal(jobBounds[jobBounds.length - 1][1], "20", `${workflowPath} must bound the browser job above the install budget plus its checks`);
+  assert.equal(jobBounds[jobBounds.length - 1][1], "25", `${workflowPath} must bound the browser job above the install budget plus its checks`);
   const installStep = workflow.slice(workflow.indexOf("name: Install the Playwright browser"));
-  assert.match(installStep.slice(0, 200), /timeout-minutes: 18/, `${workflowPath} must bound the install step above its 16-minute worst case`);
+  assert.match(installStep.slice(0, 200), /timeout-minutes: 23/, `${workflowPath} must bound the install step above its 22-minute worst case`);
 }
 const installEntryPoint = readFileSync("scripts/release/install-playwright-browser.mjs", "utf8");
 assert.match(installEntryPoint, /SIGKILL/, "a timed-out attempt must be hard-killed, not only signalled");

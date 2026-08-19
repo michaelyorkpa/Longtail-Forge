@@ -90,7 +90,7 @@ describe("protected browser gate Playwright install", () => {
     expect(result.status).toBe(0);
     // The root-cause fix: apt waits for the lock rather than failing instantly,
     // so a retry does not need the lock free the moment it starts.
-    expect(readTrail()).toEqual(["apt-conf 60", "install-ok"]);
+    expect(readTrail()).toEqual(["apt-conf 180", "install-ok"]);
   });
 
   it("waits for the package manager before every retry", () => {
@@ -98,14 +98,12 @@ describe("protected browser gate Playwright install", () => {
 
     expect(result.status).toBe(1);
     expect(readTrail()).toEqual([
-      "apt-conf 60",
-      "install-fail",
-      "idle",
+      "apt-conf 180",
       "install-fail",
       "idle",
       "install-fail",
     ]);
-    expect(result.output).toMatch(/did not complete after 3 bounded attempts/);
+    expect(result.output).toMatch(/did not complete after 2 bounded attempts/);
   });
 
   it("stops instead of racing a package manager that never goes idle", () => {

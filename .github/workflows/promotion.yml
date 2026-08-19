@@ -123,7 +123,7 @@ jobs:
     needs: promotion-source
     if: ${{ always() && needs.promotion-source.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Reuse the complete exact-SHA nightly browser proof
         if: needs.promotion-source.outputs.reuse_nightly_proof == 'true'
@@ -147,7 +147,7 @@ jobs:
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
         name: Install the Playwright browser
-        timeout-minutes: 18
+        timeout-minutes: 23
         run: node scripts/release/install-playwright-browser.mjs
       - if: needs.promotion-source.outputs.reuse_nightly_proof != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
