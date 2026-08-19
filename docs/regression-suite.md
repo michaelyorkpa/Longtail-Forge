@@ -1,6 +1,18 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.30.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.30.2.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.30.2.1, module view contributions have one shared named contract. `ModuleManifest.protectedViews` and `ModuleManifest.publicViews` were both declared `unknown[]`, which is why `0.33.33.30.2` had to read them through regression-local aliases. Both now use `ModuleViewContribution`, derived from what `validateViews` in `src/core/modules/manifest-contract.js` actually enforces rather than from the looser `CatalogContribution` grab-bag: `id`, `moduleId`, `path`, and `file` are required, and `requiredPermissions`, `requiredWorkspaceCapabilities`, and `allowDisabledRead` are optional.
+
+The fallout was probed before the change rather than estimated, and measured at zero: all three programs hold at 0 server, 5,972 scripts, and 11,134 browser diagnostics. Two honesty gaps closed with it. `NormalizedModuleManifest` declared `file?: string` while the validator requires it, and it declared `allowDisabledRead` on `protectedViews` but not on `publicViews`, even though `validateViews` accepts it on both and `registry.js` was already casting `publicViews` with it. One shape now covers both.
+
+Six divergent redeclarations collapsed onto the named contract: two inline casts and two return types in `registry.js`, the `ProtectedViewContribution` typedef in `modules.service.js`, the framework view-surface return type, and the regression-local aliases in `0.33.33.30.1` and `0.33.33.30.2`. The declarative guardrail's inventory row also returns from `file: string | undefined` to `file: string`, which is what the contract now honestly guarantees.
+
+No runtime behavior changed, proven rather than asserted: every changed executable file normalizes byte-identical to its previous revision except `registry.js`, where the only difference is the removal of the grouping parentheses that existed solely to carry the deleted casts. `framework.settings-contribution-contract` now pins the declaration — the named shape, its four required fields, and both arrays using it in the manifest and the normalized manifest — and four seeded controls confirm the pin fails closed: reverting either array to `unknown[]`, diverging the normalized shape, weakening the required `file`, or renaming the interface each make it fail with its own message, and the declaration is restored byte-identically afterwards.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: the `docs/module-contract.md` field documentation for `ModuleViewContribution` is durable module-authoring documentation and is deferred to the version-wide branch closeout, which the checkpoint commit gate enforces. The enforced shape is already visible to module authors through the named declaration and the contract example that matches it field for field.
 
 As of 0.33.33.30.2, framework contribution, settings, reporting, and shell-boundary owners are strict-clean. Thirteen `scripts/regressions/framework/` owners and all nine folded modules beneath `scripts/regression-contracts/framework/` close their 170 diagnostics with named contracts for settings and reporting contribution descriptors, module registry entries and their router layer stacks, the landing-preference and app-shell bootstrap payloads, and the session-carrying JSON clients these owners drive the app through. Contribution arrays the framework module definition still declares optional are read through documented aliases rather than per-call-site casts, so a missing array fails at the same statement it fails at today. Assertion inventory is unchanged at 562 `assert` calls across the eighteen changed files, no explicit `any` was introduced, and all thirteen owners pass.
 
@@ -8,7 +20,7 @@ Equivalence was proven mechanically. Five files normalize byte-identical to thei
 
 Two dispositions are recorded rather than acted on. This cohort reads no planning document, so it has no history pin to strip. And `framework.browser-recovery-boundary` correlates its unexpected-error page against `new RegExp(response.headers["x-request-id"])`; if that header were ever absent the expression becomes `/(?:)/` and the assertion passes vacuously. Typing exposed it, the read is preserved verbatim behind a cast because tightening it changes behavior, and it is recorded here as a correction a later checkpoint owns.
 
-Four owners here duplicate their own raw `node:http` or `fetch` client. They are typed in place rather than pre-empting the shared HTTP fixture contract that `0.33.33.30.3` owns; that checkpoint should absorb them once it exists.
+Three owners here duplicate their own raw `node:http` or `fetch` client — `user-landing-preferences`, `reporting-catalog-execution`, and `browser-recovery-boundary`. They are typed in place rather than pre-empting the shared HTTP fixture contract that `0.33.33.30.3` owns; that checkpoint should absorb them once it exists. This paragraph originally said four, which was a miscount corrected at `0.33.33.30.2.1`.
 
 `framework.full-strict-governance` pins all nine framework contract modules and the thirteen owners strict-clean. The scripts program falls from 6,142 to 5,972 diagnostics, combined strict debt from 17,276 to 17,106 with explicit `any` at 7, and effective regression assertions advance to 18,987 across 347 scripts.
 
@@ -469,11 +481,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18303 |
+| Active regression assertions | 18310 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18987 |
+| Effective assertion floor | 18994 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

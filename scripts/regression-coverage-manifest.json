@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18303,
+    "activeAssertionCount": 18310,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18987,
+    "effectiveAssertionCount": 18994,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -4127,11 +4127,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 61,
+      "assertionCount": 68,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the data-only settings manifest contract, protected framework boundary, and shared eligibility-filtered listing seam.",
-      "entryPointAssertionCount": 61,
+      "entryPointAssertionCount": 68,
       "id": "framework.settings-contribution-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/settings-contribution-contract.regression.mjs",

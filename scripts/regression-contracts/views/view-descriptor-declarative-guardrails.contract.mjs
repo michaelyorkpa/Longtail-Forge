@@ -17,7 +17,7 @@ const { readText } = createProjectTextReader();
 /**
  * One protected-view inventory row: the view's identity plus the declarative
  * surfaces registered against it and whether any of them is strict.
- * @typedef {{ moduleId: string, viewId: string, file: string | undefined, surfaceIds: string[], strict: boolean }} ProtectedViewInventoryRow
+ * @typedef {{ moduleId: string, viewId: string, file: string, surfaceIds: string[], strict: boolean }} ProtectedViewInventoryRow
  */
 
 const moduleContract = readText("docs/module-contract.md");

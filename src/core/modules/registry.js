@@ -133,10 +133,10 @@ function listModuleMigrationSources() {
     }));
 }
 
-/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */
+/** @returns {import("../../types/framework-contracts.js").ModuleViewContribution[]} */
 function listModuleProtectedViews() {
   return moduleDefinitions.flatMap((definition) => (
-    /** @type {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */ (definition.protectedViews || [])
+    definition.protectedViews || []
   ).map((view) => ({ ...view, moduleId: view.moduleId || definition.id })));
 }
 
@@ -147,10 +147,10 @@ function listModuleViewSurfaces() {
   ).map((surface) => ({ ...surface, moduleId: surface.moduleId || definition.id })));
 }
 
-/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */
+/** @returns {import("../../types/framework-contracts.js").ModuleViewContribution[]} */
 function listModulePublicViews() {
   return moduleDefinitions.flatMap((definition) => (
-    /** @type {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean}>} */ (definition.publicViews || [])
+    definition.publicViews || []
   ).map((view) => ({ ...view, moduleId: view.moduleId || definition.id })));
 }
 
