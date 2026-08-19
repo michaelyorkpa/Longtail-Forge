@@ -78,6 +78,7 @@ assert.match(viewContract, /As of 0\.33\.12\.7,[\s\S]*Reporting row is a strict 
 
 console.log("Framework Reporting closeout regression passed.");
 
+/** @param {string} source @param {string} startMarker @param {string} endMarker @returns {string} */
 function between(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start);
@@ -86,6 +87,7 @@ function between(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `Missing function ${functionName}`);

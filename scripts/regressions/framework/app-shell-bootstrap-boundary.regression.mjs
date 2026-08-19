@@ -133,6 +133,25 @@ assert.equal(normalized.user.preferredCalendarView, "week");
 
 console.log("App-shell bootstrap boundary regression passed.");
 
+/**
+ * The normalized bootstrap payload fields this boundary asserts on. `plain`
+ * round-trips the value through JSON, so the projection is declared once here
+ * rather than re-derived at each read.
+ * @typedef {{
+ *   enabledModules: string[],
+ *   moduleNavigation: unknown[],
+ *   moduleSettingsNavigation: unknown[],
+ *   navigation: unknown[],
+ *   quickActions: unknown[],
+ *   searchTargets: unknown[],
+ *   supportView: unknown,
+ *   user: { preferredCalendarView: string | null },
+ *   viewSurfaces: unknown[],
+ *   workspaceContext: { enabledModules: string[], workspaceName: string },
+ *   workspaces: unknown[],
+ * }} NormalizedBootstrap
+ */
+/** @param {unknown} value @returns {NormalizedBootstrap} */
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }

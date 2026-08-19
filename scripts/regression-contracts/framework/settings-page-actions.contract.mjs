@@ -11,6 +11,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
+/** @param {string} filePath @returns {Promise<string>} */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const [host, renderer, controller, status, css, workspace, user, modulePage, files, developerView, settingsService, settingsRepository, permissionsService, icons, userAdmin, ...views] = await Promise.all([
   read("public/js/shared/settings-host.js"),
@@ -115,7 +116,9 @@ assert.match(userAdmin, /removes the user's current-workspace access[\s\S]*contr
 for (const view of views) {
   assert.match(view, /js\/shared\/settings-page-controller\.js/);
 }
-assert.match(views.at(-1), /js\/shared\/status\.js[\s\S]*js\/files-settings\.js/, "Files Settings should load the shared status helper before its adapter");
+// The destructured rest always carries the view sources read above, so the last
+// entry is present here.
+assert.match(/** @type {string} */ (views.at(-1)), /js\/shared\/status\.js[\s\S]*js\/files-settings\.js/, "Files Settings should load the shared status helper before its adapter");
 assert.match(developerView, /data-settings-host="module"/);
 assert.match(developerView, /data-settings-module-id="developer-example"/);
 assert.match(developerView, /js\/shared\/settings-page-controller\.js/);

@@ -1,6 +1,18 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.30.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.30.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.30.2, framework contribution, settings, reporting, and shell-boundary owners are strict-clean. Thirteen `scripts/regressions/framework/` owners and all nine folded modules beneath `scripts/regression-contracts/framework/` close their 170 diagnostics with named contracts for settings and reporting contribution descriptors, module registry entries and their router layer stacks, the landing-preference and app-shell bootstrap payloads, and the session-carrying JSON clients these owners drive the app through. Contribution arrays the framework module definition still declares optional are read through documented aliases rather than per-call-site casts, so a missing array fails at the same statement it fails at today. Assertion inventory is unchanged at 562 `assert` calls across the eighteen changed files, no explicit `any` was introduced, and all thirteen owners pass.
+
+Equivalence was proven mechanically. Five files normalize byte-identical to their previous revisions once JSDoc and casts are stripped; every remaining statement change is a cast-paren wrap or a named alias for a repeated read, individually enumerated, plus `.href` on the framework aggregator's dynamic import, which is the specifier Node already resolves a `URL` to.
+
+Two dispositions are recorded rather than acted on. This cohort reads no planning document, so it has no history pin to strip. And `framework.browser-recovery-boundary` correlates its unexpected-error page against `new RegExp(response.headers["x-request-id"])`; if that header were ever absent the expression becomes `/(?:)/` and the assertion passes vacuously. Typing exposed it, the read is preserved verbatim behind a cast because tightening it changes behavior, and it is recorded here as a correction a later checkpoint owns.
+
+Four owners here duplicate their own raw `node:http` or `fetch` client. They are typed in place rather than pre-empting the shared HTTP fixture contract that `0.33.33.30.3` owns; that checkpoint should absorb them once it exists.
+
+`framework.full-strict-governance` pins all nine framework contract modules and the thirteen owners strict-clean. The scripts program falls from 6,142 to 5,972 diagnostics, combined strict debt from 17,276 to 17,106 with explicit `any` at 7, and effective regression assertions advance to 18,987 across 347 scripts.
+
+Docs updated: docs/regression-suite.md.
 
 As of 0.33.33.30.1, view-surface contract owners are strict-clean. `views.current-static-contracts` and the twenty-nine folded modules beneath `scripts/regression-contracts/views/` close their 85 diagnostics — nine modules carried them, led by the accessibility contract at 29 and the declarative descriptor guardrails at 24 — with named contracts for source-slicing helpers, the renderer and descriptor fixtures, and the protected-view inventory row. The bundled descriptor shape is reused from `src/types/framework-contracts.d.ts` through a type-only import rather than redeclared, so the guardrail and the server registry describe one schema. Only eight casts were needed across the cohort. Equivalence was proven mechanically: a normalizer stripping JSDoc blocks and every `/** @type {T} */ (expr)` cast back to `expr` renders four of the six annotation-only modules byte-identical to their previous revisions, and the remaining statement changes are individually enumerated — one cast-paren wrap on a frozen media-query allowance, a `table` alias that keeps the first missing-table failure at the same statement, and `.href` on the aggregator's dynamic import, which is the specifier Node already resolves a `URL` to. Assertion counts in the six modules that were only annotated are unchanged.
 
@@ -457,11 +469,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18300 |
+| Active regression assertions | 18303 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18984 |
+| Effective assertion floor | 18987 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

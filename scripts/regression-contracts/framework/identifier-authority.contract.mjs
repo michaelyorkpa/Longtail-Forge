@@ -71,6 +71,7 @@ const baseline = JSON.parse(await fs.readFile(BASELINE_PATH, "utf8"));
 assert.equal(baseline.schemaVersion, 1, "identifier migration baseline schema must remain recognized");
 
 const productionFiles = (await Promise.all(PRODUCTION_ROOTS.map(listCodeFiles))).flat().sort();
+/** @type {Record<string, number>} */
 const actualDirectCalls = {};
 for (const filePath of productionFiles) {
   const source = await fs.readFile(filePath, "utf8");
@@ -217,18 +218,22 @@ for (const requiredPhrase of [
 
 console.log("Identifier authority regression checks passed.");
 
+/** @param {string} source @param {RegExp} pattern @returns {number} */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }
 
+/** @param {string} source @returns {boolean} */
 function hasUuidPackageImport(source) {
   return /\bfrom\s*["']uuid["']|\bimport\s*\(\s*["']uuid["']\s*\)|\brequire\s*\(\s*["']uuid["']\s*\)/.test(source);
 }
 
+/** @param {string} source @returns {boolean} */
 function hasNodeRandomUuidImport(source) {
   return /\bimport\s*\{[^}]*\brandomUUID\b[^}]*\}\s*from\s*["']node:crypto["']|\brequire\s*\(\s*["']node:crypto["']\s*\)\s*\.\s*randomUUID/.test(source);
 }
 
+/** @param {string} rootPath @returns {Promise<string[]>} */
 async function listCodeFiles(rootPath) {
   const entries = await fs.readdir(rootPath, { withFileTypes: true });
   const files = [];

@@ -14,6 +14,36 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
+/**
+ * Optional per-request overrides this regression sends: an explicit session
+ * cookie value and any extra headers.
+ * @typedef {{ cookie?: string, headers?: Record<string, string> }} ApiRequestOptions
+ */
+/**
+ * The union of JSON payload fields the routes exercised here return. Each
+ * field is declared present because every read below is already guarded by an
+ * assertion on the status that produces it; a route that omits one still
+ * throws at the same read it throws at today.
+ * @typedef {{
+ *   initialPassword: string,
+ *   landingPath: string,
+ *   preferredCalendarView: string | null,
+ *   preferredLoginLanding: string,
+ *   preferredWorkspaceSwitchLanding: string,
+ *   user: { loginLandingPath: string, preferredCalendarView: string | null, user_id: string, username: string, workspace_id: string },
+ *   workspace: { workspaceId: string },
+ * }} LandingPayload
+ */
+/** @typedef {{ body: LandingPayload, headers: Headers, status: number }} ApiResponse */
+/**
+ * The session-carrying JSON client this regression drives the app through.
+ * @typedef {{
+ *   get: (url: string, options?: ApiRequestOptions) => Promise<ApiResponse>,
+ *   post: (url: string, body?: unknown, options?: ApiRequestOptions) => Promise<ApiResponse>,
+ *   put: (url: string, body?: unknown, options?: ApiRequestOptions) => Promise<ApiResponse>,
+ * }} WorkspaceApi
+ */
+
 const fixture = await createDisposableDatabaseFixture("user-landing-preferences");
 const ADMIN_USERNAME = "landing-preferences-admin@example.test";
 const ADMIN_PASSWORD = "Landing-Preferences-Admin-123!";
@@ -31,7 +61,7 @@ let server;
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const firstLogin = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   const adminCookie = readSessionCookie(firstLogin);
@@ -166,6 +196,7 @@ WHERE workspace_id = :workspaceId
   await fixture.cleanup();
 }
 
+/** @param {WorkspaceApi} api @param {string} username @param {string} password @returns {Promise<ApiResponse>} */
 async function login(api, username, password) {
   const response = await api.post("/api/login", { username, password });
   assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -173,13 +204,16 @@ async function login(api, username, password) {
   return response;
 }
 
+/** @param {WorkspaceApi} api @param {string} cookie @param {string} workspaceId @returns {Promise<LandingPayload>} */
 async function switchWorkspace(api, cookie, workspaceId) {
   const response = await api.post("/api/session/workspace", { workspaceId }, { cookie });
   assert.equal(response.status, 200, JSON.stringify(response.body));
   return response.body;
 }
 
+/** @param {string} baseUrl @returns {WorkspaceApi} */
 function createApi(baseUrl) {
+  /** @param {string} method @param {string} url @param {unknown} body @param {ApiRequestOptions} [options] @returns {Promise<ApiResponse>} */
   async function request(method, url, body, options = {}) {
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) headers["content-type"] = "application/json";
@@ -204,18 +238,25 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {ApiResponse} response @returns {string} */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "")
     .match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * The Express application is callable as a request listener at runtime; the
+ * cast bridges its narrower typed request/response parameters.
+ * @param {ReturnType<typeof createApp>} app @returns {Promise<http.Server>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {http.Server} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

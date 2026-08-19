@@ -106,6 +106,7 @@ assert.deepEqual(
 
 console.log("HTTP error development guardrails passed.");
 
+/** @param {string} rootPath @returns {Promise<string[]>} */
 async function listFiles(rootPath) {
   const entries = await fs.readdir(rootPath, { withFileTypes: true });
   const files = [];
@@ -120,6 +121,7 @@ async function listFiles(rootPath) {
   return files;
 }
 
+/** @param {string} filePath @param {string} sourceMatch @returns {boolean} */
 function isReviewedSessionlessResourceResponse(filePath, sourceMatch) {
   if (filePath !== "src/routes/private-feeds.routes.js") {
     return false;
@@ -128,10 +130,12 @@ function isReviewedSessionlessResourceResponse(filePath, sourceMatch) {
     || sourceMatch.includes("status(429).send(");
 }
 
+/** @param {string} source @param {number} index @returns {number} */
 function lineNumberAt(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
+/** @param {string} source @param {string[]} snippets */
 function assertOrdered(source, snippets) {
   let previousIndex = -1;
   for (const snippet of snippets) {

@@ -239,17 +239,20 @@ check("framework app and worker bootstraps contain no Tasks-specific activation 
   }
 });
 
+/** @template Result @param {string} name @param {() => Result} assertion @returns {Result} */
 function check(name, assertion) {
   const result = assertion();
   checks += 1;
   return result;
 }
 
+/** @param {string} name @param {() => Promise<unknown>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   checks += 1;
 }
 
+/** @param {string} id @param {string[]} [dependencies] */
 function fixtureEntry(id, dependencies = []) {
   return {
     directoryName: id,
@@ -268,19 +271,27 @@ function fixtureEntry(id, dependencies = []) {
   };
 }
 
+/**
+ * Reduce any inventory value to a stable, comparable form: URLs normalize to
+ * repository-relative markers, functions to a router summary or a name marker,
+ * and objects to key-sorted plain records.
+ * @param {unknown} value @param {WeakSet<object>} [seen] @returns {unknown}
+ */
 function stableValue(value, seen = new WeakSet()) {
   if (value instanceof URL) {
     return normalizeInventoryUrl(value);
   }
   if (typeof value === "function") {
-    if (Array.isArray(value.stack)) {
+    // An Express router is a function carrying its matched-route layer stack.
+    const router = /** @type {{ name?: string, stack?: { route?: { methods?: Record<string, boolean>, path?: string } }[] }} */ (value);
+    if (Array.isArray(router.stack)) {
       return {
-        router: value.stack.flatMap((layer) => layer.route?.path
-          ? Object.keys(layer.route.methods || {}).sort().map((method) => `${method.toUpperCase()} ${layer.route.path}`)
+        router: router.stack.flatMap((layer) => layer.route?.path
+          ? Object.keys(layer.route.methods || {}).sort().map((method) => `${method.toUpperCase()} ${/** @type {{ path?: string }} */ (layer.route).path}`)
           : []),
       };
     }
-    return `[function:${value.name || "anonymous"}]`;
+    return `[function:${router.name || "anonymous"}]`;
   }
   if (!value || typeof value !== "object") {
     return value;
@@ -292,9 +303,11 @@ function stableValue(value, seen = new WeakSet()) {
   if (Array.isArray(value)) {
     return value.map((item) => stableValue(item, seen));
   }
-  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key], seen)]));
+  const record = /** @type {Record<string, unknown>} */ (value);
+  return Object.fromEntries(Object.keys(record).sort().map((key) => [key, stableValue(record[key], seen)]));
 }
 
+/** @param {URL} value @returns {string} */
 function normalizeInventoryUrl(value) {
   if (value.protocol !== "file:") {
     return value.href;
@@ -309,6 +322,7 @@ function normalizeInventoryUrl(value) {
     : "repository-file:[external]";
 }
 
+/** @param {string} fixtureRoot @param {string} [argument] */
 function runGenerator(fixtureRoot, argument = "") {
   return spawnSync(process.execPath, [path.join(rootDir, "scripts", "generate-bundled-module-catalog.mjs"), argument].filter(Boolean), {
     cwd: rootDir,
@@ -317,6 +331,7 @@ function runGenerator(fixtureRoot, argument = "") {
   });
 }
 
+/** @param {string} source */
 function runNode(source) {
   return spawnSync(process.execPath, ["--input-type=module", "-e", source], {
     cwd: rootDir,
@@ -324,6 +339,7 @@ function runNode(source) {
   });
 }
 
+/** @param {string} fixtureRoot @param {string} directoryName */
 async function writeFixtureModule(fixtureRoot, directoryName) {
   const moduleDir = path.join(fixtureRoot, "src", "modules", directoryName);
   await fsPromises.mkdir(moduleDir, { recursive: true });

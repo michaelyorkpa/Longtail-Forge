@@ -251,6 +251,27 @@ assert.deepEqual(releaseOwnerDebt, [], "release and docs regression owners close
 const viewOwnerDebt = Object.keys(ledger.programs.scripts.diagnostics)
   .filter((filePath) => filePath.startsWith("scripts/regressions/views/") || filePath.startsWith("scripts/regression-contracts/views/"));
 assert.deepEqual(viewOwnerDebt, [], "view-surface contract owners closed at checkpoint 0.33.33.30.1 and must stay strict-clean");
+const frameworkContractDebt = Object.keys(ledger.programs.scripts.diagnostics)
+  .filter((filePath) => filePath.startsWith("scripts/regression-contracts/framework/"));
+assert.deepEqual(frameworkContractDebt, [], "framework contract modules closed at checkpoint 0.33.33.30.2 and must stay strict-clean");
+for (const contributionOwnerPath of [
+  "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
+  "scripts/regressions/framework/asset-cache-version.regression.mjs",
+  "scripts/regressions/framework/browser-recovery-boundary.regression.mjs",
+  "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+  "scripts/regressions/framework/client-project-options-projection.regression.mjs",
+  "scripts/regressions/framework/current-static-contracts.regression.mjs",
+  "scripts/regressions/framework/generic-settings-engine.regression.mjs",
+  "scripts/regressions/framework/module-import-boundaries.regression.mjs",
+  "scripts/regressions/framework/reporting-catalog-execution.regression.mjs",
+  "scripts/regressions/framework/reporting-contribution-contract.regression.mjs",
+  "scripts/regressions/framework/settings-contribution-contract.regression.mjs",
+  "scripts/regressions/framework/user-landing-preferences.regression.mjs",
+  "scripts/regressions/framework/workbench-focus-policy.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[contributionOwnerPath], undefined, `${contributionOwnerPath} must stay strict-clean after checkpoint 0.33.33.30.2`);
+  assert.equal(ledger.explicitAnyByFile[contributionOwnerPath], undefined, `${contributionOwnerPath} must stay free of explicit any after checkpoint 0.33.33.30.2`);
+}
 for (const consolidatedStaticOwnerPath of [
   "scripts/framework-view-static-consolidation.mjs",
   "scripts/regression-contracts/data-files-security-static-owner.mjs",
