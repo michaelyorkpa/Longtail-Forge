@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.3.1 - Repair the protected browser gate's Playwright install retry
+
+**Model: High Effort** - The step guards every protected merge; a wrong bound blocks the branch or hides a real failure.
+
+Corrective child of `0.33.33.30.3`, taken before the rest of that checkpoint so later work verifies against a gate that can actually retry.
+
+- [x] Diagnosed from a real failure on the `0.33.33.30.2.1` pull request rather than from inspection. `0.33.33.29` bounded each attempt with `timeout 240` inline in three workflows; `timeout` terminates the wrapper, not the `apt-get` Playwright runs under sudo, so a cancelled attempt kept `/var/lib/apt/lists/lock` and attempts two and three failed instantly with `Could not get lock`. The whole retry budget went in six seconds while reporting a bounded-attempt exhaustion that never retried.
+- [x] Replaced the three duplicated inline loops with one entry point, `scripts/release/install-playwright-browser.mjs`, so the policy exists once and is reachable by a test at all.
+- [x] Hard-kills a timed-out attempt with SIGTERM then SIGKILL, and waits for the dpkg frontend and apt lists locks before each retry. Waiting rather than force-unlocking is deliberate: a slow mirror is the common cause, and letting the previous `apt-get` finish makes the retry's dependency step a fast no-op. A lock still held after its bound stops the run with the lock named instead of burning the remaining attempts.
+- [x] Raised the install step bound to 18 minutes and the browser job bound to 20. The worst case is three 240-second attempts plus two retries waiting on two locks for 60 seconds each, or 960 seconds; the `0.33.33.29` ceilings assumed retries were instant, which was the defect, so they could not contain a retry that actually waits.
+- [x] Proved the ordering and every failure mode behaviourally in `tests/unit/install-playwright-browser.test.mjs` by driving the real entry point with stub subprocesses, and pinned the wiring and both bounds in `release.playwright-dev-only-boundary` with three seeded controls.
+- [x] Kept the proof out of a new discovered regression on purpose. A new owner would have breached the shrink-only active-owner line ceiling `database.current-static-contracts` enforces — measured at 109 lines over — and weakening that guardrail to admit a CI proof would have cost more than it bought. Vitest assertions already count toward the effective inventory, so nothing was lost.
+- [x] Combined strict debt holds at 17,106 with explicit `any` at 7; the discovered estate stays at 347 scripts and every coverage floor is unchanged.
+
 ## Version 0.33.33.30.2.1 - Tighten the shared module view-contribution contract
 
 **Model: High Effort** - The declaration is high fan-in across the server program and three modules' manifests.
