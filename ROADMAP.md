@@ -60,16 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.1 - Type view-surface contracts, strip their history pins, and correct the cursor-call defects
-
-**Model: High Effort** - The largest file surface in the cohort, and the only one still pinning planning history.
-
-- [ ] Close the 85 diagnostics across `scripts/regressions/views/current-static-contracts.regression.mjs` and the 29 folded modules beneath `scripts/regression-contracts/views/`; 9 modules carry diagnostics, led by `accessibility.contract.mjs` at 29 and `view-descriptor-declarative-guardrails.contract.mjs` at 24.
-- [ ] Type contract-module registration, source-scan results, and descriptor guardrail table shapes once at the aggregator so downstream modules clear without per-module casts.
-- [ ] Strip or justify all ten planning-document references in `markdown-platform`, `markdown-renderer-service`, `modal-action-standardization`, `view-builder`, `view-builder-converted-surface-guardrails`, `view-descriptor-declarative-guardrails`, `view-renderer-data-binding`, and `view-renderer-shell`, recording each disposition in `scripts/planning-document-pin-baseline.json`; any survivor must assert a current live contract.
-- [ ] Correct the two `assertRoadmapCursorAtLeast` call defects that typing exposed at `0.33.33.29` and that were preserved verbatim there because fixing either changes behavior. `scripts/regressions/release/maintenance-release-rehearsal.regression.mjs` omits the required `message` argument, so a floor failure reports `undefined (live roadmap cursor ...)`; `scripts/regressions/release/public-demo-compose-reset.regression.mjs` passes the raw roadmap string where the helper expects a `{ roadmapSource }` override object, so the override is silently ignored and the helper re-reads `ROADMAP.md` from disk. Supply the missing message and the correct override shape, remove the temporary call-site casts that documented the defects, and prove both owners still fail closed on a regressed cursor.
-- [ ] Preserve accessibility, icon, modal, surface-token, and descriptor-terminology assertions exactly; the 1,022-assertion `views.current-static-contracts` inventory must not move.
-
 ### 0.33.33.30.2 - Type framework contribution, settings, reporting, and shell-boundary owners
 
 **Model: High Effort** - Contribution and registry contracts control what modules may add to the framework.
