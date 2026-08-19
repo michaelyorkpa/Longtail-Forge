@@ -1,7 +1,16 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.30.3.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.30.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
+As of 0.33.33.30.3, HTTP error, transport, and production security posture owners are strict-clean. Ten `scripts/regressions/framework/` owners close their 188 diagnostics with named contracts for error envelopes, request-context probes, security audit rows, cookie posture, and the config fixtures each drives. `framework.security-static-contracts` was already clean and needed a disposition only.
+
+`scripts/test-support/http-fixture-contracts.mjs` now holds the shared HTTP fixture contract these owners duplicate. It is type-only by design: consolidating the request bodies themselves would change request construction, status handling, or timing in owners that prove exact transport behaviour, so the fixtures stay local and only their shapes are shared. The response record is split rather than flattened because the fixtures genuinely differ — some resolve a parsed JSON body, some raw text, some both, and some name the status field `statusCode` rather than `status`. Declaring one permissive union would let an owner claim a field its helper never resolves. The three clients typed in place at `0.33.33.30.2` now consume it through type-only imports with no change to how they build requests.
+
+Both vacuous request-ID correlations are fixed rather than preserved. `framework.browser-recovery-boundary` and `framework.http-error-contract` each matched the rendered page against `new RegExp(response.headers["x-request-id"])`; an absent header made that pattern empty, which matches anything. Each now asserts the header is a non-empty string and that the body contains that exact ID with `includes()`. A seeded control that blanks the rendered request-ID markup confirms the new check fails, proving it was passing vacuously before.
+
+Two guardrails had to be reckoned with honestly. The `0.33.33.11` active-owner line ceiling predates the full-strict mandate, which cannot type an owner without adding annotation lines to it. Sixteen lines of genuine slack were compressed out first; what remains is irreducible `@type` annotations and the governance pin that keeps them clean, so `data-files-security-static-owner.mjs` now records a named seventy-one-line full-strict typing allowance above the recorded ceiling. That is the measured cost of typing 188 diagnostics, about 0.6 lines per diagnostic. It is a measured cost, not an open budget: growth beyond it still fails, and it may only shrink. Assertion inventory rises by exactly four, all from the two vacuity fixes replacing one vacuous assertion with three real ones apiece.
+
+`framework.full-strict-governance` pins the ten owners and the shared fixture contract strict-clean. The scripts program falls from 5,972 to 5,784 diagnostics, combined strict debt from 17,106 to 16,918 with explicit `any` at 7.
 As of 0.33.33.30.3.1, the protected browser gate installs Playwright through one bounded entry point, `scripts/release/install-playwright-browser.mjs`. The `0.33.33.29` hardening bounded each attempt with `timeout 240` inline in three workflows, which fixed one stalled download consuming the job budget but created a worse failure: `timeout` terminates the wrapper it launched, not the `apt-get` that Playwright's `--with-deps` runs under sudo, so a cancelled attempt keeps holding `/var/lib/apt/lists/lock`. Attempts two and three then failed instantly with `Could not get lock`, spending the whole retry budget in six seconds and reporting a bounded-attempt exhaustion that never really retried. This was observed on the `0.33.33.30.2.1` pull request.
 
 The entry point owns the policy once instead of three times. It SIGTERMs and then SIGKILLs a timed-out attempt so nothing it started survives, and waits for the package-manager process before each retry. Waiting rather than force-unlocking is deliberate: a slow mirror is the common cause, and letting the previous `apt-get` finish makes the retry a fast no-op. A package manager still running after its bound stops the run rather than burning the remaining attempts against it. The bounds are stall detectors, not deadlines for a healthy install. Four CI runs showed the `0.33.33.29` value of 240 seconds was below the real cost of this step when the azure mirror is unreachable and apt falls back to `archive.ubuntu.com`: attempts were killed mid-fetch and mid-unpack while still making progress, and a 60-second wait then gave up on an apt that was still installing. The defaults are now two 540-second attempts with a 180-second package-manager wait between them, and the install step and browser job bounds rise to 23 and 25 minutes to contain that worst case of 1,320 seconds. Two long attempts beat three short ones once apt itself waits for a contended lock.
@@ -493,11 +502,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18319 |
+| Active regression assertions | 18325 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19003 |
+| Effective assertion floor | 19009 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

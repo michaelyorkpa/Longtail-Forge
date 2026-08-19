@@ -29,24 +29,29 @@ configureTrustedProxy(app, []);
 app.use(attachRequestContext);
 app.use(cookieParser());
 app.use(createCsrfProtectionMiddleware());
-app.get("/api/csrf-token", (request, response) => {
+app.get("/api/csrf-token", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
   const csrfToken = createCsrfToken();
   response.setHeader("Set-Cookie", buildCsrfCookie(csrfToken, request));
   response.json({ csrfToken });
-});
-app.use((request, response) => response.status(200).json({ accepted: true }));
+}));
+app.use(/** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => response.status(200).json({ accepted: true })));
 app.use(errorHandler);
 
+/** The per-request overrides and captured response this fixture uses. */
+/** @typedef {{ body?: string, headers?: Record<string, string>, method?: string, path?: string }} CsrfRequestOptions */
+/** @typedef {{ headers: import("node:http").IncomingHttpHeaders, json: { accepted?: boolean, csrfToken?: string, error?: { code: string } } | null, statusCode: number | undefined }} CsrfResponse */
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
 const server = await new Promise((resolve) => {
   const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
 });
 
 try {
-  const port = server.address().port;
+  const port = /** @type {import("node:net").AddressInfo} */ (server.address()).port;
   const sameOrigin = `http://127.0.0.1:${port}`;
   const tokenResponse = await sendRequest(port, { path: "/api/csrf-token" });
-  const csrfToken = tokenResponse.json.csrfToken;
-  const csrfCookie = tokenResponse.headers["set-cookie"][0].split(";", 1)[0];
+  // The token route is asserted below to issue both; a missing one still fails there.
+  const csrfToken = /** @type {string} */ (/** @type {{ csrfToken?: string }} */ (tokenResponse.json).csrfToken);
+  const csrfCookie = /** @type {string[]} */ (tokenResponse.headers["set-cookie"])[0].split(";", 1)[0];
   assert.match(csrfCookie, new RegExp(`^${config.cookies.csrfName}=`), "the public token route should set the shared CSRF cookie");
 
   await expectStatus(port, 200, {
@@ -183,16 +188,18 @@ try {
   assert.match(themeInitSource, /headers\.set\(CSRF_HEADER_NAME, csrfToken\)/, "the early browser bootstrap should protect every later fetch caller");
   assert.match(themeInitSource, /!url\.pathname\.startsWith\("\/api\/v1\/"\)/, "the browser wrapper should leave bearer API routes independent");
 } finally {
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
 }
 
 console.log("CSRF protection regression passed.");
 
+/** @param {number} port @param {number} expectedStatus @param {CsrfRequestOptions} options @param {string} message */
 async function expectStatus(port, expectedStatus, options, message) {
   const response = await sendRequest(port, options);
   assert.equal(response.statusCode, expectedStatus, `${message}: ${JSON.stringify(response.json)}`);
 }
 
+/** @param {number} port @param {CsrfRequestOptions} [options] @returns {Promise<CsrfResponse>} */
 function sendRequest(port, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body === undefined ? null : Buffer.from(options.body);
@@ -207,6 +214,7 @@ function sendRequest(port, options = {}) {
       path: options.path || "/",
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {

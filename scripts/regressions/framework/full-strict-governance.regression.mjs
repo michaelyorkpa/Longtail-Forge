@@ -254,6 +254,14 @@ assert.deepEqual(viewOwnerDebt, [], "view-surface contract owners closed at chec
 const frameworkContractDebt = Object.keys(ledger.programs.scripts.diagnostics)
   .filter((filePath) => filePath.startsWith("scripts/regression-contracts/framework/"));
 assert.deepEqual(frameworkContractDebt, [], "framework contract modules closed at checkpoint 0.33.33.30.2 and must stay strict-clean");
+for (const httpSecurityOwner of [
+  "browser-security-headers", "csrf-protection", "express-5-http-contract", "http-error-contract",
+  "operational-security-basics", "production-configuration-hardening", "public-legal-surfaces",
+  "security-event-logging", "tls-cookie-posture", "trusted-proxy-request-context",
+].map((owner) => `scripts/regressions/framework/${owner}.regression.mjs`).concat("scripts/test-support/http-fixture-contracts.mjs")) {
+  assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
+  assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
+}
 for (const contributionOwnerPath of [
   "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
   "scripts/regressions/framework/asset-cache-version.regression.mjs",

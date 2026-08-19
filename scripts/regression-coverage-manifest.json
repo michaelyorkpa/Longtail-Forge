@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18319,
+    "activeAssertionCount": 18325,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19003,
+    "effectiveAssertionCount": 19009,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -3415,11 +3415,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 41,
+      "assertionCount": 43,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves self-contained branded browser failures, client crash recovery, and mutation-only permission-denied presentation.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 43,
       "id": "framework.browser-recovery-boundary",
       "legacy": false,
       "path": "scripts/regressions/framework/browser-recovery-boundary.regression.mjs",
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 101,
+      "assertionCount": 103,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 101,
+      "entryPointAssertionCount": 103,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3622,11 +3622,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 56,
+      "assertionCount": 58,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves internal and v1 API envelopes, request correlation, safe diagnostics, browser HTML classification, and final route ordering.",
-      "entryPointAssertionCount": 56,
+      "entryPointAssertionCount": 58,
       "id": "framework.http-error-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/http-error-contract.regression.mjs",

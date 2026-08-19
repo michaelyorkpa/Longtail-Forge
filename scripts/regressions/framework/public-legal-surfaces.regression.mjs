@@ -25,6 +25,7 @@ const { createApp } = await import("../../../src/core/app.js");
 const { CONTENT_SECURITY_POLICY } = await import("../../../src/core/transport-security.js");
 
 const app = createApp();
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
 const server = await new Promise((resolve) => {
   const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
 });
@@ -56,7 +57,7 @@ try {
   assert.equal(appInfo.statusCode, 200);
   assert.match(runtimeIdentity.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(runtimeIdentity.canonicalVersion)}$`));
 } finally {
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
   await fs.rm(fixtureRoot, { recursive: true, force: true });
 }
 
@@ -69,6 +70,7 @@ assert.doesNotMatch(footerSource, /or at your option any later version/);
 
 console.log("Public legal surfaces regression passed.");
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeTextResponse>} */
 function request(listener, requestPath, headers = {}) {
   return new Promise((resolve, reject) => {
     const outgoing = http.request({
@@ -76,8 +78,9 @@ function request(listener, requestPath, headers = {}) {
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: listener.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (listener.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);

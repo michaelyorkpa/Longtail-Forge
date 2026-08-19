@@ -35,7 +35,7 @@ const { timeTrackingModule } = await import("../../../src/modules/time-tracking/
  * report, its key, the workspace it runs for, and the validated filters.
  * @typedef {{ filters: Record<string, unknown>, report: { runner: string }, reportKey: string, workspaceId: string }} RunnerContext
  */
-/** @typedef {{ session?: string }} ReportingRequestOptions */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} ReportingRequestOptions */
 /**
  * The JSON payload fields the reporting routes return here: the catalog list,
  * a safe execution error envelope, and a completed run.
@@ -48,7 +48,7 @@ const { timeTrackingModule } = await import("../../../src/modules/time-tracking/
  *   status: string,
  * }} ReportingPayload
  */
-/** @typedef {{ body: ReportingPayload, headers: Headers, status: number }} ReportingResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<ReportingPayload>} ReportingResponse */
 /** @typedef {{ get: (url: string, options?: ReportingRequestOptions) => Promise<ReportingResponse> }} ReportingApi */
 
 const REPORT_KEY = "time-tracking:project-time-billing";

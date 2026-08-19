@@ -24,7 +24,7 @@ import { AppError } from "../../../src/utils/app-error.js";
  * @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} RouteHandler
  */
 /** One captured fixture response: the recovery page and the status that produced it. */
-/** @typedef {{ headers: import("node:http").IncomingHttpHeaders, status: number | undefined, text: string }} RecoveryResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureTextResponse} RecoveryResponse */
 
 const browserRecoverySource = await fs.readFile("public/js/shared/browser-recovery.js", "utf8");
 const staticServiceSource = await fs.readFile("src/services/static.service.js", "utf8");
@@ -148,9 +148,17 @@ try {
   const unexpected = await request(server, "/unexpected.html");
   assert.equal(unexpected.status, 500);
   assert.match(unexpected.text, /data-recovery-kind="unexpected"/);
-  // Single-value headers, cast rather than narrowed so the read stays exactly as
-  // permissive as it is today; see the 0.33.33.30.2 note on this correlation check.
-  assert.match(unexpected.text, new RegExp(/** @type {string} */ (unexpected.headers["x-request-id"])));
+  // The correlation header and the rendered page must agree. Matching the page
+  // against a pattern built from the header was vacuous: an absent header made
+  // the pattern empty, which matches anything.
+  const unexpectedRequestId = unexpected.headers["x-request-id"];
+  assert.equal(typeof unexpectedRequestId, "string", "an unexpected failure must report a request correlation header");
+  assert.notEqual(unexpectedRequestId, "", "the request correlation header must carry a value");
+  assert.equal(
+    unexpected.text.includes(/** @type {string} */ (unexpectedRequestId)),
+    true,
+    "the rendered recovery page must show the same request ID the correlation header reports",
+  );
   assert.doesNotMatch(unexpected.text, /secret|database\.sqlite|private/i);
 
   for (const response of [login, forbidden, missing, conflict, dependency, unexpected]) {

@@ -103,11 +103,14 @@ for (const filePath of sourceFiles) {
 
 console.log("Trusted proxy request context regression passed.");
 
+/** @typedef {{ hostname: string, ipAddress: string, protocol: string, requestId: string }} ProbeRequestContext */
+/** @typedef {{ body: ProbeRequestContext, cookies: string[] }} ProbeResponse */
+/** @param {readonly string[] | undefined} trustedProxies @param {Record<string, string>} headers @returns {Promise<ProbeResponse>} */
 async function probeRequest(trustedProxies, headers) {
   const app = express();
   configureTrustedProxy(app, trustedProxies);
   app.use(attachRequestContext);
-  app.get("/probe", (request, response) => {
+  app.get("/probe", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
     const context = getRequestContext(request);
     response.setHeader("Set-Cookie", [
       buildSessionCookie("probe-session", 300, request),
@@ -115,22 +118,24 @@ async function probeRequest(trustedProxies, headers) {
       buildThemeAutoSourceCookie("system", request),
     ]);
     response.json(context);
-  });
+  }));
 
+  /** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 
   try {
-    const address = server.address();
+    const address = /** @type {import("node:net").AddressInfo} */ (server.address());
     return await sendRequest(address.port, headers);
   } finally {
-    await new Promise((resolve, reject) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
-    });
+    }));
   }
 }
 
+/** @param {number} port @param {Record<string, string>} headers @returns {Promise<ProbeResponse>} */
 function sendRequest(port, headers) {
   return new Promise((resolve, reject) => {
     const request = http.request({
@@ -140,6 +145,7 @@ function sendRequest(port, headers) {
       path: "/probe",
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {

@@ -133,6 +133,7 @@ function createProductionConfig(overrides = {}) {
   });
 }
 
+/** @param {string[]} cookies @param {{ secure: boolean }} expectation */
 function assertCookiePosture(cookies, { secure }) {
   assert.equal(cookies.length, 4, "the probe should issue one session, two theme, and one CSRF cookie");
   assert.match(cookies[0], /; Path=\/;/, "the session cookie should be scoped to the app root");
@@ -151,12 +152,15 @@ function assertCookiePosture(cookies, { secure }) {
   }
 }
 
+/** @typedef {{ hostname: string, ipAddress: string, protocol: string, requestId: string }} ProbeRequestContext */
+/** @typedef {{ body: ProbeRequestContext, cookies: string[], hsts: string | undefined }} ProbeResponse */
+/** @param {readonly string[] | undefined} trustedProxies @param {Record<string, string>} headers @param {{ enabled: boolean, maxAgeSeconds: number }} [hsts] @returns {Promise<ProbeResponse>} */
 async function probeRequest(trustedProxies, headers, hsts) {
   const app = express();
   configureTrustedProxy(app, trustedProxies);
   app.use(attachRequestContext);
   app.use(createTransportSecurityMiddleware({ hsts }));
-  app.get("/probe", (request, response) => {
+  app.get("/probe", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
     response.setHeader("Set-Cookie", [
       buildSessionCookie("probe-session", 300, request),
       buildThemeCookie("system", request),
@@ -164,21 +168,23 @@ async function probeRequest(trustedProxies, headers, hsts) {
       buildCsrfCookie("probe-token", request),
     ]);
     response.json(getRequestContext(request));
-  });
+  }));
 
+  /** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 
   try {
-    return await sendRequest(server.address().port, headers);
+    return await sendRequest(/** @type {import("node:net").AddressInfo} */ (server.address()).port, headers);
   } finally {
-    await new Promise((resolve, reject) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
-    });
+    }));
   }
 }
 
+/** @param {number} port @param {Record<string, string>} headers @returns {Promise<ProbeResponse>} */
 function sendRequest(port, headers) {
   return new Promise((resolve, reject) => {
     const request = http.request({
@@ -188,6 +194,7 @@ function sendRequest(port, headers) {
       path: "/probe",
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
