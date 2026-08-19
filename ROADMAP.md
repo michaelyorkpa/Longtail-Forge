@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, and `.28.6` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, and `.30` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -52,12 +52,72 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - These owners cover shared UI, sessions, authentication, authorization, and browser safety.
 
-- [ ] Close full-strict debt in framework, views, permissions, and registered permission-harness support code.
-- [ ] Type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof.
-- [ ] Preserve security, accessibility, permission, and module-enablement expectations.
-- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
-- [ ] Correct the two `assertRoadmapCursorAtLeast` call defects that typing exposed at `0.33.33.29` and that were preserved verbatim there because fixing either changes behavior. `maintenance-release-rehearsal.regression.mjs` omits the required `message` argument, so a floor failure reports `undefined (live roadmap cursor ...)`; `public-demo-compose-reset.regression.mjs` passes the raw roadmap string where the helper expects a `{ roadmapSource }` override object, so the override is silently ignored and the helper re-reads `ROADMAP.md` from disk. Supply the missing message and the correct override shape, remove the temporary call-site casts that documented the defects, and prove both owners still fail closed on a regressed cursor.
-- [ ] Reduce this scripts-ledger cohort to zero.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe puts this cohort at 1,319 diagnostics across 63 diagnostic-bearing files (92 source files, about 18,100 lines, 52 discovered regression entries) — larger than the 1,287 that forced the six-way `0.33.33.28` reslice, and the highest-security-risk cohort in the branch. Unlike `0.33.33.29`, no free cascade is available: the shared fixtures these owners import (`test-support/disposable-database.mjs`, `session-fixtures.mjs`, `fake-dom.mjs`, `source-scan.mjs`) are already strict-clean from `0.33.33.27`, and 850 of the 1,319 diagnostics are `TS7006` implicit-any parameters in per-file local helpers — 25 of the 26 HTTP-driving owners declare their own `request` helper — so the work is roughly linear in files.
+
+Cohort boundary: this rollup owns `scripts/regressions/{framework,views,permissions}/`, `scripts/regression-contracts/{framework,views,permissions}/`, and the registered `permissions.http-authorization-matrix` harness at `scripts/permission-regression.mjs`. It deliberately does not own the 38 `legacy.*` entries whose manifest `area` is framework, views, or permissions (30 framework, 7 views, 1 permissions; 539 diagnostics, including the top-level `view-*`, `app-shell-navigation`, and `linked-context-*` owners). Those remain with `0.33.33.32`'s remaining-legacy cohort, matching the directory boundary `0.33.33.29` drew; `0.33.33.32` must be sized with them included.
+
+These requirements apply to every child: type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof; reuse the typed `test-support` fixtures through type-only imports rather than redeclaring their shapes; preserve security, accessibility, permission, and module-enablement expectations; preserve every retained assertion ID and failure message, with negative controls proving the typed owner still fails closed; and record a planning-document pin disposition for the child's files. Children are ordered smallest-and-most-contained first so each closes a coherent contract family within one session.
+
+Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
+
+### 0.33.33.30.1 - Type view-surface contracts, strip their history pins, and correct the cursor-call defects
+
+**Model: High Effort** - The largest file surface in the cohort, and the only one still pinning planning history.
+
+- [ ] Close the 85 diagnostics across `scripts/regressions/views/current-static-contracts.regression.mjs` and the 29 folded modules beneath `scripts/regression-contracts/views/`; 9 modules carry diagnostics, led by `accessibility.contract.mjs` at 29 and `view-descriptor-declarative-guardrails.contract.mjs` at 24.
+- [ ] Type contract-module registration, source-scan results, and descriptor guardrail table shapes once at the aggregator so downstream modules clear without per-module casts.
+- [ ] Strip or justify all ten planning-document references in `markdown-platform`, `markdown-renderer-service`, `modal-action-standardization`, `view-builder`, `view-builder-converted-surface-guardrails`, `view-descriptor-declarative-guardrails`, `view-renderer-data-binding`, and `view-renderer-shell`, recording each disposition in `scripts/planning-document-pin-baseline.json`; any survivor must assert a current live contract.
+- [ ] Correct the two `assertRoadmapCursorAtLeast` call defects that typing exposed at `0.33.33.29` and that were preserved verbatim there because fixing either changes behavior. `scripts/regressions/release/maintenance-release-rehearsal.regression.mjs` omits the required `message` argument, so a floor failure reports `undefined (live roadmap cursor ...)`; `scripts/regressions/release/public-demo-compose-reset.regression.mjs` passes the raw roadmap string where the helper expects a `{ roadmapSource }` override object, so the override is silently ignored and the helper re-reads `ROADMAP.md` from disk. Supply the missing message and the correct override shape, remove the temporary call-site casts that documented the defects, and prove both owners still fail closed on a regressed cursor.
+- [ ] Preserve accessibility, icon, modal, surface-token, and descriptor-terminology assertions exactly; the 1,022-assertion `views.current-static-contracts` inventory must not move.
+
+### 0.33.33.30.2 - Type framework contribution, settings, reporting, and shell-boundary owners
+
+**Model: High Effort** - Contribution and registry contracts control what modules may add to the framework.
+
+- [ ] Close the 170 diagnostics across `settings-contribution-contract`, `generic-settings-engine`, `reporting-catalog-execution`, `reporting-contribution-contract`, `bundled-module-registry`, `module-import-boundaries`, `asset-cache-version`, `client-project-options-projection`, `user-landing-preferences`, `workbench-focus-policy`, `app-shell-bootstrap-boundary`, `browser-recovery-boundary`, and `framework.current-static-contracts` with its 5 folded modules.
+- [ ] Type settings and reporting contribution descriptors, module registry entries, and landing-preference payloads with named contracts rather than per-call-site casts.
+- [ ] Preserve module-enablement gating, contribution rejection messages, asset version stamping, import-boundary refusals, and recovery-boundary behavior.
+
+### 0.33.33.30.3 - Type HTTP error, transport, and production security posture owners
+
+**Model: High Effort** - These owners fix the response and header contract every other surface is proven against.
+
+- [ ] Close the 188 diagnostics across `http-error-contract`, `express-5-http-contract`, `csrf-protection`, `browser-security-headers`, `tls-cookie-posture`, `trusted-proxy-request-context`, `public-legal-surfaces`, `operational-security-basics`, `security-event-logging`, `production-configuration-hardening`, and the `framework/http-error-development-guardrails` contract module; `framework/security-static-contracts.regression.mjs` is already strict-clean and needs a disposition only.
+- [ ] Introduce one typed HTTP request/response fixture contract for the raw `node:http` helpers these owners duplicate, and consume it by type-only import; it must not change request construction, status handling, or timing.
+- [ ] Preserve exact status codes, error envelope shapes, development-versus-production error detail rules, header sets, cookie flags, proxy trust resolution, and security-event record shapes.
+
+### 0.33.33.30.4 - Type authentication, credential, and account-recovery owners
+
+**Model: High Effort** - Throttling, hashing, and recovery flows are the credential perimeter.
+
+- [ ] Close the 200 diagnostics across `authentication-throttle`, `password-reset-hardening`, `password-hashing-modernization`, `account-export-recovery`, and `private-calendar-feed-authentication`.
+- [ ] Type throttle counters and lockout windows, hash-parameter records, reset and recovery token payloads, export descriptors, and feed-token boundaries with named contracts.
+- [ ] Preserve failure-limit and lockout arithmetic, hash upgrade-on-login behavior, token single-use and expiry rules, enumeration-safe messaging, and feed authentication refusals; prove each with a negative control.
+
+### 0.33.33.30.5 - Type Public Demo perimeter and role-journey owners
+
+**Model: High Effort** - The demo perimeter is the only surface exposed to anonymous internet traffic.
+
+- [ ] Close the 191 diagnostics across `public-demo-budgets`, `public-demo-perimeter`, `public-demo-identity-immutability`, `public-demo-cross-role-content-safety`, `public-demo-account-catalog`, `public-demo-capability-enforcement`, `public-demo-files-ingress`, and the `permissions/public-demo-role-journey` and `permissions/sanitized-demo-role-journey` owners.
+- [ ] Type budget counters, capability matrices, seeded account catalogs, ingress probe results, and role-journey step descriptors with named contracts, reusing `test-support/public-demo-files-ingress-probe.mjs` by type-only import.
+- [ ] Preserve every budget threshold, capability refusal, identity-immutability rule, cross-role content-safety assertion, and sanitized-fixture redaction exactly.
+
+### 0.33.33.30.6 - Type session lifecycle and Support View enforcement owners
+
+**Model: High Effort** - Support View separates actor identity from effective identity across a durable gated session.
+
+- [ ] Close the 205 diagnostics across `support-view-session-contract` (87), `support-view-request-enforcement` (56), `session-revocation`, `remembered-sessions`, and `session-auth-warning`.
+- [ ] Type session and support-session records, actor/effective identity pairs, rotation and expiry state, and reauthentication throttle state with named contracts; the actor/effective distinction must be expressed in the types, not by comment.
+- [ ] Preserve gating, rotation, expiry, reauthentication throttling, revocation propagation, remembered-session persistence, and safe event persistence; prove revocation and expiry still fail closed with negative controls.
+
+### 0.33.33.30.7 - Type the permission harness and authorization-model owners
+
+**Model: High Effort** - The 352-assertion eight-role matrix is the branch's largest single release-gate proof.
+
+- [ ] Close the 280 diagnostics across `scripts/permission-regression.mjs` (249 in one 3,826-line file) and the `permissions` owners `client-project-business-boundary`, `workspace-membership-billable`, `permission-resource-types`, `permission-resource-catalog`, `current-static-contracts`, and its 2 folded contract modules.
+- [ ] Type the role fixture table, request matrix rows, expected-status maps, and resource-catalog entries with named contracts so a missing role or resource is a compile error rather than a silently skipped row.
+- [ ] Preserve all 352 assertions, the eight-role coverage, isolated-database and release-gate run modes, and the business-boundary and billable-membership rules; prove the matrix still fails closed on a seeded permission regression.
+- [ ] If a probe shows this child exceeds one session, split it at the harness's role-matrix phase seam or run the authorization-model owners as a separate pass — the 3,826-line harness cannot be split by file, so do not reslice by adding files.
 
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
 
