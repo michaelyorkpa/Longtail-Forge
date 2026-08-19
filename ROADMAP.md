@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, and `.28.5` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, and `.28.6` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -54,20 +54,20 @@ Release-wide measurable acceptance:
 
 Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
 
-### 0.33.33.28.5 - Type artifact, container, and deployment tooling
-
-**Model: High Effort** - Artifact and image publication carry immutable-digest and pinned-host deployment contracts.
-
-Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 378 diagnostics across seven files — roughly 2.6 times the 120-145 range that completed comfortably in one session at `0.33.33.28.1`, `.28.2`, and `.28.4`, and the highest operator-risk cohort in the `0.33.33.28` family. It splits at the seam between what is built and published and how that artifact reaches and is served by a host; both children measure inside the proven single-session range. These requirements apply to both: type artifact manifests, image index and platform-manifest digests, attestation records, SSH batch results, and proxy probe responses; and preserve immutable-digest rejection rules, native-execution proof, pinned-host batch SSH boundaries, and maintenance-marker fallbacks.
-
 ### 0.33.33.28.6 - Type development seed and scale tooling
 
 **Model: High Effort** - Seed tooling writes large volumes of workspace data through the real service layer.
 
-- [ ] Close the ~401 diagnostics in `development-data.mjs` and `seed-scale.mjs`.
-- [ ] Type seed scenario descriptors, generated record shapes, service call boundaries, and scale counters with named contracts.
-- [ ] Preserve deterministic seed scenarios, operator-safety guards, volume parameters, and idempotent reseed behavior.
-- [ ] Reslice further at planning time if a measured probe shows this child exceeds one session.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 401 diagnostics across two files totalling 2,836 lines — larger than the 378 that was resliced at `0.33.33.28.5`, and well beyond the 120-145 range that completed comfortably in one session. The two tools are independent operator entry points that import nothing from each other, so the file boundary is the honest seam; each child lands between that comfortable range and the 233 proven at `0.33.33.28.5.1`. These requirements apply to both: type seed scenario descriptors, generated record shapes, service call boundaries, and scale counters with named contracts; and preserve deterministic seed scenarios, operator-safety guards, volume parameters, and idempotent reseed behavior.
+
+### 0.33.33.28.6.2 - Type scale and volume seeding
+
+**Model: High Effort** - Scale seeding generates high-volume data whose counters and batching feed performance measurement.
+
+- [ ] Close the ~209 diagnostics in `seed-scale.mjs`.
+- [ ] Type volume parameters, batch plans, generated record shapes, service call boundaries, and scale counters with named contracts.
+- [ ] Preserve volume parameters, batching behavior, deterministic generation, and reported counters exactly.
+- [ ] Prove through the scale-seed framework regression without changing generated volumes or timing characteristics.
 
 ### 0.33.33.29 - Type release, docs, and consolidated static regression owners
 

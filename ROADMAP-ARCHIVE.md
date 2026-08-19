@@ -1,5 +1,24 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28.6.1 - Type development data seeding
+
+**Model: High Effort** - Development seeding writes a complete deterministic workspace through the real service layer behind operator safety guards.
+
+- [x] Closed all 192 diagnostics in `development-data.mjs`.
+- [x] Typed seed scenario descriptors, generated record shapes for tasks, notes, lists, projects, and search tuples, service call boundaries, sanitized role fixtures, CLI options, and the database rows the seeder reads back, through roughly forty-five named contracts; typing the producing factories and their closures collapsed the implicit-parameter and property-read clusters at their source, so only twenty-five casts were needed across 1,065 lines.
+- [x] Preserved deterministic scenario output, operator-password admission, destructive-reseed guards, and idempotent reseed behavior exactly: no fallback operator was introduced and every presence cast still fails hard. Equivalence was proven mechanically — a normalizer stripping every cast back to its wrapped expression renders the file byte-identical to its previous revision across 992 normalized lines with matching checksums on both sides, and the normalized output still parses.
+- [x] Proved through the development-data seed regression and the full 42-entry database bucket, which spawns the seeder end to end through the demo-host and baseline-candidate owners, without changing any generated record or command surface; `framework.full-strict-governance` pins the owner strict-clean, the scripts program falls from 6,771 to 6,579 diagnostics, combined debt from 17,905 to 17,713 with explicit `any` at 7, and effective regression assertions advance to 18,974 across 347 scripts.
+
+## Version 0.33.33.28.5 - Type artifact, container, and deployment tooling
+
+**Model: High Effort** - Artifact and image publication carry immutable-digest and pinned-host deployment contracts.
+
+Planning rollup closed by its final child. A measured probe put this cohort at 378 diagnostics across seven files — roughly 2.6 times the 120-145 range that completed comfortably in one session at `0.33.33.28.1`, `.28.2`, and `.28.4`, and the highest operator-risk cohort in the `0.33.33.28` family — so it was resliced at the seam between what is built and published and how that artifact reaches and is served by a host.
+
+- [x] `0.33.33.28.5.1` closed the 233 artifact and container build/publication diagnostics with immutable-digest rules, publication refusals, native execution proof, and schema-2 metadata binding preserved.
+- [x] `0.33.33.28.5.2` closed the 145 deployment transfer and reference proxy diagnostics with pinned-host batch SSH boundaries, the root-owned Compose helper handoff, and every asserted security-header and diagnostic-status expectation preserved, proven mechanically and against a live Caddy fixture.
+- [x] Both children reused one canonical published release-metadata contract rather than divergent local shapes, so that schema now keeps a single definition from creation through publication to deployment; the cohort fell from 7,150 to 6,771 scripts diagnostics with no collateral increase.
+
 ## Version 0.33.33.28.5.2 - Type deployment transfer and the reference proxy boundary
 
 **Model: High Effort** - Deployment transfer and the reference proxy are the live host boundary between a verified artifact and served traffic.
