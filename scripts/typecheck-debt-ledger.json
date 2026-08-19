@@ -367,6 +367,7 @@
         "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/identifiers.test.mjs",
+        "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/legal-content.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
@@ -2873,6 +2874,7 @@
         "scripts/release/configure-github-release-operations.mjs",
         "scripts/release/create-release-metadata.mjs",
         "scripts/release/deploy-via-ssh.mjs",
+        "scripts/release/install-playwright-browser.mjs",
         "scripts/release/nightly-proof.mjs",
         "scripts/release/public-demo-release-candidate-smoke.mjs",
         "scripts/release/published-container-image.mjs",
@@ -7719,7 +7721,7 @@
     }
   },
   "totals": {
-    "files": 1037,
+    "files": 1039,
     "errors": 17106,
     "explicitAny": 7
   },
