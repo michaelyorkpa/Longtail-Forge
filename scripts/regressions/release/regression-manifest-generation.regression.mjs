@@ -36,6 +36,7 @@ import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 /** @typedef {import("../../lib/regression-manifest.mjs").CoveragePolicy} CoveragePolicy */
 /** @typedef {import("../../lib/regression-manifest.mjs").RegressionOwner} RegressionOwner */
 /** @typedef {import("../../lib/regression-manifest.mjs").RetiredScript} RetiredScript */
+/** @typedef {import("../../lib/regression-manifest.mjs").RetiredAssertionRecord} RetiredAssertionRecord */
 
 const manifest = readJson("scripts/regression-coverage-manifest.json");
 const policy = readJson("scripts/regression-coverage-exceptions.json");
@@ -48,6 +49,7 @@ const manifestRegressions = manifest.regressions;
 const directOwnerInventory = manifest.assertionInventory.directOwners;
 /** @type {ReviewableRetirement[]} */
 const policyRetirements = policy.retiredScripts;
+const activeManifestIds = new Set(manifestRegressions.map((entry) => entry.id));
 
 assert.match(generatorSource, /Regression coverage manifest is stale/);
 assert.match(generatorSource, /--ratchet-floors/);
@@ -331,6 +333,57 @@ for (const phrase of [
   "source regression should remain discovered",
   "retained integration owner should remain discovered",
 ]) assert.match(malformedMovementErrors, new RegExp(escapeRegExp(phrase)));
+
+// Retired assertions credit only the assertion floor. A deleted deadweight
+// assertion never leaves a script behind, so this record must not move an area,
+// tier, family, or bucket floor the way a credited script retirement does.
+assert.deepEqual(manifest.retiredAssertions, policy.retiredAssertions, "the manifest must publish the recorded assertion retirements");
+assert.equal(
+  manifest.assertionInventory.retiredAssertionCredit,
+  policy.retiredAssertions.reduce((/** @type {number} */ total, /** @type {RetiredAssertionRecord} */ entry) => total + entry.assertionCount, 0),
+  "the credited assertion retirement must equal the recorded retirements",
+);
+for (const record of /** @type {RetiredAssertionRecord[]} */ (policy.retiredAssertions)) {
+  assert.ok(
+    activeManifestIds.has(record.sourceRegression),
+    `${record.sourceRegression} must stay discovered: retiring assertions does not retire its owner`,
+);
+  for (const sourcePath of record.sourcePaths) {
+    const source = readFileSync(sourcePath, "utf8");
+    for (const evidence of record.retiredEvidence) {
+      assert.equal(source.includes(evidence), false, `${sourcePath} must not reinstate retired evidence ${evidence}`);
+    }
+  }
+}
+const reinstatedPinPolicy = clone(policy);
+reinstatedPinPolicy.retiredAssertions[0].retiredEvidence = ["import assert from"];
+assert.match(
+  errorsFor(REGRESSION_ENTRIES, reinstatedPinPolicy),
+  /still references retired evidence import assert from/,
+  "a retired-assertion record must fail once its source reinstates the evidence it claims to have removed",
+);
+const malformedRetiredAssertionPolicy = clone(policy);
+malformedRetiredAssertionPolicy.retiredAssertions.push({
+  sourceRegression: "scripts/missing-source-regression.mjs",
+  retirementType: "unknown",
+  assertionCount: 0,
+  retiredEvidence: [],
+  sourcePaths: [],
+  retainedCoverageOwners: ["release.missing-owner"],
+  verificationPerformed: [],
+});
+const malformedRetiredAssertionErrors = errorsFor(REGRESSION_ENTRIES, malformedRetiredAssertionPolicy);
+for (const phrase of [
+  "retiredInVersion",
+  "rationale",
+  "assertionDisposition",
+  "retirementType should be one of historical-planning-pin",
+  "positive assertionCount",
+  "should name an active source regression",
+  "retained coverage owner release.missing-owner should be active",
+  "verificationPerformed",
+  "should name the retiredEvidence they removed",
+]) assert.match(malformedRetiredAssertionErrors, new RegExp(escapeRegExp(phrase)));
 
 const expectedDocBlock = buildRegressionDocInventory({ manifest, policy });
 assert.equal(replaceRegressionDocInventory(docs, expectedDocBlock), docs);

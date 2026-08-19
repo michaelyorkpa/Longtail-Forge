@@ -158,6 +158,7 @@ assert.doesNotMatch(
 
 console.log("UI contract regression passed.");
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function readFunctionBody(source, functionName) {
   const marker = `function ${functionName}`;
   const start = source.indexOf(marker);
@@ -183,6 +184,7 @@ function readFunctionBody(source, functionName) {
   throw new Error(`${functionName} function body did not close`);
 }
 
+/** @param {string} source @param {string} constName @returns {string} */
 function readConstArray(source, constName) {
   const marker = `const ${constName} = [`;
   const start = source.indexOf(marker);
@@ -205,6 +207,7 @@ function readConstArray(source, constName) {
   throw new Error(`${constName} array did not close`);
 }
 
+/** @param {string} source @param {string} propertyName @returns {string} */
 function readObjectArray(source, propertyName) {
   const marker = `${propertyName}: [`;
   const start = source.indexOf(marker);

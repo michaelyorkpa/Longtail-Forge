@@ -6,7 +6,6 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const version = "0.33.5.15.6";
-const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -20,7 +19,6 @@ const workbenchHtml = readText("views/protected/workbench.html");
 
 assert.match(viewContract, new RegExp(`As of ${escapeRegExp(version)}`), "View contract should report the current guardrail version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.15\.5/, "View contract should document the guardrail slice");
-assert.match(changelog, /## Version 0\.33\.5\.15\.5 - /, "Changelog should include the converted-surface guardrail version");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage|["'`]\/api\//, "View builder should not own module data loading or storage");
 assert.match(helper, /function createModalFooter/, "View builder should own modal footer creation");
 assert.match(helper, /surface-modal-footer-group/, "View builder should own modal footer groups");
@@ -102,6 +100,7 @@ assert.match(helper, /className:\s*\["view-inline-action-row",\s*"surface-dense-
 
 console.log("View builder converted-surface guardrails passed.");
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -109,6 +108,7 @@ function functionBlock(source, functionName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/** @param {string} source @param {string} label */
 function assertNoHardcodedLightBackgrounds(source, label) {
   assert.doesNotMatch(
     source,

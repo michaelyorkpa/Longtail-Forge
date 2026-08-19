@@ -4,7 +4,6 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const contract = await readText("docs/markdown-platform-contract.md");
-const roadmap = await readText("ROADMAP.md");
 const notesMarkdown = await readText("src/modules/notes/markdown.js");
 const helpService = await readText("src/services/help.service.js");
 const notesEditor = await readText("public/js/shared/notes-editor.js");
@@ -41,7 +40,5 @@ assert.match(notesEditor, /underline:\s*\{\s*prefix:\s*"\+\+"/, "Notes editor sh
 assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should expose a protected preview route after 0.33.5.17.6");
 assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/, "Notes live preview should use the server preview route");
 assert.match(notesJs, /command:\s*"underline",\s*text:\s*"U",\s*label:\s*"Underline"/, "Notes toolbar should expose the safe underline command");
-
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract/, "completed Markdown platform roadmap slices should be archived out of the live roadmap");
 
 console.log("Markdown platform contract regression passed.");

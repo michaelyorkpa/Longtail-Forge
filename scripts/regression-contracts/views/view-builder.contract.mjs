@@ -5,7 +5,6 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under views.current-static-contracts by 0.33.33.9.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
@@ -59,7 +58,5 @@ assert.match(moduleContract, /LongtailForge\.view/, "Module contract should name
 assert.match(moduleDevelopment, /## View-Building Helpers/, "Module development guide should include view-building helper guidance");
 assert.match(moduleDevelopment, /docs\/view-building-contract\.md/, "Module development guide should link the view-building contract");
 assert.match(moduleDevelopment, /LongtailForge\.view/, "Module development guide should name the view helper namespace");
-
-assert.match(changelog, /## Version 0\.33\.5\.15\.1 - /, "Changelog should include the view-building contract version");
 
 console.log("View builder contract regression passed.");

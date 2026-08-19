@@ -25,11 +25,6 @@ import {
 } from "../../lib/public-demo-baseline-activation.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
-/**
- * Optional fixture-source overrides accepted by the shared roadmap-cursor
- * floor helper.
- * @typedef {{ roadmapArchiveSource?: string, roadmapSource?: string }} RoadmapCursorSourceOverrides
- */
 
 const environment = Object.freeze({
   DEMO_MODE: "true",
@@ -339,7 +334,7 @@ async function assertHostContract() {
   assert.doesNotMatch(host, /systemctl|longtail-forge\.service|cron|systemd timer|setInterval/);
   assert.match(docs, /shared Compose operation lock/i);
   assert.match(docs, /pre-reset session/i);
-  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", /** @type {RoadmapCursorSourceOverrides} */ (/** @type {unknown} */ (roadmap)));
+  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", { roadmapSource: roadmap });
 }
 
 /**

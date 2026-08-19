@@ -8,7 +8,18 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under views.current-static-contracts by 0.33.33.9.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
+/**
+ * The canonical bundled descriptor contract, reused from the framework
+ * declaration rather than redeclared here so this guardrail and the server
+ * registry describe one schema.
+ * @typedef {import("../../../src/types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor
+ */
+/**
+ * One protected-view inventory row: the view's identity plus the declarative
+ * surfaces registered against it and whether any of them is strict.
+ * @typedef {{ moduleId: string, viewId: string, file: string | undefined, surfaceIds: string[], strict: boolean }} ProtectedViewInventoryRow
+ */
+
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
@@ -103,6 +114,7 @@ assert.throws(
 assert.match(viewBuilder, /function normalizeSurfaceDescriptor\(descriptor\)[\s\S]*viewSurfaceDescriptor[\s\S]*adapter\.normalize\(descriptor\)/, "The view builder should expose the checked descriptor projection to renderer consumers");
 assert.match(viewRenderer, /const descriptor = view\.normalizeSurfaceDescriptor\(deliveredDescriptor\)/, "The renderer should project unknown delivered descriptors before reading supported fields");
 assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-surface-descriptor\.js[\s\S]*view-response-records\.js/, "The descriptor adapter should load in the framework preamble before view page assets");
+/** @type {Map<string, ViewSurfaceDescriptor[]>} */
 const surfacesByView = new Map();
 for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
@@ -329,7 +341,7 @@ assert.match(functionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescr
   "File Context should use the shared modal form while keeping Files-owned body behavior");
 assert.match(functionBlock(filePreviewJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
-for (const routeCheck of [
+for (const routeCheck of /** @type {Array<[string, RegExp, string]>} */ ([
   [functionBlock(filesJs, "loadFiles"), /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*\/api\/files\/attachments\?\$\{params\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
   [functionBlock(filesJs, "createDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download/, "Files browse downloads should stay behind the Files download route"],
   [functionBlock(filePreviewJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
@@ -339,7 +351,7 @@ for (const routeCheck of [
   [functionBlock(filesJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine[\s\S]*FILE_QUARANTINE_REASON/, "Files Review should use the existing quarantine route"],
   [functionBlock(filesJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Files Delete should use the existing Files route"],
   [functionBlock(filesJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Files Restore should use the existing Files route"],
-]) {
+])) {
   assert.match(routeCheck[0], routeCheck[1], routeCheck[2]);
 }
 assert.match(functionBlock(filePreviewJs, "previewAvailabilityForRow"), /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
@@ -360,15 +372,17 @@ assertClientProjectsStrictDescriptor(clientsSurface, "Clients", ["Add Child Clie
 assertClientProjectsStrictDescriptor(projectsSurface, "Projects", ["Edit Project"]);
 const unavailableActionDelivery = loadUnavailableTopLevelActionDelivery(false);
 const availableActionDelivery = loadUnavailableTopLevelActionDelivery(true);
-for (const [surface, label] of /** @type {Array<[import("../../../src/types/framework-contracts.js").ViewSurfaceDescriptor, string]>} */ ([
+for (const [surface, label] of /** @type {Array<[ViewSurfaceDescriptor, string]>} */ ([
   [clientsSurface, "Clients"],
   [projectsSurface, "Projects"],
 ])) {
   if (!surface.dataSource) throw new Error(`${label} surface should retain its data source.`);
   const delivered = unavailableActionDelivery(surface);
   assert.notStrictEqual(delivered, surface, `${label} should project a new delivered descriptor when its primary action is unavailable`);
-  assert.equal(Object.hasOwn(delivered.pageHeader, "primaryAction"), false, `${label} should omit its unavailable delivered primary action`);
-  assert.equal(delivered.dataSource.recordsKey, surface.dataSource.recordsKey, `${label} delivery should preserve its declared response envelope key`);
+  // Delivery only strips the unavailable primary action, so both reads below stay
+  // on the same descriptor fields the raw surface was just proven to carry.
+  assert.equal(Object.hasOwn(/** @type {object} */ (delivered.pageHeader), "primaryAction"), false, `${label} should omit its unavailable delivered primary action`);
+  assert.equal(/** @type {import("../../../src/types/framework-contracts.js").ViewSurfaceDataSource} */ (delivered.dataSource).recordsKey, surface.dataSource.recordsKey, `${label} delivery should preserve its declared response envelope key`);
   assert.doesNotThrow(
     () => normalizeSurfaceDescriptor(delivered),
     `${label} delivered descriptor without an unavailable primary action should pass the checked browser projection`,
@@ -455,7 +469,7 @@ assert.doesNotMatch(fileAttachmentsJs, /FileReader|function readFileBase64/,
   "Attachment helper should not use FileReader for the normal browser upload path");
 assert.match(functionBlock(fileAttachmentsJs, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
   "Accepted file categories should remain Files-owned");
-for (const routeCheck of [
+for (const routeCheck of /** @type {Array<[string, RegExp, string]>} */ ([
   [functionBlock(fileAttachmentsJs, "refresh"), /\/api\/files\/attachments\?/, "Attachment refresh should use the Files attachment route"],
   [functionBlock(fileAttachmentsJs, "createAttachmentDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download/, "Attachment downloads should use the Files download route"],
   [functionBlock(fileAttachmentsJs, "uploadFiles"), /\/api\/files\/upload\/batch/, "Attachment uploads should use the streamed Files batch route"],
@@ -464,7 +478,7 @@ for (const routeCheck of [
   [functionBlock(fileAttachmentsJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/, "Attachment Review should use the quarantine route"],
   [functionBlock(fileAttachmentsJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Attachment Delete should use the Files route"],
   [functionBlock(fileAttachmentsJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Attachment Restore should use the Files route"],
-]) {
+])) {
   assert.match(routeCheck[0], routeCheck[1], routeCheck[2]);
 }
 assert.match(functionBlock(fileAttachmentsJs, "emit"), /CustomEvent\(`longtailforge:file-attachments:/,
@@ -498,15 +512,15 @@ assert.match(moduleContract, /As of 0\.33\.5\.16\.12/, "Module contract should d
 assert.match(surfaceContract, /As of 0\.33\.5\.16\.12/, "Surface contract should document the closeout version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.16\.12/, "View-building contract should document declarative guardrail closeout");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.12 - /, "Changelog should include the declarative guardrail closeout version");
-
 nodeReport(inventory);
 console.log("View descriptor declarative guardrails passed.");
 
+/** @param {string} source @param {RegExp} pattern @returns {number} */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }
 
+/** @param {unknown} value @param {string} fieldName @returns {boolean} */
 function objectTreeHasKey(value, fieldName) {
   if (!value || typeof value !== "object") {
     return false;
@@ -517,6 +531,7 @@ function objectTreeHasKey(value, fieldName) {
   return Object.values(value).some((entry) => objectTreeHasKey(entry, fieldName));
 }
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -524,6 +539,7 @@ function functionBlock(source, functionName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/** @param {boolean} actionAvailable @returns {(surface: ViewSurfaceDescriptor) => ViewSurfaceDescriptor} */
 function loadUnavailableTopLevelActionDelivery(actionAvailable) {
   const source = functionBlock(clientsProjectsJs, "withoutUnavailableTopLevelActions");
   const context = vm.createContext({
@@ -536,26 +552,32 @@ function loadUnavailableTopLevelActionDelivery(actionAvailable) {
   return context.deliver;
 }
 
+/** @param {string} html @param {string} label @param {RegExp} [hooksRegex] @param {string} [surfaceName] */
 function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog)\b/, surfaceName = "Lists") {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship framework-owned protected view anatomy`);
   assert.doesNotMatch(body, hooksRegex, `${label} should not ship ${surfaceName} workspace hooks outside the descriptor host`);
 }
 
+/** @param {ViewSurfaceDescriptor} surface @param {string} label @param {string[]} actionLabels */
 function assertClientProjectsStrictDescriptor(surface, label, actionLabels) {
   assert.ok(surface, `${label} descriptor should exist`);
+  // Both strict Clients/Projects surfaces are table descriptors; reading through
+  // this alias keeps the first missing-table failure at the same statement it
+  // reached before, rather than moving it into an earlier guard.
+  const table = /** @type {Required<Pick<import("../../../src/types/framework-contracts.js").ViewTableDescriptor, "columns" | "secondaryRows" | "rowActions">>} */ (surface.table);
   assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should render through the slide-out filter surface`);
   assert.ok(
     Array.isArray(surface.sidebarPanels) && surface.sidebarPanels.some((panel) => panel.type === "filters"),
     `${label} descriptor should declare a filters sidebar panel`,
   );
   assert.equal(
-    surface.table.columns.some((column) => column.label === "Tags" || column.id?.endsWith("-tags")),
+    table.columns.some((column) => column.label === "Tags" || column.id?.endsWith("-tags")),
     false,
     `${label} descriptor should not expose Tags as a standalone table column`,
   );
   assert.ok(
-    surface.table.secondaryRows.some((row) => (
+    table.secondaryRows.some((row) => (
       row.id?.endsWith("-tags")
         && row.formatter === "chip-list"
         && row.startColumn === "displayLabel"
@@ -564,17 +586,18 @@ function assertClientProjectsStrictDescriptor(surface, label, actionLabels) {
     `${label} descriptor should render unlabeled tags below the service-shaped record name`,
   );
   assert.ok(
-    surface.table.rowActions.every((action) => (
+    table.rowActions.every((action) => (
       typeof action.icon === "string" &&
       action.icon.length > 0 &&
       action.iconOnly === true &&
       action.title === action.label
     )) &&
-      JSON.stringify(surface.table.rowActions.map((action) => action.label)) === JSON.stringify(actionLabels),
+      JSON.stringify(table.rowActions.map((action) => action.label)) === JSON.stringify(actionLabels),
     `${label} row actions should be icon-only descriptor actions with accessible labels`,
   );
 }
 
+/** @param {ProtectedViewInventoryRow[]} entries */
 function nodeReport(entries) {
   const lines = entries
     .map((entry) => `${entry.strict ? "strict" : "reported"} ${entry.moduleId}:${entry.viewId} ${entry.file} ${entry.surfaceIds.join(",") || "-"}`)
@@ -582,6 +605,7 @@ function nodeReport(entries) {
   console.log(`Protected view inventory (${entries.length} views):\n${lines.join("\n")}`);
 }
 
+/** @param {string} fileName @returns {string} */
 function inferModuleId(fileName) {
   if (["clients.html", "projects.html"].includes(fileName)) {
     return "client-projects";

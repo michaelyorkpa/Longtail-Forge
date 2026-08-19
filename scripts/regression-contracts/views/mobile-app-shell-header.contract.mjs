@@ -49,6 +49,7 @@ assert.match(navigationSource, /document\.addEventListener\("focusin"/, "drawer 
 assert.match(navigationSource, /document\.body\.classList\.toggle\("nav-drawer-open", isOpen\)/, "drawer scroll-lock state must remain wired");
 console.log("Mobile app-shell header regression passed.");
 
+/** @param {string} source @param {string} name @returns {string} */
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Expected ${name} in navigation.js`);
@@ -70,6 +71,7 @@ function extractFunction(source, name) {
   assert.fail(`Could not extract ${name} from navigation.js`);
 }
 
+/** @param {string} source @param {string} marker @param {string} requiredContent @returns {string} */
 function extractCssBlock(source, marker, requiredContent) {
   let start = source.indexOf(marker);
 

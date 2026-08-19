@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18308,
+    "activeAssertionCount": 18300,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 18977,
+    "effectiveAssertionCount": 18984,
+    "retiredAssertionCredit": 15,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -313,6 +314,41 @@
     "maximumScripts": 209,
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
+  "retiredAssertions": [
+    {
+      "sourceRegression": "views.current-static-contracts",
+      "retiredInVersion": "0.33.33.30.1",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 15,
+      "rationale": "Fifteen assertions pinned archived planning history rather than a live contract: six required a CHANGELOG heading for a release shipped between 0.33.5.15.1 and 0.33.5.18.10.8.5, two required archived changelog prose, and five required that long-archived roadmap sections stay absent from the live roadmap, which they can never re-enter.",
+      "assertionDisposition": "No behavior lost coverage. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check. Every source, documentation, and descriptor assertion in the eight modules is unchanged.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/views/markdown-platform.contract.mjs",
+        "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
+        "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
+        "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
+        "scripts/regression-contracts/views/view-builder.contract.mjs",
+        "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
+        "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
+        "scripts/regression-contracts/views/view-renderer-shell.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "release.historical-evidence-retirement",
+        "legacy.bump.version",
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    }
+  ],
   "regressions": [
     {
       "area": "time-tracking",
@@ -3547,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 97,
+      "assertionCount": 98,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 97,
+      "entryPointAssertionCount": 98,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5063,11 +5099,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 69,
+      "assertionCount": 75,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves shrink-only script ceilings and generated assertion ownership prevent silent coverage loss while allowing reviewed consolidation.",
-      "entryPointAssertionCount": 69,
+      "entryPointAssertionCount": 75,
       "id": "release.regression-manifest-generation",
       "legacy": false,
       "path": "scripts/regressions/release/regression-manifest-generation.regression.mjs",
@@ -5684,8 +5720,8 @@
     },
     {
       "area": "views",
-      "assertionCount": 1022,
-      "contractAssertionCount": 1008,
+      "assertionCount": 1007,
+      "contractAssertionCount": 993,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -5725,11 +5761,11 @@
         },
         {
           "path": "scripts/regression-contracts/views/markdown-platform.contract.mjs",
-          "assertionCount": 30
+          "assertionCount": 29
         },
         {
           "path": "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
-          "assertionCount": 56
+          "assertionCount": 52
         },
         {
           "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
@@ -5741,7 +5777,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
-          "assertionCount": 46
+          "assertionCount": 41
         },
         {
           "path": "scripts/regression-contracts/views/modal-footer.contract.mjs",
@@ -5777,15 +5813,15 @@
         },
         {
           "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
-          "assertionCount": 38
+          "assertionCount": 37
         },
         {
           "path": "scripts/regression-contracts/views/view-builder.contract.mjs",
-          "assertionCount": 13
+          "assertionCount": 12
         },
         {
           "path": "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
-          "assertionCount": 114
+          "assertionCount": 113
         },
         {
           "path": "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs",
@@ -5797,11 +5833,11 @@
         },
         {
           "path": "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
-          "assertionCount": 27
+          "assertionCount": 26
         },
         {
           "path": "scripts/regression-contracts/views/view-renderer-shell.contract.mjs",
-          "assertionCount": 94
+          "assertionCount": 93
         }
       ],
       "description": "Runs source-only view anatomy, accessibility, icon, renderer, and dashboard contracts through one table-driven owner.",

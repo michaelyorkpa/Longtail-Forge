@@ -117,6 +117,6 @@ assert.match(content.regressionSuite, /As of 0\.33\.24\.8[\s\S]*distinct-service
 assert.match(content.privateReadiness, /^## 0\.33\.24\.9 Maintenance Boundary Release Evidence$/m);
 assert.match(content.privateReadiness, /technical completion does not authorize invitations/i);
 assert.match(content.regressionSuite, /As of 0\.33\.24\.9[\s\S]*login-limit `429`[\s\S]*HSTS[\s\S]*`nosniff`/);
-/** @type {(minimumVersion: string) => void} */ (assertRoadmapCursorAtLeast)("0.33.24.9");
+assertRoadmapCursorAtLeast("0.33.24.9", "maintenance release rehearsal closeout");
 
 console.log("Maintenance release rehearsal and operator handoff regression passed.");

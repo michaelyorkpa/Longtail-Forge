@@ -68,7 +68,6 @@
     "release.regression-routing-commands",
     "release.runtime-artifact-boundary",
     "time-tracking.current-static-contracts",
-    "views.current-static-contracts",
     "workbench.current-static-contracts"
   ],
   "planningDocumentReaders": [
@@ -170,7 +169,6 @@
     "release.runtime-artifact-boundary",
     "tasks.current-static-contracts",
     "time-tracking.current-static-contracts",
-    "views.current-static-contracts",
     "workbench.current-static-contracts"
   ],
   "reviewedDispositions": {

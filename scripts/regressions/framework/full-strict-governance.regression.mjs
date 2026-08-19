@@ -248,6 +248,9 @@ assert.deepEqual(
 const releaseOwnerDebt = Object.keys(ledger.programs.scripts.diagnostics)
   .filter((filePath) => filePath.startsWith("scripts/regressions/release/") || filePath.startsWith("scripts/regressions/docs/"));
 assert.deepEqual(releaseOwnerDebt, [], "release and docs regression owners closed at checkpoint 0.33.33.29 and must stay strict-clean");
+const viewOwnerDebt = Object.keys(ledger.programs.scripts.diagnostics)
+  .filter((filePath) => filePath.startsWith("scripts/regressions/views/") || filePath.startsWith("scripts/regression-contracts/views/"));
+assert.deepEqual(viewOwnerDebt, [], "view-surface contract owners closed at checkpoint 0.33.33.30.1 and must stay strict-clean");
 for (const consolidatedStaticOwnerPath of [
   "scripts/framework-view-static-consolidation.mjs",
   "scripts/regression-contracts/data-files-security-static-owner.mjs",

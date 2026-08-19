@@ -11,7 +11,6 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const staticService = readText("src/services/static.service.js");
-const changelog = readText("CHANGELOG.md");
 
 assert.match(renderer, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
 assert.match(renderer, /appendFilterQuery\(descriptor\.dataSource\.route/, "Renderer should derive the fetch route from the descriptor dataSource route");
@@ -67,6 +66,23 @@ vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
  * The published `LongtailForge.view` data-binding entry point under test.
  * @typedef {{ renderSurface: (descriptor: object, host: FakeNode) => DataBoundSurface }} DataBindingViewSurface
  */
+/**
+ * The index panel of the renderer fixture below. `initialSelection` and
+ * `collapseOnSelect` are declared here because the no-initial-selection variant
+ * adds them to the same panel.
+ * @typedef {{ title: string, itemTitleField: string, itemSubtitleField: string, itemMetaFields: string[], emptyState: { title: string }, initialSelection?: string, collapseOnSelect?: boolean }} FixtureIndexPanel
+ */
+/**
+ * The detail region of the renderer fixture below. The base fixture binds
+ * record fields; the no-initial-selection variant replaces it with a static
+ * empty-selection prompt, so both field sets are declared optional.
+ * @typedef {{ header: { titleField?: string, metaField?: string, badges?: { field: string }[], title?: string, description?: string }, summaryPanels?: { title: string, items: { label: string, field: string }[] }[], itemForm?: { fields: { field: string, type: string, label: string }[] }, itemRows?: { itemsField: string, itemTitleField: string, itemSubtitleField: string, emptyState: { title: string } }, emptyState?: { title: string, message: string } }} FixtureDetail
+ */
+/**
+ * The renderer fixture descriptor. It is a fixture rather than a bundled
+ * surface, so it declares only what this contract feeds the renderer.
+ * @typedef {{ id: string, layout: string, pageHeader: { title: string, description: string }, indexPanel: FixtureIndexPanel, table: { columns: { field: string, label: string }[], emptyState: { title: string } }, detail: FixtureDetail, dataSource: { route: string, recordsKey: string, fieldBindings: Record<string, string> } }} FixtureDescriptor
+ */
 
 const host = context.document.createElement("main");
 const surface = /** @type {DataBindingViewSurface} */ (context.window.LongtailForge.view).renderSurface(descriptor(), host);
@@ -117,10 +133,9 @@ await noSelectionSurface.refresh();
 assert.equal(noSelectionSurface.viewState.selectedRecord, null, "Descriptors should be able to start with a blank detail selection");
 assert.match(noSelectionSurface.textContent, /Choose a sample/, "Blank detail surfaces should keep descriptor guidance visible");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.6 - /, "Changelog should include renderer data-binding version");
-
 console.log("View renderer data binding regression passed.");
 
+/** @returns {FixtureDescriptor} */
 function descriptor() {
   return {
     id: "sample-data-bound",
@@ -189,6 +204,7 @@ function descriptor() {
   };
 }
 
+/** @returns {FixtureDescriptor} */
 function noInitialSelectionDescriptor() {
   const next = descriptor();
   next.indexPanel = {
@@ -209,6 +225,7 @@ function noInitialSelectionDescriptor() {
   return next;
 }
 
+/** @param {unknown} value @returns {unknown} */
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }

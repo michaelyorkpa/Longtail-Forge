@@ -12,7 +12,6 @@ const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const css = readText("public/css/longtail-forge.css");
 const footerScript = readText("public/js/footer.js");
-const changelog = readText("CHANGELOG.md");
 
 assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");
@@ -38,9 +37,15 @@ for (const helperName of [
 /** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
 /** @typedef {import("../../test-support/fake-dom.mjs").FakeLongtailForgeGlobal} FakeLongtailForgeGlobal */
 /**
+ * One sidebar panel this fixture declares. The renderer reads panel identity,
+ * kind, ordering, collapse state, and the optional footer behavior slot.
+ * @typedef {{ id: string, type: string, title: string, behavior?: string, collapsible?: boolean, open?: boolean, footer?: { title: string, behavior?: string } }} FixtureSidebarPanel
+ */
+/**
  * The published `LongtailForge.view` renderer catalog under test; every helper
- * exercised here builds fake-DOM shell anatomy.
- * @typedef {Record<string, (...args: unknown[]) => FakeNode>} RendererViewSurface
+ * exercised here builds fake-DOM shell anatomy. `renderSurface` and
+ * `registerBehavior` are named because this contract calls them directly.
+ * @typedef {Record<string, (...args: unknown[]) => FakeNode> & { renderSurface: (descriptor: object, host: FakeNode) => FakeNode, registerBehavior: (id: string, behavior: (slots: { container: FakeNode }) => void) => void }} RendererViewSurface
  */
 
 const context = createFakeBrowserContext();
@@ -280,10 +285,10 @@ assert.match(css, /\.view-slideout-sidebar-drawer\.is-open\s*\{[\s\S]*transform:
 const slideOutCssBlock = css.match(/\.view-slideout-sidebar\s*\{[\s\S]*?\n\}/)?.[0] || "";
 assert.doesNotMatch(slideOutCssBlock, /grid-template-columns:/, "Slide-out sidebar layout should not allocate a permanent split grid column");
 assert.doesNotMatch(renderer, /descriptor\.layout === "split-list-detail"/, "Renderer should not reactivate the retired split-list-detail layout");
-assert.match(changelog, /## Version 0\.33\.5\.16\.4 - /, "Changelog should include renderer shell version");
 
 console.log("View renderer shell regression passed.");
 
+/** @param {{ layout: string, sidebarPanels?: FixtureSidebarPanel[] }} options */
 function createDescriptor({ layout, sidebarPanels }) {
   return {
     id: `sample-${layout}`,

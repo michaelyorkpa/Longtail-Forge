@@ -9,8 +9,6 @@ const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const tasksModule = readText("src/modules/tasks/module.js");
 const notesModule = readText("src/modules/notes/module.js");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewBuildingContract = readText("docs/view-building-contract.md");
 const tasksDocs = readText("docs/tasks-module.md");
@@ -21,9 +19,6 @@ const notesJs = readText("public/js/notes.js");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module metadata should report the modal action contract version");
 assert.match(notesModule, /version:\s*appVersion/, "Notes module metadata should report the modal action contract version");
-
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 for (const [name, doc] of [
   ["UI surface contract", uiSurfaceContract],
@@ -74,9 +69,5 @@ assert.match(notesJs, /createNoteTagsDialogShell[\s\S]*view\.createModal\([\s\S]
 assert.match(notesJs, /createNoteFilesDialogShell[\s\S]*view\.createModal\([\s\S]*title: "Files"/, "Notes should keep Files in a stacked child dialog");
 assert.match(notesJs, /action: "follow-note-notifications"[\s\S]*icon: "bell"[\s\S]*iconOnly: true/, "Notes heading action should be the saved-note follow bell");
 assert.doesNotMatch(notesJs, /data-note-dialog-close|noteDialogClose/, "Notes should not keep the duplicate top Close button hook");
-
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(modalStandardVersion)} - `), "Changelog should include the modal action contract version");
-assert.match(changelog, /Finalized the cross-module converted modal action standard/, "Changelog should summarize the finalized modal standard");
-assert.match(changelog, /strict converted-surface guardrails protect the standardized footer\/heading pattern/, "Changelog should summarize the guardrail closeout");
 
 console.log("Modal action standardization contract regression passed.");

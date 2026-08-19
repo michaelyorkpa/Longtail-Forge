@@ -34,7 +34,9 @@ try {
   for (const contract of contracts) {
     assert.equal(activePaths.has(contract.sourcePath), false, `${contract.sourcePath} must leave active discovery`);
     assert.equal(existsSync(contract.modulePath), true, `${contract.modulePath} must retain the assertion body`);
-    await import(new URL("../../../" + contract.modulePath, import.meta.url));
+    // Node resolves a URL specifier by its href, so passing the serialized form
+    // keeps the same module resolution while typing the dynamic import.
+    await import(new URL("../../../" + contract.modulePath, import.meta.url).href);
   }
 } finally {
   await fixture.cleanup();

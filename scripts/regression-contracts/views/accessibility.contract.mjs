@@ -3,6 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * One matched element with its opening tag separated from its inner body, so
+ * name-resolution rules can read attributes and content independently.
+ * @typedef {{ openTag: string, body: string }} ElementBlock
+ */
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 // Consolidated under views.current-static-contracts by 0.33.33.9.
 const viewDirs = [
@@ -28,6 +34,7 @@ await assertSharedCssPatterns();
 
 console.log(`Accessibility regression passed ${checks} checks across ${viewFiles.length} views.`);
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function listHtmlFiles(directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
 
@@ -36,6 +43,7 @@ async function listHtmlFiles(directory) {
     .map((entry) => path.join(directory, entry.name));
 }
 
+/** @param {string} html @param {string} label */
 function assertDocumentBasics(html, label) {
   assert.match(html, /<html\b[^>]*\blang=["'][^"']+["']/i, `${label} should declare html lang`);
   assert.match(html, /<title>[^<]+<\/title>/i, `${label} should have a non-empty title`);
@@ -43,6 +51,7 @@ function assertDocumentBasics(html, label) {
   checks += 1;
 }
 
+/** @param {string} html @param {string} label */
 function assertImagesHaveAlt(html, label) {
   const images = matchTags(html, "img");
   const unlabeled = images.filter((tag) => !hasAttribute(tag, "alt"));
@@ -51,6 +60,7 @@ function assertImagesHaveAlt(html, label) {
   checks += 1;
 }
 
+/** @param {string} html @param {string} label */
 function assertControlsHaveNames(html, label) {
   const controls = [
     ...matchTags(html, "button"),
@@ -71,6 +81,7 @@ function assertControlsHaveNames(html, label) {
   checks += 1;
 }
 
+/** @param {string} html @param {string} label */
 function assertDialogsHaveNames(html, label) {
   const dialogs = matchElementBlocks(html, "dialog");
   const unnamed = dialogs.filter((dialog) => !(
@@ -83,6 +94,7 @@ function assertDialogsHaveNames(html, label) {
   checks += 1;
 }
 
+/** @param {string} html @param {string} label */
 function assertStatusRegionsAreLive(html, label) {
   const statusRegions = matchTags(html, "p")
     .filter((tag) => readAttribute(tag, "role") === "status");
@@ -100,12 +112,14 @@ async function assertSharedCssPatterns() {
   checks += 1;
 }
 
+/** @param {string} html @param {string} tagName @returns {string[]} */
 function matchTags(html, tagName) {
   const pattern = new RegExp(`<${tagName}\\b[^>]*>(?:[\\s\\S]*?<\\/${tagName}>)?`, "gi");
 
   return html.match(pattern) || [];
 }
 
+/** @param {string} html @param {string} tagName @returns {ElementBlock[]} */
 function matchElementBlocks(html, tagName) {
   const pattern = new RegExp(`(<${tagName}\\b[^>]*>)([\\s\\S]*?)<\\/${tagName}>`, "gi");
   const blocks = [];
@@ -119,6 +133,7 @@ function matchElementBlocks(html, tagName) {
   return blocks;
 }
 
+/** @param {string} tag @param {string} html @returns {boolean} */
 function hasAccessibleName(tag, html) {
   return Boolean(
     textContent(tag).trim() ||
@@ -128,6 +143,7 @@ function hasAccessibleName(tag, html) {
   );
 }
 
+/** @param {string} tag @param {string} html @returns {boolean} */
 function hasWrappingLabel(tag, html) {
   const index = html.indexOf(tag);
 
@@ -142,16 +158,19 @@ function hasWrappingLabel(tag, html) {
   return lastOpenLabel > lastCloseLabel;
 }
 
+/** @param {string} tag @param {string} attributeName @returns {boolean} */
 function hasAttribute(tag, attributeName) {
   return new RegExp(`\\b${attributeName}(?:\\s*=|\\b)`, "i").test(tag);
 }
 
+/** @param {string} tag @param {string} attributeName @returns {string} */
 function readAttribute(tag, attributeName) {
   const match = tag.match(new RegExp(`\\b${attributeName}\\s*=\\s*["']([^"']*)["']`, "i"));
 
   return String(match?.[1] || "").trim().toLowerCase();
 }
 
+/** @param {string} tag @returns {string} */
 function textContent(tag) {
   return tag
     .replace(/<script\b[\s\S]*?<\/script>/gi, "")
