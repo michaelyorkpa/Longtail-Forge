@@ -36,16 +36,55 @@ const { hashPassword } = await import("../../../src/security/passwords.js");
 const { usersRepository } = await import("../../../src/repositories/users.repo.js");
 const { userWorkspacesRepository } = await import("../../../src/repositories/user-workspaces.repo.js");
 
+/** The denial envelope recovery-mode and generic login refusals share. */
+/** @typedef {{ code: string, message: string }} RecoveryErrorEnvelope */
+
+/**
+ * The payload fields this owner reads across login, export, denial, and
+ * self-leave responses. Which fields a given response carries is what the
+ * assertions prove; declaring them together keeps one named contract instead of
+ * a narrowing at each call.
+ * @typedef {{
+ *   account: { email: string },
+ *   accountExportRecovery: boolean,
+ *   error: RecoveryErrorEnvelope,
+ *   format: string,
+ *   user: { loginLandingPath: string, recoveryMode: string, workspace_id: string },
+ * }} RecoveryResponseBody
+ */
+
+/**
+ * This fixture threads `redirect` through to `fetch` so the view-redirect probe
+ * can observe the 302 rather than follow it, which the shared client options do
+ * not carry.
+ * @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions & { redirect?: RequestRedirect }} RecoveryClientOptions
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<RecoveryResponseBody>} RecoveryResponse */
+
+/**
+ * The client this owner builds. It drives `delete`, `get`, and `post`; the
+ * shared JSON client declares neither `delete` nor this fixture's redirect
+ * option, so the three methods are named here.
+ * @typedef {{
+ *   delete: (url: string, options?: RecoveryClientOptions) => Promise<RecoveryResponse>,
+ *   get: (url: string, options?: RecoveryClientOptions) => Promise<RecoveryResponse>,
+ *   post: (url: string, body?: unknown, options?: RecoveryClientOptions) => Promise<RecoveryResponse>,
+ * }} RecoveryApiClient
+ */
+
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer | undefined} */
 let server;
 
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
   const adminLogin = await login(api, ADMIN_USERNAME, ADMIN_PASSWORD);
   const adminCookie = readSessionCookie(adminLogin);
   const workspaceId = adminLogin.body.user.workspace_id;
   const workspace = await db.get("SELECT name FROM workspaces WHERE workspace_id = :workspaceId;", { workspaceId });
+  assert.ok(workspace, "the seeded workspace row should exist");
 
   const formerAdminId = await createWorkspaceUser({
     password: FORMER_ADMIN_PASSWORD,
@@ -73,7 +112,7 @@ try {
   assert.equal(exportResponse.body.account.email, FORMER_ADMIN_USERNAME);
   const serializedExport = JSON.stringify(exportResponse.body);
   assert.doesNotMatch(serializedExport, new RegExp(escapeRegExp(workspaceId)), "portable data must not leak former workspace IDs");
-  assert.doesNotMatch(serializedExport, new RegExp(escapeRegExp(workspace.name)), "portable data must not leak former workspace names");
+  assert.doesNotMatch(serializedExport, new RegExp(escapeRegExp(/** @type {string} */ (workspace.name))), "portable data must not leak former workspace names");
   assert.equal(/"(?:user|workspace|project|client|file)_id"/.test(serializedExport), false, "portable data must contain no internal record IDs");
 
   const deniedApi = await api.get("/api/users", { cookie: recoveryCookie });
@@ -129,13 +168,25 @@ try {
     "Client Administrators must not qualify for recovery mode",
   );
 
+  // Negative control for the enumeration-parity proofs. Those compare denial
+  // bodies through `normalizedErrorBody`, which masks the request ID; they
+  // would pass vacuously if the normalizer flattened away everything that
+  // differs. Two envelopes differing only in code must still compare unequal.
+  assert.notDeepEqual(
+    normalizedErrorBody(/** @type {RecoveryResponseBody} */ (/** @type {unknown} */ ({ error: { code: "invalid_credentials", message: "shared" } }))),
+    normalizedErrorBody(/** @type {RecoveryResponseBody} */ (/** @type {unknown} */ ({ error: { code: "account_disabled", message: "shared" } }))),
+    "the request-ID normalizer must not mask a genuine difference between denial envelopes",
+  );
+
   const qualificationColumns = await db.query("PRAGMA table_info(account_export_recovery_qualifications);");
   assert.deepEqual(
     qualificationColumns.map((column) => column.name).sort(),
     ["qualification_basis", "qualification_source", "qualified_at", "updated_at", "user_id"].sort(),
     "qualification history must retain no former workspace identifier or label",
   );
-  assert.equal((await db.get("SELECT session_mode FROM sessions WHERE session_id = :sessionId;", { sessionId: recoveryCookie })).session_mode, "account_export_recovery");
+  const recoverySessionRow = await db.get("SELECT session_mode FROM sessions WHERE session_id = :sessionId;", { sessionId: recoveryCookie });
+  assert.ok(recoverySessionRow, "the recovery session row should exist");
+  assert.equal(recoverySessionRow.session_mode, "account_export_recovery");
 
   const logout = await api.post("/api/logout", undefined, { cookie: recoveryCookie });
   assert.equal(logout.status, 200);
@@ -160,6 +211,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {RecoveryResponseBody | null} body @returns {Record<string, unknown>} */
 function normalizedErrorBody(body) {
   return {
     ...body,
@@ -172,6 +224,10 @@ function normalizedErrorBody(body) {
 
 console.log("Account export recovery regression passed.");
 
+/**
+ * @param {{ password: string, roleId: string, scopeType: string, username: string, workspaceId: string }} seed
+ * @returns {Promise<string>}
+ */
 async function createWorkspaceUser({ password, roleId, scopeType, username, workspaceId }) {
   await usersRepository.create(workspaceId, {
     altEmail: "",
@@ -180,6 +236,7 @@ async function createWorkspaceUser({ password, roleId, scopeType, username, work
     username,
   }, await hashPassword(password));
   const user = await usersRepository.readByUsername(username);
+  assert.ok(user, `the seeded ${username} row should exist`);
   await usersRepository.updatePassword(workspaceId, user.user_id, user.password, { passwordChangeRequired: false });
   await userWorkspacesRepository.upsert({ userId: user.user_id, workspaceId, status: "active" });
   const now = new Date().toISOString();
@@ -204,6 +261,12 @@ VALUES (
   return user.user_id;
 }
 
+/**
+ * @param {RecoveryApiClient} api
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<RecoveryResponse>}
+ */
 async function login(api, username, password) {
   const response = await api.post("/api/login", { username, password });
   assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -211,8 +274,17 @@ async function login(api, username, password) {
   return response;
 }
 
+/** @param {string} baseUrl @returns {RecoveryApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {RecoveryClientOptions} [options]
+   * @returns {Promise<RecoveryResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) headers["content-type"] = "application/json";
     if (options.cookie) headers.cookie = `longtail_forge_session=${options.cookie}`;
@@ -231,23 +303,35 @@ function createApi(baseUrl) {
     };
   }
   return {
+    /** @param {string} url @param {RecoveryClientOptions} [options] */
     delete: (url, options) => request("DELETE", url, undefined, options),
+    /** @param {string} url @param {RecoveryClientOptions} [options] */
     get: (url, options) => request("GET", url, undefined, options),
+    /** @param {string} url @param {unknown} [body] @param {RecoveryClientOptions} [options] */
     post: (url, body, options) => request("POST", url, body, options),
   };
 }
 
+/** @param {RecoveryResponse} response @returns {string} */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "").match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

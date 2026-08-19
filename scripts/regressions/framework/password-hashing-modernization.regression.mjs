@@ -37,7 +37,39 @@ const {
   verifyPassword,
 } = await import("../../../src/security/passwords.js");
 
+/**
+ * The credential columns this owner selects. `db.get` resolves the adapter's
+ * open row record, so the two fields the upgrade path reads are named here
+ * rather than re-narrowed at each use.
+ * @typedef {{ password: string, user_id: string }} CredentialRow
+ */
+
+/**
+ * The metadata a rehash event carries. Declared exactly, because the assertions
+ * below prove this record equals the persisted audit metadata minus its
+ * envelope fields.
+ * @typedef {{
+ *   new_algorithm: string,
+ *   outcome: string,
+ *   previous_algorithm: string,
+ *   rehash_reason: string,
+ *   target_user_id: string,
+ * }} PasswordRehashMetadata
+ */
+
+/**
+ * The rehash event as this owner proves it: the shared internal event with the
+ * metadata narrowed to what the assertions below require, rather than a private
+ * record that would drop the envelope the bus actually delivers.
+ * @typedef {import("../../../src/types/framework-contracts.js").InternalEvent & { metadata: PasswordRehashMetadata }} PasswordRehashedEvent
+ */
+
+/** The audit row the persisted security event resolves to. */
+/** @typedef {{ action: string, metadata_json: string, new_value_json: unknown, previous_value_json: unknown }} RehashAuditRow */
+
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer | undefined} */
 let server;
+/** @type {(() => void) | undefined} */
 let unsubscribe;
 
 try {
@@ -84,12 +116,13 @@ WHERE user_id = :userId;
     userId: freshUser.user_id,
   });
 
+  /** @type {PasswordRehashedEvent[]} */
   const emittedEvents = [];
-  unsubscribe = internalEventBus.on("security.password.rehashed", (event) => emittedEvents.push(event), {
+  unsubscribe = internalEventBus.on("security.password.rehashed", (event) => emittedEvents.push(/** @type {PasswordRehashedEvent} */ (event)), {
     id: "regression:password-hashing-modernization",
   });
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const loginResponse = await api.post("/api/login", { username: USERNAME, password: PASSWORD });
   assert.equal(loginResponse.status, 200, JSON.stringify(loginResponse.body));
@@ -109,13 +142,13 @@ WHERE user_id = :userId;
     target_user_id: freshUser.user_id,
   });
 
-  const rehashEvent = await db.get(`
+  const rehashEvent = /** @type {RehashAuditRow | null} */ (await db.get(`
 SELECT action, previous_value_json, new_value_json, metadata_json
 FROM audit_logs
 WHERE action = 'security.password.rehashed'
 ORDER BY created_at DESC
 LIMIT 1;
-`);
+`));
   const securityRows = await db.query("SELECT action, record_id, metadata_json FROM audit_logs WHERE record_type = 'security_event' ORDER BY created_at;");
   assert.ok(rehashEvent, `successful legacy upgrade should persist the registered security event: ${JSON.stringify(securityRows)}`);
   assert.equal(rehashEvent.previous_value_json, null);
@@ -131,6 +164,19 @@ LIMIT 1;
   for (const secret of [PASSWORD, WRONG_PASSWORD, legacyHash, upgradedUser.password, cookie]) {
     assert.equal(safeSurfaces.includes(secret), false, "passwords, hashes, and session credentials must stay out of rehash events");
   }
+
+  // Negative control for the upgrade trigger. The proof above shows a legacy
+  // hash is upgraded on login, but would also pass if every login rehashed. A
+  // second login, now against a current-policy hash, must emit no further
+  // rehash event and must leave the stored hash byte-identical.
+  const secondLogin = await api.post("/api/login", { username: USERNAME, password: PASSWORD });
+  assert.equal(secondLogin.status, 200, JSON.stringify(secondLogin.body));
+  assert.equal(emittedEvents.length, 1, "logging in against a current-policy hash must not rehash again");
+  assert.equal(
+    (await readUser()).password,
+    upgradedUser.password,
+    "a login that needs no upgrade must leave the stored credential untouched",
+  );
 
   const [passwordSource, authSource, usersSource, databaseSource, seedSource] = await Promise.all([
     fs.readFile("src/security/passwords.js", "utf8"),
@@ -155,6 +201,11 @@ LIMIT 1;
 
 console.log("Password hashing modernization regression passed.");
 
+/**
+ * @param {string} password
+ * @param {{ memory: number, parallelism: number, passes: number }} policy
+ * @returns {Promise<string>}
+ */
 async function createArgon2Hash(password, { memory, passes, parallelism }) {
   const salt = randomBytes(16);
   const hash = Buffer.from(await deriveArgon2("argon2id", {
@@ -168,16 +219,35 @@ async function createArgon2Hash(password, { memory, passes, parallelism }) {
   return `$argon2id$v=19$m=${memory},t=${passes},p=${parallelism}$${salt.toString("base64url")}$${hash.toString("base64url")}`;
 }
 
+/**
+ * Read the seeded super-admin credential row. The row must exist for any
+ * assertion below to mean anything, so its absence fails here with that reason
+ * rather than as a property access on null further down.
+ * @returns {Promise<CredentialRow>}
+ */
 async function readUser() {
-  return db.get(`
+  const row = await db.get(`
 SELECT user_id, password
 FROM users
 WHERE username = :username;
 `, { username: USERNAME });
+  assert.ok(row, "the seeded super-admin credential row should exist");
+  return /** @type {CredentialRow} */ (row);
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonClient<unknown>}
+ */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options]
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (body !== undefined) headers["content-type"] = "application/json";
     if (options.cookie) headers.cookie = `longtail_forge_session=${options.cookie}`;
@@ -194,27 +264,38 @@ function createApi(baseUrl) {
     };
   }
   return {
+    /** @param {string} url @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
   };
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown>} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

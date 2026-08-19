@@ -37,7 +37,56 @@ const {
   listPrivateFeedProviders,
 } = await import("../../../src/core/private-feeds/private-feed-providers.js");
 
+/** One subscription row as the lifecycle collection returns it. */
+/**
+ * @typedef {{
+ *   name: string,
+ *   ownedByCurrentUser: boolean,
+ *   owner: { username: string },
+ *   status: string,
+ *   subscriptionId: string,
+ * }} FeedSubscription
+ */
+
+/**
+ * The payload fields this owner reads across login, lifecycle, and rotation
+ * responses. Which fields a given response carries is what the assertions
+ * prove.
+ * @typedef {{
+ *   error?: { code?: string, message?: string },
+ *   feedUrl: string,
+ *   removed: boolean,
+ *   subscription: FeedSubscription,
+ *   subscriptions: FeedSubscription[],
+ *   user: { user_id: string, workspace_id: string },
+ * }} FeedResponseBody
+ */
+
+/**
+ * This fixture resolves the raw text alongside the parsed body, because the
+ * rendered ICS payloads it asserts on are not JSON.
+ * @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<FeedResponseBody> & { text: string }} FeedResponse
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} FeedClientOptions */
+
+/**
+ * The client this owner builds. `raw` and `get` share one request path but are
+ * named apart at the call sites to mark which reads the rendered feed body, so
+ * both are declared rather than collapsed.
+ * @typedef {{
+ *   delete: (url: string, options?: FeedClientOptions) => Promise<FeedResponse>,
+ *   get: (url: string, options?: FeedClientOptions) => Promise<FeedResponse>,
+ *   head: (url: string, options?: FeedClientOptions) => Promise<FeedResponse>,
+ *   post: (url: string, body?: unknown, options?: FeedClientOptions) => Promise<FeedResponse>,
+ *   put: (url: string, body?: unknown, options?: FeedClientOptions) => Promise<FeedResponse>,
+ *   raw: (url: string, options?: FeedClientOptions) => Promise<FeedResponse>,
+ * }} FeedApiClient
+ */
+
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer | undefined} */
 let server;
+/** @type {string[]} */
 const capturedConsole = [];
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
@@ -48,7 +97,7 @@ try {
 
   await initializeDatabase();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const api = createApi(baseUrl);
 
   assert.deepEqual(
@@ -56,14 +105,22 @@ try {
     ["tasks.calendar"],
     "Tasks should register the initial calendar content provider by stable ID",
   );
+  const calendarProvider = getPrivateFeedProvider("tasks.calendar");
+  assert.ok(calendarProvider, "Tasks should resolve its registered calendar provider");
+  // The refusal probe deliberately supplies only the identity fields the owner
+  // lookup reads, and no providerId or subscription: the provider must refuse
+  // before it reaches either. Completing the render context would change what is
+  // dispatched, and therefore what the refusal proves, so the deliberate
+  // omission is asserted through one cast rather than filled in.
+  const unresolvableOwnerContext = /** @type {Readonly<import("../../../src/types/private-feed-contracts.js").PrivateFeedProviderRenderContext>} */ (/** @type {unknown} */ ({
+    session: {
+      user_id: "missing-private-feed-user",
+      username: "missing@example.test",
+      workspace_id: "missing-private-feed-workspace",
+    },
+  }));
   assert.equal(
-    await getPrivateFeedProvider("tasks.calendar").render({
-      session: {
-        user_id: "missing-private-feed-user",
-        username: "missing@example.test",
-        workspace_id: "missing-private-feed-workspace",
-      },
-    }),
+    await calendarProvider.render(unresolvableOwnerContext),
     null,
     "the Tasks provider should refuse content when the resolved owner lacks tasks.view",
   );
@@ -125,17 +182,18 @@ try {
   assert.equal(generatedCollection.body.subscriptions[0].name, "Initial workspace & planning / North");
   assert.equal(Object.hasOwn(generatedCollection.body, "feedUrl"), false, "metadata reads must never recover the raw bearer URL");
 
-  const stored = await db.get(`
+  const stored = await requireRow(`
 SELECT provider_id, token_selector, token_hash, status
 FROM private_feed_tokens
 WHERE workspace_id = :workspaceId
   AND user_id = :userId;
 `, { userId: ownerUserId, workspaceId: ownerWorkspaceId });
+  const storedTokenHash = /** @type {string} */ (stored.token_hash);
   assert.equal(stored.provider_id, "tasks.calendar");
   assert.equal(stored.status, "active");
-  assert.match(stored.token_hash, /^[a-f0-9]{64}$/);
+  assert.match(storedTokenHash, /^[a-f0-9]{64}$/);
   assert.equal(JSON.stringify(stored).includes(firstRawToken), false, "the raw private feed token must not be stored");
-  assert.equal(stored.token_hash.includes(firstRawToken), false);
+  assert.equal(storedTokenHash.includes(firstRawToken), false);
 
   await authenticationThrottle.clear();
   const friendlyFeedPath = new URL(generated.body.feedUrl).pathname;
@@ -153,6 +211,28 @@ WHERE workspace_id = :workspaceId
 
   const legacyFeed = await api.raw(`/feeds/calendar/${encodeURIComponent(firstRawToken)}.ics`);
   assert.equal(legacyFeed.status, 200, "existing one-segment bearer URLs should remain valid");
+
+  // Negative control for the refusal path. The rejections proved below all use
+  // a selector that resolves to nothing, so they would still pass if the route
+  // authenticated on the selector alone. This pairs the live selector with a
+  // wrong secret: only the constant-time hash comparison can refuse it.
+  await authenticationThrottle.clear();
+  const tamperedSecretToken = firstRawToken.replace(/[A-Za-z0-9_-]{43}$/, "e".repeat(43));
+  assert.notEqual(tamperedSecretToken, firstRawToken, "the tampered probe must differ from the live token");
+  assert.equal(
+    tamperedSecretToken.startsWith(firstRawToken.slice(0, firstRawToken.length - 43)),
+    true,
+    "the tampered probe must retain the live token's selector",
+  );
+  const tamperedSecretFeed = await api.raw(`/feeds/calendar/${encodeURIComponent(tamperedSecretToken)}.ics`);
+  assert.equal(tamperedSecretFeed.status, 404, "a live selector with a wrong secret must be refused by the hash comparison");
+  assert.equal(tamperedSecretFeed.text, "Calendar feed not found.");
+  assert.equal(
+    (await api.raw(friendlyFeedPath)).status,
+    200,
+    "the refused probe must not revoke or disturb the live subscription",
+  );
+  await authenticationThrottle.clear();
 
   const rotated = await api.post(
     `/api/private-feeds/calendar-subscriptions/${generated.body.subscription.subscriptionId}/rotate`,
@@ -411,7 +491,7 @@ WHERE private_feed_token_id = :subscriptionId;
     null,
     "an automatically revoked credential should remain explicitly deletable from Calendar Settings",
   );
-  const deletedSubscriptionAudit = await db.get(`
+  const deletedSubscriptionAudit = await requireRow(`
 SELECT action, metadata_json
 FROM audit_logs
 WHERE record_type = 'security_event'
@@ -420,7 +500,7 @@ ORDER BY created_at DESC
 LIMIT 1;
 `);
   assert.equal(deletedSubscriptionAudit.action, "security.private_feed.deleted");
-  assert.equal(JSON.parse(deletedSubscriptionAudit.metadata_json).operation, "delete");
+  assert.equal(JSON.parse(/** @type {string} */ (deletedSubscriptionAudit.metadata_json)).operation, "delete");
 
   const delegatedUserId = randomUUID();
   const delegatedUsername = "calendar-admin@example.test";
@@ -477,6 +557,7 @@ INSERT INTO user_role_assignments (
 
   const adminCollection = await api.get("/api/private-feeds/calendar-subscriptions", { cookie: sessionCookie });
   const delegatedMetadata = adminCollection.body.subscriptions.find((subscription) => subscription.name === "Delegated calendar");
+  assert.ok(delegatedMetadata, "the workspace administrator's collection should list the delegated subscription");
   assert.equal(delegatedMetadata.owner.username, delegatedUsername);
   assert.equal(delegatedMetadata.ownedByCurrentUser, false);
   const ownerRotateDenied = await api.post(
@@ -572,7 +653,7 @@ WHERE private_feed_token_id = :subscriptionId;
     "disabling Tasks must revoke every remaining workspace calendar URL immediately",
   );
   assert.equal(
-    (await db.get("SELECT COUNT(1) AS count FROM private_feed_tokens WHERE workspace_id = :workspaceId AND status = 'active';", { workspaceId: ownerWorkspaceId })).count,
+    (await requireRow("SELECT COUNT(1) AS count FROM private_feed_tokens WHERE workspace_id = :workspaceId AND status = 'active';", { workspaceId: ownerWorkspaceId })).count,
     0,
     "no active orphaned calendar subscriptions may remain after module disablement",
   );
@@ -589,7 +670,7 @@ WHERE private_feed_token_id = :subscriptionId;
   assert.equal(serializedConsole.includes(firstRawToken), false, "runtime diagnostics must not contain the original token");
   assert.equal(serializedConsole.includes(secondRawToken), false, "runtime diagnostics must not contain the rotated token");
 
-  const integrity = await db.get("PRAGMA integrity_check;");
+  const integrity = await requireRow("PRAGMA integrity_check;");
   assert.equal(integrity.integrity_check, "ok");
 
   console.log("Private calendar feed authentication regression passed.");
@@ -603,8 +684,31 @@ WHERE private_feed_token_id = :subscriptionId;
   await fixture.cleanup();
 }
 
+/**
+ * Read a single row a probe requires. `db.get` resolves null when nothing
+ * matches, and every caller below needs the row to exist for its assertion to
+ * mean anything.
+ * @param {string} sql
+ * @param {import("../../../src/types/database-contracts.js").DatabaseParams} [params]
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql, params) {
+  const row = await db.get(sql, params);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/** @param {string} baseUrl @returns {FeedApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {FeedClientOptions} [options]
+   * @returns {Promise<FeedResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) {
       headers["content-type"] = "application/json";
@@ -628,32 +732,40 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {FeedClientOptions} [options] */
     delete(url, options) {
       return request("DELETE", url, undefined, options);
     },
+    /** @param {string} url @param {FeedClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {FeedClientOptions} [options] */
     head(url, options) {
       return request("HEAD", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {FeedClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {FeedClientOptions} [options] */
     put(url, body, options) {
       return request("PUT", url, body, options);
     },
+    /** @param {string} url @param {FeedClientOptions} [options] */
     raw(url, options) {
       return request("GET", url, undefined, options);
     },
   };
 }
 
+/** @param {FeedResponse} response @returns {string} */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "")
     .match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/** @param {string} feedUrl @returns {string} */
 function readRawToken(feedUrl) {
   const tokenSegment = new URL(feedUrl).pathname
     .split("/")
@@ -661,6 +773,7 @@ function readRawToken(feedUrl) {
   return decodeURIComponent(String(tokenSegment || "").replace(/\.ics$/i, ""));
 }
 
+/** @param {string} feedUrl @returns {string} */
 function thunderbirdIcsDisplayName(feedUrl) {
   const lastPath = decodeURI(new URL(feedUrl).pathname)
     .split("/")
@@ -669,13 +782,21 @@ function thunderbirdIcsDisplayName(feedUrl) {
   return lastPath.split(".").slice(0, -1).join(".") || lastPath;
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

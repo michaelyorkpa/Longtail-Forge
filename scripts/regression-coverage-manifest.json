@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18325,
+    "activeAssertionCount": 18349,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19009,
+    "effectiveAssertionCount": 19033,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -3331,11 +3331,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 34,
+      "assertionCount": 38,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves former sole-workspace administrators receive only a portable account export and logout, while other zero-workspace identities remain non-enumerating and former workspace data stays inaccessible.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 38,
       "id": "framework.account-export-recovery",
       "legacy": false,
       "path": "scripts/regressions/framework/account-export-recovery.regression.mjs",
@@ -3395,11 +3395,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 67,
+      "assertionCount": 70,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves login verification admission and password-sensitive throttling are pre-verification, concurrency-bounded, durable, atomic, hash-keyed, trusted-IP aware, non-enumerating, and event emitting.",
-      "entryPointAssertionCount": 67,
+      "entryPointAssertionCount": 70,
       "id": "framework.authentication-throttle",
       "legacy": false,
       "path": "scripts/regressions/framework/authentication-throttle.regression.mjs",
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 103,
+      "assertionCount": 105,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 103,
+      "entryPointAssertionCount": 105,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3684,11 +3684,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 24,
+      "assertionCount": 28,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves new Argon2id hashes, bounded constant-time verification, legacy PBKDF2 login upgrades, safe rehash events, and centralized async credential writes.",
-      "entryPointAssertionCount": 24,
+      "entryPointAssertionCount": 28,
       "id": "framework.password-hashing-modernization",
       "legacy": false,
       "path": "scripts/regressions/framework/password-hashing-modernization.regression.mjs",
@@ -3704,11 +3704,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 50,
+      "assertionCount": 53,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves admin reset forces a restricted next-login password change, remains scoped and throttled, emits safe events, and never logs generated credentials.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 53,
       "id": "framework.password-reset-hardening",
       "legacy": false,
       "path": "scripts/regressions/framework/password-reset-hardening.regression.mjs",
@@ -3725,11 +3725,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 105,
+      "assertionCount": 113,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves private calendar feed token lifecycle, hashed storage, sessionless provider dispatch, immediate revocation, rejection parity, trusted-IP throttling, and secret-free logs.",
-      "entryPointAssertionCount": 105,
+      "entryPointAssertionCount": 113,
       "id": "framework.private-calendar-feed-authentication",
       "legacy": false,
       "path": "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs",

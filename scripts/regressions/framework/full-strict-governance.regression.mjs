@@ -262,6 +262,13 @@ for (const httpSecurityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
   assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
+for (const credentialOwner of [
+  "account-export-recovery", "authentication-throttle", "password-hashing-modernization",
+  "password-reset-hardening", "private-calendar-feed-authentication",
+].map((owner) => `scripts/regressions/framework/${owner}.regression.mjs`)) {
+  assert.equal(ledger.programs.scripts.diagnostics[credentialOwner], undefined, `${credentialOwner} must stay strict-clean after checkpoint 0.33.33.30.4`);
+  assert.equal(ledger.explicitAnyByFile[credentialOwner], undefined, `${credentialOwner} must stay free of explicit any after checkpoint 0.33.33.30.4`);
+}
 for (const contributionOwnerPath of [
   "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
   "scripts/regressions/framework/asset-cache-version.regression.mjs",
