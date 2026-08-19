@@ -48,27 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.28 - Type operational, backup, deployment, and release scripts
-
-**Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
-
-Planning rollup only; its numbered children below are the protected implementation checkpoints. The measured cohort is 1,287 diagnostics across 35 files — larger than 0.33.33.27, which needed seven agents and exceeded a single working session. These release-wide requirements apply to every child: type process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly; preserve dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts; and keep every operational script directly executable without transpilation. Children are ordered smallest-and-most-contained first so each closes a coherent operator-contract family within one session.
-
-### 0.33.33.28.6 - Type development seed and scale tooling
-
-**Model: High Effort** - Seed tooling writes large volumes of workspace data through the real service layer.
-
-Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe put this child at 401 diagnostics across two files totalling 2,836 lines — larger than the 378 that was resliced at `0.33.33.28.5`, and well beyond the 120-145 range that completed comfortably in one session. The two tools are independent operator entry points that import nothing from each other, so the file boundary is the honest seam; each child lands between that comfortable range and the 233 proven at `0.33.33.28.5.1`. These requirements apply to both: type seed scenario descriptors, generated record shapes, service call boundaries, and scale counters with named contracts; and preserve deterministic seed scenarios, operator-safety guards, volume parameters, and idempotent reseed behavior.
-
-### 0.33.33.28.6.2 - Type scale and volume seeding
-
-**Model: High Effort** - Scale seeding generates high-volume data whose counters and batching feed performance measurement.
-
-- [ ] Close the ~209 diagnostics in `seed-scale.mjs`.
-- [ ] Type volume parameters, batch plans, generated record shapes, service call boundaries, and scale counters with named contracts.
-- [ ] Preserve volume parameters, batching behavior, deterministic generation, and reported counters exactly.
-- [ ] Prove through the scale-seed framework regression without changing generated volumes or timing characteristics.
-
 ### 0.33.33.29 - Type release, docs, and consolidated static regression owners
 
 **Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.

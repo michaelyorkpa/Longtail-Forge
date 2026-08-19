@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.28 - Type operational, backup, deployment, and release scripts
+
+**Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
+
+Planning rollup closed by its final child. The measured cohort was 1,287 diagnostics across 35 files — larger than `0.33.33.27`, which needed seven agents and exceeded a single working session — so it was resliced into six operator-contract children, ordered smallest-and-most-contained first, with `0.33.33.28.5` and `0.33.33.28.6` resliced again after their own measured probes.
+
+- [x] Closed full-strict debt across backup/restore and workspace maintenance (`.28.1`), release ceremony and versioning (`.28.2`), measurement and installation diagnostics (`.28.3`), demo lifecycle and cleanup (`.28.4`), artifact and container publication plus deployment transfer and the reference proxy (`.28.5`), and development and scale seeding (`.28.6`).
+- [x] Typed process results, filesystem paths, JSON evidence, environment input, and cleanup states explicitly throughout, consolidating the schema-versioned release metadata into one contract shared from creation through publication to deployment.
+- [x] Preserved dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts across every child, verified by direct exercise of refusal paths, live fixture runs against a real Caddy proxy and real artifact builds, and mechanical equivalence proofs on the largest owners.
+- [x] Kept every operational script directly executable without transpilation; the scripts program fell from 7,659 to 6,370 diagnostics across the family with no collateral increase and explicit `any` held at 7.
+
+## Version 0.33.33.28.6 - Type development seed and scale tooling
+
+**Model: High Effort** - Seed tooling writes large volumes of workspace data through the real service layer.
+
+Planning rollup closed by its final child. A measured probe put this cohort at 401 diagnostics across two files totalling 2,836 lines — larger than the 378 resliced at `0.33.33.28.5`. With only two files there was no contract-family seam, but the two tools are independent operator entry points importing nothing from each other, so the file boundary was the honest split.
+
+- [x] `0.33.33.28.6.1` closed the 192 development-data seeding diagnostics with deterministic scenario output, operator-password admission, destructive-reseed guards, and idempotent reseed behavior preserved.
+- [x] `0.33.33.28.6.2` closed the 209 scale-seeding diagnostics with volume parameters, batching, deterministic generation, and reported counters preserved.
+- [x] Both children typed their producing factories once rather than casting at call sites, closing 401 diagnostics with 48 casts total, and both proved equivalence mechanically against their previous revisions.
+
+## Version 0.33.33.28.6.2 - Type scale and volume seeding
+
+**Model: High Effort** - Scale seeding generates high-volume data whose counters and batching feed performance measurement.
+
+- [x] Closed all 209 diagnostics in `seed-scale.mjs`.
+- [x] Typed volume profiles, CLI options, batch plans, generated record shapes, read-back database rows, service seams, and scale counters and summaries with named contracts; typing the producing factories and their option objects once closed 186 diagnostics, leaving only 23 casts across 1,771 lines.
+- [x] Preserved volume parameters, batching behavior, deterministic generation, and reported counters exactly: the four assumed-presence sites use non-null casts rather than optional chaining so a missing row still throws, and a digit histogram across the diff confirms no batch size, chunk size, loop bound, or profile volume changed.
+- [x] Proved equivalence mechanically — a mask-based normalizer stripping every cast back to its wrapped expression renders the file byte-identical across 1,631 normalized lines with matching SHA-256, and a seeded negative control mutating one chunk size makes that diff non-empty, showing the proof is not vacuous — and ran the scale-seed framework regression end to end plus the 42-entry database bucket; `framework.full-strict-governance` pins the owner strict-clean, the scripts program falls from 6,579 to 6,370 diagnostics, combined debt from 17,713 to 17,504 with explicit `any` at 7, and effective regression assertions advance to 18,975 across 347 scripts.
+
 ## Version 0.33.33.28.6.1 - Type development data seeding
 
 **Model: High Effort** - Development seeding writes a complete deterministic workspace through the real service layer behind operator safety guards.
