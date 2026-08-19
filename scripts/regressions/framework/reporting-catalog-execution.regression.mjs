@@ -29,6 +29,28 @@ const {
 const { AppError } = await import("../../../src/core/errors.js");
 const { timeTrackingModule } = await import("../../../src/modules/time-tracking/module.js");
 
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} WorkspaceSession */
+/**
+ * One recorded runner invocation. The registry hands the runner the resolved
+ * report, its key, the workspace it runs for, and the validated filters.
+ * @typedef {{ filters: Record<string, unknown>, report: { runner: string }, reportKey: string, workspaceId: string }} RunnerContext
+ */
+/** @typedef {{ session?: string }} ReportingRequestOptions */
+/**
+ * The JSON payload fields the reporting routes return here: the catalog list,
+ * a safe execution error envelope, and a completed run.
+ * @typedef {{
+ *   error: { code: string, message: string, requestId: string },
+ *   renderer: string,
+ *   reportKey: string,
+ *   reports: { defaultFilters: Record<string, unknown>, id: string, moduleId: string, renderer: string, rendererAssets: { id: string, path: string }[], reportKey: string, requiredPermissions: string[] }[],
+ *   result: Record<string, unknown>,
+ *   status: string,
+ * }} ReportingPayload
+ */
+/** @typedef {{ body: ReportingPayload, headers: Headers, status: number }} ReportingResponse */
+/** @typedef {{ get: (url: string, options?: ReportingRequestOptions) => Promise<ReportingResponse> }} ReportingApi */
+
 const REPORT_KEY = "time-tracking:project-time-billing";
 const RUNNER_ID = "time-tracking.project-time-billing";
 let server;
@@ -48,7 +70,7 @@ try {
   assertContributionRequirementFiltering();
 
   server = await listen(createTestApp({ adminSession, unauthorizedSession }));
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const catalog = await api.get("/api/reporting/catalog");
   assert.equal(catalog.status, 200);
@@ -66,6 +88,7 @@ try {
   assertExecutionError(unavailable, 503, "report_unavailable", "This report is temporarily unavailable.");
   assert.doesNotMatch(JSON.stringify(unavailable.body), /time-tracking\.project-time-billing/);
 
+  /** @type {RunnerContext[]} */
   const calls = [];
   registerReportRunner(RUNNER_ID, async (context) => {
     calls.push(context);
@@ -94,7 +117,9 @@ try {
 
   const custom = await run(api, "?period=custom&startDate=2026-07-01&endDate=2026-07-14&scopeId=scope-two");
   assert.equal(custom.status, 200);
-  assert.deepEqual(calls.at(-1).filters, {
+  // Each run above is asserted to have reached the registered runner, so the
+  // most recent recorded call is always present here.
+  assert.deepEqual(/** @type {RunnerContext} */ (calls.at(-1)).filters, {
     period: "custom",
     startDate: "2026-07-01",
     endDate: "2026-07-14",
@@ -211,6 +236,7 @@ function assertContributionRequirementFiltering() {
   }), false, "Workspace capability mismatches must remove the contribution");
 }
 
+/** @param {{ defaultFilters: Record<string, unknown>, id: string, moduleId: string, renderer: string, rendererAssets: { id: string, path: string }[], reportKey: string, requiredPermissions: string[] }} report */
 function assertCatalogReport(report) {
   assert.equal(report.reportKey, REPORT_KEY);
   assert.equal(report.id, "project-time-billing");
@@ -238,22 +264,26 @@ function assertExecutionError(response, status, code, message = null) {
   }
 }
 
+/** @param {{ adminSession: WorkspaceSession, unauthorizedSession: WorkspaceSession }} sessions */
 function createTestApp({ adminSession, unauthorizedSession }) {
   const app = express();
-  app.use((request, _response, next) => {
+  app.use(/** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, _response, next) => {
     request.session = request.headers["x-test-session"] === "unauthorized"
       ? unauthorizedSession
       : adminSession;
     next();
-  });
+  }));
   app.use("/api", reportingRoutes);
   app.use(errorHandler);
   return app;
 }
 
+/** @param {string} baseUrl @returns {ReportingApi} */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {ReportingRequestOptions} [options] @returns {Promise<ReportingResponse>} */
     async get(url, options = {}) {
+      /** @type {Record<string, string>} */
       const headers = options.session ? { "X-Test-Session": options.session } : {};
       const response = await fetch(`${baseUrl}${url}`, { headers });
       const text = await response.text();
@@ -266,17 +296,24 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {ReportingApi} api @param {string} query @param {ReportingRequestOptions} [options] @returns {Promise<ReportingResponse>} */
 function run(api, query, options = {}) {
   return api.get(`/api/reporting/reports/${encodeURIComponent(REPORT_KEY)}/run${query}`, options);
 }
 
+/**
+ * The Express application is callable as a request listener at runtime; the
+ * cast bridges its narrower typed request/response parameters.
+ * @param {import("express").Application} app @returns {Promise<http.Server>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {http.Server} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {

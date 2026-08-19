@@ -60,20 +60,12 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.2 - Type framework contribution, settings, reporting, and shell-boundary owners
-
-**Model: High Effort** - Contribution and registry contracts control what modules may add to the framework.
-
-- [ ] Close the 170 diagnostics across `settings-contribution-contract`, `generic-settings-engine`, `reporting-catalog-execution`, `reporting-contribution-contract`, `bundled-module-registry`, `module-import-boundaries`, `asset-cache-version`, `client-project-options-projection`, `user-landing-preferences`, `workbench-focus-policy`, `app-shell-bootstrap-boundary`, `browser-recovery-boundary`, and `framework.current-static-contracts` with its 5 folded modules.
-- [ ] Type settings and reporting contribution descriptors, module registry entries, and landing-preference payloads with named contracts rather than per-call-site casts.
-- [ ] Preserve module-enablement gating, contribution rejection messages, asset version stamping, import-boundary refusals, and recovery-boundary behavior.
-
 ### 0.33.33.30.3 - Type HTTP error, transport, and production security posture owners
 
 **Model: High Effort** - These owners fix the response and header contract every other surface is proven against.
 
-- [ ] Close the 188 diagnostics across `http-error-contract`, `express-5-http-contract`, `csrf-protection`, `browser-security-headers`, `tls-cookie-posture`, `trusted-proxy-request-context`, `public-legal-surfaces`, `operational-security-basics`, `security-event-logging`, `production-configuration-hardening`, and the `framework/http-error-development-guardrails` contract module; `framework/security-static-contracts.regression.mjs` is already strict-clean and needs a disposition only.
-- [ ] Introduce one typed HTTP request/response fixture contract for the raw `node:http` helpers these owners duplicate, and consume it by type-only import; it must not change request construction, status handling, or timing.
+- [ ] Close the 188 diagnostics across `http-error-contract`, `express-5-http-contract`, `csrf-protection`, `browser-security-headers`, `tls-cookie-posture`, `trusted-proxy-request-context`, `public-legal-surfaces`, `operational-security-basics`, `security-event-logging`, and `production-configuration-hardening`; `framework/security-static-contracts.regression.mjs` is already strict-clean and needs a disposition only. The `framework/http-error-development-guardrails` contract module was named here in error at reslice time — it folds into `framework.current-static-contracts` and closed with the rest of that aggregator's modules at `0.33.33.30.2`, which is where its nine diagnostics were already counted.
+- [ ] Introduce one typed HTTP request/response fixture contract for the raw `node:http` helpers these owners duplicate, and consume it by type-only import; it must not change request construction, status handling, or timing. `0.33.33.30.2` typed four such helpers in place rather than pre-empting this contract, so adopt them here once it exists.
 - [ ] Preserve exact status codes, error envelope shapes, development-versus-production error detail rules, header sets, cookie flags, proxy trust resolution, and security-event record shapes.
 
 ### 0.33.33.30.4 - Type authentication, credential, and account-recovery owners

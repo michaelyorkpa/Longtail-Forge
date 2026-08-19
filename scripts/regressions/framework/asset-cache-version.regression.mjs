@@ -103,7 +103,8 @@ assert.match(browserHelper, /namespace\.assetVersion = Object\.freeze\(\{ url, v
 const browserContext = {
   document: { querySelector: () => ({ content: appVersion }) },
   URLSearchParams,
-  window: {},
+  /** @type {{ LongtailForge: { assetVersion: { url: (assetUrl: string) => string, value: string } } }} */
+  window: /** @type {never} */ ({}),
 };
 vm.runInNewContext(browserHelper, browserContext);
 assert.equal(browserContext.window.LongtailForge.assetVersion.value, appVersion);
@@ -121,7 +122,9 @@ const { closeDatabase } = await import("../../../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
 
+/** @param {string} rootDir @param {string} extension @returns {Promise<string[]>} */
 async function listFiles(rootDir, extension) {
+  /** @type {string[]} */
   const files = [];
   for (const entry of await fs.readdir(rootDir, { withFileTypes: true })) {
     const filePath = path.join(rootDir, entry.name);
@@ -134,6 +137,7 @@ async function listFiles(rootDir, extension) {
   return files.sort();
 }
 
+/** @param {string} source @returns {{ pathname: string, version: string | null }[]} */
 function extractLocalAssets(source) {
   return [...source.matchAll(/\b(?:src|href)=(['"])([^'"]+)\1/gi)]
     .map((match) => match[2])

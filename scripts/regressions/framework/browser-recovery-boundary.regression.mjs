@@ -17,6 +17,15 @@ import { sendBrowserError } from "../../../src/core/http-error-contract.js";
 import { createErrorHandler } from "../../../src/middleware/error-handler.js";
 import { AppError } from "../../../src/utils/app-error.js";
 
+/**
+ * The framework route-handler contract. `express().get()` accepts unknown
+ * handlers, so each fixture route is cast to this shape to receive the
+ * framework request and response types rather than implicit parameters.
+ * @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} RouteHandler
+ */
+/** One captured fixture response: the recovery page and the status that produced it. */
+/** @typedef {{ headers: import("node:http").IncomingHttpHeaders, status: number | undefined, text: string }} RecoveryResponse */
+
 const browserRecoverySource = await fs.readFile("public/js/shared/browser-recovery.js", "utf8");
 const staticServiceSource = await fs.readFile("src/services/static.service.js", "utf8");
 const requireAuthSource = await fs.readFile("src/middleware/require-auth.js", "utf8");
@@ -63,30 +72,30 @@ assert.doesNotMatch(browserRecoverySource, /location\.reload\(|setInterval\(/, "
 const app = express();
 app.use(attachRequestContext);
 app.use(createTransportSecurityMiddleware());
-app.get("/login-required.html", (request, response) => {
+app.get("/login-required.html", /** @type {RouteHandler} */ ((request, response) => {
   sendBrowserError(request, response, { statusCode: 401 });
-});
-app.get("/forbidden.html", (request, response) => {
+}));
+app.get("/forbidden.html", /** @type {RouteHandler} */ ((request, response) => {
   sendBrowserError(request, response, {
     message: "Secret forbidden record title.",
     statusCode: 403,
   });
-});
-app.get("/missing.html", (request, response) => {
+}));
+app.get("/missing.html", /** @type {RouteHandler} */ ((request, response) => {
   sendBrowserError(request, response, {
     message: "Secret missing record title.",
     statusCode: 404,
   });
-});
-app.get("/conflict.html", (_request, _response) => {
+}));
+app.get("/conflict.html", /** @type {RouteHandler} */ ((_request, _response) => {
   throw new AppError("This read changed.", 409);
-});
-app.get("/dependency.html", (_request, _response) => {
+}));
+app.get("/dependency.html", /** @type {RouteHandler} */ ((_request, _response) => {
   throw new AppError("The database is temporarily unavailable. Try again.", 503, {
     code: "service_unavailable",
     expose: true,
   });
-});
+}));
 app.get("/unexpected.html", () => {
   throw new Error("secret database path C:\\private\\database.sqlite");
 });
@@ -139,12 +148,14 @@ try {
   const unexpected = await request(server, "/unexpected.html");
   assert.equal(unexpected.status, 500);
   assert.match(unexpected.text, /data-recovery-kind="unexpected"/);
-  assert.match(unexpected.text, new RegExp(unexpected.headers["x-request-id"]));
+  // Single-value headers, cast rather than narrowed so the read stays exactly as
+  // permissive as it is today; see the 0.33.33.30.2 note on this correlation check.
+  assert.match(unexpected.text, new RegExp(/** @type {string} */ (unexpected.headers["x-request-id"])));
   assert.doesNotMatch(unexpected.text, /secret|database\.sqlite|private/i);
 
   for (const response of [login, forbidden, missing, conflict, dependency, unexpected]) {
     assert.equal(response.headers["cache-control"], "no-store");
-    assert.match(response.headers["content-security-policy"], /default-src 'self'/);
+    assert.match(/** @type {string} */ (response.headers["content-security-policy"]), /default-src 'self'/);
     assert.match(response.text, /role="alert" aria-live="assertive" aria-atomic="true"/);
     assert.match(response.text, /@media \(prefers-color-scheme: dark\)/);
     assert.doesNotMatch(response.text, /<script\b|<link\b/i, "server fallback should not require optional application assets");
@@ -156,18 +167,21 @@ try {
 
 console.log("Browser recovery boundary regression passed.");
 
+/** @param {import("express").Application} appInstance @returns {Promise<import("node:http").Server>} */
 function listen(appInstance) {
   return new Promise((resolve) => {
     const nextServer = appInstance.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {import("node:http").Server} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** @param {import("node:http").Server} serverInstance @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<RecoveryResponse>} */
 function request(serverInstance, requestPath, headers = {}) {
   return new Promise((resolve, reject) => {
     const nextRequest = http.request({
@@ -175,8 +189,9 @@ function request(serverInstance, requestPath, headers = {}) {
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: serverInstance.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (serverInstance.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => resolve({

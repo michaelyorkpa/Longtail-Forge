@@ -29,6 +29,15 @@ const { developerExampleModule } = await import("../../../src/modules/developer-
 const { tasksModule } = await import("../../../src/modules/tasks/module.js");
 const { timeTrackingModule } = await import("../../../src/modules/time-tracking/module.js");
 
+/**
+ * The protected-view fields this contract reads. The framework module
+ * definition still declares `protectedViews` as `unknown[]`, so the shape is
+ * named here rather than tightened in the server contract from a scripts-only
+ * checkpoint.
+ * @typedef {{ allowDisabledRead?: boolean, id: string, path: string }} ProtectedViewEntry
+ */
+/** @typedef {import("../../../src/types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+
 try {
   assert.equal(ACTIVE_MANIFEST_FIELDS.has("settings"), true);
   assert.deepEqual(
@@ -173,13 +182,22 @@ try {
 }
 
 function assertRealContributionShape() {
-  const hints = developerExampleModule.settings.find((setting) => setting.id === "developerExampleHintsEnabled");
-  const mode = developerExampleModule.settings.find((setting) => setting.id === "developerExampleMode");
-  const taskTimers = tasksModule.settings.find((setting) => setting.id === "taskTimersEnabled");
-  const developerSettingsView = developerExampleModule.protectedViews.find((view) => view.id === "developer-example");
-  const developerSettingsAsset = developerExampleModule.browserAssets.find((asset) => asset.id === "developer-example-script");
-  const tasksSettingsView = tasksModule.protectedViews.find((view) => view.id === "tasks-settings");
-  const timeTrackingSettingsView = timeTrackingModule.protectedViews.find((view) => view.id === "time-tracking-settings");
+  // All three bundled modules declare the contribution arrays asserted below;
+  // reading through these aliases keeps a missing array failing at the same
+  // find() call it fails at today.
+  const developerSettings = /** @type {ModuleSettingDefinition[]} */ (developerExampleModule.settings);
+  const taskSettings = /** @type {ModuleSettingDefinition[]} */ (tasksModule.settings);
+  const developerViews = /** @type {ProtectedViewEntry[]} */ (developerExampleModule.protectedViews);
+  const taskViews = /** @type {ProtectedViewEntry[]} */ (tasksModule.protectedViews);
+  const timeTrackingViews = /** @type {ProtectedViewEntry[]} */ (timeTrackingModule.protectedViews);
+  const developerAssets = /** @type {import("../../../src/types/framework-contracts.js").BrowserAssetContribution[]} */ (developerExampleModule.browserAssets);
+  const hints = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleHintsEnabled"));
+  const mode = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleMode"));
+  const taskTimers = /** @type {ModuleSettingDefinition} */ (taskSettings.find((setting) => setting.id === "taskTimersEnabled"));
+  const developerSettingsView = developerViews.find((view) => view.id === "developer-example");
+  const developerSettingsAsset = developerAssets.find((asset) => asset.id === "developer-example-script");
+  const tasksSettingsView = taskViews.find((view) => view.id === "tasks-settings");
+  const timeTrackingSettingsView = timeTrackingViews.find((view) => view.id === "time-tracking-settings");
   assert.equal(developerSettingsView?.path, "/developer-example.html");
   assert.equal(developerSettingsAsset?.path, "/js/module-settings.js");
   assert.deepEqual(developerSettingsAsset?.views, ["developer-example"]);
@@ -191,7 +209,7 @@ function assertRealContributionShape() {
   assert.equal(taskTimers.handler, undefined, "Task timers should use ordinary generic persistence after migration");
   assert.deepEqual(taskTimers.requiredModules, ["time-tracking"]);
   assert.equal(
-    tasksModule.settings.filter((setting) => setting.handler?.startsWith("tasks.reminder")).length,
+    taskSettings.filter((setting) => setting.handler?.startsWith("tasks.reminder")).length,
     4,
     "Tasks reminder defaults should declare their four retained-table handlers",
   );
@@ -326,6 +344,7 @@ function assertOwnershipMigrationBoundary() {
   assert.match(environmentExample, /LONGTAIL_SECURE_NOTES_MASTER_KEY[\s\S]*LONGTAIL_STORAGE_PROVIDER[\s\S]*LONGTAIL_FILE_SCANNER/, "Secrets, storage providers, and scanner selection should remain environment configuration");
 }
 
+/** @param {unknown} settings @param {RegExp} pattern */
 function assertInvalid(settings, pattern) {
   assert.throws(
     () => validateModuleManifests([sampleModule({ settings: Array.isArray(settings) ? settings : [settings] })]),
@@ -369,6 +388,7 @@ function sampleSetting(overrides = {}) {
   };
 }
 
+/** @param {unknown} value @returns {boolean} */
 function containsFunction(value) {
   if (typeof value === "function") {
     return true;

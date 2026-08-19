@@ -7,6 +7,8 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+/** The rejection shape the settings service throws: an HTTP status plus a safe message. */
+/** @typedef {{ message: string, statusCode: number }} RejectedSaveError */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -72,7 +74,7 @@ try {
         [WORKBENCH_FOCUS_SETTING_IDS.priorityOrder]: WORKBENCH_FOCUS_ORDER_PRESETS.recentFirst,
       },
     }, unauthorizedSession),
-    (error) => error?.statusCode === 403,
+    (error) => /** @type {RejectedSaveError} */ (error)?.statusCode === 403,
   );
 
   const defaultFocus = await workFocusModesService.resolveFocusMode(session, {
@@ -138,7 +140,7 @@ ORDER BY setting_id;
         [WORKBENCH_FOCUS_SETTING_IDS.priorityOrder]: "free_form_weighting",
       },
     }, session),
-    (error) => error?.statusCode === 400 && /registered options/.test(error.message),
+    (error) => /** @type {RejectedSaveError} */ (error)?.statusCode === 400 && /registered options/.test(/** @type {RejectedSaveError} */ (error).message),
     "Unknown policy presets must fail canonical settings validation",
   );
 

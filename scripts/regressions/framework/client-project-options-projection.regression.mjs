@@ -19,7 +19,14 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "client-project-options.
 process.env.SUPER_ADMIN_PASSWORD = "Client-Project-Options-Test-123!";
 
 const optionsHelperSource = readFileSync(path.join(root, "public/js/shared/client-project-options.js"), "utf8");
-const sandboxWindow = {};
+/**
+ * One client or project option row the shared helper normalizes. Fields are
+ * projected verbatim, so the contract is the navigation shape rather than a
+ * per-field schema.
+ * @typedef {{ [key: string]: unknown, projects?: ClientOption[] }} ClientOption
+ */
+/** @type {{ LongtailForge: { clientProjectOptions: { normalizeClients: (clients: unknown, options?: unknown) => ClientOption[] } } }} */
+const sandboxWindow = /** @type {never} */ ({});
 new Function("window", optionsHelperSource)(sandboxWindow);
 const { normalizeClients } = sandboxWindow.LongtailForge.clientProjectOptions;
 
@@ -165,6 +172,7 @@ try {
   await fs.rm(tempDir, { force: true, recursive: true });
 }
 
+/** @param {ClientOption} client @returns {Record<string, unknown>} */
 function dropdownProjection(client) {
   return {
     id: client.id,
@@ -191,6 +199,7 @@ function dropdownProjection(client) {
   };
 }
 
+/** @param {string} pagePath @param {string} scriptPath */
 function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
   const html = readFileSync(path.join(root, pagePath), "utf8");
   const helperIndex = html.indexOf("js/shared/client-project-options.js");
@@ -201,6 +210,7 @@ function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
   assert.ok(helperIndex < scriptIndex, `${pagePath} should load the shared helper before ${scriptPath}.`);
 }
 
+/** @param {string} sourcePath */
 function assertSourceUsesSharedHelper(sourcePath) {
   const source = readFileSync(path.join(root, sourcePath), "utf8");
   assert.match(
@@ -210,6 +220,7 @@ function assertSourceUsesSharedHelper(sourcePath) {
   );
 }
 
+/** @param {string} sourcePath */
 function assertTimerUsesSharedProjectOptions(sourcePath) {
   const source = readFileSync(path.join(root, sourcePath), "utf8");
   assert.match(

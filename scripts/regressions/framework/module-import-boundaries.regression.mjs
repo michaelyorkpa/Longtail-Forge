@@ -73,7 +73,7 @@ for (const moduleName of moduleNames) {
 }
 
 const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
-const baselineKeys = new Set(baseline.deepImports.map((entry) => `${entry.file} -> ${entry.specifier}`));
+const baselineKeys = new Set(baseline.deepImports.map((/** @type {{ file: string, specifier: string }} */ entry) => `${entry.file} -> ${entry.specifier}`));
 const foundKeys = new Set(findings.map((entry) => `${entry.file} -> ${entry.specifier}`));
 
 const newViolations = [...foundKeys].filter((key) => !baselineKeys.has(key)).toSorted();
@@ -96,7 +96,9 @@ console.log(
   `Module import boundaries passed: ${moduleNames.length} modules scanned, ${foundKeys.size} baseline-managed legacy deep imports, 0 new violations.`,
 );
 
+/** @param {string} directory @returns {string[]} */
 function walkJsFiles(directory) {
+  /** @type {string[]} */
   const files = [];
   for (const entry of readdirSync(directory)) {
     const fullPath = path.join(directory, entry);

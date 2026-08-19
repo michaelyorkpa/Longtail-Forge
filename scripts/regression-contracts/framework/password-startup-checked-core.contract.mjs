@@ -84,6 +84,7 @@ assertOrdered(appSource, [
 
 console.log("Password and application-startup checked-core regression passed.");
 
+/** @param {string} source @param {string[]} fragments @param {string} label */
 function assertOrdered(source, fragments, label) {
   let previousIndex = -1;
   for (const fragment of fragments) {

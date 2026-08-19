@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.2 - Type framework contribution, settings, reporting, and shell-boundary owners
+
+**Model: High Effort** - Contribution and registry contracts control what modules may add to the framework.
+
+Second child of the `0.33.33.30` rollup.
+
+- [x] Closed all 170 diagnostics across thirteen `scripts/regressions/framework/` owners and all nine folded modules beneath `scripts/regression-contracts/framework/`, with named contracts for settings and reporting contribution descriptors, module registry entries and their router layer stacks, the landing-preference and app-shell bootstrap payloads, and the session-carrying JSON clients these owners drive the app through.
+- [x] Read contribution arrays the framework module definition still declares optional through documented aliases rather than per-call-site casts, so a missing array fails at the same statement it fails at today. The framework `ModuleDefinition` was deliberately not tightened: it belongs to the server program, which is already at zero, and narrowing `protectedViews` from `unknown[]` from a scripts-only checkpoint would cascade into `src/`.
+- [x] Preserved module-enablement gating, contribution rejection messages, asset version stamping, import-boundary refusals, and recovery-boundary behavior; all thirteen owners pass, assertion inventory is unchanged at 562 `assert` calls across the eighteen changed files, and no explicit `any` was introduced.
+- [x] Proved equivalence mechanically: five files normalize byte-identical to their previous revisions once JSDoc and casts are stripped, and every remaining statement change is a cast-paren wrap or a named alias for a repeated read, individually enumerated, plus `.href` on the framework aggregator's dynamic import.
+- [x] Recorded a no-pin disposition: this cohort reads no planning document, so nothing was stripped and `scripts/planning-document-pin-baseline.json` is unchanged.
+- [x] Recorded one latent defect rather than changing behavior. `framework.browser-recovery-boundary` correlates its unexpected-error page against `new RegExp(response.headers["x-request-id"])`; were that header ever absent the expression becomes `/(?:)/` and the assertion passes vacuously. The read is preserved verbatim behind a cast and the correction is owned by a later checkpoint.
+- [x] Corrected the reslice bookkeeping: `framework/http-error-development-guardrails.contract.mjs` was named in the `0.33.33.30.3` bullet but folds into `framework.current-static-contracts`, so its nine diagnostics were always inside this cohort's 170. The `0.33.33.30.3` scope text now says so, and records that the four raw HTTP clients typed in place here should be absorbed once that checkpoint's shared fixture contract exists.
+- [x] `framework.full-strict-governance` pins all nine framework contract modules and the thirteen owners strict-clean. The scripts program falls from 6,142 to 5,972 diagnostics, combined strict debt from 17,276 to 17,106 with explicit `any` at 7, and effective regression assertions advance to 18,987 across 347 scripts.
+
 ## Version 0.33.33.30.1 - Type view-surface contracts, strip their history pins, and correct the cursor-call defects
 
 **Model: High Effort** - The largest file surface in the cohort, and the only one still pinning planning history.
