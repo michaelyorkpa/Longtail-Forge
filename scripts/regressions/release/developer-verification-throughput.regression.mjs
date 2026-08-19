@@ -336,6 +336,7 @@ assert.throws(() => resolveCheckpointBaseSha({ args: ["--unknown"] }), /Usage: n
 
 console.log("Developer verification throughput regression passed.");
 
+/** @param {{ checkpoint: string, docs: string, summary: string }} trailerValues */
 function checkpointMessage({ checkpoint, docs, summary }) {
   return `Complete ${checkpoint}\n\n${TRAILER_NAMES.checkpoint}: ${checkpoint}\n${TRAILER_NAMES.summary}: ${summary}\n${TRAILER_NAMES.docs}: ${docs}`;
 }

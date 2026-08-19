@@ -23,6 +23,8 @@ import {
 } from "../../lib/regression-runner-options.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
+/** @typedef {import("../../lib/regression-discovery.mjs").RegressionSuiteBucket} RegressionSuiteBucket */
+
 const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8"));
 const coveragePolicy = JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8"));
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
@@ -93,7 +95,7 @@ try {
   assert.deepEqual(fixtureTagOnly.flatMap((bucket) => bucket.scripts), ["scripts/regressions/tasks/new-style.regression.mjs"]);
   assert.deepEqual(focusedOnly.flatMap((bucket) => bucket.scripts), ["scripts/regressions/tasks/new-style.regression.mjs"]);
   assert.deepEqual(
-    fixtureSuite.find((bucket) => bucket.runMode === "serial-files").scripts,
+    /** @type {RegressionSuiteBucket} */ (fixtureSuite.find((bucket) => bucket.runMode === "serial-files")).scripts,
     ["scripts/legacy-sample-regression.mjs"],
     "serial-only legacy regressions must retain their snapshotted run mode",
   );
@@ -169,6 +171,7 @@ assert.match(dryRunResult.stdout, /No regression scripts executed/);
 
 console.log("Regression metadata and discovery runner passed.");
 
+/** @param {unknown} metadata */
 function fixtureSource(metadata) {
   return `export const regressionMeta = Object.freeze(${JSON.stringify(metadata, null, 2)});\n`;
 }

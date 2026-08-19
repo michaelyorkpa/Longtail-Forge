@@ -92,7 +92,7 @@ const list = spawnSync(process.execPath, [paths.candidate, "--list"], {
   encoding: "utf8",
   timeout: 30_000,
 });
-assert.equal(list.status, 0, list.stderr || list.stdout || list.error);
+assert.equal(list.status, 0, /** @type {string} */ (list.stderr || list.stdout || list.error));
 const summary = JSON.parse(list.stdout.slice(list.stdout.lastIndexOf("\n{") + 1));
 assert.equal(summary.ok, true);
 assert.equal(summary.executed, false);

@@ -1,4 +1,11 @@
-const movementRows = Object.freeze([
+/**
+ * One workflow-module movement row as authored below: identifier, owning
+ * family, retired source path, recorded assertion count, and the description
+ * the retained owner asserts a minimum length against.
+ * @typedef {readonly [string, string, string, number, string]} WorkflowModuleMovementRow
+ */
+
+const movementRows = /** @type {readonly WorkflowModuleMovementRow[]} */ (Object.freeze([
   Object.freeze(["legacy.lists.declarative.readonly.surface", "lists", "scripts/lists-declarative-readonly-surface-regression.mjs", 39, "legacy.lists.declarative.readonly.surface remains a table-driven lists source contract."]),
   Object.freeze(["legacy.lists.items.modals.descriptor", "lists", "scripts/lists-items-modals-descriptor-regression.mjs", 40, "legacy.lists.items.modals.descriptor remains a table-driven lists source contract."]),
   Object.freeze(["legacy.lists.view.builder.pilot", "lists", "scripts/lists-view-builder-pilot-regression.mjs", 29, "legacy.lists.view.builder.pilot remains a table-driven lists source contract."]),
@@ -60,11 +67,11 @@ const movementRows = Object.freeze([
   Object.freeze(["legacy.workbench.task.ordering", "workbench", "scripts/workbench-task-ordering-regression.mjs", 6, "legacy.workbench.task.ordering remains a table-driven workbench source contract."]),
   Object.freeze(["legacy.workbench.view.state", "workbench", "scripts/workbench-view-state-regression.mjs", 29, "legacy.workbench.view.state remains a table-driven workbench source contract."]),
   Object.freeze(["workbench.task-focus-deep-link", "workbench", "scripts/regressions/workbench/task-focus-deep-link.regression.mjs", 18, "workbench.task-focus-deep-link remains a table-driven workbench source contract."]),
-]);
+]));
 
 const movements = Object.freeze(movementRows.map(([id, family, sourcePath, assertionCount, description]) => {
   const sourceName = sourcePath.split("/").at(-1);
-  const contractName = sourceName.replace(/(?:-regression|\.regression)\.mjs$/, ".contract.mjs");
+  const contractName = /** @type {string} */ (sourceName).replace(/(?:-regression|\.regression)\.mjs$/, ".contract.mjs");
   return Object.freeze({
     id,
     family,

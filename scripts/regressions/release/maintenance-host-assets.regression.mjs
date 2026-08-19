@@ -14,6 +14,11 @@ import os from "node:os";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
+/**
+ * One synchronous helper-shell invocation result, captured as UTF-8 text.
+ * @typedef {import("node:child_process").SpawnSyncReturns<string>} BashSpawnResult
+ */
+
 const helperPath = "scripts/release/longtail-forge-maintenance-host.example";
 const pagePath = "scripts/release/longtail-forge-maintenance.html";
 const environmentPath = "docs/longtail-forge-maintenance-helper.env.example";
@@ -217,10 +222,16 @@ async function runExecutableBoundary() {
   }
 }
 
+/** @param {string} command */
 function runBash(command) {
   return spawnSync("bash", ["-lc", command], { encoding: "utf8" });
 }
 
+/**
+ * @param {BashSpawnResult} result
+ * @param {string} label
+ * @param {RegExp} [outputPattern]
+ */
 function assertSuccess(result, label, outputPattern) {
   assert.equal(result.status, 0, `${label} failed:\n${result.stderr || result.stdout}`);
   if (outputPattern) {
@@ -228,10 +239,12 @@ function assertSuccess(result, label, outputPattern) {
   }
 }
 
+/** @param {unknown} value */
 function quote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
+/** @param {unknown} value */
 function toBashPath(value) {
   return String(value).split(path.sep).join("/");
 }

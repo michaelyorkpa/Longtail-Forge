@@ -48,16 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.29 - Type release, docs, and consolidated static regression owners
-
-**Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.
-
-- [ ] Type release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict.
-- [ ] Preserve every retained assertion ID and current-contract failure message.
-- [ ] Avoid typing retired files or reintroducing one-file-per-assertion structure.
-- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
-- [ ] Reduce this scripts-ledger cohort to zero.
-
 ### 0.33.33.30 - Type framework, views, and permission regression owners
 
 **Model: High Effort** - These owners cover shared UI, sessions, authentication, authorization, and browser safety.
@@ -66,6 +56,7 @@ Release-wide measurable acceptance:
 - [ ] Type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof.
 - [ ] Preserve security, accessibility, permission, and module-enablement expectations.
 - [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
+- [ ] Correct the two `assertRoadmapCursorAtLeast` call defects that typing exposed at `0.33.33.29` and that were preserved verbatim there because fixing either changes behavior. `maintenance-release-rehearsal.regression.mjs` omits the required `message` argument, so a floor failure reports `undefined (live roadmap cursor ...)`; `public-demo-compose-reset.regression.mjs` passes the raw roadmap string where the helper expects a `{ roadmapSource }` override object, so the override is silently ignored and the helper re-reads `ROADMAP.md` from disk. Supply the missing message and the correct override shape, remove the temporary call-site casts that documented the defects, and prove both owners still fail closed on a regressed cursor.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.31 - Type database, Files, and jobs regression owners

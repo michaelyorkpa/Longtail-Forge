@@ -6,13 +6,22 @@ import { WORKFLOW_MODULE_STATIC_CONSOLIDATION as consolidation } from "../workfl
 
 const { readJson } = createProjectTextReader();
 
+/** @typedef {import("../lib/regression-manifest.mjs").RetiredScript} RetiredScript */
+
+/**
+ * The retained table-driven owner invoking this module: its regression id and
+ * the module family whose source contracts it owns.
+ * @typedef {{ area: string, id: string }} WorkflowModuleOwnerMeta
+ */
+
+/** @param {WorkflowModuleOwnerMeta} ownerMeta */
 async function runWorkflowModuleStaticOwner(ownerMeta) {
   const contracts = consolidation.movements.filter((entry) => entry.retainedOwner === ownerMeta.id);
   const activeIds = new Set(REGRESSION_ENTRIES.map((entry) => entry.id));
   const activePaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
   const packageJson = readJson("package.json");
   const policy = readJson("scripts/regression-coverage-exceptions.json");
-  const retirements = new Map(policy.retiredScripts.map((entry) => [entry.script, entry]));
+  const retirements = new Map(policy.retiredScripts.map((/** @type {RetiredScript} */ entry) => [entry.script, entry]));
 
   assert.equal(consolidation.schemaVersion, 1);
   assert.equal(consolidation.version, "0.33.33.10");
@@ -45,7 +54,7 @@ async function runWorkflowModuleStaticOwner(ownerMeta) {
     assert.equal(retirement?.retiredInVersion, consolidation.version);
     assert.equal(retirement?.assertionInventory?.sourceAssertionCount, contract.assertionCount);
     assert.deepEqual(retirement?.retainedCoverageOwners, [ownerMeta.id]);
-    await import(new URL(`../../${contract.modulePath}`, import.meta.url));
+    await import(/** @type {string} */ (/** @type {unknown} */ (new URL(`../../${contract.modulePath}`, import.meta.url))));
   }
   return Object.freeze({ contractCount: contracts.length, assertionCount: contracts.reduce((total, entry) => total + entry.assertionCount, 0) });
 }

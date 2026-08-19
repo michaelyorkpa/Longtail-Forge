@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.29 - Type release, docs, and consolidated static regression owners
+
+**Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.
+
+Measured at 143 diagnostics across 28 files — `scripts/regressions/release/` (124), `scripts/regressions/docs/` (already clean), the static consolidation data modules (8), and the standalone consolidated static-owner modules at the `scripts/regression-contracts/` root (11) — inside the proven single-session range, so no reslice was required. The per-area contract modules beneath `scripts/regression-contracts/<area>/` were deliberately excluded because each folds into its own area's `current-static-contracts` aggregator, placing views, framework, and permissions modules in `0.33.33.30`, database and files modules in `0.33.33.31`, and product modules in `0.33.33.32`.
+
+- [x] Typed release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict, reusing the typed infrastructure from `0.33.33.27` rather than redeclaring it; typing the consolidation tables at their source cleared downstream diagnostics for free, so only twenty-four casts were needed across the cohort.
+- [x] Preserved every retained assertion ID and current-contract failure message: per-file assertion inventories are unchanged at 1,020 `assert` calls and 3,959 message literals, all twenty-eight files normalize byte-identical to their previous revisions with matching SHA-256, and four seeded negative controls confirmed the proof is not vacuous.
+- [x] Typed no retired files and reintroduced no one-file-per-assertion structure.
+- [x] Recorded the history-pin disposition for this cohort as conscious retention rather than stripping: all seven release/docs-area entries reference planning-document filenames as ceremony path strings, synthetic fixture content written to temporary directories, or detector patterns, and none reads repository history as product evidence. `release.current-static-contracts` owns the archived-evidence detector itself and must contain those filenames to assert every other release-gate owner avoids them. Each disposition and reason is recorded in `scripts/planning-document-pin-baseline.json`.
+- [x] Hardened the stalled Playwright browser install that had cancelled the protected browser gate at its fifteen-minute job timeout three times: the step now retries up to three times with each attempt bounded to four minutes across `development-pr.yml`, `nightly.yml`, and `promotion.yml`, with required check names, cache keys, guards, and step ordering unchanged and the workflow-asserting owners passing.
+- [x] Reduced this scripts-ledger cohort to zero; the scripts program falls from 6,370 to 6,227 diagnostics, combined debt from 17,504 to 17,361 with explicit `any` at 7, and effective regression assertions advance to 18,977 across 347 scripts. Typing also exposed two latent `assertRoadmapCursorAtLeast` call defects, preserved verbatim here and recorded as a `0.33.33.30` correction because fixing either changes behavior.
+
 ## Version 0.33.33.28 - Type operational, backup, deployment, and release scripts
 
 **Model: High Effort** - Operator tooling can mutate data or publish artifacts, so annotations must not mask control-flow errors.
