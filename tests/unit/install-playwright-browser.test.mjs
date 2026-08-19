@@ -3,12 +3,20 @@
 // 0.33.33.29 bounded each attempt with `timeout 240` inline in three workflow
 // files, where no test could reach it. That hid a worse failure than the one it
 // fixed: `timeout` terminates the wrapper, not the `apt-get` Playwright runs
-// under sudo, so a cancelled attempt kept holding /var/lib/apt/lists/lock and
-// the next two attempts failed instantly with "Could not get lock". The whole
-// retry budget went in six seconds while reporting bounded-attempt exhaustion.
+// under sudo, so a cancelled attempt kept holding the dpkg lock and the next two
+// attempts failed instantly with "Could not get lock". The whole retry budget
+// went in six seconds while reporting bounded-attempt exhaustion.
 //
-// These cases drive the real entry point with stub subprocesses, so the
-// ordering and the failure modes are proven rather than read off its source.
+// The first repair waited by taking the lock files with flock(1), which was a
+// no-op: flock(1) uses flock(2) while apt uses fcntl record locks, and the two
+// do not conflict. CI proved that - the retry ran but still raced the previous
+// attempt. The wait is now on the package-manager process, which is independent
+// of the primitive apt happens to use.
+//
+// These cases drive the real entry point with stub subprocesses, so the ordering
+// and the failure modes are proven rather than read off its source. They cannot
+// prove the production primitives themselves - `pgrep` and apt's own lock
+// timeout - which only a runner exercises.
 
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
@@ -38,6 +46,13 @@ function writeStub(label, exitCode, options = {}) {
   return stubPath;
 }
 
+const aptConfStub = writeStub("apt-conf", 0);
+const succeedingInstall = writeStub("install-ok", 0);
+const failingInstall = writeStub("install-fail", 1);
+// The probe reports "a package manager is running" by exiting 0, matching pgrep.
+const packageManagerIdle = writeStub("idle", 1);
+const packageManagerBusy = writeStub("busy", 0);
+
 /** @param {Record<string, string>} environment @returns {{ output: string, status: number | null }} */
 function runEntryPoint(environment) {
   try {
@@ -59,58 +74,62 @@ function readTrail() {
   return recorded.split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
-/** @param {string} installStub @param {string} lockStub @returns {Record<string, string>} */
-function environmentFor(installStub, lockStub) {
+/** @param {string} installStub @param {string} busyStub @returns {Record<string, string>} */
+function environmentFor(installStub, busyStub) {
   return {
-    LTF_PACKAGE_LOCK_COMMAND: `[${nodePath}, ${JSON.stringify(lockStub)}, "{seconds}", "{lock}"]`,
+    LTF_APT_LOCK_TIMEOUT_COMMAND: `[${nodePath}, ${JSON.stringify(aptConfStub)}, "{seconds}"]`,
+    LTF_PACKAGE_BUSY_PROBE_COMMAND: `[${nodePath}, ${JSON.stringify(busyStub)}]`,
     LTF_PLAYWRIGHT_INSTALL_COMMAND: `[${nodePath}, ${JSON.stringify(installStub)}]`,
   };
 }
 
 describe("protected browser gate Playwright install", () => {
-  const succeedingInstall = writeStub("install-ok", 0);
-  const failingInstall = writeStub("install-fail", 1);
-  const freeLock = writeStub("lock-free", 0);
-  const heldLock = writeStub("lock-held", 1);
-
-  it("does not retry or wait on a package lock when the first attempt succeeds", () => {
-    const result = runEntryPoint(environmentFor(succeedingInstall, freeLock));
+  it("configures apt to wait for a contended lock before the first attempt", () => {
+    const result = runEntryPoint(environmentFor(succeedingInstall, packageManagerIdle));
 
     expect(result.status).toBe(0);
-    expect(readTrail()).toEqual(["install-ok"]);
+    // The root-cause fix: apt waits for the lock rather than failing instantly,
+    // so a retry does not need the lock free the moment it starts.
+    expect(readTrail()).toEqual(["apt-conf 60", "install-ok"]);
   });
 
-  it("waits for both package locks before every retry", () => {
-    const result = runEntryPoint(environmentFor(failingInstall, freeLock));
+  it("waits for the package manager before every retry", () => {
+    const result = runEntryPoint(environmentFor(failingInstall, packageManagerIdle));
 
     expect(result.status).toBe(1);
-    // The corrected defect: before 0.33.33.30.3.1 each retry ran immediately and
-    // failed against the lock the cancelled attempt was still holding.
     expect(readTrail()).toEqual([
+      "apt-conf 60",
       "install-fail",
-      "lock-free 60 /var/lib/dpkg/lock-frontend",
-      "lock-free 60 /var/lib/apt/lists/lock",
+      "idle",
       "install-fail",
-      "lock-free 60 /var/lib/dpkg/lock-frontend",
-      "lock-free 60 /var/lib/apt/lists/lock",
+      "idle",
       "install-fail",
     ]);
     expect(result.output).toMatch(/did not complete after 3 bounded attempts/);
   });
 
-  it("stops with the lock named instead of burning the remaining attempts against it", () => {
-    const result = runEntryPoint(environmentFor(failingInstall, heldLock));
+  it("stops instead of racing a package manager that never goes idle", () => {
+    const result = runEntryPoint({
+      ...environmentFor(failingInstall, packageManagerBusy),
+      LTF_PACKAGE_LOCK_TIMEOUT_MS: "1000",
+    });
 
     expect(result.status).toBe(1);
-    expect(readTrail()).toEqual(["install-fail", "lock-held 60 /var/lib/dpkg/lock-frontend"]);
-    expect(result.output).toMatch(/Package lock \/var\/lib\/dpkg\/lock-frontend was still held after 60 seconds/);
+    const trail = readTrail();
+    expect(trail[0]).toBe("apt-conf 1");
+    expect(trail[1]).toBe("install-fail");
+    expect(trail.filter((entry) => entry === "busy").length).toBeGreaterThan(0);
+    // The run stops after the first failed attempt rather than spending the
+    // remaining attempts against a package manager it knows is still running.
+    expect(trail.filter((entry) => entry === "install-fail").length).toBe(1);
+    expect(result.output).toMatch(/A package manager was still running after \d+ seconds/);
   });
 
   it("kills an attempt that outlives its bound rather than letting it run on", () => {
     const hangingInstall = writeStub("install-hang", 0, { hangMs: 10_000 });
     const startedAt = Date.now();
     const result = runEntryPoint({
-      ...environmentFor(hangingInstall, freeLock),
+      ...environmentFor(hangingInstall, packageManagerIdle),
       LTF_PLAYWRIGHT_ATTEMPTS: "1",
       LTF_PLAYWRIGHT_ATTEMPT_TIMEOUT_MS: "700",
     });

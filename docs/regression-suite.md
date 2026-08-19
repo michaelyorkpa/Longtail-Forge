@@ -4,7 +4,9 @@ This document records the current regression-suite contract through 0.33.33.30.3
 
 As of 0.33.33.30.3.1, the protected browser gate installs Playwright through one bounded entry point, `scripts/release/install-playwright-browser.mjs`. The `0.33.33.29` hardening bounded each attempt with `timeout 240` inline in three workflows, which fixed one stalled download consuming the job budget but created a worse failure: `timeout` terminates the wrapper it launched, not the `apt-get` that Playwright's `--with-deps` runs under sudo, so a cancelled attempt keeps holding `/var/lib/apt/lists/lock`. Attempts two and three then failed instantly with `Could not get lock`, spending the whole retry budget in six seconds and reporting a bounded-attempt exhaustion that never really retried. This was observed on the `0.33.33.30.2.1` pull request.
 
-The entry point owns the policy once instead of three times. A timed-out attempt is SIGTERMed and then SIGKILLed so nothing it started survives, and before each retry the dpkg frontend and apt lists locks are waited on rather than force-unlocked, because a slow mirror is the common cause and letting the previous `apt-get` finish makes the retry's dependency step a fast no-op. A lock still held after its bound stops the run with the lock named, rather than burning the remaining attempts against it. The install step and browser job bounds rise to 18 and 20 minutes: the worst case is three 240-second attempts plus two retries waiting on two locks for 60 seconds each, and the `0.33.33.29` ceilings could not contain a retry that actually waits because they assumed retries were instant.
+The entry point owns the policy once instead of three times. It configures apt's own `DPkg::Lock::Timeout` so a contended lock makes apt wait rather than fail, SIGTERMs and then SIGKILLs a timed-out attempt so nothing it started survives, and waits for the package-manager process before each retry. Waiting rather than force-unlocking is deliberate: a slow mirror is the common cause, and letting the previous `apt-get` finish makes the retry a fast no-op. A package manager still running after its bound stops the run rather than burning the remaining attempts against it. The install step and browser job bounds rise to 18 and 20 minutes; the `0.33.33.29` ceilings assumed retries were instant, which was the defect, so they could not contain a retry that actually waits.
+
+The first repair waited by taking the lock files with `flock(1)`, and CI proved that wrong on this checkpoint's own pull request: the retry genuinely ran a full apt fetch and then still failed on the lock. `flock(1)` uses `flock(2)` while apt uses `fcntl` record locks, and the two do not conflict, so the wait returned instantly. The unit test had proven the control flow, not the primitive — it stubbed the lock command, which was exactly the part that was wrong. The wait is now on the package-manager process, which is independent of whichever primitive apt uses, and the guard forbids `flock` returning as the wait.
 
 Nothing pinned this step before, which is why the defect shipped, so the contract now has two owners. `tests/unit/install-playwright-browser.test.mjs` drives the real entry point with stub subprocesses and proves four behaviours: a first-attempt success neither retries nor touches a lock; every retry waits on both locks first while the final attempt does not; a held lock stops the run with the lock named; and an attempt that outlives its bound is killed rather than run to completion. `release.playwright-dev-only-boundary` proves the wiring — all three workflows call the single entry point, none reintroduces the inline install, and both bounds are in place — with three seeded controls confirming it fails closed on a reintroduced inline install and on either bound being lowered.
 
@@ -491,11 +493,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18318 |
+| Active regression assertions | 18319 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19002 |
+| Effective assertion floor | 19003 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

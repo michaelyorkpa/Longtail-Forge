@@ -154,8 +154,13 @@ for (const workflowPath of [
 }
 const installEntryPoint = readFileSync("scripts/release/install-playwright-browser.mjs", "utf8");
 assert.match(installEntryPoint, /SIGKILL/, "a timed-out attempt must be hard-killed, not only signalled");
-assert.match(installEntryPoint, /lock-frontend/, "the dpkg frontend lock must be waited on before a retry");
-assert.equal(installEntryPoint.includes("/var/lib/apt/lists/lock"), true, "the apt lists lock must be waited on before a retry");
+// The wait must be on the package-manager process. Waiting on the lock files
+// with flock(1) was a proven no-op: it uses flock(2) while apt uses fcntl
+// record locks, so it returned instantly and the retry raced the cancelled
+// attempt anyway.
+assert.equal(installEntryPoint.includes("pgrep -x apt-get"), true, "the retry must wait for the package-manager process, not a lock file");
+assert.equal(installEntryPoint.includes(String.fromCharCode(34) + "flock" + String.fromCharCode(34)), false, "flock does not conflict with apt fcntl locks and must not be used as the wait command");
+assert.equal(installEntryPoint.includes("DPkg::Lock::Timeout"), true, "apt must be configured to wait for a contended lock rather than fail fast");
 
 const e2eDocs = readFileSync("docs/e2e-testing.md", "utf8");
 assert.match(e2eDocs, /test:e2e:install/, "e2e docs must cover browser installation");

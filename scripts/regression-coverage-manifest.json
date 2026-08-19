@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18318,
+    "activeAssertionCount": 18319,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19002,
+    "effectiveAssertionCount": 19003,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -4915,11 +4915,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 45,
+      "assertionCount": 46,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Pins the reviewed Playwright 1.62.1 browser baseline and proves Playwright and axe stay dev/test-only with zero runtime imports, unchanged startup/check commands, and a documented reproducible e2e/a11y harness.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 46,
       "id": "release.playwright-dev-only-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",

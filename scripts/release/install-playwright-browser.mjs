@@ -9,11 +9,15 @@
 // "Could not get lock", spending the entire retry budget in six seconds and
 // reporting a bounded-attempt exhaustion that never really retried.
 //
-// This entry point owns the whole policy once instead of three times: hard-kill
-// a timed-out attempt, then wait for the package locks a cancelled attempt may
-// have left behind before retrying. Waiting rather than force-unlocking is
-// deliberate - a slow mirror is the common cause, and letting the previous
-// apt-get finish makes the retry's dependency step a fast no-op.
+// This entry point owns the whole policy once instead of three times: configure
+// apt to wait for a contended lock, hard-kill a timed-out attempt, then wait for
+// the package manager a cancelled attempt left behind before retrying. Waiting
+// rather than force-unlocking is deliberate - a slow mirror is the common cause,
+// and letting the previous apt-get finish makes the retry a fast no-op.
+//
+// The first repair waited by taking the lock files with flock(1). CI proved that
+// wrong: flock(1) uses flock(2) while apt uses fcntl record locks, so the wait
+// returned instantly and the retry still raced the previous attempt.
 //
 // Test seams: every subprocess and bound is overridable so a regression can
 // prove the ordering and the failure modes without a runner. They are read only
@@ -26,11 +30,24 @@ import process from "node:process";
 /** @typedef {{ code: number | null, timedOut: boolean }} AttemptResult */
 
 const DEFAULT_INSTALL_COMMAND = Object.freeze(["npx", "playwright", "install", "--with-deps", "chromium"]);
-const DEFAULT_LOCK_COMMAND = Object.freeze(["sudo", "flock", "--timeout", "{seconds}", "{lock}", "true"]);
-// apt takes the dpkg frontend lock first and the lists lock while fetching, so a
-// cancelled attempt can be holding either one.
-const DEFAULT_PACKAGE_LOCKS = Object.freeze(["/var/lib/dpkg/lock-frontend", "/var/lib/apt/lists/lock"]);
+// Probe whether a package manager is still running. Exit code 0 means busy.
+//
+// The first attempt at this waited by taking the lock files with flock(1).
+// That was a no-op: flock(1) uses flock(2) while apt uses fcntl record locks,
+// and the two do not conflict, so the wait returned instantly and the retry
+// raced the previous attempt anyway. Waiting on the process is independent of
+// which locking primitive apt happens to use.
+const DEFAULT_BUSY_PROBE_COMMAND = Object.freeze(["sh", "-c", "pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null || pgrep -x unattended-upgrade >/dev/null"]);
+// Make apt itself wait for a contended lock rather than failing immediately.
+// This is the root-cause fix: a retry whose apt waits does not need the lock to
+// be free the instant it starts.
+const APT_LOCK_TIMEOUT_CONF = "/etc/apt/apt.conf.d/99-longtail-forge-lock-timeout";
+const DEFAULT_APT_LOCK_TIMEOUT_COMMAND = Object.freeze([
+  "sudo", "sh", "-c",
+  `printf 'DPkg::Lock::Timeout "%s";\\n' '{seconds}' > ${APT_LOCK_TIMEOUT_CONF}`,
+]);
 const KILL_GRACE_MS = 30_000;
+const POLL_INTERVAL_MS = 5_000;
 
 /** @param {string} name @param {readonly string[]} fallback @returns {string[]} */
 function commandFromEnvironment(name, fallback) {
@@ -55,8 +72,8 @@ function numberFromEnvironment(name, fallback) {
 }
 
 const installCommand = commandFromEnvironment("LTF_PLAYWRIGHT_INSTALL_COMMAND", DEFAULT_INSTALL_COMMAND);
-const lockCommand = commandFromEnvironment("LTF_PACKAGE_LOCK_COMMAND", DEFAULT_LOCK_COMMAND);
-const packageLocks = commandFromEnvironment("LTF_PACKAGE_LOCK_PATHS", DEFAULT_PACKAGE_LOCKS);
+const busyProbeCommand = commandFromEnvironment("LTF_PACKAGE_BUSY_PROBE_COMMAND", DEFAULT_BUSY_PROBE_COMMAND);
+const aptLockTimeoutCommand = commandFromEnvironment("LTF_APT_LOCK_TIMEOUT_COMMAND", DEFAULT_APT_LOCK_TIMEOUT_COMMAND);
 const attempts = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPTS", 3);
 const attemptTimeoutMs = numberFromEnvironment("LTF_PLAYWRIGHT_ATTEMPT_TIMEOUT_MS", 240_000);
 const lockTimeoutMs = numberFromEnvironment("LTF_PACKAGE_LOCK_TIMEOUT_MS", 60_000);
@@ -100,24 +117,32 @@ function runBounded(command, timeoutMs) {
 }
 
 /**
- * Wait for every package lock a cancelled attempt may still hold. Acquiring and
- * immediately releasing each lock is the wait: it blocks while another process
- * holds it and returns as soon as it does not.
+ * Wait until no package manager is running, so a retry does not race the
+ * apt-get a cancelled attempt left behind.
  * @returns {Promise<boolean>}
  */
-async function waitForPackageLocks() {
-  const seconds = String(Math.ceil(lockTimeoutMs / 1000));
-  for (const lock of packageLocks) {
-    const command = lockCommand.map((part) => part.replace("{seconds}", seconds).replace("{lock}", lock));
-    const result = await runBounded(command, lockTimeoutMs + KILL_GRACE_MS);
-    if (result.code !== 0) {
-      console.error(`Package lock ${lock} was still held after ${seconds} seconds; a cancelled install is still running.`);
-      return false;
+async function waitForPackageManager() {
+  const deadline = Date.now() + lockTimeoutMs;
+  while (Date.now() < deadline) {
+    const busy = await runBounded(busyProbeCommand, POLL_INTERVAL_MS * 4);
+    if (busy.code !== 0) {
+      return true;
     }
+    // Never sleep past the deadline: a short bound must still report promptly.
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise((resolve) => { setTimeout(resolve, Math.min(POLL_INTERVAL_MS, remainingMs)); });
   }
-  return true;
+  console.error(`A package manager was still running after ${Math.ceil(lockTimeoutMs / 1000)} seconds; the cancelled install has not released its locks.`);
+  return false;
 }
 
+// Best effort: if this cannot be written the install still runs, it just fails
+// fast on a contended lock instead of waiting.
+await runBounded(
+  aptLockTimeoutCommand.map((part) => part.replace("{seconds}", String(Math.ceil(lockTimeoutMs / 1000)))),
+  KILL_GRACE_MS,
+);
 for (let attempt = 1; attempt <= attempts; attempt += 1) {
   const result = await runBounded(installCommand, attemptTimeoutMs);
   if (result.code === 0) {
@@ -126,8 +151,8 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
   const reason = result.timedOut ? "exceeded its bound" : `exited with code ${result.code}`;
   console.error(`Playwright browser install attempt ${attempt} ${reason}.`);
   if (attempt < attempts) {
-    console.error("Waiting for any package lock the cancelled attempt left behind before retrying.");
-    if (!await waitForPackageLocks()) {
+    console.error("Waiting for the package manager the cancelled attempt left behind before retrying.");
+    if (!await waitForPackageManager()) {
       process.exit(1);
     }
   }
