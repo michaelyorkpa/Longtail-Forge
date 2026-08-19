@@ -36,7 +36,7 @@ let server;
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const failedLogin = await api.post("/api/login", {
     password: WRONG_PASSWORD,
@@ -149,13 +149,16 @@ WHERE record_type = 'security_event';
   assert.equal(serializedSecurityRows.includes(WRONG_PASSWORD), false, "failed-login records must not contain submitted passwords");
   assert.ok(storedSecurityRows.every((row) => row.previous_value_json === null && row.new_value_json === null));
   const perimeterRow = storedSecurityRows.find((row) => row.action === "security.public_demo.perimeter_limited");
-  assert.equal(JSON.parse(perimeterRow.metadata_json).request_id, "00000000-0000-4000-8000-000000000010");
-  assert.equal(perimeterRow.metadata_json.includes("must-not-persist"), false);
+  // The perimeter event is asserted present above; a missing row still fails there.
+  const perimeterMetadata = /** @type {string} */ (/** @type {SecurityAuditRow} */ (perimeterRow).metadata_json);
+  assert.equal(JSON.parse(perimeterMetadata).request_id, "00000000-0000-4000-8000-000000000010");
+  assert.equal(perimeterMetadata.includes("must-not-persist"), false);
   for (const row of storedSecurityRows) {
-    assertSafeMetadataKeys(JSON.parse(row.metadata_json || "{}"));
+    assertSafeMetadataKeys(JSON.parse(String(row.metadata_json || "{}")));
   }
 
   const originalAuditRecord = auditService.record;
+  /** @type {string[]} */
   const capturedWarnings = [];
   const originalWarn = console.warn;
   let loginWithBrokenLogging;
@@ -197,14 +200,21 @@ WHERE record_type = 'security_event';
   await fixture.cleanup();
 }
 
+/** One stored security audit row this owner reads back from the database. */
+/** @typedef {{ action: string, change_type: string, metadata_json: string, new_value_json: unknown, previous_value_json: unknown, record_type: string }} SecurityAuditRow */
+/** @typedef {{ auditLogs: SecurityAuditRow[], error: { code: string, message: string, requestId: string }, initialPassword: string, user: { user_id: string, username: string, workspace_id: string }, workspace: { workspaceId: string } }} SecurityPayload */
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonClient<SecurityPayload>} api @param {string} username @param {string} password */
 async function login(api, username, password) {
   const response = await api.post("/api/login", { password, username });
   assert.equal(response.status, 200, JSON.stringify(response.body));
   return response;
 }
 
+/** @param {string} baseUrl @returns {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonClient<SecurityPayload>} */
 function createApi(baseUrl) {
+  /** @param {string} method @param {string} url @param {unknown} body @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<SecurityPayload>>} */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (body !== undefined) {
       headers["content-type"] = "application/json";
@@ -226,20 +236,24 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
   };
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<SecurityPayload>} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/** @param {unknown} value */
 function assertSafeMetadataKeys(value) {
   if (!value || typeof value !== "object") {
     return;
@@ -251,13 +265,15 @@ function assertSafeMetadataKeys(value) {
   }
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

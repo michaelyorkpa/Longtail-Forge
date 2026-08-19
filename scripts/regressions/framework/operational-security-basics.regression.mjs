@@ -45,6 +45,7 @@ try {
 console.log("Operational security basics regression passed.");
 
 async function assertStructuredLogContract() {
+  /** @type {string[]} */
   const lines = [];
   const logger = createOperationalLogger({
     minimumLevel: "trace",
@@ -78,14 +79,14 @@ async function assertStructuredLogContract() {
     query: "secret=value",
     requestBody: secretMarker,
   });
-  const supportAttempt = JSON.parse(lines.at(-1));
+  const supportAttempt = JSON.parse(/** @type {string} */ (lines.at(-1)));
   assert.equal(supportAttempt.actorUserId, "actor-safe-id");
   assert.equal(supportAttempt.effectiveUserId, "target-safe-id");
   assert.equal(supportAttempt.supportSessionId, "support-safe-id");
   assert.equal(supportAttempt.reasonClass, "mutation_denied");
   assert.equal(Object.hasOwn(supportAttempt, "query"), false);
   assert.equal(Object.hasOwn(supportAttempt, "requestBody"), false);
-  assert.doesNotMatch(lines.at(-1), new RegExp(secretMarker));
+  assert.doesNotMatch(/** @type {string} */ (lines.at(-1)), new RegExp(secretMarker));
 
   const restoreConsole = installProductionConsoleBridge({ environment: "production", logger });
   try {
@@ -93,17 +94,18 @@ async function assertStructuredLogContract() {
   } finally {
     restoreConsole();
   }
-  const bridged = JSON.parse(lines.at(-1));
+  const bridged = JSON.parse(/** @type {string} */ (lines.at(-1)));
   assert.deepEqual(bridged, {
     timestamp: bridged.timestamp,
     level: "error",
     event: "console.output",
     source: "authentication",
   });
-  assert.doesNotMatch(lines.at(-1), new RegExp(secretMarker));
+  assert.doesNotMatch(/** @type {string} */ (lines.at(-1)), new RegExp(secretMarker));
 }
 
 async function assertRequestCorrelation() {
+  /** @type {string[]} */
   const lines = [];
   const logger = createOperationalLogger({
     writeLine: (line) => lines.push(line),
@@ -111,9 +113,9 @@ async function assertRequestCorrelation() {
   const app = express();
   app.use(attachRequestContext);
   app.use(createRequestLoggingMiddleware({ environment: "production", logger }));
-  app.get("/probe", (request, response) => {
+  app.get("/probe", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
     response.json({ requestId: getRequestContext(request).requestId });
-  });
+  }));
   const server = await listen(app);
 
   try {
@@ -121,13 +123,13 @@ async function assertRequestCorrelation() {
     const result = await request(server, "/probe", { "x-request-id": inboundId });
     await waitForImmediate();
     assert.equal(result.status, 200);
-    assert.match(result.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
-    assertUuidVersion(result.headers["x-request-id"], 4, "framework request correlation identity");
-    assert.notEqual(result.headers["x-request-id"], inboundId, "inbound IDs should not control trusted correlation fields");
-    assert.equal(result.body.requestId, result.headers["x-request-id"]);
-    const requestLog = JSON.parse(lines.at(-1));
+    assert.match(/** @type {string} */ (result.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
+    assertUuidVersion(/** @type {string} */ (result.headers["x-request-id"]), 4, "framework request correlation identity");
+    assert.notEqual(/** @type {string} */ (result.headers["x-request-id"]), inboundId, "inbound IDs should not control trusted correlation fields");
+    assert.equal(result.body.requestId, /** @type {string} */ (result.headers["x-request-id"]));
+    const requestLog = JSON.parse(/** @type {string} */ (lines.at(-1)));
     assert.equal(requestLog.event, "http.request.completed");
-    assert.equal(requestLog.requestId, result.headers["x-request-id"]);
+    assert.equal(requestLog.requestId, /** @type {string} */ (result.headers["x-request-id"]));
     assert.equal(requestLog.method, "GET");
     assert.equal(requestLog.statusCode, 200);
     assert.equal(Object.hasOwn(requestLog, "path"), false, "request logs should omit paths and queries");
@@ -148,7 +150,7 @@ async function assertMinimalHealthRoutes() {
     const health = await request(server, "/healthz");
     assert.equal(health.status, 200);
     assert.deepEqual(health.body, { status: "ok" });
-    assert.match(health.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+    assert.match(/** @type {string} */ (health.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
 
     const notReady = await request(server, "/readyz");
     assert.equal(notReady.status, 503);
@@ -246,21 +248,25 @@ async function assertSecurityDocumentation() {
   assert.match(preview, /Invitations remain blocked until that exact-candidate review records an explicit invite decision/);
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** @typedef {{ requestId: string }} CorrelationPayload */
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonResponse<CorrelationPayload>>} */
 function request(server, requestPath, headers = {}) {
   return new Promise((resolve, reject) => {
-    const address = server.address();
+    const address = /** @type {import("node:net").AddressInfo} */ (server.address());
     const outgoing = http.request({
       headers,
       host: "127.0.0.1",
@@ -268,6 +274,7 @@ function request(server, requestPath, headers = {}) {
       path: requestPath,
       port: address.port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => resolve({
@@ -281,6 +288,7 @@ function request(server, requestPath, headers = {}) {
   });
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);

@@ -168,30 +168,40 @@ for (const diagnostics of [
   assert.doesNotMatch(diagnostics, new RegExp(secretMarker), "configuration diagnostics must redact deployment secrets");
 }
 
+/** The response record the error handler writes into, and the diagnostics it logs. */
+/** @typedef {{ body: { error?: { code: string, message: string, requestId: string } } | null, status: number | null }} ResponseState */
+/** @typedef {{ event: string, fields: Record<string, unknown> }} DiagnosticRecord */
+/** @type {ResponseState} */
 const responseState = { body: null, status: null };
 const response = {
   headersSent: false,
+  /** @param {ResponseState["body"]} body */
   json(body) {
     responseState.body = body;
     return this;
   },
+  /** @param {number} status */
   status(status) {
     responseState.status = status;
     return this;
   },
 };
+/** @type {DiagnosticRecord[]} */
 const diagnosticRecords = [];
 const errorHandler = createErrorHandler({
   logger: {
+    /** @param {unknown} event @param {Record<string, unknown>} [fields] */
     error(event, fields) {
-      diagnosticRecords.push({ event, fields });
+      diagnosticRecords.push({ event: String(event), fields: fields || {} });
     },
   },
 });
 errorHandler(
   new Error(`${secretMarker}\nstack detail`),
-  { method: "GET", path: "/api/private", requestContext: { requestId: "safe-request-id" } },
-  response,
+  // Only method, path, and the request context are read, so a partial stand-in suffices.
+  /** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (/** @type {unknown} */ ({ method: "GET", path: "/api/private", requestContext: { requestId: "safe-request-id" } })),
+  // Only headersSent, json, and status are reached, so a partial stand-in suffices.
+  /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ (response)),
   () => {},
 );
 assert.equal(responseState.status, 500);
@@ -235,8 +245,8 @@ try {
   await assert.rejects(
     () => filesService.assertConfiguredFileScannerReady({ required: true, scannerMode: "clamd" }),
     (error) => {
-      assert.match(error.message, /File scanner 'clamd' is not available at startup/);
-      assert.doesNotMatch(error.message, new RegExp(secretMarker));
+      assert.match(/** @type {Error} */ (error).message, /File scanner 'clamd' is not available at startup/);
+      assert.doesNotMatch(/** @type {Error} */ (error).message, new RegExp(secretMarker));
       return true;
     },
   );
@@ -277,8 +287,8 @@ try {
   await assert.rejects(
     () => assertPublicDemoRuntimeReady({ dataDir, demo: { enabled: true } }),
     (error) => {
-      assert.match(error.message, /DEMO_MODE data ownership marker is missing, unreadable, or invalid/);
-      assert.doesNotMatch(error.message, new RegExp(escapeRegExp(tempRoot)));
+      assert.match(/** @type {Error} */ (error).message, /DEMO_MODE data ownership marker is missing, unreadable, or invalid/);
+      assert.doesNotMatch(/** @type {Error} */ (error).message, new RegExp(escapeRegExp(tempRoot)));
       return true;
     },
   );
@@ -307,7 +317,9 @@ try {
 
 console.log("Production configuration hardening regression passed.");
 
+/** @param {string} key @param {string | undefined} value @param {RegExp} pattern */
 function assertProductionFails(key, value, pattern) {
+  /** @type {Record<string, string>} */
   const env = { ...secureProduction };
   if (value === undefined) {
     delete env[key];

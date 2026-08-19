@@ -82,26 +82,28 @@ assert.match(browserSources, /\.style\.(?:setProperty|colorScheme|display|left|t
 
 console.log("Browser security headers regression passed.");
 
+/** @param {string[] | string | undefined} trustedProxies @param {string} requestPath @param {Record<string, string>} [headers] @param {{ attachmentSandbox?: boolean }} [options] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeResponseBase>} */
 async function probeRequest(trustedProxies, requestPath, headers = {}, options = {}) {
   const app = express();
-  configureTrustedProxy(app, trustedProxies);
+  configureTrustedProxy(app, /** @type {readonly string[] | undefined} */ (trustedProxies));
   app.use(attachRequestContext);
   app.use(createTransportSecurityMiddleware({ hsts: { enabled: true, maxAgeSeconds: 300 } }));
-  app.get("/{*browserPath}", (request, response) => {
+  app.get("/{*browserPath}", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
     if (options.attachmentSandbox) {
       response.setHeader("Content-Security-Policy", "sandbox");
     }
     response.status(200).send("ok");
-  });
+  }));
 
+  /** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 
   try {
-    return await sendRequest(server.address().port, requestPath, headers);
+    return await sendRequest(/** @type {import("node:net").AddressInfo} */ (server.address()).port, requestPath, headers);
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
   }
 }
 
@@ -111,6 +113,7 @@ async function readBrowserJavaScript() {
   return (await Promise.all(files.map((filePath) => fs.readFile(`public/js/${filePath}`, "utf8")))).join("\n");
 }
 
+/** @param {number} port @param {string} requestPath @param {Record<string, string>} headers @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeResponseBase>} */
 function sendRequest(port, requestPath, headers) {
   return new Promise((resolve, reject) => {
     const request = http.request({ headers, host: "127.0.0.1", method: "GET", path: requestPath, port }, (response) => {

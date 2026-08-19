@@ -2953,6 +2953,7 @@
         "scripts/test-support/database-fixture.mjs",
         "scripts/test-support/disposable-database.mjs",
         "scripts/test-support/fake-dom.mjs",
+        "scripts/test-support/http-fixture-contracts.mjs",
         "scripts/test-support/isolated-regression-retry.mjs",
         "scripts/test-support/public-demo-files-ingress-probe.mjs",
         "scripts/test-support/regression-bucket-orchestrator.mjs",
@@ -2997,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5972,
+      "errorCount": 5784,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5623,104 +5624,6 @@
             "count": 1
           }
         ],
-        "scripts/regressions/framework/browser-security-headers.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
-        "scripts/regressions/framework/csrf-protection.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/express-5-http-contract.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/framework/http-error-contract.regression.mjs": [
-          {
-            "code": 2349,
-            "count": 1
-          },
-          {
-            "code": 2740,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 3
-          },
-          {
-            "code": 7005,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 22
-          },
-          {
-            "code": 7034,
-            "count": 4
-          }
-        ],
-        "scripts/regressions/framework/operational-security-basics.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7034,
-            "count": 3
-          }
-        ],
         "scripts/regressions/framework/password-hashing-modernization.regression.mjs": [
           {
             "code": 18047,
@@ -5841,32 +5744,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "scripts/regressions/framework/production-configuration-hardening.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
           }
         ],
         "scripts/regressions/framework/public-demo-account-catalog.regression.mjs": [
@@ -6035,24 +5912,6 @@
             "count": 5
           }
         ],
-        "scripts/regressions/framework/public-legal-surfaces.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/regressions/framework/remembered-sessions.regression.mjs": [
           {
             "code": 18047,
@@ -6077,40 +5936,6 @@
           {
             "code": 7006,
             "count": 19
-          }
-        ],
-        "scripts/regressions/framework/security-event-logging.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 24
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/framework/session-auth-warning.regression.mjs": [
@@ -6211,46 +6036,6 @@
           {
             "code": 7006,
             "count": 17
-          }
-        ],
-        "scripts/regressions/framework/tls-cookie-posture.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7031,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs": [
@@ -7721,8 +7506,8 @@
     }
   },
   "totals": {
-    "files": 1039,
-    "errors": 17106,
+    "files": 1040,
+    "errors": 16918,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -15,9 +15,9 @@ import http from "node:http";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 /**
- * Optional per-request overrides this regression sends: an explicit session
- * cookie value and any extra headers.
- * @typedef {{ cookie?: string, headers?: Record<string, string> }} ApiRequestOptions
+ * Optional per-request overrides this regression sends, from the shared HTTP
+ * fixture contract.
+ * @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} ApiRequestOptions
  */
 /**
  * The union of JSON payload fields the routes exercised here return. Each
@@ -34,15 +34,9 @@ import { createDisposableDatabaseFixture } from "../../test-support/disposable-d
  *   workspace: { workspaceId: string },
  * }} LandingPayload
  */
-/** @typedef {{ body: LandingPayload, headers: Headers, status: number }} ApiResponse */
-/**
- * The session-carrying JSON client this regression drives the app through.
- * @typedef {{
- *   get: (url: string, options?: ApiRequestOptions) => Promise<ApiResponse>,
- *   post: (url: string, body?: unknown, options?: ApiRequestOptions) => Promise<ApiResponse>,
- *   put: (url: string, body?: unknown, options?: ApiRequestOptions) => Promise<ApiResponse>,
- * }} WorkspaceApi
- */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<LandingPayload>} ApiResponse */
+/** The session-carrying JSON client this regression drives the app through. */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureWritingJsonClient<LandingPayload>} WorkspaceApi */
 
 const fixture = await createDisposableDatabaseFixture("user-landing-preferences");
 const ADMIN_USERNAME = "landing-preferences-admin@example.test";

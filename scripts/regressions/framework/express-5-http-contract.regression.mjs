@@ -56,22 +56,24 @@ const errorPasses = new Map();
 const app = express();
 app.set("query parser", "extended");
 app.use(express.static("public"));
-app.get("/query", (request, response) => response.status(200).json(request.query));
+app.get("/query", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => response.status(200).json(request.query)));
 app.get("/api/wrapped-error", asyncRoute(async () => {
   throw new AppError("Wrapped failure", 409);
 }));
 app.get("/api/native-error", async () => {
   throw new AppError("Native failure", 418);
 });
-app.get("/{*fallbackPath}", (request, response) => response.status(200).json({ path: request.path }));
-app.use((error, request, _response, next) => {
+app.get("/{*fallbackPath}", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => response.status(200).json({ path: request.path })));
+app.use(/** @type {(error: unknown, request: import("express").Request, response: import("express").Response, next: (error?: unknown) => void) => void} */ ((error, request, _response, next) => {
   errorPasses.set(request.path, (errorPasses.get(request.path) || 0) + 1);
   next(error);
-});
+}));
 app.use(errorHandler);
 
 const server = await listen(app);
+/** @type {unknown[]} */
 const unhandledRejections = [];
+/** @param {unknown} reason */
 const collectUnhandledRejection = (reason) => unhandledRejections.push(reason);
 process.on("unhandledRejection", collectUnhandledRejection);
 
@@ -115,6 +117,7 @@ try {
 
 console.log("Express 5 HTTP contract regression passed.");
 
+/** @param {string} root @returns {Promise<string[]>} */
 async function listJavaScriptFiles(root) {
   const entries = await fs.readdir(root, { recursive: true, withFileTypes: true });
   return entries
@@ -122,26 +125,32 @@ async function listJavaScriptFiles(root) {
     .map((entry) => path.join(entry.parentPath, entry.name));
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} appInstance @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>} */
 function listen(appInstance) {
   return new Promise((resolve) => {
     const nextServer = appInstance.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** The echoed query, the fallback path, and the safe error envelope these routes return. */
+/** @typedef {{ error: { code: string, message: string, requestId: string }, path: string, tags: string[], value: string }} ExpressContractPayload */
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance @param {string} requestPath @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonResponse<ExpressContractPayload>>} */
 function request(serverInstance, requestPath) {
   return new Promise((resolve, reject) => {
     const nextRequest = http.request({
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: serverInstance.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (serverInstance.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
