@@ -38,14 +38,6 @@ const DEFAULT_INSTALL_COMMAND = Object.freeze(["npx", "playwright", "install", "
 // raced the previous attempt anyway. Waiting on the process is independent of
 // which locking primitive apt happens to use.
 const DEFAULT_BUSY_PROBE_COMMAND = Object.freeze(["sh", "-c", "pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null || pgrep -x unattended-upgrade >/dev/null"]);
-// Make apt itself wait for a contended lock rather than failing immediately.
-// This is the root-cause fix: a retry whose apt waits does not need the lock to
-// be free the instant it starts.
-const APT_LOCK_TIMEOUT_CONF = "/etc/apt/apt.conf.d/99-longtail-forge-lock-timeout";
-const DEFAULT_APT_LOCK_TIMEOUT_COMMAND = Object.freeze([
-  "sudo", "sh", "-c",
-  `printf 'DPkg::Lock::Timeout "%s";\\n' '{seconds}' > ${APT_LOCK_TIMEOUT_CONF}`,
-]);
 const KILL_GRACE_MS = 30_000;
 const POLL_INTERVAL_MS = 5_000;
 
@@ -73,7 +65,6 @@ function numberFromEnvironment(name, fallback) {
 
 const installCommand = commandFromEnvironment("LTF_PLAYWRIGHT_INSTALL_COMMAND", DEFAULT_INSTALL_COMMAND);
 const busyProbeCommand = commandFromEnvironment("LTF_PACKAGE_BUSY_PROBE_COMMAND", DEFAULT_BUSY_PROBE_COMMAND);
-const aptLockTimeoutCommand = commandFromEnvironment("LTF_APT_LOCK_TIMEOUT_COMMAND", DEFAULT_APT_LOCK_TIMEOUT_COMMAND);
 // Bounds are stall detectors, not deadlines for a healthy install. Four CI runs
 // showed the 0.33.33.29 value of 240s was below the real cost of this step when
 // the azure mirror is unreachable and apt falls back: attempts were killed
@@ -143,12 +134,6 @@ async function waitForPackageManager() {
   return false;
 }
 
-// Best effort: if this cannot be written the install still runs, it just fails
-// fast on a contended lock instead of waiting.
-await runBounded(
-  aptLockTimeoutCommand.map((part) => part.replace("{seconds}", String(Math.ceil(lockTimeoutMs / 1000)))),
-  KILL_GRACE_MS,
-);
 for (let attempt = 1; attempt <= attempts; attempt += 1) {
   const result = await runBounded(installCommand, attemptTimeoutMs);
   if (result.code === 0) {

@@ -160,7 +160,10 @@ assert.match(installEntryPoint, /SIGKILL/, "a timed-out attempt must be hard-kil
 // attempt anyway.
 assert.equal(installEntryPoint.includes("pgrep -x apt-get"), true, "the retry must wait for the package-manager process, not a lock file");
 assert.equal(installEntryPoint.includes(String.fromCharCode(34) + "flock" + String.fromCharCode(34)), false, "flock does not conflict with apt fcntl locks and must not be used as the wait command");
-assert.equal(installEntryPoint.includes("DPkg::Lock::Timeout"), true, "apt must be configured to wait for a contended lock rather than fail fast");
+// Setting apt DPkg::Lock::Timeout turned a fast, visible lock failure into a
+// 540-second silence in CI, so the install must let apt fail loudly and rely on
+// the process wait instead.
+assert.equal(installEntryPoint.includes("Lock::Timeout"), false, "apt must fail loudly on a contended lock rather than waiting silently");
 
 const e2eDocs = readFileSync("docs/e2e-testing.md", "utf8");
 assert.match(e2eDocs, /test:e2e:install/, "e2e docs must cover browser installation");

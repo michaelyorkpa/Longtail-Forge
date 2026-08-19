@@ -46,7 +46,6 @@ function writeStub(label, exitCode, options = {}) {
   return stubPath;
 }
 
-const aptConfStub = writeStub("apt-conf", 0);
 const succeedingInstall = writeStub("install-ok", 0);
 const failingInstall = writeStub("install-fail", 1);
 // The probe reports "a package manager is running" by exiting 0, matching pgrep.
@@ -77,20 +76,17 @@ function readTrail() {
 /** @param {string} installStub @param {string} busyStub @returns {Record<string, string>} */
 function environmentFor(installStub, busyStub) {
   return {
-    LTF_APT_LOCK_TIMEOUT_COMMAND: `[${nodePath}, ${JSON.stringify(aptConfStub)}, "{seconds}"]`,
     LTF_PACKAGE_BUSY_PROBE_COMMAND: `[${nodePath}, ${JSON.stringify(busyStub)}]`,
     LTF_PLAYWRIGHT_INSTALL_COMMAND: `[${nodePath}, ${JSON.stringify(installStub)}]`,
   };
 }
 
 describe("protected browser gate Playwright install", () => {
-  it("configures apt to wait for a contended lock before the first attempt", () => {
+  it("does not retry or wait when the first attempt succeeds", () => {
     const result = runEntryPoint(environmentFor(succeedingInstall, packageManagerIdle));
 
     expect(result.status).toBe(0);
-    // The root-cause fix: apt waits for the lock rather than failing instantly,
-    // so a retry does not need the lock free the moment it starts.
-    expect(readTrail()).toEqual(["apt-conf 180", "install-ok"]);
+    expect(readTrail()).toEqual(["install-ok"]);
   });
 
   it("waits for the package manager before every retry", () => {
@@ -98,7 +94,6 @@ describe("protected browser gate Playwright install", () => {
 
     expect(result.status).toBe(1);
     expect(readTrail()).toEqual([
-      "apt-conf 180",
       "install-fail",
       "idle",
       "install-fail",
@@ -114,8 +109,7 @@ describe("protected browser gate Playwright install", () => {
 
     expect(result.status).toBe(1);
     const trail = readTrail();
-    expect(trail[0]).toBe("apt-conf 1");
-    expect(trail[1]).toBe("install-fail");
+    expect(trail[0]).toBe("install-fail");
     expect(trail.filter((entry) => entry === "busy").length).toBeGreaterThan(0);
     // The run stops after the first failed attempt rather than spending the
     // remaining attempts against a package manager it knows is still running.
