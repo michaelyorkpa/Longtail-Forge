@@ -29,14 +29,8 @@ const { developerExampleModule } = await import("../../../src/modules/developer-
 const { tasksModule } = await import("../../../src/modules/tasks/module.js");
 const { timeTrackingModule } = await import("../../../src/modules/time-tracking/module.js");
 
-/**
- * The protected-view fields this contract reads. The framework module
- * definition still declares `protectedViews` as `unknown[]`, so the shape is
- * named here rather than tightened in the server contract from a scripts-only
- * checkpoint.
- * @typedef {{ allowDisabledRead?: boolean, id: string, path: string }} ProtectedViewEntry
- */
 /** @typedef {import("../../../src/types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+/** @typedef {import("../../../src/types/framework-contracts.js").ModuleViewContribution} ModuleViewContribution */
 
 try {
   assert.equal(ACTIVE_MANIFEST_FIELDS.has("settings"), true);
@@ -175,6 +169,8 @@ try {
     enabledModuleIds: new Set(["developer-example"]),
   }), true, "Settings should inherit the shared workspace-capability filter");
 
+  assertSharedViewContributionContract();
+
   console.log("Settings contribution contract regression passed.");
 } finally {
   await closeSqlite();
@@ -187,9 +183,9 @@ function assertRealContributionShape() {
   // find() call it fails at today.
   const developerSettings = /** @type {ModuleSettingDefinition[]} */ (developerExampleModule.settings);
   const taskSettings = /** @type {ModuleSettingDefinition[]} */ (tasksModule.settings);
-  const developerViews = /** @type {ProtectedViewEntry[]} */ (developerExampleModule.protectedViews);
-  const taskViews = /** @type {ProtectedViewEntry[]} */ (tasksModule.protectedViews);
-  const timeTrackingViews = /** @type {ProtectedViewEntry[]} */ (timeTrackingModule.protectedViews);
+  const developerViews = /** @type {ModuleViewContribution[]} */ (developerExampleModule.protectedViews);
+  const taskViews = /** @type {ModuleViewContribution[]} */ (tasksModule.protectedViews);
+  const timeTrackingViews = /** @type {ModuleViewContribution[]} */ (timeTrackingModule.protectedViews);
   const developerAssets = /** @type {import("../../../src/types/framework-contracts.js").BrowserAssetContribution[]} */ (developerExampleModule.browserAssets);
   const hints = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleHintsEnabled"));
   const mode = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleMode"));
@@ -409,4 +405,42 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
   return workspaceSessionFixture(user);
+}
+
+/**
+ * The view-contribution declaration must stay a single named shape that matches
+ * what the manifest contract enforces at runtime. Before 0.33.33.30.2.1 both
+ * arrays were declared `unknown[]`, which forced every consumer to invent its
+ * own local shape and let those copies drift from the validator.
+ */
+function assertSharedViewContributionContract() {
+  const declaration = readFileSync("src/types/framework-contracts.d.ts", "utf8");
+  const openMarker = "export interface ModuleViewContribution {";
+  const openIndex = declaration.indexOf(openMarker);
+  assert.notEqual(openIndex, -1, "View contributions should have one named declaration");
+  const body = declaration.slice(openIndex + openMarker.length, declaration.indexOf("}", openIndex));
+  for (const requiredField of ["id", "moduleId", "path", "file"]) {
+    assert.equal(
+      body.includes(`${requiredField}: string;`),
+      true,
+      `ModuleViewContribution should require ${requiredField}, which validateViews enforces`,
+    );
+  }
+  for (const arrayField of ["protectedViews", "publicViews"]) {
+    assert.equal(declaration.includes(`${arrayField}?: ModuleViewContribution[];`), true, `${arrayField} should use the shared contribution shape`);
+    assert.equal(declaration.includes(`${arrayField}?: unknown[];`), false, `${arrayField} must not return to an untyped array`);
+    assert.equal(declaration.includes(`${arrayField}: ModuleViewContribution[];`), true, `the normalized ${arrayField} should use the same shape`);
+  }
+  for (const [ownerLabel, views] of [
+    ["developer-example", developerExampleModule.protectedViews],
+    ["tasks", tasksModule.protectedViews],
+    ["time-tracking", timeTrackingModule.protectedViews],
+  ]) {
+    for (const view of /** @type {ModuleViewContribution[]} */ (views)) {
+      for (const requiredField of /** @type {const} */ (["id", "moduleId", "path", "file"])) {
+        assert.equal(typeof view[requiredField], "string", `${ownerLabel} protected view should carry a ${requiredField} the declaration requires`);
+        assert.notEqual(view[requiredField], "", `${ownerLabel} protected view ${requiredField} should not be empty`);
+      }
+    }
+  }
 }

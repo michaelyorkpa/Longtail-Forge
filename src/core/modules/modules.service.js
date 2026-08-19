@@ -70,7 +70,7 @@ import { evaluatePublicDemoCapability, filterPublicDemoContributionActions } fro
 /** @typedef {{ session?: WorkspaceRequestSession|null, source?: string, force?: boolean, moduleId?: string }} ModuleStateOptions */
 /** @typedef {"resourceDefinitions"|"browserAssets"|"navigation"|"settings"|"viewSurfaces"|"workbench"|"dashboard"|"reporting"|"timerSources"|"workItemSources"|"linkedContextProviders"} ModuleContributionField */
 /** @typedef {CatalogContribution & {id: string, sourceModuleId: string, sourceTargetType: string, targetModuleId: string, targetType: string, relationshipResolver: string, workspaceField: string, sourceReadPermission: string, targetReadPermission: string, targetTagPermission: string}} TagPropagationRule */
-/** @typedef {CatalogContribution & { id: string, moduleId: string, path: string, file?: string, allowDisabledRead?: boolean }} ProtectedViewContribution */
+/** @typedef {import("../../types/framework-contracts.js").ModuleViewContribution} ProtectedViewContribution */
 /** @typedef {CatalogContribution & { id: string, moduleId: string, path: string, type: string, views?: string[] }} BrowserAssetCandidate */
 /** @typedef {CatalogContribution & { key: string, moduleId: string, label: string, operations: string[] }} ResourceDefinitionCandidate */
 /** @typedef {Pick<ModuleManifest, "id"|"workspaceCapabilityRequirements">} ModuleRequirementOwner */

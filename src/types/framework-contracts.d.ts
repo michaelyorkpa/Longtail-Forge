@@ -39,8 +39,8 @@ export interface ModuleManifest {
   protectedViewsDir?: string | URL | null;
   publicViewsDir?: string | URL | null;
   browserAssetsDir?: string | URL | null;
-  protectedViews?: unknown[];
-  publicViews?: unknown[];
+  protectedViews?: ModuleViewContribution[];
+  publicViews?: ModuleViewContribution[];
   viewSurfaces?: ViewSurfaceDescriptor[];
   browserAssets?: BrowserAssetContribution[];
   navigation?: NavigationContribution[];
@@ -81,6 +81,22 @@ export interface ModuleManifest {
   seedHooks?: unknown[];
   repairHooks?: unknown[];
   workspaceCapabilityRequirements?: string[];
+}
+
+/**
+ * One protected or public view a module or the framework contributes. Every
+ * field mirrors what `validateViews` in the manifest contract actually
+ * enforces: identity, route, and backing file are required, and `moduleId`
+ * must match the contributing module.
+ */
+export interface ModuleViewContribution {
+  id: string;
+  moduleId: string;
+  path: string;
+  file: string;
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+  allowDisabledRead?: boolean;
 }
 
 export interface CatalogContribution {
@@ -139,8 +155,8 @@ export interface LinkedContextProviderContribution extends CatalogContribution {
 export interface NormalizedModuleManifest extends ModuleManifest {
   browserApiRoutes: unknown[];
   publicApiRoutes: unknown[];
-  protectedViews: Array<CatalogContribution & { id: string; path: string; file?: string; allowDisabledRead?: boolean }>;
-  publicViews: Array<CatalogContribution & { id: string; path: string; file?: string }>;
+  protectedViews: ModuleViewContribution[];
+  publicViews: ModuleViewContribution[];
   browserAssets: BrowserAssetContribution[];
   navigation: NavigationContribution[];
   dashboard: DashboardContribution[];

@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.2.1 - Tighten the shared module view-contribution contract
+
+**Model: High Effort** - The declaration is high fan-in across the server program and three modules' manifests.
+
+Corrective child of `0.33.33.30.2`, closing that reopened parent. It pays off the deferral `0.33.33.30.2` recorded rather than leaving every later consumer to re-invent a local shape.
+
+- [x] Probed the fallout before changing anything and measured it at zero: with the tightened declaration applied, the server program stayed at 0, scripts at 5,972, and browser at 11,134. The probe result is recorded, not estimated.
+- [x] Replaced `protectedViews?: unknown[]` and `publicViews?: unknown[]` with one named `ModuleViewContribution`, derived from what `validateViews` in `src/core/modules/manifest-contract.js` enforces rather than from the looser `CatalogContribution` grab-bag: `id`, `moduleId`, `path`, and `file` required, `requiredPermissions`, `requiredWorkspaceCapabilities`, and `allowDisabledRead` optional.
+- [x] Fixed `publicViews` in the same change after inspection confirmed the identical weakness. Two honesty gaps closed with it: `NormalizedModuleManifest` declared `file?: string` while the validator requires it, and it granted `allowDisabledRead` to `protectedViews` but not `publicViews` even though `validateViews` accepts it on both and `registry.js` was already casting `publicViews` with it. One shape now covers both.
+- [x] Collapsed six divergent redeclarations onto the named contract: two inline casts and two return types in `registry.js`, the `ProtectedViewContribution` typedef in `modules.service.js`, the framework view-surface return type, and the regression-local aliases from `0.33.33.30.1` and `0.33.33.30.2`. The declarative guardrail's inventory row returns from `file: string | undefined` to `file: string`, which the contract now honestly guarantees.
+- [x] Returned the server program to zero in the same slice with no runtime behavior change, proven rather than asserted: every changed executable file normalizes byte-identical to its previous revision except `registry.js`, where the only difference is the removal of grouping parentheses that existed solely to carry the deleted casts.
+- [x] Pinned the contract in `framework.settings-contribution-contract` — the named shape, its four required fields, and both arrays using it in the manifest and the normalized manifest, plus a live check that every bundled protected view carries the required fields. Four seeded controls confirm the pin fails closed: reverting either array to `unknown[]`, diverging the normalized shape, weakening the required `file`, and renaming the interface each fail with their own message, with the declaration restored byte-identically afterwards.
+- [x] Deferred the `docs/module-contract.md` field documentation to the version-wide branch closeout. It was written and then reverted when `npm run checkpoint:validate` correctly rejected it as durable documentation an internal checkpoint may not carry; the enforced shape stays visible to module authors through the named declaration and the contract example that already matches it field for field.
+- [x] Corrected the `0.33.33.30.2` bookkeeping: that checkpoint's record said four owners duplicate a raw HTTP client, but recounting gives three — `user-landing-preferences`, `reporting-catalog-execution`, and `browser-recovery-boundary`. The roadmap, archive, and suite-contract wording now say three.
+- [x] Combined strict debt holds at 17,106 with explicit `any` at 7; effective regression assertions advance to 18,994 across 347 scripts on seven added guard assertions.
+
 ## Version 0.33.33.30.2 - Type framework contribution, settings, reporting, and shell-boundary owners
 
 **Model: High Effort** - Contribution and registry contracts control what modules may add to the framework.
@@ -12,7 +28,7 @@ Second child of the `0.33.33.30` rollup.
 - [x] Proved equivalence mechanically: five files normalize byte-identical to their previous revisions once JSDoc and casts are stripped, and every remaining statement change is a cast-paren wrap or a named alias for a repeated read, individually enumerated, plus `.href` on the framework aggregator's dynamic import.
 - [x] Recorded a no-pin disposition: this cohort reads no planning document, so nothing was stripped and `scripts/planning-document-pin-baseline.json` is unchanged.
 - [x] Recorded one latent defect rather than changing behavior. `framework.browser-recovery-boundary` correlates its unexpected-error page against `new RegExp(response.headers["x-request-id"])`; were that header ever absent the expression becomes `/(?:)/` and the assertion passes vacuously. The read is preserved verbatim behind a cast and the correction is owned by a later checkpoint.
-- [x] Corrected the reslice bookkeeping: `framework/http-error-development-guardrails.contract.mjs` was named in the `0.33.33.30.3` bullet but folds into `framework.current-static-contracts`, so its nine diagnostics were always inside this cohort's 170. The `0.33.33.30.3` scope text now says so, and records that the four raw HTTP clients typed in place here should be absorbed once that checkpoint's shared fixture contract exists.
+- [x] Corrected the reslice bookkeeping: `framework/http-error-development-guardrails.contract.mjs` was named in the `0.33.33.30.3` bullet but folds into `framework.current-static-contracts`, so its nine diagnostics were always inside this cohort's 170. The `0.33.33.30.3` scope text now says so, and records that the three raw HTTP clients typed in place here should be absorbed once that checkpoint's shared fixture contract exists.
 - [x] `framework.full-strict-governance` pins all nine framework contract modules and the thirteen owners strict-clean. The scripts program falls from 6,142 to 5,972 diagnostics, combined strict debt from 17,276 to 17,106 with explicit `any` at 7, and effective regression assertions advance to 18,987 across 347 scripts.
 
 ## Version 0.33.33.30.1 - Type view-surface contracts, strip their history pins, and correct the cursor-call defects

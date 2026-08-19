@@ -71,7 +71,7 @@ const frameworkViewSurfaces = Object.freeze([
   }),
 ]);
 
-/** @returns {Array<import("../../types/framework-contracts.js").CatalogContribution & {id: string, moduleId: string, path: string, file?: string}>} */
+/** @returns {import("../../types/framework-contracts.js").ModuleViewContribution[]} */
 function listFrameworkProtectedViews() {
   return frameworkProtectedViews.map(cloneContribution);
 }
