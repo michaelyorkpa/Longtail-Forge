@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.3 - Type HTTP error, transport, and production security posture owners
+
+**Model: High Effort** - These owners fix the response and header contract every other surface is proven against.
+
+Third child of the `0.33.33.30` rollup.
+
+- [x] Closed all 188 diagnostics across ten `scripts/regressions/framework/` owners with named contracts for error envelopes, request-context probes, security audit rows, cookie posture, and each owner's config fixtures. `framework.security-static-contracts` was already clean and took a disposition only.
+- [x] Introduced `scripts/test-support/http-fixture-contracts.mjs` as a type-only contract and consumed it by type-only import. Consolidating the request bodies themselves would change request construction, status handling, or timing in owners that prove exact transport behavior, so the fixtures stay local and only their shapes are shared. The response record is split rather than flattened because the fixtures genuinely differ: some resolve a parsed JSON body, some raw text, some both, and some name the status field `statusCode` rather than `status`. One permissive union would have let an owner claim a field its helper never resolves.
+- [x] Migrated the `0.33.33.30.2` clients onto the shared contract without touching how they build requests. There were three, not the four that checkpoint's record claimed; the miscount was corrected at `0.33.33.30.2.1`.
+- [x] Fixed both vacuous request-ID correlations rather than preserving either. `framework.browser-recovery-boundary` and `framework.http-error-contract` each matched the rendered page against `new RegExp(response.headers["x-request-id"])`, which an absent header turns into a pattern that matches anything. Each now requires a non-empty header string and proves the body contains that exact ID with `includes()`. A seeded control blanking the rendered request-ID markup confirms the new check fails, so it is not vacuous.
+- [x] Preserved exact status codes, error envelope shapes, development-versus-production detail rules, header sets, cookie flags, proxy trust resolution, and security-event record shapes. All ten owners pass, assertion inventory rises by exactly four — the two vacuity fixes replacing one vacuous assertion with three real ones apiece — and no explicit `any` was introduced.
+- [x] Reckoned with the `0.33.33.11` active-owner line ceiling honestly rather than gaming or weakening it. That ceiling predates the full-strict mandate, which cannot type an owner without adding annotation lines. Sixteen lines of genuine slack were compressed out first; what remains is irreducible `@type` annotations plus the governance pin that keeps them clean, so `data-files-security-static-owner.mjs` records a named seventy-one-line full-strict typing allowance above the recorded ceiling — the measured cost of typing 188 diagnostics, about 0.6 lines each. It still fails on growth beyond it and may only shrink.
+- [x] `framework.full-strict-governance` pins the ten owners and the shared fixture contract strict-clean. The scripts program falls from 5,972 to 5,784 diagnostics and combined strict debt from 17,106 to 16,918 with explicit `any` at 7.
 ## Version 0.33.33.30.3.1 - Repair the protected browser gate's Playwright install retry
 
 **Model: High Effort** - The step guards every protected merge; a wrong bound blocks the branch or hides a real failure.

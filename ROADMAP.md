@@ -60,14 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.3 - Type HTTP error, transport, and production security posture owners
-
-**Model: High Effort** - These owners fix the response and header contract every other surface is proven against.
-
-- [ ] Close the 188 diagnostics across `http-error-contract`, `express-5-http-contract`, `csrf-protection`, `browser-security-headers`, `tls-cookie-posture`, `trusted-proxy-request-context`, `public-legal-surfaces`, `operational-security-basics`, `security-event-logging`, and `production-configuration-hardening`; `framework/security-static-contracts.regression.mjs` is already strict-clean and needs a disposition only. The `framework/http-error-development-guardrails` contract module was named here in error at reslice time — it folds into `framework.current-static-contracts` and closed with the rest of that aggregator's modules at `0.33.33.30.2`, which is where its nine diagnostics were already counted.
-- [ ] Introduce one typed HTTP request/response fixture contract for the raw `node:http` helpers these owners duplicate, and consume it by type-only import; it must not change request construction, status handling, or timing. `0.33.33.30.2` typed three such helpers in place — `user-landing-preferences`, `reporting-catalog-execution`, and `browser-recovery-boundary` — rather than pre-empting this contract, so adopt them here once it exists.
-- [ ] Preserve exact status codes, error envelope shapes, development-versus-production error detail rules, header sets, cookie flags, proxy trust resolution, and security-event record shapes.
-
 ### 0.33.33.30.4 - Type authentication, credential, and account-recovery owners
 
 **Model: High Effort** - Throttling, hashing, and recovery flows are the credential perimeter.
