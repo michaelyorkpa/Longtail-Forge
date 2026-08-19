@@ -1,6 +1,14 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.28.6.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.28.6.2. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.28.6.2, scale and volume seeding is strict-clean and the entire `0.33.33.28` operational-tooling family is closed. `seed-scale.mjs` closes its 209 diagnostics with named contracts for volume profiles, CLI options, generated record shapes, read-back database rows, service seams, and scale counters and summaries; typing the producing factories and their option objects once closed 186 of them, leaving only 23 casts across 1,771 lines. Volume parameters, batching behavior, deterministic generation, and reported counters are unchanged, and the four assumed-presence sites use non-null casts rather than optional chaining so a missing row still throws. Equivalence was proven mechanically and checked two further ways: a mask-based normalizer stripping every cast back to its wrapped expression renders the file byte-identical to its previous revision across 1,631 normalized lines with matching SHA-256 on both sides; a digit histogram across the diff confirms no batch size, chunk size, loop bound, or profile volume changed; and a seeded negative control — mutating one chunk size — makes the normalized diff non-empty, proving the normalizer detects real changes rather than passing vacuously. The scale-seed framework regression spawns the seeder end to end and passes, alongside the full 42-entry database bucket. `framework.full-strict-governance` pins the owner strict-clean. The scripts program falls from 6,579 to 6,370 diagnostics, combined strict debt from 17,713 to 17,504 with explicit `any` at 7, and effective regression assertions advance to 18,975 across 347 scripts.
+
+With this checkpoint the `0.33.33.28.6` and `0.33.33.28` planning rollups both close. The operational-tooling family retired 1,287 diagnostics across 35 files through six protected checkpoints — backup and workspace maintenance, release ceremony and versioning, measurement and installation diagnostics, demo lifecycle and cleanup, artifact and container publication, deployment transfer and the reference proxy, and development and scale seeding — with dry-run, backup-first, fail-closed, immutable-digest, and destructive-confirmation contracts preserved throughout and every operational script still directly executable without transpilation.
+
+Docs updated: docs/regression-suite.md.
+
+No docs change needed: durable seeding and operator documentation remains deferred to the version-wide branch closeout because this checkpoint types the scale seeder without changing any generated volume, counter, guard, or command surface. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
 
 As of 0.33.33.28.6.1, development data seeding is strict-clean. `development-data.mjs` closes its 192 diagnostics with roughly forty-five named contracts covering service-layer boundaries, CLI options, sanitized role fixtures, generated record shapes for tasks, notes, lists, projects, and search tuples, and the database rows the seeder reads back. Typing the producing factories and their closures collapsed the implicit-parameter and property-read clusters at their source rather than casting at call sites, so only twenty-five casts were needed across 1,065 lines. Equivalence was proven mechanically: a normalizer stripping every JSDoc cast back to its wrapped expression renders the file byte-identical to its previous revision across 992 normalized lines with matching checksums on both sides, and the normalized output still parses. Deterministic scenario output, operator-password admission, destructive-reseed guards, and idempotent reseed behavior are unchanged — no fallback operator was introduced and every presence cast still fails hard — proven by the development-data seed regression and the full 42-entry database bucket, which spawns the seeder end to end through the demo-host and baseline-candidate owners. `framework.full-strict-governance` pins the owner strict-clean. The scripts program falls from 6,771 to 6,579 diagnostics, combined strict debt from 17,905 to 17,713 with explicit `any` at 7, and effective regression assertions advance to 18,974 across 347 scripts.
 
@@ -429,11 +437,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18305 |
+| Active regression assertions | 18306 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18974 |
+| Effective assertion floor | 18975 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

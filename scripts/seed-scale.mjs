@@ -5,6 +5,112 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {typeof import("../src/db/index.js")} SeedDatabaseModule */
+/** @typedef {SeedDatabaseModule["db"]} SeedDatabase */
+/** @typedef {import("../src/types/database-contracts.js").TransactionClient} SeedTransaction */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseHealth} SeedDatabaseHealth */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseNamedParameterInput} SeedColumnValue */
+/** @typedef {Record<string, SeedColumnValue>} SeedRow */
+/** @typedef {Record<string, SeedColumnValue>} SeedInsertParameters */
+/** @typedef {Record<string, number>} SeedCounts */
+/** @typedef {Record<string, string>} SeedMimeMap */
+/** @typedef {typeof import("../src/security/passwords.js").hashPassword} SeedPasswordHasher */
+/** @typedef {typeof import("../src/core/permissions.js").permissionsService} SeedPermissionsService */
+/** @typedef {import("../src/types/http-contracts.js").AuthorizationSession} SeedPermissionSession */
+/** @typedef {{ message?: string }} SeedThrownError */
+
+/**
+ * Volume parameters for a single seed profile. Every count is the exact number
+ * of rows the generator emits for that table, so these values are the contract
+ * that later performance comparisons are measured against.
+ * @typedef {object} SeedProfile
+ * @property {number} auditLogs
+ * @property {number} clients
+ * @property {string} description
+ * @property {number} files
+ * @property {number} listItems
+ * @property {number} lists
+ * @property {number} notes
+ * @property {number} notifications
+ * @property {number} projects
+ * @property {number} tags
+ * @property {number} tasks
+ * @property {number} timeEntries
+ * @property {number} users
+ * @property {number} workspaces
+ */
+
+/**
+ * Parsed scale-seed command line. Every option stays optional because the
+ * parser only records the flags the operator actually supplied.
+ * @typedef {object} SeedCliOptions
+ * @property {string} [database]
+ * @property {boolean} [help]
+ * @property {boolean} [json]
+ * @property {boolean} [listProfiles]
+ * @property {string} [profile]
+ * @property {string} [provider]
+ */
+/** @typedef {"database" | "profile" | "provider"} SeedCliValueOptionKey */
+
+/** @typedef {{ name: string, workspace_id: string }} SeedWorkspaceRow */
+/** @typedef {{ display_name: string | null, user_id: string, username: string }} SeedSuperAdminRow */
+/** @typedef {{ user_id: string }} SeedUserIdRow */
+/** @typedef {{ count: number | string }} SeedCountRow */
+/** @typedef {{ profile: string, seeded_at: string }} SeedScaleRunRow */
+/** @typedef {{ superAdmin: SeedSuperAdminRow, workspace: SeedWorkspaceRow }} SeedContext */
+
+/** @typedef {{ display_name: string, user_id: string, username: string }} SeedUserRecord */
+/** @typedef {SeedRow & { user_status: string }} SeedUserInsertRow */
+/** @typedef {SeedRow & { id: string, name: string, status: string }} SeedClientRow */
+/** @typedef {SeedRow & { client_id: string | null, id: string, name: string, status: string }} SeedProjectRow */
+/** @typedef {SeedRow & { tag_id: string }} SeedTagRow */
+/** @typedef {SeedRow & { client_id: string, created_at: string, description: string, project_id: string, status: string, task_id: string, title: string }} SeedTaskRow */
+/** @typedef {SeedRow & { body_plaintext_index: string, client_id: string | null, library_bucket: string, note_id: string, project_id: string, status: string, title: string }} SeedNoteRow */
+/** @typedef {SeedRow & { client_id: string | null, description: string, list_id: string, project_id: string, status: string, title: string }} SeedListRow */
+/** @typedef {SeedRow & { list_item_id: string }} SeedListItemRow */
+/** @typedef {SeedRow & { created_at: string, deleted_at: string | null, display_name: string, file_id: string, original_filename: string, status: string }} SeedFileRow */
+/** @typedef {{ role_id: string, scope_id?: string, scope_type: string }} SeedRoleShape */
+
+/**
+ * Everything one seeded run produced, threaded into the verification pass.
+ * @typedef {SeedContext & { clients: SeedClientRow[], files: SeedFileRow[], listItems: SeedListItemRow[], lists: SeedListRow[], notes: SeedNoteRow[], projects: SeedProjectRow[], tags: SeedTagRow[], tasks: SeedTaskRow[], users: SeedUserRecord[] }} SeededScale */
+
+/**
+ * Row shape handed to the shared search_index writer.
+ * @typedef {object} SeedSearchRowInput
+ * @property {string} body
+ * @property {string | null} client_id
+ * @property {number} index
+ * @property {string | null} [library_bucket]
+ * @property {string} module_id
+ * @property {string | null} project_id
+ * @property {string} record_id
+ * @property {string} record_status
+ * @property {string} record_type
+ * @property {SeedContext} seedContext
+ * @property {string} title
+ */
+
+/** @typedef {{ foreignKeysEnabled: unknown, workspaceModules: number }} SeedStartupSanity */
+/** @typedef {{ superAdminCanManageSettings: boolean, workspaceAdminCanViewTasks: boolean }} SeedPermissionSanity */
+/** @typedef {{ noteRows: number, taskRows: number }} SeedSearchSanity */
+/** @typedef {{ actualCounts: SeedCounts, expectedCounts: SeedCounts, permissionSanity: SeedPermissionSanity, searchSanity: SeedSearchSanity }} SeedVerification */
+
+/**
+ * Machine-readable scale seed summary printed at the end of a run.
+ * @typedef {object} SeedRunResult
+ * @property {SeedCounts} actualCounts
+ * @property {string} database
+ * @property {SeedCounts} expectedCounts
+ * @property {boolean} ok
+ * @property {SeedPermissionSanity} permissionSanity
+ * @property {string} profile
+ * @property {string} provider
+ * @property {SeedSearchSanity} searchSanity
+ * @property {{ foreignKeysEnabled: unknown, provider: string, secondStartupProvider: string, workspaceModules: number }} startup
+ */
+
 const DEFAULT_SEED_PASSWORD = "Scale-Seed-Password-123!";
 const DEFAULT_PROFILE = "";
 const SEED_SOURCE = "scale-seed";
@@ -79,16 +185,17 @@ const PROFILES = Object.freeze({
   }),
 });
 
+/** @type {SeedDatabaseModule | null} */
 let databaseApi = null;
 
 try {
   await main();
 } catch (error) {
-  console.error(error?.message || error);
+  console.error(/** @type {SeedThrownError} */ (error)?.message || error);
   process.exitCode = 1;
 } finally {
-  if (databaseApi?.closeDatabase) {
-    await databaseApi.closeDatabase();
+  if (/** @type {SeedDatabaseModule | null} */ (databaseApi)?.closeDatabase) {
+    await /** @type {SeedDatabaseModule} */ (/** @type {unknown} */ (databaseApi)).closeDatabase();
   }
 }
 
@@ -106,7 +213,7 @@ async function main() {
   }
 
   const profileName = options.profile || DEFAULT_PROFILE;
-  const profile = PROFILES[profileName];
+  const profile = /** @type {Record<string, SeedProfile>} */ (PROFILES)[profileName];
 
   if (!profile) {
     throw new Error("Scale seed requires --profile. Run with --list-profiles to see available profiles.");
@@ -179,7 +286,9 @@ async function main() {
   printSeedResult(result);
 }
 
+/** @param {string[]} args @returns {SeedCliOptions} */
 function parseArgs(args) {
+  /** @type {SeedCliOptions} */
   const options = {};
 
   for (let index = 0; index < args.length; index += 1) {
@@ -205,7 +314,7 @@ function parseArgs(args) {
       if (!value || value.startsWith("--")) {
         throw new Error(`${arg} requires a value.`);
       }
-      options[arg.slice(2)] = value;
+      options[/** @type {SeedCliValueOptionKey} */ (arg.slice(2))] = value;
       index += 1;
       continue;
     }
@@ -234,6 +343,7 @@ Safety:
   The database path must be clearly disposable/test-only, such as a temp path or a filename containing seed, scale, demo, test, or disposable. Existing app data is refused unless it is a clean fresh-start database with no scale seed marker.`);
 }
 
+/** @param {boolean} [json] */
 function printProfiles(json = false) {
   const profiles = Object.fromEntries(
     Object.entries(PROFILES).map(([name, profile]) => [name, { ...profile }]),
@@ -250,6 +360,7 @@ function printProfiles(json = false) {
   }
 }
 
+/** @param {string} databaseFile */
 function assertDisposableDatabasePath(databaseFile) {
   const normalized = path.normalize(databaseFile);
   const inTemp = normalized.toLowerCase().startsWith(path.normalize(os.tmpdir()).toLowerCase());
@@ -264,6 +375,7 @@ function assertDisposableDatabasePath(databaseFile) {
   );
 }
 
+/** @param {string} provider @param {string} databaseFile */
 function configureRuntimeEnvironment(provider, databaseFile) {
   process.env.LONGTAIL_ENV = process.env.LONGTAIL_ENV || "test";
   process.env.LONGTAIL_DATABASE_PROVIDER = provider;
@@ -272,16 +384,17 @@ function configureRuntimeEnvironment(provider, databaseFile) {
   process.env.SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || DEFAULT_SEED_PASSWORD;
 }
 
+/** @param {SeedTransaction} db @param {string} databaseFile */
 async function assertDatabaseCanBeSeeded(db, databaseFile) {
   const markerExists = await tableExists(db, SCALE_MARKER_TABLE);
 
   if (markerExists) {
-    const previousRun = await db.get(`
+    const previousRun = /** @type {SeedScaleRunRow | null} */ (await db.get(`
 SELECT profile, seeded_at
 FROM ${SCALE_MARKER_TABLE}
 ORDER BY seeded_at DESC
 LIMIT 1;
-`);
+`));
 
     if (previousRun) {
       throw new Error(
@@ -321,6 +434,15 @@ LIMIT 1;
   }
 }
 
+/**
+ * @param {object} input
+ * @param {SeedDatabase} input.db
+ * @param {SeedPasswordHasher} input.hashPassword
+ * @param {SeedProfile} input.profile
+ * @param {string} input.profileName
+ * @param {SeedContext} input.seedContext
+ * @returns {Promise<SeededScale>}
+ */
 async function seedProfile({ db, hashPassword, profile, profileName, seedContext }) {
   return db.transaction(async (transaction) => {
     await ensureScaleSeedRunTable(transaction);
@@ -364,13 +486,14 @@ async function seedProfile({ db, hashPassword, profile, profileName, seedContext
   });
 }
 
+/** @param {SeedTransaction} db @param {SeedProfile} profile @returns {Promise<SeedContext>} */
 async function readSeedContext(db, profile) {
-  const workspace = await db.get(`
+  const workspace = /** @type {SeedWorkspaceRow | null} */ (await db.get(`
 SELECT workspace_id, name
 FROM workspaces
 ORDER BY created_at, workspace_id
 LIMIT 1;
-`);
+`));
 
   if (!workspace?.workspace_id) {
     throw new Error("Scale seed requires app startup to create a workspace before seeding.");
@@ -380,13 +503,13 @@ LIMIT 1;
     throw new Error("This scale seed slice supports one seeded workspace per run.");
   }
 
-  const superAdmin = await db.get(`
+  const superAdmin = /** @type {SeedSuperAdminRow | null} */ (await db.get(`
 SELECT user_id, username, display_name
 FROM users
 WHERE home_workspace_id = :workspaceId
 ORDER BY protected_user DESC, username
 LIMIT 1;
-`, { workspaceId: workspace.workspace_id });
+`, { workspaceId: workspace.workspace_id }));
 
   if (!superAdmin?.user_id) {
     throw new Error("Scale seed requires app startup to create a seed user before seeding.");
@@ -398,6 +521,7 @@ LIMIT 1;
   };
 }
 
+/** @param {SeedTransaction} db */
 async function ensureScaleSeedRunTable(db) {
   await db.run(`
 CREATE TABLE IF NOT EXISTS ${SCALE_MARKER_TABLE} (
@@ -412,6 +536,7 @@ CREATE TABLE IF NOT EXISTS ${SCALE_MARKER_TABLE} (
 `);
 }
 
+/** @param {SeedTransaction} db @param {string} workspaceId @param {string} profileName */
 async function updateWorkspace(db, workspaceId, profileName) {
   const now = isoAt(0);
   await db.run(`
@@ -439,12 +564,21 @@ WHERE workspace_id = :workspaceId;
   });
 }
 
+/**
+ * @param {object} input
+ * @param {SeedPasswordHasher} input.hashPassword
+ * @param {SeedProfile} input.profile
+ * @param {SeedContext} input.seedContext
+ * @param {SeedTransaction} input.transaction
+ * @returns {Promise<SeedUserRecord[]>}
+ */
 async function seedUsers({ transaction, hashPassword, profile, seedContext }) {
   const users = [{
     user_id: seedContext.superAdmin.user_id,
     username: seedContext.superAdmin.username,
     display_name: seedContext.superAdmin.display_name || "Scale Seed Super Admin",
   }];
+  /** @type {SeedUserInsertRow[]} */
   const rows = [];
   const hashedPassword = await hashPassword(DEFAULT_SEED_PASSWORD);
 
@@ -519,6 +653,7 @@ async function seedUsers({ transaction, hashPassword, profile, seedContext }) {
   return users;
 }
 
+/** @param {SeedTransaction} db @param {SeedProfile} profile @param {SeedContext} seedContext @returns {Promise<SeedClientRow[]>} */
 async function seedClients(db, profile, seedContext) {
   const rows = Array.from({ length: profile.clients }, (_, index) => {
     const oneBased = index + 1;
@@ -581,6 +716,7 @@ async function seedClients(db, profile, seedContext) {
   return rows;
 }
 
+/** @param {SeedTransaction} db @param {SeedProfile} profile @param {SeedContext} seedContext @param {SeedClientRow[]} clients @returns {Promise<SeedProjectRow[]>} */
 async function seedProjects(db, profile, seedContext, clients) {
   const rows = Array.from({ length: profile.projects }, (_, index) => {
     const oneBased = index + 1;
@@ -632,6 +768,7 @@ async function seedProjects(db, profile, seedContext, clients) {
   return rows;
 }
 
+/** @param {SeedTransaction} db @param {SeedProfile} profile @param {SeedContext} seedContext @param {SeedUserRecord[]} users @returns {Promise<SeedTagRow[]>} */
 async function seedTags(db, profile, seedContext, users) {
   const rows = Array.from({ length: profile.tags }, (_, index) => {
     const oneBased = index + 1;
@@ -666,6 +803,15 @@ async function seedTags(db, profile, seedContext, users) {
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @returns {Promise<SeedTaskRow[]>}
+ */
 async function seedTasks(db, profile, seedContext, users, clients, projects) {
   const rows = Array.from({ length: profile.tasks }, (_, index) => {
     const oneBased = index + 1;
@@ -767,6 +913,16 @@ async function seedTasks(db, profile, seedContext, users, clients, projects) {
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @param {SeedTaskRow[]} tasks
+ * @returns {Promise<SeedNoteRow[]>}
+ */
 async function seedNotes(db, profile, seedContext, users, clients, projects, tasks) {
   const rows = Array.from({ length: profile.notes }, (_, index) => {
     const oneBased = index + 1;
@@ -879,6 +1035,15 @@ async function seedNotes(db, profile, seedContext, users, clients, projects, tas
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @returns {Promise<SeedListRow[]>}
+ */
 async function seedLists(db, profile, seedContext, users, clients, projects) {
   const rows = Array.from({ length: profile.lists }, (_, index) => {
     const oneBased = index + 1;
@@ -937,6 +1102,14 @@ async function seedLists(db, profile, seedContext, users, clients, projects) {
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedListRow[]} lists
+ * @returns {Promise<SeedListItemRow[]>}
+ */
 async function seedListItems(db, profile, seedContext, users, lists) {
   const rows = Array.from({ length: profile.listItems }, (_, index) => {
     const oneBased = index + 1;
@@ -1007,6 +1180,18 @@ async function seedListItems(db, profile, seedContext, users, lists) {
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @param {SeedTaskRow[]} tasks
+ * @param {SeedNoteRow[]} notes
+ * @param {SeedListRow[]} lists
+ * @returns {Promise<SeedFileRow[]>}
+ */
 async function seedFiles(db, profile, seedContext, users, clients, projects, tasks, notes, lists) {
   const rows = Array.from({ length: profile.files }, (_, index) => {
     const oneBased = index + 1;
@@ -1121,6 +1306,15 @@ async function seedFiles(db, profile, seedContext, users, clients, projects, tas
   return rows;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @param {SeedTaskRow[]} tasks
+ */
 async function seedTimeEntries(db, profile, seedContext, users, clients, projects, tasks) {
   const rows = Array.from({ length: profile.timeEntries }, (_, index) => {
     const oneBased = index + 1;
@@ -1170,6 +1364,14 @@ async function seedTimeEntries(db, profile, seedContext, users, clients, project
   ], rows);
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ */
 async function seedRoleAssignments(db, profile, seedContext, users, clients, projects) {
   const now = isoAt(2);
   const rows = users.slice(1).map((user, index) => {
@@ -1213,6 +1415,7 @@ async function seedRoleAssignments(db, profile, seedContext, users, clients, pro
   ], rows);
 }
 
+/** @param {number} index @param {number} totalUsers @returns {SeedRoleShape} */
 function roleForSeedUser(index, totalUsers) {
   if (index < Math.max(2, Math.ceil(totalUsers * 0.08))) {
     return { role_id: "workspace_admin", scope_type: "workspace" };
@@ -1229,6 +1432,16 @@ function roleForSeedUser(index, totalUsers) {
   return { role_id: "project_user", scope_type: "project" };
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedTagRow[]} tags
+ * @param {SeedTaskRow[]} tasks
+ * @param {SeedNoteRow[]} notes
+ * @param {SeedListRow[]} lists
+ * @param {SeedFileRow[]} files
+ */
 async function seedTagAssignments(db, seedContext, users, tags, tasks, notes, lists, files) {
   const targets = [
     ...tasks.filter((_, index) => index % 10 === 0).map((task) => ({ target_type: "task", target_id: task.task_id })),
@@ -1266,6 +1479,15 @@ async function seedTagAssignments(db, seedContext, users, tags, tasks, notes, li
   })));
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedTaskRow[]} tasks
+ * @param {SeedNoteRow[]} notes
+ * @param {SeedListRow[]} lists
+ */
 async function seedNotifications(db, profile, seedContext, users, tasks, notes, lists) {
   const rows = Array.from({ length: profile.notifications }, (_, index) => {
     const oneBased = index + 1;
@@ -1317,6 +1539,16 @@ async function seedNotifications(db, profile, seedContext, users, tasks, notes, 
   ], rows);
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedContext} seedContext
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @param {SeedTaskRow[]} tasks
+ * @param {SeedNoteRow[]} notes
+ * @param {SeedListRow[]} lists
+ * @param {SeedFileRow[]} files
+ */
 async function seedSearchIndex(db, seedContext, clients, projects, tasks, notes, lists, files) {
   const searchRows = [
     ...clients.map((client, index) => searchRow({
@@ -1418,6 +1650,7 @@ async function seedSearchIndex(db, seedContext, clients, projects, tasks, notes,
   ], searchRows);
 }
 
+/** @param {SeedSearchRowInput} input @returns {SeedRow} */
 function searchRow({
   index,
   seedContext,
@@ -1455,6 +1688,18 @@ function searchRow({
   };
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedProfile} profile
+ * @param {SeedContext} seedContext
+ * @param {SeedUserRecord[]} users
+ * @param {SeedClientRow[]} clients
+ * @param {SeedProjectRow[]} projects
+ * @param {SeedTaskRow[]} tasks
+ * @param {SeedNoteRow[]} notes
+ * @param {SeedListRow[]} lists
+ * @param {SeedFileRow[]} files
+ */
 async function seedAuditLogs(db, profile, seedContext, users, clients, projects, tasks, notes, lists, files) {
   const targetFamilies = [
     { record_type: "client", rows: clients, idKey: "id", labelKey: "name" },
@@ -1506,6 +1751,7 @@ async function seedAuditLogs(db, profile, seedContext, users, clients, projects,
   ], rows, 250);
 }
 
+/** @param {SeedTransaction} db @param {SeedProfile} profile @param {string} profileName @param {SeedContext} seedContext */
 async function recordScaleSeedRun(db, profile, profileName, seedContext) {
   await insertRows(db, SCALE_MARKER_TABLE, [
     "scale_seed_run_id",
@@ -1526,6 +1772,14 @@ async function recordScaleSeedRun(db, profile, profileName, seedContext) {
   }]);
 }
 
+/**
+ * @param {object} input
+ * @param {SeedTransaction} input.db
+ * @param {SeedPermissionsService} input.permissionsService
+ * @param {SeedProfile} input.profile
+ * @param {SeedContext} input.seedContext
+ * @returns {Promise<SeedVerification>}
+ */
 async function verifySeed({ db, permissionsService, profile, seedContext }) {
   const expected = expectedCounts(profile);
   const actual = await countTables(db, Object.keys(expected));
@@ -1550,6 +1804,7 @@ async function verifySeed({ db, permissionsService, profile, seedContext }) {
   };
 }
 
+/** @param {SeedProfile} profile @returns {SeedCounts} */
 function expectedCounts(profile) {
   return {
     workspaces: profile.workspaces,
@@ -1572,8 +1827,14 @@ function expectedCounts(profile) {
   };
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedPermissionsService} permissionsService
+ * @param {string} workspaceId
+ * @returns {Promise<SeedPermissionSanity>}
+ */
 async function verifyPermissionSanity(db, permissionsService, workspaceId) {
-  const superAdmin = await db.get(`
+  const superAdmin = /** @type {SeedUserIdRow | null} */ (await db.get(`
 SELECT users.user_id
 FROM users
 INNER JOIN user_role_assignments
@@ -1582,8 +1843,8 @@ WHERE users.home_workspace_id = :workspaceId
   AND users.protected_user = 'yes'
   AND user_role_assignments.role_id = 'super_admin'
 LIMIT 1;
-`, { workspaceId });
-  const workspaceAdmin = await db.get(`
+`, { workspaceId }));
+  const workspaceAdmin = /** @type {SeedUserIdRow | null} */ (await db.get(`
 SELECT users.user_id
 FROM users
 INNER JOIN user_role_assignments
@@ -1592,7 +1853,7 @@ WHERE users.home_workspace_id = :workspaceId
   AND user_role_assignments.workspace_id = :workspaceId
   AND user_role_assignments.role_id = 'workspace_admin'
 LIMIT 1;
-`, { workspaceId });
+`, { workspaceId }));
 
   if (!superAdmin?.user_id) {
     throw new Error("Scale seed permission sanity failed: missing protected super_admin assignment.");
@@ -1602,14 +1863,14 @@ LIMIT 1;
     throw new Error("Scale seed permission sanity failed: missing workspace_admin assignment.");
   }
 
-  const superAdminCanManageSettings = await permissionsService.can({
+  const superAdminCanManageSettings = await permissionsService.can(/** @type {SeedPermissionSession} */ (/** @type {unknown} */ ({
     workspace_id: workspaceId,
     user_id: superAdmin.user_id,
-  }, "workspace_settings.manage", { workspace_id: workspaceId });
-  const workspaceAdminCanViewTasks = await permissionsService.can({
+  })), "workspace_settings.manage", { workspace_id: workspaceId });
+  const workspaceAdminCanViewTasks = await permissionsService.can(/** @type {SeedPermissionSession} */ (/** @type {unknown} */ ({
     workspace_id: workspaceId,
     user_id: workspaceAdmin.user_id,
-  }, "tasks.view", { workspace_id: workspaceId });
+  })), "tasks.view", { workspace_id: workspaceId });
 
   if (!superAdminCanManageSettings || !workspaceAdminCanViewTasks) {
     throw new Error("Scale seed permission sanity failed: expected admin permissions were not granted.");
@@ -1621,23 +1882,24 @@ LIMIT 1;
   };
 }
 
+/** @param {SeedTransaction} db @param {string} workspaceId @param {SeedProfile} profile @returns {Promise<SeedSearchSanity>} */
 async function verifySearchSanity(db, workspaceId, profile) {
-  const taskSearch = await db.get(`
+  const taskSearch = /** @type {SeedCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM search_index
 WHERE workspace_id = :workspaceId
   AND module_id = 'tasks'
   AND record_type = 'task'
   AND title LIKE 'Scale Task%';
-`, { workspaceId });
-  const noteSearch = await db.get(`
+`, { workspaceId }));
+  const noteSearch = /** @type {SeedCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM search_index
 WHERE workspace_id = :workspaceId
   AND module_id = 'notes'
   AND record_type = 'note'
   AND body LIKE '%work context%';
-`, { workspaceId });
+`, { workspaceId }));
 
   if (Number(taskSearch?.count || 0) !== profile.tasks) {
     throw new Error("Scale seed search sanity failed: task search_index rows are incomplete.");
@@ -1648,18 +1910,19 @@ WHERE workspace_id = :workspaceId
   }
 
   return {
-    taskRows: Number(taskSearch.count),
-    noteRows: Number(noteSearch.count),
+    taskRows: Number(/** @type {SeedCountRow} */ (taskSearch).count),
+    noteRows: Number(/** @type {SeedCountRow} */ (noteSearch).count),
   };
 }
 
+/** @param {SeedTransaction} db @param {SeedDatabaseHealth} health @param {string} workspaceId @returns {Promise<SeedStartupSanity>} */
 async function verifyStartupSanity(db, health, workspaceId) {
-  const workspaceModules = await db.get(`
+  const workspaceModules = /** @type {SeedCountRow | null} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM workspace_modules
 WHERE workspace_id = :workspaceId
   AND status = 'enabled';
-`, { workspaceId });
+`, { workspaceId }));
 
   if (health.provider !== "sqlite" || health.foreignKeysEnabled !== true) {
     throw new Error("Scale seed startup sanity failed: SQLite startup health is not healthy.");
@@ -1671,10 +1934,11 @@ WHERE workspace_id = :workspaceId
 
   return {
     foreignKeysEnabled: health.foreignKeysEnabled,
-    workspaceModules: Number(workspaceModules.count),
+    workspaceModules: Number(/** @type {SeedCountRow} */ (workspaceModules).count),
   };
 }
 
+/** @param {SeedTransaction} db @param {string} tableName @returns {Promise<boolean>} */
 async function tableExists(db, tableName) {
   const row = await db.get(`
 SELECT name
@@ -1687,7 +1951,9 @@ LIMIT 1;
   return Boolean(row);
 }
 
+/** @param {SeedTransaction} db @param {string[]} tableNames @returns {Promise<SeedCounts>} */
 async function countTables(db, tableNames) {
+  /** @type {SeedCounts} */
   const counts = {};
 
   for (const tableName of tableNames) {
@@ -1696,13 +1962,20 @@ async function countTables(db, tableNames) {
       continue;
     }
 
-    const row = await db.get(`SELECT COUNT(*) AS count FROM ${tableName};`);
+    const row = /** @type {SeedCountRow | null} */ (await db.get(`SELECT COUNT(*) AS count FROM ${tableName};`));
     counts[tableName] = Number(row?.count || 0);
   }
 
   return counts;
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {string} tableName
+ * @param {string[]} columns
+ * @param {SeedRow[]} rows
+ * @param {number} [chunkSize]
+ */
 async function insertRows(db, tableName, columns, rows, chunkSize = 100) {
   if (rows.length === 0) {
     return;
@@ -1710,6 +1983,7 @@ async function insertRows(db, tableName, columns, rows, chunkSize = 100) {
 
   for (let start = 0; start < rows.length; start += chunkSize) {
     const chunk = rows.slice(start, start + chunkSize);
+    /** @type {SeedInsertParameters} */
     const params = {};
     const values = chunk.map((row, rowIndex) => {
       const placeholders = columns.map((column) => {
@@ -1727,36 +2001,43 @@ VALUES ${values.join(", ")};
   }
 }
 
+/** @param {string} prefix @param {number} index @returns {string} */
 function idFor(prefix, index) {
   return `${prefix}-${pad(index, 8)}`;
 }
 
+/** @param {number} value @param {number} width @returns {string} */
 function pad(value, width) {
   return String(value).padStart(width, "0");
 }
 
+/** @template PickedType @param {PickedType[]} values @param {number} index @returns {PickedType} */
 function pick(values, index) {
   return values[index % values.length];
 }
 
+/** @param {number} index @param {number} [minutes] @returns {string} */
 function isoAt(index, minutes = 0) {
   return new Date(BASE_TIME_MS + (index * 17 + minutes) * 60 * 1000).toISOString();
 }
 
+/** @param {number} index @returns {string} */
 function localDate(index) {
   return new Date(BASE_TIME_MS + index * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+/** @param {string} extension @returns {string} */
 function mimeForExtension(extension) {
-  return {
+  return /** @type {SeedMimeMap} */ ({
     csv: "text/csv",
     md: "text/markdown",
     pdf: "application/pdf",
     png: "image/png",
     txt: "text/plain",
-  }[extension] || "application/octet-stream";
+  })[extension] || "application/octet-stream";
 }
 
+/** @param {SeedRunResult} result */
 function printSeedResult(result) {
   console.log(`Scale seed complete for ${result.profile}`);
   console.log(`Provider: ${result.provider}`);
