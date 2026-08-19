@@ -1,6 +1,18 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.30.2.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.30.3.1. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.30.3.1, the protected browser gate installs Playwright through one bounded entry point, `scripts/release/install-playwright-browser.mjs`. The `0.33.33.29` hardening bounded each attempt with `timeout 240` inline in three workflows, which fixed one stalled download consuming the job budget but created a worse failure: `timeout` terminates the wrapper it launched, not the `apt-get` that Playwright's `--with-deps` runs under sudo, so a cancelled attempt keeps holding `/var/lib/apt/lists/lock`. Attempts two and three then failed instantly with `Could not get lock`, spending the whole retry budget in six seconds and reporting a bounded-attempt exhaustion that never really retried. This was observed on the `0.33.33.30.2.1` pull request.
+
+The entry point owns the policy once instead of three times. It SIGTERMs and then SIGKILLs a timed-out attempt so nothing it started survives, and waits for the package-manager process before each retry. Waiting rather than force-unlocking is deliberate: a slow mirror is the common cause, and letting the previous `apt-get` finish makes the retry a fast no-op. A package manager still running after its bound stops the run rather than burning the remaining attempts against it. The bounds are stall detectors, not deadlines for a healthy install. Four CI runs showed the `0.33.33.29` value of 240 seconds was below the real cost of this step when the azure mirror is unreachable and apt falls back to `archive.ubuntu.com`: attempts were killed mid-fetch and mid-unpack while still making progress, and a 60-second wait then gave up on an apt that was still installing. The defaults are now two 540-second attempts with a 180-second package-manager wait between them, and the install step and browser job bounds rise to 23 and 25 minutes to contain that worst case of 1,320 seconds. Two long attempts beat three short ones once apt itself waits for a contended lock.
+
+The first repair waited by taking the lock files with `flock(1)`, and CI proved that wrong on this checkpoint's own pull request: the retry genuinely ran a full apt fetch and then still failed on the lock. `flock(1)` uses `flock(2)` while apt uses `fcntl` record locks, and the two do not conflict, so the wait returned instantly. The unit test had proven the control flow, not the primitive — it stubbed the lock command, which was exactly the part that was wrong. The wait is now on the package-manager process, which is independent of whichever primitive apt uses, and the guard forbids `flock` returning as the wait.
+
+Nothing pinned this step before, which is why the defect shipped, so the contract now has two owners. `tests/unit/install-playwright-browser.test.mjs` drives the real entry point with stub subprocesses and proves four behaviours: a first-attempt success neither retries nor touches a lock; every retry waits on both locks first while the final attempt does not; a held lock stops the run with the lock named; and an attempt that outlives its bound is killed rather than run to completion. `release.playwright-dev-only-boundary` proves the wiring — all three workflows call the single entry point, none reintroduces the inline install, and both bounds are in place — with three seeded controls confirming it fails closed on a reintroduced inline install and on either bound being lowered.
+
+The proof deliberately lives in a unit test rather than a new discovered regression. A new owner would have breached the shrink-only active-owner line ceiling `database.current-static-contracts` enforces, and weakening that guardrail to admit this proof would have cost more than it bought; vitest assertions already count toward the effective inventory.
+
+Docs updated: docs/regression-suite.md.
 
 As of 0.33.33.30.2.1, module view contributions have one shared named contract. `ModuleManifest.protectedViews` and `ModuleManifest.publicViews` were both declared `unknown[]`, which is why `0.33.33.30.2` had to read them through regression-local aliases. Both now use `ModuleViewContribution`, derived from what `validateViews` in `src/core/modules/manifest-contract.js` actually enforces rather than from the looser `CatalogContribution` grab-bag: `id`, `moduleId`, `path`, and `file` are required, and `requiredPermissions`, `requiredWorkspaceCapabilities`, and `allowDisabledRead` are optional.
 
@@ -481,11 +493,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18310 |
+| Active regression assertions | 18319 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 18994 |
+| Effective assertion floor | 19003 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |

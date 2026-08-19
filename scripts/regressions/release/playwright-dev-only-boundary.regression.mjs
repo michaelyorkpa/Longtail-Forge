@@ -122,6 +122,49 @@ assert.match(
   "the required development pull-request Browser check name must remain stable",
 );
 
+// Every protected workflow installs the browser through the one bounded entry
+// point whose retry ordering tests/unit/install-playwright-browser.test.mjs
+// proves. The 0.33.33.29 inline loop retried into the package lock a cancelled
+// attempt still held, and lived in three copies no test could reach.
+for (const workflowPath of [
+  ".github/workflows/development-pr.yml",
+  ".github/workflows/nightly.yml",
+  ".github/workflows/promotion.yml",
+]) {
+  const workflow = readFileSync(workflowPath, "utf8");
+  assert.equal(
+    workflow.includes("run: node scripts/release/install-playwright-browser.mjs"),
+    true,
+    `${workflowPath} must install the browser through the single bounded entry point`,
+  );
+  assert.equal(
+    workflow.includes("playwright install --with-deps chromium"),
+    false,
+    `${workflowPath} must not reintroduce an inline install no test can reach`,
+  );
+  // Worst case is 2 attempts x 540s plus one 180s wait, or 1320s. Four CI runs
+  // showed the earlier 240s attempt bound killed installs that were still making
+  // progress, so the bounds detect a stall rather than deadline a slow install.
+  const beforeInstall = workflow.slice(0, workflow.indexOf("name: Install the Playwright browser"));
+  const jobBounds = [...beforeInstall.matchAll(/^ {4}timeout-minutes: (\d+)\r?$/gm)];
+  assert.ok(jobBounds.length > 0, `${workflowPath} must bound the job that installs the browser`);
+  assert.equal(jobBounds[jobBounds.length - 1][1], "25", `${workflowPath} must bound the browser job above the install budget plus its checks`);
+  const installStep = workflow.slice(workflow.indexOf("name: Install the Playwright browser"));
+  assert.match(installStep.slice(0, 200), /timeout-minutes: 23/, `${workflowPath} must bound the install step above its 22-minute worst case`);
+}
+const installEntryPoint = readFileSync("scripts/release/install-playwright-browser.mjs", "utf8");
+assert.match(installEntryPoint, /SIGKILL/, "a timed-out attempt must be hard-killed, not only signalled");
+// The wait must be on the package-manager process. Waiting on the lock files
+// with flock(1) was a proven no-op: it uses flock(2) while apt uses fcntl
+// record locks, so it returned instantly and the retry raced the cancelled
+// attempt anyway.
+assert.equal(installEntryPoint.includes("pgrep -x apt-get"), true, "the retry must wait for the package-manager process, not a lock file");
+assert.equal(installEntryPoint.includes(String.fromCharCode(34) + "flock" + String.fromCharCode(34)), false, "flock does not conflict with apt fcntl locks and must not be used as the wait command");
+// Setting apt DPkg::Lock::Timeout turned a fast, visible lock failure into a
+// 540-second silence in CI, so the install must let apt fail loudly and rely on
+// the process wait instead.
+assert.equal(installEntryPoint.includes("Lock::Timeout"), false, "apt must fail loudly on a contended lock rather than waiting silently");
+
 const e2eDocs = readFileSync("docs/e2e-testing.md", "utf8");
 assert.match(e2eDocs, /test:e2e:install/, "e2e docs must cover browser installation");
 assert.match(e2eDocs, /npm run test:e2e/, "e2e docs must cover running the suite");
