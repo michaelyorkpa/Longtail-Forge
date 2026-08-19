@@ -22,6 +22,15 @@ import {
   runPackageScript,
 } from "../../lib/package-script-runner.mjs";
 
+/** @typedef {import("../../lib/closeout-gates.mjs").CloseoutGateResult} CloseoutGateResult */
+
+/**
+ * Recorded spawn arguments captured by the injected spawn implementations, so
+ * the direct-Node and composed-fallback invocations can be compared exactly.
+ * @typedef {{ args: readonly string[], file: string, options: import("node:child_process").SpawnSyncOptions }} DirectSpawnInvocation
+ * @typedef {{ args: readonly string[], file: string }} ComposedSpawnInvocation
+ */
+
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const commandSource = readFileSync("scripts/run-closeout.mjs", "utf8");
 const expectedScripts = [
@@ -45,6 +54,7 @@ assert.match(commandSource, /--fix/);
 assert.match(commandSource, /--fail-fast/);
 assert.doesNotMatch(commandSource, /npm run check/, "the conductor should complement rather than invoke the full regression gate");
 
+/** @type {string[]} */
 const passInvocations = [];
 const passingResult = runCloseoutGates(CLOSEOUT_GATES, {
   runCommand(gate) {
@@ -56,6 +66,7 @@ assert.equal(passingResult.status, 0);
 assert.deepEqual(passInvocations, expectedScripts.map((script) => `npm run ${script}`));
 assert.ok(passingResult.results.every((result) => result.outcome === "pass"));
 
+/** @type {string[]} */
 const hardFailureInvocations = [];
 const hardFailureResult = runCloseoutGates(CLOSEOUT_GATES, {
   runCommand(gate) {
@@ -64,9 +75,10 @@ const hardFailureResult = runCloseoutGates(CLOSEOUT_GATES, {
   },
 });
 assert.equal(hardFailureResult.status, 1, "one hard-gate failure should fail the conductor");
-assert.equal(hardFailureResult.results.find((result) => result.id === "database-schema").outcome, "fail");
+assert.equal(/** @type {CloseoutGateResult} */ (hardFailureResult.results.find((result) => result.id === "database-schema")).outcome, "fail");
 assert.deepEqual(hardFailureInvocations, CLOSEOUT_GATES.map((gate) => gate.id), "a hard failure should not stop later gates");
 
+/** @type {string[]} */
 const failFastInvocations = [];
 const failFastResult = runCloseoutGates(CLOSEOUT_GATES, {
   failFast: true,
@@ -110,6 +122,7 @@ assert.ok(
   CLOSEOUT_FIXES.every((entry) => !/roadmap|changelog|decision|exception|docs:suggest/i.test(entry.script)),
   "fix mode should not edit judgment-bearing policy or arbitrary documentation",
 );
+/** @type {string[]} */
 const fixInvocations = [];
 const fixResult = runCloseoutFixes(CLOSEOUT_FIXES, {
   runCommand(fixDefinition) {
@@ -121,6 +134,7 @@ assert.equal(fixResult.status, 0);
 assert.deepEqual(fixInvocations, CLOSEOUT_FIXES.map((entry) => entry.command));
 assert.match(formatCloseoutFixSummary(fixResult), /Reviewed deterministic artifacts regenerated/);
 
+/** @type {string[]} */
 const failedFixInvocations = [];
 const failedFixResult = runCloseoutFixes(CLOSEOUT_FIXES, {
   runCommand(fixDefinition) {
@@ -142,6 +156,7 @@ assert.equal(
   "composed package scripts should retain npm orchestration",
 );
 
+/** @type {DirectSpawnInvocation[]} */
 const directInvocations = [];
 const directResult = runPackageScript("focused", {
   packageScripts: { focused: "node scripts/focused.mjs --check" },
@@ -156,6 +171,7 @@ assert.equal(directInvocations[0].file, process.execPath, "Windows Node-backed g
 assert.deepEqual(directInvocations[0].args, ["scripts/focused.mjs", "--check"]);
 assert.equal(directInvocations[0].options.windowsHide, true);
 
+/** @type {ComposedSpawnInvocation[]} */
 const composedInvocations = [];
 runPackageScript("composed", {
   packageScripts: { composed: "npm run first && npm run second" },

@@ -24,7 +24,8 @@ const packageScriptContract = reader.readJson("scripts/package-script-contracts.
 const ownershipEvidence = reader.readJson("scripts/validation-ownership-consolidation.json");
 const scanEvidence = reader.readJson("scripts/source-scan-consolidation-evidence.json");
 const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry.modulePath]));
-const resolveCurrentSourcePath = (sourcePath) => consolidatedSourcePaths.get(sourcePath) || sourcePath;
+/** @param {string} sourcePath */
+const resolveCurrentSourcePath = (sourcePath) => /** @type {string} */ (consolidatedSourcePaths.get(sourcePath) || sourcePath);
 
 assert.equal(packageScriptContract.schemaVersion, 1);
 assert.equal(packageScriptContract.owner, "scripts/regressions/release/validation-single-ownership.regression.mjs");
@@ -73,13 +74,18 @@ for (const [family, expectedOwner] of Object.entries({
   }
 }
 
-const EXECUTABLE_TEST_TEXT_PROXY_PATTERNS = Object.freeze([
+/**
+ * Executable-test text-proxy detectors, each a label paired with the source
+ * pattern that identifies the proxy.
+ * @typedef {readonly [string, RegExp]} ExecutableTestProxyPattern
+ */
+const EXECUTABLE_TEST_TEXT_PROXY_PATTERNS = /** @type {readonly ExecutableTestProxyPattern[]} */ (Object.freeze([
   ["permission harness text proxy", /\b(?:read|readText|readFileSync)\s*\(\s*["']scripts\/permission-regression\.mjs/],
   ["Playwright spec text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*(?:tests\/e2e|["']tests["'][^;\n]*["']e2e["'])/],
   ["Playwright config text proxy", /\b(?:readFileSync|readText)\s*\(\s*["']playwright\.config\.js/],
   ["Playwright directory text proxy", /\breaddirSync\s*\(\s*["']tests\/e2e["']/],
   ["Vitest source text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*tests\/(?:contracts|files|tasks|unit)\/[^"'`\n]+\.test\.mjs/],
-]);
+]));
 const duplicateErrors = [];
 const executableTestProxyErrors = [];
 for (const entry of REGRESSION_ENTRIES) {
@@ -185,6 +191,7 @@ assert.equal(sourceContainsInOrder("alpha gamma beta", ["alpha", "beta", "gamma"
 
 console.log("Validation single-ownership regression passed.");
 
+/** @param {string} source */
 function countGreedyPatterns(source) {
   return [...source.matchAll(/\[\\s\\S\]\*|\[\^\]\*/g)].length;
 }

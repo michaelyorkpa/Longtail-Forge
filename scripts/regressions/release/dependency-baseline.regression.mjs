@@ -69,10 +69,10 @@ assert.equal(packageJson.devDependencies["@types/markdown-it"], undefined, "Mark
 assert.equal(packageLock.packages["node_modules/@types/markdown-it"], undefined, "the resolved graph should not include redundant Markdown-it types");
 
 const backslashSpaceHardBreakSource = "Literal backslash\\  \nNext line";
-for (const [mode, breaks] of [
+for (const [mode, breaks] of /** @type {readonly (readonly [string, boolean])[]} */ ([
   ["document/default", false],
   ["user-authored", true],
-]) {
+])) {
   const rendered = MarkdownIt("commonmark", {
     html: false,
     linkify: false,

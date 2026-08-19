@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.28",
+  "checkpoint": "0.33.33.29",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 6370,
+      "errorCount": 6227,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4051,12 +4051,6 @@
             "count": 8
           }
         ],
-        "scripts/framework-view-static-consolidation.mjs": [
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
         "scripts/help-center-surface-regression.mjs": [
           {
             "code": 18046,
@@ -4959,20 +4953,6 @@
             "count": 2
           }
         ],
-        "scripts/regression-contracts/data-files-security-static-owner.mjs": [
-          {
-            "code": 2365,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7036,
-            "count": 1
-          }
-        ],
         "scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs": [
           {
             "code": 7006,
@@ -5397,24 +5377,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workflow-module-static-owner.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2365,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7036,
-            "count": 1
           }
         ],
         "scripts/regression-runner-regression.mjs": [
@@ -6739,206 +6701,6 @@
             "count": 2
           }
         ],
-        "scripts/regressions/release/changed-regression-auto-run.regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/closeout-conductor.regression.mjs": [
-          {
-            "code": 2532,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 10
-          },
-          {
-            "code": 7034,
-            "count": 7
-          }
-        ],
-        "scripts/regressions/release/current-static-contracts.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/dependency-baseline.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/developer-verification-throughput.regression.mjs": [
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "scripts/regressions/release/files-regression-isolation-audit.regression.mjs": [
-          {
-            "code": 18048,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 13
-          }
-        ],
-        "scripts/regressions/release/github-only-docs-workflow-routing.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regressions/release/github-release-operations.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/historical-evidence-retirement.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7031,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/immutable-image-publication.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/maintenance-host-assets.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs": [
-          {
-            "code": 2554,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/preview-deployment-boundary.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/public-demo-compose-reset.regression.mjs": [
-          {
-            "code": 2559,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 21
-          }
-        ],
-        "scripts/regressions/release/public-demo-isolation.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/public-demo-release-candidate.regression.mjs": [
-          {
-            "code": 2769,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/qualified-runtime-version.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/regression-baseline-bypass-audit.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/regression-discovery-runner.regression.mjs": [
-          {
-            "code": 2532,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/regression-manifest-generation.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/regressions/release/regression-routing-commands.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/roadmap-cursor-floor.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/release/runtime-artifact-boundary.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/release/validation-single-ownership.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs": [
           {
             "code": 7005,
@@ -8243,12 +8005,6 @@
             "count": 1
           }
         ],
-        "scripts/workflow-module-static-consolidation.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          }
-        ],
         "scripts/workspace-storage-regression.mjs": [
           {
             "code": 2322,
@@ -8268,7 +8024,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 17504,
+    "errors": 17361,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

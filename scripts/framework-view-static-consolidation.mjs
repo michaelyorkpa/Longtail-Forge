@@ -1,3 +1,15 @@
+/**
+ * One recorded framework-view consolidation movement. Every field is the exact
+ * value the retained owner asserts against, so the shapes are declared once
+ * here rather than being re-derived at each assertion site.
+ * @param {string} id
+ * @param {string} sourcePath
+ * @param {string} modulePath
+ * @param {number} assertionCount
+ * @param {string} retainedOwner
+ * @param {string} exceptionId
+ * @param {string} reason
+ */
 const movement = (id, sourcePath, modulePath, assertionCount, retainedOwner, exceptionId, reason) => Object.freeze({
   id,
   sourcePath,

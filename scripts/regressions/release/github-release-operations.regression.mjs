@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
+/** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const workflowPaths = [
   ".github/workflows/development-pr.yml",

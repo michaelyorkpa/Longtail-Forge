@@ -22,6 +22,7 @@ import {
   supportedPlatform,
 } from "../../build-container-image.mjs";
 
+/** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, containerBuild, containerSmoke, workflow, selfHosting, runtimeArtifact] = await Promise.all([
   read("Dockerfile"),

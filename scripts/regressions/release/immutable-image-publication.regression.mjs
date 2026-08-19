@@ -19,6 +19,7 @@ import {
   validatePublishedReleaseMetadata,
 } from "../../release/published-container-image.mjs";
 
+/** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const [
   publisher,

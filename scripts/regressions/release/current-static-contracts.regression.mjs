@@ -12,6 +12,15 @@ import { existsSync, statSync } from "node:fs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { createProjectTextReader, escapeRegExp, sourceContainsInOrder } from "../../test-support/source-scan.mjs";
 
+/** @typedef {import("../../lib/regression-manifest.mjs").RetiredScript} RetiredScript */
+
+/**
+ * Recorded rows this owner reads: one 0.33.33.8 consolidation movement or true
+ * duplicate, and one legacy discovery-snapshot script.
+ * @typedef {{ assertionCount: number, path: string, retainedOwner: string }} StaticContractConsolidationEntry
+ * @typedef {{ path: string }} LegacySnapshotScript
+ */
+
 const { readJson, readText } = createProjectTextReader();
 const packageJson = JSON.parse(readText("package.json"));
 const scripts = packageJson.scripts;
@@ -22,9 +31,9 @@ assert.equal(consolidation.schemaVersion, 1);
 assert.equal(consolidation.version, "0.33.33.8");
 assert.deepEqual(consolidation.before, { discoveredScripts: 458, releaseDocsStaticScripts: 36, movedAssertions: 60 });
 assert.deepEqual(consolidation.after, { discoveredScripts: 456, releaseDocsStaticScripts: 34 });
-assert.equal(consolidation.movements.reduce((total, movement) => total + movement.assertionCount, 0), 60);
-assert.equal(consolidation.trueDuplicates.reduce((total, duplicate) => total + duplicate.assertionCount, 0), 45);
-assert.equal(new Set(consolidation.trueDuplicates.map((duplicate) => duplicate.path)).size, consolidation.trueDuplicates.length);
+assert.equal(consolidation.movements.reduce((/** @type {number} */ total, /** @type {StaticContractConsolidationEntry} */ movement) => total + movement.assertionCount, 0), 60);
+assert.equal(consolidation.trueDuplicates.reduce((/** @type {number} */ total, /** @type {StaticContractConsolidationEntry} */ duplicate) => total + duplicate.assertionCount, 0), 45);
+assert.equal(new Set(consolidation.trueDuplicates.map((/** @type {StaticContractConsolidationEntry} */ duplicate) => duplicate.path)).size, consolidation.trueDuplicates.length);
 assert.ok(
   REGRESSION_ENTRIES.length <= consolidation.after.discoveredScripts,
   `later consolidations may shrink active discovery below the recorded 0.33.33.8 post-state`,
@@ -36,7 +45,7 @@ assert.equal(
 
 const activeIds = new Set(REGRESSION_ENTRIES.map((entry) => entry.id));
 const activePaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
-const retirements = new Map(coveragePolicy.retiredScripts.map((entry) => [entry.script, entry]));
+const retirements = new Map(coveragePolicy.retiredScripts.map((/** @type {RetiredScript} */ entry) => [entry.script, entry]));
 for (const movement of consolidation.movements) {
   assert.equal(activePaths.has(movement.path), false, `${movement.path} must leave active discovery`);
   assert.equal(activeIds.has(movement.retainedOwner), true, `${movement.retainedOwner} must own the moved assertions`);
@@ -198,7 +207,7 @@ for (const testFile of [
 
 assert.equal(existsSync("scripts/check-js.mjs"), false, "the duplicate syntax subprocess must stay retired");
 const legacySnapshot = JSON.parse(readText("scripts/regression-legacy-snapshot.json"));
-assert.ok(!legacySnapshot.scripts.some(({ path }) => path === "scripts/check-js.mjs"));
+assert.ok(!legacySnapshot.scripts.some((/** @type {LegacySnapshotScript} */ { path }) => path === "scripts/check-js.mjs"));
 assert.ok(packageJson.devDependencies.typescript);
 assert.ok(packageJson.devDependencies.vitest);
 assert.ok(packageJson.dependencies.zod);

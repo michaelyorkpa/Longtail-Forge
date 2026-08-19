@@ -101,7 +101,17 @@ jobs:
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.classify_changes.outputs.github_only_docs != 'true'
-        run: npx playwright install --with-deps chromium
+        name: Install the Playwright browser
+        timeout-minutes: 14
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 240 npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            echo "Playwright browser install attempt ${attempt} stalled or failed; retrying."
+          done
+          echo "Playwright browser install did not complete after three bounded attempts."
+          exit 1
       - name: Browser check timing
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e

@@ -25,6 +25,12 @@ import {
 } from "../../lib/public-demo-baseline-activation.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 
+/**
+ * Optional fixture-source overrides accepted by the shared roadmap-cursor
+ * floor helper.
+ * @typedef {{ roadmapArchiveSource?: string, roadmapSource?: string }} RoadmapCursorSourceOverrides
+ */
+
 const environment = Object.freeze({
   DEMO_MODE: "true",
   LONGTAIL_DEPLOYMENT_MODE: "compose",
@@ -70,6 +76,7 @@ try {
 
 console.log("Public-demo Compose reset activation and recovery regression passed.");
 
+/** @param {string} dataRoot */
 async function exerciseSuccessfulActivation(dataRoot) {
   const operationId = "20260807T120001Z-reset-success";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -97,6 +104,7 @@ async function exerciseSuccessfulActivation(dataRoot) {
   assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
 }
 
+/** @param {string} dataRoot */
 async function exerciseActivatedRecovery(dataRoot) {
   const operationId = "20260807T120002Z-reset-recovery";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -115,6 +123,7 @@ async function exerciseActivatedRecovery(dataRoot) {
   await assert.rejects(() => fs.access(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION)));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedRetirement(dataRoot) {
   const operationId = "20260807T120003Z-reset-retirement";
   await createUnit(dataRoot, "old");
@@ -128,6 +137,7 @@ async function exerciseInterruptedRetirement(dataRoot) {
   await assert.rejects(() => fs.access(paths.candidateRoot));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedSidecarRetirement(dataRoot) {
   const operationId = "20260807T120007Z-reset-sidecar-retirement";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -150,6 +160,7 @@ async function exerciseInterruptedSidecarRetirement(dataRoot) {
   await assert.rejects(() => fs.access(path.join(failed, SQLITE_SIDECARS[1])));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedPromotion(dataRoot) {
   const operationId = "20260807T120004Z-reset-promotion";
   await createUnit(dataRoot, "old");
@@ -169,6 +180,7 @@ async function exerciseInterruptedPromotion(dataRoot) {
   assert.equal(await fs.readFile(path.join(dataRoot, "files", "label.txt"), "utf8"), "old");
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedFinalization(dataRoot) {
   const operationId = "20260807T120005Z-reset-finalization";
   await createUnit(dataRoot, "old");
@@ -181,6 +193,7 @@ async function exerciseInterruptedFinalization(dataRoot) {
   assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedRecoveryArchive(dataRoot) {
   const operationId = "20260807T120006Z-reset-recovery-archive";
   await createUnit(dataRoot, "old");
@@ -197,6 +210,7 @@ async function exerciseInterruptedRecoveryArchive(dataRoot) {
   assert.equal(JSON.parse(await fs.readFile(path.join(failed, "reset-operation.json"), "utf8")).phase, "recovered");
 }
 
+/** @param {string} dataRoot */
 async function exerciseCorruptOperationRefusal(dataRoot) {
   const operationId = "20260807T120008Z-reset-corrupt-operation";
   await createUnit(dataRoot, "old");
@@ -206,6 +220,7 @@ async function exerciseCorruptOperationRefusal(dataRoot) {
   await assert.rejects(() => operate("recover", dataRoot), /operation marker is invalid/);
 }
 
+/** @param {string} dataRoot */
 async function exerciseRefusals(dataRoot) {
   const operationId = "20260807T120005Z-reset-refusal";
   await createUnit(dataRoot, "old");
@@ -324,9 +339,14 @@ async function assertHostContract() {
   assert.doesNotMatch(host, /systemctl|longtail-forge\.service|cron|systemd timer|setInterval/);
   assert.match(docs, /shared Compose operation lock/i);
   assert.match(docs, /pre-reset session/i);
-  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", roadmap);
+  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", /** @type {RoadmapCursorSourceOverrides} */ (/** @type {unknown} */ (roadmap)));
 }
 
+/**
+ * @param {string} unitRoot
+ * @param {string} label
+ * @param {{ sidecars?: boolean }} [options]
+ */
 async function createUnit(unitRoot, label, { sidecars = false } = {}) {
   await fs.mkdir(path.join(unitRoot, "files"), { recursive: true, mode: 0o700 });
   await fs.writeFile(path.join(unitRoot, "longtail-forge.db"), label, { mode: 0o600 });
@@ -339,10 +359,17 @@ async function createUnit(unitRoot, label, { sidecars = false } = {}) {
   }
 }
 
+/** @param {string} unitRoot */
 async function readLabel(unitRoot) {
   return fs.readFile(path.join(unitRoot, "longtail-forge.db"), "utf8");
 }
 
+/**
+ * @param {string} dataRoot
+ * @param {string} operationId
+ * @param {string} phase
+ * @param {Record<string, unknown>} [extra]
+ */
 async function writeOperation(dataRoot, operationId, phase, extra = {}) {
   await fs.writeFile(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION), `${JSON.stringify({
     contract: PUBLIC_DEMO_ACTIVATION_CONTRACT,
@@ -355,6 +382,11 @@ async function writeOperation(dataRoot, operationId, phase, extra = {}) {
   }, null, 2)}\n`, { mode: 0o600 });
 }
 
+/**
+ * @param {string} action
+ * @param {string} dataRoot
+ * @param {string} [operationId]
+ */
 function operate(action, dataRoot, operationId) {
   return runPublicDemoActivationOperation({
     action,
@@ -367,10 +399,15 @@ function operate(action, dataRoot, operationId) {
   });
 }
 
+/** @param {string} dataRoot */
 function inspect(dataRoot) {
   return operate("inspect", dataRoot);
 }
 
+/**
+ * @param {string} source
+ * @param {readonly string[]} values
+ */
 function assertOrdered(source, values) {
   let cursor = -1;
   for (const value of values) {

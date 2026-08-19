@@ -113,8 +113,8 @@ try {
     "public/assets/longtail-forge-icon.xcf",
   ]) {
     const forbiddenMatch = forbiddenPrefix.endsWith("/")
-      ? (filePath) => filePath.startsWith(forbiddenPrefix)
-      : (filePath) => filePath === forbiddenPrefix;
+      ? (/** @type {string} */ filePath) => filePath.startsWith(forbiddenPrefix)
+      : (/** @type {string} */ filePath) => filePath === forbiddenPrefix;
     assert.ok(
       !result.files.some(forbiddenMatch),
       `${forbiddenPrefix} should be excluded from the runtime artifact`,

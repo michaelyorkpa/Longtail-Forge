@@ -7,6 +7,15 @@ import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION as consolidation } from "../da
 const { readJson, readText } = createProjectTextReader();
 const historyReaderPattern = /(?:readText|readFile|readFileSync|readMarkdown)[\s\S]*?(?:ROADMAP-ARCHIVE|CHANGELOG)\.md/;
 
+/** @typedef {import("../lib/regression-manifest.mjs").RetiredScript} RetiredScript */
+
+/**
+ * The retained table-driven owner invoking this module: its regression id and
+ * the consolidation family whose source contracts it owns.
+ * @typedef {{ family: string, id: string }} DataFilesSecurityOwnerMeta
+ */
+
+/** @param {DataFilesSecurityOwnerMeta} ownerMeta */
 async function runDataFilesSecurityStaticOwner(ownerMeta) {
   const contracts = consolidation.movements.filter((entry) => entry.retainedOwner === ownerMeta.id);
   const activeIds = new Set(REGRESSION_ENTRIES.map((entry) => entry.id));
@@ -14,7 +23,7 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
   const packageJson = readJson("package.json");
   const policy = readJson("scripts/regression-coverage-exceptions.json");
   const staticAudit = readJson("scripts/regression-static-isolation-audit.json");
-  const retirements = new Map(policy.retiredScripts.map((entry) => [entry.script, entry]));
+  const retirements = new Map(policy.retiredScripts.map((/** @type {RetiredScript} */ entry) => [entry.script, entry]));
   const activeOwnerLines = REGRESSION_ENTRIES.reduce((total, entry) => total + readText(entry.path).split(/\r?\n/).length - 1, 0);
   const activeStaticHistoryReaders = REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static" && historyReaderPattern.test(readText(entry.path))).length;
 
@@ -33,7 +42,7 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
   assert.ok(REGRESSION_ENTRIES.length - staticAudit.execution.entries.length <= consolidation.expectedAfter.estimatedNodeProcesses, "later checkpoints may only reduce process estimates");
   assert.ok(activeOwnerLines <= consolidation.expectedAfter.activeOwnerLines, "later checkpoints may only reduce active-owner lines");
   assert.equal(consolidation.movements.length, consolidation.selected.sourceOwners);
-  assert.equal(consolidation.movements.reduce((total, entry) => total + entry.assertionCount, 0), consolidation.selected.assertions);
+  assert.equal(consolidation.movements.reduce((total, entry) => total + /** @type {number} */ (entry.assertionCount), 0), consolidation.selected.assertions);
   assert.equal(new Set(consolidation.movements.map((entry) => entry.id)).size, consolidation.movements.length);
   assert.ok(contracts.length > 0, `${ownerMeta.id} must retain source contracts`);
   assert.ok(contracts.every((entry) => entry.family === ownerMeta.family));
@@ -56,11 +65,11 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
     } else {
       assert.deepEqual(retirement?.retainedCoverageOwners, [ownerMeta.id]);
     }
-    await import(new URL(`../../${contract.modulePath}`, import.meta.url));
+    await import(/** @type {string} */ (/** @type {unknown} */ (new URL(`../../${contract.modulePath}`, import.meta.url))));
   }
   return Object.freeze({
     contractCount: contracts.length,
-    assertionCount: contracts.reduce((total, entry) => total + entry.assertionCount, 0),
+    assertionCount: contracts.reduce((total, entry) => total + /** @type {number} */ (entry.assertionCount), 0),
   });
 }
 

@@ -33,6 +33,9 @@ import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 /** @typedef {{ assertionCount: number, contractAssertionCount: number, contractModules: ContractAssertionModule[], entryPointAssertionCount: number, id: string, path: string }} ManifestRegression */
 /** @typedef {{ assertionInventory: { creditedAssertionReduction: number, ownerPaths: string[], sourceAssertionCount: number }, floorCredit: boolean, script: string }} ReviewableRetirement */
 /** @typedef {(filePath: string, encoding: "utf8") => string} SourceReader */
+/** @typedef {import("../../lib/regression-manifest.mjs").CoveragePolicy} CoveragePolicy */
+/** @typedef {import("../../lib/regression-manifest.mjs").RegressionOwner} RegressionOwner */
+/** @typedef {import("../../lib/regression-manifest.mjs").RetiredScript} RetiredScript */
 
 const manifest = readJson("scripts/regression-coverage-manifest.json");
 const policy = readJson("scripts/regression-coverage-exceptions.json");
@@ -293,7 +296,7 @@ const withoutRequiredOwner = REGRESSION_ENTRIES.filter((entry) => entry.id !== r
 const requiredOwnerErrors = errorsFor(withoutRequiredOwner, policy);
 assert.match(requiredOwnerErrors, new RegExp(`required release-gate behavior owner ${escapeRegExp(requiredOwner)} is missing`));
 assert.match(requiredOwnerErrors, /release-gate count .* below policy floor/);
-for (const retired of policy.retiredScripts.filter((entry) => entry.floorCredit === true)) {
+for (const retired of policy.retiredScripts.filter((/** @type {RetiredScript} */ entry) => entry.floorCredit === true)) {
   assert.ok(!policy.requiredReleaseGateIds.includes(retired.id), `${retired.id} must not remain a required dead entry-point ID`);
 }
 
@@ -336,7 +339,7 @@ assert.equal(docs.split(INVENTORY_END).length - 1, 1);
 assert.match(expectedDocBlock, /Effective assertion floor/);
 assert.equal(manifest.summary.discoveredScripts, REGRESSION_ENTRIES.length);
 assert.equal(manifest.summary.legacyScripts, policy.legacyMetadataException.maximumScripts);
-assert.ok(manifest.regressions.every((entry) => Number.isInteger(entry.assertionCount)));
+assert.ok(manifest.regressions.every((/** @type {ManifestRegression} */ entry) => Number.isInteger(entry.assertionCount)));
 
 assert.throws(
   () => extractRegressionMeta(
@@ -358,6 +361,12 @@ assert.match(errorsFor(REGRESSION_ENTRIES, policy, staleManifest), /generated ma
 assert.equal(countAssertions("assert.equal(a, b); expect(value).toBe(true); assert(condition);"), 3);
 console.log("Regression manifest assertion ownership and shrink-only ratchet passed.");
 
+/**
+ * @param {readonly RegressionOwner[]} entries
+ * @param {CoveragePolicy} fixturePolicy
+ * @param {unknown} [fixtureManifest]
+ * @param {Record<string, string>} [packageScripts]
+ */
 function errorsFor(
   entries,
   fixturePolicy,
@@ -367,6 +376,12 @@ function errorsFor(
   return errorsForArray(entries, fixturePolicy, fixtureManifest, packageScripts).join("\n");
 }
 
+/**
+ * @param {readonly RegressionOwner[]} entries
+ * @param {CoveragePolicy} fixturePolicy
+ * @param {unknown} [fixtureManifest]
+ * @param {Record<string, string>} [packageScripts]
+ */
 function errorsForArray(
   entries,
   fixturePolicy,
@@ -376,10 +391,12 @@ function errorsForArray(
   return collectRegressionCoverageErrors({ entries, manifest: fixtureManifest, packageScripts, policy: fixturePolicy });
 }
 
+/** @param {string} path */
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+/** @param {unknown} value */
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }

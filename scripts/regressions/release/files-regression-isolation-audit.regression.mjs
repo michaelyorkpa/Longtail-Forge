@@ -14,6 +14,19 @@ import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createStaticRegressionExecutionPlan } from "../../lib/static-regression-execution.mjs";
 import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-security-static-consolidation.mjs";
 
+/** @typedef {import("../../lib/regression-discovery.mjs").RegressionSuiteBucket} RegressionSuiteBucket */
+
+/**
+ * Recorded evidence rows read from the checked-in isolation audits and the
+ * legacy discovery snapshot. Each shape names only the fields this owner
+ * asserts against, so the generated JSON stays the single source of truth.
+ * @typedef {{ decision: string, path: string, rationale: string, resources: Record<string, unknown> }} FilesAuditEntry
+ * @typedef {{ concurrency: number, failures: number, passes: number, recoveredFlakes: number, scriptRuns: number, wallSeconds: number }} FilesStressMeasurement
+ * @typedef {{ path: string }} LegacySnapshotScript
+ * @typedef {{ decision: string, path: string, rationale: string, resources: Record<string, unknown>, sourceRunMode: string }} StaticAuditEntry
+ * @typedef {{ decision: string, fallback: string, path: string, rationale: string, resources: Record<string, unknown> }} StaticExecutionAuditEntry
+ */
+
 const audit = JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8"));
 const staticAudit = JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8"));
 const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
@@ -29,9 +42,10 @@ const dimensions = [
   "workerOrChildProcess",
   "singletonRuntime",
 ];
-const legacyPaths = new Set(legacySnapshot.scripts.map((entry) => entry.path));
-const staticAuditPaths = new Set(staticAudit.entries.map((entry) => entry.path));
+const legacyPaths = new Set(legacySnapshot.scripts.map((/** @type {LegacySnapshotScript} */ entry) => entry.path));
+const staticAuditPaths = new Set(staticAudit.entries.map((/** @type {StaticAuditEntry} */ entry) => entry.path));
 const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry]));
+/** @param {string} sourcePath */
 const activeEntryFor = (sourcePath) => {
   const movement = consolidatedSourcePaths.get(sourcePath);
   const activePath = movement
@@ -44,8 +58,8 @@ assert.equal(audit.schemaVersion, 1);
 assert.equal(audit.sourceRunMode, "serial-files");
 assert.equal(audit.parallelRunMode, "isolated-files");
 assert.deepEqual(audit.resourceDimensions, dimensions);
-assert.equal(new Set(audit.entries.map((entry) => entry.path)).size, 29);
-assert.equal(audit.entries.filter((entry) => !legacyPaths.has(entry.path)).length, 1, "only the consolidated scanner documentation owner may leave the historical Files audit snapshot");
+assert.equal(new Set(audit.entries.map((/** @type {FilesAuditEntry} */ entry) => entry.path)).size, 29);
+assert.equal(audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => !legacyPaths.has(entry.path)).length, 1, "only the consolidated scanner documentation owner may leave the historical Files audit snapshot");
 assert.equal(consolidatedSourcePaths.has("scripts/file-scanner-setup-docs-regression.mjs"), true);
 
 for (const entry of audit.entries) {
@@ -60,23 +74,23 @@ for (const entry of audit.entries) {
   );
 }
 
-const moved = audit.entries.filter((entry) => entry.decision === "isolated-files");
-const retained = audit.entries.filter((entry) => entry.decision === "serial-files");
-const currentlySerial = retained.filter((entry) => activeEntryFor(entry.path)?.runMode === "serial-files");
+const moved = audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => entry.decision === "isolated-files");
+const retained = audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => entry.decision === "serial-files");
+const currentlySerial = retained.filter((/** @type {FilesAuditEntry} */ entry) => activeEntryFor(entry.path)?.runMode === "serial-files");
 assert.equal(moved.length, 28, "every stateful Files entry has complete per-process resource isolation and may run with isolated scheduling");
 assert.equal(retained.length, 1, "the original serial inventory should retain the separately reclassified scanner documentation owner");
 assert.equal(currentlySerial.length, 0, "no stateful Files entry should remain serial after source audit and bounded stress");
 
 const serialBucket = REGRESSION_BUCKETS.find((bucket) => bucket.runMode === "serial-files");
 const isolatedFilesBucket = REGRESSION_BUCKETS.find((bucket) => bucket.runMode === "isolated-files");
-assert.equal(serialBucket.mode, "serial");
-assert.equal(serialBucket.concurrency, 1);
-assert.deepEqual(serialBucket.scripts.toSorted(), currentlySerial.map((entry) => entry.path).sort());
-assert.equal(isolatedFilesBucket.mode, "parallel");
-assert.equal(isolatedFilesBucket.concurrency, 4);
-assert.deepEqual(isolatedFilesBucket.scripts.toSorted(), moved.map((entry) => entry.path).sort());
+assert.equal(/** @type {RegressionSuiteBucket} */ (serialBucket).mode, "serial");
+assert.equal(/** @type {RegressionSuiteBucket} */ (serialBucket).concurrency, 1);
+assert.deepEqual(/** @type {RegressionSuiteBucket} */ (serialBucket).scripts.toSorted(), currentlySerial.map((/** @type {FilesAuditEntry} */ entry) => entry.path).sort());
+assert.equal(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).mode, "parallel");
+assert.equal(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).concurrency, 4);
+assert.deepEqual(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).scripts.toSorted(), moved.map((/** @type {FilesAuditEntry} */ entry) => entry.path).sort());
 
-assert.deepEqual(audit.measurements.stress.map((entry) => entry.concurrency), [2, 4, 6]);
+assert.deepEqual(audit.measurements.stress.map((/** @type {FilesStressMeasurement} */ entry) => entry.concurrency), [2, 4, 6]);
 for (const result of audit.measurements.stress) {
   assert.equal(result.passes, 3);
   assert.equal(result.scriptRuns, 27);
@@ -143,7 +157,7 @@ for (const measurement of staticAudit.fullSuiteMeasurements.postChange) {
   assert.equal(measurement.recoveredFlakes, 0);
   assert.ok(measurement.wallSeconds < staticAudit.fullSuiteMeasurements.baseline.wallSeconds);
 }
-assert.deepEqual(staticAudit.entries.map((entry) => entry.path).sort(), expectedStaticMoves);
+assert.deepEqual(staticAudit.entries.map((/** @type {StaticAuditEntry} */ entry) => entry.path).sort(), expectedStaticMoves);
 for (const entry of staticAudit.entries) {
   assert.equal(entry.decision, "static");
   assert.ok(["isolated-database", "serial-files"].includes(entry.sourceRunMode));
@@ -163,7 +177,7 @@ for (const entry of staticAudit.execution.entries) {
   assert.ok(entry.rationale.length >= 80);
   assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
 }
-assert.equal(staticAudit.execution.entries.filter((entry) => entry.decision === "worker-sequential").length, 1);
+assert.equal(staticAudit.execution.entries.filter((/** @type {StaticExecutionAuditEntry} */ entry) => entry.decision === "worker-sequential").length, 1);
 assert.equal(staticAudit.execution.measurements.certifiedWorkers, staticAudit.execution.entries.length);
 assert.equal(staticAudit.execution.measurements.fullRuns.length, 3);
 for (const measurement of staticAudit.execution.measurements.fullRuns) {
