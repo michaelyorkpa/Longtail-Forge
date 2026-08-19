@@ -74,17 +74,56 @@ assert.doesNotMatch(
   "there is no public-intake credential surface to throttle in this slice",
 );
 
+/** The generic envelope every throttled or rejected login response carries. */
+/** @typedef {{ code: string, message: string, requestId: string }} ThrottleErrorEnvelope */
+
+/**
+ * The response payload fields this owner reads. Declared as one record in the
+ * established style: which fields a given response actually carries is what the
+ * assertions below prove, so narrowing per call site would only restate them.
+ * @typedef {{ error: ThrottleErrorEnvelope, user: { user_id: string } }} ThrottleResponseBody
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<ThrottleResponseBody>} ThrottleResponse */
+
+/**
+ * This fixture is called two ways: with the shared client options, and with a
+ * bare header record when the forged-forwarding probe passes
+ * `{ "x-forwarded-for": ... }` directly. The request helper spreads
+ * `options.headers || options` to support both, so both are declared rather
+ * than normalized — normalizing would change what the fixture sends.
+ * @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions & Record<string, unknown>} ThrottleClientOptions
+ */
+
+/**
+ * The client this owner builds. It drives only `post` and `put`; the shared
+ * `HttpFixtureJsonClient` requires `get`, which this fixture never issues.
+ * @typedef {{
+ *   post: (url: string, body?: unknown, options?: ThrottleClientOptions) => Promise<ThrottleResponse>,
+ *   put: (url: string, body?: unknown, options?: ThrottleClientOptions) => Promise<ThrottleResponse>,
+ * }} ThrottleApiClient
+ */
+
+/** The lockout event, narrowed to the metadata these assertions require. */
+/** @typedef {import("../../../src/types/framework-contracts.js").InternalEvent & { metadata: { client_ip: string, dimensions: string[], scope: string } }} ThrottleLockoutEvent */
+
+/** The throttle context each deterministic probe records failures against. */
+/** @typedef {{ ipAddress: string, scope: string, username: string }} ThrottleContext */
+
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer | undefined} */
 let server;
+/** @type {(() => void) | undefined} */
 let unsubscribe;
 
 try {
   await initializeDatabase();
   await runDeterministicThrottleChecks();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
+  /** @type {ThrottleLockoutEvent[]} */
   const securityEvents = [];
   unsubscribe = internalEventBus.on("security.authentication_throttle.lockout", (event) => {
-    securityEvents.push(event);
+    securityEvents.push(/** @type {ThrottleLockoutEvent} */ (event));
   }, { id: "regression:authentication-throttle" });
 
   await authenticationThrottle.clear();
@@ -242,6 +281,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {ThrottleResponseBody | null} body @returns {Record<string, unknown>} */
 function normalizedErrorBody(body) {
   return {
     ...body,
@@ -262,6 +302,7 @@ async function runDeterministicThrottleChecks() {
     windowSeconds: 60,
   });
 
+  /** @param {string} username @returns {ThrottleContext} */
   const sharedIp = (username) => ({ ipAddress: "192.0.2.1", scope: "login", username });
   await throttle.clear();
   assert.equal((await throttle.recordFailure(sharedIp("first@example.test"))).blocked, false);
@@ -271,6 +312,7 @@ async function runDeterministicThrottleChecks() {
   assert.deepEqual(ipLockout.newlyLockedDimensions, ["ip"]);
 
   await throttle.clear();
+  /** @param {string} ipAddress @returns {ThrottleContext} */
   const sharedAccount = (ipAddress) => ({ ipAddress, scope: "login", username: "target@example.test" });
   assert.equal((await throttle.recordFailure(sharedAccount("192.0.2.10"))).blocked, false);
   assert.equal((await throttle.recordFailure(sharedAccount("192.0.2.11"))).blocked, false);
@@ -320,7 +362,7 @@ async function runDeterministicThrottleChecks() {
 
   now += 121000;
   assert.equal((await throttle.check(resetContext)).blocked, false, "the temporary lockout should expire after its configured duration");
-  const expiredCount = await db.get("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
+  const expiredCount = await requireRow("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
   assert.equal(Number(expiredCount.count), 0, "expired throttle rows should be removed during the next bounded cleanup pass");
 
   await throttle.clear();
@@ -340,7 +382,7 @@ FROM authentication_throttle_entries
 ORDER BY scope, dimension;
 `);
   assert.equal(persistedRows.length, 2, "one context should persist only its IP and account buckets");
-  assert.ok(persistedRows.every((row) => /^[0-9a-f]{64}$/.test(row.key_hash)), "throttle keys should be stored only as SHA-256 digests");
+  assert.ok(persistedRows.every((row) => /^[0-9a-f]{64}$/.test(/** @type {string} */ (row.key_hash))), "throttle keys should be stored only as SHA-256 digests");
   assert.equal(JSON.stringify(persistedRows).includes("concurrent@example.test"), false, "the throttle store must not persist submitted usernames");
   assert.equal(JSON.stringify(persistedRows).includes("192.0.2.44"), false, "the throttle store must not persist client IP addresses");
 
@@ -353,7 +395,8 @@ ORDER BY scope, dimension;
     verificationConcurrencyPerIpLimit: 1,
     windowSeconds: 60,
   });
-  let releaseVerifications;
+  /** @type {(value?: unknown) => void} */
+  let releaseVerifications = () => {};
   const verificationGate = new Promise((resolve) => {
     releaseVerifications = resolve;
   });
@@ -393,7 +436,8 @@ ORDER BY scope, dimension;
     verificationConcurrencyPerIpLimit: 1,
     windowSeconds: 60,
   });
-  let releasePerIpVerification;
+  /** @type {(value?: unknown) => void} */
+  let releasePerIpVerification = () => {};
   const perIpGate = new Promise((resolve) => {
     releasePerIpVerification = resolve;
   });
@@ -436,25 +480,77 @@ ORDER BY scope, dimension;
     });
     now += 1;
   }
-  const boundedCount = await db.get("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
+  const boundedCount = await requireRow("SELECT COUNT(1) AS count FROM authentication_throttle_entries;");
   assert.ok(Number(boundedCount.count) <= 3, "unlocked throttle rows should be pruned to the configured tracked-key limit");
+
+  // Negative control for the lockout arithmetic. Every threshold proof above
+  // uses a limit of three, so they would all still pass if the lockout were
+  // driven by a hardcoded three rather than the configured limit. A throttle
+  // configured for five failures must not lock at the third.
+  await throttle.clear();
+  const higherLimitThrottle = createAuthenticationThrottle({
+    clock: () => now,
+    enabled: true,
+    failureLimit: 5,
+    lockoutSeconds: 120,
+    windowSeconds: 60,
+  });
+  /** @type {ThrottleContext} */
+  const higherLimitContext = { ipAddress: "192.0.2.90", scope: "login", username: "higher-limit@example.test" };
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    assert.equal(
+      (await higherLimitThrottle.recordFailure(higherLimitContext)).blocked,
+      false,
+      `a throttle configured for five failures must not lock at failure ${attempt}`,
+    );
+  }
+  assert.equal(
+    (await higherLimitThrottle.recordFailure(higherLimitContext)).blocked,
+    true,
+    "the configured fifth failure should still cross its own threshold",
+  );
+  await higherLimitThrottle.clear();
 
   const disabled = createAuthenticationThrottle({ enabled: false, failureLimit: 1 });
   assert.equal((await disabled.recordFailure(resetContext)).blocked, false, "trusted offline installs should be able to disable throttling explicitly");
-  const integrity = await db.get("PRAGMA integrity_check;");
+  const integrity = await requireRow("PRAGMA integrity_check;");
   assert.equal(integrity.integrity_check, "ok", "the durable throttle proof database should pass integrity_check");
   await throttle.clear();
 }
 
+/**
+ * Read a single row a probe requires. `db.get` resolves null when nothing
+ * matches, and every caller below needs the row to exist for its assertion to
+ * mean anything, so its absence fails with that reason here.
+ * @param {string} sql
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql) {
+  const row = await db.get(sql);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/** @param {string} baseUrl @returns {ThrottleApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {ThrottleClientOptions} [options]
+   * @returns {Promise<ThrottleResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    // The forged-forwarding probe passes headers as the options object itself,
+    // so the spread source is either shape and is narrowed once here.
+    /** @type {Record<string, string>} */
     const headers = {
       "content-type": "application/json",
-      ...(options.headers || options),
+      .../** @type {Record<string, string>} */ (options.headers || options),
     };
 
     if (options.cookie) {
-      headers.cookie = `longtail_forge_session=${options.cookie}`;
+      headers.cookie = `longtail_forge_session=${String(options.cookie)}`;
     }
 
     const response = await fetch(`${baseUrl}${url}`, {
@@ -471,33 +567,45 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {unknown} [body] @param {ThrottleClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {ThrottleClientOptions} [options] */
     put(url, body, options) {
       return request("PUT", url, body, options);
     },
   };
 }
 
+/** @param {ThrottleResponse} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** @param {() => boolean} predicate @param {number} [timeoutMilliseconds] @returns {Promise<void>} */
 async function waitFor(predicate, timeoutMilliseconds = 2000) {
   const deadline = Date.now() + timeoutMilliseconds;
   while (!predicate()) {

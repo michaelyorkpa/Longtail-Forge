@@ -60,14 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.4 - Type authentication, credential, and account-recovery owners
-
-**Model: High Effort** - Throttling, hashing, and recovery flows are the credential perimeter.
-
-- [ ] Close the 200 diagnostics across `authentication-throttle`, `password-reset-hardening`, `password-hashing-modernization`, `account-export-recovery`, and `private-calendar-feed-authentication`.
-- [ ] Type throttle counters and lockout windows, hash-parameter records, reset and recovery token payloads, export descriptors, and feed-token boundaries with named contracts.
-- [ ] Preserve failure-limit and lockout arithmetic, hash upgrade-on-login behavior, token single-use and expiry rules, enumeration-safe messaging, and feed authentication refusals; prove each with a negative control.
-
 ### 0.33.33.30.5 - Type Public Demo perimeter and role-journey owners
 
 **Model: High Effort** - The demo perimeter is the only surface exposed to anonymous internet traffic.

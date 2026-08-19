@@ -34,16 +34,56 @@ const { db } = await import("../../../src/core/database.js");
 const { internalEventBus } = await import("../../../src/core/events/event-bus.js");
 const { authenticationThrottle } = await import("../../../src/security/auth-throttle.js");
 
+/** The refusal envelope the restricted-session denials carry. */
+/** @typedef {{ code: string, message: string, requestId: string }} ResetErrorEnvelope */
+
+/**
+ * The payload fields this owner reads across login, create, reset, change, and
+ * denial responses. Which fields a given response carries is what the
+ * assertions prove.
+ * @typedef {{
+ *   error: ResetErrorEnvelope,
+ *   initialPassword: string,
+ *   passwordChangeRequired: boolean,
+ *   user: { passwordChangeRequired: boolean, user_id: string, username: string, workspace_id: string },
+ * }} ResetResponseBody
+ */
+
+/**
+ * This fixture threads `redirect` through to `fetch` so the blocked-page probe
+ * observes the 302 rather than following it.
+ * @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions & { redirect?: RequestRedirect }} ResetClientOptions
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<ResetResponseBody>} ResetResponse */
+
+/**
+ * The client this owner builds. It matches the shared writing client's method
+ * set, but carries this fixture's redirect option, so the three methods are
+ * named against that option type.
+ * @typedef {{
+ *   get: (url: string, options?: ResetClientOptions) => Promise<ResetResponse>,
+ *   post: (url: string, body?: unknown, options?: ResetClientOptions) => Promise<ResetResponse>,
+ *   put: (url: string, body?: unknown, options?: ResetClientOptions) => Promise<ResetResponse>,
+ * }} ResetApiClient
+ */
+
+/** The password events, narrowed to the metadata these assertions require. */
+/** @typedef {import("../../../src/types/framework-contracts.js").InternalEvent & { metadata: { change_required: boolean, change_requirement_cleared: boolean, revoked_other_session_count: number, revoked_session_count: number } }} PasswordEvent */
+
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer | undefined} */
 let server;
+/** @type {Array<() => void>} */
 const unsubscribers = [];
 
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
+  /** @type {PasswordEvent[]} */
   const passwordEvents = [];
   for (const eventName of ["security.password.reset", "security.password.changed"]) {
-    unsubscribers.push(internalEventBus.on(eventName, (event) => passwordEvents.push(event), {
+    unsubscribers.push(internalEventBus.on(eventName, (event) => passwordEvents.push(/** @type {PasswordEvent} */ (event)), {
       id: `regression:password-reset-hardening:${eventName}`,
     }));
   }
@@ -58,8 +98,8 @@ try {
   assert.equal(target.status, 201, JSON.stringify(target.body));
   const targetUserId = target.body.user.user_id;
   const originalTargetPassword = target.body.initialPassword;
-  const createdUser = await db.get("SELECT password FROM users WHERE user_id = :userId;", { userId: targetUserId });
-  assert.match(createdUser.password, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "new user credentials should use the current hardened policy");
+  const createdUser = await requireRow("SELECT password FROM users WHERE user_id = :userId;", { userId: targetUserId });
+  assert.match(/** @type {string} */ (createdUser.password), /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "new user credentials should use the current hardened policy");
 
   const unauthorized = await api.post("/api/users", {
     username: "password-reset-ordinary@example.test",
@@ -91,16 +131,19 @@ try {
   const oldCookieA = readSessionCookie(oldLoginA);
   const oldCookieB = readSessionCookie(oldLoginB);
 
+  /** @type {string[]} */
   const capturedConsole = [];
+  /** @type {Record<"error" | "log" | "warn", (...args: unknown[]) => void>} */
   const originalConsole = {
     error: console.error,
     log: console.log,
     warn: console.warn,
   };
+  /** @type {ResetResponse} */
   let reset;
   try {
-    for (const method of Object.keys(originalConsole)) {
-      console[method] = (...args) => capturedConsole.push(args.map(String).join(" "));
+    for (const method of /** @type {Array<"error" | "log" | "warn">} */ (Object.keys(originalConsole))) {
+      console[method] = (/** @type {unknown[]} */ ...args) => capturedConsole.push(args.map(String).join(" "));
     }
     reset = await api.put(`/api/users/${targetUserId}/reset-password`, {}, { cookie: adminCookie });
   } finally {
@@ -114,14 +157,14 @@ try {
   assert.equal((await api.get("/api/session", { cookie: oldCookieA })).status, 401);
   assert.equal((await api.get("/api/session", { cookie: oldCookieB })).status, 401);
 
-  const resetUser = await db.get(`
+  const resetUser = await requireRow(`
 SELECT password, password_change_required
 FROM users
 WHERE user_id = :userId;
 `, { userId: targetUserId });
   assert.equal(resetUser.password_change_required, 1, "reset should persist the required-change state");
   assert.notEqual(resetUser.password, temporaryPassword, "generated credentials must be stored only as a hash");
-  assert.match(resetUser.password, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "reset credentials should use the current hardened policy");
+  assert.match(/** @type {string} */ (resetUser.password), /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "reset credentials should use the current hardened policy");
 
   const forcedLoginA = await login(api, target.body.user.username, temporaryPassword, { rememberMe: true });
   const forcedLoginB = await login(api, target.body.user.username, temporaryPassword);
@@ -132,7 +175,7 @@ WHERE user_id = :userId;
     /longtail_forge_session=[^,]*Max-Age=2592000/,
     "a remembered preference should be retained by the restricted forced-change session",
   );
-  const forcedExpiryBeforeChange = (await db.get(
+  const forcedExpiryBeforeChange = (await requireRow(
     "SELECT expires_at FROM sessions WHERE session_id = :sessionId;",
     { sessionId: forcedCookieA },
   )).expires_at;
@@ -172,15 +215,33 @@ WHERE user_id = :userId;
   assert.equal(activeSession.status, 200);
   assert.equal(activeSession.body.user.passwordChangeRequired, false, "the current session should become unrestricted immediately");
   assert.equal(
-    (await db.get("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", {
+    (await requireRow("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", {
       sessionId: forcedCookieA,
     })).expires_at,
     forcedExpiryBeforeChange,
     "successful forced password completion should preserve the requested absolute remembered lifetime",
   );
   assert.equal((await api.get("/dashboard.html", { cookie: forcedCookieA })).status, 200);
-  const changedUser = await db.get("SELECT password FROM users WHERE user_id = :userId;", { userId: targetUserId });
-  assert.match(changedUser.password, /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "changed credentials should use the current hardened policy");
+  const changedUser = await requireRow("SELECT password FROM users WHERE user_id = :userId;", { userId: targetUserId });
+  assert.match(/** @type {string} */ (changedUser.password), /^\$argon2id\$v=19\$m=65536,t=3,p=1\$/, "changed credentials should use the current hardened policy");
+
+  // Negative control for the reset credential's single use. The forced-change
+  // flow above proves the temporary password works once; it would also pass if
+  // the reset left a second live credential behind. After the change it must no
+  // longer authenticate, while the new password must.
+  await authenticationThrottle.clear();
+  const staleTemporary = await api.post("/api/login", {
+    password: temporaryPassword,
+    username: target.body.user.username,
+  });
+  assert.equal(staleTemporary.status, 401, "the temporary reset credential must not survive the forced change");
+  await authenticationThrottle.clear();
+  const finalCredential = await api.post("/api/login", {
+    password: FINAL_PASSWORD,
+    username: target.body.user.username,
+  });
+  assert.equal(finalCredential.status, 200, "the replacement credential must be the only one that authenticates");
+  await authenticationThrottle.clear();
 
   assert.deepEqual(passwordEvents.map((event) => event.name), [
     "security.password.reset",
@@ -234,6 +295,27 @@ ORDER BY created_at;
 
 console.log("Password reset hardening regression passed.");
 
+/**
+ * Read a single row a probe requires. `db.get` resolves null when nothing
+ * matches, and every caller below needs the row to exist for its assertion to
+ * mean anything.
+ * @param {string} sql
+ * @param {import("../../../src/types/database-contracts.js").DatabaseParams} [params]
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql, params) {
+  const row = await db.get(sql, params);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/**
+ * @param {ResetApiClient} api
+ * @param {string} username
+ * @param {string} password
+ * @param {{ rememberMe?: boolean }} [options]
+ * @returns {Promise<ResetResponse>}
+ */
 async function login(api, username, password, options = {}) {
   const response = await api.post("/api/login", { username, password, ...options });
   assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -241,8 +323,17 @@ async function login(api, username, password, options = {}) {
   return response;
 }
 
+/** @param {string} baseUrl @returns {ResetApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {ResetClientOptions} [options]
+   * @returns {Promise<ResetResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) {
       headers["content-type"] = "application/json";
@@ -266,30 +357,42 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {ResetClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {ResetClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {ResetClientOptions} [options] */
     put(url, body, options) {
       return request("PUT", url, body, options);
     },
   };
 }
 
+/** @param {ResetResponse} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.4 - Type authentication, credential, and account-recovery owners
+
+**Model: High Effort** - Throttling, hashing, and recovery flows are the credential perimeter.
+
+Fourth child of the `0.33.33.30` rollup.
+
+- [x] Closed all 200 diagnostics across the five credential-perimeter owners `authentication-throttle`, `password-reset-hardening`, `password-hashing-modernization`, `account-export-recovery`, and `private-calendar-feed-authentication`, with named contracts for throttle contexts and lockout events, credential and audit rows, rehash event metadata, reset and recovery payloads, and feed subscription descriptors.
+- [x] Reused the `0.33.33.30.3` shared fixture contract by type-only import rather than redeclaring response shapes. Each owner still declares its own client, because none matches the shared `HttpFixtureJsonClient` exactly: `authentication-throttle` drives only `post` and `put`, `account-export-recovery` adds `delete`, and both it and `password-reset-hardening` thread a `redirect` option the shared options do not carry. Claiming a method or option a fixture does not have would have been the easier lie.
+- [x] Added the five negative controls the scope required, each aimed at a proof the existing assertions could not make. The lockout suite only ever used a limit of three, so it would have passed against a hardcoded three; a throttle configured for five must not lock at the fourth. The hash suite proved a legacy hash upgrades on login but would have passed if every login rehashed; a second login against the now-current hash must emit no further event and leave the stored credential byte-identical. The reset suite proved the temporary credential works once but not that it stops working; it must fail after the forced change while the replacement succeeds. The enumeration-parity assertions compare denial bodies through a request-ID normalizer that could mask everything that differs; two envelopes differing only in code must still compare unequal. The feed refusals all used a selector resolving to nothing, so they would have passed if the route authenticated on the selector alone; a live selector paired with a wrong secret must be refused by the constant-time hash comparison.
+- [x] Proved every control non-vacuous by inverting it and confirming the failure, in the manner `0.33.33.30.3` established after its request-ID vacuity. One probe initially reported a false pass because its replacement text used `LF` against a `CRLF` file and never applied; the probe was corrected rather than trusted.
+- [x] Preserved failure-limit and lockout arithmetic, hash upgrade-on-login behavior, token single-use and expiry rules, enumeration-safe messaging, and feed authentication refusals. No runtime request construction, status handling, or timing changed. All five owners pass.
+- [x] `framework.full-strict-governance` pins the five owners strict-clean. The scripts program falls from 5,784 to 5,584 diagnostics and combined strict debt from 16,918 to 16,718, with explicit `any` held at 7 after an `any` that entered through a client annotation was replaced with `unknown`.
 ## Version 0.33.33.30.3 - Type HTTP error, transport, and production security posture owners
 
 **Model: High Effort** - These owners fix the response and header contract every other surface is proven against.

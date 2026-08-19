@@ -2998,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5784,
+      "errorCount": 5584,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5564,188 +5564,6 @@
             "count": 14
           }
         ],
-        "scripts/regressions/framework/account-export-recovery.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7031,
-            "count": 5
-          }
-        ],
-        "scripts/regressions/framework/authentication-throttle.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2722,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 18
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/password-hashing-modernization.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7031,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/password-reset-hardening.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2531,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 3
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7019,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 2
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/private-calendar-feed-authentication.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2531,
-            "count": 2
-          },
-          {
-            "code": 2740,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 30
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/regressions/framework/public-demo-account-catalog.regression.mjs": [
           {
             "code": 2810,
@@ -7507,7 +7325,7 @@
   },
   "totals": {
     "files": 1040,
-    "errors": 16918,
+    "errors": 16718,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
