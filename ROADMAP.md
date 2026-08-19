@@ -48,19 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.29 - Type release, docs, and consolidated static regression owners
-
-**Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.
-
-Measured scope: 143 diagnostics across 28 files — `scripts/regressions/release/` (124), `scripts/regressions/docs/` (already clean), the static consolidation data modules (8), and the standalone consolidated static-owner modules at the `scripts/regression-contracts/` root (11). This lands inside the proven single-session range, so no reslice is required. The per-area contract modules beneath `scripts/regression-contracts/<area>/` are deliberately excluded: each is folded into its own area's `current-static-contracts` aggregator, so views, framework, and permissions modules belong to `0.33.33.30`, database and files modules to `0.33.33.31`, and product modules to `0.33.33.32`.
-
-- [ ] Type release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict.
-- [ ] Preserve every retained assertion ID and current-contract failure message.
-- [ ] Avoid typing retired files or reintroducing one-file-per-assertion structure.
-- [ ] Strip historical roadmap/changelog/version-history pins from the seven release/docs-area owners recorded in `scripts/planning-document-pin-baseline.json`, recording each disposition and removing each stripped id from that baseline in the same change; any surviving planning-document read must assert a current live contract.
-- [ ] Harden the stalled Playwright browser install that has cancelled the protected browser gate at its fifteen-minute job timeout three times (`0.33.33.26.1`, `.28.1`, `.28.6.2`). The browser cache is already configured; the install step carries no per-attempt bound, so a stalled download consumes the whole job budget. Give it a bounded per-attempt timeout with retries inside the step across `development-pr.yml`, `nightly.yml`, and `promotion.yml`, and keep the required check names, cache key, and step ordering unchanged.
-- [ ] Reduce this scripts-ledger cohort to zero.
-
 ### 0.33.33.30 - Type framework, views, and permission regression owners
 
 **Model: High Effort** - These owners cover shared UI, sessions, authentication, authorization, and browser safety.
@@ -69,6 +56,7 @@ Measured scope: 143 diagnostics across 28 files — `scripts/regressions/release
 - [ ] Type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof.
 - [ ] Preserve security, accessibility, permission, and module-enablement expectations.
 - [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
+- [ ] Correct the two `assertRoadmapCursorAtLeast` call defects that typing exposed at `0.33.33.29` and that were preserved verbatim there because fixing either changes behavior. `maintenance-release-rehearsal.regression.mjs` omits the required `message` argument, so a floor failure reports `undefined (live roadmap cursor ...)`; `public-demo-compose-reset.regression.mjs` passes the raw roadmap string where the helper expects a `{ roadmapSource }` override object, so the override is silently ignored and the helper re-reads `ROADMAP.md` from disk. Supply the missing message and the correct override shape, remove the temporary call-site casts that documented the defects, and prove both owners still fail closed on a regressed cursor.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
