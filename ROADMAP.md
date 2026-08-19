@@ -52,10 +52,13 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Table-driven owners carry large assertion inventories after consolidation.
 
+Measured scope: 143 diagnostics across 28 files — `scripts/regressions/release/` (124), `scripts/regressions/docs/` (already clean), the static consolidation data modules (8), and the standalone consolidated static-owner modules at the `scripts/regression-contracts/` root (11). This lands inside the proven single-session range, so no reslice is required. The per-area contract modules beneath `scripts/regression-contracts/<area>/` are deliberately excluded: each is folded into its own area's `current-static-contracts` aggregator, so views, framework, and permissions modules belong to `0.33.33.30`, database and files modules to `0.33.33.31`, and product modules to `0.33.33.32`.
+
 - [ ] Type release/docs/static family tables, shared source readers, metadata, and assertion result shapes under full strict.
 - [ ] Preserve every retained assertion ID and current-contract failure message.
 - [ ] Avoid typing retired files or reintroducing one-file-per-assertion structure.
-- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
+- [ ] Strip historical roadmap/changelog/version-history pins from the seven release/docs-area owners recorded in `scripts/planning-document-pin-baseline.json`, recording each disposition and removing each stripped id from that baseline in the same change; any surviving planning-document read must assert a current live contract.
+- [ ] Harden the stalled Playwright browser install that has cancelled the protected browser gate at its fifteen-minute job timeout three times (`0.33.33.26.1`, `.28.1`, `.28.6.2`). The browser cache is already configured; the install step carries no per-attempt bound, so a stalled download consumes the whole job budget. Give it a bounded per-attempt timeout with retries inside the step across `development-pr.yml`, `nightly.yml`, and `promotion.yml`, and keep the required check names, cache key, and step ordering unchanged.
 - [ ] Reduce this scripts-ledger cohort to zero.
 
 ### 0.33.33.30 - Type framework, views, and permission regression owners
